@@ -1,0 +1,64 @@
+---
+type: strategy
+status: direction-confirmed
+updated: 2026-08-30
+---
+# Customer and Offer
+
+Home: [[00 Home]] · Evidence: [[Customer Discovery]] · Economics: [[Business Model]]
+
+## First customer definition — partially confirmed
+
+| Dimension | Current direction / remaining decision |
+| --- | --- |
+| Profession | APPs confirmed; NP versus PA coverage still unspecified. Do not assume identical pathways. |
+| Clinic | Primary-care / concierge-adjacent. Exact services and physical / telehealth / hybrid coverage remain open. |
+| Place | Texas; reference clinic in Sherman. The consultancy's first service area is not yet confirmed. |
+| Stage | Exploring, committed to opening, already forming, or already operating |
+| Payment model | Cash-pay PLLC model confirmed. Per-visit versus membership details remain open; concierge-adjacent does not automatically mean membership. |
+| Buyer | Individual clinician, founding group, existing practice, or another sponsor |
+| Trigger | A specific event that makes help urgent |
+| Constraints | Opening horizon, available capital, prior ownership experience, physician relationships |
+
+## Candidate problems, not findings
+
+1. “I cannot tell what applies to my proposed clinic or in what order to do it.”
+2. “I spend too much time coordinating advisors, vendors, forms, and permits.”
+3. “I need affordable, workable administrative systems when I open.”
+4. “I need ongoing support after launch, not just formation documents.”
+
+The founder reports substantial local demand and increased interest in cash-pay clinics, including primary care and Botox/aesthetics examples. Capture actual leads, problems, spending, and purchase readiness. We have no ranked customer pain points or recorded customer commitments yet. Aesthetics is an adjacent market to evaluate separately, not a launch-scope commitment.
+
+## Main offer — direction confirmed
+
+**Consulting to start a cash-pay clinic and get the necessary setup in place to see the first patient, including a SharePoint starter EHR.**
+
+Use the MD's existing documented process to create an applicant-completed [[Clinic Launch Packet]], then guide execution and track readiness. What the applicant does, what we do, what outside professionals do, and what counts as completion must be made explicit. The software entity is separate; see [[Entity and Product Boundary]].
+
+## Packaging details — still unapproved
+
+| Offer | Tangible outcome | Boundary to define |
+| --- | --- | --- |
+| Intake / applicability review | Completed clinic profile and tailored launch plan | Could be part of the main package; no separate assessment product or fee agreed |
+| Guided launch project — core offer | Applicant packet, tracked setup steps, coordinated handoffs, starter SharePoint EHR, and agreed readiness evidence | Exact included services, execution responsibilities, hours, exclusions, and change-order rules |
+| Post-launch consulting | Optional follow-up help | No recurring consulting scope or price agreed |
+| EHR / inventory product | Software supplied through a separate planned entity | Licensing, bundling, billing, ownership, and support responsibilities remain open |
+
+The earlier assessment-first suggestion is not the selected business direction; the founder has specified an end-to-end launch consultancy. An assessment may be an intake step, not a substitute for that offer.
+
+## Candidate software areas
+
+- Clinic-specific task dependencies and evidence tracking.
+- Reviewed document/template inventory with dates and applicability.
+- Advisor handoffs, unresolved questions, and administrative reminders.
+- Workflow configuration or integrations, subject to [[SharePoint and EMR]].
+
+The SharePoint starter EHR is included in the intended launch scope, but its detailed functions are unverified. The eventual custom EHR and inventory product is a separate-entity offering. No specific charting, prescribing, billing, inventory, or integration features beyond that broad direction have been approved.
+
+## What the first written offer must contain
+
+Named buyer; desired outcome; deliverables; start/end conditions; clinic prerequisites; price/payment terms; explicit exclusions; client responsibilities; expert responsibilities; support limits; treatment of third-party fees; change/cancellation terms; and the basis for every public claim.
+
+## Alternatives to investigate
+
+Doing it alone; healthcare attorneys and accountants; independent practice consultants; professional associations; franchise or practice networks; EHR/practice-management vendors; and existing personal networks. These are discovery categories, not a completed competitor analysis. Capture real alternatives named by customers before drafting a differentiation claim.
