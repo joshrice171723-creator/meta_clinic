@@ -15,9 +15,11 @@ The first dependency is the actual clinic profile: profession/license, proposed 
 
 ## Current application of this register
 
-The founder has specified Texas cash-pay primary-care / concierge-adjacent PLLCs and a consultancy spanning setup through first-patient readiness. The MD cofounder's documented setup process exists and is expected to be available on 2026-08-31 morning. Start by indexing and assessing those materials, not treating the diligence as nonexistent. Their contents and professional-review status are not yet known here.
+The founder has specified both NPs and PAs in Sherman/North Texas, cash-pay primary-care / concierge-adjacent PLLCs, and a done-for-you consultancy through first-patient readiness with ongoing support. Kevin's attorney helped his documented setup process; materials are expected on 2026-08-31 morning. Start by indexing them. Attorney involvement is established by founder report, but document contents, precise review scope, and applicability to NP/PA clients are not yet reviewed here.
 
-The reference clinic's public site locates it in Sherman; that does not establish the consultancy's service area or any local permit requirements. The EHR/inventory business will be a separate entity, so L-04, L-05, and L-08 must address both entities and their relationship. See [[Entity and Product Boundary]].
+Sherman/North Texas is now the founder-confirmed service area; each clinic's precise local jurisdiction still requires its own review. Kevin will provide physician support/arrangements and mentorship. L-02 should address both NP and PA pathways and actual capacity/backup arrangements; L-04 should address contracting and fees.
+
+The consultancy is formed; the software entity is not and will have different ownership. Kevin holds 51% and the founder 49%, with documented direction-setting per founder report; governing documents and the stated veto concern remain unreviewed. Software pricing is implementation plus a percentage of ordered inventory value. Eligible-value rules, rates, billing events, and actual commercial relationships remain to define before drawing fee-rule conclusions. L-04, L-05, and L-08 cover the actual arrangements, including authority to prepare, approve, fund, sign, and submit client work. See [[Entity and Product Boundary]]. The marketing site in [[Website MVP]] is not clinical-system deployment or closure of these gates.
 
 Cash-pay is the intended model; applicability of patient payment/notice arrangements, any public-program participation or opt-out questions, and the distinction between per-visit, membership, and concierge structures must still be assessed. These are review questions, not conclusions. Botox/aesthetics is an adjacent example and should not silently inherit the primary-care packet.
 
@@ -32,7 +34,7 @@ The implications for our planning are inferences, not legal opinions. Guidance p
 
 ## Open issue register
 
-All issues below are open and unassigned. A proposed reviewer is a role to recruit, not someone already retained. Applicability must be confirmed, not assumed.
+All issues below remain open until the relevant evidence is reviewed. Kevin already had attorney help for his clinic; that does not establish a new engagement for this consultancy, software entity, or client. Identify the reviewer and scope for each issue instead of assuming no prior counsel exists or blanket approval has been obtained.
 
 | ID | Question to resolve | Needed evidence / proposed reviewer | Blocks |
 | --- | --- | --- | --- |

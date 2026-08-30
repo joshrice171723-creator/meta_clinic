@@ -20,18 +20,23 @@ One MD-led launch can reveal useful tasks and friction. It cannot by itself vali
 | Field | Current state |
 | --- | --- |
 | MD name and agreed company role | Kevin Stacks, MD; cofounder per founder, provider identity from public site |
+| Client-facing role | Kevin will provide physician collaboration/delegation support, help with physician arrangements, and mentorship; contracts, fees, capacity, and backup remain to define |
 | City/county, site, and delivery model | Public clinic address: 300 N. Bryant Ave., Sherman, TX 75092; exact permitting jurisdiction/service model to confirm |
 | Specialty, services, and patient population | General adult medicine on website; exact service inventory not supplied |
 | Proposed owners, entity, and clinical roles | Kevin Stacks, MD, PLLC is the public practice name; actual formation/ownership and role documents not reviewed |
 | Payer model and staffing plan | Cash-pay per founder; staffing and per-visit/membership terms unknown |
 | Completed milestones / next blocking item | Setup process recently undertaken and legal steps documented per founder; exact completed/outstanding items await materials |
 | Opening target and confidence | Unknown |
-| Attorney and other reviewers engaged | Unknown |
+| Attorney and other reviewers engaged | Kevin's attorney helped his setup, per founder; identity, engagement/review scope, and future APP-packet role not yet supplied |
 | SharePoint prototype versus live deployment | Unknown |
 | Rights to observe, reuse, and publish learnings | Not established |
 | Materials availability | Founder expects access on 2026-08-31 morning; none received in this workspace yet |
 
-The two software engineers belong to the startup team as reported; they are not assumed to be clinic employees or clinical operators.
+The founder is bringing on a senior-developer friend; whether this is the previously mentioned second engineer is unconfirmed. No software engineer is assumed to be a clinic employee or clinical operator. The consultancy is formed, unlike the future software entity; neither should be conflated with Kevin's clinic.
+
+## Physician support and mentorship work to document
+
+Capture the actual service/contract structure, supported clinic services and professions, onboarding requirements, oversight/mentorship cadence, response and escalation expectations, capacity, backup coverage, fees, and continuity if Kevin becomes unavailable. The business direction is confirmed; operational sufficiency and applicable professional obligations have not been assessed. See L-02 and L-04 in [[Texas Diligence]].
 
 ## First walkthrough agenda — proposed
 

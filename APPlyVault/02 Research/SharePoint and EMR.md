@@ -13,6 +13,8 @@ Home: [[00 Home]] · Pilot: [[MD Pilot]] · Related issues: [[Texas Diligence]]
 
 **Confirmed product direction:** eventually replace SharePoint with a bespoke backend. The EHR and inventory-management offering will be in a separate entity. EC2/S3 were mentioned as possibilities; the architecture and migration timing remain explicitly open. See [[Entity and Product Boundary]].
 
+**Latest commercial/organization direction:** the consultancy is formed; the software entity is not yet formed and will have different ownership. Software pricing is implementation plus a percentage of ordered inventory value; exact rate, eligible-value definition, adjustments, and billing trigger remain open. The senior developer will be a consultancy employee and software owner; amounts and IP terms remain TBD. The marketing work in [[Website MVP]] is separate and selects no EHR architecture.
+
 **Not yet reviewed:** deployment type (including whether SharePoint Online), tenant ownership, licenses, agreements, configuration, data flows, security review, staff procedures, actual usage, workflow completeness, and reuse rights. Do not convert the reported claim into a customer-facing assurance.
 
 Microsoft lists SharePoint Online among in-scope services for its HIPAA offering, but explicitly says a BAA or use of its services does not by itself make an organization compliant. Confirm the actual deployment and agreements rather than assuming coverage. [Microsoft HIPAA/HITECH guidance](https://learn.microsoft.com/en-us/compliance/regulatory/offering-hipaa-hitech).
@@ -58,6 +60,8 @@ Record **supported / external system / manual workaround / gap / not applicable*
 The founder has selected an eventual custom replacement as the direction; do not continue representing build versus never-build as unanswered. Scope, architecture, rollout, and integration choices remain open, and can be revisited explicitly if evidence warrants. The launch consultancy does not need to wait for that replacement if the initial SharePoint delivery is appropriately reviewed and operationally ready.
 
 ## Future product discovery — no architecture commitment
+
+The founder requested a PostgreSQL backend modeling note on 2026-08-30. [[Data Modeling]] now proposes clinic-scoped tables, composite relationships, access controls/RLS, auditing, and synthetic acceptance criteria. It is documentation only: no database or patient-data integration was built, and neither shared hosting nor production architecture is approved. T-13 remains open; T-18 records delivery of the proposal.
 
 - Define the clinical and inventory workflows before choosing infrastructure. Inventory might mean supplies, stock counts, purchasing, lots/expiry, equipment, or medication inventory; none of these details is yet selected.
 - Document who owns the current setup and future code, licenses the software, contracts with the clinic, pays cloud vendors, and provides support.

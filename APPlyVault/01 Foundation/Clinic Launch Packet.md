@@ -9,13 +9,19 @@ Home: [[00 Home]] · Offer: [[Customer and Offer]] · Source process: [[MD Pilot
 
 ## Purpose
 
-Turn the MD cofounder's documented cash-pay PLLC startup process into a structured packet that applicants complete, then use it to guide their clinic setup through readiness to see the first patient. Include the initial SharePoint EHR setup and handoff.
+Turn Kevin's documented, attorney-assisted cash-pay PLLC startup process into the delivery packet for a **done-for-you launch service for both NPs and PAs in Sherman/North Texas**. Minimize provider input while executing setup through first-patient readiness, including starter SharePoint EHR setup, Kevin's physician support/mentorship, and ongoing support.
 
 **Confirmed:** the founder intends to reuse an existing body of documented work. **Current artifact:** this is an internal packet outline, not the final applicant form or a set of legally reviewed filing documents. Source materials are expected on 2026-08-31 morning and have not yet been received. Do not invent missing legal forms or require completed research to be recreated.
 
 ## What “packet” means in this draft
 
 Four connected parts: applicant inputs, documents/resources selected for that applicant, an execution checklist, and evidence for the final handoff. This structure is proposed; confirm whether the intended first version is a document bundle, fillable form, portal, or combination.
+
+## Minimal-input operating design — proposed implementation
+
+Collect essential facts once, prepare the work internally, batch specific approvals/signatures for the applicant, and show only outstanding decisions and blockers. Maintain separate NP and PA applicability paths and locality-specific requirements. Do not require applicants to research the entire startup process themselves.
+
+For every step, distinguish who prepares, who reviews, who authorizes spending, who signs/submits, and what evidence closes it. The provider's decisions, factual attestations, professional judgments, and any required personal actions remain explicit exceptions; “we execute everything” is not permission to invent answers or sign for a client. The final role map requires the actual documents and appropriate review.
 
 Do not use the planning vault as a live applicant database. Keep actual applicant identifiers, financial records, signatures, and confidential attachments in an approved intake system. Use synthetic examples here; collect only what is needed in the eventual intake.
 
@@ -24,14 +30,14 @@ Do not use the planning vault as a live applicant database. Keep actual applican
 | Section | Inputs / work to capture | Intended output or evidence |
 | --- | --- | --- |
 | 1. Applicant and clinic profile | Profession, intended owners/roles, clinic model, services, locality, stage, cash-pay approach | Applicability profile and an agreed consulting scope |
-| 2. Formation and professional arrangements | Existing MD process; applicant-specific entity questions; physician relationships where applicable | Reviewed document list, required handoffs, and evidence of completed steps |
+| 2. Formation and professional arrangements | Existing attorney-assisted process; NP/PA-specific questions; Kevin's physician arrangements | Reviewed document list, defined preparation/signature roles, agreements, and completed-step evidence |
 | 3. Location and readiness dependencies | Site, lease/buildout status, local authority contacts, applicable permits/inspections | Site-specific checklist with sources, owners, dependencies, and evidence |
 | 4. Business operations | Banking/accounting, insurance, payment workflow, staffing/vendor needs, scheduling and communications | Scope-specific setup checklist; identify applicant versus consultancy versus third-party work |
 | 5. Clinical operating preparation | Service list, equipment/supplies, protocols and escalation arrangements needing clinical review | Named clinical reviewer and documented readiness requirements for that service mix |
 | 6. Starter SharePoint EHR | Tenant and licensing choice, configuration, users/roles, training, data handling, record lifecycle, recovery | Reviewed configuration record and synthetic end-to-end rehearsal |
-| 7. First-patient handoff | Evidence index, open issues, accountable people, operational walkthrough, support contacts | Agreed handoff record; unresolved blocking items visible |
+| 7. First-patient handoff and ongoing support | Evidence index, open issues, accountable people, operational walkthrough, physician/mentorship/support contacts | Handoff and continuing-service record; blocking items and responsibility boundaries visible |
 
-These are work categories for scoping, not assertions that every item is a legal requirement or included in the fixed fee. Clinical and legal judgments remain with the appropriate responsible professionals. Aesthetics/Botox would need a separate service-specific module if later accepted into scope.
+The founder's direction is to execute the full agreed launch with minimal provider input. These categories still need exact deliverables, external-cost treatment, exclusions, and approval roles; they are not assertions that every item is legally required or funded by the package fee. Clinical and legal judgments remain with the appropriate responsible professionals. Aesthetics/Botox would need a separate module if later accepted into scope.
 
 ## Source-to-packet inventory
 
@@ -71,7 +77,7 @@ Each clinic's actual readiness requirements are to be defined; this is not a com
 
 ## Scope questions still open
 
-Does the consultancy execute filings or prepare inputs for client/counsel submission? Does it find a physician, site, vendors, or staff? Does it build websites, configure scheduling/payment tools, source equipment, or set up inventory? Who provides legal review and clinical review? What support continues after handoff? Who supplies the SharePoint setup under [[Entity and Product Boundary]]?
+Execution with minimal provider input is settled, as are Kevin's physician support and mentorship and ongoing support. Resolve: exact included deliverables; who funds outside fees/premises/equipment/subscriptions; required client and professional signatures; attorney engagement for NP/PA adaptation; Kevin's contract/billing/cadence/capacity/backup; ongoing support scope and response expectations; and which entity supplies and supports SharePoint under [[Entity and Product Boundary]].
 
 ## Versioning
 

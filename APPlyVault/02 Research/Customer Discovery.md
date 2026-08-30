@@ -11,6 +11,8 @@ Home: [[00 Home]] · Hypotheses: [[Customer and Offer]] · Tasks: [[Roadmap and 
 
 Turn reported local demand into specific prospects and delivery requirements for the selected offer: helping Texas APPs open cash-pay primary-care / concierge-adjacent clinics. Learn purchasing readiness, scope, pricing, and recurring software needs. Keep customer evidence distinct from the MD reference clinic and broader market observations.
 
+Current target: both NPs and PAs in Sherman/North Texas, purchasing a done-for-you launch package with ongoing support. Founder is unsure how many first applicants are available. Treat the pipeline count as unknown, not as zero or as validated demand for a specific package price.
+
 ## Demand already reported
 
 On 2026-08-30, the founder described substantial local demand and increasing popularity of cash-pay PLLCs in primary care and adjacent areas such as Botox clinics. This is founder-reported market experience, not a quantified market-size or growth finding. The next useful step is to record concrete people, requested help, launch stage, and buying intent—not to make the founder prove that clinic-startup activity exists.

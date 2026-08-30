@@ -15,6 +15,8 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 
 - [[00 Home]]: orientation and a short current-priority summary.
 - Foundation notes: the latest coherent view of customer, offer, model, and unanswered questions.
+- [[Clinic Launch Packet]]: internal plan for turning existing source materials into the applicant packet and delivery process; not a live applicant database.
+- [[Entity and Product Boundary]]: consultancy versus separate EHR/inventory responsibilities, with unresolved contracts, IP, support, and data questions.
 - [[Roadmap and Tasks]]: the single canonical task/status list.
 - [[Decisions]]: explicit choices and their rationale.
 - [[Risks and Assumptions]]: uncertainties and tests, not hidden conclusions.
@@ -31,6 +33,10 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 6. Refresh Home only if the overall position or priorities changed.
 
 When the founder answers questions, summarize faithfully, mark unanswered parts, record explicit choices, and identify the next highest-value questions. Do not turn an exploratory preference into a commitment or silently override a prior decision.
+
+The founder reports sole responsibility for consultancy direction, documented direction-setting, and a 49% interest; Kevin holds 51%. The senior developer will be a consultancy employee and software-company owner, with amounts/terms TBD. Keep ownership, voting, signature, and formal governance distinct; the veto concern is unresolved. Required applicant approvals and professional judgments remain explicit in the done-for-you workflow. The latest request prioritizes [[Website MVP]]; do not force further business answers before safe marketing-site implementation.
+
+Reuse the MD's existing documented work once available; index it before creating replacements. Do not treat inaccessible materials as nonexistent. The founder has expressed no deadline pressure, so agree milestones and actual commitments without imposing an arbitrary launch calendar.
 
 ## Proposed cadence
 

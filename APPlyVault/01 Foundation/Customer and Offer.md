@@ -11,9 +11,9 @@ Home: [[00 Home]] · Evidence: [[Customer Discovery]] · Economics: [[Business M
 
 | Dimension | Current direction / remaining decision |
 | --- | --- |
-| Profession | APPs confirmed; NP versus PA coverage still unspecified. Do not assume identical pathways. |
+| Profession | Both NPs and PAs confirmed; maintain distinct profession-specific pathways. |
 | Clinic | Primary-care / concierge-adjacent. Exact services and physical / telehealth / hybrid coverage remain open. |
-| Place | Texas; reference clinic in Sherman. The consultancy's first service area is not yet confirmed. |
+| Place | Sherman and North Texas confirmed; exact county/service-radius coverage to define operationally. |
 | Stage | Exploring, committed to opening, already forming, or already operating |
 | Payment model | Cash-pay PLLC model confirmed. Per-visit versus membership details remain open; concierge-adjacent does not automatically mean membership. |
 | Buyer | Individual clinician, founding group, existing practice, or another sponsor |
@@ -31,18 +31,19 @@ The founder reports substantial local demand and increased interest in cash-pay 
 
 ## Main offer — direction confirmed
 
-**Consulting to start a cash-pay clinic and get the necessary setup in place to see the first patient, including a SharePoint starter EHR.**
+**A done-for-you launch package for a cash-pay clinic, with minimal provider input, through first-patient readiness—including a SharePoint starter EHR, Kevin's physician support/mentorship, and ongoing support.**
 
-Use the MD's existing documented process to create an applicant-completed [[Clinic Launch Packet]], then guide execution and track readiness. What the applicant does, what we do, what outside professionals do, and what counts as completion must be made explicit. The software entity is separate; see [[Entity and Product Boundary]].
+Use Kevin's attorney-assisted setup process to build [[Clinic Launch Packet]]. The consultancy executes the agreed work, with a small applicant input/approval burden rather than a self-service checklist. Define required provider decisions/signatures, qualified-expert work, spending authorization, completion evidence, and scope exceptions. The separate software entity will have different owners; see [[Entity and Product Boundary]].
 
-## Packaging details — still unapproved
+## Packaging — model confirmed, detailed terms open
 
 | Offer | Tangible outcome | Boundary to define |
 | --- | --- | --- |
 | Intake / applicability review | Completed clinic profile and tailored launch plan | Could be part of the main package; no separate assessment product or fee agreed |
-| Guided launch project — core offer | Applicant packet, tracked setup steps, coordinated handoffs, starter SharePoint EHR, and agreed readiness evidence | Exact included services, execution responsibilities, hours, exclusions, and change-order rules |
-| Post-launch consulting | Optional follow-up help | No recurring consulting scope or price agreed |
-| EHR / inventory product | Software supplied through a separate planned entity | Licensing, bundling, billing, ownership, and support responsibilities remain open |
+| Done-for-you launch — core offer | Minimal-input packet, executed setup, physician arrangements, starter EHR, and readiness handoff | Exact deliverables, provider approvals, third-party expenses, package price, and change-order rules |
+| Kevin's physician support and mentorship | Collaboration/delegation support, help with physician arrangements, and mentorship | Exact professional scope, agreements, billing, cadence, capacity, and backup |
+| Ongoing consultancy support | Support after launch is confirmed as part of the model | Included versus separate fee, duration, services, response expectations, and exclusions |
+| EHR / inventory product | Separate-entity implementation fee plus a percentage of ordered inventory value | Eligible-value rules, rates, billing, product support, and any bundling |
 
 The earlier assessment-first suggestion is not the selected business direction; the founder has specified an end-to-end launch consultancy. An assessment may be an intake step, not a substitute for that offer.
 

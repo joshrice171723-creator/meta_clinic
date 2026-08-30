@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "01 Foundation/Foundation Questions.md",
+                "file": "02 Research/MD Pilot.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Foundation Questions"
+              "title": "MD Pilot"
             }
           }
         ]
@@ -83,7 +83,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "right": {
     "id": "3389b50415fa95dc",
@@ -188,12 +188,25 @@
   },
   "active": "4c6877cfd152c3ac",
   "lastOpenFiles": [
-    "01 Foundation/Clinic Launch Packet.md",
-    "01 Foundation/Company Foundation.md",
-    "01 Foundation/Entity and Product Boundary.md",
-    "01 Foundation/Business Model.md",
+    "03 Execution/Progress Log.md",
+    "03 Execution/Decisions.md",
+    "03 Execution/Website MVP.md",
+    "03 Execution/Roadmap and Tasks.md",
     "01 Foundation/Foundation Questions.md",
+    "02 Research/Customer Discovery.md",
+    "03 Execution/Client Portal.md",
+    "03 Execution/Data Modeling.md",
+    "03 Execution/Risks and Assumptions.md",
+    "02 Research/Texas Diligence.md",
+    "02 Research/Source Register.md",
+    "02 Research/SharePoint and EMR.md",
+    "02 Research/MD Pilot.md",
+    "01 Foundation/Knowledge Bank and Mentorship.md",
+    "01 Foundation/Entity and Product Boundary.md",
     "01 Foundation/Customer and Offer.md",
+    "01 Foundation/Company Foundation.md",
+    "01 Foundation/Clinic Launch Packet.md",
+    "01 Foundation/Business Model.md",
     "00 Home.md",
     "Welcome.md"
   ]
