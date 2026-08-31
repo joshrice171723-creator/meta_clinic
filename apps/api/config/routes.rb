@@ -17,7 +17,9 @@ Rails.application.routes.draw do
       post :revisions, on: :member, action: :revise
       post :signatures, on: :member, action: :sign
     end
-    resources :documents, controller: "documents", only: :show
+    resources :documents, controller: "documents", only: :show do
+      get :download, on: :member
+    end
     resources :document_categories, controller: "document_categories", only: :index
     resources :message_intents, controller: "messaging/message_intents", only: :show do
       post :delivery_events, on: :member, action: :record_delivery

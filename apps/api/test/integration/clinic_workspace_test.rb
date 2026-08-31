@@ -149,6 +149,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     end
     submit "/api/clinic/patients", { clinic_patient: { display_name: "No access", reference: "NO" } }
     assert_response :forbidden
+    assert_equal "denied", Clinic::AuditEvent.order(:id).last.outcome
+    assert_equal "patients.write", Clinic::AuditEvent.order(:id).last.action_code
     @membership.update!(active: false)
     get "/api/clinic", headers: @headers
     assert_response :forbidden
@@ -157,6 +159,18 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     @user.update!(admin: true)
     get "/api/clinic", headers: @headers
     assert_response :forbidden
+  end
+
+  test "sensitive patient reads create released audit events" do
+    before = Clinic::AuditEvent.count
+    get "/api/clinic/patients", headers: @headers
+    assert_response :success
+
+    assert_equal before + 1, Clinic::AuditEvent.count
+    event = Clinic::AuditEvent.order(:id).last
+    assert_equal "patients.read", event.action_code
+    assert_equal "released", event.outcome
+    assert_equal "user:#{@user.id}", event.actor_session_reference
   end
 
   test "clinic is disabled in production even for assigned administrators" do

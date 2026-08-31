@@ -35,6 +35,11 @@
     "/api/clinic/documents/:id(.:format)"
   ],
   [
+    "download_api_clinic_document",
+    "GET",
+    "/api/clinic/documents/:id/download(.:format)"
+  ],
+  [
     "api_clinic_document_categories",
     "GET",
     "/api/clinic/document_categories(.:format)"

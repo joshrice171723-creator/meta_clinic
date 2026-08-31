@@ -29,7 +29,10 @@ module Clinic
     def attribute_clinic_mutations
       # Generate correlation on the server; never trust submitted audit metadata.
       PaperTrail.request(whodunnit: current_user.id.to_s,
-        controller_info: { request_id: SecureRandom.uuid }) { yield }
+        controller_info: { request_id: SecureRandom.uuid }) do
+        yield
+        record_sensitive_read
+      end
     end
 
     def render_error(message, status)
@@ -54,17 +57,40 @@ module Clinic
 
     def require_capability(capability)
       permission = Ability.normalize_permission(capability)
-      action = Ability.action_for(permission)
-      subjects = Ability.subjects_for(permission)
-      raise CanCan::AccessDenied unless current_ability.allowed_permission?(permission)
-      subject = action && subjects.find { |candidate| current_ability.can?(action, candidate) }
-      current_ability.authorize!(action, subject || subjects.first)
-    rescue CanCan::AccessDenied
-      render_error("Your clinic account does not have access to this section.", :forbidden)
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: permission)
     end
 
     def current_ability
       @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
+
+    def record_sensitive_read
+      action_code = sensitive_read_action
+      return unless action_code && response.successful?
+
+      Clinic::AuditRecorder.record(practice: current_practice, actor: current_user,
+        action_code: action_code, outcome: :released)
+    end
+
+    def sensitive_read_action
+      case [ controller_path, action_name ]
+      when [ "clinic/care/patients", "index" ], [ "clinic/care/patients", "show" ] then "patients.read"
+      when [ "clinic/care/encounter_notes", "show" ] then "notes.read"
+      when [ "clinic/care/observations", "index" ] then "observations.read"
+      when [ "clinic/care/patient_addresses", "index" ] then "patient_addresses.read"
+      when [ "clinic/documents", "index" ], [ "clinic/documents", "show" ] then "documents.read"
+      when [ "clinic/document_categories", "index" ] then "documents.categories.read"
+      when [ "clinic/billing/invoices", "index" ], [ "clinic/billing/invoices", "show" ] then "billing.read"
+      when [ "clinic/messaging/message_intents", "index" ], [ "clinic/messaging/message_intents", "show" ] then "messages.read"
+      when [ "clinic/scheduling/appointments", "index" ], [ "clinic/scheduling/appointments", "show" ] then "appointments.read"
+      when [ "clinic/scheduling/encounters", "index" ], [ "clinic/scheduling/encounters", "show" ] then "encounters.read"
+      when [ "clinic/staff/members", "index" ] then "staff.read"
+      when [ "clinic/clinicians", "index" ] then "clinicians.read"
+      when [ "clinic/inventory/items", "index" ] then "inventory.read"
+      when [ "clinic/inventory/pharmacy", "index" ], [ "clinic/inventory/pharmacy", "show" ] then "inventory.read"
+      when [ "clinic/role_versions", "index" ], [ "clinic/authorization/role_grants", "index" ] then "roles.read"
+      end
+    end
+
   end
 end

@@ -44,6 +44,7 @@ module Launch
           @document.title, "Document version: #{@document.document_version}", "Content digest: #{@document.content_digest}",
           "Signed by: #{@document.signature_name}", "Signed at (UTC): #{@document.signed_at.utc.iso8601(6)}",
           "Consent: #{@document.consent_version}", "Signature digest: #{@document.signature_digest}", "", @document.body ].join("\n")
+        Clinic::AuditRecorder.record_platform(actor: current_user, action_code: "paperwork.receipt.download", outcome: :released)
         send_data record, type: "text/plain; charset=utf-8", disposition: "attachment", filename: "apply-demo-#{@document.id}.txt"
       end
 

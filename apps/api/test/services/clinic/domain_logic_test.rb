@@ -68,6 +68,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     Clinic::Authorization::RevokeAccess.call(grant: grant, grantor: @actor)
     assert_not Clinic::Authorization.allowed?(actor: target_user, practice: @practice, action: "patients.read")
     assert_equal %w[granted revoked], grant.events.order(:grant_revision).pluck(:event_kind)
+    assert_equal %w[roles.grant roles.revoke], Clinic::AuditEvent.order(:id).last(2).map(&:action_code)
+    assert_equal %w[committed committed], Clinic::AuditEvent.order(:id).last(2).map(&:outcome)
   end
 
   test "booking permits adjacency, rejects overlap, and encounters support walk-ins" do
@@ -191,7 +193,29 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     clean = Clinic::Document.create!(practice: @practice, patient: @patient, category: category,
       object_key: "private/synthetic-2", object_version: "v1", checksum: "checksum-2", byte_size: 10,
       media_type: "text/plain", scan_state: "clean")
-    assert_equal clean, Clinic::Documents::Access.downloadable!(document: clean, actor: @actor)
+    assert_difference "Clinic::AuditEvent.count", 1 do
+      assert_equal clean, Clinic::Documents::Access.downloadable!(document: clean, actor: @actor)
+    end
+    event = Clinic::AuditEvent.order(:id).last
+    assert_equal "documents.download", event.action_code
+    assert_equal "released", event.outcome
+    assert_equal "document:#{clean.id}:v1", event.resource_manifests.first.protected_resource_version_ref
+  end
+
+  test "denied service authorization creates a denial audit event without changing state" do
+    limited = User.create!(email_address: "domain-denied@example.invalid", password: SecureRandom.hex(20))
+    Clinic::Membership.create!(practice: @practice, user: limited)
+    before = Clinic::AuditEvent.count
+
+    assert_raises(Clinic::Authorization::Denied) do
+      Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: limited, patient: @patient)
+    end
+
+    assert_equal before + 1, Clinic::AuditEvent.count
+    event = Clinic::AuditEvent.order(:id).last
+    assert_equal "encounters.write", event.action_code
+    assert_equal "denied", event.outcome
+    assert_equal 0, @practice.encounters.count
   end
 
   test "billing calculates exact line totals and prevents over-allocation" do
