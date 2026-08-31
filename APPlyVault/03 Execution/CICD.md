@@ -19,6 +19,8 @@ This is the first handoff for either developer. Use the sections in this order:
 
 [[Software Architecture]] owns code placement. [[Roadmap and Tasks#Current task register]] owns status. Old paths and test counts in [[Progress Log]] are dated history, not setup instructions. No `reference/`, `apps/apply/` or `site/backend/` application is needed.
 
+For remaining work, use [[Roadmap and Tasks#Step 1 — Engineering and release foundation]] rather than treating every setup instruction as unfinished. Its chunks separate candidate/browser acceptance, image hardening, operations/recovery, production preflight and authorized cutover. Before each change, apply [[Working Agreement#Failure-first planning and review]] and record the exact candidate/environment, failure signal and recovery decision; source, CI and hosted evidence are not interchangeable.
+
 ## Purpose and current state
 
 D-033 separates the browser application in `apps/web/` from the Rails JSON backend in `apps/api/`. [[Software Architecture]] owns the module/dependency rules; this guide owns local commands, team workflow, CI and release procedures. The apps build independently but the prepared delivery pipeline releases a **matched API/web pair from one commit**.
@@ -304,6 +306,8 @@ The deployment identity uses GitHub OIDC and scoped AWS roles, never AWS root ke
 ### Finish activation
 
 Staging configuration, cutover and recovery were verified on 2026-08-31. The steps below remain the procedure for separately authorized production activation or a new environment. T-22 retains browser/accessibility acceptance; T-38 retains production cutover. Do not repeat staging conversion or activate production merely to complete a checklist.
+
+Challenge the release before executing it: wrong target, incompatible schema, mismatched image pair, stale scan, unavailable keys, partial import, lost SSM acknowledgment, failed restart and insufficient recovery capacity. Each applicable case needs an observable refusal/failure, preserved evidence and a scoped recovery path in T-20.1/T-20.2/T-38.1/T-38.2. Use offline/synthetic rehearsals first; no destructive hosted injection or production change is authorized by this checklist. A later image rollback must not be assumed to undo migrated data.
 
 1. Run the local delivery checks above and verify both packaged configurations from the intended commit. The launcher/service consistency regression is now fixed and included in CI.
 2. Complete the [PostgreSQL cutover](../../ops/aws/ec2/postgres-cutover.md) for each existing SQLite environment, preserving old data, matching keys, scripts and recovery evidence. Install the revised launcher/installer, both application services, PostgreSQL service and trusted edge together; accept the actual host path before declaring it ready.

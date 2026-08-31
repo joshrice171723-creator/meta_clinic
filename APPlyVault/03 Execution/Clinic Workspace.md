@@ -30,7 +30,7 @@ T-41 implements clinic-only Appearance controls for Sage & ivory, Mineral blue a
 
 D-032's completed source refactor separates `Clinic::Care`, `Clinic::Inventory` and `Clinic::Staff`; clinic tenancy remains `Clinic::Practice`/`Clinic::Membership`. Scoped catalog/detail queries and authorized NDC-import orchestration are separate from HTTP; inventory receiving and the shared ledger are preserved. D-033 puts clinic presentation and shared CSS in `apps/web`, not Rails views. See [[Software Architecture]] and [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]] for current ownership and the latest recorded full-suite/container evidence. Historical paths/results below are not current startup instructions.
 
-D-031 and [[PostgreSQL and Inventory Foundation]] supersede the initial SQLite/whole-package inventory implementation below. Rails now uses PostgreSQL with a shared office/pharmacy ledger, verified typed units, distinct same-lot receipts and optional costs, independent holds/releases, count observation/approval, action permissions and versioned synthetic profiles. The local checks pass; the two hosted bootstrap releases remain on SQLite pending the explicit maintenance cutover. All production clinic denial and real-data gates remain.
+D-031 and [[PostgreSQL and Inventory Foundation]] supersede the initial SQLite/whole-package inventory implementation below. Rails now uses PostgreSQL with a shared office/pharmacy ledger, verified typed units, distinct same-lot receipts and optional costs, independent holds/releases, count observation/approval, action permissions and versioned synthetic profiles. Local checks and staging's 2026-08-31 PostgreSQL cutover are recorded; production retains the older SQLite release. Both hosted environments continue to deny clinic routes. All real-data gates remain.
 
 ## Initial delivered synthetic slice — historical
 
@@ -75,6 +75,8 @@ BAA absence does not authorize PHI. L-05 and applicable clinical/operational gat
 D-030 deploys separate private staging and production containers for the application; it does not release clinic routes. Both use Rails production mode, keep clinic access denied, and hide the unavailable clinic navigation link. Synthetic clinic development remains local; staging tests the hosted launch portal with ordinary synthetic accounts. See [[CICD]] for the environment boundary.
 
 ## Verification and next work
+
+Use [[Roadmap and Tasks#Step 4 — Configurable inventory foundation]] for remaining inventory configuration/permission/security chunks and [[Roadmap and Tasks#Step 5 — Define the first clinic workflow]] for the script → observed walkthrough → reviewed contract → synthetic interaction/handoff sequence. These expand T-34/T-13, not the clinical release scope. [[Working Agreement#Failure-first planning and review]] requires wrong-patient/clinic, excess authority, stale intake, interrupted save, missing owner and stock-reconciliation failure cases; a theme or dashboard is not evidence that those workflows work.
 
 Current-split Rails/frontend, native-HTTP and paired-container results are recorded in [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]]. These are not browser interaction acceptance. The checks in the next paragraph exercised earlier Rails-rendered increments, not today's React interface.
 

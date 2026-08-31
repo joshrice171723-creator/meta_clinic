@@ -437,6 +437,8 @@ Offboarding is a controlled export, handoff, access revocation, and eventual dis
 
 These are design acceptance criteria under T-13/T-09 and L-05, not completed tasks or a second status register. Specific owners, budgets, time limits, retention periods, RPO/RTO, vendors, and dates remain unassigned unless subsequently agreed.
 
+The next bounded work is in [[Roadmap and Tasks#Step 4 — Configurable inventory foundation]] (including T-34.5's scoped security proof) and [[Roadmap and Tasks#Step 5 — Define the first clinic workflow]]. Apply [[Working Agreement#Failure-first planning and review]] to each selected slice: connect the relevant synthetic scenarios below to a failure trigger, detection, safe result and recovery evidence. This is not permission to execute the illustrative SQL or implement the entire catalog; architecture/build scope and the existing professional/real-data gates remain separate.
+
 | Evidence area | Required next evidence |
 | --- | --- |
 | Entity and service boundary | Approved record custodian, permitted purposes, clinic/software/consultancy/subcontractor responsibilities, support limits, and actual service/data-flow inventory. |

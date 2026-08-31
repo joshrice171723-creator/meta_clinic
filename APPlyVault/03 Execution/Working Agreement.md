@@ -23,14 +23,14 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 - [[Risks and Assumptions]]: uncertainties and tests, not hidden conclusions.
 - Research notes and evidence notes: observations, sources, applicability, and reviews.
 - [[Progress Log]]: dated changes, outcomes, and links; not a second backlog.
-- [[CICD]]: the first developer handoff, prominently linked from Home and the repository README; local frontend/API setup, two-developer Git/PR instructions, current CI checks and the prepared release process. Activation and observed remote runs remain pending in the record.
+- [[CICD]]: the first developer handoff, prominently linked from Home and the repository README; local frontend/API setup, two-developer Git/PR instructions, verified CI/staging delivery and pending production activation. Scope and dates of actual acceptance remain explicit.
 - [[Software Architecture]]: repository responsibilities and module/dependency rules; independent frontend/Rails API with domain ownership, not a second task or decision register.
 
 ## Working session protocol
 
 1. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. Root `AGENTS.md` defines this scoped review; a full-vault read is no longer required.
 2. Separate reported facts, observed evidence, sourced background, proposals, and decisions.
-3. Capture new evidence with a source/date and scope. Use [[Evidence Note Template]].
+3. Challenge the next increment using [[Working Agreement#Failure-first planning and review]], then capture actual evidence with a source/date and scope using [[Evidence Note Template]].
 4. Update affected current-state notes and the task register; link an explicit decision if one was made.
 5. Add a short progress entry: changed, learned, blocked, and next.
 6. Refresh Home only if the overall position or priorities changed.
@@ -46,6 +46,26 @@ Reuse the MD's existing documented work once available; index it before creating
 A weekly 20–30 minute founder/MD review: progress, new field evidence, blockers, decisions, and the next three priorities. Use [[Weekly Review Template]]. Confirm participants and timing before treating this as scheduled.
 
 No reminder, automation, background monitoring, or automatic synchronization has been set up by this work. Human owners and backup/access practices remain open under T-11.
+
+## Failure-first planning and review
+
+D-037 makes **“How is this going to fail?”** a required planning question, not a claim that a failure has occurred. Apply it to software, source ingestion, service delivery and business assumptions. Challenge the mechanism and evidence, not the person. Do not reopen settled direction without material contrary evidence or force deferred commercial decisions before they are needed.
+
+Before starting a substantive chunk, record in its canonical task or linked evidence note:
+
+1. **Outcome and boundary:** one observable result, entry dependencies, exclusions, permitted environment/data and accountable owner. Name the smallest independently reviewable change; separate design, implementation, verification and release where they have different gates.
+2. **Failure hypothesis:** an assumption that could be wrong, a concrete trigger, and the resulting user, data, operational or business harm. Consider ordinary mistakes as well as deliberate misuse.
+3. **Detection and prevention:** what signal would reveal the failure, who notices it, and what guard prevents an unsafe or misleading outcome. “We will be careful” is not a control.
+4. **Disproof and recovery:** a bounded synthetic negative test or authorized tabletop, expected result, stop condition and safe recovery/manual fallback. Define what evidence would make us revise or reject the plan, not only what would confirm it.
+5. **Exit record:** actual versus expected outcome, code/content version and environment, evidence reference, reviewer/date, unresolved risks and next action. Untested means untested; a plan, screenshot or passing happy path is not complete acceptance.
+
+For each chunk, consider missing/wrong/stale input; wrong account/clinic or excess authority; concurrent/repeated actions; interrupted sessions and partial/out-of-order failures; unavailable people/services; and falsely reported completion. Cover applicable cases with tests; mark others not applicable with a reason. For business work also challenge scope, demand, cost, capacity, reuse rights and reliance on one person. Link existing R-/A-/L- items instead of creating duplicate registers.
+
+Testing must stay within authorized systems and wholly synthetic data. This method does not authorize live penetration testing, destructive failure injection, patient access, external messages, purchases or deployments. Start with local tests/mocks or a tabletop; hosted exercises need their own approved targets and recovery scope. Do not remove guards to make a test pass.
+
+Do not accept a chunk with unresolved unauthorized access, silent loss/alteration, duplicate external action, false completion, or missing required audit/recovery evidence. Stop only the affected path; keep independent safe work moving. Lesser residual risks require an explicit disposition, accountable owner and review trigger, not a silent waiver. Product acceptance, professional review and real-data release remain separate.
+
+The five workstreams and smaller chunks live in [[Roadmap and Tasks#Five-step implementation plan]]. Other notes describe their domain and link there; they do not maintain another status list.
 
 ## Owners and completion
 

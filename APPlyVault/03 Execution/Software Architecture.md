@@ -85,6 +85,7 @@ Each app has its own dependency lockfile and Docker context. The web image conta
 
 ## Adding or changing a feature
 
+- Select a bounded chunk from [[Roadmap and Tasks#Five-step implementation plan]] and apply [[Working Agreement#Failure-first planning and review]]. Name how a wrong identity, stale version, repeated write or partial failure crosses this feature's boundary, how it is detected, and the safe recovery path before coding. The broader clinical schema remains a proposal, not the implementation backlog.
 - Pick the product domain. Add UI under `apps/web/src/features`, HTTP/query/operation/record behavior under the matching Rails domain.
 - Update response types/serializers and test success, ownership, denial, validation and retries. API query objects are not independent authorization gates.
 - Keep view state local. Do not persist records, signing content, passwords or CSRF in local/session storage.

@@ -1,7 +1,7 @@
 ---
 type: delivery-plan
 status: outline-awaiting-source-materials
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Clinic Launch Packet
 
@@ -11,7 +11,7 @@ Home: [[00 Home]] · Offer: [[Customer and Offer]] · Source process: [[MD Pilot
 
 Turn Kevin's documented, attorney-assisted cash-pay PLLC startup process into the delivery packet for a **done-for-you launch service for both NPs and PAs in Sherman/North Texas**. Minimize provider input while executing setup through first-patient readiness, including starter SharePoint EHR setup, Kevin's physician support/mentorship, and ongoing support.
 
-**Confirmed:** the founder intends to reuse an existing body of documented work. **Current artifact:** this is an internal packet outline, not the final applicant form or a set of legally reviewed filing documents. Source materials are expected on 2026-08-31 morning and have not yet been received. Do not invent missing legal forms or require completed research to be recreated.
+**Confirmed:** the founder intends to reuse an existing body of documented work and will gather Kevin's documents/legal materials for later ingestion. **Current artifact:** this is an internal packet outline, not the final applicant form or a set of legally reviewed filing documents. Receipt, authorized access/reuse and review are not yet recorded. The earlier expected availability was not proof of receipt or a deadline. Do not invent missing legal forms or require completed research to be recreated.
 
 ## What “packet” means in this draft
 
@@ -63,6 +63,20 @@ Inventory state: **not received**. No document titles or completed legal steps a
 6. Run a scoped first-client engagement once the package and required reviews are ready; revise based on actual delivery.
 
 When the materials arrive, index first rather than copying everything into the vault. Sensitive or privileged originals should remain in an approved controlled location.
+
+## Implementation and failure review
+
+[[Roadmap and Tasks#Step 3 — Synthetic packet and training infrastructure]] owns the small implementation chunks and their exit evidence. T-12.1 is actual source intake; T-24.1–T-24.5 are synthetic versioning, publishing/assignment, progress, execution evidence and acceptance; T-24.6 is the reviewed content manifest. Actual content is a dependency for the last stage, not for building the synthetic infrastructure. M4/T-25 still gates real confidential documents/signatures.
+
+Apply [[Working Agreement#Failure-first planning and review]] to the packet itself, not only its software:
+
+- If an item is duplicated, outdated or contradictory, retain provenance and the unresolved question; do not pick a version by modification time alone.
+- If reuse permission or NP/PA/service/locality applicability is missing, block the affected content from release; do not turn an MD example into universal guidance.
+- If an approval, owner, dependency or completion evidence is missing, show outstanding work rather than a completed launch. Challenge the case where Kevin or an outside reviewer is unavailable; required authority is not silently delegated.
+- If an issued packet changes, preserve its exact previous version and evidence; require explicit supersession and re-review where applicable. A completed signature does not prove institutional submission or acceptance.
+- If a synthetic walkthrough needs repeated applicant input or unpriced manual repair, capture the friction, labor and scope assumption for T-08/T-12 rather than hiding it behind a progress percentage.
+
+The exit record includes actual source applicability/reuse findings and a synthetic end-to-end failure walkthrough. An ingestion tool, summary or checked box does not perform professional review. No actual submission, spending or client signature is authorized by this plan.
 
 ## Proposed first-patient readiness definition
 
