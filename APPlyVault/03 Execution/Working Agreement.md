@@ -14,6 +14,7 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 ## Where things belong
 
 - [[00 Home]]: orientation and a short current-priority summary.
+- [[01 Table of Contents]]: complete note index and task-specific reading routes; maintain it when notes are added, removed or change purpose.
 - Foundation notes: the latest coherent view of customer, offer, model, and unanswered questions.
 - [[Clinic Launch Packet]]: internal plan for turning existing source materials into the applicant packet and delivery process; not a live applicant database.
 - [[Entity and Product Boundary]]: consultancy versus separate EHR/inventory responsibilities, with unresolved contracts, IP, support, and data questions.
@@ -22,12 +23,12 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 - [[Risks and Assumptions]]: uncertainties and tests, not hidden conclusions.
 - Research notes and evidence notes: observations, sources, applicability, and reviews.
 - [[Progress Log]]: dated changes, outcomes, and links; not a second backlog.
-- [[CICD]]: local frontend/API setup, two-developer Git/PR instructions, current CI checks, and the prepared staging-to-production release process. Activation and observed remote runs remain pending.
+- [[CICD]]: the first developer handoff, prominently linked from Home and the repository README; local frontend/API setup, two-developer Git/PR instructions, current CI checks and the prepared release process. Activation and observed remote runs remain pending in the record.
 - [[Software Architecture]]: repository responsibilities and module/dependency rules; independent frontend/Rails API with domain ownership, not a second task or decision register.
 
 ## Working session protocol
 
-1. Read Home, the latest progress entry, relevant decisions, and the active task before working.
+1. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. Root `AGENTS.md` defines this scoped review; a full-vault read is no longer required.
 2. Separate reported facts, observed evidence, sourced background, proposals, and decisions.
 3. Capture new evidence with a source/date and scope. Use [[Evidence Note Template]].
 4. Update affected current-state notes and the task register; link an explicit decision if one was made.
@@ -61,5 +62,7 @@ One accountable owner per accepted task; contributors may be listed separately. 
 ## Editing conventions
 
 Use plain Markdown and Obsidian wiki links; no community plugins required. Use unique descriptive note names, ISO dates, and the simple frontmatter fields already present. Update `updated` when the note materially changes. Templates can be copied manually; no template-plugin configuration is required.
+
+Current implementation notes should describe the current source and separately date the last hosted observation. Keep superseded runtime paths/test results in dated history, not as present-day startup instructions. Root and app-specific `.gitignore` files protect local artifacts; shared vault notes/configuration, source, migrations and lockfiles remain tracked. Do not restore the founder-removed `reference/` folder as incidental cleanup.
 
 Preserve conflicting evidence and superseded decisions with context. Avoid copying the same task or legal conclusion into multiple lists. Never claim a source is reviewed, a task complete, or a fact verified unless the record supports it.

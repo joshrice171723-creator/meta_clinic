@@ -19,7 +19,7 @@ The consultancy, future software entity, Kevin's clinic/physician services, and 
 
 ## Tenant boundary and architecture proposal
 
-**Later prototype:** D-025 authorizes a synthetic [[Clinic Workspace]] in the same Rails app as selling/onboarding, with separate presentation and explicit membership. D-031 later moves that scaffold to PostgreSQL with the bounded inventory implementation in [[PostgreSQL and Inventory Foundation]]. The trusted capability/RLS/read-audit and complete clinical design below remains unimplemented. Shared runtime, identity and database privileges require separately reviewed production boundaries; no PHI or clinical release is authorized.
+**Later prototype:** D-025 authorized a synthetic [[Clinic Workspace]] alongside selling/onboarding, with separate presentation and explicit membership. D-031 moved it to PostgreSQL with the bounded inventory implementation in [[PostgreSQL and Inventory Foundation]]; D-033 separates `apps/web` presentation from `apps/api` authority. The actual migrations/schema are in `apps/api/db/`, not the illustrative DDL below. The trusted capability/RLS/read-audit and complete clinical design below remains unimplemented. Shared runtime, identity and database privileges require separately reviewed production boundaries; no PHI or clinical release is authorized.
 
 Use **one `clinic_id` per independently authorized record-custody boundary**, normally a customer clinic business. Model that clinic's physical offices as `locations`. Confirm the legal custody boundary before provisioning; a building, physician, parent company, or billing account alone does not define it.
 
@@ -150,7 +150,7 @@ The founder selected recurring fees based on **ordered inventory value**, not pa
 
 ## PostgreSQL core DDL examples
 
-**Illustrative, incomplete SQL; not a production migration.** Uses PostgreSQL 18 documentation as the reference. Hosting version/extensions remain to be selected and patched. Role provisioning, API functions, authorization helpers, encryption, full catalog DDL, triggers, and all-table policies are not implemented here. There are no sample patient rows.
+**Illustrative, incomplete SQL; not a production migration.** Uses PostgreSQL 18 documentation as the reference. The current synthetic app uses PostgreSQL 18; version/extension approval for this broader clinical proposal remains separate. Role provisioning, API functions, authorization helpers, encryption, full catalog DDL, triggers, and all-table policies are not implemented here. There are no sample patient rows.
 
 These tables illustrate tenant-safe references and appendable note history. Create them only in a future authorized synthetic environment under a dedicated owner; do not grant application access before the controls later in this note exist.
 

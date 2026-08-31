@@ -1,7 +1,7 @@
 ---
 type: business-boundary
 status: direction-confirmed-details-open
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Entity and Product Boundary
 
@@ -9,7 +9,7 @@ Home: [[00 Home]] · Offer: [[Customer and Offer]] · Economics: [[Business Mode
 
 ## Founder direction
 
-The consultancy is formed and owned 51% by Kevin and 49% by the founder. The EHR/inventory entity is not yet formed and will have different ownership, including the senior-developer friend as an owner. The consultancy executes clinic launches with minimal provider input and ongoing support, including an initial SharePoint EHR. Software pricing is an implementation fee plus recurring fees based on a percentage of ordered inventory value; rates and billing mechanics remain open. Eventually SharePoint will be replaced with a bespoke backend; EC2/S3 remain possibilities only.
+The consultancy is formed and owned 51% by Kevin and 49% by the founder. The EHR/inventory entity is not yet formed and will have different ownership, including the senior-developer friend as an owner. The consultancy executes clinic launches with minimal provider input and ongoing support, including an initial SharePoint EHR. Software pricing is an implementation fee plus recurring fees based on a percentage of ordered inventory value; rates and billing mechanics remain open. Eventually SharePoint will be replaced with a bespoke backend; clinical production architecture and S3 use remain open. D-027/D-030 separately selected private EC2 bootstrap hosting, and D-031/D-033 implemented a synthetic PostgreSQL frontend/API product; neither approves clinical use.
 
 The founder reports that direction-setting authority is documented and refers to a “veto concern.” Record both without resolving the ambiguity: whose veto, what decisions it covers, and how it interacts with direction-setting authority have not been stated. Formation and governing documents have not been reviewed here. Do not equate the equity split with unilateral control, a particular veto right, or deadlock provisions.
 
@@ -51,7 +51,7 @@ Separate entities do not resolve these practical questions automatically. Captur
 
 - **Now — consultancy:** ingest existing materials, assemble a reviewed launch packet, define the package, and identify the first clients.
 - **Now — starter system:** map the actual SharePoint workflow, delivery responsibilities, review evidence, and handoff requirements.
-- **Now — synthetic custom product:** D-025 authorizes [[Clinic Workspace]] alongside selling/onboarding in one Rails app, with separate layouts/navigation and explicit clinic access. Fictional EHR, inventory and employee-directory workflows do not merge business ownership or approve shared production infrastructure.
+- **Now — synthetic custom product:** D-025 authorizes [[Clinic Workspace]] alongside selling/onboarding; D-033 now implements the experiences through `apps/web` and the Rails API in `apps/api`, with separate layouts/navigation and explicit clinic access. Fictional EHR, inventory and employee-directory workflows do not merge business ownership or approve shared production infrastructure.
 - **Later — real clinical product:** validate requirements, architecture/data boundaries, migration, security/operations and standalone economics before real records. No cloud deployment or PHI use is authorized by this prototype.
 
 ## Open record

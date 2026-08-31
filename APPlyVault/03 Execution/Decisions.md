@@ -76,6 +76,12 @@ Earlier table entries preserve what was known then; D-019 supplies the later ans
 
 Open implementation details do not negate confirmed direction. Kevin's prior attorney involvement is recorded as supporting context in [[MD Pilot]] and [[Source Register]], not as approval of the consultancy's entire client packet. Record amendments here without repeatedly reopening settled market, execution, or entity-stage decisions.
 
+## Repository and vault handoff maintenance
+
+**D-034 — 2026-08-31 / founder's removal and documentation requests:** the founder removed the retired `reference/` folder after mapping the generic app into the current implementation. Keep it removed and reconcile active documentation; prior source remains in Git history. This supersedes D-032's retention of imported reference files, not its domain boundaries. Rails migrations and `apps/api/db/structure.sql` remain authoritative. No application feature, runtime data or hosted release is removed by this documentation work.
+
+**D-035 — 2026-08-31 / founder's explicit review-protocol request:** add [[01 Table of Contents]] and change root `AGENTS.md` to require relevant-section review selected through that index instead of a full-vault read. Keep CI/CD prominent for developer onboarding. This changes reading/navigation scope only; synthetic-only, secret-handling, source/evidence, preservation and professional/release safeguards remain unchanged. The preceding full-review records stay historical, not future requirements.
+
 ## Decision entry format
 
 - ID and title:

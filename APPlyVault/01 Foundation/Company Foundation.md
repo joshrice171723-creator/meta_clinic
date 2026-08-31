@@ -1,7 +1,7 @@
 ---
 type: strategy
 status: draft
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Company Foundation
 
@@ -15,7 +15,7 @@ Kevin is a cofounder who recently went through cash-pay PLLC setup with help fro
 
 The consultancy is formed and owned 51% by Kevin and 49% by the founder. The founder reports documented direction-setting authority and a “veto concern”; the holder, scope, and implications of that veto are not yet specified. The senior-developer friend will be an employee of the consultancy and an owner of the software business, with amounts/terms TBD.
 
-The EHR/inventory entity is not yet formed and will have different ownership. Its model is an implementation fee plus recurring fees based on a percentage of ordered inventory value. The percentage, eligible order-value definition, payer, billing trigger, and treatment of adjustments are undecided. An eventual bespoke SharePoint replacement remains intended; EC2/S3 are candidate technologies only.
+The EHR/inventory entity is not yet formed and will have different ownership. Its model is an implementation fee plus recurring fees based on a percentage of ordered inventory value. The percentage, eligible order-value definition, payer, billing trigger, and treatment of adjustments are undecided. An eventual bespoke SharePoint replacement remains intended. D-027/D-030 separately selected private EC2 bootstrap hosting; D-031/D-033 delivered synthetic PostgreSQL and the frontend/API split. Future clinical architecture, SharePoint migration and S3 use remain open; see [[Software Architecture]] and [[CICD]].
 
 “PLLC clinic” describes the founder's intended customer journey, not a conclusion about the appropriate entity or ownership arrangement for every customer. See [[Texas Diligence]].
 
@@ -31,7 +31,7 @@ The EHR/inventory entity is not yet formed and will have different ownership. It
 | Software entity | Not formed; different ownership with senior developer as an owner; implementation fee plus percentage-of-ordered-inventory-value recurring fees | Other owners/percentages, rates/order-value rules, payer, contracts/support, IP, architecture, migration timing |
 | Knowledge bank / mentorship | Kevin wants videos plus mentorship as another service | Selling entity, audience, packaging, content inventory, pricing, reviewer/update process, live mentorship capacity |
 | Patient workflow | SharePoint-based starter EHR; described as simple and HIPAA-compliant | Deployment, evidence of controls, clinical completeness, or reuse rights |
-| Materials / timing | A substantial existing collection is reported; access expected tomorrow morning; no deadline pressure | Actual files, budget, team availability, or delivery commitments |
+| Materials / timing | A substantial existing collection is reported; access was expected on 2026-08-31 morning, with receipt still unrecorded; no deadline pressure | Actual files, budget, team availability, or delivery commitments |
 | Vault | Shared planning and progress record | Human review cadence and access/backup practices |
 
 Sources: founder brief and follow-up answers, 2026-08-30; [clinic homepage](https://stacksadultmedicine.com/) and [provider profile](https://stacksadultmedicine.com/provider), read in the browser the same day. The website identifies the practice and provider; cash-pay setup history and demand are founder-reported. No internal clinic documents or customer interviews have been reviewed.

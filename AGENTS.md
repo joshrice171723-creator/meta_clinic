@@ -1,26 +1,27 @@
 # Agent instructions — APPly
 
-These instructions apply to the entire repository, including `APPlyVault/`, `apps/api/`, `apps/web/`, `ops/`, `reference/`, historical `site/`, and new files. Read this file before working. This is a business-planning workspace, not a patient-record system. The safeguards below are project operating rules, not legal advice, a compliance certification, or authorization to handle patient data.
+These instructions apply to the entire repository, including `APPlyVault/`, `apps/api/`, `apps/web/`, `ops/`, historical `site/`, and new files. Read this file before working. This is a business-planning workspace, not a patient-record system. The safeguards below are project operating rules, not legal advice, a compliance certification, or authorization to handle patient data.
 
-## Mandatory: review the entire vault before any changes
+## Mandatory: review relevant vault sections through the table of contents
 
-**Every agent must personally review the relevant portions of the current vault in before implementing any change anywhere in this repository.** Reading only Home, search matches, relevant notes, a previous summary, or another agent's report does not satisfy this requirement. This strengthens the shorter startup protocol in `APPlyVault/03 Execution/Working Agreement.md`.
+**Every agent must personally review the vault portions relevant to the requested task before implementing changes. Start from `APPlyVault/01 Table of Contents.md`; a full-vault read is not required.** This replaces the former whole-vault requirement at the founder's explicit request on 2026-08-31. The information-handling and release safeguards below are unchanged.
 
-1. **Begin read-only.** Read applicable agent instructions and inspect `git status --short`. Preserve existing user and other-agent changes. Do not create, edit, rename, move, delete, format, install dependencies, run generators, change settings, or deploy until the review is complete. Read-only inspection and research are allowed.
-2. **Inventory the whole vault**, including ignored, hidden, untracked, and newly added files. From the repository root, use `rg --files --hidden --no-ignore APPlyVault` and inspect directory/symlink entries as needed. Do not rely on Git-tracked files, the Home map, or a fixed file count. Do not follow links outside the authorized workspace blindly.
-3. **Read all content.** Start with `00 Home.md`, `03 Execution/Working Agreement.md`, `03 Execution/Decisions.md`, and `03 Execution/Progress Log.md`; then read every remaining note in every folder. Include templates, frontmatter, tables, historical entries, and all `.obsidian/` configuration. Review attachments, canvases, PDFs, images, or other formats with appropriate tools if present. A filename listing, metadata check, or truncated tool response is not a content review; use bounded batches and finish omitted portions.
-4. **Track coverage in the session**, without creating a review file before this gate passes. Record each path and review status, with hashes or timestamps to detect changes. Account for every inventoried file. If anything is inaccessible, unreadable, or unsafe to review, identify the limitation and stop before implementation; do not silently exclude it or claim full review. Follow the sensitive-data procedure below if PHI or secrets appear.
-5. **Synthesize before acting.** Identify established direction, unresolved questions, explicit decisions, task dependencies, conflicting records, broken links, and the implications for the requested change. Referenced external documents are not automatically reviewed: distinguish available local content from missing or restricted originals. Obtain authorized source access when the task depends on those originals; never invent their contents.
-6. **Before the first write, tell the user** that the whole-vault review is complete, give the file/type counts, disclose relevant gaps or conflicts, and state the intended files and scope of change. This is a status statement, not an extra approval request for already-authorized work. An incomplete local review blocks changes; a missing external source blocks conclusions or actions that depend on it.
-7. **Keep the review current.** Repeat the full review for each new task/session. During a task, re-inventory before implementing changes and read any added or changed files; account for removals and concurrent edits. After a handoff or context loss, re-read whatever is necessary to establish complete coverage. If work is delegated, each participating agent has the same full-review obligation; delegation does not satisfy it for another agent.
+1. **Begin read-only.** Read applicable agent instructions and inspect `git status --short`. Preserve user and other-agent changes. Do not edit, rename, delete, format, install dependencies, run generators, change settings or deploy until the relevant review is complete. Read-only inspection/research is allowed.
+2. **Use the table of contents to select context.** Read `00 Home.md` for orientation and `01 Table of Contents.md` for task routing. Select relevant current-state notes, task rows, decisions, progress entries and source/evidence sections. Development work starts with relevant sections of `CICD.md` and `Software Architecture.md`; follow the TOC's task-specific routes for inventory, portal, research and business work.
+3. **Read selected content, not just search snippets.** Include each selected note's frontmatter, scope/limits and complete relevant sections, including tables and linked decisions that could supersede them. Follow only dependencies needed to understand the task. Finish truncated selected sections. Unrelated notes, historical entries, templates, attachments and `.obsidian/` settings need not be read. Inspect relevant non-Markdown files with appropriate tools; never blindly follow links outside the authorized workspace.
+4. **Check coverage and gaps.** Keep selected paths/sections and review status in-session, with hashes/timestamps when useful for concurrent work. If the TOC is stale or a relevant file is unlisted, use `rg --files --hidden --no-ignore APPlyVault` and targeted searches to locate it; do not assume the TOC is exhaustive. If required content is missing, unreadable or unsafe, stop only dependent work and disclose the limitation. Follow the sensitive-data procedure immediately if PHI or secrets appear.
+5. **Synthesize before acting.** Identify relevant direction, explicit decisions, dependencies, conflicts and unresolved questions. Distinguish current source, dated hosted observations and proposals. External documents are not reviewed merely because a note links them; obtain authorized access when needed and never invent their contents.
+6. **Before the first write, briefly state** the relevant review scope, material gaps/conflicts and intended changes. This is a status update, not another approval request for already-authorized work. Do not claim a whole-vault review unless one actually occurred.
+7. **Keep the scoped review current.** For a new task/session, select context again through the TOC. Before further changes, check relevant paths for concurrent edits and read changed/added dependencies. After handoff/context loss, re-read what is needed for the selected scope, not the entire vault. If work is explicitly delegated, each participating agent personally reviews relevant sections for its own subtask.
 
-Do not weaken this gate or the information-handling rules to finish a task faster. Reviewing the entire vault never authorizes opening patient charts, exposing secrets, or uploading the vault to another service.
+Maintain the table of contents when adding, removing or materially changing a note's purpose. It is navigation, not a second task/status register. Reviewing relevant content never authorizes patient-chart access, secret disclosure, uploading the vault or bypassing any professional/release gate.
 
 ## Understand the workspace
 
 | Location | Role |
 | --- | --- |
 | `APPlyVault/00 Home.md` | Orientation and current-priority summary; not a separate backlog |
+| `APPlyVault/01 Table of Contents.md` | Complete note index and task-specific routes for relevant-section review |
 | `APPlyVault/01 Foundation/` | Company, customer/offer, business model, entity boundary, launch-packet outline, and founder questions |
 | `APPlyVault/02 Research/` | MD reference clinic, discovery, Texas diligence, SharePoint/EHR evidence, and source register |
 | `APPlyVault/03 Execution/Roadmap and Tasks.md` | Canonical task/status register and proposed evidence gates |
@@ -28,19 +29,21 @@ Do not weaken this gate or the information-handling rules to finish a task faste
 | `APPlyVault/03 Execution/Risks and Assumptions.md` | Open risks, assumptions, and evidence needed to resolve them |
 | `APPlyVault/03 Execution/Progress Log.md` | Dated actual outcomes, newest first; not another task list |
 | `APPlyVault/03 Execution/Working Agreement.md` | Information handling, editing conventions, and session workflow |
+| `APPlyVault/03 Execution/CICD.md` | First developer handoff: local setup, two-developer workflow, checks and pending delivery activation |
 | `APPlyVault/90 Templates/` | Reusable evidence and weekly-review structures; templates are not evidence |
-| `APPlyVault/.obsidian/` | Local vault configuration; inspect but preserve unless configuration changes are requested |
+| `APPlyVault/.obsidian/` | Local vault configuration; inspect only when relevant and preserve unless configuration changes are requested |
 | `apps/api/` | Rails JSON API, domain workflows and PostgreSQL; not approved for patient or confidential applicant data |
 | `apps/web/` | Independent browser UI; no database credentials, authority or sensitive-data approval |
 | `ops/aws/` | Infrastructure, release and recovery tooling; source changes do not authorize deployment |
-| `reference/pharmacy/` | Imported specifications and archived SQL, not a second application or executable schema |
 | `site/` | Historical Sites metadata/assets only; new application work belongs in `apps/web/` or `apps/api/` |
+
+The founder removed the retired `reference/` folder on 2026-08-31 after mapping the generic app into the current setup. Do not restore it as incidental cleanup. `apps/api/db/migrate/` and the generated `apps/api/db/structure.sql` define the application schema; prior reference material remains historical, not an executable schema.
 
 ### Preserve the business boundaries
 
 - The recorded focus is a done-for-you launch consultancy for **both NPs and PAs in Sherman/North Texas**, serving cash-pay primary-care / concierge-adjacent clinics through first-patient readiness with ongoing support. Aesthetics is an adjacent idea, not automatically part of the offer.
 - Keep the formed consultancy, proposed separate EHR/inventory company with different ownership, Kevin's reference clinic/physician services, and customer clinics distinct. Do not infer clinical authority, contracts, IP rights, or data access across entities.
-- SharePoint is the intended starter EHR; an eventual custom replacement is the direction. Architecture, migration, features, and deployment approval remain separate decisions. EC2/S3 mentions are not technology selections.
+- SharePoint is the intended starter EHR; an eventual custom replacement is the direction. Architecture, migration, features, and deployment approval remain separate decisions. EC2/S3 mentions alone are not clinical technology approvals; recorded synthetic hosting/database selections do not approve clinical deployment.
 - Reuse the MD's existing attorney-assisted setup materials only after authorized access, inventory, applicability checks, and permission to reuse. MD experience does not establish NP/PA or locality-specific legal clearance.
 - Minimal provider input does not authorize client signatures, clinical decisions, filings, purchases, or unlimited spending. Education/mentorship does not establish physician coverage or patient-specific oversight.
 - Keep unknown rates, pipeline counts, capacity, budgets, owners, and dates unknown. Do not invent deadlines, commitments, or recurring automations. Do not repeatedly reopen settled direction or force answers to deliberately deferred questions.
@@ -54,7 +57,7 @@ The initial review covered **19 Markdown notes and 5 JSON configuration files**.
 - The MD source materials and governance documents were not present. An expected availability date does not prove receipt or review.
 - The Obsidian core-plugin configuration enables the Sync plugin. This does not establish that synchronization is active, where copies exist, or that any service is approved for sensitive data.
 
-Recheck these observations. Preserve historical answers and decisions with context; do not silently turn a discrepancy into a new business decision.
+**Rechecked 2026-08-31:** `Knowledge Bank and Mentorship.md` now exists. Current foundation notes and D-019 record later founder clarifications; use them and relevant later decisions instead of treating the initial discrepancies as new unanswered questions. MD source materials/governance originals remain unreviewed, and Sync's enabled setting still does not establish approved synchronization. Preserve historical answers and decisions with context; do not silently turn a discrepancy into a new business decision.
 
 ## HIPAA and sensitive-information safeguards
 
@@ -70,7 +73,7 @@ Recheck these observations. Preserve historical answers and decisions with conte
 
 ### Before any future patient-data system work
 
-Non-PHI planning and synthetic prototypes may proceed within the user's authorized scope after the full review. **Real patient-data access, integrations, migration, or deployment must remain blocked until L-05 in `Texas Diligence.md` and the applicable professional/operational gates have documented evidence.** This file grants no such approval.
+Non-PHI planning and synthetic prototypes may proceed within the user's authorized scope after the relevant review. **Real patient-data access, integrations, migration, or deployment must remain blocked until L-05 in `Texas Diligence.md` and the applicable professional/operational gates have documented evidence.** This file grants no such approval.
 
 Require the responsible people to establish:
 
@@ -85,7 +88,7 @@ Assess the Texas Medical Records Privacy Act and other applicable rules in addit
 
 ### If sensitive data or a suspected incident is discovered
 
-Stop the affected inspection or workflow and prevent further copying or transmission within your authority. Notify the user immediately without repeating the sensitive contents; use a non-sensitive description of the location and issue. Do not continue a full-vault read through suspected PHI just to satisfy the review gate.
+Stop the affected inspection or workflow and prevent further copying or transmission within your authority. Notify the user immediately without repeating the sensitive contents; use a non-sensitive description of the location and issue. Do not continue an affected read through suspected PHI just to satisfy the review gate.
 
 Preserve evidence and existing audit/history records. Do not independently delete files, rewrite Git history, rotate credentials, alter access, or submit external notices without authorization or an established incident-response mandate. The responsible privacy/security lead and counsel determine containment, breach assessment, and required contractual/state/federal notifications. Prompt escalation matters; notification deadlines are not permission to delay. See [HHS Breach Notification Rule guidance](https://www.hhs.gov/hipaa/for-professionals/breach-notification/index.html). Resume only when safe, authorized review can be completed.
 

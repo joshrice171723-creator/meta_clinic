@@ -1,0 +1,346 @@
+<div id="clinic-design-study">
+  <div class="viz-controls" aria-label="Compare design directions">
+    <button type="button" class="btn" data-direction="today" aria-pressed="true">A · Staff intake</button>
+    <button type="button" class="btn" data-direction="patients" aria-pressed="false">B · Clinician focus</button>
+    <button type="button" class="btn" data-direction="inventory" aria-pressed="false">C · Operations desk</button>
+    <label class="form-label">Palette
+      <select class="form-select" id="clinic-study-palette">
+        <option value="sage">Sage &amp; ivory</option>
+        <option value="blue">Mineral blue</option>
+        <option value="graphite">Warm graphite</option>
+      </select>
+    </label>
+    <label class="form-label">Appearance
+      <select class="form-select" id="clinic-study-appearance">
+        <option value="light dark">Follow system</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
+  </div>
+  <div class="cw-preview" data-palette="sage">
+    <div class="cw-top">
+      <span class="cw-brand">APPly<span aria-hidden="true">.</span></span>
+      <span class="cw-practice">Test Clinic <span>Clinic workspace</span></span>
+      <span class="cw-prototype">Synthetic design study</span>
+    </div>
+    <div class="cw-shell">
+      <aside class="cw-sidebar" aria-label="Navigation preview">
+        <div class="cw-nav-title">Workspace</div>
+        <div class="cw-nav-item cw-current" data-page="today"><i data-lucide="sun" aria-hidden="true"></i> Today</div>
+        <div class="cw-nav-item" data-page="patients"><i data-lucide="users" aria-hidden="true"></i> Patients</div>
+        <div class="cw-nav-item" data-page="inventory"><i data-lucide="package" aria-hidden="true"></i> Pharmacy</div>
+        <div class="cw-nav-item"><i data-lucide="box" aria-hidden="true"></i> Office stock</div>
+        <div class="cw-nav-item"><i data-lucide="contact" aria-hidden="true"></i> Team</div>
+        <div class="cw-nav-footer">Separate workspace<span>Launch &amp; onboarding ↗</span></div>
+      </aside>
+      <div class="cw-main">
+        <div class="cw-context"><span id="cw-context-label">A · Staff home</span><span>Concept · No actions saved</span></div>
+        <section id="cw-today" class="cw-view" aria-labelledby="cw-today-title">
+          <header class="cw-page-heading"><div><h2 id="cw-today-title">Keep the day moving.</h2><p>Intake, triage and a clear clinician handoff.</p></div></header>
+          <div class="cw-section-heading"><h3>Intake queue</h3><span class="cw-small">Proposed staff workflow</span></div>
+          <div class="cw-work-layout">
+            <div class="cw-panel cw-worklist" aria-label="Example work items">
+              <button type="button" class="cw-work cw-selected" data-work="draft" aria-pressed="true">
+                <span class="cw-work-icon"><i data-lucide="file-pen-line" aria-hidden="true"></i></span>
+                <span class="cw-work-copy"><strong>Example Patient A</strong><span>SYN-001 · Intake in progress</span><span class="cw-assignee">Assigned to you · Intake team</span></span>
+                <span class="cw-tag">In progress</span>
+              </button>
+              <button type="button" class="cw-work" data-work="handoff" aria-pressed="false">
+                <span class="cw-work-icon"><i data-lucide="arrow-right-left" aria-hidden="true"></i></span>
+                <span class="cw-work-copy"><strong>Example Patient B</strong><span>SYN-002 · Intake reviewed</span><span class="cw-assignee">Clinician handoff pending</span></span>
+                <span class="cw-tag">Ready for review</span>
+              </button>
+              <button type="button" class="cw-work" data-work="stock" aria-pressed="false">
+                <span class="cw-work-icon"><i data-lucide="clipboard-list" aria-hidden="true"></i></span>
+                <span class="cw-work-copy"><strong>Example Patient C</strong><span>SYN-003 · Awaiting intake</span><span class="cw-assignee">Owner not assigned</span></span>
+                <span class="cw-tag cw-warning">Needs owner</span>
+              </button>
+            </div>
+            <section class="cw-panel cw-detail" aria-labelledby="cw-work-title">
+              <span class="cw-kicker">Selected work item</span>
+              <h3 id="cw-work-title">Continue intake</h3>
+              <div id="cw-work-detail">
+                <div class="cw-person">Example Patient A<span>Fictional reference · SYN-001</span></div>
+                <dl class="cw-facts"><div><dt>Responsible</dt><dd>You · Intake team</dd></div><div><dt>State</dt><dd>Intake in progress</dd></div></dl>
+                <div class="cw-next"><span>Next action</span>Confirm identity and complete intake. Triage is recorded by an authorized team member; not assessed is never shown as normal.</div>
+              </div>
+              <details class="cw-disclosure"><summary>Intake steps</summary><ol class="cw-intake-steps"><li>Confirm patient identity</li><li>Record reason for visit and intake</li><li>Authorized triage and escalation</li><li>Review completeness and hand off</li></ol></details>
+              <button type="button" class="cw-primary" data-open-patients>Preview clinician view <span aria-hidden="true">→</span></button>
+            </section>
+          </div>
+          <section class="cw-flow" aria-labelledby="cw-flow-title">
+            <h3 id="cw-flow-title">One continuous clinic day</h3>
+            <ol><li>Prepare</li><li>Arrive</li><li>Room</li><li>Visit</li><li>Checkout</li><li>Follow up</li></ol>
+            <span class="cw-small">Queue order is operational, not clinical acuity. Intake, triage and handoffs are proposals.</span>
+          </section>
+        </section>
+        <section id="cw-patients" class="cw-view" aria-labelledby="cw-patients-title" hidden>
+          <header class="cw-page-heading"><div><h2 id="cw-patients-title">Review. Write. Sign.</h2><p>Staff-prepared context beside clinician-owned work.</p></div></header>
+          <div class="cw-patient-layout">
+            <section class="cw-panel cw-patient-list" aria-label="Fictional patient selection">
+              <div class="cw-panel-heading"><h3>Visit queue</h3><span class="cw-small">3 fictional examples</span></div>
+              <button type="button" class="cw-patient cw-selected" data-patient="A" aria-pressed="true"><strong>Example Patient A</strong><span>SYN-001</span><span class="cw-tag">Intake in progress</span></button>
+              <button type="button" class="cw-patient" data-patient="B" aria-pressed="false"><strong>Example Patient B</strong><span>SYN-002</span><span class="cw-tag">Ready for review</span></button>
+              <button type="button" class="cw-patient" data-patient="C" aria-pressed="false"><strong>Example Patient C</strong><span>SYN-003</span><span class="cw-tag">Awaiting intake</span></button>
+            </section>
+            <section class="cw-panel cw-record" aria-labelledby="cw-record-name">
+              <div class="cw-record-heading"><span class="cw-kicker">Selected patient · Fictional</span><h3 id="cw-record-name">Example Patient A</h3><span id="cw-record-ref">Reference · SYN-001</span></div>
+              <div class="cw-record-body">
+                <div class="cw-section-heading"><h3>Intake summary</h3><span class="cw-tag">Staff prepared</span></div>
+                <div id="cw-intake-summary" class="cw-intake-summary">Intake in progress · Triage not assessed</div>
+                <div class="cw-entry" id="cw-entry"><span class="cw-entry-mark" aria-hidden="true"></span><div><strong>Clinician note · Draft</strong><span class="cw-small">Not signed · Example only</span><p>A focused writing area would live here. No clinical information or note is saved.</p></div></div>
+                <div class="cw-review-actions"><button type="button" class="cw-primary" data-review="note">Review note</button><button type="button" class="cw-secondary" data-review="prescription">Review prescription</button></div>
+                <div class="cw-next" id="cw-signing-review"><span>Signing workspace · Proposed</span>Review the note and each prescription separately. No editor, signature or prescription transmission is connected.</div>
+              </div>
+            </section>
+          </div>
+        </section>
+        <section id="cw-inventory" class="cw-view" aria-labelledby="cw-inventory-title" hidden>
+          <header class="cw-page-heading"><div><h2 id="cw-inventory-title">Know what needs a look.</h2><p>Keep physical stock and availability distinct.</p></div></header>
+          <div class="cw-section-heading"><h3>Stock review</h3><span class="cw-small">Fictional sealed packages</span></div>
+          <div class="cw-panel cw-stock-list" aria-label="Fictional stock selection">
+            <button type="button" class="cw-stock cw-selected" data-stock="hold" aria-pressed="true"><span><strong>Sample Product A</strong><span class="cw-small">Lot DEMO-A · Cabinet 1</span></span><span class="cw-stock-value">12 sealed packages<span class="cw-small">Physical on hand</span></span><span class="cw-tag cw-warning">On hold</span></button>
+            <button type="button" class="cw-stock" data-stock="low" aria-pressed="false"><span><strong>Sample Product B</strong><span class="cw-small">Lot DEMO-B · Cabinet 2</span></span><span class="cw-stock-value">3 sealed packages<span class="cw-small">Physical on hand</span></span><span class="cw-tag cw-warning">Low stock</span></button>
+            <button type="button" class="cw-stock" data-stock="count" aria-pressed="false"><span><strong>Sample Product C</strong><span class="cw-small">Lot DEMO-C · Cabinet 1</span></span><span class="cw-stock-value">8 sealed packages<span class="cw-small">Physical on hand</span></span><span class="cw-tag">Count pending</span></button>
+          </div>
+          <section class="cw-panel cw-stock-detail" aria-labelledby="cw-stock-name">
+            <div><span class="cw-kicker">Selected stock</span><h3 id="cw-stock-name">Sample Product A</h3><span id="cw-stock-location" class="cw-small">Lot DEMO-A · Cabinet 1</span></div>
+            <div class="cw-stock-balances"><div><span>Physical on hand</span><strong id="cw-physical">12</strong><span>sealed packages</span></div><div><span>Available</span><strong id="cw-available">0</strong><span>sealed packages</span></div></div>
+            <div class="cw-next" id="cw-stock-reason"><span>Review next</span>Active hold excludes this receipt from availability. Review the hold record; do not infer that physical stock is usable.</div>
+            <details class="cw-disclosure"><summary>Receiving is a separate action</summary><p>Select the catalog product → confirm location, lot, quantity and typed unit → review → record receipt. Adding a product to the catalog does not add stock. No receipt is submitted in this study.</p></details>
+          </section>
+        </section>
+        <div class="cw-preview-footer"><span id="cw-palette-caption">Sage &amp; ivory</span><span>System-font preview · All examples invented</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="sr-only" id="cw-announcement" aria-live="polite" aria-atomic="true"></div>
+</div>
+<style>
+  #clinic-design-study .cw-preview {
+    --cw-canvas: light-dark(#f5f7f4, #151d19);
+    --cw-surface: light-dark(#ffffff, #1e2823);
+    --cw-ink: light-dark(#20352f, #e5eee8);
+    --cw-muted: light-dark(#52655e, #b3c4b9);
+    --cw-line: light-dark(#ccd8d1, #495d51);
+    --cw-control: light-dark(#71847a, #8aab99);
+    --cw-accent: light-dark(#1f5c4d, #a7d4ba);
+    --cw-on-accent: light-dark(#ffffff, #14261c);
+    --cw-soft: light-dark(#e6efe8, #2b4034);
+    --cw-warning: light-dark(#8a4b12, #ffd298);
+    --cw-warning-bg: light-dark(#fff2d9, #48331b);
+    color: var(--cw-ink); background: var(--cw-canvas); border: 1px solid var(--cw-line);
+    border-radius: 14px; overflow: clip; container-type: inline-size;
+    font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin-top: 16px; text-align: left;
+  }
+  #clinic-design-study .cw-preview[data-palette="blue"] {
+    --cw-canvas: light-dark(#f4f7fa, #151d25); --cw-surface: light-dark(#ffffff, #1d2934);
+    --cw-ink: light-dark(#213747, #e2edf5); --cw-muted: light-dark(#536574, #b4c6d4);
+    --cw-line: light-dark(#cbd6df, #4b6071); --cw-control: light-dark(#71818e, #8da8bd);
+    --cw-accent: light-dark(#245a81, #a9cfea); --cw-on-accent: light-dark(#ffffff, #162936);
+    --cw-soft: light-dark(#e7eff6, #2a4051);
+  }
+  #clinic-design-study .cw-preview[data-palette="graphite"] {
+    --cw-canvas: light-dark(#f7f5f1, #201f1c); --cw-surface: light-dark(#ffffff, #292823);
+    --cw-ink: light-dark(#2a3533, #eeeee6); --cw-muted: light-dark(#616a64, #c5c5b8);
+    --cw-line: light-dark(#d7d8d0, #606054); --cw-control: light-dark(#7c8178, #a3a798);
+    --cw-accent: light-dark(#3e4b49, #c5d0c2); --cw-on-accent: light-dark(#ffffff, #242c25);
+    --cw-soft: light-dark(#ecefe7, #3b4037);
+  }
+  #clinic-design-study .cw-preview * { box-sizing: border-box; }
+  #clinic-design-study .cw-preview [hidden] { display: none !important; }
+  #clinic-design-study .cw-preview h2, #clinic-design-study .cw-preview h3, #clinic-design-study .cw-preview p { margin: 0; }
+  #clinic-design-study .cw-preview h2 { font: 500 28px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: -.7px; }
+  #clinic-design-study .cw-preview h3 { font: 500 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  #clinic-design-study .cw-preview strong { font-weight: 500; }
+  #clinic-design-study .cw-top { display: flex; align-items: center; gap: 24px; padding: 20px 24px; border-bottom: 1px solid var(--cw-line); background: var(--cw-surface); flex-wrap: wrap; }
+  #clinic-design-study .cw-brand { color: var(--cw-ink); font-size: 26px; font-weight: 500; letter-spacing: -1.4px; }
+  #clinic-design-study .cw-brand > span { color: var(--cw-accent); }
+  #clinic-design-study .cw-practice { font-weight: 500; }
+  #clinic-design-study .cw-practice > span { display: block; font-size: 14px; font-weight: 400; color: var(--cw-muted); }
+  #clinic-design-study .cw-prototype { margin-left: auto; font-size: 14px; color: var(--cw-muted); }
+  #clinic-design-study .cw-shell { display: grid; grid-template-columns: 156px minmax(0, 1fr); }
+  #clinic-design-study .cw-sidebar { background: var(--cw-surface); padding: 24px 12px; border-right: 1px solid var(--cw-line); }
+  #clinic-design-study .cw-nav-title { color: var(--cw-muted); font-size: 14px; margin: 0 12px 12px; }
+  #clinic-design-study .cw-nav-item { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 12px; margin-bottom: 5px; border-radius: 6px; }
+  #clinic-design-study .cw-current { color: var(--cw-accent); background: var(--cw-soft); box-shadow: inset 3px 0 var(--cw-accent); font-weight: 500; }
+  #clinic-design-study .cw-nav-footer { border-top: 1px solid var(--cw-line); margin: 32px 12px 0; padding-top: 18px; font-size: 14px; color: var(--cw-muted); }
+  #clinic-design-study .cw-nav-footer > span { display: block; color: var(--cw-ink); margin-top: 8px; }
+  #clinic-design-study .cw-main { min-width: 0; padding: 24px; }
+  #clinic-design-study .cw-context { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--cw-muted); font-size: 14px; margin-bottom: 26px; }
+  #clinic-design-study .cw-page-heading { margin-bottom: 28px; }
+  #clinic-design-study .cw-page-heading p { margin-top: 10px; color: var(--cw-muted); }
+  #clinic-design-study .cw-section-heading { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+  #clinic-design-study .cw-small, #clinic-design-study .cw-kicker { color: var(--cw-muted); font-size: 14px; }
+  #clinic-design-study .cw-kicker { display: block; margin-bottom: 8px; }
+  #clinic-design-study .cw-panel { background: var(--cw-surface); border: 1px solid var(--cw-line); border-radius: 10px; min-width: 0; }
+  #clinic-design-study .cw-work-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  #clinic-design-study .cw-preview button { font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 44px; }
+  #clinic-design-study .cw-work { display: flex; width: 100%; align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 20px; border: 0; background: var(--cw-surface); border-bottom: 1px solid var(--cw-line); border-radius: 0; }
+  #clinic-design-study .cw-work:first-child, #clinic-design-study .cw-stock:first-child { border-radius: 9px 9px 0 0; }
+  #clinic-design-study .cw-work:last-child, #clinic-design-study .cw-stock:last-child { border-bottom: 0; border-radius: 0 0 9px 9px; }
+  #clinic-design-study .cw-work-copy { flex: 1 1 170px; min-width: 0; }
+  #clinic-design-study .cw-work-copy > span { display: block; font-size: 14px; color: var(--cw-muted); margin-top: 3px; }
+  #clinic-design-study .cw-work-copy .cw-assignee { margin-top: 10px; }
+  #clinic-design-study .cw-work-icon { display: grid; place-items: center; color: var(--cw-accent); background: var(--cw-soft); width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; }
+  #clinic-design-study .cw-tag { display: inline-block; width: fit-content; font-size: 14px; line-height: 1.4; padding: 4px 8px; border-radius: 5px; color: var(--cw-accent); background: var(--cw-soft); }
+  #clinic-design-study .cw-warning { color: var(--cw-warning); background: var(--cw-warning-bg); }
+  #clinic-design-study .cw-preview .cw-selected { background: var(--cw-soft); box-shadow: inset 3px 0 var(--cw-accent); }
+  #clinic-design-study .cw-preview button:hover { filter: brightness(.97); }
+  #clinic-design-study .cw-detail { padding: 22px; }
+  #clinic-design-study .cw-detail > h3 { font-size: 21px; margin-bottom: 20px; }
+  #clinic-design-study .cw-person { font-weight: 500; }
+  #clinic-design-study .cw-person > span { display: block; font-size: 14px; font-weight: 400; color: var(--cw-muted); margin-top: 3px; }
+  #clinic-design-study .cw-facts { margin: 18px 0; font-size: 14px; }
+  #clinic-design-study .cw-facts > div { display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; padding: 7px 0; }
+  #clinic-design-study .cw-facts dt { color: var(--cw-muted); }
+  #clinic-design-study .cw-facts dd { margin: 0; }
+  #clinic-design-study .cw-next { background: var(--cw-canvas); border-radius: 6px; padding: 16px; font-size: 14px; margin: 18px 0; }
+  #clinic-design-study .cw-next > span { display: block; font-weight: 500; color: var(--cw-accent); margin-bottom: 6px; }
+  #clinic-design-study .cw-preview .cw-primary { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 16px; border: 1px solid var(--cw-accent); border-radius: 6px; background: var(--cw-accent); color: var(--cw-on-accent); }
+  #clinic-design-study .cw-flow { margin-top: 26px; }
+  #clinic-design-study .cw-flow ol { list-style: none; display: flex; flex-wrap: wrap; padding: 0; gap: 8px; margin: 12px 0; }
+  #clinic-design-study .cw-flow li { color: var(--cw-muted); font-size: 14px; }
+  #clinic-design-study .cw-flow li:not(:last-child)::after { content: "→"; margin-left: 8px; }
+  #clinic-design-study .cw-patient-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+  #clinic-design-study .cw-panel-heading { padding: 18px; border-bottom: 1px solid var(--cw-line); }
+  #clinic-design-study .cw-panel-heading > span { display: block; margin-top: 4px; }
+  #clinic-design-study .cw-patient { display: flex; flex-direction: column; align-items: flex-start; width: 100%; gap: 4px; padding: 18px; background: var(--cw-surface); border: 0; border-bottom: 1px solid var(--cw-line); }
+  #clinic-design-study .cw-patient > span:not(.cw-tag) { color: var(--cw-muted); font-size: 14px; }
+  #clinic-design-study .cw-patient > .cw-tag { margin-top: 6px; }
+  #clinic-design-study .cw-patient:last-child { border-bottom: 0; border-radius: 0 0 9px 9px; }
+  #clinic-design-study .cw-record-heading { padding: 22px; border-bottom: 1px solid var(--cw-line); }
+  #clinic-design-study .cw-record-heading > h3 { font-size: 24px; margin-bottom: 6px; }
+  #clinic-design-study .cw-record-heading > span:last-child { color: var(--cw-muted); font-size: 14px; }
+  #clinic-design-study .cw-record-body { padding: 22px; }
+  #clinic-design-study .cw-entry { display: flex; gap: 12px; margin: 24px 0; }
+  #clinic-design-study .cw-entry-mark { width: 8px; height: 8px; background: var(--cw-accent); border-radius: 50%; margin-top: 9px; flex-shrink: 0; }
+  #clinic-design-study .cw-entry .cw-small { display: block; margin: 3px 0 12px; }
+  #clinic-design-study .cw-entry p { font-size: 16px; }
+  #clinic-design-study .cw-disclosure { border-top: 1px solid var(--cw-line); margin-top: 20px; }
+  #clinic-design-study .cw-disclosure summary { cursor: pointer; min-height: 44px; padding: 12px 0; color: var(--cw-accent); font-size: 14px; }
+  #clinic-design-study .cw-disclosure p { padding: 2px 0 12px; font-size: 14px; color: var(--cw-muted); }
+  #clinic-design-study .cw-intake-steps { margin: 0 0 18px; padding-left: 24px; font-size: 14px; color: var(--cw-muted); }
+  #clinic-design-study .cw-intake-steps li { margin-bottom: 6px; }
+  #clinic-design-study .cw-intake-summary { background: var(--cw-soft); color: var(--cw-accent); border-radius: 6px; padding: 14px; font-size: 14px; }
+  #clinic-design-study .cw-review-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  #clinic-design-study .cw-review-actions > button { flex: 1 1 140px; }
+  #clinic-design-study .cw-preview .cw-secondary { border: 1px solid var(--cw-control); border-radius: 6px; padding: 12px 16px; background: var(--cw-surface); color: var(--cw-accent); }
+  #clinic-design-study .cw-stock { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; padding: 20px; background: var(--cw-surface); border: 0; border-bottom: 1px solid var(--cw-line); }
+  #clinic-design-study .cw-stock > span:first-child > span, #clinic-design-study .cw-stock-value > span { display: block; margin-top: 4px; }
+  #clinic-design-study .cw-stock-value { font-variant-numeric: tabular-nums; }
+  #clinic-design-study .cw-stock > .cw-tag { grid-column: 1 / -1; }
+  #clinic-design-study .cw-stock-detail { margin-top: 18px; padding: 22px; }
+  #clinic-design-study .cw-stock-detail h3 { font-size: 22px; margin-bottom: 4px; }
+  #clinic-design-study .cw-stock-balances { display: flex; flex-wrap: wrap; gap: 32px; margin-top: 20px; }
+  #clinic-design-study .cw-stock-balances > div { display: flex; flex-direction: column; font-size: 14px; color: var(--cw-muted); }
+  #clinic-design-study .cw-stock-balances strong { font-size: 32px; font-variant-numeric: tabular-nums; color: var(--cw-ink); margin: 2px 0; }
+  #clinic-design-study .cw-preview-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--cw-muted); border-top: 1px solid var(--cw-line); padding-top: 18px; margin-top: 28px; }
+  @container (min-width: 700px) {
+    #clinic-design-study .cw-patient-layout { grid-template-columns: 170px minmax(0, 1fr); }
+  }
+  @container (min-width: 850px) {
+    #clinic-design-study .cw-work-layout { grid-template-columns: minmax(0, 1.35fr) minmax(250px, 1fr); align-items: start; }
+    #clinic-design-study .cw-patient-layout { grid-template-columns: 220px minmax(0, 1fr); }
+    #clinic-design-study .cw-stock { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 125px; }
+    #clinic-design-study .cw-stock > .cw-tag { grid-column: auto; }
+  }
+  @container (max-width: 650px) {
+    #clinic-design-study .cw-shell { grid-template-columns: minmax(0, 1fr); }
+    #clinic-design-study .cw-sidebar { border-right: 0; border-bottom: 1px solid var(--cw-line); display: flex; flex-wrap: wrap; padding: 8px 12px; gap: 4px; }
+    #clinic-design-study .cw-nav-item { margin: 0; padding: 10px; }
+    #clinic-design-study .cw-nav-title, #clinic-design-study .cw-nav-footer { display: none; }
+    #clinic-design-study .cw-top { padding: 16px; gap: 14px; }
+    #clinic-design-study .cw-prototype { margin-left: 0; flex-basis: 100%; }
+    #clinic-design-study .cw-main { padding: 20px 16px; }
+    #clinic-design-study .cw-work { padding: 16px; }
+    #clinic-design-study .cw-work-icon { display: none; }
+    #clinic-design-study .cw-detail, #clinic-design-study .cw-record-body, #clinic-design-study .cw-record-heading, #clinic-design-study .cw-stock-detail { padding: 18px; }
+    #clinic-design-study .cw-preview h2 { font-size: 26px; }
+  }
+  @container (max-width: 390px) {
+    #clinic-design-study .cw-stock { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    #clinic-design-study .cw-context { margin-bottom: 20px; }
+    #clinic-design-study .cw-nav-item { font-size: 14px; }
+  }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('clinic-design-study');
+  const preview = root.querySelector('.cw-preview');
+  const announcement = root.querySelector('#cw-announcement');
+  const labels = {today: 'A · Staff home', patients: 'B · Clinician focus', inventory: 'C · Operations desk'};
+  const changeView = (view) => {
+    root.querySelectorAll('[data-direction]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.direction === view)));
+    root.querySelectorAll('.cw-view').forEach(section => { section.hidden = section.id !== 'cw-' + view; });
+    root.querySelectorAll('[data-page]').forEach(item => item.classList.toggle('cw-current', item.dataset.page === view));
+    root.querySelector('#cw-context-label').textContent = labels[view];
+    announcement.textContent = labels[view] + ' selected. Concept only; no information saved.';
+  };
+  root.querySelectorAll('[data-direction]').forEach(button => button.addEventListener('click', () => changeView(button.dataset.direction)));
+  root.querySelector('#clinic-study-palette').addEventListener('change', event => {
+    preview.dataset.palette = event.target.value;
+    const paletteName = event.target.selectedOptions[0].textContent;
+    root.querySelector('#cw-palette-caption').textContent = paletteName;
+    announcement.textContent = paletteName + ' palette selected.';
+  });
+  root.querySelector('#clinic-study-appearance').addEventListener('change', event => {
+    preview.style.colorScheme = event.target.value;
+    announcement.textContent = event.target.selectedOptions[0].textContent + ' appearance selected.';
+  });
+  const work = {
+    draft: {title: 'Continue intake', subject: 'Example Patient A', ref: 'Fictional reference · SYN-001', owner: 'You · Intake team', state: 'Intake in progress', next: 'Confirm identity and complete intake. Triage is recorded by an authorized team member; not assessed is never shown as normal.', view: 'patients', action: 'Preview clinician view'},
+    handoff: {title: 'Hand off for clinician review', subject: 'Example Patient B', ref: 'Fictional reference · SYN-002', owner: 'Example intake team', state: 'Ready for review · Proposed', next: 'Keep the intake author, time and assessment visible. Handoff is not complete until the receiving clinician accepts responsibility.', view: 'patients', action: 'Preview clinician view'},
+    stock: {title: 'Assign intake responsibility', subject: 'Example Patient C', ref: 'Fictional reference · SYN-003', owner: 'Not assigned', state: 'Awaiting intake', next: 'Assign an authorized team member. Queue order is operational; triage and escalation require a clinic-approved clinical workflow.', view: 'patients', action: 'Preview clinician view'}
+  };
+  let currentWork = 'draft';
+  const selectPatient = (key) => {
+    const refs = {A: 'SYN-001', B: 'SYN-002', C: 'SYN-003'};
+    root.querySelectorAll('[data-patient]').forEach(button => { const chosen = button.dataset.patient === key; button.classList.toggle('cw-selected', chosen); button.setAttribute('aria-pressed', String(chosen)); });
+    root.querySelector('#cw-record-name').textContent = 'Example Patient ' + key;
+    root.querySelector('#cw-record-ref').textContent = 'Reference · ' + refs[key];
+    const intakeStates = {A: 'Intake in progress · Triage not assessed', B: 'Intake ready for review · Example team member · Demo timestamp', C: 'Awaiting intake · Triage not assessed'};
+    root.querySelector('#cw-intake-summary').textContent = intakeStates[key];
+    root.querySelector('#cw-signing-review').innerHTML = '<span>Signing workspace · Proposed</span>Review the note and each prescription separately. No editor, signature or prescription transmission is connected.';
+    announcement.textContent = 'Selected Example Patient ' + key + ', ' + refs[key] + '. ' + intakeStates[key] + '.';
+  };
+  root.querySelectorAll('[data-work]').forEach(button => button.addEventListener('click', () => {
+    currentWork = button.dataset.work;
+    const item = work[currentWork];
+    root.querySelectorAll('[data-work]').forEach(row => { const chosen = row === button; row.classList.toggle('cw-selected', chosen); row.setAttribute('aria-pressed', String(chosen)); });
+    root.querySelector('#cw-work-title').textContent = item.title;
+    root.querySelector('#cw-work-detail').innerHTML = '<div class="cw-person">' + item.subject + '<span>' + item.ref + '</span></div><dl class="cw-facts"><div><dt>Responsible</dt><dd>' + item.owner + '</dd></div><div><dt>State</dt><dd>' + item.state + '</dd></div></dl><div class="cw-next"><span>Next action</span>' + item.next + '</div>';
+    root.querySelector('[data-open-patients]').textContent = item.action + ' →';
+    announcement.textContent = item.title + ' selected. ' + item.state + '.';
+  }));
+  root.querySelector('[data-open-patients]').addEventListener('click', () => {
+    const view = work[currentWork].view;
+    changeView(view);
+    if (view === 'patients') selectPatient(currentWork === 'handoff' ? 'B' : currentWork === 'stock' ? 'C' : 'A');
+    root.querySelector('[data-direction="' + view + '"]').focus();
+  });
+  root.querySelectorAll('[data-patient]').forEach(button => button.addEventListener('click', () => selectPatient(button.dataset.patient)));
+  root.querySelectorAll('[data-review]').forEach(button => button.addEventListener('click', () => {
+    const isNote = button.dataset.review === 'note';
+    root.querySelector('#cw-signing-review').innerHTML = isNote ? '<span>Note review · Signing unavailable</span>Confirm patient and encounter, review the complete draft, then explicitly sign as the authorized clinician. Missing content must block signing. This preview creates no signed record.' : '<span>Prescription review · No prescription drafted</span>Confirm patient, medication, strength, directions and destination before a separate prescribing authorization. Signed, transmitted and pharmacy-accepted are distinct states. Nothing is prescribed or sent here.';
+    announcement.textContent = isNote ? 'Note review preview. Signing unavailable.' : 'Prescription review preview. No prescription drafted or sent.';
+  }));
+  const stocks = {
+    hold: {name: 'Sample Product A', location: 'Lot DEMO-A · Cabinet 1', physical: '12', available: '0', next: 'Active hold excludes this receipt from availability. Review the hold record; do not infer that physical stock is usable.'},
+    low: {name: 'Sample Product B', location: 'Lot DEMO-B · Cabinet 2', physical: '3', available: '3', next: 'Available stock is below the example reorder level of 5 sealed packages. Review replenishment; no order has been placed.'},
+    count: {name: 'Sample Product C', location: 'Lot DEMO-C · Cabinet 1', physical: '8', available: '8', next: 'A count observation is awaiting approval. Displayed balances remain unchanged until an authorized adjustment is posted.'}
+  };
+  root.querySelectorAll('[data-stock]').forEach(button => button.addEventListener('click', () => {
+    const item = stocks[button.dataset.stock];
+    root.querySelectorAll('[data-stock]').forEach(row => { const chosen = row === button; row.classList.toggle('cw-selected', chosen); row.setAttribute('aria-pressed', String(chosen)); });
+    root.querySelector('#cw-stock-name').textContent = item.name;
+    root.querySelector('#cw-stock-location').textContent = item.location;
+    root.querySelector('#cw-physical').textContent = item.physical;
+    root.querySelector('#cw-available').textContent = item.available;
+    root.querySelector('#cw-stock-reason').innerHTML = '<span>Review next</span>' + item.next;
+    announcement.textContent = item.name + ' selected. Physical on hand ' + item.physical + ', available ' + item.available + ' sealed packages.';
+  }));
+})();
+</script>

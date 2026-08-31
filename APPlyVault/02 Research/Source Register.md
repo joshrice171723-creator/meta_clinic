@@ -87,7 +87,7 @@ Reviewed during the 2026-08-30 supplier-pricing discussion and recorded when the
 
 ## EC2 staging references
 
-Reviewed 2026-08-30 for D-027/T-20. These support the synthetic deployment package in `site/deploy/ec2/`, not cloud go-live or a patient-data approval.
+Reviewed 2026-08-30 for D-027/T-20. These supported the synthetic deployment package then at `site/deploy/ec2/` (now `ops/aws/ec2/`), not cloud go-live or patient-data approval.
 
 | ID | Source | Accessed | Limited relevance / limitation |
 | --- | --- | --- | --- |
@@ -140,7 +140,15 @@ Reviewed 2026-08-30 for D-030 and [[CICD]].
 - Service-specific agencies, payer requirements, and vendor terms: select after clinic profile is known.
 - Pharmacy-specific limits: the initial inventory review could not retrieve current eCFR sections or Texas Occupations Code chapter 158. The later same-day discussion-guide review retrieved official Chapter 158 and selected Chapter 157/102 provisions (S-60–S-62); that access gap is resolved. Current eCFR reconciliation, live TAC and the linked §291.17 amendment text remain unreviewed. FDA's linked July 2022 trading-partner guidance is explicitly draft, not an effective-rule basis. See [[Pharmacy Inventory Data Requirements#Evidence to request next and remaining limits]].
 
+## Vault instruction reference
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-81 | [OpenAI — Custom instructions with AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) | 2026-08-31 | Official project-instruction discovery and precedence guidance reviewed for the user-requested TOC/relevant-review update. The review scope is the founder's project rule, not an OpenAI requirement or a technical access control |
+
 ## Private and first-hand evidence
+
+- U-25: founder's current review and follow-ups, 2026-08-31: review code/vault, reconcile stale documentation, foreground [[CICD]] for the other developer, preserve the founder's removal of retired `reference/`, add shared `.gitignore` coverage, add [[01 Table of Contents]], and change `AGENTS.md` to require relevant-section review through it rather than the entire vault. D-034/D-035 record the removal/protocol changes. No runtime feature change, deployment, Git publication or real-data access requested.
 
 - U-19: founder's inventory-pricing discussion and deferral, 2026-08-30: requested supplier/manufacturer price-comparison sources, asked about extensible product/price integrations and supplier APIs/partnerships, then asked to put the work on hold and update the vault with current state and future work. D-029 records the deferral; T-37 is the deferred integration task. The assistant's architecture and suggested sequence remain proposals, not accepted implementation, supplier selection, spending, outreach or purchase authority.
 

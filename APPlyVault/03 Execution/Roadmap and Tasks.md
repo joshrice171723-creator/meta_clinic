@@ -5,7 +5,13 @@ updated: 2026-08-31
 ---
 # Roadmap and Tasks
 
-Home: [[00 Home]] · Decisions: [[Decisions]] · Changes: [[Progress Log]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Developer handoff: [[CICD]] · Decisions: [[Decisions]] · Changes: [[Progress Log]]
+
+## Current developer handoff — 2026-08-31
+
+Start with [[CICD]] for setup/checks and [[Software Architecture]] for code ownership. Local source is the completed React/Vite frontend plus Rails API/PostgreSQL split (T-40), with shared exact-unit inventory, receipts, holds and counts (T-34/T-38). The founder removed retired `reference/`; no code/workflow depends on it. Root `.gitignore` supplies shared local-artifact exclusions. [[01 Table of Contents]] routes task-specific review; the former full-vault reading requirement is replaced, not the safety/release gates.
+
+T-22/M0 still needs current-frontend browser/accessibility acceptance and observed remote CI. T-38 owns hosted PostgreSQL cutover and paired service/SSM installation; delivery activation is distinct from CI checks. T-20/M1 retains operational/recovery acceptance. Last recorded hosted verification is 2026-08-30 on SQLite, not a fresh host observation. No implementation milestone or professional gate is closed by this documentation review. The dated baselines below remain historical; use the current task register for status.
 
 ## Rules
 
@@ -190,7 +196,7 @@ SharePoint starter delivery has its own L-05/clinical/operational gates even if 
 
 ### Pharmacy capability implementation sequence
 
-**D-028 changes the planning assumption:** support clinics choosing and combining pharmacy setups; do not wait for one operating-model selection before designing the shared foundation. [[Pharmacy Inventory Data Requirements#Configurable pharmacy capabilities]] defines the proposed scope and [[Data Modeling#Inventory and commercial boundary]] the logical records. The whole-package Rails slice in T-32 remains useful but incomplete. Broad configurability is confirmed; the increments below are proposed, not completed capabilities, dated commitments or authorization for every clinical module.
+**D-028 changes the planning assumption:** support clinics choosing and combining pharmacy setups; do not wait for one operating-model selection before designing the shared foundation. [[Pharmacy Inventory Data Requirements#Configurable pharmacy capabilities]] defines the proposed scope and [[Data Modeling#Inventory and commercial boundary]] the logical records. T-32's initial whole-package slice has since been extended by D-031 with the shared PostgreSQL ledger, typed units, receipts, holds and counts. Broad configurability is confirmed; the table describes intended full increments, not a claim they are all complete. T-34 records the remaining configuration/security scope; no dated commitment or authority for clinical modules is implied.
 
 | Increment | Dependency and proposed scope | Evidence before accepting the increment |
 | --- | --- | --- |
@@ -201,7 +207,7 @@ SharePoint starter delivery has its own L-05/clinical/operational gates even if 
 | Controlled-drug and tracing overlays | Relevant inventory/dispensing pathways and reviewed requirements for each overlay; synthetic evidence/reporting harness first | Acquisition/disposition and formal counts reconcile to the same ledger; package/transaction evidence is retrievable; investigation and reporting errors/retries are accountable; no regulator/supplier submission or live integration implied |
 | Compounding, repackaging and other specialized setups | Relevant capabilities plus specialist requirements, preparation/quality/facility scope and a separately accepted synthetic build slice | Source-to-output genealogy, yield/waste, preparation/check/release and applicable storage conditions reconcile; unsupported combinations are rejected; detailed clinical/quality criteria must be established rather than inferred from a generic batch table |
 
-The foundation can progress without the missing SharePoint originals or a first clinic's final formulary. E1 still governs validation of the complete clinical/product/migration scope, and E2/E3 and L-05 still govern their respective technical and real-use acceptance. [[Pharmacy Provider and Counsel Questions]] supplies the professional/operational review agenda under T-36; it does not block shared synthetic foundation design or establish an approved clinic profile. Higher-risk overlays must be present and accepted before using the associated product/workflow; table order is not permission to dispense controlled drugs before their controls exist. T-13 owns requirements, T-34 the proposed next foundation build, and T-14 the unresolved commercial mechanics. No duplicate status list is maintained here.
+The foundation can progress without the missing SharePoint originals or a first clinic's final formulary. E1 still governs validation of the complete clinical/product/migration scope, and E2/E3 and L-05 still govern their respective technical and real-use acceptance. [[Pharmacy Provider and Counsel Questions]] supplies the professional/operational review agenda under T-36; it does not block shared synthetic foundation design or establish an approved clinic profile. Higher-risk overlays must be present and accepted before using the associated product/workflow; table order is not permission to dispense controlled drugs before their controls exist. T-13 owns requirements, T-34 the remaining configuration/foundation acceptance, and T-14 the unresolved commercial mechanics. No duplicate status list is maintained here.
 
 ### Supplier pricing integration — deferred
 
@@ -211,7 +217,7 @@ D-029 puts supplier product/price integration on hold at the founder's request. 
 
 | When | Question / evidence needed | Work that can proceed meanwhile |
 | --- | --- | --- |
-| Before M1 deployment | Which Ruby host, approved data paths, budget and responsible operator? What audience may use the preview? | M0, synthetic M2 and packet mapping. Keep current owner-only hosting policy |
+| Before completing M1 | EC2 region, small paid hosts and private audience are recorded under D-027/D-030. Who accepts operations/recovery, and what evidence supports the PostgreSQL/pair cutover and any audience change? | M0, synthetic M2 and packet mapping; do not reopen the settled bootstrap hosting choice or assume wider release |
 | Before M2 confidential use | Who verifies payment and handles access/recovery/inquiries? Does the first engagement need several individual accounts? | Synthetic one-account flows; no public signup or billing automation |
 | Before M3 release | Where are the authorized MD sources, who may reuse/review them, and which packet/content subset is ready? | Generic labeled training and synthetic workflow scaffolding |
 | Before M4 | Which confidential-storage and signing approach is approved for these exact documents/recipients, and who accepts release risk? | Keep demo signing enabled only for synthetic documents; real signing disabled |
@@ -225,7 +231,7 @@ A milestone passes only when each exit criterion has linked evidence, a named ac
 
 ## Current task register
 
-**Source organization (D-033):** [[Software Architecture]] defines `apps/web/` for the independent browser frontend, `apps/api/` for the Rails JSON backend, `ops/aws/` for delivery and `reference/pharmacy/` for imported designs. T-39 records the earlier domain/source refactor and T-40 the frontend/API split; historical paths above describe earlier states, not current build instructions. T-38 still owns hosted PostgreSQL cutover.
+**Source organization (D-033):** [[Software Architecture]] defines `apps/web/` for the independent browser frontend, `apps/api/` for the Rails JSON backend, `ops/aws/` for delivery. The founder removed retired `reference/` after mapping the generic app into the current setup. T-39 records the earlier domain/source refactor and T-40 the frontend/API split; historical paths above describe earlier states, not current build instructions. T-38 still owns hosted PostgreSQL cutover.
 
 Owners: **unassigned unless stated**. All due dates: **TBD**. Add a named owner and date per row when accepted.
 
@@ -250,7 +256,7 @@ Owners: **unassigned unless stated**. All due dates: **TBD**. Add a named owner 
 | T-17 | P1 / in progress | Rails contact persistence, error handling, encrypted fields and admin inbox implemented/tested locally; finish operational acceptance under M2 | T-20 for online operation; privacy/retention and response ownership review; no email notifications configured |
 | T-18 | P2 / done (2026-08-30) | Deliver the requested [[Data Modeling]] proposal: multi-clinic PostgreSQL tables, access control, auditing, and implementation limits; owner: Codex for documentation | Documentation only; clinical workflow evidence, implementation/testing, architecture acceptance, and L-05 remain open |
 | T-19 | P1 / done locally (2026-08-30) | Implement and test [[Client Portal]]: provisioned logins, two-area dashboard, account-scoped demo paperwork/signing, sample training and personal progress; added guarded local demo login per founder request; owner: Codex for implementation | Synthetic prototype only. Development shortcut is disabled in production; hosting/access policy unchanged. Real documents/signatures and public/client production use are not approved |
-| T-20 | P1 / in progress | D-027/D-030 private staging and production hosts run Rails/SQLite, each t3.micro with 10 GiB encrypted storage, independent keys/role/ECR and immutable images. Production demos are disabled; runbook in `ops/aws/ec2/environments.md`; owner: Codex for requested setup | Combined baseline roughly $28/month before extras; earlier payment/root authorization continues. Public domain/DNS, broader M1 operational/account/browser/recovery acceptance and unresolved base-image advisories remain; T-22/T-25/L-05 unchanged. See newest EC2 entry in [[Progress Log]] |
+| T-20 | P1 / in progress | Last verified 2026-08-30: D-027/D-030 private staging and production hosts ran Rails/SQLite, each t3.micro with 10 GiB encrypted storage, independent keys/role/ECR and immutable images. Production demos are disabled; runbook in `ops/aws/ec2/environments.md`; owner: Codex for requested setup | Combined baseline roughly $28/month before extras; earlier payment/root authorization continues. Public domain/DNS, broader M1 operational/account/browser/recovery acceptance and unresolved base-image advisories remain; T-22/T-25/L-05 unchanged. See newest EC2 entry in [[Progress Log]] |
 | T-21 | P2 / backlog | Deliver M6 reviewed PDF generation, authorized institutional submission and feedback pipeline | T-12 actual packet, recipient/signature requirements, T-25/T-26, approved confidential storage and explicit implementation scope |
 | T-22 | P1 / in progress | Pass M0: deterministic Rails tests and supported copy delivered under T-28; five-job API/frontend CI, paired staging/production release code, corrected host launcher with 12 offline contract tests and [[CICD]] guide delivered locally; finish GitHub activation, observed remote runs and browser acceptance | Native regressions and scoped local pharmacy browser checks pass; full application browser/accessibility acceptance and successful GitHub execution remain open. Delivery code is prepared but inactive pending T-38 coordinated host cutover/installer/SSM installation and GitHub authentication/configuration/publication; M0 remains unpassed |
 | T-23 | P1 / backlog (proposed) | Pass M2 account lifecycle: payment-approved provisioning, secure activation/recovery, role/access review and operator walkthrough; T-17 owns Contact | T-22 for local work; T-20 for hosted verification; operator/access decisions |

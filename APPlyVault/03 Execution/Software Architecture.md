@@ -18,7 +18,7 @@ This does not merge consultancy, software-company or clinic authority. UI/API se
 ```text
 APPly/
   README.md                    Startup and navigation
-  AGENTS.md                    Whole-vault review and safety rules
+  AGENTS.md                    TOC-routed relevant review and safety rules
   APPlyVault/                  Canonical requirements, evidence, decisions and tasks
   apps/web/                    Independent React/TypeScript browser application
     src/features/              Launch, identity, clinic and inventory UI
@@ -34,14 +34,15 @@ APPly/
     bin/                       API, PostgreSQL and migration-verification commands
   bin/                         Two-process local startup and synthetic HTTP rehearsal
   ops/aws/                     Infrastructure, paired release and recovery tools
-  reference/pharmacy/          Imported specifications and archived SQL
   .github/workflows/           Frontend/API CI and prepared delivery workflows
   site/                        Historical Sites metadata/assets only
 ```
 
 No compatibility symlink or active app remains at `apps/apply` or `site/backend`. Rails' local credential bind path is `apps/api/tmp/postgres-password`; the existing persistent PostgreSQL volume, storage identity and credential file were preserved. Historical Sites metadata/caches and dormant generated Dependabot configuration remain untouched.
 
-`apps/api/db/structure.sql` is the only application schema, derived from the existing migrations. Reference SQL and illustrative SQL in [[Data Modeling]] are not executable alternatives. Table/database identities, session cookie, encryption derivation and `Backend::Application` are unchanged. Frontend dependencies and build output never enter the API image, and backend/database credentials never enter the web image.
+`apps/api/db/structure.sql` is the only application schema, derived from the existing migrations. The founder removed the retired `reference/` folder on 2026-08-31 after its useful behavior was mapped into the app; no application, CI or release script depends on it. Its prior SQL and illustrative SQL in [[Data Modeling]] are not executable alternatives. Table/database identities, session cookie, encryption derivation and `Backend::Application` are unchanged. Frontend dependencies and build output never enter the API image, and backend/database credentials never enter the web image.
+
+Root `.gitignore` provides shared artifact/secret-file exclusions; app-specific rules remain. Source, lockfiles, schema/migrations and vault configuration are deliberately tracked. Ignore rules are not access controls or removal of already tracked data.
 
 ## Domain ownership
 

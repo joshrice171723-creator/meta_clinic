@@ -1,7 +1,7 @@
 ---
 type: research
 status: broad-scope-confirmed-design-proposed
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Pharmacy Inventory Data Requirements
 
@@ -49,7 +49,7 @@ Keep three separate facts: **product capability exists**, **clinic requests/conf
 
 Collection should follow the work: verify catalog/package data at setup; capture lot/expiry/condition and quantities at receiving; capture opening/temperature events when they occur; post actual use, movement or disposition once; reconcile counts and purchasing evidence separately. Supplier feeds, barcode capture and document extraction may assist later, but ambiguous matches go to review and no external transaction is sent merely because a record was imported.
 
-The logical record extensions are in [[Data Modeling#Inventory and commercial boundary]], and the proposed delivery order and acceptance criteria are in [[Roadmap and Tasks#Pharmacy capability implementation sequence]]. These extend the requirements baseline; they do not claim the current whole-package prototype implements the full matrix.
+The logical record extensions are in [[Data Modeling#Inventory and commercial boundary]], and the proposed delivery order and acceptance criteria are in [[Roadmap and Tasks#Pharmacy capability implementation sequence]]. These extend the requirements baseline; they do not claim the implemented inventory foundation covers the full matrix.
 
 ## First establish what pharmacy means here
 
@@ -159,11 +159,13 @@ These are proposed management measures, not observed business results. No demand
 
 ## Implications for the current prototype
 
+**Current implementation, D-031/D-033:** [[PostgreSQL and Inventory Foundation]] now records typed units/conversions, distinct receipts with optional costs, shared ledger, overlapping holds and count/approval records behind the separate frontend/API. The next two paragraphs preserve the earlier T-31 inspection, not today's missing-feature list. Broader purchasing, container/storage, clinical and specialist workflows remain open.
+
 Read-only inspection on 2026-08-30 covered the in-progress pharmacy migration, four pharmacy models and the NDC lookup service. The working tree was changing concurrently; this is a bounded source snapshot, not runtime verification or acceptance of another task's work.
 
-The inspected code has package-level catalog entries, lot/expiry/location, supplier text, whole-package movements, actor/reason/retry attribution, and quarantine/recall states. Those are useful foundations. The inspected structures do not yet model verified unit conversions, individual opened containers/BUD, receipt lines with separate cost/supplier history, purchase/invoice/credit reconciliation, temperature evidence, serialized tracing, formal count records, or patient-use allocations. Do not represent whole packages as administered doses. No clinical workflow should be added just to make the ledger balance.
+The inspected code has package-level catalog entries, lot/expiry/location, supplier text, whole-package movements, actor/reason/retry attribution, and quarantine/recall states. Those are useful foundations. At that earlier inspection the structures did not model verified unit conversions, individual opened containers/BUD, receipt lines with separate cost/supplier history, purchase/invoice/credit reconciliation, temperature evidence, serialized tracing, formal count records, or patient-use allocations. Do not represent whole packages as administered doses. No clinical workflow should be added just to make the ledger balance.
 
-Suggested next implementation scope under T-13: retain synthetic-only operation; establish typed units and receipt provenance, then reconciled movements/counts and controlled holds. Add product-specific container/temperature handling before rehearsing that product class. Patient dispensing, controlled-drug operations, traceability integrations and billing each need their own scoped evidence and acceptance. These are dependencies, not a second task/status register or permission to expand the code now.
+The original next-scope recommendation was typed units, receipts, movements/counts and controlled holds; that bounded core is now delivered under D-031. T-34 still owns location/operator configuration and scoped acceptance, while T-13 retains broader requirements. Add product-specific container/temperature handling before rehearsing that product class. Patient dispensing, controlled-drug operations, traceability integrations and billing each need their own scoped evidence and acceptance. These are dependencies, not a second task/status register or permission to expand the code now.
 
 Useful synthetic acceptance cases: two deliveries of the same lot at different costs; a carton converted into stock units; partial receipt and later credit; two containers from one lot opened at different times; overlapping recall and temperature holds; duplicate event retry; a count discrepancy; and a returned shipment whose credit arrives later. No patient examples are needed to validate the inventory core.
 
