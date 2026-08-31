@@ -68,8 +68,9 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     Clinic::Authorization::RevokeAccess.call(grant: grant, grantor: @actor)
     assert_not Clinic::Authorization.allowed?(actor: target_user, practice: @practice, action: "patients.read")
     assert_equal %w[granted revoked], grant.events.order(:grant_revision).pluck(:event_kind)
-    assert_equal %w[roles.grant roles.revoke], Clinic::AuditEvent.order(:id).last(2).map(&:action_code)
-    assert_equal %w[committed committed], Clinic::AuditEvent.order(:id).last(2).map(&:outcome)
+    role_events = Clinic::AuditEvent.where(action_code: %w[roles.grant roles.revoke]).order(:id).last(2)
+    assert_equal %w[roles.grant roles.revoke], role_events.map(&:action_code)
+    assert_equal %w[committed committed], role_events.map(&:outcome)
   end
 
   test "booking permits adjacency, rejects overlap, and encounters support walk-ins" do

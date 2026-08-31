@@ -91,6 +91,5 @@ module Clinic
       when [ "clinic/role_versions", "index" ], [ "clinic/authorization/role_grants", "index" ] then "roles.read"
       end
     end
-
   end
 end

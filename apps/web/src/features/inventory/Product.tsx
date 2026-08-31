@@ -11,7 +11,7 @@ import {
   Pager,
   useResource,
 } from "../../shared/ui";
-import { useClinic } from "../clinic/Workspace";
+import { useClinicOverview } from "../clinic/Workspace";
 
 function Lot({
   batch: b,
@@ -22,7 +22,7 @@ function Lot({
   product: ProductData;
   refresh: () => void;
 }) {
-  const actions = useClinic().inventory_actions;
+  const actions = useClinicOverview().inventory_actions;
   return (
     <article className="clinic-card" id={"lot-" + b.id}>
       <div className="pharmacy-section-heading">
@@ -211,7 +211,7 @@ export function Product({ id }: { id: string }) {
   const { data, error, refresh } = useResource<ProductDetails>(
     "/api/clinic/pharmacy/" + id + "?page=" + encodeURIComponent(page),
   );
-  const actions = useClinic().inventory_actions;
+  const actions = useClinicOverview().inventory_actions;
   if (!data) return <LoadState error={error} />;
   const p = data.product;
   return (

@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ClinicOverview } from "../src/api/contracts";
+import type {
+  ClinicOverview,
+  ClinicWorkspaceContext,
+} from "../src/api/contracts";
 import { loginDestination } from "../src/api/client";
 import {
   ClinicFrame,
@@ -10,6 +13,7 @@ import {
 } from "../src/features/clinic/ClinicFrame";
 import { ClinicNavigation } from "../src/features/clinic/Workspace";
 import { OperationsView } from "../src/features/clinic/Operations";
+import { EncounterView, ScheduleView } from "../src/features/clinic/CareFlow";
 import {
   OverviewView,
   TrackingBoardView,
@@ -58,6 +62,26 @@ const clinic: ClinicOverview = {
       reorder_level: 4,
     },
   ],
+};
+const contextCapabilities = {
+  patients: true,
+  staff: true,
+  inventory: true,
+  appointments: true,
+  encounters: true,
+  documents: true,
+  messages: true,
+  billing: true,
+  roles: true,
+};
+const context: ClinicWorkspaceContext = {
+  schema_version: "clinic-context-v1",
+  user_id: 1,
+  practice: clinic.practice,
+  membership_id: 1,
+  policy_version: "clinic-authorization-v1",
+  capabilities: contextCapabilities,
+  sites: [{ id: 1, code: "MAIN", timezone_override: null }],
 };
 describe("tracking-board identities and waiting times", () => {
   it.each([
@@ -228,7 +252,7 @@ describe("board and Operations presentation boundaries", () => {
   it("adds clean navigation labels and an exact Operations login return", () => {
     const html = renderToStaticMarkup(
       <ClinicNavigation
-        capabilities={clinic.capabilities}
+        capabilities={contextCapabilities}
         path="/clinic/operations"
       />,
     );
@@ -238,6 +262,85 @@ describe("board and Operations presentation boundaries", () => {
     expect(loginDestination("/clinic/operations?next=//bad.invalid")).toBe(
       "/portal",
     );
+    expect(loginDestination("/clinic/schedule")).toBe("/clinic/schedule");
+    expect(loginDestination("/clinic/patients/7/encounters/9")).toBe(
+      "/clinic/patients/7/encounters/9",
+    );
+  });
+});
+describe("mapped read-only care flow", () => {
+  it("presents scheduled records without calling them arrivals or board rows", () => {
+    const html = renderToStaticMarkup(
+      <ScheduleView
+        context={context}
+        appointments={[
+          {
+            id: 4,
+            patient_id: 7,
+            site_id: 1,
+            room_id: null,
+            booked_clinician_id: null,
+            visit_type_id: null,
+            starts_at: "2026-08-31T15:00:00Z",
+            ends_at: "2026-08-31T15:30:00Z",
+            status: "confirmed",
+            encounter_id: 9,
+          },
+        ]}
+        pagination={{ page: 1, per_page: 25, total: 1, total_pages: 1 }}
+      />,
+    );
+    expect(html).toContain("Read-only scheduled visits");
+    expect(html).toContain('href="/clinic/patients/7"');
+    expect(html).toContain('href="/clinic/patients/7/encounters/9"');
+    expect(html).not.toContain("Start intake");
+  });
+  it("shows recorded encounter context while keeping protected actions blocked", () => {
+    const html = renderToStaticMarkup(
+      <EncounterView
+        patient={{ id: 7, display_name: "Synthetic Person", reference: "P-7" }}
+        timezone="America/Chicago"
+        encounter={{
+          id: 9,
+          patient_id: 7,
+          appointment_id: 4,
+          site_id: 1,
+          room_id: null,
+          started_at: "2026-08-31T15:00:00Z",
+          ended_at: null,
+          status: "open",
+          participants: [],
+          note_ids: [11],
+          observation_count: 1,
+          document_count: 0,
+        }}
+        observations={[
+          {
+            id: 12,
+            patient_id: 7,
+            encounter_id: 9,
+            parent_observation_id: null,
+            author_membership_id: 2,
+            code: "synthetic-heart-rate",
+            code_system: "example",
+            code_version: "1",
+            value_kind: "numeric",
+            numeric_value: "72",
+            text_value: null,
+            coded_value: null,
+            unit_code: "beats/min",
+            missing_reason: null,
+            observed_at: "2026-08-31T15:05:00Z",
+            recorded_at: "2026-08-31T15:06:00Z",
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("open/completed API status");
+    expect(html).toContain("72 beats/min");
+    expect(html).toContain("Editor and signing unavailable");
+    expect(html).not.toContain("<textarea");
+    expect(html).not.toContain("<button");
   });
 });
 describe("viewport-height chart-tab navigation", () => {

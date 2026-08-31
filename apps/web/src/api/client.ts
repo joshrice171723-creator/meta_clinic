@@ -93,10 +93,22 @@ export async function api<T>(
 }
 
 export function loginDestination(value: string | null): string {
-  return value === "/clinic" ||
-    value === "/clinic/pharmacy" ||
-    value === "/clinic/operations" ||
-    value === "/clinic/settings"
+  if (!value) return "/portal";
+  const exact = new Set([
+    "/clinic",
+    "/clinic/schedule",
+    "/clinic/patients",
+    "/clinic/pharmacy",
+    "/clinic/pharmacy/new",
+    "/clinic/operations",
+    "/clinic/inventory",
+    "/clinic/staff",
+    "/clinic/settings",
+  ]);
+  return exact.has(value) ||
+    /^\/clinic\/pharmacy\/\d+$/.test(value) ||
+    /^\/clinic\/patients\/\d+$/.test(value) ||
+    /^\/clinic\/patients\/\d+\/encounters\/\d+$/.test(value)
     ? value
     : "/portal";
 }

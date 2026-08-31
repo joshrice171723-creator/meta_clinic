@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "03 Execution/Target-State Clinic ERD.md",
+                "file": "03 Execution/Roadmap and Tasks.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Target-State Clinic ERD"
+              "title": "Roadmap and Tasks"
             }
           }
         ]
@@ -83,7 +83,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 345.59765625
   },
   "right": {
     "id": "3389b50415fa95dc",
@@ -186,18 +186,18 @@
       "bases:Create new base": false
     }
   },
-  "active": "4c6877cfd152c3ac",
+  "active": "109dfc443f25186a",
   "lastOpenFiles": [
+    "01 Table of Contents.md",
+    "03 Execution/Target-State Clinic ERD.md",
     "03 Execution/Backend Verification Report.md",
     "03 Execution/ERD Implementation Prompt.md",
-    "03 Execution/Target-State Clinic ERD.md",
     "03 Execution/Clinic Frontend Backend Mapping.md",
     "03 Execution/Decisions.md",
     "03 Execution/Data Modeling.md",
     "03 Execution/Multi-Clinic ERD Adversarial Review.md",
     "03 Execution/CICD.md",
     "03 Execution/Client Access Workflow.md",
-    "01 Table of Contents.md",
     "03 Execution/Roadmap and Tasks.md",
     "03 Execution/Clinic Workspace Design.md",
     "03 Execution/Software Architecture.md",

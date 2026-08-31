@@ -1,6 +1,6 @@
 import type { ClinicOverview } from "../../api/contracts";
 import { Card } from "../../shared/ui";
-import { useClinic } from "./Workspace";
+import { useClinic, useClinicOverview } from "./Workspace";
 
 export function OperationsView({ clinic }: { clinic: ClinicOverview }) {
   const c = clinic.capabilities;
@@ -94,5 +94,33 @@ export function OperationsView({ clinic }: { clinic: ClinicOverview }) {
   );
 }
 export function Operations() {
-  return <OperationsView clinic={useClinic()} />;
+  const context = useClinic();
+  const overview = useClinicOverview();
+  return (
+    <>
+      <OperationsView clinic={overview} />
+      <Card title="Care workflow access">
+        <ul className="clinic-feature-list">
+          {context.capabilities.patients && (
+            <li>
+              <a className="text-link" href="/clinic/schedule">
+                Schedule and encounters →
+              </a>
+              <p>
+                Read-only scheduling and visit history from the current clinic
+                API. The tracking board remains a labeled example.
+              </p>
+            </li>
+          )}
+          <li>
+            <strong>Protected workflows remain unavailable</strong>
+            <p>
+              Note bodies, prescriptions, document transfer, external messages
+              and payment execution are not enabled by this frontend pass.
+            </p>
+          </li>
+        </ul>
+      </Card>
+    </>
+  );
 }

@@ -7,7 +7,7 @@ import {
   Pager,
   useResource,
 } from "../../shared/ui";
-import { useClinic } from "../clinic/Workspace";
+import { useClinicOverview } from "../clinic/Workspace";
 
 export function Catalog() {
   const search = new URLSearchParams(window.location.search);
@@ -19,7 +19,7 @@ export function Catalog() {
   const { data, error, refresh } = useResource<CatalogData>(
     "/api/clinic/pharmacy?" + query,
   );
-  const clinic = useClinic(),
+  const clinic = useClinicOverview(),
     actions = clinic.inventory_actions;
   if (!data) return <LoadState error={error} />;
   return (

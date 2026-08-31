@@ -160,9 +160,15 @@ describe("system appearance and UI scope", () => {
   );
   it("marks the active module including details without exposing restricted navigation", () => {
     const capabilities = {
-      patients_access: true,
-      inventory_access: true,
-      staff_access: false,
+      patients: true,
+      staff: false,
+      inventory: true,
+      appointments: false,
+      encounters: false,
+      documents: false,
+      messages: false,
+      billing: false,
+      roles: false,
     };
     for (const path of [
       "/clinic/patients",
@@ -179,9 +185,15 @@ describe("system appearance and UI scope", () => {
     const restricted = renderToStaticMarkup(
       <ClinicNavigation
         capabilities={{
-          patients_access: false,
-          inventory_access: false,
-          staff_access: false,
+          patients: false,
+          staff: false,
+          inventory: false,
+          appointments: false,
+          encounters: false,
+          documents: false,
+          messages: false,
+          billing: false,
+          roles: false,
         }}
         path="/clinic"
       />,

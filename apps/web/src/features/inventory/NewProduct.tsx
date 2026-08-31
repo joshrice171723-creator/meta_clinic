@@ -2,13 +2,13 @@ import { useState } from "react";
 import type { NdcResult } from "../../api/contracts";
 import { api } from "../../api/client";
 import { Card, Field, Form, createdPath, ErrorMessage } from "../../shared/ui";
-import { useClinic } from "../clinic/Workspace";
+import { useClinicOverview } from "../clinic/Workspace";
 
 export function NewProduct() {
   const [results, setResults] = useState<NdcResult[] | undefined>(),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
-  const actions = useClinic().inventory_actions;
+  const actions = useClinicOverview().inventory_actions;
   if (!actions.catalog)
     return (
       <ErrorMessage message="Your clinic account cannot create inventory catalog items." />

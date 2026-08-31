@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "./api/contracts";
-import { api, ApiError, csrf } from "./api/client";
+import { api, ApiError, csrf, loginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { Home } from "./features/launch/Home";
 import { Portal } from "./features/launch/Portal";
@@ -15,6 +15,7 @@ import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
+import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import { Office } from "./features/inventory/Office";
 import { Catalog } from "./features/inventory/Catalog";
 import { NewProduct } from "./features/inventory/NewProduct";
@@ -144,18 +145,7 @@ export function App() {
   useEffect(() => {
     if (!publicPage && session.user === null)
       window.location.replace(
-        "/login?next=" +
-          encodeURIComponent(
-            path === "/clinic/settings"
-              ? "/clinic/settings"
-              : path === "/clinic/operations"
-                ? "/clinic/operations"
-                : path.startsWith("/clinic/pharmacy")
-                  ? "/clinic/pharmacy"
-                  : path.startsWith("/clinic")
-                    ? "/clinic"
-                    : "/portal",
-          ),
+        "/login?next=" + encodeURIComponent(loginDestination(path)),
       );
   }, [session.user, path, publicPage]);
   if (!publicPage && (!session.user || session.error))
@@ -168,6 +158,7 @@ export function App() {
   let page: ReactNode;
   if (path.startsWith("/clinic") && user) {
     const pharmacy = /^\/clinic\/pharmacy\/(\d+)$/.exec(path),
+      encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
       patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
     page =
       path === "/clinic" ? (
@@ -176,6 +167,8 @@ export function App() {
         <Operations />
       ) : path === "/clinic/settings" ? (
         <Settings user={user} />
+      ) : path === "/clinic/schedule" ? (
+        <Schedule />
       ) : path === "/clinic/pharmacy" ? (
         <Catalog />
       ) : path === "/clinic/pharmacy/new" ? (
@@ -184,6 +177,8 @@ export function App() {
         <Product id={pharmacy[1]} />
       ) : path === "/clinic/patients" ? (
         <Patients />
+      ) : encounter ? (
+        <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
       ) : patient ? (
         <Patients id={patient[1]} />
       ) : path === "/clinic/inventory" ? (
