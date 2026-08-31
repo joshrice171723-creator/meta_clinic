@@ -59,6 +59,7 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         retry = subprocess.run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)], cwd=root, env=environment, capture_output=True)
         assert retry.returncode != 0
         run(["bin/rails", "db:migrate"])
+        run(["bin/rails", "runner", "Identity::Preference.save_for!(User.find(41), palette: 'graphite', mode: 'dark', version: 0)"])
         checks = """
           raise unless Clinic::Inventory::Item.find(71).quantity == 9
           raise unless Clinic::Inventory::StockMovement.where(item_id: 71).sum(:quantity) == 9
@@ -69,6 +70,7 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
           raise unless batch.movements.find(111).origin == 'legacy_movement'
           raise unless Clinic::Membership.find(61).inventory_receive?
           raise unless ApplicationRecord.connection.select_value('SELECT message FROM contact_messages WHERE id=121') == 'synthetic-encrypted-marker'
+          raise unless Identity::Preference.for_user(User.find(41)).appearance == {palette: 'graphite', mode: 'dark', version: 1}
         """
         run(["bin/rails", "runner", checks])
         print("PASS: legacy IDs, values, encrypted bytes, history, opening balances and holds survive upgrade", flush=True)
@@ -106,9 +108,26 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
           end
           2.times { gate << true }
           raise unless threads.map(&:value).uniq.size == 1 && batch.reload.quantity == 3
+          gate = Queue.new
+          threads = 2.times.map do
+            Thread.new do
+              ApplicationRecord.connection_pool.with_connection do
+                gate.pop
+                begin
+                  Identity::Preference.save_for!(User.find(user.id), palette: 'blue', mode: 'light', version: 0)
+                  :saved
+                rescue Identity::Preference::Conflict
+                  :conflict
+                end
+              end
+            end
+          end
+          2.times { gate << true }
+          raise unless threads.map(&:value).sort == [:conflict, :saved]
+          raise unless Identity::Preference.where(user_id: user.id).count == 1
         """
         run(["bin/rails", "runner", concurrency])
-        print("PASS: simultaneous stock deductions cannot overdraw; duplicate deliveries post once", flush=True)
+        print("PASS: simultaneous stock deductions cannot overdraw; duplicate deliveries post once; concurrent first settings saves conflict safely", flush=True)
         dump = str(pathlib.Path(temporary) / "backup.dump")
         run(["pg_dump", "--format=custom", "--no-owner", "--no-acl", "--file", dump, databases[0]])
         run(["pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl", "--dbname", databases[1], dump])

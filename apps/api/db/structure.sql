@@ -349,7 +349,7 @@ CREATE TABLE public.clinic_inventory_counts (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_count_values CHECK ((((expected_quantity >= (0)::numeric) AND (expected_quantity <= (1000000)::numeric)) AND ((observed_quantity >= (0)::numeric) AND (observed_quantity <= (1000000)::numeric)) AND (observed_quantity = round(observed_quantity, 6))))
+    CONSTRAINT inventory_count_values CHECK (((expected_quantity >= (0)::numeric) AND (expected_quantity <= (1000000)::numeric) AND ((observed_quantity >= (0)::numeric) AND (observed_quantity <= (1000000)::numeric)) AND (observed_quantity = round(observed_quantity, 6))))
 );
 
 
@@ -397,8 +397,8 @@ CREATE TABLE public.clinic_inventory_entries (
     updated_at timestamp(6) without time zone NOT NULL,
     count_id bigint,
     CONSTRAINT inventory_count_entry CHECK ((((kind)::text = 'count_correction'::text) = (count_id IS NOT NULL))),
-    CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY ((ARRAY['receipt'::character varying, 'adjustment_in'::character varying])::text[])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY ((ARRAY['adjustment_out'::character varying, 'damaged'::character varying, 'expired'::character varying, 'return_to_supplier'::character varying])::text[])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY ((ARRAY['office_adjustment'::character varying, 'count_correction'::character varying, 'opening_balance'::character varying])::text[])))),
-    CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY ((ARRAY['posted'::character varying, 'legacy_movement'::character varying, 'legacy_opening_balance'::character varying])::text[])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
+    CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY (ARRAY[('office_adjustment'::character varying)::text, ('count_correction'::character varying)::text, ('opening_balance'::character varying)::text])))),
+    CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY (ARRAY[('posted'::character varying)::text, ('legacy_movement'::character varying)::text, ('legacy_opening_balance'::character varying)::text])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
     CONSTRAINT inventory_entry_target CHECK (((((stock_type)::text = 'pharmacy'::text) AND (batch_id IS NOT NULL) AND (item_id IS NULL)) OR (((stock_type)::text = 'office'::text) AND (item_id IS NOT NULL) AND (batch_id IS NULL)))),
     CONSTRAINT inventory_entry_values CHECK (((quantity <> (0)::numeric) AND ((quantity >= ('-1000000'::integer)::numeric) AND (quantity <= (1000000)::numeric)) AND (quantity = round(quantity, 6)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 100))))
 );
@@ -475,7 +475,7 @@ CREATE TABLE public.clinic_inventory_holds (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     profile_id bigint,
-    CONSTRAINT inventory_hold_reason CHECK ((((kind)::text = ANY ((ARRAY['quarantined'::character varying, 'recalled'::character varying, 'temperature'::character varying, 'damaged'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
+    CONSTRAINT inventory_hold_reason CHECK ((((kind)::text = ANY (ARRAY[('quarantined'::character varying)::text, ('recalled'::character varying)::text, ('temperature'::character varying)::text, ('damaged'::character varying)::text])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
 );
 
 
@@ -543,7 +543,7 @@ CREATE TABLE public.clinic_inventory_lots (
     expiry_precision character varying DEFAULT 'day'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_expiry_precision CHECK (((expiry_precision)::text = ANY ((ARRAY['day'::character varying, 'month'::character varying])::text[])))
+    CONSTRAINT inventory_expiry_precision CHECK (((expiry_precision)::text = ANY (ARRAY[('day'::character varying)::text, ('month'::character varying)::text])))
 );
 
 
@@ -581,7 +581,7 @@ CREATE TABLE public.clinic_inventory_profiles (
     reason character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_profile_scope CHECK (((version > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'synthetic'::character varying, 'suspended'::character varying, 'retired'::character varying])::text[])) AND (capabilities <@ ARRAY['inventory'::character varying])))
+    CONSTRAINT inventory_profile_scope CHECK (((version > 0) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('synthetic'::character varying)::text, ('suspended'::character varying)::text, ('retired'::character varying)::text])) AND (capabilities <@ ARRAY['inventory'::character varying])))
 );
 
 
@@ -921,7 +921,7 @@ CREATE TABLE public.clinic_pharmacy_batches (
     location_id bigint NOT NULL,
     on_hand numeric DEFAULT 0.0 NOT NULL,
     CONSTRAINT inventory_position_balance CHECK (((on_hand >= (0)::numeric) AND (on_hand <= (1000000)::numeric))),
-    CONSTRAINT pharmacy_batch_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'quarantined'::character varying, 'recalled'::character varying])::text[])))
+    CONSTRAINT pharmacy_batch_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('quarantined'::character varying)::text, ('recalled'::character varying)::text])))
 );
 
 
@@ -959,7 +959,7 @@ CREATE TABLE public.clinic_pharmacy_movements (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT pharmacy_movement_direction CHECK (((((kind)::text = ANY ((ARRAY['receipt'::character varying, 'adjustment_in'::character varying])::text[])) AND (quantity > 0)) OR (((kind)::text = ANY ((ARRAY['adjustment_out'::character varying, 'damaged'::character varying, 'expired'::character varying, 'return_to_supplier'::character varying])::text[])) AND (quantity < 0)))),
+    CONSTRAINT pharmacy_movement_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > 0)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < 0)))),
     CONSTRAINT pharmacy_movement_range CHECK (((quantity <> 0) AND ((quantity >= '-1000000'::integer) AND (quantity <= 1000000))))
 );
 
@@ -1011,9 +1011,9 @@ CREATE TABLE public.clinic_pharmacy_products (
     package_size numeric DEFAULT 1.0 NOT NULL,
     unit_reference character varying,
     CONSTRAINT inventory_package_unit CHECK ((((stock_unit)::text <> 'package'::text) OR (package_size = (1)::numeric))),
-    CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY ((ARRAY['package'::character varying, 'each'::character varying, 'tablet'::character varying, 'capsule'::character varying, 'vial'::character varying, 'mL'::character varying, 'g'::character varying])::text[])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY ((ARRAY['mL'::character varying, 'g'::character varying])::text[])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
+    CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY (ARRAY[('mL'::character varying)::text, ('g'::character varying)::text])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT inventory_unit_evidence CHECK (((package_size = (1)::numeric) OR ((unit_reference IS NOT NULL) AND (length(TRIM(BOTH FROM unit_reference)) > 0)))),
-    CONSTRAINT pharmacy_product_source CHECK (((source)::text = ANY ((ARRAY['manual'::character varying, 'openfda'::character varying, 'synthetic'::character varying])::text[]))),
+    CONSTRAINT pharmacy_product_source CHECK (((source)::text = ANY (ARRAY[('manual'::character varying)::text, ('openfda'::character varying)::text, ('synthetic'::character varying)::text]))),
     CONSTRAINT pharmacy_reorder_range CHECK (((reorder_point >= 0) AND (reorder_point <= 1000000)))
 );
 
@@ -1169,6 +1169,43 @@ CREATE SEQUENCE public.contact_messages_id_seq
 --
 
 ALTER SEQUENCE public.contact_messages_id_seq OWNED BY public.contact_messages.id;
+
+
+--
+-- Name: identity_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.identity_preferences (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    palette character varying DEFAULT 'sage'::character varying NOT NULL,
+    mode character varying DEFAULT 'system'::character varying NOT NULL,
+    revision integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY (ARRAY[('sage'::character varying)::text, ('blue'::character varying)::text, ('graphite'::character varying)::text]))),
+    CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
+);
+
+
+--
+-- Name: identity_preferences_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.identity_preferences_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: identity_preferences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.identity_preferences_id_seq OWNED BY public.identity_preferences.id;
 
 
 --
@@ -1527,6 +1564,13 @@ ALTER TABLE ONLY public.contact_messages ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: identity_preferences id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.identity_preferences ALTER COLUMN id SET DEFAULT nextval('public.identity_preferences_id_seq'::regclass);
+
+
+--
 -- Name: learning_progresses id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1759,6 +1803,14 @@ ALTER TABLE ONLY public.clinic_stock_movements
 
 ALTER TABLE ONLY public.contact_messages
     ADD CONSTRAINT contact_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: identity_preferences identity_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.identity_preferences
+    ADD CONSTRAINT identity_preferences_pkey PRIMARY KEY (id);
 
 
 --
@@ -2157,6 +2209,13 @@ CREATE INDEX index_clinic_stock_movements_on_item_id ON public.clinic_stock_move
 --
 
 CREATE UNIQUE INDEX index_clinic_stock_movements_on_item_id_and_request_key ON public.clinic_stock_movements USING btree (item_id, request_key);
+
+
+--
+-- Name: index_identity_preferences_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_identity_preferences_on_user_id ON public.identity_preferences USING btree (user_id);
 
 
 --
@@ -2718,6 +2777,14 @@ ALTER TABLE ONLY public.clinic_inventory_catalog_events
 
 
 --
+-- Name: identity_preferences fk_rails_6f731ca26a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.identity_preferences
+    ADD CONSTRAINT fk_rails_6f731ca26a FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_inventory_entries fk_rails_76b53b8f85; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3036,6 +3103,7 @@ ALTER TABLE ONLY public.clinic_inventory_lots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260831000100'),
 ('20260830000800'),
 ('20260830000700'),
 ('20260830000600'),

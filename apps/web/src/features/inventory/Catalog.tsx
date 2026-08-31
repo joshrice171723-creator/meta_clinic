@@ -26,7 +26,7 @@ export function Catalog() {
     <>
       <div className="pharmacy-heading">
         <div>
-          <p className="eyebrow">EHR · PHARMACY OPERATIONS</p>
+          <p className="eyebrow">PHARMACY</p>
           <h1>Pharmacy inventory.</h1>
           <p>Manage your clinic’s products, lots and stock movements.</p>
         </div>

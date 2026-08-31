@@ -122,11 +122,19 @@ This approves a planning-document update and its failure-oriented method, not bl
 
 **D-036 — 2026-08-31 / founder's design follow-up (U-27):** staff will use both desktop and tablet; implement all three presented clinic themes and let users choose. Sage & ivory, Mineral blue and Warm graphite each support Light, Dark and Follow system. Browser-local persistence and Sage / Follow system as the initial default are bounded implementation choices, not a request for cross-device account sync. [[Clinic Workspace Design]] records behavior and T-41 local delivery. This accepts theme choice, not the proposed intake/clinician layouts, clinical authority, intake/triage/signing/prescription implementation, deployment or real-data use.
 
+## Account-owned settings and responsive corrections
+
+**D-039 — 2026-08-31 / founder's UI correction request (U-28):** work on a feature branch, revisit cramped containers and test different device sizes; move theme selection to a Settings page tied to the currently signed-in user, as a foundation for later settings. This supersedes D-036's browser-local implementation choice, not the three palettes or clinical boundaries. T-43 implements initial `/clinic/settings`, server-owned cosmetic preferences and summary/footer corrections; live browser acceptance remains pending. No permission-management, password, clinical workflow, deployment or live-record authority is added.
+
 ## Initial client-access responsibility
 
 **D-038 — 2026-08-31 / founder's T-23.1 follow-up:** in response to who should initially confirm payment and authorize client access, the founder said, “We can leave that to me.” Assign the founder both initial payment confirmation and authorization of the intended client's portal access. [[Client Access Workflow]] records the assignment within its still-proposed lifecycle; T-23.1 remains in progress.
 
 This resolves those two responsibilities, not the entire workflow. Account provisioning/delivery, recovery verification, security administration, later reinstatement/closure approval and backups remain unassigned or proposed. No live account grant, payment action, release, signing/clinical authority or broader governance conclusion is implied. If the founder is unavailable or payment/recipient evidence is unresolved, keep initial access pending until an authorized backup or resolution exists; no automatic approval or response-time commitment.
+
+## Workload-first clinic presentation
+
+**D-041 — 2026-08-31 / founder's tracking-board request (U-29):** use Overview for patient flow in the cash-pay, membership-based clinic experience: first initial / first three surname characters, patient/triage information when available, membership and wait times. Move reorder and active-directory work to Operations; simplify Patients/Pharmacy labels; keep sidebar height within the viewport with overflow on small screens, and make it collapsible using a paper-chart-style pullout tab. Supporting frontend changes are authorized. T-44 delivers the labeled example-shift UI and navigation, not persisted arrivals, clinical triage rules or live workload integration. Unique references accompany potentially colliding abbreviations; no de-identification, new clinical authority, billing rules or release approval is inferred.
 
 ## Client workflow acceptance and local test access
 
@@ -135,5 +143,6 @@ This resolves those two responsibilities, not the entire workflow. Account provi
 The founder requested obvious generic test logins, deferred the choice of test environment to Codex and raised the risk of overlapping work with Josh. Select **local development**, each developer with their own checkout/database, for implementation; use shared staging for coordinated review of an integrated version. Local synthetic Test Admin, Test Client A, Test Client B and Test Disabled profiles use the guarded development login, with no published/shared passwords. This permits their local preparation and verification, not hosted account changes or public signup.
 
 Production admin assignments among the three founding members referred to by the founder are explicitly deferred until responsibilities are clearer. This does not change the recorded consultancy/software ownership or assign new roles to a person. D-038's founder responsibility for initial payment/access approval remains. Workflow structure acceptance is not completed activation/recovery/MFA/audit implementation, an operational tabletop, or M2/M4/clinical release. Staging and production remain unchanged in this increment.
+
 
 **D-040 continuation — 2026-08-31:** the founder authorizes merging this bounded increment after a passing adversarial review so Josh can use the local test personas and privileges. Follow the existing PR/CI/main-to-staging delivery path; do not provision hosted test accounts, enable hosted shortcuts or promote production. See [[Progress Log#2026-08-31 — Client test-access adversarial review and merge candidate]] for the isolated review and evidence. This later merge authorization extends the earlier local-only implementation scope; production assignments and broader lifecycle/release gates remain deferred.

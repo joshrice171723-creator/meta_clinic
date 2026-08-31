@@ -8,11 +8,20 @@ export class ApiError extends Error {
 }
 
 let csrfToken: string | undefined;
+type Configuration = {
+  csrf_token: string;
+  development_login: boolean;
+  clinic_available: boolean;
+};
+let csrfRequest: Promise<Configuration> | undefined;
+let csrfGeneration = 0;
 export function clearCsrf() {
   csrfToken = undefined;
+  csrfRequest = undefined;
+  csrfGeneration += 1;
 }
 
-export async function csrf() {
+async function loadCsrf(generation: number): Promise<Configuration> {
   const response = await fetch("/api/csrf", {
     credentials: "same-origin",
     cache: "no-store",
@@ -20,13 +29,24 @@ export async function csrf() {
   });
   if (!response.ok)
     throw new ApiError(response.status, "Unable to connect. Please try again.");
-  const data = (await response.json()) as {
-    csrf_token: string;
-    development_login: boolean;
-    clinic_available: boolean;
-  };
+  const data = (await response.json()) as Configuration;
+  if (generation !== csrfGeneration)
+    throw new ApiError(
+      409,
+      "Your session changed. Reload before trying again.",
+    );
   csrfToken = data.csrf_token;
   return data;
+}
+
+export function csrf(): Promise<Configuration> {
+  if (!csrfRequest) {
+    const generation = csrfGeneration;
+    csrfRequest = loadCsrf(generation).finally(() => {
+      if (generation === csrfGeneration) csrfRequest = undefined;
+    });
+  }
+  return csrfRequest;
 }
 
 export async function api<T>(
@@ -36,7 +56,9 @@ export async function api<T>(
   if (!path.startsWith("/api/"))
     throw new Error("Requests must use the same-origin API.");
   const method = options.method || "GET";
-  if (method !== "GET" && !csrfToken) await csrf();
+  // Initialize the cookie's CSRF state before parallel session/resource reads.
+  // Otherwise their earlier cookie snapshots can overwrite that initialization.
+  if (!csrfToken || csrfRequest) await csrf();
   const response = await fetch(path, {
     method,
     credentials: "same-origin",
@@ -71,7 +93,10 @@ export async function api<T>(
 }
 
 export function loginDestination(value: string | null): string {
-  return value === "/clinic" || value === "/clinic/pharmacy"
+  return value === "/clinic" ||
+    value === "/clinic/pharmacy" ||
+    value === "/clinic/operations" ||
+    value === "/clinic/settings"
     ? value
     : "/portal";
 }

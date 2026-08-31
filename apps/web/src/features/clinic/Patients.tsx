@@ -59,8 +59,14 @@ export function Patients({ id }: { id?: string }) {
     );
   return (
     <>
-      <p className="eyebrow">EHR FOUNDATION</p>
-      <h1>Fictional patients.</h1>
+      <p className="eyebrow">PATIENTS</p>
+      <h1>Patient directory</h1>
+      <p className="clinic-lead">
+        Fictional records, separate from active visits.{" "}
+        <a className="text-link" href="/clinic">
+          Return to tracking board →
+        </a>
+      </p>
       <Card title="Patient directory">
         {data.patients?.length === 0 && <p>No fictional patients yet.</p>}
         <ul>

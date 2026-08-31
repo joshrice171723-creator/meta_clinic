@@ -120,6 +120,11 @@
     "/api/session(.:format)"
   ],
   [
+    "api_settings",
+    "GET",
+    "/api/settings(.:format)"
+  ],
+  [
     "demo_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/demo(.:format)"
@@ -176,6 +181,11 @@
   ],
   [
     null,
+    "PATCH",
+    "/api/settings(.:format)"
+  ],
+  [
+    null,
     "POST",
     "/api/clinic/inventory(.:format)"
   ],
@@ -213,5 +223,10 @@
     null,
     "PUT",
     "/api/clinic/staff/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/settings(.:format)"
   ]
 ]

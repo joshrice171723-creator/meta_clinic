@@ -167,8 +167,8 @@ export function Form({
             },
           );
           key.current = undefined;
-          setNotice("Saved.");
           onSuccess?.(result);
+          setNotice("Saved.");
         } catch (error) {
           setError(
             error instanceof Error

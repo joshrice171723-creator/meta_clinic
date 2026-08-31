@@ -51,14 +51,14 @@ describe("frontend responsibility", () => {
     }
     for (const source of sources(resolve("src"))) {
       expect(source.content).not.toMatch(
-        /sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
+        /localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
       );
-      // A single audited boundary may persist only allowlisted appearance enums.
-      // All other modules retain the no-browser-persistence rule.
-      if (
-        source.path !== resolve("src/features/clinic/appearancePreferences.ts")
-      )
-        expect(source.content).not.toContain("localStorage");
     }
+  });
+  it("acknowledges save only after the owner-specific response is accepted", () => {
+    const source = readFileSync("src/shared/ui.tsx", "utf8");
+    expect(source.indexOf("onSuccess?.(result)")).toBeLessThan(
+      source.indexOf('setNotice("Saved.")'),
+    );
   });
 });

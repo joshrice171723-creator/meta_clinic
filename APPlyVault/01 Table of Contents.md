@@ -21,7 +21,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | Developer onboarding, Git, local setup or CI | [[CICD#Developer quick start]], [[Software Architecture]] | T-22/T-40 in [[Roadmap and Tasks#Current task register]]; D-033 in [[Decisions#Frontend and backend separation]] |
 | Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | T-20/T-38; linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates |
 | Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant M0–M6 criteria/tasks; D-021/D-022/D-033 |
-| Clinic UI, care or staff prototype | [[Clinic Workspace]], [[Clinic Workspace Design]], [[Software Architecture]] | D-025/D-026/D-033/D-036; T-13/T-29/T-40/T-41; relevant [[Data Modeling]] proposal and release limits |
+| Clinic UI, care or staff prototype | [[Clinic Workspace]], [[Clinic Workspace Design]], [[Software Architecture]] | D-025/D-026/D-033/D-036/D-039/D-041; T-13/T-29/T-40/T-41/T-43/T-44; relevant [[Data Modeling]] proposal and release limits |
 | Inventory schema, receiving, units, holds or counts | [[PostgreSQL and Inventory Foundation]], [[Clinic Workspace#Current PostgreSQL inventory implementation]] | [[Pharmacy Inventory Data Requirements]]; [[Data Modeling#Inventory and commercial boundary]]; T-13/T-34/T-38 |
 | Supplier prices, procurement or billing | [[Inventory Price Comparison Sources]], [[Business Model]] | D-029/T-37 deferral; T-14 mechanics; entity/professional questions. Reading is not permission to resume integration |
 | Offer, ownership, support or business planning | [[Company Foundation]], [[Customer and Offer]], [[Entity and Product Boundary]] | [[Business Model]], relevant [[Decisions]] and [[Foundation Questions]] answers; do not reopen deliberately deferred questions |
@@ -41,7 +41,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Client Portal]] | Provisioned access, Contact, synthetic paperwork/signing, training and confidential-release limits |
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
-| [[Clinic Workspace Design]] | Staff-first intake, clinician and inventory layout proposals; implemented selectable themes, desktop/tablet targets and existing-feature boundaries |
+| [[Clinic Workspace Design]] | Workload-board example, Operations and chart-tab navigation; account-owned themes, workflow proposals and verified versus unimplemented boundaries |
 | [[Data Modeling]] | Broader proposed clinical/security model, illustrative SQL and acceptance scenarios; not the executable schema |
 | [[Roadmap and Tasks]] | Canonical parent tasks and 27 smaller chunks across five workstreams, with dependencies, failure scenarios, exit evidence and unchanged milestone gates |
 | [[Decisions]] | Explicit direction and supersession. Read relevant decisions and later refinements |

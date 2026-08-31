@@ -3,6 +3,7 @@ class User < ApplicationRecord
   DUMMY_PASSWORD_DIGEST = BCrypt::Password.create(SecureRandom.hex(24)).to_s.freeze
   normalizes :email_address, with: ->(email) { email.strip.downcase }
   has_many :member_sessions, dependent: :destroy
+  has_one :preference, class_name: "Identity::Preference", dependent: :destroy
   has_one :clinic_membership, class_name: "Clinic::Membership", dependent: :restrict_with_error
   has_many :paperworks, class_name: "Launch::Paperwork", dependent: :restrict_with_error
   has_many :learning_progresses, class_name: "Launch::LearningProgress", dependent: :destroy

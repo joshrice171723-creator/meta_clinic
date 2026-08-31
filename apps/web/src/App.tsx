@@ -9,7 +9,10 @@ import { Inquiries } from "./features/launch/Inquiries";
 import { PaperworkPage, Paperworks } from "./features/launch/Paperwork";
 import { Training } from "./features/launch/Training";
 import { Login } from "./features/identity/Login";
-import { Overview, Workspace } from "./features/clinic/Workspace";
+import { Settings } from "./features/identity/Settings";
+import { Workspace } from "./features/clinic/Workspace";
+import { Overview } from "./features/clinic/TrackingBoardPage";
+import { Operations } from "./features/clinic/Operations";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
 import { Office } from "./features/inventory/Office";
@@ -143,11 +146,15 @@ export function App() {
       window.location.replace(
         "/login?next=" +
           encodeURIComponent(
-            path.startsWith("/clinic/pharmacy")
-              ? "/clinic/pharmacy"
-              : path.startsWith("/clinic")
-                ? "/clinic"
-                : "/portal",
+            path === "/clinic/settings"
+              ? "/clinic/settings"
+              : path === "/clinic/operations"
+                ? "/clinic/operations"
+                : path.startsWith("/clinic/pharmacy")
+                  ? "/clinic/pharmacy"
+                  : path.startsWith("/clinic")
+                    ? "/clinic"
+                    : "/portal",
           ),
       );
   }, [session.user, path, publicPage]);
@@ -165,6 +172,10 @@ export function App() {
     page =
       path === "/clinic" ? (
         <Overview />
+      ) : path === "/clinic/operations" ? (
+        <Operations />
+      ) : path === "/clinic/settings" ? (
+        <Settings user={user} />
       ) : path === "/clinic/pharmacy" ? (
         <Catalog />
       ) : path === "/clinic/pharmacy/new" ? (
@@ -187,7 +198,9 @@ export function App() {
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <Workspace key={user.id}>{page}</Workspace>
+        <Workspace key={user.id} user={user}>
+          {page}
+        </Workspace>
       </>
     );
   }

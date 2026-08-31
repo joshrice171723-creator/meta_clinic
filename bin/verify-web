@@ -69,21 +69,37 @@ begin
   raise "Named client login failed" unless post.call("/api/development_session", { profile: "client-a", admin: true }).code == "201"
   first = JSON.parse(request.call("/api/session").body).fetch("user")
   raise "Client privilege escalation" unless first.fetch("email_address") == "test-client-a@example.invalid" && !first.fetch("admin") && request.call("/api/inquiries").code == "403"
+  first_settings = { expected_user_id: first.fetch("id"), appearance: { palette: "blue", mode: "dark", version: 0 } }
+  raise "Named client settings save failed" unless post.call("/api/settings", first_settings, method: "PATCH").code == "200"
   first_document = JSON.parse(request.call("/api/paperworks").body).fetch("paperworks").first.fetch("id")
   raise "Named second login failed" unless post.call("/api/development_session", { profile: "client-b" }).code == "201"
   raise "Cross-client disclosure" unless request.call("/api/paperworks/#{first_document}").code == "404"
+  second_settings = JSON.parse(request.call("/api/settings").body)
+  raise "Settings leaked between named clients" unless second_settings.fetch("user_id") != first.fetch("id") && second_settings.dig("appearance", "palette") == "sage" && second_settings.dig("appearance", "version") == 0
+  raise "Stale account settings save accepted" unless post.call("/api/settings", first_settings, method: "PATCH").code == "409"
   raise "Named repeat login failed" unless post.call("/api/development_session", { profile: "client-a" }).code == "201"
   raise "Named identity replaced" unless JSON.parse(request.call("/api/session").body).dig("user", "id") == first.fetch("id")
+  raise "Named settings lost after account switch" unless JSON.parse(request.call("/api/settings").body).fetch("appearance") == { "palette" => "blue", "mode" => "dark", "version" => 1 }
   raise "Named admin login failed" unless post.call("/api/development_session", { profile: "admin" }).code == "201"
   raise "Admin scope incorrect" unless request.call("/api/inquiries").code == "200" && request.call("/api/clinic").code == "403"
+  raise "Admin inherited client settings" unless JSON.parse(request.call("/api/settings").body).dig("appearance", "version") == 0
   raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
   raise "Disabled login accepted" unless post.call("/api/development_session", { profile: "disabled" }).code == "401"
   raise "Failed login granted access" unless request.call("/api/session").code == "401"
+  raise "Disabled login exposed settings" unless request.call("/api/settings").code == "401"
   raise "Local demo login failed" unless post.call("/api/development_session").code == "201"
   user = JSON.parse(request.call("/api/session").body).fetch("user")
   raise "Demo contract failed" unless user.fetch("development_demo") && !user.fetch("admin")
   clinic = JSON.parse(request.call("/api/clinic").body)
   raise "Missing clinic capabilities" unless clinic.fetch("capabilities").fetch("inventory_access") && clinic.fetch("inventory_actions").fetch("receive")
+  phase = "account settings contract"
+  settings = JSON.parse(request.call("/api/settings").body)
+  raise "Settings owner/default mismatch" unless settings.fetch("user_id") == user.fetch("id") && settings.dig("appearance", "version") == 0
+  choice = { expected_user_id: user.fetch("id"), appearance: { palette: "graphite", mode: "dark", version: 0 } }
+  saved = post.call("/api/settings", choice, method: "PATCH")
+  raise "Settings save failed" unless saved.code == "200" && JSON.parse(saved.body).dig("appearance", "version") == 1
+  raise "Stale settings accepted" unless post.call("/api/settings", choice, method: "PATCH").code == "409"
+  raise "Settings did not persist" unless JSON.parse(request.call("/api/settings").body).dig("appearance", "palette") == "graphite"
   phase = "inventory wire contract"
   response = post.call("/api/clinic/pharmacy", { clinic_pharmacy_product: { name: "Synthetic split verification", sku: "SPLIT-VERIFY", stock_unit: "mL", quantity_scale: 6, package_size: "0.000001", unit_reference: "Fictional package verification" } })
   raise "Catalog create failed" unless response.code == "201"
@@ -99,7 +115,8 @@ begin
   raise "Review failed" unless post.call("/api/paperworks/#{document.fetch('id')}/start").code == "200"
   raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
   raise "Protected content after logout" unless request.call("/api/clinic").code == "401"
-  puts "PASS: real frontend proxy → Rails session/CSRF/origin, named test roles/isolation, fresh demo, synthetic clinic, exact decimal receipt/retry, portal and logout"
+  raise "Settings exposed after logout" unless request.call("/api/settings").code == "401"
+  puts "PASS: real frontend proxy → Rails session/CSRF/origin, named test roles/isolation, account settings/conflict, fresh demo, synthetic clinic, exact decimal receipt/retry, portal and logout"
 rescue => error
   warn "FAIL during #{phase}: #{error.class}; raw diagnostics suppressed"
   exit 1

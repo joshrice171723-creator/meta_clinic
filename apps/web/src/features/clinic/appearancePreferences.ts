@@ -18,7 +18,6 @@ export const DEFAULT_APPEARANCE: ClinicAppearance = {
   palette: "sage",
   mode: "system",
 };
-export const APPEARANCE_KEY = "apply.clinic.appearance.v1";
 
 export function normalizeAppearance(value: unknown): ClinicAppearance {
   const candidate =
@@ -30,33 +29,6 @@ export function normalizeAppearance(value: unknown): ClinicAppearance {
       CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ?? "sage",
     mode: CLINIC_MODES.find((m) => m.id === candidate.mode)?.id ?? "system",
   };
-}
-
-// The only browser-persistence boundary: two allowlisted cosmetic enums.
-// No account identifiers, clinic records, credentials or arbitrary keys.
-function preferenceStorage() {
-  return typeof window === "undefined" ? undefined : window.localStorage;
-}
-export function readClinicAppearance(): ClinicAppearance {
-  try {
-    const raw = preferenceStorage()?.getItem(APPEARANCE_KEY);
-    return normalizeAppearance(
-      raw && raw.length <= 128 ? JSON.parse(raw) : null,
-    );
-  } catch {
-    return { ...DEFAULT_APPEARANCE };
-  }
-}
-export function saveClinicAppearance(value: ClinicAppearance): boolean {
-  try {
-    const storage = preferenceStorage();
-    if (!storage) return false;
-    storage.setItem(APPEARANCE_KEY, JSON.stringify(normalizeAppearance(value)));
-    return true;
-  } catch {
-    // Private browsing, policy or quota restrictions must not break the clinic.
-    return false;
-  }
 }
 
 export function resolveColorScheme(
@@ -80,17 +52,6 @@ export function observeSystemAppearance(onChange: (dark: boolean) => void) {
   update();
   return () => media.removeEventListener("change", update);
 }
-export function observeClinicAppearance(
-  onChange: (appearance: ClinicAppearance) => void,
-) {
-  const update = (event: StorageEvent) => {
-    if (event.key === APPEARANCE_KEY || event.key === null)
-      onChange(readClinicAppearance());
-  };
-  window.addEventListener("storage", update);
-  return () => window.removeEventListener("storage", update);
-}
-
 type ThemeTokens = {
   background: string;
   surface: string;
