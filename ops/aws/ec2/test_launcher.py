@@ -11,9 +11,38 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parent
+
+
+class PrivateRouteTest(unittest.TestCase):
+    def render(self, component, networks, directory):
+        source = (ROOT / "apply-run.sh").read_text().split('python3 - "$component" <<\'PY\'\n', 1)[1].split('\nPY\n', 1)[0]
+        source = source.replace("Path('/etc/apply/upstreams')", f"Path({str(directory)!r})")
+        result = subprocess.CompletedProcess([], 0, json.dumps(networks), "")
+        with patch.object(sys, "argv", ["-", component]), patch("subprocess.run", return_value=result), patch("time.sleep"):
+            exec(compile(source, "private-route", "exec"), {})
+
+    def test_exact_network_and_port_rendered_privately(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            directory = Path(scratch)
+            networks = {"apply-database": {"IPAddress": "172.18.0.3"}, "apply-frontend": {"IPAddress": "172.19.0.2"}}
+            for component, expected in (("api", "172.18.0.3:3001"), ("web", "172.19.0.2:8080")):
+                self.render(component, networks, directory)
+                output = directory / (component + ".conf")
+                self.assertEqual("server " + expected + ";\n", output.read_text())
+                self.assertEqual(0o600, output.stat().st_mode & 0o777)
+
+    def test_missing_network_and_config_injection_fail_closed(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            directory = Path(scratch)
+            with self.assertRaises(SystemExit):
+                self.render("api", {"other": {"IPAddress": "172.18.0.3"}}, directory)
+            with self.assertRaises(ValueError):
+                self.render("api", {"apply-database": {"IPAddress": "127.0.0.1; include evil;"}}, directory)
+            self.assertEqual([], list(directory.iterdir()))
 
 
 class LauncherTest(unittest.TestCase):
@@ -47,11 +76,19 @@ elif name == "python3":
     sys.stdin.read()  # Consume, but never execute, the secret preparation code.
 elif name == "mountpoint":
     sys.exit(int(os.environ["TEST_MOUNT_RESULT"]))
+elif name == "install":
+    pass
+elif name == "seq":
+    print("1")
+elif name in ("nginx", "systemctl"):
+    pass
+elif name == "docker" and sys.argv[1:3] == ["container", "inspect"]:
+    sys.exit(1)  # Exercise first-time PostgreSQL container creation.
 elif name != "docker":
     sys.exit(99)
 ''')
         executable.chmod(0o700)
-        for name in ("cat", "mountpoint", "python3", "docker"):
+        for name in ("cat", "mountpoint", "python3", "docker", "install", "seq", "nginx", "systemctl"):
             (self.directory / name).symlink_to(executable)
         self.bash = shutil.which("bash")
         self.assertIsNotNone(self.bash)
@@ -62,10 +99,10 @@ elif name != "docker":
             "TEST_API_IMAGE": self.api, "TEST_WEB_IMAGE": self.web,
         }
 
-    def launch(self, *arguments, **overrides):
+    def launch(self, *arguments, script="apply-run.sh", **overrides):
         self.log.write_text("")
         result = subprocess.run(
-            [self.bash, str(ROOT / "apply-run.sh"), *arguments],
+            [self.bash, str(ROOT / script), *arguments],
             env={**self.environment, **overrides}, capture_output=True, text=True,
             timeout=10,
         )
@@ -86,7 +123,7 @@ elif name != "docker":
                     command = self.run_command(calls)
                     self.assertEqual("apply-api", command[command.index("--name") + 1])
                     self.assertEqual("apply-database", command[command.index("--network") + 1])
-                    self.assertIn("127.0.0.1:3001:3001", command)
+                    self.assertNotIn("--publish", command)
                     self.assertIn("/run/apply/runtime.env", command)
                     self.assertEqual([self.api, "./bin/rails", "server"], command[-3:])
                     self.assertIn(["python3", "-"], calls)
@@ -97,7 +134,7 @@ elif name != "docker":
         command = self.run_command(calls)
         self.assertEqual("apply-web", command[command.index("--name") + 1])
         self.assertEqual("apply-frontend", command[command.index("--network") + 1])
-        self.assertIn("127.0.0.1:3000:8080", command)
+        self.assertNotIn("--publish", command)
         self.assertNotIn("--env-file", command)
         self.assertNotIn("apply-database", command)
         self.assertEqual(self.web, command[-1])
@@ -109,6 +146,7 @@ elif name != "docker":
                 service = configparser.ConfigParser(interpolation=None)
                 service.read(ROOT / f"apply-{component}.service")
                 self.assertEqual(f"/usr/local/sbin/apply-run {component}", service["Service"]["ExecStart"])
+                self.assertEqual(f"/usr/local/sbin/apply-run route {component}", service["Service"]["ExecStartPost"])
                 result, calls = self.launch(component)
                 self.assertEqual(0, result.returncode, result.stderr)
                 command = self.run_command(calls)
@@ -142,6 +180,26 @@ elif name != "docker":
                 result, calls = self.launch(component, TEST_MOUNT_RESULT="1")
                 self.assertNotEqual(0, result.returncode)
                 self.assertEqual([["mountpoint", "-q", "/srv/apply"]], calls)
+
+    def test_postgres_bind_mount_is_private_and_owned_by_database_user(self):
+        result, calls = self.launch("start", script="postgres.sh")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(["install", "-d", "-o", "999", "-g", "999", "-m", "700", "/srv/apply/postgres"], calls)
+        command = self.run_command(calls)
+        self.assertIn("type=bind,src=/srv/apply/postgres,dst=/var/lib/postgresql", command)
+
+    def test_private_route_refresh_is_separate_from_secret_preparation(self):
+        for component in ("api", "web"):
+            result, calls = self.launch("route", component)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn(["python3", "-", component], calls)
+            self.assertNotIn(["python3", "-"], calls)
+            self.assertIn(["nginx", "-t"], calls)
+            self.assertIn(["systemctl", "reload", "nginx.service"], calls)
+        for component in ("", "other"):
+            result, calls = self.launch("route", component)
+            self.assertNotEqual(0, result.returncode)
+            self.assertFalse(any(call[0] == "python3" for call in calls))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 # EC2 operations
 
-Source/runbook reviewed 2026-08-31; hosted observations below are dated 2026-08-30 and were not rechecked here. The [CI/CD guide](../../../APPlyVault/03%20Execution/CICD.md) owns developer commands, the five CI jobs and coordinated release activation.
+Source/runbook updated 2026-08-31. Staging activation/cutover is now verified; explicitly dated 2026-08-30 observations below remain historical and production was not changed. The [CI/CD guide](../../../APPlyVault/03%20Execution/CICD.md) owns developer commands, the five CI jobs and coordinated release activation.
 
-This package now prepares **PostgreSQL 18.6, a Rails JSON API and a separate static frontend** on one EC2 instance per environment. The two currently installed bootstrap images still use SQLite; see [Staging and production](environments.md) for actual installed state and [the PostgreSQL cutover runbook](postgres-cutover.md) before using these changed tools. Local PostgreSQL tests do not constitute a hosted migration. Clinic routes remain denied; no patient/applicant data, S3 integration or public access is authorized.
+This package now prepares **PostgreSQL 18.6, a Rails JSON API and a separate static frontend** on one EC2 instance per environment. Staging now runs this stack; production retains its SQLite bootstrap; see [Staging and production](environments.md) for actual installed state and [the PostgreSQL cutover runbook](postgres-cutover.md) before using these changed tools. Local PostgreSQL tests do not constitute a hosted migration. Clinic routes remain denied; no patient/applicant data, S3 integration or public access is authorized.
 
 ## Resources and access
 
@@ -80,7 +80,7 @@ CloudFormation `CREATE_COMPLETE` is infrastructure state, **not application read
 
 ## 2. Build and push only the app
 
-D-033 prepares a two-image source release; installed hosts still have the prior Rails/SQLite bootstrap. Complete the documented PostgreSQL cutover and coordinated installer/systemd/SSM update before activating the new pair. Backend container/service is `apply-api` on loopback 3001; static `apply-web` is on loopback 3000 with no app secrets. The edge routes API and frontend separately. The API launcher name now matches its service's stop/cleanup targets; offline regression tests execute the actual launcher with isolated command stubs. CI parses each host shell script separately. No host was modified.
+D-033 defines a two-image release; staging completed installation and PostgreSQL cutover on 2026-08-31, while production retains its Rails/SQLite bootstrap. Complete the documented PostgreSQL cutover and coordinated installer/systemd/SSM update before activating the new pair. Backend container/service is `apply-api` on private port 3001; static `apply-web` serves private port 8080 with no app secrets. Neither publishes host ports. The loopback HTTPS edge routes to validated internal IPs, refreshed by each service's `ExecStartPost` hook. The API launcher name now matches its service's stop/cleanup targets; offline regression tests execute the actual launcher with isolated command stubs. CI parses each host shell script separately. Only staging's host files were updated in the authorized activation.
 
 Build both apps independently from their own contexts:
 

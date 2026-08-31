@@ -61,7 +61,9 @@ with tempfile.TemporaryDirectory(prefix=prefix) as scratch:
         '-addext', 'basicConstraints=critical,CA:FALSE')
     (tls / 'localhost.key').chmod(0o600)
     proxy_config = Path(scratch) / 'nginx.conf'
-    proxy_config.write_text((root / 'nginx.conf').read_text().replace('127.0.0.1:3000;', '127.0.0.1:8080;'))
+    proxy_config.write_text((root / 'nginx.conf').read_text()
+        .replace('include /etc/apply/upstreams/api.conf;', 'server 127.0.0.1:3001;')
+        .replace('include /etc/apply/upstreams/web.conf;', 'server 127.0.0.1:8080;'))
     try:
         run('docker', 'network', 'create', '--internal', network)
         for name, data_volume in [(database, volume), (restored_database, restore)]:

@@ -22,7 +22,8 @@ def run(args, payload=None, missing_ok=False):
 
 
 def github(path, payload=None, missing_ok=False):
-    args = ['gh', 'api', '-H', 'X-GitHub-Api-Version: 2026-03-10', f'repos/{REPO}/{path}']
+    endpoint = f'repos/{REPO}' + (f'/{path}' if path else '')
+    args = ['gh', 'api', '-H', 'X-GitHub-Api-Version: 2026-03-10', endpoint]
     if payload is not None:
         args += ['--method', 'PUT', '--input', '-']
     return run(args, payload, missing_ok)
@@ -32,9 +33,21 @@ def aws(*args, missing_ok=False):
     return run(['aws', *args, '--region', 'us-east-1', '--output', 'json'], missing_ok=missing_ok)
 
 
+def subject_prefix(repo, oidc):
+    # The opt-in boolean can be false for new repositories whose default is
+    # already immutable. Use the resolved prefix, validated against this repo.
+    legacy = f'repo:{repo["owner"]["login"]}/{repo["name"]}'
+    immutable = f'repo:{repo["owner"]["login"]}@{repo["owner"]["id"]}/{repo["name"]}@{repo["id"]}'
+    prefix = oidc.get('sub_claim_prefix')
+    if prefix not in (legacy, immutable):
+        raise RuntimeError('Cannot verify the resolved OIDC subject prefix; no trust policy created')
+    return prefix
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true', help='Create GitHub controls and apply an additions-only AWS change set')
+    parser.add_argument('--staging-only', action='store_true', help='Configure staging without reading or changing production controls or creating its role')
     args = parser.parse_args()
     config = json.loads((ROOT / 'targets.json').read_text())
     if aws('sts', 'get-caller-identity')['Account'] != config['account']:
@@ -45,13 +58,8 @@ def main():
     oidc = github('actions/oidc/customization/sub')
     if not oidc.get('use_default') and oidc.get('include_claim_keys') != ['repo', 'context']:
         raise RuntimeError('Existing custom OIDC subject requires review; it was not changed')
-    immutable = oidc.get('use_immutable_subject')
-    if not isinstance(immutable, bool):
-        raise RuntimeError('Cannot verify the OIDC subject format; no trust policy created')
-    owner = repo['owner']['login'] + (f'@{repo["owner"]["id"]}' if immutable else '')
-    name = repo['name'] + (f'@{repo["id"]}' if immutable else '')
-    subject = f'repo:{owner}/{name}'
-    environment = github('environments/production', missing_ok=True)
+    subject = subject_prefix(repo, oidc)
+    environment = None if args.staging_only else github('environments/production', missing_ok=True)
     if environment:
         policy = environment.get('deployment_branch_policy') or {}
         branches = github('environments/production/deployment-branch-policies')['branch_policies']
@@ -59,17 +67,19 @@ def main():
                 [(b['name'], b.get('type', 'branch')) for b in branches] != [('main', 'branch')]:
             raise RuntimeError('Existing production environment must permit only the main branch; existing rules were preserved')
     print('Verified subject prefix: ' + subject)
-    print('Production requires explicit workflow dispatch, matching staging digest and a fresh clean high/critical scan.')
+    print('Staging only; production controls and role are untouched.' if args.staging_only else
+          'Production requires explicit workflow dispatch, matching staging digest and a fresh clean high/critical scan.')
     if not args.apply:
         print('Read-only check complete. Use --apply to configure delivery.')
         return
-    if not environment:
+    if not args.staging_only and not environment:
         github('environments/production', {'deployment_branch_policy': {'protected_branches': False, 'custom_branch_policies': True}})
         run(['gh', 'api', '-H', 'X-GitHub-Api-Version: 2026-03-10', '--method', 'POST',
              f'repos/{REPO}/environments/production/deployment-branch-policies', '--input', '-'],
             {'name': 'main', 'type': 'branch'})
     stack = aws('cloudformation', 'describe-stacks', '--stack-name', 'apply-delivery', missing_ok=True)
-    parameters = [{'ParameterKey': 'GitHubSubjectPrefix', 'ParameterValue': subject}]
+    parameters = [{'ParameterKey': 'GitHubSubjectPrefix', 'ParameterValue': subject},
+                  {'ParameterKey': 'EnableProduction', 'ParameterValue': 'false' if args.staging_only else 'true'}]
     for env in ['staging', 'production']:
         parameters += [{'ParameterKey': env.title() + 'Instance', 'ParameterValue': config[env]['instance']},
                        {'ParameterKey': env.title() + 'Repository', 'ParameterValue': config[env]['repository']}]

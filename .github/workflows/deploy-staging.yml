@@ -45,7 +45,7 @@ jobs:
         run: |
           python3 ops/aws/ec2/verify-container.py apply-api-candidate --web-image apply-web-candidate --environment staging
           python3 ops/aws/ec2/verify-container.py apply-api-candidate --web-image apply-web-candidate --environment production
-      - uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3, Node 24
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: us-east-1

@@ -46,6 +46,14 @@ if [ ! -f /etc/apply/tls/localhost.crt ]; then
     -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
     -addext 'basicConstraints=critical,CA:FALSE' 2>/dev/null
 fi
+# Initial placeholders keep nginx configuration valid until ExecStartPost
+# resolves both container addresses. Subsequent restarts refresh each address.
+install -d -m 700 /etc/apply/upstreams
+for component in api web; do
+  if [ ! -f "/etc/apply/upstreams/$component.conf" ]; then
+    printf 'server 127.0.0.1:9;\n' > "/etc/apply/upstreams/$component.conf"
+  fi
+done
 nginx -t
 
 # Legacy hosts must complete the explicit offline cutover before normal releases.
