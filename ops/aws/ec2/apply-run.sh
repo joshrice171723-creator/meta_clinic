@@ -51,7 +51,20 @@ fi
 [[ "${1:-api}" = api || "${1:-}" = prepare ]] || exit 1
 # Values exist only in root-owned /run tmpfs and the container runtime, not UserData.
 python3 - <<'PY'
-import json, os, re, subprocess
+import ipaddress, json, os, re, subprocess
+from pathlib import Path
+origin = 'https://localhost:8443'
+review_origin = Path('/etc/apply/review-origin')
+if review_origin.exists():
+    if os.environ['APPLY_ENVIRONMENT'] != 'staging':
+        raise SystemExit('Public review is staging-only')
+    origin = review_origin.read_text().strip()
+    try:
+        address = ipaddress.IPv4Address(origin.removeprefix('https://'))
+    except ValueError:
+        raise SystemExit('Invalid review origin')
+    if origin != f'https://{address}' or not address.is_global:
+        raise SystemExit('Invalid review origin')
 keys = {
     'SECRET_KEY_BASE': 'APPLY_SESSION_SECRET',
     'ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY': 'APPLY_ENCRYPTION_SECRET',
@@ -60,7 +73,7 @@ keys = {
     'PGPASSWORD': 'APPLY_DATABASE_RUNTIME_SECRET',
 }
 values = {
-    'RAILS_ENV': 'production', 'APP_SITE_ORIGIN': 'https://localhost:8443',
+    'RAILS_ENV': 'production', 'APP_SITE_ORIGIN': origin,
     'APP_DEPLOYMENT_ENV': os.environ['APPLY_ENVIRONMENT'],
     'PGHOST': 'apply-postgres', 'PGPORT': '5432', 'PGDATABASE': 'apply', 'PGUSER': 'apply_runtime',
     'APP_DEVELOPMENT_LOGIN': '0', 'RAILS_MAX_THREADS': '3', 'WEB_CONCURRENCY': '0',

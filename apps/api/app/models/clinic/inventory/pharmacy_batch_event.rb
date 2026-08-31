@@ -2,6 +2,8 @@ module Clinic
   module Inventory
     class PharmacyBatchEvent < ApplicationRecord
       self.table_name = "clinic_pharmacy_batch_events"
+      include Clinic::TenantScoped
+      include Clinic::AppendOnly
       belongs_to :batch, class_name: "Clinic::Inventory::PharmacyBatch"
       belongs_to :actor, class_name: "User"
       validates :reason, presence: true, length: { maximum: 200 }

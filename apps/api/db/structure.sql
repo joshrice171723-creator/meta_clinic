@@ -1,3 +1,12 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict WiuBCCpOlP05VQoNN1dCsJDkWXZIsYjlAIfwuIYzlb1x4zA4E8imUkyxXmYUNcw
+
+-- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
+-- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -9,6 +18,46 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: btree_gist; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
+
+
+--
+-- Name: clinic_model_versions_immutable(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_model_versions_immutable() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Model-change versions are append-only';
+END;
+$$;
+
+
+--
+-- Name: erd_immutable_record(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.erd_immutable_record() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'This record is append-only';
+END;
+$$;
+
 
 --
 -- Name: inventory_authorize(bigint, bigint, text, bigint); Type: FUNCTION; Schema: public; Owner: -
@@ -260,6 +309,730 @@ CREATE TABLE public.ar_internal_metadata (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: clinic_allergies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_allergies (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_allergies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_allergies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_allergies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_allergies_id_seq OWNED BY public.clinic_allergies.id;
+
+
+--
+-- Name: clinic_appointments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_appointments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    site_id bigint,
+    room_id bigint,
+    booked_clinician_id bigint,
+    visit_type_id bigint,
+    starts_at timestamp(6) with time zone NOT NULL,
+    ends_at timestamp(6) with time zone NOT NULL,
+    status character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
+    CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
+    CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at))
+);
+
+
+--
+-- Name: clinic_appointments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_appointments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_appointments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_appointments_id_seq OWNED BY public.clinic_appointments.id;
+
+
+--
+-- Name: clinic_audit_delivery_receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_audit_delivery_receipts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    audit_event_id bigint NOT NULL,
+    sink_receipt_reference character varying NOT NULL,
+    acknowledged_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_audit_receipts_ref_present CHECK ((length(TRIM(BOTH FROM sink_receipt_reference)) > 0))
+);
+
+
+--
+-- Name: clinic_audit_delivery_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_audit_delivery_receipts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_audit_delivery_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_audit_delivery_receipts_id_seq OWNED BY public.clinic_audit_delivery_receipts.id;
+
+
+--
+-- Name: clinic_audit_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_audit_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    actor_session_reference character varying NOT NULL,
+    action_code character varying NOT NULL,
+    outcome character varying NOT NULL,
+    policy_version character varying NOT NULL,
+    occurred_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY ((ARRAY['attempted'::character varying, 'denied'::character varying, 'prepared'::character varying, 'committed'::character varying, 'released'::character varying, 'failed'::character varying])::text[])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
+);
+
+
+--
+-- Name: clinic_audit_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_audit_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_audit_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_audit_events_id_seq OWNED BY public.clinic_audit_events.id;
+
+
+--
+-- Name: clinic_audit_resource_manifests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_audit_resource_manifests (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    audit_event_id bigint NOT NULL,
+    protected_resource_version_ref character varying CONSTRAINT clinic_audit_resource_manif_protected_resource_version_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_audit_manifests_ref_present CHECK ((length(TRIM(BOTH FROM protected_resource_version_ref)) > 0))
+);
+
+
+--
+-- Name: clinic_audit_resource_manifests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_audit_resource_manifests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_audit_resource_manifests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_audit_resource_manifests_id_seq OWNED BY public.clinic_audit_resource_manifests.id;
+
+
+--
+-- Name: clinic_clinician_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_clinician_assignments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    clinician_profile_id bigint NOT NULL,
+    department_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    effective_until timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_assignments_valid_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_clinician_assignments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_clinician_assignments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_clinician_assignments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_clinician_assignments_id_seq OWNED BY public.clinic_clinician_assignments.id;
+
+
+--
+-- Name: clinic_clinician_credentials; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_clinician_credentials (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    clinician_profile_id bigint NOT NULL,
+    credential_type character varying NOT NULL,
+    jurisdiction character varying NOT NULL,
+    issuer_reference character varying NOT NULL,
+    review_status character varying NOT NULL,
+    valid_until timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_credentials_fields_present CHECK (((length(TRIM(BOTH FROM credential_type)) > 0) AND (length(TRIM(BOTH FROM jurisdiction)) > 0) AND (length(TRIM(BOTH FROM issuer_reference)) > 0) AND (length(TRIM(BOTH FROM review_status)) > 0)))
+);
+
+
+--
+-- Name: clinic_clinician_credentials_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_clinician_credentials_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_clinician_credentials_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_clinician_credentials_id_seq OWNED BY public.clinic_clinician_credentials.id;
+
+
+--
+-- Name: clinic_clinician_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_clinician_profiles (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_clinician_profiles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_clinician_profiles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_clinician_profiles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_clinician_profiles_id_seq OWNED BY public.clinic_clinician_profiles.id;
+
+
+--
+-- Name: clinic_conditions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_conditions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_conditions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_conditions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_conditions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_conditions_id_seq OWNED BY public.clinic_conditions.id;
+
+
+--
+-- Name: clinic_coverage_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_coverage_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    version integer NOT NULL,
+    encrypted_coverage_evidence text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_coverage_versions_version_positive CHECK ((version > 0))
+);
+
+
+--
+-- Name: clinic_coverage_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_coverage_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_coverage_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_coverage_versions_id_seq OWNED BY public.clinic_coverage_versions.id;
+
+
+--
+-- Name: clinic_credit_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_credit_notes (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    currency character varying NOT NULL,
+    amount numeric(20,6) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_credit_notes_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric)))
+);
+
+
+--
+-- Name: clinic_credit_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_credit_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_credit_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_credit_notes_id_seq OWNED BY public.clinic_credit_notes.id;
+
+
+--
+-- Name: clinic_departments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_departments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    code character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_departments_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0))
+);
+
+
+--
+-- Name: clinic_departments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_departments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_departments_id_seq OWNED BY public.clinic_departments.id;
+
+
+--
+-- Name: clinic_document_categories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_document_categories (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    code character varying NOT NULL,
+    name character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_document_categories_values CHECK (((length(TRIM(BOTH FROM code)) > 0) AND (length(TRIM(BOTH FROM name)) > 0)))
+);
+
+
+--
+-- Name: clinic_document_categories_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_document_categories_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_document_categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_document_categories_id_seq OWNED BY public.clinic_document_categories.id;
+
+
+--
+-- Name: clinic_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_documents (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint,
+    category_id bigint NOT NULL,
+    object_key character varying NOT NULL,
+    object_version character varying NOT NULL,
+    checksum character varying NOT NULL,
+    byte_size bigint NOT NULL,
+    media_type character varying NOT NULL,
+    scan_state character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY ((ARRAY['pending'::character varying, 'quarantined'::character varying, 'clean'::character varying, 'rejected'::character varying])::text[]))),
+    CONSTRAINT clinic_documents_values CHECK (((byte_size >= 0) AND (length(TRIM(BOTH FROM object_key)) > 0) AND (length(TRIM(BOTH FROM object_version)) > 0) AND (length(TRIM(BOTH FROM checksum)) > 0) AND (length(TRIM(BOTH FROM media_type)) > 0)))
+);
+
+
+--
+-- Name: clinic_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_documents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_documents_id_seq OWNED BY public.clinic_documents.id;
+
+
+--
+-- Name: clinic_encounter_note_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_note_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    note_id bigint NOT NULL,
+    revision_no integer NOT NULL,
+    prior_revision_id bigint,
+    author_membership_id bigint NOT NULL,
+    encrypted_body text NOT NULL,
+    payload_version integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_note_revisions_values CHECK (((revision_no > 0) AND (payload_version > 0) AND ((prior_revision_id IS NULL) OR (prior_revision_id <> id))))
+);
+
+
+--
+-- Name: clinic_encounter_note_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_note_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_note_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_note_revisions_id_seq OWNED BY public.clinic_encounter_note_revisions.id;
+
+
+--
+-- Name: clinic_encounter_note_signatures; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_note_signatures (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    note_id bigint NOT NULL,
+    revision_id bigint NOT NULL,
+    signer_membership_id bigint NOT NULL,
+    content_digest character varying NOT NULL,
+    attestation_version character varying NOT NULL,
+    signed_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_note_signatures_fields_present CHECK (((length(TRIM(BOTH FROM content_digest)) > 0) AND (length(TRIM(BOTH FROM attestation_version)) > 0)))
+);
+
+
+--
+-- Name: clinic_encounter_note_signatures_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_note_signatures_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_note_signatures_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_note_signatures_id_seq OWNED BY public.clinic_encounter_note_signatures.id;
+
+
+--
+-- Name: clinic_encounter_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_notes (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_encounter_notes_lock_version CHECK ((lock_version >= 0))
+);
+
+
+--
+-- Name: clinic_encounter_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_notes_id_seq OWNED BY public.clinic_encounter_notes.id;
+
+
+--
+-- Name: clinic_encounter_participants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_participants (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    participation_role character varying NOT NULL,
+    effective_from timestamp(6) with time zone NOT NULL,
+    effective_until timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_participants_role_present CHECK ((length(TRIM(BOTH FROM participation_role)) > 0)),
+    CONSTRAINT clinic_participants_valid_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_encounter_participants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_participants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_participants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_participants_id_seq OWNED BY public.clinic_encounter_participants.id;
+
+
+--
+-- Name: clinic_encounters; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounters (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    appointment_id bigint,
+    site_id bigint,
+    room_id bigint,
+    started_at timestamp(6) with time zone NOT NULL,
+    ended_at timestamp(6) with time zone,
+    status character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_encounters_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
+    CONSTRAINT clinic_encounters_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
+    CONSTRAINT clinic_encounters_valid_time_range CHECK (((ended_at IS NULL) OR (ended_at > started_at)))
+);
+
+
+--
+-- Name: clinic_encounters_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounters_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounters_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounters_id_seq OWNED BY public.clinic_encounters.id;
+
+
+--
+-- Name: clinic_insurance_claims; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_insurance_claims (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    coverage_version_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_insurance_claims_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_insurance_claims_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_insurance_claims_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_insurance_claims_id_seq OWNED BY public.clinic_insurance_claims.id;
 
 
 --
@@ -695,7 +1468,8 @@ CREATE TABLE public.clinic_inventory_suppliers (
     practice_id bigint NOT NULL,
     name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    primary_address_version_id bigint
 );
 
 
@@ -716,6 +1490,80 @@ CREATE SEQUENCE public.clinic_inventory_suppliers_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_suppliers_id_seq OWNED BY public.clinic_inventory_suppliers.id;
+
+
+--
+-- Name: clinic_invoice_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_invoice_lines (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    quantity numeric(20,6) NOT NULL,
+    unit_amount numeric(20,6) NOT NULL,
+    posted_amount numeric(20,6) NOT NULL,
+    description_snapshot text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_invoice_lines_values CHECK (((quantity > (0)::numeric) AND (unit_amount >= (0)::numeric) AND (posted_amount >= (0)::numeric) AND (length(TRIM(BOTH FROM description_snapshot)) > 0)))
+);
+
+
+--
+-- Name: clinic_invoice_lines_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_invoice_lines_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_invoice_lines_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_invoice_lines_id_seq OWNED BY public.clinic_invoice_lines.id;
+
+
+--
+-- Name: clinic_invoices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_invoices (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    currency character varying NOT NULL,
+    status character varying NOT NULL,
+    rounding_policy_version character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0)))
+);
+
+
+--
+-- Name: clinic_invoices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_invoices_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_invoices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_invoices_id_seq OWNED BY public.clinic_invoices.id;
 
 
 --
@@ -753,6 +1601,38 @@ CREATE SEQUENCE public.clinic_items_id_seq
 --
 
 ALTER SEQUENCE public.clinic_items_id_seq OWNED BY public.clinic_items.id;
+
+
+--
+-- Name: clinic_medication_statements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_medication_statements (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_medication_statements_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_medication_statements_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_medication_statements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_medication_statements_id_seq OWNED BY public.clinic_medication_statements.id;
 
 
 --
@@ -799,6 +1679,188 @@ ALTER SEQUENCE public.clinic_memberships_id_seq OWNED BY public.clinic_membershi
 
 
 --
+-- Name: clinic_message_attachments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_message_attachments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    message_intent_id bigint NOT NULL,
+    document_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_message_attachments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_message_attachments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_message_attachments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_message_attachments_id_seq OWNED BY public.clinic_message_attachments.id;
+
+
+--
+-- Name: clinic_message_delivery_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_message_delivery_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    message_intent_id bigint NOT NULL,
+    provider_event_reference character varying CONSTRAINT clinic_message_delivery_event_provider_event_reference_not_null NOT NULL,
+    outcome character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_message_delivery_values CHECK (((length(TRIM(BOTH FROM provider_event_reference)) > 0) AND (length(TRIM(BOTH FROM outcome)) > 0)))
+);
+
+
+--
+-- Name: clinic_message_delivery_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_message_delivery_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_message_delivery_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_message_delivery_events_id_seq OWNED BY public.clinic_message_delivery_events.id;
+
+
+--
+-- Name: clinic_message_intents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_message_intents (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    request_key character varying NOT NULL,
+    purpose_code character varying NOT NULL,
+    encrypted_recipient_snapshot text NOT NULL,
+    encrypted_content text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_message_intents_values CHECK (((length(TRIM(BOTH FROM request_key)) > 0) AND (length(TRIM(BOTH FROM purpose_code)) > 0)))
+);
+
+
+--
+-- Name: clinic_message_intents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_message_intents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_message_intents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_message_intents_id_seq OWNED BY public.clinic_message_intents.id;
+
+
+--
+-- Name: clinic_message_outbox; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_message_outbox (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    message_intent_id bigint NOT NULL,
+    dispatch_state character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_message_outbox_values CHECK (((lock_version >= 0) AND (length(TRIM(BOTH FROM dispatch_state)) > 0)))
+);
+
+
+--
+-- Name: clinic_message_outbox_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_message_outbox_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_message_outbox_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_message_outbox_id_seq OWNED BY public.clinic_message_outbox.id;
+
+
+--
+-- Name: clinic_model_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_model_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    item_type character varying NOT NULL,
+    item_id bigint NOT NULL,
+    event character varying NOT NULL,
+    whodunnit character varying,
+    actor_reference character varying,
+    request_id character varying,
+    causal_id character varying,
+    job_id character varying,
+    changed_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    occurred_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY ((ARRAY['create'::character varying, 'update'::character varying, 'destroy'::character varying, 'touch'::character varying])::text[])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
+);
+
+
+--
+-- Name: clinic_model_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_model_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_model_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_model_versions_id_seq OWNED BY public.clinic_model_versions.id;
+
+
+--
 -- Name: clinic_notes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -833,6 +1895,126 @@ ALTER SEQUENCE public.clinic_notes_id_seq OWNED BY public.clinic_notes.id;
 
 
 --
+-- Name: clinic_observation_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_observation_sources (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    derived_observation_id bigint NOT NULL,
+    source_observation_id bigint NOT NULL,
+    formula_version character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_observation_sources_values CHECK (((derived_observation_id <> source_observation_id) AND (length(TRIM(BOTH FROM formula_version)) > 0)))
+);
+
+
+--
+-- Name: clinic_observation_sources_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_observation_sources_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_observation_sources_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_observation_sources_id_seq OWNED BY public.clinic_observation_sources.id;
+
+
+--
+-- Name: clinic_observations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_observations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint,
+    author_membership_id bigint NOT NULL,
+    parent_observation_id bigint,
+    code character varying NOT NULL,
+    code_system character varying NOT NULL,
+    code_version character varying NOT NULL,
+    value_kind character varying NOT NULL,
+    numeric_value numeric(30,10),
+    text_value text,
+    coded_value text,
+    unit_code character varying,
+    missing_reason character varying,
+    observed_at timestamp(6) with time zone NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_observations_finite_numeric CHECK (((numeric_value IS NULL) OR (numeric_value <> 'NaN'::numeric))),
+    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY ((ARRAY['numeric'::character varying, 'text'::character varying, 'coded'::character varying, 'missing'::character varying, 'group'::character varying])::text[]))),
+    CONSTRAINT clinic_observations_value_shape CHECK (((((value_kind)::text = 'numeric'::text) AND (numeric_value IS NOT NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NOT NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'text'::text) AND (numeric_value IS NULL) AND (text_value IS NOT NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'coded'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NOT NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'missing'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NOT NULL)) OR (((value_kind)::text = 'group'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))))
+);
+
+
+--
+-- Name: clinic_observations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_observations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_observations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_observations_id_seq OWNED BY public.clinic_observations.id;
+
+
+--
+-- Name: clinic_patient_address_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_address_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    version integer NOT NULL,
+    encrypted_address text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_addresses_version_positive CHECK ((version > 0))
+);
+
+
+--
+-- Name: clinic_patient_address_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_address_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_address_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_address_versions_id_seq OWNED BY public.clinic_patient_address_versions.id;
+
+
+--
 -- Name: clinic_patients; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -842,7 +2024,8 @@ CREATE TABLE public.clinic_patients (
     display_name text NOT NULL,
     reference character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    primary_address_version_id bigint
 );
 
 
@@ -863,6 +2046,78 @@ CREATE SEQUENCE public.clinic_patients_id_seq
 --
 
 ALTER SEQUENCE public.clinic_patients_id_seq OWNED BY public.clinic_patients.id;
+
+
+--
+-- Name: clinic_payment_allocations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_payment_allocations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    payment_event_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    amount numeric(20,6) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_payment_allocations_amount CHECK ((amount > (0)::numeric))
+);
+
+
+--
+-- Name: clinic_payment_allocations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_payment_allocations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_payment_allocations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_payment_allocations_id_seq OWNED BY public.clinic_payment_allocations.id;
+
+
+--
+-- Name: clinic_payment_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_payment_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    currency character varying NOT NULL,
+    amount numeric(20,6) NOT NULL,
+    external_event_reference character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_payment_events_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric) AND (length(TRIM(BOTH FROM external_event_reference)) > 0)))
+);
+
+
+--
+-- Name: clinic_payment_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_payment_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_payment_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_payment_events_id_seq OWNED BY public.clinic_payment_events.id;
 
 
 --
@@ -1046,7 +2301,8 @@ CREATE TABLE public.clinic_practices (
     name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    timezone character varying DEFAULT 'UTC'::character varying NOT NULL
+    timezone character varying DEFAULT 'UTC'::character varying NOT NULL,
+    organization_id bigint
 );
 
 
@@ -1070,6 +2326,222 @@ ALTER SEQUENCE public.clinic_practices_id_seq OWNED BY public.clinic_practices.i
 
 
 --
+-- Name: clinic_refund_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_refund_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    payment_event_id bigint NOT NULL,
+    currency character varying NOT NULL,
+    amount numeric(20,6) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_refund_events_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric)))
+);
+
+
+--
+-- Name: clinic_refund_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_refund_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_refund_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_refund_events_id_seq OWNED BY public.clinic_refund_events.id;
+
+
+--
+-- Name: clinic_role_grant_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_role_grant_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    grant_id bigint NOT NULL,
+    grantor_membership_id bigint NOT NULL,
+    grant_revision integer NOT NULL,
+    event_kind character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_role_grant_events_values CHECK (((grant_revision > 0) AND (length(TRIM(BOTH FROM event_kind)) > 0)))
+);
+
+
+--
+-- Name: clinic_role_grant_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_role_grant_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_role_grant_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_role_grant_events_id_seq OWNED BY public.clinic_role_grant_events.id;
+
+
+--
+-- Name: clinic_role_grants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_role_grants (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    role_version_id bigint NOT NULL,
+    scope_kind character varying NOT NULL,
+    site_id bigint,
+    revision integer DEFAULT 1 NOT NULL,
+    effective_from timestamp(6) with time zone NOT NULL,
+    effective_until timestamp(6) with time zone,
+    revoked_at timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_role_grants_scope CHECK (((((scope_kind)::text = 'practice'::text) AND (site_id IS NULL)) OR (((scope_kind)::text = 'site'::text) AND (site_id IS NOT NULL)))),
+    CONSTRAINT clinic_role_grants_window CHECK (((revision > 0) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
+);
+
+
+--
+-- Name: clinic_role_grants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_role_grants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_role_grants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_role_grants_id_seq OWNED BY public.clinic_role_grants.id;
+
+
+--
+-- Name: clinic_rooms; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_rooms (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    code character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_rooms_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0))
+);
+
+
+--
+-- Name: clinic_rooms_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_rooms_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_rooms_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_rooms_id_seq OWNED BY public.clinic_rooms.id;
+
+
+--
+-- Name: clinic_sites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_sites (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    code character varying NOT NULL,
+    timezone_override character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_sites_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0))
+);
+
+
+--
+-- Name: clinic_sites_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_sites_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_sites_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_sites_id_seq OWNED BY public.clinic_sites.id;
+
+
+--
+-- Name: clinic_staff_address_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_staff_address_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    staff_member_id bigint NOT NULL,
+    version integer NOT NULL,
+    encrypted_address text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_staff_addresses_version_positive CHECK ((version > 0))
+);
+
+
+--
+-- Name: clinic_staff_address_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_staff_address_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_staff_address_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_staff_address_versions_id_seq OWNED BY public.clinic_staff_address_versions.id;
+
+
+--
 -- Name: clinic_staff_members; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1080,7 +2552,8 @@ CREATE TABLE public.clinic_staff_members (
     job_title character varying NOT NULL,
     active boolean DEFAULT true NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    primary_address_version_id bigint
 );
 
 
@@ -1139,6 +2612,75 @@ ALTER SEQUENCE public.clinic_stock_movements_id_seq OWNED BY public.clinic_stock
 
 
 --
+-- Name: clinic_supplier_address_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_supplier_address_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    supplier_id bigint NOT NULL,
+    version integer NOT NULL,
+    encrypted_address text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_supplier_addresses_version_positive CHECK ((version > 0))
+);
+
+
+--
+-- Name: clinic_supplier_address_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_supplier_address_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_supplier_address_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_supplier_address_versions_id_seq OWNED BY public.clinic_supplier_address_versions.id;
+
+
+--
+-- Name: clinic_visit_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_visit_types (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    code character varying NOT NULL,
+    retired_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_visit_types_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0))
+);
+
+
+--
+-- Name: clinic_visit_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_visit_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_visit_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_visit_types_id_seq OWNED BY public.clinic_visit_types.id;
+
+
+--
 -- Name: contact_messages; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1183,8 +2725,8 @@ CREATE TABLE public.identity_preferences (
     revision integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
-    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY (ARRAY[('sage'::character varying)::text, ('blue'::character varying)::text, ('graphite'::character varying)::text]))),
+    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY ((ARRAY['system'::character varying, 'light'::character varying, 'dark'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['sage'::character varying, 'blue'::character varying, 'graphite'::character varying])::text[]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
 
@@ -1311,6 +2853,37 @@ ALTER SEQUENCE public.member_sessions_id_seq OWNED BY public.member_sessions.id;
 
 
 --
+-- Name: organizations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.organizations (
+    id bigint NOT NULL,
+    name character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: organizations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.organizations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: organizations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.organizations_id_seq OWNED BY public.organizations.id;
+
+
+--
 -- Name: paperworks; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1350,6 +2923,138 @@ CREATE SEQUENCE public.paperworks_id_seq
 --
 
 ALTER SEQUENCE public.paperworks_id_seq OWNED BY public.paperworks.id;
+
+
+--
+-- Name: permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.permissions (
+    id bigint NOT NULL,
+    action_code character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT permissions_action_code_present CHECK ((length(TRIM(BOTH FROM action_code)) > 0))
+);
+
+
+--
+-- Name: permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.permissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.permissions_id_seq OWNED BY public.permissions.id;
+
+
+--
+-- Name: platform_audit_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.platform_audit_events (
+    id bigint NOT NULL,
+    actor_session_reference character varying NOT NULL,
+    action_code character varying NOT NULL,
+    outcome character varying NOT NULL,
+    occurred_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT platform_audit_events_values CHECK ((length(TRIM(BOTH FROM action_code)) > 0))
+);
+
+
+--
+-- Name: platform_audit_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.platform_audit_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: platform_audit_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.platform_audit_events_id_seq OWNED BY public.platform_audit_events.id;
+
+
+--
+-- Name: role_version_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.role_version_permissions (
+    id bigint NOT NULL,
+    role_version_id bigint NOT NULL,
+    permission_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: role_version_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.role_version_permissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: role_version_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.role_version_permissions_id_seq OWNED BY public.role_version_permissions.id;
+
+
+--
+-- Name: role_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.role_versions (
+    id bigint NOT NULL,
+    role_code character varying NOT NULL,
+    version integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT role_versions_values CHECK (((length(TRIM(BOTH FROM role_code)) > 0) AND (version > 0)))
+);
+
+
+--
+-- Name: role_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.role_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: role_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.role_versions_id_seq OWNED BY public.role_versions.id;
 
 
 --
@@ -1393,6 +3098,146 @@ CREATE SEQUENCE public.users_id_seq
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- Name: clinic_allergies id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_allergies ALTER COLUMN id SET DEFAULT nextval('public.clinic_allergies_id_seq'::regclass);
+
+
+--
+-- Name: clinic_appointments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments ALTER COLUMN id SET DEFAULT nextval('public.clinic_appointments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_audit_delivery_receipts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_delivery_receipts ALTER COLUMN id SET DEFAULT nextval('public.clinic_audit_delivery_receipts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_audit_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_audit_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_audit_resource_manifests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_resource_manifests ALTER COLUMN id SET DEFAULT nextval('public.clinic_audit_resource_manifests_id_seq'::regclass);
+
+
+--
+-- Name: clinic_clinician_assignments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_assignments ALTER COLUMN id SET DEFAULT nextval('public.clinic_clinician_assignments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_clinician_credentials id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_credentials ALTER COLUMN id SET DEFAULT nextval('public.clinic_clinician_credentials_id_seq'::regclass);
+
+
+--
+-- Name: clinic_clinician_profiles id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_profiles ALTER COLUMN id SET DEFAULT nextval('public.clinic_clinician_profiles_id_seq'::regclass);
+
+
+--
+-- Name: clinic_conditions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_conditions ALTER COLUMN id SET DEFAULT nextval('public.clinic_conditions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_coverage_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_coverage_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_coverage_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_credit_notes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_credit_notes ALTER COLUMN id SET DEFAULT nextval('public.clinic_credit_notes_id_seq'::regclass);
+
+
+--
+-- Name: clinic_departments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_departments ALTER COLUMN id SET DEFAULT nextval('public.clinic_departments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_document_categories id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_categories ALTER COLUMN id SET DEFAULT nextval('public.clinic_document_categories_id_seq'::regclass);
+
+
+--
+-- Name: clinic_documents id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_documents ALTER COLUMN id SET DEFAULT nextval('public.clinic_documents_id_seq'::regclass);
+
+
+--
+-- Name: clinic_encounter_note_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_note_revisions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_encounter_note_signatures id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_signatures ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_note_signatures_id_seq'::regclass);
+
+
+--
+-- Name: clinic_encounter_notes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_notes ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_notes_id_seq'::regclass);
+
+
+--
+-- Name: clinic_encounter_participants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_participants_id_seq'::regclass);
+
+
+--
+-- Name: clinic_encounters id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounters_id_seq'::regclass);
+
+
+--
+-- Name: clinic_insurance_claims id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_claims ALTER COLUMN id SET DEFAULT nextval('public.clinic_insurance_claims_id_seq'::regclass);
 
 
 --
@@ -1480,10 +3325,31 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers ALTER COLUMN id SET DEFAULT n
 
 
 --
+-- Name: clinic_invoice_lines id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_lines ALTER COLUMN id SET DEFAULT nextval('public.clinic_invoice_lines_id_seq'::regclass);
+
+
+--
+-- Name: clinic_invoices id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoices ALTER COLUMN id SET DEFAULT nextval('public.clinic_invoices_id_seq'::regclass);
+
+
+--
 -- Name: clinic_items id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_items ALTER COLUMN id SET DEFAULT nextval('public.clinic_items_id_seq'::regclass);
+
+
+--
+-- Name: clinic_medication_statements id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_statements ALTER COLUMN id SET DEFAULT nextval('public.clinic_medication_statements_id_seq'::regclass);
 
 
 --
@@ -1494,6 +3360,41 @@ ALTER TABLE ONLY public.clinic_memberships ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
+-- Name: clinic_message_attachments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_attachments ALTER COLUMN id SET DEFAULT nextval('public.clinic_message_attachments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_message_delivery_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_delivery_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_message_delivery_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_message_intents id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_intents ALTER COLUMN id SET DEFAULT nextval('public.clinic_message_intents_id_seq'::regclass);
+
+
+--
+-- Name: clinic_message_outbox id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_outbox ALTER COLUMN id SET DEFAULT nextval('public.clinic_message_outbox_id_seq'::regclass);
+
+
+--
+-- Name: clinic_model_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_model_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_model_versions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_notes id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1501,10 +3402,45 @@ ALTER TABLE ONLY public.clinic_notes ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: clinic_observation_sources id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observation_sources ALTER COLUMN id SET DEFAULT nextval('public.clinic_observation_sources_id_seq'::regclass);
+
+
+--
+-- Name: clinic_observations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations ALTER COLUMN id SET DEFAULT nextval('public.clinic_observations_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_address_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_address_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_address_versions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_patients id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_patients ALTER COLUMN id SET DEFAULT nextval('public.clinic_patients_id_seq'::regclass);
+
+
+--
+-- Name: clinic_payment_allocations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_allocations ALTER COLUMN id SET DEFAULT nextval('public.clinic_payment_allocations_id_seq'::regclass);
+
+
+--
+-- Name: clinic_payment_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_payment_events_id_seq'::regclass);
 
 
 --
@@ -1543,6 +3479,48 @@ ALTER TABLE ONLY public.clinic_practices ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: clinic_refund_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_refund_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_role_grant_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_role_grant_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_role_grants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants ALTER COLUMN id SET DEFAULT nextval('public.clinic_role_grants_id_seq'::regclass);
+
+
+--
+-- Name: clinic_rooms id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_rooms ALTER COLUMN id SET DEFAULT nextval('public.clinic_rooms_id_seq'::regclass);
+
+
+--
+-- Name: clinic_sites id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_sites ALTER COLUMN id SET DEFAULT nextval('public.clinic_sites_id_seq'::regclass);
+
+
+--
+-- Name: clinic_staff_address_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_address_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_staff_address_versions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_staff_members id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1554,6 +3532,20 @@ ALTER TABLE ONLY public.clinic_staff_members ALTER COLUMN id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.clinic_stock_movements ALTER COLUMN id SET DEFAULT nextval('public.clinic_stock_movements_id_seq'::regclass);
+
+
+--
+-- Name: clinic_supplier_address_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_supplier_address_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_supplier_address_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_visit_types id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_visit_types ALTER COLUMN id SET DEFAULT nextval('public.clinic_visit_types_id_seq'::regclass);
 
 
 --
@@ -1592,10 +3584,45 @@ ALTER TABLE ONLY public.member_sessions ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
+-- Name: organizations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations ALTER COLUMN id SET DEFAULT nextval('public.organizations_id_seq'::regclass);
+
+
+--
 -- Name: paperworks id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.paperworks ALTER COLUMN id SET DEFAULT nextval('public.paperworks_id_seq'::regclass);
+
+
+--
+-- Name: permissions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permissions ALTER COLUMN id SET DEFAULT nextval('public.permissions_id_seq'::regclass);
+
+
+--
+-- Name: platform_audit_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_audit_events ALTER COLUMN id SET DEFAULT nextval('public.platform_audit_events_id_seq'::regclass);
+
+
+--
+-- Name: role_version_permissions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_version_permissions ALTER COLUMN id SET DEFAULT nextval('public.role_version_permissions_id_seq'::regclass);
+
+
+--
+-- Name: role_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_versions ALTER COLUMN id SET DEFAULT nextval('public.role_versions_id_seq'::regclass);
 
 
 --
@@ -1611,6 +3638,182 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: clinic_allergies clinic_allergies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_allergies
+    ADD CONSTRAINT clinic_allergies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_appointments clinic_appointments_no_provider_overlap; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE ((booked_clinician_id IS NOT NULL));
+
+
+--
+-- Name: clinic_appointments clinic_appointments_no_room_overlap; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE ((room_id IS NOT NULL));
+
+
+--
+-- Name: clinic_appointments clinic_appointments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT clinic_appointments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_audit_delivery_receipts clinic_audit_delivery_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_delivery_receipts
+    ADD CONSTRAINT clinic_audit_delivery_receipts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_audit_events clinic_audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_events
+    ADD CONSTRAINT clinic_audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_audit_resource_manifests clinic_audit_resource_manifests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_resource_manifests
+    ADD CONSTRAINT clinic_audit_resource_manifests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_clinician_assignments clinic_clinician_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_assignments
+    ADD CONSTRAINT clinic_clinician_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_clinician_credentials clinic_clinician_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_credentials
+    ADD CONSTRAINT clinic_clinician_credentials_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_clinician_profiles clinic_clinician_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_profiles
+    ADD CONSTRAINT clinic_clinician_profiles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_conditions clinic_conditions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_conditions
+    ADD CONSTRAINT clinic_conditions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_coverage_versions clinic_coverage_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_coverage_versions
+    ADD CONSTRAINT clinic_coverage_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_credit_notes clinic_credit_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_credit_notes
+    ADD CONSTRAINT clinic_credit_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_departments clinic_departments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_departments
+    ADD CONSTRAINT clinic_departments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_document_categories clinic_document_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_categories
+    ADD CONSTRAINT clinic_document_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_documents clinic_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_documents
+    ADD CONSTRAINT clinic_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_note_revisions clinic_encounter_note_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_revisions
+    ADD CONSTRAINT clinic_encounter_note_revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_note_signatures clinic_encounter_note_signatures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_signatures
+    ADD CONSTRAINT clinic_encounter_note_signatures_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_notes clinic_encounter_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_notes
+    ADD CONSTRAINT clinic_encounter_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_participants clinic_encounter_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants
+    ADD CONSTRAINT clinic_encounter_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounters clinic_encounters_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters
+    ADD CONSTRAINT clinic_encounters_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_insurance_claims clinic_insurance_claims_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_claims
+    ADD CONSTRAINT clinic_insurance_claims_pkey PRIMARY KEY (id);
 
 
 --
@@ -1710,11 +3913,35 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 
 
 --
+-- Name: clinic_invoice_lines clinic_invoice_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_lines
+    ADD CONSTRAINT clinic_invoice_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_invoices clinic_invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoices
+    ADD CONSTRAINT clinic_invoices_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_items clinic_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_items
     ADD CONSTRAINT clinic_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_medication_statements clinic_medication_statements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_statements
+    ADD CONSTRAINT clinic_medication_statements_pkey PRIMARY KEY (id);
 
 
 --
@@ -1726,6 +3953,46 @@ ALTER TABLE ONLY public.clinic_memberships
 
 
 --
+-- Name: clinic_message_attachments clinic_message_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_attachments
+    ADD CONSTRAINT clinic_message_attachments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_message_delivery_events clinic_message_delivery_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_delivery_events
+    ADD CONSTRAINT clinic_message_delivery_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_message_intents clinic_message_intents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_intents
+    ADD CONSTRAINT clinic_message_intents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_message_outbox clinic_message_outbox_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_outbox
+    ADD CONSTRAINT clinic_message_outbox_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_model_versions clinic_model_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_model_versions
+    ADD CONSTRAINT clinic_model_versions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_notes clinic_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1734,11 +4001,51 @@ ALTER TABLE ONLY public.clinic_notes
 
 
 --
+-- Name: clinic_observation_sources clinic_observation_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observation_sources
+    ADD CONSTRAINT clinic_observation_sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_observations clinic_observations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations
+    ADD CONSTRAINT clinic_observations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_address_versions clinic_patient_address_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_address_versions
+    ADD CONSTRAINT clinic_patient_address_versions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_patients clinic_patients_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_patients
     ADD CONSTRAINT clinic_patients_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_payment_allocations clinic_payment_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_allocations
+    ADD CONSTRAINT clinic_payment_allocations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_payment_events clinic_payment_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_events
+    ADD CONSTRAINT clinic_payment_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -1782,6 +4089,54 @@ ALTER TABLE ONLY public.clinic_practices
 
 
 --
+-- Name: clinic_refund_events clinic_refund_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events
+    ADD CONSTRAINT clinic_refund_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_role_grant_events clinic_role_grant_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events
+    ADD CONSTRAINT clinic_role_grant_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_role_grants clinic_role_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT clinic_role_grants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_rooms clinic_rooms_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_rooms
+    ADD CONSTRAINT clinic_rooms_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_sites clinic_sites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_sites
+    ADD CONSTRAINT clinic_sites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_staff_address_versions clinic_staff_address_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_address_versions
+    ADD CONSTRAINT clinic_staff_address_versions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_staff_members clinic_staff_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1795,6 +4150,22 @@ ALTER TABLE ONLY public.clinic_staff_members
 
 ALTER TABLE ONLY public.clinic_stock_movements
     ADD CONSTRAINT clinic_stock_movements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_supplier_address_versions clinic_supplier_address_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_supplier_address_versions
+    ADD CONSTRAINT clinic_supplier_address_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_visit_types clinic_visit_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_visit_types
+    ADD CONSTRAINT clinic_visit_types_pkey PRIMARY KEY (id);
 
 
 --
@@ -1838,11 +4209,51 @@ ALTER TABLE ONLY public.member_sessions
 
 
 --
+-- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: paperworks paperworks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.paperworks
     ADD CONSTRAINT paperworks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permissions
+    ADD CONSTRAINT permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: platform_audit_events platform_audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_audit_events
+    ADD CONSTRAINT platform_audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: role_version_permissions role_version_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_version_permissions
+    ADD CONSTRAINT role_version_permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: role_versions role_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_versions
+    ADD CONSTRAINT role_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1862,10 +4273,752 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: clinic_allergies_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_allergies_patient_time ON public.clinic_allergies USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_allergies_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_allergies_practice_id ON public.clinic_allergies USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_appointments_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointments_practice_id ON public.clinic_appointments USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_appointments_practice_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointments_practice_patient_id ON public.clinic_appointments USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_assignments_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_assignments_identity ON public.clinic_clinician_assignments USING btree (practice_id, clinician_profile_id, department_id, site_id, effective_from);
+
+
+--
+-- Name: clinic_audit_delivery_receipts_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_audit_delivery_receipts_practice_id ON public.clinic_audit_delivery_receipts USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_audit_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_audit_events_practice_id ON public.clinic_audit_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_audit_events_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_audit_events_time ON public.clinic_audit_events USING btree (practice_id, occurred_at, id);
+
+
+--
+-- Name: clinic_audit_manifests_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_audit_manifests_identity ON public.clinic_audit_resource_manifests USING btree (practice_id, audit_event_id, protected_resource_version_ref);
+
+
+--
+-- Name: clinic_audit_receipts_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_audit_receipts_identity ON public.clinic_audit_delivery_receipts USING btree (practice_id, audit_event_id, sink_receipt_reference);
+
+
+--
+-- Name: clinic_audit_resource_manifests_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_audit_resource_manifests_practice_id ON public.clinic_audit_resource_manifests USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_clinician_assignments_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_clinician_assignments_practice_id ON public.clinic_clinician_assignments USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_clinician_credentials_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_clinician_credentials_practice_id ON public.clinic_clinician_credentials USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_clinician_profiles_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_clinician_profiles_practice_id ON public.clinic_clinician_profiles USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_conditions_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_conditions_patient_time ON public.clinic_conditions USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_conditions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_conditions_practice_id ON public.clinic_conditions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_coverage_versions_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_coverage_versions_identity ON public.clinic_coverage_versions USING btree (practice_id, patient_id, version);
+
+
+--
+-- Name: clinic_coverage_versions_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_coverage_versions_patient_id ON public.clinic_coverage_versions USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_coverage_versions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_coverage_versions_practice_id ON public.clinic_coverage_versions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_credit_notes_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_credit_notes_practice_id ON public.clinic_credit_notes USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_departments_practice_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_departments_practice_code ON public.clinic_departments USING btree (practice_id, code);
+
+
+--
+-- Name: clinic_departments_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_departments_practice_id ON public.clinic_departments USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_document_categories_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_document_categories_code ON public.clinic_document_categories USING btree (practice_id, code);
+
+
+--
+-- Name: clinic_document_categories_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_document_categories_practice_id ON public.clinic_document_categories USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_documents_object_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_documents_object_identity ON public.clinic_documents USING btree (practice_id, object_key, object_version);
+
+
+--
+-- Name: clinic_documents_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_documents_patient_id ON public.clinic_documents USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_documents_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_documents_practice_id ON public.clinic_documents USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_note_revisions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_note_revisions_practice_id ON public.clinic_encounter_note_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_note_signatures_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_note_signatures_practice_id ON public.clinic_encounter_note_signatures USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_notes_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_notes_practice_id ON public.clinic_encounter_notes USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_participants_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_participants_practice_id ON public.clinic_encounter_participants USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounters_one_per_appointment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounters_one_per_appointment ON public.clinic_encounters USING btree (practice_id, appointment_id) WHERE (appointment_id IS NOT NULL);
+
+
+--
+-- Name: clinic_encounters_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounters_practice_id ON public.clinic_encounters USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounters_practice_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounters_practice_patient_id ON public.clinic_encounters USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_claims_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_insurance_claims_practice_id ON public.clinic_insurance_claims USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_invoice_lines_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_invoice_lines_practice_id ON public.clinic_invoice_lines USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_invoices_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_invoices_patient_id ON public.clinic_invoices USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_invoices_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_invoices_practice_id ON public.clinic_invoices USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_medication_statements_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_medication_statements_patient_time ON public.clinic_medication_statements USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_medication_statements_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_statements_practice_id ON public.clinic_medication_statements USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_memberships_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_memberships_practice_id ON public.clinic_memberships USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_message_attachments_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_attachments_identity ON public.clinic_message_attachments USING btree (practice_id, message_intent_id, document_id);
+
+
+--
+-- Name: clinic_message_attachments_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_attachments_practice_id ON public.clinic_message_attachments USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_message_delivery_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_delivery_events_practice_id ON public.clinic_message_delivery_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_message_delivery_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_delivery_identity ON public.clinic_message_delivery_events USING btree (practice_id, message_intent_id, provider_event_reference);
+
+
+--
+-- Name: clinic_message_intents_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_intents_patient_id ON public.clinic_message_intents USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_message_intents_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_intents_practice_id ON public.clinic_message_intents USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_message_intents_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_intents_request ON public.clinic_message_intents USING btree (practice_id, request_key);
+
+
+--
+-- Name: clinic_message_outbox_one_per_intent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_outbox_one_per_intent ON public.clinic_message_outbox USING btree (practice_id, message_intent_id);
+
+
+--
+-- Name: clinic_message_outbox_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_message_outbox_practice_id ON public.clinic_message_outbox USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_model_versions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_model_versions_practice_id ON public.clinic_model_versions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_model_versions_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_model_versions_request ON public.clinic_model_versions USING btree (practice_id, request_id, id);
+
+
+--
+-- Name: clinic_model_versions_subject_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_model_versions_subject_time ON public.clinic_model_versions USING btree (practice_id, item_type, item_id, occurred_at, id);
+
+
+--
+-- Name: clinic_note_revisions_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_note_revisions_number ON public.clinic_encounter_note_revisions USING btree (practice_id, note_id, revision_no);
+
+
+--
+-- Name: clinic_note_revisions_practice_note_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_note_revisions_practice_note_id ON public.clinic_encounter_note_revisions USING btree (practice_id, note_id, id);
+
+
+--
+-- Name: clinic_note_signatures_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_note_signatures_identity ON public.clinic_encounter_note_signatures USING btree (practice_id, note_id, revision_id, signer_membership_id);
+
+
+--
+-- Name: clinic_observation_sources_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_observation_sources_identity ON public.clinic_observation_sources USING btree (practice_id, derived_observation_id, source_observation_id);
+
+
+--
+-- Name: clinic_observation_sources_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_observation_sources_practice_id ON public.clinic_observation_sources USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_observations_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_observations_patient_id ON public.clinic_observations USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_observations_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_observations_patient_time ON public.clinic_observations USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_observations_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_observations_practice_id ON public.clinic_observations USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_address_versions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_address_versions_practice_id ON public.clinic_patient_address_versions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_addresses_owner_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_addresses_owner_id ON public.clinic_patient_address_versions USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_addresses_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_addresses_version ON public.clinic_patient_address_versions USING btree (practice_id, patient_id, version);
+
+
+--
+-- Name: clinic_payment_allocations_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_payment_allocations_practice_id ON public.clinic_payment_allocations USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_payment_events_external_ref; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_payment_events_external_ref ON public.clinic_payment_events USING btree (practice_id, external_event_reference);
+
+
+--
+-- Name: clinic_payment_events_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_payment_events_patient_id ON public.clinic_payment_events USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_payment_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_payment_events_practice_id ON public.clinic_payment_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_profiles_membership; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_profiles_membership ON public.clinic_clinician_profiles USING btree (practice_id, membership_id);
+
+
+--
+-- Name: clinic_refund_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_refund_events_practice_id ON public.clinic_refund_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_role_grant_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_role_grant_events_practice_id ON public.clinic_role_grant_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_role_grant_events_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_role_grant_events_revision ON public.clinic_role_grant_events USING btree (practice_id, grant_id, grant_revision);
+
+
+--
+-- Name: clinic_role_grants_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_role_grants_practice_id ON public.clinic_role_grants USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_role_grants_practice_scope_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_role_grants_practice_scope_identity ON public.clinic_role_grants USING btree (practice_id, membership_id, role_version_id, scope_kind) WHERE (site_id IS NULL);
+
+
+--
+-- Name: clinic_role_grants_site_scope_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_role_grants_site_scope_identity ON public.clinic_role_grants USING btree (practice_id, membership_id, role_version_id, scope_kind, site_id) WHERE (site_id IS NOT NULL);
+
+
+--
+-- Name: clinic_rooms_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_rooms_practice_id ON public.clinic_rooms USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_rooms_practice_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_rooms_practice_site_id ON public.clinic_rooms USING btree (practice_id, site_id, id);
+
+
+--
+-- Name: clinic_rooms_site_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_rooms_site_code ON public.clinic_rooms USING btree (practice_id, site_id, code);
+
+
+--
+-- Name: clinic_sites_practice_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_sites_practice_code ON public.clinic_sites USING btree (practice_id, code);
+
+
+--
+-- Name: clinic_sites_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_sites_practice_id ON public.clinic_sites USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_staff_address_versions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_staff_address_versions_practice_id ON public.clinic_staff_address_versions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_staff_addresses_owner_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_staff_addresses_owner_id ON public.clinic_staff_address_versions USING btree (practice_id, staff_member_id, id);
+
+
+--
+-- Name: clinic_staff_addresses_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_staff_addresses_version ON public.clinic_staff_address_versions USING btree (practice_id, staff_member_id, version);
+
+
+--
+-- Name: clinic_staff_members_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_staff_members_practice_id ON public.clinic_staff_members USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_supplier_address_versions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_supplier_address_versions_practice_id ON public.clinic_supplier_address_versions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_supplier_addresses_owner_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_supplier_addresses_owner_id ON public.clinic_supplier_address_versions USING btree (practice_id, supplier_id, id);
+
+
+--
+-- Name: clinic_supplier_addresses_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_supplier_addresses_version ON public.clinic_supplier_address_versions USING btree (practice_id, supplier_id, version);
+
+
+--
+-- Name: clinic_visit_types_practice_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_visit_types_practice_code ON public.clinic_visit_types USING btree (practice_id, code);
+
+
+--
+-- Name: clinic_visit_types_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_visit_types_practice_id ON public.clinic_visit_types USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_actor_session_reference_occurred_at_fc6d32a259; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_actor_session_reference_occurred_at_fc6d32a259 ON public.platform_audit_events USING btree (actor_session_reference, occurred_at);
+
+
+--
+-- Name: idx_on_practice_id_actor_session_reference_occurred_814d8dd62d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_actor_session_reference_occurred_814d8dd62d ON public.clinic_audit_events USING btree (practice_id, actor_session_reference, occurred_at);
+
+
+--
+-- Name: idx_on_practice_id_booked_clinician_id_starts_at_9122dfc127; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_booked_clinician_id_starts_at_9122dfc127 ON public.clinic_appointments USING btree (practice_id, booked_clinician_id, starts_at);
+
+
+--
+-- Name: idx_on_practice_id_clinician_profile_id_credential__de8ec8ea47; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_clinician_profile_id_credential__de8ec8ea47 ON public.clinic_clinician_credentials USING btree (practice_id, clinician_profile_id, credential_type);
+
+
+--
+-- Name: idx_on_practice_id_encounter_id_effective_from_f3808ef949; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_encounter_id_effective_from_f3808ef949 ON public.clinic_encounter_participants USING btree (practice_id, encounter_id, effective_from);
+
+
+--
+-- Name: idx_on_practice_id_invoice_id_id_e53e1ae573; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_invoice_id_id_e53e1ae573 ON public.clinic_invoice_lines USING btree (practice_id, invoice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_membership_id_effective_from_328f63f9f7; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_membership_id_effective_from_328f63f9f7 ON public.clinic_role_grants USING btree (practice_id, membership_id, effective_from);
+
+
+--
+-- Name: idx_on_practice_id_membership_id_effective_from_709a049304; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_membership_id_effective_from_709a049304 ON public.clinic_encounter_participants USING btree (practice_id, membership_id, effective_from);
+
+
+--
+-- Name: idx_on_practice_id_patient_id_created_at_35062a5d24; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_patient_id_created_at_35062a5d24 ON public.clinic_documents USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: idx_on_practice_id_patient_id_created_at_5b2cecaa6b; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_patient_id_created_at_5b2cecaa6b ON public.clinic_invoices USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: idx_on_practice_id_patient_id_observed_at_fd04db6539; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_patient_id_observed_at_fd04db6539 ON public.clinic_observations USING btree (practice_id, patient_id, observed_at);
+
+
+--
+-- Name: idx_on_practice_id_patient_id_started_at_0c005b0dcf; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_patient_id_started_at_0c005b0dcf ON public.clinic_encounters USING btree (practice_id, patient_id, started_at);
+
+
+--
+-- Name: idx_on_practice_id_patient_id_starts_at_edd4045557; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_patient_id_starts_at_edd4045557 ON public.clinic_appointments USING btree (practice_id, patient_id, starts_at);
+
+
+--
+-- Name: idx_on_practice_id_payment_event_id_59b16d70c4; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_payment_event_id_59b16d70c4 ON public.clinic_payment_allocations USING btree (practice_id, payment_event_id);
+
+
+--
 -- Name: idx_on_practice_id_request_key_a63afaee18; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_on_practice_id_request_key_a63afaee18 ON public.clinic_pharmacy_batch_events USING btree (practice_id, request_key);
+
+
+--
+-- Name: idx_on_practice_id_room_id_starts_at_a9d2f79b4f; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_room_id_starts_at_a9d2f79b4f ON public.clinic_appointments USING btree (practice_id, room_id, starts_at);
+
+
+--
+-- Name: idx_on_practice_id_site_id_effective_from_9a85bf6413; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_site_id_effective_from_9a85bf6413 ON public.clinic_clinician_assignments USING btree (practice_id, site_id, effective_from);
+
+
+--
+-- Name: index_clinic_insurance_claims_on_practice_id_and_invoice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_insurance_claims_on_practice_id_and_invoice_id ON public.clinic_insurance_claims USING btree (practice_id, invoice_id);
 
 
 --
@@ -2121,6 +5274,13 @@ CREATE UNIQUE INDEX index_clinic_patients_on_practice_id_and_reference ON public
 
 
 --
+-- Name: index_clinic_payment_allocations_on_practice_id_and_invoice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_payment_allocations_on_practice_id_and_invoice_id ON public.clinic_payment_allocations USING btree (practice_id, invoice_id);
+
+
+--
 -- Name: index_clinic_pharmacy_batch_events_on_practice_id_and_batch_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2181,6 +5341,13 @@ CREATE UNIQUE INDEX index_clinic_pharmacy_products_on_practice_id_and_ndc ON pub
 --
 
 CREATE UNIQUE INDEX index_clinic_pharmacy_products_on_practice_id_and_sku ON public.clinic_pharmacy_products USING btree (practice_id, sku);
+
+
+--
+-- Name: index_clinic_practices_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_practices_on_organization_id ON public.clinic_practices USING btree (organization_id);
 
 
 --
@@ -2338,10 +5505,143 @@ CREATE UNIQUE INDEX inventory_release_retry ON public.clinic_inventory_hold_rele
 
 
 --
+-- Name: permissions_action_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX permissions_action_code ON public.permissions USING btree (action_code);
+
+
+--
 -- Name: pharmacy_batch_identity; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX pharmacy_batch_identity ON public.clinic_pharmacy_batches USING btree (product_id, lot_number, location);
+
+
+--
+-- Name: role_version_permissions_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX role_version_permissions_identity ON public.role_version_permissions USING btree (role_version_id, permission_id);
+
+
+--
+-- Name: role_versions_code_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX role_versions_code_version ON public.role_versions USING btree (role_code, version);
+
+
+--
+-- Name: clinic_audit_delivery_receipts clinic_audit_delivery_receipts_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_audit_delivery_receipts_immutable BEFORE DELETE OR UPDATE ON public.clinic_audit_delivery_receipts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_audit_events clinic_audit_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_audit_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_audit_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_audit_resource_manifests clinic_audit_resource_manifests_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_audit_resource_manifests_immutable BEFORE DELETE OR UPDATE ON public.clinic_audit_resource_manifests FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_coverage_versions clinic_coverage_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_coverage_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_coverage_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_credit_notes clinic_credit_notes_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_credit_notes_immutable BEFORE DELETE OR UPDATE ON public.clinic_credit_notes FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_encounter_note_revisions clinic_encounter_note_revisions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_note_revisions_immutable BEFORE DELETE OR UPDATE ON public.clinic_encounter_note_revisions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_encounter_note_signatures clinic_encounter_note_signatures_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_note_signatures_immutable BEFORE DELETE OR UPDATE ON public.clinic_encounter_note_signatures FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_model_versions clinic_model_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_model_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_model_versions FOR EACH ROW EXECUTE FUNCTION public.clinic_model_versions_immutable();
+
+
+--
+-- Name: clinic_observation_sources clinic_observation_sources_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_observation_sources_immutable BEFORE DELETE OR UPDATE ON public.clinic_observation_sources FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_address_versions clinic_patient_address_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_payment_allocations clinic_payment_allocations_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_payment_allocations_immutable BEFORE DELETE OR UPDATE ON public.clinic_payment_allocations FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_payment_events clinic_payment_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_payment_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_payment_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_refund_events clinic_refund_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_refund_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_refund_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_role_grant_events clinic_role_grant_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_role_grant_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_role_grant_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_staff_address_versions clinic_staff_address_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_staff_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_staff_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_supplier_address_versions clinic_supplier_address_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_supplier_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_supplier_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -2562,10 +5862,862 @@ CREATE TRIGGER legacy_inventory_frozen BEFORE INSERT OR DELETE OR UPDATE ON publ
 
 
 --
+-- Name: permissions permissions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER permissions_immutable BEFORE DELETE OR UPDATE ON public.permissions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_pharmacy_batch_events pharmacy_event_guard; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER pharmacy_event_guard BEFORE DELETE OR UPDATE ON public.clinic_pharmacy_batch_events FOR EACH ROW EXECUTE FUNCTION public.legacy_pharmacy_guard();
+
+
+--
+-- Name: platform_audit_events platform_audit_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER platform_audit_events_immutable BEFORE DELETE OR UPDATE ON public.platform_audit_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: role_version_permissions role_version_permissions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER role_version_permissions_immutable BEFORE DELETE OR UPDATE ON public.role_version_permissions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: role_versions role_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER role_versions_immutable BEFORE DELETE OR UPDATE ON public.role_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_appointments fk_appointments_clinician; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_appointments_clinician FOREIGN KEY (practice_id, booked_clinician_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_appointments fk_appointments_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_appointments_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_appointments fk_appointments_room; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_appointments_room FOREIGN KEY (practice_id, site_id, room_id) REFERENCES public.clinic_rooms(practice_id, site_id, id);
+
+
+--
+-- Name: clinic_appointments fk_appointments_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_appointments_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_appointments fk_appointments_visit_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_appointments_visit_type FOREIGN KEY (practice_id, visit_type_id) REFERENCES public.clinic_visit_types(practice_id, id);
+
+
+--
+-- Name: clinic_clinician_assignments fk_assignments_department; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_assignments
+    ADD CONSTRAINT fk_assignments_department FOREIGN KEY (practice_id, department_id) REFERENCES public.clinic_departments(practice_id, id);
+
+
+--
+-- Name: clinic_clinician_assignments fk_assignments_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_assignments
+    ADD CONSTRAINT fk_assignments_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_clinician_assignments fk_assignments_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_assignments
+    ADD CONSTRAINT fk_assignments_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_audit_resource_manifests fk_audit_manifests_event; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_resource_manifests
+    ADD CONSTRAINT fk_audit_manifests_event FOREIGN KEY (practice_id, audit_event_id) REFERENCES public.clinic_audit_events(practice_id, id);
+
+
+--
+-- Name: clinic_audit_delivery_receipts fk_audit_receipts_event; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_delivery_receipts
+    ADD CONSTRAINT fk_audit_receipts_event FOREIGN KEY (practice_id, audit_event_id) REFERENCES public.clinic_audit_events(practice_id, id);
+
+
+--
+-- Name: clinic_allergies fk_clinic_allergies_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_allergies
+    ADD CONSTRAINT fk_clinic_allergies_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_allergies fk_clinic_allergies_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_allergies
+    ADD CONSTRAINT fk_clinic_allergies_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_appointments fk_clinic_appointments_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_clinic_appointments_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_audit_delivery_receipts fk_clinic_audit_delivery_receipts_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_delivery_receipts
+    ADD CONSTRAINT fk_clinic_audit_delivery_receipts_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_audit_events fk_clinic_audit_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_events
+    ADD CONSTRAINT fk_clinic_audit_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_audit_resource_manifests fk_clinic_audit_resource_manifests_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_audit_resource_manifests
+    ADD CONSTRAINT fk_clinic_audit_resource_manifests_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_clinician_assignments fk_clinic_clinician_assignments_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_assignments
+    ADD CONSTRAINT fk_clinic_clinician_assignments_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_clinician_credentials fk_clinic_clinician_credentials_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_credentials
+    ADD CONSTRAINT fk_clinic_clinician_credentials_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_clinician_profiles fk_clinic_clinician_profiles_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_profiles
+    ADD CONSTRAINT fk_clinic_clinician_profiles_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_conditions fk_clinic_conditions_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_conditions
+    ADD CONSTRAINT fk_clinic_conditions_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_conditions fk_clinic_conditions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_conditions
+    ADD CONSTRAINT fk_clinic_conditions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_coverage_versions fk_clinic_coverage_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_coverage_versions
+    ADD CONSTRAINT fk_clinic_coverage_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_credit_notes fk_clinic_credit_notes_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_credit_notes
+    ADD CONSTRAINT fk_clinic_credit_notes_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_departments fk_clinic_departments_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_departments
+    ADD CONSTRAINT fk_clinic_departments_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_document_categories fk_clinic_document_categories_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_categories
+    ADD CONSTRAINT fk_clinic_document_categories_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_documents fk_clinic_documents_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_documents
+    ADD CONSTRAINT fk_clinic_documents_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounter_note_revisions fk_clinic_encounter_note_revisions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_revisions
+    ADD CONSTRAINT fk_clinic_encounter_note_revisions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounter_note_signatures fk_clinic_encounter_note_signatures_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_signatures
+    ADD CONSTRAINT fk_clinic_encounter_note_signatures_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounter_notes fk_clinic_encounter_notes_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_notes
+    ADD CONSTRAINT fk_clinic_encounter_notes_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounter_participants fk_clinic_encounter_participants_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants
+    ADD CONSTRAINT fk_clinic_encounter_participants_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounters fk_clinic_encounters_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters
+    ADD CONSTRAINT fk_clinic_encounters_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_insurance_claims fk_clinic_insurance_claims_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_claims
+    ADD CONSTRAINT fk_clinic_insurance_claims_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_invoice_lines fk_clinic_invoice_lines_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_lines
+    ADD CONSTRAINT fk_clinic_invoice_lines_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_invoices fk_clinic_invoices_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoices
+    ADD CONSTRAINT fk_clinic_invoices_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_medication_statements fk_clinic_medication_statements_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_statements
+    ADD CONSTRAINT fk_clinic_medication_statements_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_medication_statements fk_clinic_medication_statements_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_statements
+    ADD CONSTRAINT fk_clinic_medication_statements_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_message_attachments fk_clinic_message_attachments_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_attachments
+    ADD CONSTRAINT fk_clinic_message_attachments_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_message_delivery_events fk_clinic_message_delivery_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_delivery_events
+    ADD CONSTRAINT fk_clinic_message_delivery_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_message_intents fk_clinic_message_intents_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_intents
+    ADD CONSTRAINT fk_clinic_message_intents_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_message_outbox fk_clinic_message_outbox_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_outbox
+    ADD CONSTRAINT fk_clinic_message_outbox_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_model_versions fk_clinic_model_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_model_versions
+    ADD CONSTRAINT fk_clinic_model_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_observation_sources fk_clinic_observation_sources_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observation_sources
+    ADD CONSTRAINT fk_clinic_observation_sources_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_observations fk_clinic_observations_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations
+    ADD CONSTRAINT fk_clinic_observations_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_observations fk_clinic_observations_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations
+    ADD CONSTRAINT fk_clinic_observations_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_address_versions fk_clinic_patient_address_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_address_versions
+    ADD CONSTRAINT fk_clinic_patient_address_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_payment_allocations fk_clinic_payment_allocations_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_allocations
+    ADD CONSTRAINT fk_clinic_payment_allocations_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_payment_events fk_clinic_payment_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_events
+    ADD CONSTRAINT fk_clinic_payment_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_refund_events fk_clinic_refund_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events
+    ADD CONSTRAINT fk_clinic_refund_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_role_grant_events fk_clinic_role_grant_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events
+    ADD CONSTRAINT fk_clinic_role_grant_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_role_grants fk_clinic_role_grants_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_clinic_role_grants_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_rooms fk_clinic_rooms_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_rooms
+    ADD CONSTRAINT fk_clinic_rooms_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_sites fk_clinic_sites_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_sites
+    ADD CONSTRAINT fk_clinic_sites_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_address_versions fk_clinic_staff_address_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_address_versions
+    ADD CONSTRAINT fk_clinic_staff_address_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_supplier_address_versions fk_clinic_supplier_address_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_supplier_address_versions
+    ADD CONSTRAINT fk_clinic_supplier_address_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_visit_types fk_clinic_visit_types_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_visit_types
+    ADD CONSTRAINT fk_clinic_visit_types_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_coverage_versions fk_coverage_versions_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_coverage_versions
+    ADD CONSTRAINT fk_coverage_versions_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_clinician_credentials fk_credentials_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_credentials
+    ADD CONSTRAINT fk_credentials_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_credit_notes fk_credit_notes_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_credit_notes
+    ADD CONSTRAINT fk_credit_notes_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_credit_notes fk_credit_notes_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_credit_notes
+    ADD CONSTRAINT fk_credit_notes_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_documents fk_documents_category; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_documents
+    ADD CONSTRAINT fk_documents_category FOREIGN KEY (practice_id, category_id) REFERENCES public.clinic_document_categories(practice_id, id);
+
+
+--
+-- Name: clinic_documents fk_documents_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_documents
+    ADD CONSTRAINT fk_documents_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_documents fk_documents_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_documents
+    ADD CONSTRAINT fk_documents_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_notes fk_encounter_notes_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_notes
+    ADD CONSTRAINT fk_encounter_notes_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounter_notes fk_encounter_notes_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_notes
+    ADD CONSTRAINT fk_encounter_notes_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounters fk_encounters_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters
+    ADD CONSTRAINT fk_encounters_appointment FOREIGN KEY (practice_id, patient_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounters fk_encounters_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters
+    ADD CONSTRAINT fk_encounters_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounters fk_encounters_room; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters
+    ADD CONSTRAINT fk_encounters_room FOREIGN KEY (practice_id, site_id, room_id) REFERENCES public.clinic_rooms(practice_id, site_id, id);
+
+
+--
+-- Name: clinic_encounters fk_encounters_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounters
+    ADD CONSTRAINT fk_encounters_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_insurance_claims fk_insurance_claims_coverage; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_claims
+    ADD CONSTRAINT fk_insurance_claims_coverage FOREIGN KEY (practice_id, patient_id, coverage_version_id) REFERENCES public.clinic_coverage_versions(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_claims fk_insurance_claims_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_claims
+    ADD CONSTRAINT fk_insurance_claims_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_claims fk_insurance_claims_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_claims
+    ADD CONSTRAINT fk_insurance_claims_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_invoice_lines fk_invoice_lines_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_lines
+    ADD CONSTRAINT fk_invoice_lines_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_invoice_lines fk_invoice_lines_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_lines
+    ADD CONSTRAINT fk_invoice_lines_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_invoices fk_invoices_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoices
+    ADD CONSTRAINT fk_invoices_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_message_attachments fk_message_attachments_document; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_attachments
+    ADD CONSTRAINT fk_message_attachments_document FOREIGN KEY (practice_id, patient_id, document_id) REFERENCES public.clinic_documents(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_message_attachments fk_message_attachments_intent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_attachments
+    ADD CONSTRAINT fk_message_attachments_intent FOREIGN KEY (practice_id, patient_id, message_intent_id) REFERENCES public.clinic_message_intents(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_message_attachments fk_message_attachments_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_attachments
+    ADD CONSTRAINT fk_message_attachments_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_message_delivery_events fk_message_delivery_intent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_delivery_events
+    ADD CONSTRAINT fk_message_delivery_intent FOREIGN KEY (practice_id, message_intent_id) REFERENCES public.clinic_message_intents(practice_id, id);
+
+
+--
+-- Name: clinic_message_intents fk_message_intents_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_intents
+    ADD CONSTRAINT fk_message_intents_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_message_outbox fk_message_outbox_intent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_message_outbox
+    ADD CONSTRAINT fk_message_outbox_intent FOREIGN KEY (practice_id, message_intent_id) REFERENCES public.clinic_message_intents(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_note_revisions fk_note_revisions_author; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_revisions
+    ADD CONSTRAINT fk_note_revisions_author FOREIGN KEY (practice_id, author_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_note_revisions fk_note_revisions_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_revisions
+    ADD CONSTRAINT fk_note_revisions_note FOREIGN KEY (practice_id, note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_note_revisions fk_note_revisions_predecessor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_revisions
+    ADD CONSTRAINT fk_note_revisions_predecessor FOREIGN KEY (practice_id, note_id, prior_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, note_id, id);
+
+
+--
+-- Name: clinic_encounter_note_signatures fk_note_signatures_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_signatures
+    ADD CONSTRAINT fk_note_signatures_note FOREIGN KEY (practice_id, note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_note_signatures fk_note_signatures_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_signatures
+    ADD CONSTRAINT fk_note_signatures_revision FOREIGN KEY (practice_id, note_id, revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, note_id, id);
+
+
+--
+-- Name: clinic_encounter_note_signatures fk_note_signatures_signer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_note_signatures
+    ADD CONSTRAINT fk_note_signatures_signer FOREIGN KEY (practice_id, signer_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_observation_sources fk_observation_sources_derived; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observation_sources
+    ADD CONSTRAINT fk_observation_sources_derived FOREIGN KEY (practice_id, patient_id, derived_observation_id) REFERENCES public.clinic_observations(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_observation_sources fk_observation_sources_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observation_sources
+    ADD CONSTRAINT fk_observation_sources_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_observation_sources fk_observation_sources_source; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observation_sources
+    ADD CONSTRAINT fk_observation_sources_source FOREIGN KEY (practice_id, patient_id, source_observation_id) REFERENCES public.clinic_observations(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_observations fk_observations_author; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations
+    ADD CONSTRAINT fk_observations_author FOREIGN KEY (practice_id, author_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_observations fk_observations_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations
+    ADD CONSTRAINT fk_observations_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_observations fk_observations_parent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_observations
+    ADD CONSTRAINT fk_observations_parent FOREIGN KEY (practice_id, patient_id, parent_observation_id) REFERENCES public.clinic_observations(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounter_participants fk_participants_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants
+    ADD CONSTRAINT fk_participants_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounter_participants fk_participants_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants
+    ADD CONSTRAINT fk_participants_membership FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_participants fk_participants_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants
+    ADD CONSTRAINT fk_participants_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_address_versions fk_patient_addresses_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_address_versions
+    ADD CONSTRAINT fk_patient_addresses_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patients fk_patients_primary_address; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patients
+    ADD CONSTRAINT fk_patients_primary_address FOREIGN KEY (practice_id, id, primary_address_version_id) REFERENCES public.clinic_patient_address_versions(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_payment_allocations fk_payment_allocations_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_allocations
+    ADD CONSTRAINT fk_payment_allocations_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_payment_allocations fk_payment_allocations_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_allocations
+    ADD CONSTRAINT fk_payment_allocations_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_payment_allocations fk_payment_allocations_payment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_allocations
+    ADD CONSTRAINT fk_payment_allocations_payment FOREIGN KEY (practice_id, patient_id, payment_event_id) REFERENCES public.clinic_payment_events(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_payment_events fk_payment_events_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_payment_events
+    ADD CONSTRAINT fk_payment_events_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_practices fk_practices_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_practices
+    ADD CONSTRAINT fk_practices_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: clinic_clinician_profiles fk_profiles_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_clinician_profiles
+    ADD CONSTRAINT fk_profiles_membership FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -3097,19 +7249,120 @@ ALTER TABLE ONLY public.clinic_inventory_lots
 
 
 --
+-- Name: clinic_refund_events fk_refund_events_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events
+    ADD CONSTRAINT fk_refund_events_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_refund_events fk_refund_events_payment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events
+    ADD CONSTRAINT fk_refund_events_payment FOREIGN KEY (practice_id, patient_id, payment_event_id) REFERENCES public.clinic_payment_events(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_role_grant_events fk_role_grant_events_grant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events
+    ADD CONSTRAINT fk_role_grant_events_grant FOREIGN KEY (practice_id, grant_id) REFERENCES public.clinic_role_grants(practice_id, id);
+
+
+--
+-- Name: clinic_role_grant_events fk_role_grant_events_grantor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events
+    ADD CONSTRAINT fk_role_grant_events_grantor FOREIGN KEY (practice_id, grantor_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_membership FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_role_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_role_version FOREIGN KEY (role_version_id) REFERENCES public.role_versions(id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: role_version_permissions fk_role_version_permissions_permission; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_version_permissions
+    ADD CONSTRAINT fk_role_version_permissions_permission FOREIGN KEY (permission_id) REFERENCES public.permissions(id);
+
+
+--
+-- Name: role_version_permissions fk_role_version_permissions_role; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_version_permissions
+    ADD CONSTRAINT fk_role_version_permissions_role FOREIGN KEY (role_version_id) REFERENCES public.role_versions(id);
+
+
+--
+-- Name: clinic_rooms fk_rooms_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_rooms
+    ADD CONSTRAINT fk_rooms_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_staff_address_versions fk_staff_addresses_staff; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_address_versions
+    ADD CONSTRAINT fk_staff_addresses_staff FOREIGN KEY (practice_id, staff_member_id) REFERENCES public.clinic_staff_members(practice_id, id);
+
+
+--
+-- Name: clinic_staff_members fk_staff_primary_address; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_members
+    ADD CONSTRAINT fk_staff_primary_address FOREIGN KEY (practice_id, id, primary_address_version_id) REFERENCES public.clinic_staff_address_versions(practice_id, staff_member_id, id);
+
+
+--
+-- Name: clinic_supplier_address_versions fk_supplier_addresses_supplier; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_supplier_address_versions
+    ADD CONSTRAINT fk_supplier_addresses_supplier FOREIGN KEY (practice_id, supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_suppliers fk_suppliers_primary_address; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_suppliers
+    ADD CONSTRAINT fk_suppliers_primary_address FOREIGN KEY (practice_id, id, primary_address_version_id) REFERENCES public.clinic_supplier_address_versions(practice_id, supplier_id, id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-SET search_path TO "$user", public;
-
-INSERT INTO "schema_migrations" (version) VALUES
-('20260831000100'),
-('20260830000800'),
-('20260830000700'),
-('20260830000600'),
-('20260830000500'),
-('20260830000400'),
-('20260830000300'),
-('20260830000200'),
-('20260830000100');
+\unrestrict WiuBCCpOlP05VQoNN1dCsJDkWXZIsYjlAIfwuIYzlb1x4zA4E8imUkyxXmYUNcw
 

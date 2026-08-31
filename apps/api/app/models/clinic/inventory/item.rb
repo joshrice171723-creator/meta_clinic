@@ -2,7 +2,9 @@ module Clinic
   module Inventory
     class Item < ApplicationRecord
       self.table_name = "clinic_items"
-      belongs_to :practice, class_name: "Clinic::Practice"
+      include Clinic::TenantScoped
+      include Clinic::Auditable
+      has_many :entries, class_name: "Clinic::Inventory::Entry", foreign_key: :item_id, dependent: :restrict_with_error
       has_many :stock_movements, class_name: "Clinic::Inventory::StockMovement", dependent: :restrict_with_error
       validates :name, presence: true, length: { maximum: 120 }
       validates :sku, presence: true, length: { maximum: 40 }, uniqueness: { scope: :practice_id }

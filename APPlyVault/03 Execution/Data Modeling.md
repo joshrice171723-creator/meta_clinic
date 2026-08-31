@@ -9,6 +9,8 @@ Home: [[00 Home]] · Product: [[SharePoint and EMR]] · Boundaries: [[Entity and
 
 ## Purpose and approval boundary
 
+**2026-08-31 current replacement direction (D-044):** [[Target-State Clinic ERD]] and [[ERD Implementation Prompt]] revision 5 define the requested full backend-replacement handoff, pending the founder's minor amendments. [[Multi-Clinic ERD Adversarial Review#Engineering resolutions — revision 2|The corrected-model invariants and failure cases]] remain relevant, but the former foundation-hardening-only scope is superseded. Current migrations define existing runtime state, not a mandate to retain its physical structure. This older note's illustrative UUID/clinic_id SQL and broader catalog are not the target specification. The handoff is not an executed rewrite, task-status promotion, database-disposal authority or release-gate closure.
+
 **Proposal:** a PostgreSQL model for multiple independent clinics, with tenant isolation, limited access by job and care responsibility, and auditable access and changes. Requested by the founder on 2026-08-30. PostgreSQL is the modeling target for this note; shared hosting, vendors, product features, and production architecture are not approved by this document.
 
 **No set of tables is inherently “HIPAA compliant.”** The Security Rule addresses administrative, physical, and technical safeguards, including risk analysis, authorization, integrity, and audit controls. This model supports that work; it is not a compliance certification, legal opinion, or clinical-readiness assessment. “Addressable” does not mean optional. [HHS Security Rule summary; S-09](https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html).
@@ -369,6 +371,10 @@ Support access is not an emergency: require approval from the authorized clinic 
 
 ## Auditing design
 
+**D-043 update — 2026-08-31:** the founder selected `paper_trail` for application model-change history. The dependency and fail-on-version-error configuration are present; no model/version-table rollout has occurred. Follow [[Software Architecture#PaperTrail audit contract]] for tenant binding, actor attribution, snapshot exclusions and failure tests. The event/release/independent-security design below remains necessary and unimplemented; it is not replaced by PaperTrail callbacks, and signed clinical revisions/inventory ledgers remain authoritative.
+
+The founder's follow-up requires [[Software Architecture#Callback-driven mutation coverage|coverage of callback-driven changes]] to patient documents and other auditable records, not merely direct controller writes. Account for every affected record, hidden SQL/bulk bypasses, actor/tenant propagation and separate after-commit/job outcomes. Reads and rejected attempts remain explicit access/security evidence; preserving sensitive values outside audit storage must not hide the occurrence of a change.
+
 ### What an event records
 
 Record successful and denied chart/demographic access, searches, edits, signing/amendments, printing/export/download, directives/disclosures, grant changes, emergency/support access, authentication/security events, and administrative/database changes. Record patient/resource references for actual returned resources; a query string and total count alone cannot reconstruct whose records were released. Do not claim the user read a screen merely because a response was prepared.
@@ -412,7 +418,7 @@ No full notes, names, birth dates, raw search strings, request/response bodies, 
 | Layer | Required proposed behavior |
 | --- | --- |
 | Application/API | Authenticate and authorize every resource release; durably record read/search/export access, including cache hits and object downloads. Capture denies before returning the failure. Track prepared/released/delivery-failed states separately where observable. |
-| Database changes | Reviewed write functions/triggers append mutation events and revisions in the same transaction as the change. Audit failure aborts the write. Ordinary executors get no update/delete/truncate permission on immutable history/events. Reject prohibited edits even through alternate endpoints. |
+| Application and database changes | Selected PaperTrail captures explicitly opted-in model changes in their transaction, under the linked tenant/field contract. Reviewed database guards and explicit events retain coverage for callback-bypassing writes and existing immutable workflows. Required audit failure aborts the write; test the actual rollback. Ordinary executors get no update/delete/truncate permission on immutable history/events. Reject prohibited edits even through alternate endpoints. This combined coverage is a target, not implemented by adding the gem. |
 | Failed/rolled-back activity | Emit attempt and failure evidence to an independent durable security sink outside the business transaction. Transactional audit inserts roll back too; they cannot be the sole evidence of denied or failed attempts. Correlate request, workload, DB session, and transaction. |
 | Database administration | Evaluate pgAudit plus platform/connection logging for SELECT, DML, DDL, privilege/policy changes, privileged sessions, and bulk operations. Correlate with application identity; a shared DB login alone does not identify the human. |
 | Immutable archive | Ship committed events and independent security logs to encrypted, retention-locked storage in a separately controlled security account/domain. Use immutable event IDs, idempotent delivery, receipts/checkpoints, monitored gaps/lag, and restricted audited reader access. |
@@ -437,7 +443,7 @@ Offboarding is a controlled export, handoff, access revocation, and eventual dis
 
 These are design acceptance criteria under T-13/T-09 and L-05, not completed tasks or a second status register. Specific owners, budgets, time limits, retention periods, RPO/RTO, vendors, and dates remain unassigned unless subsequently agreed.
 
-The next bounded work is in [[Roadmap and Tasks#Step 4 — Configurable inventory foundation]] (including T-34.5's scoped security proof) and [[Roadmap and Tasks#Step 5 — Define the first clinic workflow]]. Apply [[Working Agreement#Failure-first planning and review]] to each selected slice: connect the relevant synthetic scenarios below to a failure trigger, detection, safe result and recovery evidence. This is not permission to execute the illustrative SQL or implement the entire catalog; architecture/build scope and the existing professional/real-data gates remain separate.
+The D-044 replacement sequence is in [[ERD Implementation Prompt]]; related acceptance work remains in [[Roadmap and Tasks#Step 4 — Configurable inventory foundation]] (including T-34.5's security proof) and [[Roadmap and Tasks#Step 5 — Define the first clinic workflow]]. Apply [[Working Agreement#Failure-first planning and review]] to each implementation stage: connect synthetic scenarios to a failure trigger, detection, safe result and recovery evidence. Use the final corrected ERD contract, not this note's illustrative SQL or entire broader catalog. Replacement implementation and professional/real-data release remain separate.
 
 | Evidence area | Required next evidence |
 | --- | --- |

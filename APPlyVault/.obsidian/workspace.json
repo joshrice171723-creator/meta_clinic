@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "03 Execution/Roadmap and Tasks.md",
+                "file": "03 Execution/Target-State Clinic ERD.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Roadmap and Tasks"
+              "title": "Target-State Clinic ERD"
             }
           }
         ]
@@ -186,17 +186,22 @@
       "bases:Create new base": false
     }
   },
-  "active": "109dfc443f25186a",
+  "active": "4c6877cfd152c3ac",
   "lastOpenFiles": [
-    "03 Execution/Clinic Workspace Design.md",
+    "03 Execution/ERD Implementation Prompt.md",
+    "03 Execution/Decisions.md",
+    "03 Execution/Data Modeling.md",
+    "03 Execution/Target-State Clinic ERD.md",
+    "03 Execution/Multi-Clinic ERD Adversarial Review.md",
+    "03 Execution/CICD.md",
+    "03 Execution/Client Access Workflow.md",
     "01 Table of Contents.md",
+    "03 Execution/Roadmap and Tasks.md",
+    "03 Execution/Clinic Workspace Design.md",
     "03 Execution/Software Architecture.md",
     "03 Execution/PostgreSQL and Inventory Foundation.md",
     "03 Execution/Progress Log.md",
-    "03 Execution/Decisions.md",
     "00 Home.md",
-    "03 Execution/Data Modeling.md",
-    "03 Execution/CICD.md",
     "02 Research/Pharmacy Provider and Counsel Questions.md",
     "02 Research/Inventory Price Comparison Sources.md",
     "02 Research/Pharmacy Inventory Data Requirements.md",
@@ -206,13 +211,8 @@
     "01 Foundation/Foundation Questions.md",
     "02 Research/MD Pilot.md",
     "03 Execution/Website MVP.md",
-    "03 Execution/Roadmap and Tasks.md",
     "02 Research/Customer Discovery.md",
     "03 Execution/Client Portal.md",
-    "03 Execution/Risks and Assumptions.md",
-    "02 Research/Texas Diligence.md",
-    "02 Research/Source Register.md",
-    "02 Research/SharePoint and EMR.md",
-    "01 Foundation/Knowledge Bank and Mentorship.md"
+    "03 Execution/Risks and Assumptions.md"
   ]
 }

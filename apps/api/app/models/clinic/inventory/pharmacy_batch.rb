@@ -3,13 +3,15 @@ module Clinic
     class PharmacyBatch < ApplicationRecord
       self.table_name = "clinic_pharmacy_batches"
       STATUSES = %w[active quarantined recalled].freeze
-      belongs_to :practice, class_name: "Clinic::Practice"
+      include Clinic::TenantScoped
+      include Clinic::Auditable
       belongs_to :product, class_name: "Clinic::Inventory::PharmacyProduct"
       belongs_to :lot, class_name: "Clinic::Inventory::Lot"
       has_many :movements, class_name: "Clinic::Inventory::PharmacyMovement", foreign_key: :batch_id, dependent: :restrict_with_error
       has_many :events, class_name: "Clinic::Inventory::PharmacyBatchEvent", foreign_key: :batch_id, dependent: :restrict_with_error
       has_many :holds, class_name: "Clinic::Inventory::Hold", foreign_key: :batch_id
       has_many :counts, class_name: "Clinic::Inventory::Count", foreign_key: :batch_id
+      belongs_to :location_record, class_name: "Clinic::Inventory::Location", foreign_key: :location_id
       validates :lot_number, :location, presence: true, length: { maximum: 100 }
       validates :supplier, length: { maximum: 120 }
       validates :expires_on, presence: true

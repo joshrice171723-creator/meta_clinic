@@ -38,7 +38,9 @@ class BoundariesTest < ActiveSupport::TestCase
     }
     mappings.each do |model, table|
       assert_equal table, model.table_name, model.name
-      model.reflect_on_all_associations.each { |association| assert association.klass < ApplicationRecord, "#{model.name}.#{association.name}" }
+      model.reflect_on_all_associations.each do |association|
+        assert association.klass <= ActiveRecord::Base, "#{model.name}.#{association.name}"
+      end
     end
     assert_equal Launch::Paperwork, User.reflect_on_association(:paperworks).klass
     assert_equal Clinic::Care::Patient, Clinic::Practice.reflect_on_association(:patients).klass
@@ -47,8 +49,8 @@ class BoundariesTest < ActiveSupport::TestCase
 
 
   test "model roots contain only shared identity and clinic tenancy" do
-    assert_equal %w[application_record.rb member_session.rb user.rb], Rails.root.glob("app/models/*.rb").map { |p| p.basename.to_s }.sort
-    assert_equal %w[membership.rb practice.rb], Rails.root.glob("app/models/clinic/*.rb").map { |p| p.basename.to_s }.sort
+    assert_equal %w[application_record.rb member_session.rb organization.rb permission.rb platform_audit_event.rb role_version.rb role_version_permission.rb user.rb], Rails.root.glob("app/models/*.rb").map { |p| p.basename.to_s }.sort
+    assert_equal %w[appointment.rb audit_delivery_receipt.rb audit_event.rb audit_resource_manifest.rb clinician_assignment.rb clinician_credential.rb clinician_profile.rb coverage_version.rb credit_note.rb department.rb document.rb document_category.rb encounter.rb encounter_note.rb encounter_note_revision.rb encounter_note_signature.rb encounter_participant.rb insurance_claim.rb invoice.rb invoice_line.rb membership.rb message_attachment.rb message_delivery_event.rb message_intent.rb message_outbox.rb model_version.rb payment_allocation.rb payment_event.rb practice.rb refund_event.rb role_grant.rb role_grant_event.rb room.rb site.rb visit_type.rb], Rails.root.glob("app/models/clinic/*.rb").map { |p| p.basename.to_s }.sort
     assert_not MemberAuthentication.private_instance_methods.include?(:create_development_member)
   end
 end

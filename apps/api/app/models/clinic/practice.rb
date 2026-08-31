@@ -1,11 +1,32 @@
 module Clinic
   class Practice < ApplicationRecord
     self.table_name = "clinic_practices"
+    belongs_to :organization, optional: true
     has_many :memberships, class_name: "Clinic::Membership", dependent: :restrict_with_error
     has_many :patients, class_name: "Clinic::Care::Patient", dependent: :restrict_with_error
     has_many :items, class_name: "Clinic::Inventory::Item", dependent: :restrict_with_error
     has_many :staff_members, class_name: "Clinic::Staff::Member", dependent: :restrict_with_error
-    has_many :inventory_profiles, class_name: "Clinic::Inventory::Profile"
+    has_many :sites, class_name: "Clinic::Site", dependent: :restrict_with_error
+    has_many :rooms, class_name: "Clinic::Room", dependent: :restrict_with_error
+    has_many :departments, class_name: "Clinic::Department", dependent: :restrict_with_error
+    has_many :visit_types, class_name: "Clinic::VisitType", dependent: :restrict_with_error
+    has_many :clinician_profiles, class_name: "Clinic::ClinicianProfile", dependent: :restrict_with_error
+    has_many :clinician_assignments, class_name: "Clinic::ClinicianAssignment", dependent: :restrict_with_error
+    has_many :clinician_credentials, class_name: "Clinic::ClinicianCredential", dependent: :restrict_with_error
+    has_many :appointments, class_name: "Clinic::Appointment", dependent: :restrict_with_error
+    has_many :encounters, class_name: "Clinic::Encounter", dependent: :restrict_with_error
+    has_many :encounter_participants, class_name: "Clinic::EncounterParticipant", dependent: :restrict_with_error
+    has_many :encounter_notes, class_name: "Clinic::EncounterNote", dependent: :restrict_with_error
+    has_many :observations, class_name: "Clinic::Care::Observation", dependent: :restrict_with_error
+    has_many :observation_sources, class_name: "Clinic::Care::ObservationSource", dependent: :restrict_with_error
+    has_many :inventory_profiles, class_name: "Clinic::Inventory::Profile", dependent: :restrict_with_error
+    has_many :inventory_suppliers, class_name: "Clinic::Inventory::Supplier", dependent: :restrict_with_error
+    has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error
+    has_many :audit_events, class_name: "Clinic::AuditEvent", dependent: :restrict_with_error
+    has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
+    has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error
+    has_many :invoices, class_name: "Clinic::Invoice", dependent: :restrict_with_error
+    has_many :model_versions, class_name: "Clinic::ModelVersion", dependent: :restrict_with_error
     after_create { inventory_profiles.create!(version: 1, reason: "New synthetic clinic inventory baseline") }
 
     def inventory_date

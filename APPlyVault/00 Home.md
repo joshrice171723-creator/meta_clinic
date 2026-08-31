@@ -20,6 +20,8 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 
 The retired `reference/` folder was removed by the founder after its useful behavior was mapped into the app. Use Rails migrations and `apps/api/db/structure.sql`, not the old reference SQL. Shared `.gitignore` rules now protect local artifacts; the vault and source remain tracked. All development stays synthetic; no clinical/confidential release is implied.
 
+**Planned backend replacement (D-044):** [[ERD Implementation Prompt]] revision 5 prepares a full backend/schema replacement from [[Target-State Clinic ERD]], with PaperTrail mutation auditing. The founder's minor ERD amendments are pending. This is the next-pass handoff, not an implemented replacement or permission to reset databases/deploy; current source/hosted evidence above remains unchanged.
+
 ## Current position
 
 - **Offer:** execute the clinic launch with minimal provider input, through first-patient readiness, including the packet and starter SharePoint EHR; ongoing support is part of the model. Exact deliverables, exceptions, fees, and support terms remain to define.

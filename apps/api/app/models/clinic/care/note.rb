@@ -8,8 +8,7 @@ module Clinic
       encrypts :body
       validates :body, presence: true, length: { maximum: 8000 }
       validate :same_practice
-      before_update { throw :abort }
-      before_destroy { throw :abort }
+      include Clinic::AppendOnly
 
       private
 

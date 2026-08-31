@@ -2,8 +2,11 @@ module Clinic
   module Inventory
     class PharmacyProduct < ApplicationRecord
       self.table_name = "clinic_pharmacy_products"
-      belongs_to :practice, class_name: "Clinic::Practice"
+      include Clinic::TenantScoped
+      include Clinic::Auditable
       has_many :batches, class_name: "Clinic::Inventory::PharmacyBatch", foreign_key: :product_id, dependent: :restrict_with_error
+      has_many :lots, class_name: "Clinic::Inventory::Lot", foreign_key: :product_id, dependent: :restrict_with_error
+      has_many :catalog_events, class_name: "Clinic::Inventory::CatalogEvent", foreign_key: :product_id, dependent: :restrict_with_error
       validates :name, :sku, presence: true, length: { maximum: 160 }
       validates :sku, uniqueness: { scope: :practice_id }
       validates :ndc, uniqueness: { scope: :practice_id }, allow_nil: true

@@ -1,7 +1,8 @@
 module Clinic
   module Staff
     class MembersController < Clinic::BaseController
-      before_action -> { require_capability(:staff_access?) }
+      before_action -> { require_capability("staff.read") }, only: :index
+      before_action -> { require_capability("staff.write") }, only: %i[create update]
 
       def index
         render json: { staff: current_practice.staff_members.order(:id).as_json(only: %i[id display_name job_title active]) }

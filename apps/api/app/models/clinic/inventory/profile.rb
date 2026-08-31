@@ -2,7 +2,7 @@ module Clinic
   module Inventory
     class Profile < ApplicationRecord
       self.table_name = "clinic_inventory_profiles"
-      belongs_to :practice, class_name: "Clinic::Practice"
+      include Clinic::TenantScoped
       validates :status, inclusion: { in: %w[draft synthetic suspended retired] }
       validates :reason, presence: true, length: { maximum: 200 }
       before_update { throw :abort }

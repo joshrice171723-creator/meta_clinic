@@ -2,7 +2,11 @@ module Clinic
   module Inventory
     class Count < ApplicationRecord
       self.table_name = "clinic_inventory_counts"
+      include Clinic::TenantScoped
+      include Clinic::AppendOnly
       belongs_to :batch, class_name: "Clinic::Inventory::PharmacyBatch"
+      belongs_to :actor, class_name: "User"
+      belongs_to :profile, class_name: "Clinic::Inventory::Profile"
       has_one :approval, class_name: "Clinic::Inventory::CountApproval", foreign_key: :count_id
       validates :reason, presence: true, length: { maximum: 200 }
 

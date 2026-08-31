@@ -31,7 +31,9 @@ module Clinic
     end
 
     def require_capability(capability)
-      render_error("Your clinic account does not have access to this section.", :forbidden) unless clinic_membership.public_send(capability)
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: capability)
+    rescue Clinic::Authorization::Denied
+      render_error("Your clinic account does not have access to this section.", :forbidden)
     end
   end
 end

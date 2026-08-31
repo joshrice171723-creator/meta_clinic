@@ -1,7 +1,9 @@
 module Clinic
   module Care
     class PatientsController < Clinic::BaseController
-      before_action -> { require_capability(:patients_access?) }
+      before_action -> { require_capability("patients.read") }, only: %i[index show]
+      before_action -> { require_capability("patients.write") }, only: :create
+      before_action -> { require_capability("notes.write") }, only: :note
 
       def index
         render json: { patients: current_practice.patients.order(:id).as_json(only: %i[id display_name reference]) }

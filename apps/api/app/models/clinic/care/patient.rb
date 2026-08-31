@@ -2,8 +2,22 @@ module Clinic
   module Care
     class Patient < ApplicationRecord
       self.table_name = "clinic_patients"
-      belongs_to :practice, class_name: "Clinic::Practice"
+      include Clinic::TenantScoped
+      include Clinic::Auditable
       has_many :notes, class_name: "Clinic::Care::Note", dependent: :restrict_with_error
+      has_many :appointments, class_name: "Clinic::Appointment", dependent: :restrict_with_error
+      has_many :encounters, class_name: "Clinic::Encounter", dependent: :restrict_with_error
+      has_many :encounter_notes, class_name: "Clinic::EncounterNote", dependent: :restrict_with_error
+      has_many :observations, class_name: "Clinic::Care::Observation", dependent: :restrict_with_error
+      has_many :conditions, class_name: "Clinic::Care::Condition", dependent: :restrict_with_error
+      has_many :allergies, class_name: "Clinic::Care::Allergy", dependent: :restrict_with_error
+      has_many :medication_statements, class_name: "Clinic::Care::MedicationStatement", dependent: :restrict_with_error
+      has_many :address_versions, class_name: "Clinic::Care::PatientAddressVersion", dependent: :restrict_with_error
+      belongs_to :primary_address_version, class_name: "Clinic::Care::PatientAddressVersion", optional: true
+      has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
+      has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error
+      has_many :invoices, class_name: "Clinic::Invoice", dependent: :restrict_with_error
+      has_many :coverage_versions, class_name: "Clinic::CoverageVersion", dependent: :restrict_with_error
       encrypts :display_name
       validates :display_name, presence: true, length: { maximum: 120 }
       validates :reference, presence: true, length: { maximum: 32 }, uniqueness: { scope: :practice_id }

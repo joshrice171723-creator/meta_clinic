@@ -1,5 +1,7 @@
 # Staging and production
 
+**Owner review prepared 2026-08-31:** [IP-based HTTPS setup](review-access.md) adds fixed staging address `44.218.229.179`, ACME-only public HTTP, a protected reviewer credential and certificate maintenance. Public TCP 443 is still closed pending the recorded image-risk disposition. The latest staging pair is main `a90ce54` / run `33406832067`. Production remains untouched; the older verification entries below retain their original scope.
+
 **Staging cutover verified 2026-08-31:** staging runs independent API/static-web images and PostgreSQL 18.6. Rails commands use `apply-api`; `apply-web` is static nginx with no credentials. The installed pair-aware installer/services/SSM contract agree. The trusted edge resolves internal container addresses after every service start; no published Docker ports or external app networks are needed. Production remains on its prior SQLite bootstrap and was not changed.
 
 Source/runbook updated 2026-08-31. Both environments remain private in `us-east-1`, with separate instances, encrypted EBS, roles and ECR. Staging now has six managed secrets (four original application keys plus separate database owner/runtime credentials); production retains its four original secrets. Production's last hosted verification remains 2026-08-30. Both run `RAILS_ENV=production`; `APP_DEPLOYMENT_ENV` determines sample-content behavior. This is an initial deployment foundation, not a completed clinical system or high-availability architecture.
@@ -21,6 +23,8 @@ Five synthetic rows survived conversion; original keys/SQLite/image were retaine
 
 ## Private access
 
+Staging's prepared reviewer configuration uses the exact IP origin; the legacy localhost tunnel below still supports health checks but no longer supplies the staging browser-login origin. The intended reviewer URL remains unavailable externally until the reviewed HTTPS activation. Production's existing localhost preview is unchanged. See [review access](review-access.md) for the prepared configuration and reversal procedure.
+
 Use **one tunnel at a time**, retaining local port 8443 so the browser's origin matches Rails. Substitute the instance from the table:
 
 ```sh
@@ -33,7 +37,7 @@ Open `https://localhost:8443`. Each host has a different localhost certificate. 
 
 For account provisioning, start an ordinary private SSM terminal to the intended instance. On staging use `sudo docker exec -it apply-api ./bin/rails members:create`; on the unchanged production bootstrap use `sudo docker exec -it apply-web ./bin/rails members:create`. Confirm the installed version before choosing the command. Enter credentials only in the operator's private terminal, without recording/transcription. Production provisioning creates an ordinary account without sample paperwork. No ready-to-use production account or default password was issued by setup.
 
-Public access remains off. Connecting a domain requires the chosen domain/subdomain, authorized DNS changes, public TLS issuance/renewal, exact proxy/origin configuration and a reviewed audience/data scope. Opening port 3000 is not part of that process.
+Public application access remains off; staging HTTP is limited to certificate challenges. A domain is optional: either a domain with authorized DNS or a stable IP needs trusted TLS/renewal, exact proxy/origin configuration and a reviewed audience/data scope. Opening port 3000 is not part of that process.
 
 ## Delivery automation — staging active, production pending
 
