@@ -1,6 +1,6 @@
 ---
 type: implementation-plan
-status: current-state-mapping-before-design
+status: minimum-readonly-slice-implemented
 updated: 2026-08-31
 ---
 # Clinic Frontend Backend Mapping
@@ -10,6 +10,8 @@ Home: [[00 Home]] · Index: [[01 Table of Contents]] · Design: [[Clinic Workspa
 ## Outcome and boundary
 
 **Request, 2026-08-31:** on a new branch, review the current code, map the proposed clinic frontend onto the implemented backend and prepare user-flow diagrams before any code change or design decision. This note is that pre-design integration map. It records observed interfaces, existing approved/proposed direction and unresolved dependencies separately. It does not select a new layout, change application code or make a clinical workflow decision.
+
+**Minimum implementation follow-up, 2026-08-31:** the founder authorized the narrow mapped frontend slice without backend logic or an extensive test expansion. The clinic shell now uses `/api/clinic/context` for identity, policy version and navigation capabilities while retaining `/api/clinic` only as a compatibility adapter for existing inventory/Operations consumers. Added read-only Schedule, paged Patients, patient encounter history and encounter/observation detail; removed patient registration and legacy-draft write controls from the mapped flow. Legacy synthetic drafts remain read-only. The live board, clinical note editor/signing, prescribing, protected address values, document transfer, external messages and payment execution remain unavailable.
 
 Keep the workload-first Overview, patient directory, Pharmacy, Operations, Office inventory, Employees and account-owned Settings. Add depth inside those destinations rather than a sidebar entry per database table. Staff do intake/triage and explicit handoff; clinicians get a focused note/review workspace. Preserve Sage & ivory, Mineral blue and Warm graphite, system/light/dark modes, the viewport-height chart-tab sidebar, desktop/tablet support and the separate launch experience.
 
@@ -23,11 +25,11 @@ Reviewed through Home/TOC: current backend verification, ERD and implementation 
 
 Snapshot: branch `feature/frontend-backend-flow-mapping`, base HEAD `4989742264cb616c3c32e55d92e7357e673b1b67`, clean before this documentation update. This branch was created specifically for the mapping. The backend APIs described below are implementation observations, not release or clinical-readiness claims. [[Backend Verification Report]] is the detailed current verification source.
 
-Primary code: [frontend routes](../../apps/web/src/App.tsx), [current response types](../../apps/web/src/api/contracts.ts), [request client](../../apps/web/src/api/client.ts), [clinic shell](../../apps/web/src/features/clinic/Workspace.tsx), [board examples](../../apps/web/src/features/clinic/trackingBoardData.ts), [Patients](../../apps/web/src/features/clinic/Patients.tsx), [API routes](../../apps/api/config/routes.rb), [new schema candidate](../../apps/api/db/migrate/20260831000200_implement_approved_clinic_erd_schema.rb).
+Primary code: [frontend routes](../../apps/web/src/App.tsx), [current response types](../../apps/web/src/api/contracts.ts), [request client](../../apps/web/src/api/client.ts), [clinic shell](../../apps/web/src/features/clinic/Workspace.tsx), [read-only care flow](../../apps/web/src/features/clinic/CareFlow.tsx), [board examples](../../apps/web/src/features/clinic/trackingBoardData.ts), [Patients](../../apps/web/src/features/clinic/Patients.tsx), [API routes](../../apps/api/config/routes.rb), [implemented ERD migration](../../apps/api/db/migrate/20260831000200_implement_approved_clinic_erd_schema.rb).
 
 | Area | Direct observation | Integration consequence |
 | --- | --- | --- |
-| Current browser | Existing directory/draft, inventory, staff and appearance contracts only; Overview imports `EXAMPLE_VISITS` with a fixed clock | Do not switch the board to directory records or fabricate visit state. Keep examples isolated until an accepted visit projection exists |
+| Current browser | Context/capability bootstrap plus read-only appointment, patient, encounter and observation consumers are now present; inventory/staff/settings remain integrated and Overview still imports `EXAMPLE_VISITS` with a fixed clock | Keep the example board isolated until an accepted visit projection exists. Do not infer handoff, live wait or clinical readiness from the new read-only screens |
 | Backend schema/model work | The target ERD schema, models and services are committed; the verification report records 68 entities and 103 structural edges present | Structural coverage is not workflow completion. Keep the UI behind implemented, permissioned API projections rather than direct table-shaped contracts |
 | HTTP boundary | Rails now exposes context, facilities, clinicians, role versions/grants, appointments, encounters, note revision/signature, observations, patient address metadata, document metadata, message intents, invoices/allocations and the earlier directory/inventory routes | The browser currently consumes only the earlier clinic contracts. Add typed adapters and screens incrementally; do not call private services or mirror Active Record fields |
 | Authorization | `Ability` evaluates immutable role-version permissions with practice or site scope; `BaseController` requires active membership and exposes capability checks | Use `/api/clinic/context` for navigation capability projection, but reauthorize every resource/action. Site-scoped consumers must not infer practice-wide access |
@@ -42,12 +44,12 @@ Status meanings: **usable contract** means a current Rails JSON route exists and
 
 | Frontend destination / current source | Current backend authority | Status and proposed mapping boundary |
 | --- | --- | --- |
-| Clinic shell and navigation (`Workspace.tsx`) | `GET /api/clinic`; `GET /api/clinic/context` | **Usable contract with reconciliation:** retain `/api/clinic` while moving identity, policy version and action visibility to context. Add only links supported by both capability and implemented route; resolve site visibility before a site filter |
+| Clinic shell and navigation (`Workspace.tsx`) | `GET /api/clinic/context`; compatibility `GET /api/clinic` | **Minimum slice implemented:** context owns identity/version/action visibility and is checked against the signed-in user and compatibility practice. `/api/clinic` remains only for existing inventory/Operations actions until their projection is replaced; no site filter is exposed |
 | Overview tracking board (`TrackingBoardPage.tsx`, fixed `EXAMPLE_VISITS`) | Appointment and encounter lists plus detail; observations by patient | **Backend gap for a live board:** there is no arrival, five-stage flow, handoff/owner event, commercial membership, board projection or trusted wait clock. Do not client-join these endpoints into a false live queue |
-| Patient directory/detail (`Patients.tsx`) | Patient list/show/create; patient encounter, observation, address, document, message and invoice collections | **Usable shell, partial record:** split directory from patient workspace and load authorized sections on demand. Keep the legacy `/patients/:id/note` history visible but do not convert it into signed encounter notes |
-| Scheduling (no current component) | Appointment list/show/create/transition; facilities; clinicians | **Usable initial contract:** supports a bounded scheduled-list/booking slice. No reschedule route, patient-friendly catalog labels or dedicated read-only facility capability yet |
-| Encounter workspace (no current component) | Encounter list/show/create/close; participants/counts in detail | **Partial contract:** supports open/read/close and identity context. It does not support intake ownership, handoff, board stages or correction/reopen policy |
-| Intake/triage (no current component) | Observation list/create | **Partial contract:** typed observations and provenance exist. Approved observation dictionary, history review semantics and meaningful condition/allergy/medication content remain absent |
+| Patient directory/detail (`Patients.tsx`) | Patient list/show and patient encounter collection | **Minimum slice implemented:** paged directory, patient identity, encounter history and read-only legacy unsigned drafts. Patient create and legacy-note write are no longer exposed because context does not distinguish patient read/write |
+| Scheduling (`CareFlow.tsx`) | Appointment list; context site codes | **Read-only slice implemented:** bounded scheduled rows link to patient/encounter records and explicitly distinguish schedule from arrival/queue. No booking, transition, site filter or client-side patient join |
+| Encounter workspace (`CareFlow.tsx`) | Encounter detail plus encounter-filtered patient observations | **Read-only slice implemented:** identity, open/completed status, times, counts and uninterpreted recorded values. No close, intake ownership, handoff, board stage or correction/reopen control |
+| Intake/triage (`CareFlow.tsx` observation display only) | Observation list | **Partial read implemented:** recorded code/value/unit/source/time only. No entry form, clinical thresholds, history-review semantics or readiness claim |
 | Clinician note (legacy draft UI only) | Encounter-note create/show/revise/sign | **Blocked for body entry/signing UI:** route lifecycle exists, but protected body handling, body read/review DTO and signed-correction semantics are unresolved. Prescription workflow is absent |
 | Patient documents (no current component) | Category list; document metadata list/show | **Metadata-only:** object upload/download, scan execution and reauthorized streaming are absent |
 | Patient messages (no current component) | Intent list/show/create and delivery-event record | **Local intent/history only:** external transport/callback authority is absent; protected recipient/content handling is unresolved. A user must never record delivery manually in the intended workflow |
@@ -378,7 +380,7 @@ This is a candidate dependency sequence linked to canonical tasks, not an accept
 | Alongside 2–8 | Inventory regression plus Suppliers, Employees/access/facility configuration and restricted Activity | Preserve shared ledger/history/profile invariants and directory/access distinction; full ERD coverage. T-34 and relevant T-23/T-13 dependencies |
 | 9 | Consumer cutover, legacy write retirement, migration/restore and responsive/accessibility acceptance | Version-pinned API/web pair; old clients get explicit incompatibility for unsafe commands. Reconciled data, routes, audit/history and all tests below; T-22/E2/E3 remain evidence gates, not automatic approval |
 
-The first candidate implementation slice is therefore **frontend context plus read-only patient/scheduling/encounter integration**, but only after the permission/site projection is accepted. Protected mutations stay blocked behind the named backend work; this sequence is ready for review and has not been selected in this documentation turn.
+The founder selected the minimum **frontend context plus read-only patient/scheduling/encounter integration** on 2026-08-31. It is now implemented without site filtering or protected mutations. Permission/site projection refinement remains required before broader navigation, scheduling mutation or a live board.
 
 Migration rules:
 
@@ -390,7 +392,7 @@ Migration rules:
 
 ## Acceptance and recovery
 
-Use the commands and isolated-data boundaries in [[CICD#2. Develop and check locally]]: frontend tests/typecheck/build/format; Rails tests/eager-load/lint/static checks; independent PostgreSQL upgrade/concurrency/restore; native HTTP verifier. Add producer-consumer fixtures for every new projection and command, not just snapshots of successful pages. Those application checks have **not** been rerun for this documentation-only pass; the dated current backend evidence is in [[Backend Verification Report]].
+Use the commands and isolated-data boundaries in [[CICD#2. Develop and check locally]]: frontend tests/typecheck/build/format; Rails tests/eager-load/lint/static checks; independent PostgreSQL upgrade/concurrency/restore; native HTTP verifier. Add producer-consumer fixtures for every new projection and command, not just snapshots of successful pages. For the minimum slice, 71 focused frontend tests plus typecheck, formatting and production build pass; Rails/database suites were not rerun because backend logic and schema were untouched. The dated backend evidence remains in [[Backend Verification Report]].
 
 | Layer / scenario | Observable expected result |
 | --- | --- |
@@ -416,8 +418,8 @@ On affected-path failure: stop the action, retain truthful pending/unsaved/error
 
 ## Planning deliverables and remaining limits
 
-Delivered by this planning pass: a current source baseline, frontend-to-implemented-backend readiness matrix, five user-flow diagrams, complete entity mapping, implemented-versus-missing API inventory, candidate dependency sequence and failure/acceptance cases. Existing layout language remains inherited proposal context; no new visual or workflow choice was made. No API, persistence, signing, billing or sending action was added.
+Delivered across the planning and minimum implementation passes: a current source baseline, five user-flow diagrams, complete entity/API mapping, a context-owned clinic shell and the bounded read-only scheduling/patient/encounter/observation slice. No Rails/schema change, new dependency, clinical mutation, note signing, prescribing, billing or sending action was added.
 
-Planning validation: all 38 Markdown notes pass frontmatter/fence/unique-name checks; all 794 wiki/heading links resolve, as do 18 relative links in the four touched notes. The five Mermaid flows pass static declaration, edge and delimiter checks; no Mermaid renderer was available, so rendered geometry is not claimed. `git diff --check` passes and no `apps/web` or `apps/api` file changed. These checks validate the map, not application behavior, encryption, access auditing, browser rendering, clinical acceptance or deployment readiness.
+Implementation validation and current documentation checks are recorded in the newest [[Progress Log]] entry. The local browser verified capability-denied Overview/Operations behavior and 390×844 reflow without horizontal overflow for the active synthetic Test Clinic A session; that session currently has no patient capability, so populated Schedule/Encounter browser rendering was not claimed. Static focused views cover their content boundaries. These checks do not validate encryption, access auditing, clinical acceptance or deployment readiness.
 
-Next review point: accept or revise the permission/site projection and the candidate read-only patient/scheduling/encounter slice. Do not begin the live board or protected note editor until their named backend contracts exist. [[Roadmap and Tasks]] remains the only task/status register.
+Next review point: reconcile permission/site projection and a correctly provisioned synthetic patient-capable account, then review the bounded read-only routes. Do not begin the live board or protected note editor until their named backend contracts exist. [[Roadmap and Tasks]] remains the only task/status register.

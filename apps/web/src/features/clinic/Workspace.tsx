@@ -1,5 +1,10 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { ClinicOverview, User } from "../../api/contracts";
+import type {
+  ClinicCapabilities,
+  ClinicOverview,
+  ClinicWorkspaceContext,
+  User,
+} from "../../api/contracts";
 import { LoadState, useResource } from "../../shared/ui";
 import { ClinicFrame } from "./ClinicFrame";
 import {
@@ -8,20 +13,23 @@ import {
   useClinicAppearance,
 } from "./Appearance";
 
-const ClinicContext = createContext<ClinicOverview | null>(null);
+const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
+const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
 export function useClinic() {
   const clinic = useContext(ClinicContext);
   if (!clinic) throw new Error("Clinic pages require an authorized workspace.");
+  return clinic;
+}
+export function useClinicOverview() {
+  const clinic = useContext(ClinicOverviewContext);
+  if (!clinic) throw new Error("Legacy clinic modules require their summary.");
   return clinic;
 }
 export function ClinicNavigation({
   capabilities,
   path,
 }: {
-  capabilities: Pick<
-    ClinicOverview["capabilities"],
-    "patients_access" | "inventory_access" | "staff_access"
-  >;
+  capabilities: ClinicCapabilities;
   path: string;
 }) {
   const links = [
@@ -29,12 +37,17 @@ export function ClinicNavigation({
     {
       href: "/clinic/patients",
       label: "Patients",
-      allowed: capabilities.patients_access,
+      allowed: capabilities.patients,
+    },
+    {
+      href: "/clinic/schedule",
+      label: "Schedule",
+      allowed: capabilities.patients,
     },
     {
       href: "/clinic/pharmacy",
       label: "Pharmacy",
-      allowed: capabilities.inventory_access,
+      allowed: capabilities.inventory,
     },
     {
       href: "/clinic/operations",
@@ -44,12 +57,12 @@ export function ClinicNavigation({
     {
       href: "/clinic/inventory",
       label: "Office inventory",
-      allowed: capabilities.inventory_access,
+      allowed: capabilities.inventory,
     },
     {
       href: "/clinic/staff",
       label: "Employees",
-      allowed: capabilities.staff_access,
+      allowed: capabilities.staff,
     },
     { href: "/clinic/settings", label: "Settings", allowed: true },
   ];
@@ -82,47 +95,65 @@ export function Workspace({
   children: ReactNode;
   user: User;
 }) {
-  const { data, error } = useResource<ClinicOverview>("/api/clinic");
+  const { data, error } = useResource<ClinicWorkspaceContext>(
+    "/api/clinic/context",
+  );
+  const overview = useResource<ClinicOverview>("/api/clinic");
   const appearance = useClinicAppearance(user.id);
-  if (!data)
+  if (!data || !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
-          <LoadState error={error} />
+          <LoadState error={error || overview.error} />
           <a href="/portal">Return to My launch</a>
         </main>
       </ClinicAppearanceScope>
     );
-  const c = data.capabilities;
+  if (
+    data.user_id !== user.id ||
+    data.schema_version !== "clinic-context-v1" ||
+    data.policy_version !== "clinic-authorization-v1" ||
+    overview.data.practice.id !== data.practice.id
+  )
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <main id="main" className="wrap inner-page">
+          <LoadState error="Unable to verify this clinic workspace. Reload and check your signed-in account." />
+          <a href="/portal">Return to My launch</a>
+        </main>
+      </ClinicAppearanceScope>
+    );
   return (
     <ClinicAppearanceScope {...appearance}>
       <AppearanceContext value={appearance}>
         <ClinicContext value={data}>
-          <ClinicFrame
-            practiceName={data.practice.name}
-            navigation={
-              <ClinicNavigation
-                capabilities={c}
-                path={
-                  typeof window === "undefined"
-                    ? "/clinic"
-                    : window.location.pathname
-                }
-              />
-            }
-          >
-            <header className="clinic-topbar">
-              <span>CLINIC WORKSPACE</span>
-              <a href="/clinic/settings">My settings</a>
-            </header>
-            <p className="clinic-safety">
-              SYNTHETIC ONLY · Not a released EHR. No real patient or employee
-              information. Production clinic access is disabled.
-            </p>
-            <main id="main" className="clinic-content pharmacy-page">
-              {children}
-            </main>
-          </ClinicFrame>
+          <ClinicOverviewContext value={overview.data}>
+            <ClinicFrame
+              practiceName={data.practice.name}
+              navigation={
+                <ClinicNavigation
+                  capabilities={data.capabilities}
+                  path={
+                    typeof window === "undefined"
+                      ? "/clinic"
+                      : window.location.pathname
+                  }
+                />
+              }
+            >
+              <header className="clinic-topbar">
+                <span>CLINIC WORKSPACE</span>
+                <a href="/clinic/settings">My settings</a>
+              </header>
+              <p className="clinic-safety">
+                SYNTHETIC ONLY · Not a released EHR. No real patient or employee
+                information. Production clinic access is disabled.
+              </p>
+              <main id="main" className="clinic-content pharmacy-page">
+                {children}
+              </main>
+            </ClinicFrame>
+          </ClinicOverviewContext>
         </ClinicContext>
       </AppearanceContext>
     </ClinicAppearanceScope>

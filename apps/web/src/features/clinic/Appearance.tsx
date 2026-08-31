@@ -10,6 +10,8 @@ import type { UserSettings } from "../../api/contracts";
 import "./appearance.css";
 import "./clinicFrame.css";
 import "./trackingBoard.css";
+import "./careFlow.css";
+import "./careFlow.css";
 import {
   CLINIC_MODES,
   CLINIC_PALETTES,

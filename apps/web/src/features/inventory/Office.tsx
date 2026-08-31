@@ -1,12 +1,12 @@
 import type { Item } from "../../api/contracts";
 import { Card, Field, Form, LoadState, useResource } from "../../shared/ui";
-import { useClinic } from "../clinic/Workspace";
+import { useClinicOverview } from "../clinic/Workspace";
 
 export function Office() {
   const { data, error, refresh } = useResource<{ items: Item[] }>(
     "/api/clinic/inventory",
   );
-  const actions = useClinic().inventory_actions;
+  const actions = useClinicOverview().inventory_actions;
   if (!data) return <LoadState error={error} />;
   return (
     <>

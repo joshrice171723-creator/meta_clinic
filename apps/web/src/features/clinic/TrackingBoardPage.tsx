@@ -310,7 +310,5 @@ export function OverviewView({ patientAccess }: { patientAccess: boolean }) {
   return <TrackingBoardView />;
 }
 export function Overview() {
-  return (
-    <OverviewView patientAccess={useClinic().capabilities.patients_access} />
-  );
+  return <OverviewView patientAccess={useClinic().capabilities.patients} />;
 }

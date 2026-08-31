@@ -45,6 +45,89 @@ export type Item = {
   reorder_level: number;
 };
 export type Patient = { id: number; display_name: string; reference: string };
+export type Pagination = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+};
+export type ClinicCapabilities = {
+  patients: boolean;
+  staff: boolean;
+  inventory: boolean;
+  appointments: boolean;
+  encounters: boolean;
+  documents: boolean;
+  messages: boolean;
+  billing: boolean;
+  roles: boolean;
+};
+export type ClinicSite = {
+  id: number;
+  code: string;
+  timezone_override: string | null;
+};
+export type ClinicWorkspaceContext = {
+  schema_version: "clinic-context-v1";
+  user_id: number;
+  practice: { id: number; name: string; timezone: string };
+  membership_id: number;
+  policy_version: "clinic-authorization-v1";
+  capabilities: ClinicCapabilities;
+  sites: ClinicSite[];
+};
+export type Appointment = {
+  id: number;
+  patient_id: number;
+  site_id: number | null;
+  room_id: number | null;
+  booked_clinician_id: number | null;
+  visit_type_id: number | null;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  encounter_id: number | null;
+};
+export type Encounter = {
+  id: number;
+  patient_id: number;
+  appointment_id: number | null;
+  site_id: number | null;
+  room_id: number | null;
+  started_at: string;
+  ended_at: string | null;
+  status: "open" | "completed";
+};
+export type EncounterDetail = Encounter & {
+  participants: {
+    id: number;
+    membership_id: number;
+    participation_role: string;
+    effective_from: string;
+    effective_until: string | null;
+  }[];
+  note_ids: number[];
+  observation_count: number;
+  document_count: number;
+};
+export type Observation = {
+  id: number;
+  patient_id: number;
+  encounter_id: number | null;
+  parent_observation_id: number | null;
+  author_membership_id: number;
+  code: string;
+  code_system: string;
+  code_version: string;
+  value_kind: "numeric" | "text" | "coded" | "missing" | "group";
+  numeric_value: string | null;
+  text_value: string | null;
+  coded_value: string | null;
+  unit_code: string | null;
+  missing_reason: string | null;
+  observed_at: string;
+  recorded_at: string;
+};
 export type StaffMember = {
   id: number;
   display_name: string;

@@ -43,7 +43,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
 | [[Clinic Workspace Design]] | Workload-board example, Operations and chart-tab navigation; account-owned themes, workflow proposals and verified versus unimplemented boundaries |
-| [[Clinic Frontend Backend Mapping]] | Current frontend-to-implemented-backend readiness map, five pre-design user-flow diagrams, full target-entity coverage, remaining contracts, phased integration and acceptance; planning, not runtime delivery |
+| [[Clinic Frontend Backend Mapping]] | Current frontend-to-implemented-backend readiness map, five user-flow diagrams, minimum read-only context/schedule/patient/encounter implementation, full target-entity coverage, remaining contracts and phased acceptance |
 | [[Data Modeling]] | Broader proposed clinical/security model, illustrative SQL and acceptance scenarios; not the executable schema |
 | [[Multi-Clinic ERD Adversarial Review]] | Original image findings, revision-2 integrity recommendations and adverse-path cases; D-044 supersedes its former hardening-only scope, not its safety invariants |
 | [[ERD Implementation Prompt]] | Revision-5 full backend/schema replacement handoff: final ERD amendments, complete module mapping, PaperTrail callback/job coverage, API/data transition and adversarial acceptance |
