@@ -17,6 +17,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 | Task | Start here | Supporting context when needed |
 | --- | --- | --- |
+| Implementation planning or failure review | [[Roadmap and Tasks#Five-step implementation plan]], [[Working Agreement#Failure-first planning and review]] | Chunk entry/exit evidence, [[Risks and Assumptions]], [[Weekly Review Template]], [[Evidence Note Template]]; D-037; existing M/E/professional gates remain |
 | Developer onboarding, Git, local setup or CI | [[CICD#Developer quick start]], [[Software Architecture]] | T-22/T-40 in [[Roadmap and Tasks#Current task register]]; D-033 in [[Decisions#Frontend and backend separation]] |
 | Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | T-20/T-38; linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates |
 | Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]] | [[Software Architecture#Domain ownership]]; relevant M0–M6 criteria/tasks; D-021/D-022/D-033 |
@@ -41,11 +42,11 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
 | [[Clinic Workspace Design]] | Staff-first intake, clinician and inventory layout proposals; implemented selectable themes, desktop/tablet targets and existing-feature boundaries |
 | [[Data Modeling]] | Broader proposed clinical/security model, illustrative SQL and acceptance scenarios; not the executable schema |
-| [[Roadmap and Tasks]] | Canonical tasks/status and proposed evidence gates. Read relevant rows/criteria, not every historical baseline |
+| [[Roadmap and Tasks]] | Canonical parent tasks and 27 smaller chunks across five workstreams, with dependencies, failure scenarios, exit evidence and unchanged milestone gates |
 | [[Decisions]] | Explicit direction and supersession. Read relevant decisions and later refinements |
 | [[Progress Log]] | Dated actual outcomes, failures and checks. Read relevant entries; earlier statements retain their event-date scope |
-| [[Risks and Assumptions]] | Open risks/hypotheses and required evidence; plans are not closure |
-| [[Working Agreement]] | Session workflow, evidence distinctions, editing and information handling |
+| [[Risks and Assumptions]] | Open risks/hypotheses, failure signals and required evidence; plans are not closure |
+| [[Working Agreement]] | Session workflow, failure-first planning/acceptance, evidence distinctions, editing and information handling |
 
 ## Company and delivery — 01 Foundation
 
@@ -76,8 +77,8 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 | Note | Use |
 | --- | --- |
-| [[Evidence Note Template]] | Record an actual observation/source, applicability, limits and follow-up |
-| [[Weekly Review Template]] | Record an agreed review; does not schedule a meeting or create commitments |
+| [[Evidence Note Template]] | Record actual observation/source or bounded failure-test results, applicability, limits and follow-up |
+| [[Weekly Review Template]] | Record an agreed review and next-chunk failure challenge; does not schedule a meeting or create commitments |
 
 ## Navigation and configuration
 

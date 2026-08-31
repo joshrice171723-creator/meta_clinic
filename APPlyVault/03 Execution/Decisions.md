@@ -91,6 +91,7 @@ Open implementation details do not negate confirmed direction. Kevin's prior att
 - Options considered, including defer/do nothing:
 - Decision and rationale:
 - Scope, tradeoffs, and unresolved risks:
+- How could this fail; contrary evidence, detection, safe fallback and stop/revise trigger:
 - Needed professional review, if any:
 - Owner, follow-up tasks, and review trigger:
 - Supersedes / superseded by:
@@ -110,6 +111,12 @@ Open implementation details do not negate confirmed direction. Kevin's prior att
 **D-033 — 2026-08-30 / founder's frontend/backend request and approval:** separate browser presentation from backend responsibilities. The founder accepted the proposed independent frontend and Rails API, superseding D-024's JavaScript removal and the single Rails-rendered runtime aspect of D-025/D-032. Keep one repository and the established launch/care/inventory/staff/identity domain ownership. Implementation uses `apps/web` for React/TypeScript screens and `apps/api` for Rails JSON, sessions/CSRF, authorization, workflows and PostgreSQL. Preserve browser URLs, data history, encryption derivation, clinic permissions and production clinic/demo denial. Source/build/local-tooling changes are authorized; Git publication, hosted cutover, new integrations and real-data use are not. Implementation initially paused under T-40 for the verification-cleanup issue recorded in [[Progress Log#2026-08-30 — Frontend API split paused after verification cleanup issue]].
 
 **D-033 continuation — 2026-08-31:** after disclosure of the verifier cleanup issue, the founder confirmed `apply_test` was disposable test/development data and explicitly authorized recreating it. Recreated from current migrations; no original test-data recovery claimed. The corrected scratch cleanup preserves the recreated database identity. The authorized frontend/API refactor is now complete locally under T-40; see [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]]. Deployment and real-data exclusions remain unchanged.
+
+## Failure-oriented planning and implementation breakdown
+
+**D-037 — 2026-08-31 / founder's planning follow-up:** include an adversarial “How is this going to fail?” mindset in the vault's planning documents and break the five recommended workstreams into smaller chunks with clear exit criteria: engineering/release foundation; client onboarding/operator workflows; synthetic packet/training infrastructure; configurable inventory; and definition of the first clinic workflow. [[Working Agreement#Failure-first planning and review]] establishes the review method; [[Roadmap and Tasks#Five-step implementation plan]] owns the breakdown and status. The founder will gather Kevin's documents/legal materials for later authorized ingestion; receipt, reuse permission and professional review are not inferred.
+
+This approves a planning-document update and its failure-oriented method, not blanket implementation of proposed details, selection of clinical layouts/fields, new infrastructure, production cutover, outreach, spending or real-data use. Preserve completed CI/staging evidence and separate remaining gates. Owners and dates remain unassigned/TBD unless already explicitly recorded. Supplier pricing remains deferred under D-029; no previous clinical/confidential-data restriction is superseded.
 
 ## Selectable clinic themes
 

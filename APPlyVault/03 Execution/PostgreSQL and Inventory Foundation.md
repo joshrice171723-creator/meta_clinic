@@ -52,7 +52,9 @@ These checks use wholly synthetic fixtures. They are not a hosted cutover, succe
 
 ## Remaining work in order
 
-Canonical work remains in T-38 for production PostgreSQL cutover (staging completed), T-34 for remaining configuration breadth, T-22/T-20 for remote CI and operational acceptance, and T-13 for full inventory/clinical requirements. Recommended next foundation work is location/operator-specific configuration, permission management and a scoped trusted identity/RLS/read-audit proof with negative tests. Do not switch on clinical modules merely because their catalog tables could be added.
+Use [[Roadmap and Tasks#Step 4 — Configurable inventory foundation]] for T-34.1–T-34.5: capability matrix, scoped profile/lifecycle, permissions, invariant acceptance and a bounded security proof. [[Roadmap and Tasks#Step 1 — Engineering and release foundation]] owns remaining browser/operations and production cutover work; CI/staging evidence is already recorded. T-13 retains broader clinical requirements. Do not switch on clinical modules merely because their catalog tables could be added.
+
+Apply [[Working Agreement#Failure-first planning and review]] to every increment. The failure cases are configuration/history drift, caller-forged scope, self-grants, concurrent configuration/posting, repeated receipts, stale counts, overlapping holds and audit/restore failure. T-34's exit evidence must show the safe outcome under contrasting synthetic profiles and preserve the established ledger/history; the scoped identity/RLS/read-audit proof requires an accepted design before build and does not silently approve the complete [[Data Modeling]] proposal.
 
 Containers/BUD and storage excursions, transfers, purchasing/invoice/credit matching, exports/valuation, administration, practitioner supply, dispensing, controlled-drug/tracing and compounding remain separate increments in [[Roadmap and Tasks#Pharmacy capability implementation sequence]]. Supplier pricing integration stays deferred by D-029/T-37. No rates, staffing, dates, pharmacy license/pathway or professional approval was invented.
 

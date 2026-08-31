@@ -1,7 +1,7 @@
 ---
 type: template
 status: reusable
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Evidence Note Template
 
@@ -30,6 +30,21 @@ What actually happened or what the source specifically supports? Separate direct
 - What this evidence does **not** establish:
 - Reviewer, review date, and scope, if reviewed:
 - Effective date / recheck trigger where relevant:
+
+## Failure-test record — when applicable
+
+Follow [[Working Agreement#Failure-first planning and review]]. For source/interview evidence, use a contrary-evidence or applicability challenge instead of inventing a software test.
+
+- Canonical task/chunk and linked risk/assumption:
+- Failure hypothesis / trigger / harm:
+- Authorized scope, synthetic fixture or tabletop, and code/content version:
+- Expected safe behavior and observable signal:
+- Reproduction steps or question tested:
+- Actual result / evidence reference, or not tested:
+- Recovery/fallback exercised and result, or not exercised:
+- Stop/revise decision, residual risk and reviewer/date:
+
+Do not paste credentials, real records or restricted originals into this note. A simulated failure does not establish that the deployed system behaves the same way.
 
 ## Next action
 

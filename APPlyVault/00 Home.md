@@ -27,7 +27,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 - **Team / physician services:** Kevin supplies physician support/arrangements and mentorship. The senior-developer friend will be a consultancy employee and a software-company owner; equity amount and employment/IP terms are TBD.
 - **Additional service concept:** Kevin wants a video knowledge bank with mentorship. [[Knowledge Bank and Mentorship]] tracks this separately from physician coverage; the selling entity, packaging, audience, and pricing remain open.
 - **Reference clinic:** Kevin Stacks, MD, PLLC, general adult medicine in Sherman, verified on the public website. The founder reports the MD has recently gone through cash-pay PLLC setup and documented the legal steps taken so far.
-- **Starting assets:** Kevin's attorney helped with his setup process. Access to existing diligence/workflow materials was expected on 2026-08-31 morning; receipt and review are still not recorded here.
+- **Starting assets:** Kevin's attorney helped with his setup process. The founder will gather Kevin's documents/legal materials for authorized ingestion; receipt, reuse permission and review are still not recorded here. The earlier expected availability was not proof of receipt.
 - **Commercial structure:** consultancy launch package with ongoing support; support and package-cost details explicitly TBD. Software implementation fee plus recurring fees calculated as a percentage of ordered inventory value; rate, eligible value, billing trigger, and terms remain open. This is not a selected percentage of patient-care revenue.
 - **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. D-027/D-030 established small paid private EC2 staging/production environments, with 10 GiB encrypted storage each and independent secrets. Staging now uses PostgreSQL; production retains its SQLite bootstrap with demos disabled. [[CICD]] distinguishes that hosted evidence from current source and pending activation. Future clinical architecture and S3 use remain open.
 - **Database implementation:** D-031 selects PostgreSQL throughout Rails, tests and prepared deployment tooling. [[PostgreSQL and Inventory Foundation]] records the tested shared ledger, units, receipts, holds and counts. Staging's verified maintenance cutover preserves its synthetic records/keys and includes independent PostgreSQL restore evidence; production cutover remains pending.
@@ -39,7 +39,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Start here
 
-1. For development, start with [[CICD]], then [[Software Architecture]] and [[Roadmap and Tasks#Current task register]]. [[Roadmap and Tasks#Development plan — proposed 2026-08-30]] retains milestone exit criteria; [[Website MVP]] and [[Client Portal]] summarize current implementation.
+1. For development, start with [[CICD]], then [[Software Architecture]] and [[Roadmap and Tasks#Five-step implementation plan|the five-step implementation plan]]. Its 27 chunks carry dependencies, failure scenarios and exit evidence; [[Roadmap and Tasks#Current task register]] rolls up status. Use [[Working Agreement#Failure-first planning and review|failure-first review]] before starting or accepting work. Existing milestone gates remain in force.
 2. Use [[MD Pilot]] and [[Texas Diligence]] to turn the existing materials into the [[Clinic Launch Packet]].
 3. Use [[Roadmap and Tasks]] for commitments, [[Decisions]] for agreed choices, and [[Progress Log]] for what changed.
 
@@ -56,9 +56,9 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Next three moves
 
-- Finish the PostgreSQL maintenance cutover under T-38 and the remaining M0/T-22 remote-CI/browser acceptance. The local migration, concurrency, inventory and container restore checks pass; preserve the guarded demo and all existing data/key recovery evidence.
-- Finish M1/T-20 acceptance for the two running private environments: outstanding OS advisories, account/browser acceptance and recovery ownership. Complete GitHub sign-in/activation under [[CICD]]; public HTTPS needs a domain/DNS setup. The combined baseline is roughly $28/month before extras; root remains authorized until further notice. Real-data/clinical release remains gated.
-- When authorized materials arrive, index and review them for M3/T-12/T-24; real applicant documents and signing remain gated by M4. Keep clinic operations front-facing and permission-separated; real clinical release remains gated.
+- Finish [[Roadmap and Tasks#Step 1 — Engineering and release foundation|remaining engineering/release acceptance]]: browser/account journeys, image advisories and operations/recovery. Preserve completed CI/staging evidence; production cutover needs separate authorization, not a repeat of staging setup.
+- Build toward [[Roadmap and Tasks#Step 2 — Client onboarding and operator workflow|operator onboarding]] and [[Roadmap and Tasks#Step 3 — Synthetic packet and training infrastructure|versioned synthetic packet/training management]]. The founder will gather Kevin's materials; actual content/reuse review is a separate dependency, and real applicant documents/signing remain M4-gated.
+- Finish [[Roadmap and Tasks#Step 4 — Configurable inventory foundation|inventory configuration/permission acceptance]]. Prepare [[Roadmap and Tasks#Step 5 — Define the first clinic workflow|the synthetic clinic workflow walkthrough]] alongside it; field/layout/clinical acceptance and real-data gates remain open.
 
 Task status lives in [[Roadmap and Tasks]]; this page is a summary, not a second task list.
 
