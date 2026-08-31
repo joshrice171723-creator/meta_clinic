@@ -1,0 +1,14 @@
+<% content_for :title, "Contact — APPly" %>
+<main id="main" class="wrap inner-page contact-layout">
+  <div class="inner-page-copy"><p class="eyebrow">LET'S FIND YOUR NEXT STEP</p><h1>Your clinic starts<br>with <em>a conversation.</em></h1><p>Thinking about a cash-pay practice? Tell us about your goals and where you are in the process.</p><div class="contact-detail"><div><strong>Sherman &amp; North Texas</strong><span>Clinic-launch support for nurse practitioners and physician assistants.</span></div></div><p class="page-fine-print">Synthetic business inquiries only during development. Do not send patient information, medical questions, passwords, or confidential documents. Not monitored for emergencies.</p></div>
+  <section class="form-card"><h2>Get in touch.</h2>
+    <%= form_with model: @message, url: contact_path do |form| %>
+      <div class="form-field"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 100, autocomplete: "name" %></div>
+      <div class="form-field"><%= form.label :email, "Email address" %><%= form.email_field :email, required: true, maxlength: 254, autocomplete: "email" %></div>
+      <div class="form-field"><%= form.label :message, "What are you working toward?" %><%= form.text_area :message, required: true, minlength: 10, maxlength: 4000, rows: 6, aria: { describedby: "contact-note" } %></div>
+      <div class="honeypot" aria-hidden="true"><label for="contact-website">Leave this empty</label><input id="contact-website" name="contact_message[website]" tabindex="-1" autocomplete="off"></div>
+      <p class="form-note" id="contact-note">Use fictional details only. Your message is saved to APPly's inquiry inbox; no email notification is sent yet.</p>
+      <%= form.submit "Send inquiry", class: "primary-link form-submit" %>
+    <% end %>
+  </section>
+</main>

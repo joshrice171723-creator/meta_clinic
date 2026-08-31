@@ -1,0 +1,18 @@
+<% content_for :title, "Inventory — APPly" %>
+<main id="main" class="clinic-content"><p class="eyebrow">CLINIC OPERATIONS</p><h1>Inventory.</h1><p class="clinic-lead">Try office supply tracking. Clinical stock, medications, lots, expiration tracking, and procurement are not implemented.</p>
+  <section class="clinic-card"><h2>Stock on hand</h2><div class="clinic-table-wrap"><table><thead><tr><th>Item / SKU</th><th>On hand</th><th>Reorder level</th><th>Adjust stock</th></tr></thead><tbody>
+    <% @items.each do |item| %><tr><td><strong><%= item.name %></strong><small><%= item.sku %></small></td><td><%= item.quantity %><% if item.quantity <= item.reorder_level %><small class="stock-low">Reorder level reached</small><% end %></td><td><%= item.reorder_level %></td><td>
+      <%= form_with url: adjust_clinic_inventory_path(item), class: "stock-form" do |form| %>
+        <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
+        <%= form.label :delta, "Adjustment for #{item.name}", class: "sr-only", for: "delta-#{item.id}" %><%= form.number_field :delta, id: "delta-#{item.id}", required: true, min: -1000000, max: 1000000, step: 1, placeholder: "+ / −" %>
+        <%= form.label :reason, "Reason for #{item.name}", class: "sr-only", for: "reason-#{item.id}" %><%= form.text_field :reason, id: "reason-#{item.id}", required: true, maxlength: 200, placeholder: "Reason" %>
+        <%= form.submit "Record", class: "button" %>
+      <% end %>
+    </td></tr><% end %>
+  </tbody></table></div><% if @items.empty? %><p>No supplies added yet.</p><% end %></section>
+  <section class="clinic-card"><h2>Add office supply</h2>
+    <%= form_with scope: :clinic_item, url: clinic_inventory_index_path, class: "clinic-inline-form" do |form| %>
+      <div class="form-field"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 120 %></div><div class="form-field"><%= form.label :sku, "SKU" %><%= form.text_field :sku, required: true, maxlength: 40 %></div><div class="form-field"><%= form.label :reorder_level %><%= form.number_field :reorder_level, required: true, min: 0, max: 1000000, value: 0 %></div><%= form.submit "Add item", class: "primary-link" %>
+    <% end %><p class="clinic-fine-print">New items start at zero. Record receipts or usage as adjustments; nothing is ordered or billed.</p>
+  </section>
+</main>

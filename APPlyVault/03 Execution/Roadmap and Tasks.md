@@ -9,13 +9,13 @@ Home: [[00 Home]] · Decisions: [[Decisions]] · Changes: [[Progress Log]]
 
 ## Rules
 
-This is the canonical task register. Future work requires an accepted owner and scope; founder-confirmed direction is recorded in [[Decisions]]. The founder authorized the consultancy marketing website under D-020; EHR/inventory builds, due dates, budgets, outreach, and professional engagements remain uncommitted. The MD's source materials are expected on 2026-08-31 morning; this is not a deadline or automated follow-up. Further business questions are deferred while the website moves forward.
+This is the canonical task register. Future work requires an accepted owner and scope; founder-confirmed direction is recorded in [[Decisions]]. D-020 authorized the consultancy website; D-024/D-025 now authorize both local Rails experiences. T-28/T-29 track migration and the synthetic clinic prototype. Production clinical release, budgets, dates, outreach and professional engagements remain uncommitted. The MD's source materials are expected on 2026-08-31 morning; this is not a deadline or automated follow-up. Further business questions are deferred while the website moves forward.
 
 The founder expressed no deadline pressure. Use dependencies and readiness evidence rather than an arbitrary 90-day calendar. Packet planning and remaining business decisions can proceed while the existing materials are unavailable.
 
 The subsequent backend documentation request is recorded as T-18. [[Data Modeling]] is a PostgreSQL proposal; it does not close T-13, select hosting, authorize a build, or pass L-05.
 
-D-021/D-022 separately authorize the non-clinical Rails [[Client Portal]]. T-19/T-20 track that implementation/hosting; they do not authorize the clinical model in T-18.
+D-021/D-022 authorize [[Client Portal]]. D-025 adds the separately presented [[Clinic Workspace]] in the same Rails app. This synthetic prototype does not approve the complete clinical model in T-18, PHI or production sharing. T-20 remains hosting, not clinical release.
 
 Statuses: backlog, ready, in progress, awaiting input, blocked, done. “Done” requires a linked deliverable or recorded result. Blocked items name the dependency and next action. Unknown owners/dates stay unassigned / TBD.
 
@@ -36,6 +36,8 @@ Passing a company milestone is not a clinical go-live authorization. Customer cl
 
 The G0–G3 gates above concern the business. The M0–M6 milestones below concern software delivery; G0 is not a prerequisite to safe local website work. All new milestones remain **proposed and unpassed**. T-16/T-19 describe delivered prototype work, not production readiness. Owners remain unassigned and dates TBD; no estimates assume unknown capacity.
 
+**Current refinement:** D-024/D-025 replace the earlier Sites/two-runtime assumptions with one Rails app, separate launch/clinic layouts and explicit clinic membership. T-28/T-29 record local delivery. The clinic prototype is synthetic and production-disabled. The baseline below remains historical evidence, not a current architecture prescription.
+
 ### Reviewed baseline
 
 | Area | Direct observation / evidence | Planning consequence |
@@ -53,7 +55,7 @@ The G0–G3 gates above concern the business. The M0–M6 milestones below conce
 
 **Later repository-layout correction, 2026-08-30:** D-023 replaces the separate-repository arrangement described in the historical baseline above. `site/` is now an ordinary folder in APPly; future GitHub CI belongs at APPly's root `.github/workflows/`, with explicit `site/` and `site/backend/` working directories. This Git repair does not complete T-22 or change application/runtime behavior. See [[Progress Log#2026-08-30 — Site moved into the main Git repository]].
 
-The homepage says Kevin has “opened the doors,” while [[MD Pilot]] leaves opening/first-patient status unknown. M0 must remove that unsupported implication or obtain permitted evidence and copy approval. Do not change the historical founder record to match marketing copy.
+T-28 corrected the earlier unsupported “opened the doors” copy to “worked through the setup,” preserving the unknown opening/first-patient status in [[MD Pilot]]. Final copy approval remains open.
 
 ### Dependencies and scope
 
@@ -78,8 +80,8 @@ M2 engineering and M3 source review can proceed while M1 hosting is unresolved. 
 
 Exit criteria:
 
-- A clean checkout reproduces frontend tests/typecheck/lint/build and Rails tests/lint/static checks using the lockfiles and documented runtime versions. Test initialization is explicit and handles the observed sample-seed conflict without touching development/client records.
-- CI is configured for the actual repository layout, includes both applications, and has an observed successful run in an approved service. If no remote CI is available, local reproducibility may pass but the CI criterion stays open.
+- A clean checkout reproduces Rails HTML/API tests, lint and static checks using the Bundler lockfile and documented runtime versions. No JavaScript build remains after T-28. Test initialization is explicit and handles the observed sample-seed conflict without touching development/client records.
+- CI is configured for the actual repository layout, covers both Rails experiences, and has an observed successful run in an approved service. If no remote CI is available, local reproducibility may pass but the CI criterion stays open.
 - The ordinary and local-demo paths pass separate regressions: authentication, CSRF/origin denial, cross-account denial, admin denial, stale/double signing, training progress, expiry/revocation and backend outage. The demo shortcut is absent/denied in production, including with its flag accidentally set.
 - Browser QA is explicitly scoped before execution and records desktop/mobile and keyboard outcomes for login → paperwork → training → logout, Contact, reload/back navigation, empty/error states and expired sessions. A working build alone does not satisfy this criterion.
 - Current documentation matches the demo; the unsupported opening claim is corrected or evidenced. The review records no unresolved defect that exposes another account, loses saved work, falsely reports success, or blocks a primary flow.
@@ -88,12 +90,12 @@ Exit criteria:
 
 ### M1 — Private hosted demo with recoverable storage
 
-**Outcome:** the frontend and Rails work together online using synthetic accounts only. **Work:** T-20. **Entry:** M0 and an approved hosting/data-flow choice; the local password-free shortcut is not the hosted login strategy.
+**Outcome:** Rails selling/onboarding works online using synthetic accounts only; clinic release remains a separate authorization. **Work:** T-20. **Entry:** M0 and an approved hosting/data-flow choice; the local password-free shortcut is not the hosted login strategy.
 
 Exit criteria:
 
 - The chosen Ruby host runs a verified production artifact/container. Configure exact HTTPS origins, protected secrets and persistent storage; no development keys, database or flag enter the artifact. Retain a single service instance/process-local-limit constraint until a reviewed scaling design replaces it.
-- Test the actual Sites → Rails path for login/session/logout, demo paperwork, training and Contact/inbox. Verify Secure/HttpOnly/SameSite cookies, host/origin/CSRF rejection, direct-backend exposure, caching and logs. No unauthorized account receives content.
+- Test the actual HTTPS → Rails path for login/session/logout, demo paperwork, training and Contact/inbox. Verify Secure/HttpOnly/SameSite cookies, host/origin/CSRF rejection, direct-backend exposure, caching and logs. No unauthorized account receives content.
 - Correct proxy trust and abuse controls are tested: abusive traffic is limited without one user's requests consuming every legitimate client's allowance. Document where limits live and what restart/scaling does to them.
 - A restart/redeploy preserves synthetic records. Restore encrypted data with the matching protected keys into an isolated environment and verify it is usable. Agree recovery-time and acceptable-data-loss targets before the exercise and record measured results against them.
 - Prove rollback/recovery from a failed release; define operator, health/error alerts and escalation. Keep owner-only access unless a specifically reviewed audience change is authorized. This gate grants no real-client storage permission.
@@ -221,14 +223,16 @@ Owners: **unassigned unless stated**. All due dates: **TBD**. Add a named owner 
 | T-17 | P1 / in progress | Rails contact persistence, error handling, encrypted fields and admin inbox implemented/tested locally; finish operational acceptance under M2 | T-20 for online operation; privacy/retention and response ownership review; no email notifications configured |
 | T-18 | P2 / done (2026-08-30) | Deliver the requested [[Data Modeling]] proposal: multi-clinic PostgreSQL tables, access control, auditing, and implementation limits; owner: Codex for documentation | Documentation only; clinical workflow evidence, implementation/testing, architecture acceptance, and L-05 remain open |
 | T-19 | P1 / done locally (2026-08-30) | Implement and test [[Client Portal]]: provisioned logins, two-area dashboard, account-scoped demo paperwork/signing, sample training and personal progress; added guarded local demo login per founder request; owner: Codex for implementation | Synthetic prototype only. Development shortcut is disabled in production; hosting/access policy unchanged. Real documents/signatures and public/client production use are not approved |
-| T-20 | P1 / awaiting input | Deliver M1 private hosted synthetic demo: approved Ruby host, frontend connection, protected configuration, persistence and verified restore/rollback | Hosting/operator/data-flow choice; T-22 baseline. Confidential-client release remains T-25, not implied by deployment; see site/backend/README.md |
+| T-20 | P1 / awaiting input | Deliver M1 private hosted synthetic demo: approved AWS/Ruby host, single-origin Rails, protected configuration, persistence and verified restore/rollback | Exact US East region, budget/domain/operator/data-flow choice; T-22 baseline. Confidential-client release remains T-25, not implied by deployment; see site/backend/README.md |
 | T-21 | P2 / backlog | Deliver M6 reviewed PDF generation, authorized institutional submission and feedback pipeline | T-12 actual packet, recipient/signature requirements, T-25/T-26, approved confidential storage and explicit implementation scope |
-| T-22 | P1 / backlog (proposed) | Pass M0: deterministic clean-checkout checks, correct CI layout, browser acceptance, guarded demo regressions and supported marketing claims | Current source available; accept implementation owner/scope and browser QA; no further business interview required |
+| T-22 | P1 / in progress | Pass M0: deterministic Rails tests and supported copy delivered under T-28; finish clean-checkout evidence, CI integration and browser acceptance | Native regressions pass; no remote CI or browser QA performed. M0 remains unpassed |
 | T-23 | P1 / backlog (proposed) | Pass M2 account lifecycle: payment-approved provisioning, secure activation/recovery, role/access review and operator walkthrough; T-17 owns Contact | T-22 for local work; T-20 for hosted verification; operator/access decisions |
 | T-24 | P1 / awaiting input | Pass M3 portal content implementation: controlled versioned assignment/publishing and progress tied to the reviewed packet/training manifest | T-12 owns packet-source/review work; T-22 supports synthetic scaffolding; content/reuse/reviewer inputs |
 | T-25 | P1 / awaiting input | Pass M4 confidential-document release: approved handling/signing method, protected audit/history, scoped security review and explicit release record | M1–M3, relevant T-09/T-12/professional findings; not an EHR or PHI approval |
 | T-26 | P2 / backlog (proposed) | Produce M5 limited-pilot operational evidence and acceptance, including exceptions, delivery effort and support results | T-10 go decision, G2, T-25 and an actual approved engagement; no client/date assumed |
 | T-27 | P1 / done (2026-08-30) | Review current vault/code and document this milestone-oriented development plan with exit criteria; owner: Codex for requested planning | [[Progress Log#2026-08-30 — Current-state review and development milestones]]; planning complete does not pass implementation milestones |
+| T-28 | P1 / done locally (2026-08-30) | Replace React/Vinext with Rails-rendered selling/onboarding, preserving contact/login/demo paperwork/training; owner: Codex for requested implementation | [[Website MVP]], [[Client Portal]], [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]; cloud release remains T-20 |
+| T-29 | P1 / done locally (2026-08-30) | Build distinct synthetic [[Clinic Workspace]] with explicit membership/capabilities, fictional patients/drafts, office stock adjustments and staff directory; owner: Codex for prototype | Not a completed EHR or patient-data release. Production disabled; full requirements, audit/MFA/recovery, intercompany and L-05/E2/E3 gates remain open |
 
 P0 = foundation blocker; P1 = next validation work; P2 = later commitment. Priorities are proposed sequencing, not urgency imposed on the team.
 

@@ -1,0 +1,18 @@
+<% content_for :title, "Synthetic patient record — APPly" %>
+<main id="main" class="clinic-content">
+  <%= link_to "← Patient directory", clinic_patients_path, class: "text-link" %>
+  <div class="clinic-record-heading"><div><p class="eyebrow">FICTIONAL PATIENT · <%= @patient.reference %></p><h1><%= @patient.display_name %></h1></div><span class="status-badge">SYNTHETIC RECORD</span></div>
+  <div class="clinic-grid">
+    <section class="clinic-card"><h2>Draft history</h2><p class="clinic-fine-print">Saved entries are appended, not overwritten. They are not signed clinical notes or a complete medical record.</p>
+      <% if @notes.empty? %><p>No entries yet.</p><% end %>
+      <% @notes.each do |note| %><article class="clinic-note"><p class="eyebrow">DRAFT · <%= note.created_at.utc.strftime("%b %d, %Y %H:%M UTC") %> · Author account <%= note.author_id %></p><div class="material-body"><%= note.body %></div></article><% end %>
+    </section>
+    <section class="clinic-card"><h2>New synthetic draft</h2>
+      <%= form_with url: note_clinic_patient_path(@patient) do |form| %>
+        <div class="form-field"><%= form.label :body, "Fictional workflow notes" %><%= form.text_area :body, required: true, maxlength: 8000, rows: 9, placeholder: "Describe a fictional workflow test. Do not paste real records." %></div>
+        <%= form.submit "Save draft entry", class: "primary-link" %>
+      <% end %>
+      <p class="clinic-fine-print">No diagnoses, prescribing, clinical decision support, institutional delivery, or certified signing workflow is implemented.</p>
+    </section>
+  </div>
+</main>

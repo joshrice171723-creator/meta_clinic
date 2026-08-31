@@ -1,52 +1,37 @@
-# APPly Rails service
+# APPly Rails application
 
-Rails 8.1.3.1 / Ruby 3.4.10. This service holds consultancy member access, non-clinical training progress, demonstration paperwork, and contact inquiries. It is not the separately proposed clinical PostgreSQL model.
+See [the site README](../README.md) for both experiences, local startup and verification.
 
-See the parent README for local setup, account provisioning, and checks. Seed data contains only original generic training examples; there are no default logins.
+The `backend/` directory is now the **entire Rails application**, including HTML, CSS, forms and database code. The name is retained to avoid moving the existing database, lockfile and deployment paths.
 
-## HTTP interface
+## Authentication and boundaries
 
-All application endpoints are under `/api`; `/up` is a boot health check.
+`Web::*` renders selling/onboarding pages. `Clinic::*` renders a distinct operations interface. Both use individual provisioned Rails accounts; clinic authorization additionally requires an active `Clinic::Membership` with section-specific capabilities. Staff-directory entries are not authentication identities. No automatic privilege inheritance from consultancy administration.
 
-- `GET csrf`: session-bound CSRF token.
-- `GET/POST/DELETE session`: current account, login, logout.
-- `POST development_session`: optional loopback-only synthetic login; requires `RAILS_ENV=development` and `APP_DEVELOPMENT_LOGIN=1`. Returns 404 otherwise. Existing demo sessions are also rejected when the guard no longer applies. See the parent README; never enable on a hosted service.
-- `GET materials`, `GET materials/:id`: published guides, with the current user's progress.
-- `POST materials/:id/start`, `POST materials/:id/complete`: personal learning progress.
-- `GET paperworks`, `GET paperworks/:id`: documents assigned to the current user only.
-- `POST paperworks/:id/start`, `POST paperworks/:id/sign`: review/sign demo documents only.
-- `POST contact_messages`: validated business inquiry, persisted before success.
-- `GET inquiries?before=ID`: admin-only, 50-row cursor pagination.
+The retained `/api/*` endpoints continue to serve consultancy sessions/materials/paperwork/contact/inquiries for compatibility and regression testing. There is no JavaScript proxy or cross-origin frontend. All mutations require Rails CSRF protection; protected responses are no-store/noindex. CSP disables scripts, embeds and external connections.
 
-The frontend proxy forwards only the APPly session cookie and CSRF token and sets its fixed configured origin. Every Rails resource independently authenticates and authorizes access. No user/role/owner ID supplied by the browser controls ownership. Missing and other-client documents both return 404. Published shared training is visible to all provisioned active members; confidential per-client attachments are not a training feature.
+Clinic pages are a non-production synthetic prototype. They use separate prefixed tables in the local SQLite database, not the production EHR schema. Database composite constraints enforce note/patient clinic consistency. Shared runtime and operator privileges remain shared risks; these controls are not production tenant-isolation approval.
 
-## Production configuration — not deployed yet
+## Production configuration — not deployed
 
-Use a Ruby-capable host with TLS and persistent storage. The included Dockerfile is a deployment starting point, not a verified container build. Docker was unavailable on the workstation; native Rails was tested.
-
-Required protected environment configuration:
+The selling/onboarding application needs:
 
 - `RAILS_ENV=production`
-- `SECRET_KEY_BASE`: a fresh strong Rails secret, stored in the host's secret manager.
+- `APP_SITE_ORIGIN`: exact HTTPS origin, without path, credentials, query or fragment
+- `SECRET_KEY_BASE`: fresh strong secret, managed outside source/chat
 - `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY`
 - `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY`
 - `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT`
-- `FRONTEND_ORIGIN`: exact HTTPS frontend origin.
-- `RAILS_BACKEND_URL`: exact HTTPS origin for this Rails service.
-- `DATABASE_PATH`: persistent SQLite location, e.g. `/rails/storage/production.sqlite3`.
+- `DATABASE_PATH`: persistent SQLite path for a **single-instance synthetic staging** setup, e.g. `/rails/storage/production.sqlite3`
 
-Generate encryption keys using Rails' `db:encryption:init` through an approved local secret-handling workflow. Do not paste values into chat, the vault, Git, or issue trackers. Back up and test recovery of both the encrypted database and encryption keys. Development/test derive keys locally; copying a database without the matching keys will not preserve decryptability.
+No `FRONTEND_ORIGIN` or `RAILS_BACKEND_URL` is required. Never copy local keys/databases into staging. Preserve independent encryption-key backups and prove restore; losing keys loses encrypted content. Use an approved secret-handling workflow, never paste values into the vault, Git, or agent output.
 
-The container runs as a non-root user. Mount a persistent volume at `/rails/storage`, with ownership suitable for UID 1000. Never place production SQLite on ephemeral image storage. Keep a single service instance while using SQLite and the current process-local rate limiter. Before scaling, choose shared storage/cache and validate concurrency and limits.
+The Dockerfile remains an unverified build starting point. Run it behind a trusted HTTPS terminator; never expose Puma directly to the internet. Mount persistent storage with UID 1000 ownership. Production assumes SSL termination; verify forwarded-protocol behavior and prevent direct backend access. Static CSS is revalidated rather than cached for a year.
 
-## Release checks still required
+Use one process/instance while SQLite and process-local rate limits remain. No PostgreSQL production adapter, durable shared limiter, high availability, access audit pipeline or automated restore is configured. Choose/review those before real client/clinical release; see [AWS guidance](../deploy/aws.md).
 
-1. Choose and approve the actual host, domain, data flows, protected secret storage, database/backups, retention/deletion rules, and responsible operators.
-2. Verify production TLS, Secure/HttpOnly/SameSite cookies, host/origin configuration, proxy trust, and rate limits. The current rate limiter can aggregate frontend-proxied traffic under one IP and is not a complete abuse-control system. Add shared/edge protection and monitoring appropriate to the selected host.
-3. Provision administrators carefully; record confirmed-payment approval outside this prototype. Set up secure credential delivery/recovery and evaluate invitation expiry, first-login password change, MFA, and access review before serving confidential applicant material.
-4. Supply reviewed packet versions and determine the required signing method for each recipient. Current code rejects signing non-demo documents. App-level immutability and SHA-256 digests are **not tamper-proof storage, independently verified identity, notarization, or proof of legal signature sufficiency**. Add appropriate audit/retention/export controls and professional review before enabling real signatures.
-5. Configure verified training/video content and an approved private media path. Do not put patient data, privileged advice, or per-client documents into shared training.
-6. Confirm contact privacy notices, response ownership, retention, notification delivery if wanted, and protected administrator access. Current messages are stored in the inbox; no email is sent.
-7. Exercise backup/restore, failure/retry cases, accessibility and browser flows, and independent security review. Native tests and static scans do not establish production or HIPAA readiness.
+The local demo shortcut is denied in production regardless of its flag. **All clinic routes are also denied in production regardless of account or flag.** This is a release boundary, not a compliance certification or sufficient real-data safeguard.
 
-The future PDF generation, institutional submission, status callbacks, and feedback pipeline are deliberately absent. No automatic external communications, institutional filings, payments, EHR connections, or SharePoint access occur.
+## Release work remaining
+
+Operator activation/recovery delivery, MFA, audit/monitoring, scoped confidential-data permissions, reviewed packet/content, real signatures, PDF/institution pipeline, private media, notices/retention, encrypted backup/restore, clinical workflow review and full access-isolation assessment remain open. No PHI, real applicant records, public release or AWS resource provisioning is authorized by this README.

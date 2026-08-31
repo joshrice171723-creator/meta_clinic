@@ -1,4 +1,37 @@
 Rails.application.routes.draw do
+  namespace :clinic do
+    root "dashboard#show"
+    post "demo", to: "dashboard#demo"
+    resources :patients, only: %i[index show create] do
+      post :note, on: :member
+    end
+    resources :inventory, only: %i[index create] do
+      post :adjust, on: :member
+    end
+    resources :staff, only: %i[index create update]
+  end
+  scope module: :web do
+    root "pages#home"
+    get "contact", to: "pages#contact"
+    post "contact", to: "pages#submit_contact"
+    get "login", to: "sessions#new"
+    post "login", to: "sessions#create"
+    post "login/development", to: "sessions#development", as: :development_login
+    post "logout", to: "sessions#destroy"
+    get "portal", to: "pages#portal"
+    resources :paperwork, controller: :paperworks, only: %i[index show] do
+      post :start, on: :member
+      post :sign, on: :member
+      get :receipt, on: :member
+    end
+    resources :training, only: %i[index show] do
+      post :start, on: :member
+      post :complete, on: :member
+    end
+    get "inquiries", to: "inquiries#index"
+    get "materials", to: redirect("/training")
+    get "materials/:id", to: redirect("/training/%{id}")
+  end
   namespace :api do
     get "csrf", to: "sessions#csrf"
     resource :session, only: %i[show create destroy]

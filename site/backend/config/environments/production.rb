@@ -15,8 +15,8 @@ Rails.application.configure do
   # Turn on fragment caching in view templates.
   config.action_controller.perform_caching = true
 
-  # Cache assets for far-future expiry since they are all digest stamped.
-  config.public_file_server.headers = { "cache-control" => "public, max-age=#{1.year.to_i}" }
+  # Static CSS is served directly; revalidate instead of assuming digested names.
+  config.public_file_server.headers = { "cache-control" => "public, max-age=0, must-revalidate" }
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
@@ -26,7 +26,13 @@ Rails.application.configure do
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
-  config.hosts = [ URI(ENV.fetch("FRONTEND_ORIGIN")).host, URI(ENV.fetch("RAILS_BACKEND_URL")).host ]
+  origin = URI(ENV.fetch("APP_SITE_ORIGIN"))
+  unless origin.is_a?(URI::HTTPS) && origin.host.present? && origin.userinfo.nil? &&
+      origin.query.nil? && origin.fragment.nil? && [ "", "/" ].include?(origin.path)
+    raise "APP_SITE_ORIGIN must be one exact HTTPS origin, without credentials or a path."
+  end
+  config.hosts = [ origin.host ]
+  config.cache_store = :memory_store
 
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }

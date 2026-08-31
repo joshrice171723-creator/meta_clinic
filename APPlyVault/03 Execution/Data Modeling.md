@@ -19,6 +19,8 @@ The consultancy, future software entity, Kevin's clinic/physician services, and 
 
 ## Tenant boundary and architecture proposal
 
+**Later prototype:** D-025 authorizes a synthetic [[Clinic Workspace]] in the same Rails app as selling/onboarding, with separate presentation and explicit membership. That local SQLite scaffold does not implement the PostgreSQL/capability/RLS/audit design below. Shared runtime, identity and database privileges require separately reviewed production boundaries; no PHI or clinical release is authorized.
+
 Use **one `clinic_id` per independently authorized record-custody boundary**, normally a customer clinic business. Model that clinic's physical offices as `locations`. Confirm the legal custody boundary before provisioning; a building, physician, parent company, or billing account alone does not define it.
 
 The same clinician can have separate memberships at several clinics. The same person receiving care at two clinics has two separate patient records; no global patient index, automatic matching, chart merging, or implied sharing is proposed. Any later transfer must be a reviewed disclosure/import workflow with provenance and recipient authorization.

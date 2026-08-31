@@ -1,0 +1,9 @@
+<% content_for :title, "Paperwork — APPly" %>
+<main id="main" class="wrap inner-page portal-page"><%= render "web/shared/member_navigation" %>
+  <div class="section-page-heading"><p class="eyebrow">YOUR LAUNCH PACKET</p><h1>Paperwork.<br><em>One step at a time.</em></h1><p>See what's waiting for you, what's underway, and what you've completed.</p></div>
+  <div class="paperwork-summary"><span><%= @paperworks.where.not(signed_at: nil).count %> of <%= @paperworks.count %> completed</span><p>Completion records a demonstration signature, not institutional approval or readiness to open.</p></div>
+  <div class="document-list"><% @paperworks.each do |document| %>
+    <a class="document-row" href="<%= paperwork_path(document) %>"><div class="document-description"><h2><%= document.title %></h2><p><%= document.demo? ? "Demonstration document" : "Signing not enabled" %> · Version <%= document.document_version %></p></div><%= progress_badge(document.status) %><span aria-hidden="true">↗</span></a>
+  <% end %></div>
+  <% if @paperworks.empty? %><div class="empty-materials"><h2>Your packet will appear here.</h2><p>No documents have been assigned to your account yet.</p></div><% end %>
+</main>

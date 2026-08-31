@@ -1,0 +1,11 @@
+<% content_for :title, "Employees — APPly" %>
+<main id="main" class="clinic-content"><p class="eyebrow">YOUR TEAM</p><h1>Employees.</h1><p class="clinic-lead">A synthetic staff directory. Employment records, payroll, schedules, invitations, and account permissions are not managed here yet.</p>
+  <section class="clinic-card"><h2>Staff directory</h2><div class="clinic-table-wrap"><table><thead><tr><th>Name</th><th>Job title</th><th>Status</th><th>Directory action</th></tr></thead><tbody>
+    <% @staff.each do |person| %><tr><td><%= person.display_name %></td><td><%= person.job_title %></td><td><span class="status-badge"><%= person.active? ? "Active" : "Inactive" %></span></td><td><%= button_to(person.active? ? "Mark inactive" : "Mark active", clinic_staff_path(person), method: :patch, params: { active: !person.active? }, class: "button") %></td></tr><% end %>
+  </tbody></table></div><% if @staff.empty? %><p>No staff entries yet.</p><% end %></section>
+  <section class="clinic-card"><h2>Add a fictional employee</h2>
+    <%= form_with scope: :clinic_staff_member, url: clinic_staff_index_path, class: "clinic-inline-form" do |form| %>
+      <div class="form-field"><%= form.label :display_name, "Fictional name" %><%= form.text_field :display_name, required: true, maxlength: 120, autocomplete: "off" %></div><div class="form-field"><%= form.label :job_title %><%= form.text_field :job_title, required: true, maxlength: 120 %></div><%= form.submit "Add staff entry", class: "primary-link" %>
+    <% end %><p class="clinic-fine-print">Active/inactive affects this directory only. No user account, clinical authority, or access grant is created or revoked by these controls.</p>
+  </section>
+</main>

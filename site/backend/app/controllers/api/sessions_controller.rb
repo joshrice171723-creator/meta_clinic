@@ -1,5 +1,6 @@
 module Api
   class SessionsController < ApplicationController
+    include MemberAuthentication
     before_action :require_member, only: :show
     rate_limit to: 10, within: 5.minutes, only: :create, name: "email",
       by: -> { Digest::SHA256.hexdigest(params[:email_address].to_s.strip.downcase) },
@@ -16,13 +17,8 @@ module Api
     end
 
     def create
-      email = params[:email_address].to_s.strip.downcase
-      password = params[:password].to_s
-      return invalid_credentials if email.bytesize > 254 || password.bytesize > 72
-
-      user = User.find_by(email_address: email)
-      authenticated = user ? user.authenticate(password) : BCrypt::Password.new(User::DUMMY_PASSWORD_DIGEST).is_password?(password)
-      return invalid_credentials unless user && authenticated && user.active?
+      user = authenticated_member
+      return invalid_credentials unless user
 
       establish_session(user)
       render json: { user: user.as_json(only: %i[id email_address admin]) }
@@ -31,11 +27,7 @@ module Api
     def development
       return head :not_found unless DevelopmentAccess.allowed?(request)
 
-      user = User.transaction do
-        account = User.create!(email_address: "demo-#{SecureRandom.uuid}@example.invalid", password: SecureRandom.hex(32), admin: false)
-        Paperwork.assign_demo!(account)
-        account
-      end
+      user = create_development_member
       establish_session(user)
       session[:development_demo_user_id] = user.id
       render json: { development_demo: true }, status: :created
@@ -48,13 +40,6 @@ module Api
     end
 
     private
-
-    def establish_session(user)
-      current_member_session&.destroy!
-      reset_session
-      record = user.member_sessions.create!(expires_at: 24.hours.from_now)
-      session[:member_session_id] = record.id
-    end
 
     def invalid_credentials
       render json: { error: "Email or password is incorrect." }, status: :unauthorized

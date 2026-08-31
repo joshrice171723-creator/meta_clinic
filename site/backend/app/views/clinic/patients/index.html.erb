@@ -1,0 +1,13 @@
+<% content_for :title, "EHR · Patients — APPly" %>
+<main id="main" class="clinic-content"><p class="eyebrow">EHR FOUNDATION</p><h1>Patients.</h1><p class="clinic-lead">A fictional directory for testing the record workflow. No real patient information.</p>
+  <div class="clinic-grid">
+    <section class="clinic-card"><h2>Patient directory</h2><div class="clinic-table-wrap"><table><thead><tr><th>Name</th><th>Reference</th><th>Record</th></tr></thead><tbody><% @patients.each do |patient| %><tr><td><%= patient.display_name %></td><td><%= patient.reference %></td><td><%= link_to "Open record", clinic_patient_path(patient) %></td></tr><% end %></tbody></table></div><% if @patients.empty? %><p>No fictional patients added yet.</p><% end %></section>
+    <section class="clinic-card"><h2>Add a fictional patient</h2>
+      <%= form_with model: @patient, url: clinic_patients_path do |form| %>
+        <div class="form-field"><%= form.label :display_name, "Fictional name" %><%= form.text_field :display_name, required: true, maxlength: 120, autocomplete: "off" %></div>
+        <div class="form-field"><%= form.label :reference, "Demo reference" %><%= form.text_field :reference, required: true, maxlength: 32, placeholder: "DEMO-003", autocomplete: "off" %></div>
+        <%= form.submit "Create demo record", class: "primary-link" %>
+      <% end %>
+    </section>
+  </div>
+</main>

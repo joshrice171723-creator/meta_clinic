@@ -1,99 +1,72 @@
-# APPly consultancy website and client portal
+# APPly — one Rails app, two experiences
 
-A marketing site plus a Ruby on Rails client portal for the APPly launch consultancy. This is **not an EHR**. SharePoint mapping and the separately sold EHR/inventory product remain outside this application.
+Rails 8.1.3.1 / Ruby 3.4.10. No React, Vinext, Node server, frontend proxy, or JavaScript build is needed. Views are server-rendered ERB with native forms and CSS.
 
-## Implemented
+| Experience | Routes | Purpose |
+| --- | --- | --- |
+| Selling and launch | `/`, `/contact`, `/login`, `/portal`, `/paperwork`, `/training` | Consultancy marketing, inquiries, provisioned client accounts, demo signing, onboarding and information |
+| Clinic workspace | `/clinic`, `/clinic/patients`, `/clinic/inventory`, `/clinic/staff` | Distinct clinic dashboard/navigation; synthetic EHR foundation, office inventory and employee directory |
 
-- Consultancy home page and Contact page. The clinic brief has been removed.
-- Login with operator-provisioned accounts after payment; no public signup, payment processing, or automated credential email.
-- A post-login dashboard with **Paperwork** and **Onboarding & Training**.
-- Account-scoped document lists with Not started / Started / Completed, review, password-confirmed demo signing, immutable-at-the-application-level document snapshots, encrypted document/name fields, timestamps/digests, and a downloadable demo text record.
-- Three labeled sample written guides with individual progress. Kevin's video section is explicitly awaiting content; no invented videos.
-- Contact inquiries encrypted in Rails and available only in the administrator inbox. No email delivery or notifications configured.
-- Session expiry, revocation on logout/password change/deactivation, CSRF/origin checks, bounded proxy requests, and basic rate limits.
+The two experiences share Rails and individual account authentication, **not automatic permissions**. An active clinic membership with explicit section capabilities is required; the consultancy administrator flag does not grant clinic access. The prototype supports one clinic membership per user. It is not the complete multi-clinic PostgreSQL architecture proposed in the vault.
 
-Signing is **demonstration-only and enforced on the server**. Actual packet documents, signing-method/recipient requirements, approved applicant-data storage, production security review, PDF generation/delivery, and institutional feedback are future work. “Completed” means signed in the prototype, never institutionally accepted or clinic-ready. No real applicant, patient, or confidential legal documents belong in this prototype.
+**Synthetic only.** Clinic routes are unconditionally disabled in production. No real patient, employee, applicant or confidential legal information belongs in this development environment. Front-facing separation is not process/database isolation or HIPAA compliance. Before any real clinical release, reassess the shared runtime/database/identity and intercompany data responsibilities.
 
-## Local development
+## Start locally
 
-Requirements: Node 22.13+, npm, Ruby 3.4.10, Bundler. The Rails lockfile includes macOS ARM and Linux platforms. Rails is pinned by the lockfile to 8.1.3.1.
-
-From `backend/`:
+From `site/backend/`:
 
 ```sh
 bundle install
 bin/rails db:prepare db:seed
-bin/rails server -b 127.0.0.1 -p 3001
+APP_DEVELOPMENT_LOGIN=1 bin/rails server -b 127.0.0.1 -p 3000
 ```
 
-From this directory, install with `npm ci`, copy the non-secret values in `.env.example` into an ignored `.dev.vars` file, then run `npm run dev`. The frontend is at http://localhost:3000. It talks to Rails through a same-origin, allowlisted server proxy; Rails is never accessed directly by browser code. Cloudflare local development reads `.dev.vars`, not merely the shell's environment.
+Open [local login](http://localhost:3000/login) and choose **Continue as demo client**. This creates a fresh non-admin synthetic account and sample launch document. The demo only works in development, explicitly enabled, with loopback host/peer and matching POST Origin. Ordinary same-origin GET navigation works without an Origin header. Do not tunnel or expose the development server.
 
-### Password-free local walkthrough
+In the portal, choose **Clinic workspace**, then **Create demo clinic**. This separately creates an isolated fictional practice, clinic membership, two fictional patients, two office supplies and a staff entry. Switching between workspaces does not create another login or copy patient data into onboarding. Logout/new demo login starts a new walkthrough; prior synthetic records are retained locally.
 
-For synthetic development only, start Rails with `APP_DEVELOPMENT_LOGIN=1 bin/rails server -b 127.0.0.1 -p 3001` and the frontend with `npm run dev -- --host 127.0.0.1 --port 3000`. Keep both servers bound to loopback. Open http://localhost:3000/login and choose **Continue as demo client**. No ChatGPT sign-in or copied password is needed locally.
+For normal provisioned accounts, use the interactive `bin/rails members:create` task after operator payment confirmation. Passwords are prompted without echo, never hard-coded. `members:reset_password` revokes sessions; `members:prune_sessions` removes expired session records. No public signup, payment processing or credential email is implemented.
 
-Each entry creates a fresh non-admin synthetic client and one demo document; only sample training is available. Progress persists in local SQLite through reloads for the session. Demo signing still requires review, a fictional name, consent and the correct document version, but no password confirmation. Regular accounts still require their password. Logout/new entry starts another walkthrough; prior synthetic records are retained locally, not automatically erased.
+## What works
 
-The shortcut requires Rails development mode, the explicit flag, loopback host/peer and matching Origin, plus an explicitly local development frontend proxy. Existing demo sessions are rejected while the flag is off. It is denied in production even if the flag is accidentally set. Never expose these development servers through a tunnel or network interface, and never use this database for real client data. No shared password or default production account is introduced.
+- Native contact form; encrypted inquiry storage and administrator-only inbox at `/inquiries`. No notifications or outbound email.
+- Per-user paperwork with Not started / Started / Completed, review, consent, document-version check, regular-account password confirmation, and downloadable demo text receipt. Only demo documents can be signed. No PDFs, filings or institutional acceptance.
+- Three labeled written sample guides with personal progress. Kevin's videos remain awaiting content.
+- Clinic-scoped fictional patient creation and append-only **draft** entries with encrypted names/body and author attribution. No clinical signing, encounters workflow, diagnoses, prescriptions, labs or decision support.
+- Office supply creation, signed integer stock adjustments with reason/actor, atomic nonnegative balances, retry deduplication and reorder indicators. No orders, billing, clinical inventory/lot handling or medication management.
+- Fictional employee directory creation and active/inactive status. This is not payroll, scheduling, HR document storage, invitations or permission administration; changing directory status does not grant/revoke logins.
 
-To provision an account after confirming payment, use a separate interactive terminal in `backend/`:
+SQLite persists under `backend/storage/` locally. No AWS account, bucket, PHI system or SharePoint connection has been accessed. No new paid service or library was added.
+
+## Verify
+
+From `site/backend/`:
 
 ```sh
-bin/rails members:create
-```
-
-The task prompts for email, administrator status, password and confirmation without echoing the password. It assigns one explicitly labeled demo document. No default accounts or published passwords exist. Deliver credentials through your approved secure channel; this application sends no email. Use `bin/rails members:reset_password` for an assisted reset. Disabling a user or changing their password revokes sessions. Expired records can be removed with `bin/rails members:prune_sessions`; no recurring task was scheduled.
-
-## Verification
-
-```sh
-npm test
-npm run typecheck
-npm run lint
-npm run build
-# Both local servers must be running; creates and removes synthetic fixtures:
-node scripts/smoke.mjs
-# From backend/:
+bin/rails db:prepare
 bin/rails test
 bin/rubocop
 bin/brakeman --quiet --no-pager
 bin/bundler-audit
 ```
 
-The HTTP smoke test uses the local development database only. Never point it at real data. Rails integration tests cover per-client isolation, signing gates, completed-record protection, personal learning progress, authentication, contact persistence, encryption, and administration.
+Tests exercise both ERB experiences and retained JSON endpoints, CSRF, authorization, isolation, encrypted fields, demo signing, progress, stock constraints and production clinic denial. Tests create their own materials; seeds do not pollute test expectations. Browser visual/accessibility QA, container build, independent security review and cloud deployment remain separate checks.
 
-Navigation deliberately uses normal full-page links, keeping cookie-auth transitions and protected pages out of a client-side page cache. The corresponding Next link lint preference is disabled. Unmodified generated UI primitives are excluded from lint but typechecked; Rails has its own lint/tests. Browser visual/interaction testing has not been performed.
+## Hosting
 
-## Deployment boundary
+See [AWS deployment guidance](deploy/aws.md). AWS US East was supplied but Virginia (`us-east-1`) versus Ohio (`us-east-2`) is unresolved. No infrastructure has been provisioned. No GitHub hosting or repository publication is required.
 
-The existing private Sites URL serves the JavaScript frontend:
+The former private Sites deployment is historical and **has not been updated or removed**. Its ChatGPT hosting gate does not apply to local Rails. `.openai/hosting.json` is retained only as historical deployment metadata; do not publish this Ruby application using the old JavaScript build workflow.
 
-https://apply-clinic-launch.wdmcdonough.chatgpt.site
+The 100 removed JavaScript frontend/config/test files are recoverable from parent-repository commit `2a25f48`. Existing ignored build/dependency caches and local data were left alone. No Git history was rewritten.
 
-**Sites does not run Ruby. Rails requires a separate Ruby/container host; no such host is configured yet.** The hosted contact/login flows return a clear unavailable state until connected. Local success does not mean Rails is deployed. Keep the site owner-only until the full commercial launch review.
+## Source map
 
-The private preview's ChatGPT sign-in is the hosting access gate, separate from the app's Rails email/password login. The local walkthrough does not change that hosted access policy.
+- `backend/app/controllers/web/`, `backend/app/views/web/`: selling and onboarding.
+- `backend/app/controllers/clinic/`, `backend/app/models/clinic/`, `backend/app/views/clinic/`: synthetic clinic workspace.
+- `backend/app/views/layouts/`: visibly separate layouts.
+- `backend/public/application.css`, `clinic.css`: native CSS; no external fonts, analytics or JavaScript.
+- `backend/db/seeds.rb`: original sample training, not Kevin's reviewed content.
+- `backend/public/og.png`: preserved original APPly social card.
 
-Frontend runtime values (set in Sites, then redeploy):
-
-- `APP_SITE_ORIGIN`: exact HTTPS frontend origin.
-- `RAILS_BACKEND_URL`: exact HTTPS Rails origin, no path/credentials/query.
-- `APP_RUNTIME=production`; never deploy the development flag or `.dev.vars`.
-
-See [backend/README.md](backend/README.md) for Rails secrets, persistence, and the deployment checklist. Only this site's source/build is sent to Sites, never the vault, local databases, keys, or customer records.
-
-## Content and future work
-
-- `app/page.tsx`, `app/contact/`, `app/login/`: public site.
-- `app/portal/`, `app/paperwork/`, `app/training/`: client experience.
-- `app/inquiries/`: admin contact inbox.
-- `backend/db/seeds.rb`: original sample guides, clearly labeled; rerunning does not overwrite edited records.
-- `backend/app/models/paperwork.rb`: demonstration document and signing boundary.
-- `app/globals.css`: shared green/cream theme.
-- Old `/materials` URLs redirect to training.
-
-Future actual documents should be assigned as new immutable versions, not overwrite signed records. Training text is rendered as text, not unsanitized HTML. No upload, embedded-video hosting, PDF pipeline, institution delivery, electronic-signature certification, clinical workflow, or inventory transactions are implemented here. Founder/packet/content/privacy review remains necessary before real use.
-
-## Social card
-
-The existing `public/og.png` (1732 × 908) was generated on 2026-08-30 and preserved. It uses the APPly wordmark, “Your clinic. A supported start.” and “Clinic launch support for NPs & PAs” in ivory/forest/sage. Metadata uses the operator-controlled canonical origin, never an incoming Host header.
+Secrets, databases, logs, uploaded files and vault contents must never be included in deployment artifacts.

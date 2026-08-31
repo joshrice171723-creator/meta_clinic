@@ -1,0 +1,10 @@
+<% content_for :title, "#{@material.title} — APPly" %>
+<main id="main" class="wrap inner-page portal-page"><%= render "web/shared/member_navigation" %>
+  <%= link_to "← All training", training_index_path, class: "text-link" %>
+  <article class="lesson-detail"><p class="eyebrow"><%= @material.sample? ? "SAMPLE WRITTEN GUIDE" : "WRITTEN GUIDE" %></p><h1><%= @material.title %></h1><p class="lesson-summary"><%= @material.summary %></p>
+    <% if @material.sample? %><p class="demo-notice">Original sample content, not Kevin-authored or reviewed advice. No clinical or legal instructions are provided.</p><% end %>
+    <div class="learning-actions"><%= progress_badge(@progress&.status || "not_started") %>
+      <% if !@progress %><%= button_to "Start guide", start_training_path(@material), class: "button" %><% elsif !@progress.completed_at? %><%= button_to "Mark completed", complete_training_path(@material), class: "primary-link" %><% else %><p>Completed. You can return to this guide at any time.</p><% end %>
+    </div><div class="material-body lesson-body"><%= @material.body %></div>
+  </article>
+</main>

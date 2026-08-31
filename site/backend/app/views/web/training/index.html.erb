@@ -1,0 +1,10 @@
+<% content_for :title, "Onboarding & Training — APPly" %>
+<main id="main" class="wrap inner-page portal-page"><%= render "web/shared/member_navigation" %>
+  <div class="section-page-heading"><p class="eyebrow">GET READY FOR THE EVERYDAY</p><h1>Onboarding<br><em>&amp; training.</em></h1><p>Practical information to help you organize and run the business side of your clinic.</p></div>
+  <div class="training-heading"><h2>Written guides.</h2><p><%= @materials.count %> available</p></div>
+  <div class="resource-list"><% @materials.each do |material| %>
+    <article class="resource-card lesson-card"><div class="lesson-card-top"><span class="eyebrow"><%= material.sample? ? "SAMPLE GUIDE" : "WRITTEN GUIDE" %></span><%= progress_badge(@progress[material.id]&.status || "not_started") %></div><h2><%= material.title %></h2><p><%= material.summary %></p><%= link_to "Open guide ↗", training_path(material), class: "text-link" %></article>
+  <% end %></div>
+  <% if @materials.empty? %><div class="empty-materials"><h2>More guidance is on its way.</h2><p>No guides are available yet.</p></div><% end %>
+  <section class="video-coming"><div><p class="eyebrow">FROM KEVIN / IN DEVELOPMENT</p><h2>Experience you can learn from.</h2><p>Video walkthroughs and mentorship resources are planned. These sample written guides are placeholders, not Kevin's reviewed materials.</p></div></section>
+</main>

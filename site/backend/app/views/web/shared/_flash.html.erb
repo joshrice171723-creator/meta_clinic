@@ -1,0 +1,3 @@
+<% flash.each do |kind, message| %>
+  <div class="wrap"><p role="<%= kind == 'alert' ? 'alert' : 'status' %>" class="<%= kind == 'alert' ? 'form-error' : 'form-success' %>"><%= message %></p></div>
+<% end %>

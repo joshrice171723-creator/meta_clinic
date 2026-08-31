@@ -1,4 +1,6 @@
 # Original, non-clinical examples. No accounts, patient data, or actual packet forms.
+# Tests create their own records, independent of whether db:prepare ran first.
+return if Rails.env.test?
 samples = [
   {
     slug: "sample-launch-work",

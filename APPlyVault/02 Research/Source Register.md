@@ -61,3 +61,5 @@ S-06 was also rechecked for [[Data Modeling]] on 2026-08-30. The new note contai
 - MD diligence materials, clinic timeline, SharePoint review artifacts, customer interviews, and professional findings: not yet received; access to existing materials expected on 2026-08-31 morning. Do not equate missing access with nonexistent work.
 
 For new evidence, create an [[Evidence Note Template|evidence note]] with source, date, applicability, specific claim, limitations, and any qualified review. Do not paste patient information or privileged advice here; reference approved controlled records when needed.
+
+- U-11: founder's implementation/hosting clarifications, 2026-08-30: replace the JavaScript frontend with Rails; consider EC2 without new paid hosting dependencies, with an existing S3 bucket and US East location but no BAA yet. Build both selling/onboarding and clinic EHR/inventory/employee-management experiences. The final clarification selects one Rails website with front-facing separation, superseding an external clinic-site link. Authorizes synthetic local implementation, not spending, PHI or production clinical release. See D-024/D-025.

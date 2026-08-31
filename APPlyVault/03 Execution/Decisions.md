@@ -40,6 +40,13 @@ Record what was explicitly agreed, by whom, when, and why. Do not promote assist
 
 Earlier table entries preserve what was known then; D-019 supplies the later answers. Remaining business questions are deferred, not silently resolved.
 
+## Rails and clinic-workspace clarification
+
+| ID | Date / authority | Direction | Limits |
+| --- | --- | --- | --- |
+| D-024 | 2026-08-30 / founder's hosting/frontend direction | Drop the JavaScript frontend and use Rails; prepare an AWS/EC2 path without a new paid hosting/authentication dependency or GitHub deployment requirement | No AWS resources/spending approved. US East supplied, exact region unresolved. BAA not in place; wholly synthetic development, with real-data gates unchanged |
+| D-025 | 2026-08-30 / founder's latest clarification | Build both experiences in the same Rails website with front-facing separation: selling/onboarding/information versus clinic EHR, inventory, employee management and operations | Supersedes the intermediate external-site/link suggestion. Distinct layouts/navigation and explicit clinic access, not a separate domain. Software ownership remains separate. No approval for real records, shared production data infrastructure or clinical release. See [[Clinic Workspace]] |
+
 ## Pending choices
 
 | ID | Decision | Options / input needed |

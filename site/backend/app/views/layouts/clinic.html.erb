@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title><%= content_for(:title).presence || "Clinic workspace — APPly" %></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow">
+  <%= csrf_meta_tags %><%= csp_meta_tag %>
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/application.css"><link rel="stylesheet" href="/clinic.css">
+</head>
+<body class="clinic-shell">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <aside class="clinic-sidebar">
+    <a href="/clinic" class="wordmark" aria-label="Clinic workspace home">APPly<span class="brand-dot"></span></a>
+    <p class="workspace-label">CLINIC WORKSPACE</p>
+    <div class="practice-label"><strong><%= current_practice&.name || "Clinic access" %></strong><span>Local synthetic prototype</span></div>
+    <nav aria-label="Clinic navigation">
+      <%= link_to "Overview", clinic_root_path, aria: { current: request.path == "/clinic" ? "page" : nil } %>
+      <% if clinic_membership&.patients_access? %><%= link_to "EHR · Patients", clinic_patients_path, aria: { current: request.path.start_with?("/clinic/patients") ? "page" : nil } %><% end %>
+      <% if clinic_membership&.inventory_access? %><%= link_to "Inventory", clinic_inventory_index_path, aria: { current: request.path.start_with?("/clinic/inventory") ? "page" : nil } %><% end %>
+      <% if clinic_membership&.staff_access? %><%= link_to "Employees", clinic_staff_index_path, aria: { current: request.path.start_with?("/clinic/staff") ? "page" : nil } %><% end %>
+    </nav>
+    <div class="clinic-sidebar-bottom"><a href="/portal">← Launch &amp; onboarding</a><a href="/">APPly selling site</a><%= button_to "Sign out", logout_path, class: "button" if current_user %></div>
+  </aside>
+  <div class="clinic-main">
+    <header class="clinic-topbar"><span>CLINIC OPERATIONS</span><a href="/portal">Switch to launch portal ↗</a></header>
+    <p class="clinic-safety">SYNTHETIC ONLY · Not a released EHR. No real patient or employee information. Production clinic access is disabled.</p>
+    <%= render "web/shared/flash" %><%= yield %>
+  </div>
+</body>
+</html>

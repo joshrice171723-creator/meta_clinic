@@ -1,0 +1,18 @@
+<% content_for :title, "Clinic overview — APPly" %>
+<main id="main" class="clinic-content">
+  <p class="eyebrow">YOUR PRACTICE AT A GLANCE</p><h1>Clinic overview.</h1><p class="clinic-lead">The business of running your clinic, separate from the work of launching it.</p>
+  <div class="clinic-stats">
+    <% if clinic_membership.patients_access? %><a href="<%= clinic_patients_path %>" class="clinic-stat"><span>Fictional patients</span><strong><%= @patient_count %></strong><small>Open EHR workspace ↗</small></a><% end %>
+    <% if clinic_membership.inventory_access? %><a href="<%= clinic_inventory_index_path %>" class="clinic-stat"><span>Items at reorder level</span><strong><%= @low_stock.count %></strong><small>Review inventory ↗</small></a><% end %>
+    <% if clinic_membership.staff_access? %><a href="<%= clinic_staff_index_path %>" class="clinic-stat"><span>Active directory entries</span><strong><%= @active_staff_count %></strong><small>Manage employees ↗</small></a><% end %>
+  </div>
+  <div class="clinic-grid">
+    <section class="clinic-card"><h2>What you can try.</h2><ul class="clinic-feature-list"><li><strong>EHR foundation</strong><span>Fictional patient directory and append-only draft entries. No prescribing, orders, or clinical signing.</span></li><li><strong>Inventory</strong><span>Office supply catalog, stock adjustments with a reason, and reorder indicators. No purchases are placed.</span></li><li><strong>Employees</strong><span>Staff directory, job titles, and active/inactive status. Directory entries do not create logins or change access.</span></li></ul></section>
+    <section class="clinic-card"><h2>Needs attention.</h2>
+      <% if @low_stock %>
+        <% if @low_stock.empty? %><p>No items are currently at the reorder level.</p><% else %><ul class="stock-alerts"><% @low_stock.each do |item| %><li><strong><%= item.name %></strong><span><%= item.quantity %> on hand · reorder at <%= item.reorder_level %></span></li><% end %></ul><% end %>
+      <% else %><p>Inventory details are restricted to assigned inventory users.</p><% end %>
+      <p class="clinic-fine-print">SharePoint mapping, clinical workflow review, security controls, and real-data release remain future work.</p>
+    </section>
+  </div>
+</main>

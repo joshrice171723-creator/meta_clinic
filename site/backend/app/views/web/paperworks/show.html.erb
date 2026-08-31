@@ -1,0 +1,27 @@
+<% content_for :title, "#{@document.title} — APPly" %>
+<main id="main" class="wrap inner-page portal-page"><%= render "web/shared/member_navigation" %>
+  <%= link_to "← All paperwork", paperwork_index_path, class: "text-link" %>
+  <div class="document-title"><div><h1><%= @document.title %></h1><p>Document version <%= @document.document_version %></p></div><%= progress_badge(@document.status) %></div>
+  <p class="demo-notice">Demonstration workflow only. Use a fictional name. Nothing is filed, submitted, or approved by an institution.</p>
+  <div class="signing-layout"><article class="document-paper"><div class="document-paper-brand">APPly <span>LAUNCH PAPERWORK</span></div><div class="material-body"><%= @document.body %></div></article>
+    <aside class="signing-panel">
+      <% if @document.signed_at? %>
+        <h2>Demo completed.</h2><p>Your demonstration record is saved.</p><div class="signature-receipt"><dl><dt>Fictional signer</dt><dd><%= @document.signature_name %></dd><dt>Signed at (UTC)</dt><dd><%= @document.signed_at.utc.iso8601 %></dd><dt>Evidence digest</dt><dd><%= @document.signature_digest %></dd></dl></div>
+        <%= link_to "Download demo record", receipt_paperwork_path(@document), class: "primary-link" %>
+      <% elsif !@document.demo? %>
+        <h2>Signing unavailable.</h2><p>Only demonstration documents can be signed in this prototype.</p>
+      <% elsif !@document.started_at? %>
+        <h2>Begin your review.</h2><p>Read the document, then record a demonstration signature when ready.</p><%= button_to "Begin review", start_paperwork_path(@document), class: "primary-link form-submit" %>
+      <% else %>
+        <h2>Ready to sign?</h2><p>Use a fictional name for this walkthrough.</p>
+        <%= form_with url: sign_paperwork_path(@document) do |form| %>
+          <%= form.hidden_field :content_digest, value: @document.content_digest %>
+          <div class="form-field"><%= form.label :signature_name, "Fictional full name" %><%= form.text_field :signature_name, required: true, minlength: 2, maxlength: 120, autocomplete: "off" %></div>
+          <% unless development_demo? %><div class="form-field"><%= form.label :password, "Confirm account password" %><%= form.password_field :password, required: true, autocomplete: "current-password" %></div><% end %>
+          <div class="consent-field"><%= form.check_box :consent, { required: true }, "1", "0" %><%= form.label :consent, "I have reviewed this sample and intend to record this demonstration signature. This is not actual clinic paperwork." %></div>
+          <%= form.submit "Complete demonstration", class: "primary-link form-submit" %>
+        <% end %>
+      <% end %>
+    </aside>
+  </div>
+</main>

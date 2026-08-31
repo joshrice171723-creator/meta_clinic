@@ -10,7 +10,85 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_30_000200) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_000300) do
+  create_table "clinic_items", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "practice_id", null: false
+    t.integer "quantity", default: 0, null: false
+    t.integer "reorder_level", default: 0, null: false
+    t.string "sku", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_id", "sku"], name: "index_clinic_items_on_practice_id_and_sku", unique: true
+    t.index ["practice_id"], name: "index_clinic_items_on_practice_id"
+    t.check_constraint "quantity >= 0 AND reorder_level >= 0", name: "clinic_stock_nonnegative"
+  end
+
+  create_table "clinic_memberships", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.boolean "inventory_access", default: false, null: false
+    t.boolean "patients_access", default: false, null: false
+    t.integer "practice_id", null: false
+    t.boolean "staff_access", default: false, null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["practice_id"], name: "index_clinic_memberships_on_practice_id"
+    t.index ["user_id"], name: "index_clinic_memberships_on_user_id", unique: true
+  end
+
+  create_table "clinic_notes", force: :cascade do |t|
+    t.integer "author_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.bigint "patient_id", null: false
+    t.integer "practice_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_id"], name: "index_clinic_notes_on_author_id"
+    t.index ["practice_id", "patient_id"], name: "index_clinic_notes_on_practice_id_and_patient_id"
+    t.index ["practice_id"], name: "index_clinic_notes_on_practice_id"
+  end
+
+  create_table "clinic_patients", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "display_name", null: false
+    t.integer "practice_id", null: false
+    t.string "reference", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_id", "id"], name: "index_clinic_patients_on_practice_id_and_id", unique: true
+    t.index ["practice_id", "reference"], name: "index_clinic_patients_on_practice_id_and_reference", unique: true
+    t.index ["practice_id"], name: "index_clinic_patients_on_practice_id"
+  end
+
+  create_table "clinic_practices", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "clinic_staff_members", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.text "display_name", null: false
+    t.string "job_title", null: false
+    t.integer "practice_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_id"], name: "index_clinic_staff_members_on_practice_id"
+  end
+
+  create_table "clinic_stock_movements", force: :cascade do |t|
+    t.integer "actor_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "delta", null: false
+    t.integer "item_id", null: false
+    t.string "reason", null: false
+    t.string "request_key", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_clinic_stock_movements_on_actor_id"
+    t.index ["item_id", "request_key"], name: "index_clinic_stock_movements_on_item_id_and_request_key", unique: true
+    t.index ["item_id"], name: "index_clinic_stock_movements_on_item_id"
+  end
+
   create_table "contact_messages", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "email", null: false
@@ -81,6 +159,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_000200) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "clinic_items", "clinic_practices", column: "practice_id"
+  add_foreign_key "clinic_memberships", "clinic_practices", column: "practice_id"
+  add_foreign_key "clinic_memberships", "users"
+  add_foreign_key "clinic_notes", "clinic_patients", column: ["practice_id", "patient_id"], primary_key: ["practice_id", "id"]
+  add_foreign_key "clinic_notes", "clinic_practices", column: "practice_id"
+  add_foreign_key "clinic_notes", "users", column: "author_id"
+  add_foreign_key "clinic_patients", "clinic_practices", column: "practice_id"
+  add_foreign_key "clinic_staff_members", "clinic_practices", column: "practice_id"
+  add_foreign_key "clinic_stock_movements", "clinic_items", column: "item_id"
+  add_foreign_key "clinic_stock_movements", "users", column: "actor_id"
   add_foreign_key "learning_progresses", "materials"
   add_foreign_key "learning_progresses", "users"
   add_foreign_key "member_sessions", "users"

@@ -45,7 +45,8 @@ Separate entities do not resolve these practical questions automatically. Captur
 
 - **Now — consultancy:** ingest existing materials, assemble a reviewed launch packet, define the package, and identify the first clients.
 - **Now — starter system:** map the actual SharePoint workflow, delivery responsibilities, review evidence, and handoff requirements.
-- **Later — custom product:** define EHR and inventory requirements, choose architecture, plan migration, and establish standalone product economics. No build or cloud deployment is authorized by this planning discussion.
+- **Now — synthetic custom product:** D-025 authorizes [[Clinic Workspace]] alongside selling/onboarding in one Rails app, with separate layouts/navigation and explicit clinic access. Fictional EHR, inventory and employee-directory workflows do not merge business ownership or approve shared production infrastructure.
+- **Later — real clinical product:** validate requirements, architecture/data boundaries, migration, security/operations and standalone economics before real records. No cloud deployment or PHI use is authorized by this prototype.
 
 ## Open record
 

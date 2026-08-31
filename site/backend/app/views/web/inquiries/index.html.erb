@@ -1,0 +1,6 @@
+<% content_for :title, "Contact inquiries — APPly" %>
+<main id="main" class="wrap inner-page portal-page"><%= render "web/shared/member_navigation" %><h1>Contact inquiries.</h1><p>Administrator inbox. No email notifications are sent yet.</p>
+  <div class="inquiry-list"><% @inquiries.each do |inquiry| %><article class="inquiry-card"><h2><%= inquiry.name %></h2><p class="inquiry-meta"><%= inquiry.email %> · <%= inquiry.created_at.utc.iso8601 %></p><p class="inquiry-message"><%= inquiry.message %></p></article><% end %></div>
+  <% if @inquiries.empty? %><p>No inquiries on this page.</p><% end %>
+  <% if @next_cursor %><%= link_to "Older inquiries", inquiries_path(before: @next_cursor), class: "text-link" %><% end %>
+</main>

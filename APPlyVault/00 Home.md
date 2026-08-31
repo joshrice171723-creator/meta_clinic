@@ -19,7 +19,7 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 - **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. EC2/S3 remain possibilities, not an architecture decision.
 - **Demand:** substantial local demand is founder-reported; founder is currently unsure how many first applicants are available. No pipeline count or paid commitment is assumed.
 - **Timing:** no deadline pressure was expressed. Budget and actual team capacity are still unknown; no 90-day deadline is imposed.
-- **Near-term objective:** iterate on [[Website MVP]] and the paid-client [[Client Portal]]: provisioned login, paperwork/signing progress, onboarding/training, and Contact. No EHR in this portal. Further business-decision interviews remain deferred; Rails hosting and actual packet/content are pending.
+- **Near-term objective:** build both experiences in one Rails app: [[Website MVP]] / [[Client Portal]] for selling, Contact, paperwork and training; [[Clinic Workspace]] for synthetic clinic operations. Separate layouts/navigation and clinic permissions, not a separate-domain requirement. No real patient data or released EHR; hosting and actual packet/content remain pending. Business-decision interviews stay deferred.
 
 ## Start here
 
@@ -34,14 +34,14 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 | Strategy | [[Company Foundation]], [[Customer and Offer]], [[Business Model]], [[Entity and Product Boundary]], [[Foundation Questions]] |
 | Delivery | [[Clinic Launch Packet]], [[Knowledge Bank and Mentorship]] |
 | Learning | [[MD Pilot]], [[Customer Discovery]], [[Texas Diligence]], [[SharePoint and EMR]], [[Source Register]] |
-| Execution | [[Website MVP]], [[Client Portal]], [[Data Modeling]], [[Roadmap and Tasks]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
+| Execution | [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[Data Modeling]], [[Roadmap and Tasks]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
 | Reusable notes | [[Evidence Note Template]], [[Weekly Review Template]] |
 
 ## Next three moves
 
 - Establish the reproducible local baseline and browser acceptance in M0/T-22, preserving the guarded local demo and fixing the observed test-setup/CI gaps.
 - Resolve the Rails hosting/operator choice for M1/T-20; develop the synthetic account/operations flow in parallel without changing hosted access.
-- When authorized materials arrive, index and review them for M3/T-12/T-24; real applicant documents and signing remain gated by M4. Keep the EHR separate.
+- When authorized materials arrive, index and review them for M3/T-12/T-24; real applicant documents and signing remain gated by M4. Keep clinic operations front-facing and permission-separated; real clinical release remains gated.
 
 Task status lives in [[Roadmap and Tasks]]; this page is a summary, not a second task list.
 
