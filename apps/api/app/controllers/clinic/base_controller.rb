@@ -1,11 +1,18 @@
 module Clinic
   class BaseController < ApplicationController
+    include Clinic::Api::RequestParameters
+    include Clinic::Api::Pagination
+
     before_action :require_prototype
     before_action :require_member
     before_action :require_clinic
 
     rescue_from ActiveRecord::RecordInvalid do |error|
       render_error(error.record.errors.full_messages.to_sentence, :unprocessable_entity)
+    end
+
+    rescue_from Clinic::Api::RequestParameters::Invalid do |error|
+      render_parameter_error(error)
     end
 
     private
@@ -31,9 +38,18 @@ module Clinic
     end
 
     def require_capability(capability)
-      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: capability)
-    rescue Clinic::Authorization::Denied
+      permission = Ability.normalize_permission(capability)
+      action = Ability.action_for(permission)
+      subjects = Ability.subjects_for(permission)
+      raise CanCan::AccessDenied unless current_ability.allowed_permission?(permission)
+      subject = action && subjects.find { |candidate| current_ability.can?(action, candidate) }
+      current_ability.authorize!(action, subject || subjects.first)
+    rescue CanCan::AccessDenied
       render_error("Your clinic account does not have access to this section.", :forbidden)
+    end
+
+    def current_ability
+      @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
   end
 end

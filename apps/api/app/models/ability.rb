@@ -1,0 +1,156 @@
+class Ability
+  include CanCan::Ability
+
+  # Permission catalogs are global definitions. They become effective only
+  # through an active grant on the user's practice membership.
+  PERMISSION_RULES = {
+    "patients.read" => { action: :read, subjects: [ Clinic::Care::Patient ], scope: :practice },
+    "patients.write" => { action: :create, subjects: [ Clinic::Care::Patient ], actions: %i[create update], scope: :practice },
+    "staff.read" => { action: :read, subjects: [ Clinic::Staff::Member ], scope: :practice },
+    "staff.write" => { action: :create, subjects: [ Clinic::Staff::Member ], actions: %i[create update], scope: :practice },
+    "inventory.read" => { action: :read, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyProduct, Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.catalog" => { action: :create, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyProduct ], actions: %i[create update], scope: :practice },
+    "inventory.receive" => { action: :receive, subjects: [ Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.adjust" => { action: :adjust, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.hold" => { action: :hold, subjects: [ Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.release" => { action: :release, subjects: [ Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.count" => { action: :count, subjects: [ Clinic::Inventory::Count, Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.configure" => { action: :configure, subjects: [ Clinic::Inventory::Profile ], scope: :practice },
+    "appointments.write" => { action: :create, subjects: [ Clinic::Appointment ], actions: %i[create update], scope: :site_or_practice },
+    "encounters.write" => { action: :create, subjects: [ Clinic::Encounter ], actions: %i[create update], scope: :site_or_practice },
+    "notes.write" => { action: :create, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], actions: %i[create update], scope: :site_or_practice },
+    "notes.sign" => { action: :sign, subjects: [ Clinic::EncounterNoteSignature, Clinic::EncounterNote ], scope: :site_or_practice },
+    "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :practice },
+    "messages.write" => { action: :create, subjects: [ Clinic::MessageIntent, Clinic::MessageOutbox ], actions: %i[create update], scope: :practice },
+    "documents.read" => { action: :read, subjects: [ Clinic::Document ], scope: :practice },
+    "billing.write" => { action: :create, subjects: [ Clinic::Invoice, Clinic::PaymentAllocation ], actions: %i[create update], scope: :practice },
+    "roles.manage" => { action: :manage, subjects: [ Clinic::RoleGrant ], scope: :practice }
+  }.transform_values { |rule| rule.freeze }.freeze
+
+  ACTION_ALIASES = {
+    "patients_access?" => "patients.read",
+    "staff_access?" => "staff.read",
+    "inventory_access?" => "inventory.read",
+    "catalog" => "inventory.catalog",
+    "receive" => "inventory.receive",
+    "adjust" => "inventory.adjust",
+    "hold" => "inventory.hold",
+    "release" => "inventory.release",
+    "count" => "inventory.count",
+    "configure" => "inventory.configure"
+  }.freeze
+
+  attr_reader :practice, :membership
+
+  def self.normalize_permission(permission)
+    ACTION_ALIASES.fetch(permission.to_s, permission.to_s).sub(/\?\z/, "")
+  end
+
+  def self.rule_for(permission)
+    PERMISSION_RULES[normalize_permission(permission)]
+  end
+
+  def self.action_for(permission)
+    rule_for(permission)&.fetch(:action)
+  end
+
+  def self.subjects_for(permission)
+    rule_for(permission)&.fetch(:subjects, []) || []
+  end
+
+  def initialize(user, practice: nil, at: Time.current)
+    @practice = practice
+    @membership = active_membership_for(user, practice)
+    return unless @membership
+
+    permissions_by_scope = effective_permissions_by_scope(@membership, at)
+    @permissions_by_scope = permissions_by_scope
+    PERMISSION_RULES.each do |permission, rule|
+      next unless permissions_by_scope.key?(permission)
+
+      Array(rule[:actions] || rule[:action]).each do |action|
+        rule[:subjects].each do |subject|
+          conditions = conditions_for(rule, permissions_by_scope[permission], subject)
+          can action, subject, conditions if conditions
+        end
+      end
+    end
+
+    # Role and permission definitions are global catalogs; the grant that
+    # allows their administration is still practice-scoped through RoleGrant.
+    if permissions_by_scope.key?("roles.manage") && permissions_by_scope["roles.manage"][:practice]
+      can :read, RoleVersion
+      can :read, Permission
+    end
+  end
+
+  def allowed_permission?(permission, site: nil)
+    normalized = self.class.normalize_permission(permission)
+    rule = self.class.rule_for(normalized)
+    scope = @permissions_by_scope&.[](normalized)
+    return false unless membership && rule && scope
+
+    if rule[:scope] == :site_or_practice
+      site_id = site.respond_to?(:id) ? site.id : site
+      return false unless scope[:practice] || (site_id.present? && scope[:site_ids].include?(site_id))
+    end
+
+    can?(self.class.action_for(normalized), self.class.subjects_for(normalized).first)
+  end
+
+  private
+
+  def active_membership_for(user, practice)
+    return unless user.is_a?(User) && user.active? && practice.present?
+
+    Clinic::Membership.active.find_by(practice_id: practice_id(practice), user_id: user.id)
+  end
+
+  def effective_permissions_by_scope(membership, at)
+    permissions = Hash.new { |hash, key| hash[key] = { practice: false, site_ids: [] } }
+    membership.role_grants.active(at).includes(role_version: :permissions).each do |grant|
+      grant.role_version.permissions.each do |permission|
+        entry = permissions[permission.action_code]
+        if grant.practice?
+          entry[:practice] = true
+        elsif grant.site?
+          entry[:site_ids] << grant.site_id unless entry[:site_ids].include?(grant.site_id)
+        end
+      end
+    end
+    permissions
+  end
+
+  def conditions_for(rule, scope, subject)
+    case rule[:scope]
+    when :practice
+      return { practice_id: practice_id(@practice) } if scope[:practice]
+      nil
+    when :site_or_practice
+      return { practice_id: practice_id(@practice) } if scope[:practice]
+      return site_scoped_conditions(subject, scope[:site_ids]) if scope[:site_ids].any?
+
+      nil
+    end
+  end
+
+  def site_scoped_conditions(subject, site_ids)
+    conditions = { practice_id: practice_id(@practice) }
+    if subject.column_names.include?("site_id")
+      conditions[:site_id] = site_ids
+    elsif subject == Clinic::EncounterNote
+      conditions[:encounter] = { site_id: site_ids }
+    elsif subject == Clinic::EncounterNoteRevision
+      conditions[:note] = { encounter: { site_id: site_ids } }
+    elsif subject == Clinic::EncounterNoteSignature
+      conditions[:note] = { encounter: { site_id: site_ids } }
+    else
+      return nil
+    end
+    conditions
+  end
+
+  def practice_id(practice)
+    practice.respond_to?(:id) ? practice.id : practice
+  end
+end

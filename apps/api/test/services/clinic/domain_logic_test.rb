@@ -13,16 +13,23 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       staff_access: true,
       **Clinic::Inventory::Access::ACTIONS.to_h { |action| [ "inventory_#{action}", true ] }
     )
+    grant_permissions!(@membership, "patients.read", "patients.write", "staff.read", "staff.write", "inventory.read",
+      "inventory.catalog", "inventory.receive", "inventory.adjust", "inventory.hold", "inventory.release", "inventory.count",
+      "inventory.configure", "appointments.write", "encounters.write", "notes.write", "notes.sign", "observations.write",
+      "messages.write", "documents.read", "billing.write", "roles.manage")
     @patient = Clinic::Care::Patient.create!(practice: @practice, display_name: "Synthetic Patient", reference: "SYN-001")
   end
 
   test "authorization is tenant-bound and role grants do not OR with legacy flags" do
+    legacy_only = User.create!(email_address: "domain-legacy-only@example.invalid", password: SecureRandom.hex(20))
+    Clinic::Membership.create!(practice: @practice, user: legacy_only, patients_access: true)
+    assert_not Clinic::Authorization.allowed?(actor: legacy_only, practice: @practice, action: "patients.read")
     other_practice = Clinic::Practice.create!(name: "Other Domain Clinic", timezone: "UTC")
     assert_raises(Clinic::Authorization::Denied) do
       Clinic::Authorization.authorize!(actor: @actor, practice: other_practice, action: "patients.read")
     end
 
-    permission = Permission.create!(action_code: "patients.read")
+    permission = Permission.find_or_create_by!(action_code: "patients.read")
     role = RoleVersion.create!(role_code: "reception", version: 1)
     RoleVersionPermission.create!(role_version: role, permission: permission)
     Clinic::RoleGrant.create!(
@@ -35,14 +42,16 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     )
 
     assert Clinic::Authorization.allowed?(actor: @actor, practice: @practice, action: "patients.read")
-    assert_raises(Clinic::Authorization::Denied) do
-      Clinic::Authorization.authorize!(actor: @actor, practice: @practice, action: "inventory.receive")
-    end
+    limited = User.create!(email_address: "domain-limited@example.invalid", password: SecureRandom.hex(20))
+    limited_membership = Clinic::Membership.create!(practice: @practice, user: limited)
+    grant_permissions!(limited_membership, "patients.read")
+    assert Clinic::Authorization.allowed?(actor: limited, practice: @practice, action: "patients.read")
+    assert_raises(Clinic::Authorization::Denied) { Clinic::Authorization.authorize!(actor: limited, practice: @practice, action: "inventory.receive") }
   end
 
   test "granting requires a delegable role and revocation takes effect immediately" do
-    roles_manage = Permission.create!(action_code: "roles.manage")
-    patient_read = Permission.create!(action_code: "patients.read")
+    roles_manage = Permission.find_or_create_by!(action_code: "roles.manage")
+    patient_read = Permission.find_or_create_by!(action_code: "patients.read")
     administrator = RoleVersion.create!(role_code: "administrator", version: 1)
     RoleVersionPermission.create!(role_version: administrator, permission: roles_manage)
     RoleVersionPermission.create!(role_version: administrator, permission: patient_read)

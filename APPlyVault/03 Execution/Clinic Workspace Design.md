@@ -19,6 +19,8 @@ The actual React app still provides the synthetic patient directory/append-only 
 
 ## Tracking board and Operations — 2026-08-31
 
+**Backend integration planning, 2026-08-31:** [[Clinic Frontend Backend Mapping]] maps the corrected ERD and revision-5 backend handoff onto this existing shell, board, patient/encounter workflow, Operations and personal Settings. It distinguishes current routes from concurrent backend scaffolding, covers all target entities, and identifies missing arrival/flow, typed intake, patient membership and prescribing contracts. Its focused intake/clinician layout and APIs are proposals, not newly implemented workflows or acceptance of the clinical gates. Existing palettes/navigation and the delivered example board remain unchanged.
+
 ### Tracking board increment — failure-first entry
 
 Founder request, 2026-08-31: make Overview a patient tracking board, separate Operations, simplify Patients/Pharmacy labels, and add viewport-height collapsible navigation with a paper-chart tab. Continue on `feature/clinic-settings-responsive`; Codex owns this local synthetic UI increment. Supporting frontend updates are authorized. Current API has directory records but no visit, arrival, triage or patient-membership contract. Do not infer visits or membership from directory entries or staff login membership. Use a prominently labeled, independently invented example shift to demonstrate the board; durable check-in/clinical workflows remain a separate contract, not an invented live feed.

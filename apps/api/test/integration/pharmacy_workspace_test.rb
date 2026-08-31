@@ -214,14 +214,14 @@ class PharmacyWorkspaceTest < ActionDispatch::IntegrationTest
       submit "/api/clinic/pharmacy_batches/#{foreign_batch.id}/movement", { amount: "1", kind: "receipt", reason: "Not permitted", request_key: SecureRandom.uuid }
       assert_response :not_found
     end
-    @membership.update!(inventory_access: false)
+    set_permission!(@membership, "inventory.read", false)
     with_method(Integrations::Fda::NdcDirectory, :search, ->(*) { flunk "Unauthorized request reached FDA" }) do
       get "/api/clinic/pharmacy", headers: @headers
       assert_response :forbidden
       submit "/api/clinic/pharmacy/lookup", { ndc_query: "example" }
       assert_response :forbidden
     end
-    @membership.update!(inventory_access: true)
+    set_permission!(@membership, "inventory.read", true)
     with_method(Rails.env, :production?, true) do
       get "/api/clinic/pharmacy", headers: @headers
       assert_response :not_found

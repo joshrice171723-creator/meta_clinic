@@ -79,7 +79,7 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
 
   test "action permissions and versioned suspension deny posting while history remains" do
     receive
-    @membership.update!(inventory_receive: false)
+    set_permission!(@membership, "inventory.receive", false)
     assert_raises(ArgumentError) { receive }
     @product.batches.sole.move!(kind: "adjustment_out", amount: "1", reason: "Permitted loss", actor: @user, request_key: SecureRandom.uuid)
     profile = Clinic::Inventory::Profile.revise!(practice: @practice, actor: @user, status: "suspended", reason: "Synthetic suspension")

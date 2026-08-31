@@ -66,21 +66,48 @@ $$;
 CREATE FUNCTION public.inventory_authorize(clinic bigint, actor bigint, action text, profile bigint DEFAULT NULL::bigint) RETURNS bigint
     LANGUAGE plpgsql
     AS $$
-DECLARE member clinic_memberships%ROWTYPE; configuration clinic_inventory_profiles%ROWTYPE; enabled boolean;
+DECLARE member_id bigint; configuration clinic_inventory_profiles%ROWTYPE;
 BEGIN
-  PERFORM 1 FROM clinic_practices WHERE id=clinic FOR SHARE;
-  SELECT active INTO enabled FROM users WHERE id=actor FOR SHARE;
-  SELECT * INTO member FROM clinic_memberships WHERE practice_id=clinic AND user_id=actor FOR SHARE;
-  IF NOT FOUND THEN RAISE foreign_key_violation USING MESSAGE='Actor has no clinic membership'; END IF;
-  IF NOT COALESCE(enabled AND member.active AND member.inventory_access AND (to_jsonb(member)->>('inventory_'||action))::boolean,false) THEN
+  PERFORM 1 FROM clinic_practices WHERE id = clinic FOR SHARE;
+  SELECT m.id INTO member_id
+  FROM clinic_memberships m
+  JOIN users u ON u.id = m.user_id
+  WHERE m.practice_id = clinic AND m.user_id = actor AND m.active AND u.active
+  FOR SHARE OF m;
+  IF NOT FOUND THEN
+    RAISE foreign_key_violation USING MESSAGE = 'Actor has no active clinic membership';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM clinic_role_grants g
+    JOIN role_version_permissions rvp ON rvp.role_version_id = g.role_version_id
+    JOIN permissions p ON p.id = rvp.permission_id
+    WHERE g.practice_id = clinic
+      AND g.membership_id = member_id
+      AND g.scope_kind = 'practice'
+      AND g.effective_from <= CURRENT_TIMESTAMP
+      AND (g.effective_until IS NULL OR g.effective_until > CURRENT_TIMESTAMP)
+      AND g.revoked_at IS NULL
+      AND p.action_code = 'inventory.' || action
+  ) THEN
     RAISE EXCEPTION 'Inventory action not permitted';
   END IF;
-  SELECT * INTO configuration FROM clinic_inventory_profiles WHERE practice_id=clinic ORDER BY version DESC LIMIT 1;
-  IF action<>'configure' AND (configuration.id IS NULL OR configuration.status<>'synthetic' OR NOT ('inventory'=ANY(configuration.capabilities)) OR (profile IS NOT NULL AND profile<>configuration.id)) THEN
+  SELECT * INTO configuration
+  FROM clinic_inventory_profiles
+  WHERE practice_id = clinic
+  ORDER BY version DESC
+  LIMIT 1;
+  IF action <> 'configure' AND (
+    configuration.id IS NULL
+    OR configuration.status <> 'synthetic'
+    OR NOT ('inventory' = ANY(configuration.capabilities))
+    OR (profile IS NOT NULL AND profile <> configuration.id)
+  ) THEN
     RAISE EXCEPTION 'Inventory profile is unavailable or stale';
   END IF;
   RETURN configuration.id;
-END $$;
+END;
+$$;
 
 
 --
@@ -7365,4 +7392,3 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 --
 
 \unrestrict WiuBCCpOlP05VQoNN1dCsJDkWXZIsYjlAIfwuIYzlb1x4zA4E8imUkyxXmYUNcw
-

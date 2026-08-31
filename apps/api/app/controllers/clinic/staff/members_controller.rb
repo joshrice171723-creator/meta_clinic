@@ -5,18 +5,30 @@ module Clinic
       before_action -> { require_capability("staff.write") }, only: %i[create update]
 
       def index
-        render json: { staff: current_practice.staff_members.order(:id).as_json(only: %i[id display_name job_title active]) }
+        staff = current_practice.staff_members
+        query = query_param
+        if query.present?
+          escaped = Clinic::Staff::Member.sanitize_sql_like(query)
+          staff = staff.where("job_title ILIKE :query", query: "%#{escaped}%")
+        end
+        if params[:active].present?
+          staff = staff.where(active: boolean_param(params[:active], field: :active))
+        end
+        paginate(staff, key: :staff, serializer: ->(member) { StaffMemberSerializer.call(member) }, order: { display_name: :asc, id: :asc })
       end
 
       def create
-        person = current_practice.staff_members.create!(params.require(:clinic_staff_member).permit(:display_name, :job_title))
-        render json: { id: person.id }, status: :created
+        input = parameter_hash!(:clinic_staff_member, %i[display_name job_title])
+        person = current_practice.staff_members.create!(
+          display_name: required_string!(input[:display_name], field: :display_name, maximum: 120),
+          job_title: required_string!(input[:job_title], field: :job_title, maximum: 120)
+        )
+        render json: { id: person.id, staff_member: StaffMemberSerializer.call(person) }, status: :created
       end
 
       def update
-        person = current_practice.staff_members.find(params[:id])
-        return render_error("Choose an active or inactive state.", :unprocessable_entity) unless %w[true false].include?(params[:active].to_s)
-        person.update!(active: params[:active].to_s == "true")
+        person = current_practice.staff_members.find(integer_id!(params[:id], field: :id))
+        person.update!(active: boolean_param(params[:active], field: :active))
         head :no_content
       end
     end

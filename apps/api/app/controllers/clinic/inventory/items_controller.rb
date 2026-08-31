@@ -7,18 +7,33 @@ module Clinic
       end
 
       def index
-        render json: { items: current_practice.items.order(:name).as_json(only: %i[id name sku quantity reorder_level]) }
+        items = current_practice.items
+        query = query_param
+        if query.present?
+          escaped = Clinic::Inventory::Item.sanitize_sql_like(query)
+          items = items.where("name ILIKE :query OR sku ILIKE :query", query: "%#{escaped}%")
+        end
+        paginate(items, key: :items, serializer: ->(item) { ItemSerializer.call(item) }, order: { name: :asc, id: :asc })
       end
 
       def create
-        item = current_practice.items.new(params.require(:clinic_item).permit(:name, :sku, :reorder_level))
+        input = parameter_hash!(:clinic_item, %i[name sku reorder_level])
+        item = current_practice.items.new(
+          name: required_string!(input[:name], field: :name, maximum: 120),
+          sku: required_string!(input[:sku], field: :sku, maximum: 40),
+          reorder_level: bounded_integer!(input[:reorder_level].presence || "0", field: :reorder_level, min: 0, max: 1_000_000)
+        )
         Access.with(current_practice.id, current_user, "catalog") { item.save! }
-        render json: { id: item.id }, status: :created
+        render json: { id: item.id, item: ItemSerializer.call(item) }, status: :created
       end
 
       def adjust
-        item = current_practice.items.find(params[:id])
-        item.adjust!(delta: params[:delta], reason: params[:reason], actor: current_user, request_key: params[:request_key].to_s)
+        item = current_practice.items.find(integer_id!(params[:id], field: :id))
+        delta = params[:delta].to_s
+        raise Clinic::Api::RequestParameters::Invalid.new("delta must be a whole number.", field: :delta) unless delta.match?(/\A-?\d+\z/)
+        reason = required_string!(params[:reason], field: :reason, maximum: 200)
+        request_key = required_string!(params[:request_key], field: :request_key, maximum: 100)
+        entry = item.adjust!(delta: delta, reason: reason, actor: current_user, request_key: request_key)
         head :no_content
       end
     end

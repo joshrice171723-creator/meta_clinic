@@ -134,6 +134,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
 
   test "per-module capability and membership revocation enforced on every route" do
     @membership.update!(patients_access: false, inventory_access: false, staff_access: false)
+    revoke_all_permissions!(@membership)
     %w[/api/clinic/patients /api/clinic/inventory /api/clinic/staff].each do |path|
       get path, headers: @headers
       assert_response :forbidden
