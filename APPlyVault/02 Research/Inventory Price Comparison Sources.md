@@ -1,7 +1,7 @@
 ---
 type: research
 status: research-recorded-integration-deferred
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Inventory Price Comparison Sources
 
@@ -106,7 +106,7 @@ Keep this as an adjacent procurement module to the existing product/lot ledger i
 
 Conceptual flow: **permitted source → connector/import validation → product/package matching → scoped offer history → comparison**. Purchase approval, supplier submission, physical receiving and invoice/credit reconciliation are separate later workflows. Importing a price or catalog row must never create stock, place an order or calculate an APPly fee.
 
-The current pharmacy slice tracks whole sealed packages and has no verified conversions or receipt-level acquisition-cost history. Preserve those semantics during any future migration; do not reinterpret old package movements as doses or fractional units. Public FDA metadata, NADAC and CDC benchmarks are not supplier quotes or stock evidence.
+The earlier pharmacy slice used whole sealed packages. D-031 now supplies exact typed units, evidenced package conversions and distinct receipt-level optional cost history in [[PostgreSQL and Inventory Foundation]]. Preserve current unit/conversion provenance and historical package semantics; do not reinterpret old package movements as doses. Supplier offer/comparison integration remains deferred under D-029/T-37. Public FDA metadata, NADAC and CDC benchmarks are not supplier quotes or stock evidence.
 
 ## Future work when reprioritized
 

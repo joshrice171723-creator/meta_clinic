@@ -7,15 +7,27 @@ updated: 2026-08-31
 
 Home: [[00 Home]] · Team conventions: [[Working Agreement]] · Canonical status: [[Roadmap and Tasks]] · Application: [[Website MVP]], [[Client Portal]], [[Clinic Workspace]] · Evidence: [[Progress Log]], [[Source Register]]
 
+## Developer quick start
+
+This is the first handoff for either developer. Use the sections in this order:
+
+1. [[CICD#Rails can run locally|Set up the frontend, API and PostgreSQL locally]].
+2. [[CICD#Separate developers and worktrees|Keep each developer's ports, credentials and databases separate]].
+3. [[CICD#Daily workflow for two developers|Work on a branch, run checks and open a reviewed PR]].
+4. [[CICD#What CI does now|Understand the five CI jobs]].
+5. [[CICD#Finish activation|Read the remaining host-cutover and delivery-activation requirements before any release]].
+
+[[Software Architecture]] owns code placement. [[Roadmap and Tasks#Current task register]] owns status. Old paths and test counts in [[Progress Log]] are dated history, not setup instructions. No `reference/`, `apps/apply/` or `site/backend/` application is needed.
+
 ## Purpose and current state
 
 D-033 separates the browser application in `apps/web/` from the Rails JSON backend in `apps/api/`. [[Software Architecture]] owns the module/dependency rules; this guide owns local commands, team workflow, CI and release procedures. The apps build independently but the prepared delivery pipeline releases a **matched API/web pair from one commit**.
 
-**Documentation/source review: 2026-08-31. Last recorded hosted verification: 2026-08-30.** The local split and its tests are complete under T-40. The two private EC2 environments were last verified on the older Rails/SQLite bootstrap, not this checkout. This update fixes the host launcher and CI shell-check coverage and reruns offline delivery checks; no AWS/GitHub session, deployed state or remote run was checked.
+**Documentation/source review: 2026-08-31. Last recorded hosted verification: 2026-08-30.** The local split and its tests are complete under T-40. The two private EC2 environments were last verified on the older Rails/SQLite bootstrap, not this checkout. The earlier launcher/CI correction is recorded in [[Progress Log#2026-08-31 — CI/CD documentation aligned and launcher regression fixed]]. This review reconciles the developer handoff and ignore rules; no AWS/GitHub session, deployed state or remote run was checked.
 
 | Area | Verified source or recorded state |
 | --- | --- |
-| Repository | One APPly repository; `apps/api/`, `apps/web/`, `ops/aws/` and `reference/pharmacy/` have distinct responsibilities. No app remains at `apps/apply/` or `site/backend/`. |
+| Repository | One APPly repository; `apps/api/`, `apps/web/`, `ops/aws/` and `APPlyVault/` have distinct responsibilities. The founder removed retired `reference/`; no active app remains at `apps/apply/` or `site/backend/`. |
 | API | Rails 8.1.3.1 / Ruby 3.4.10 / Bundler 4.0.15; JSON, sessions/CSRF, permissions, domain workflows and PostgreSQL. |
 | Frontend | React/TypeScript/Vite with Node 24 and its own npm lockfile; screens, navigation, forms and styles, with no database credentials. |
 | Local development | Frontend at `127.0.0.1:3000`, Rails at `127.0.0.1:3001`, PostgreSQL helper at `127.0.0.1:54329`. Synthetic records only. |
@@ -42,7 +54,7 @@ git clone git@github.com:Fibrodysplasia/APPly.git
 cd APPly
 ```
 
-Repository access includes the business-planning vault. Do not share accounts, passwords or SSH private keys. Agents must follow root `AGENTS.md`, including the full-vault review.
+Repository access includes the business-planning vault. Do not share accounts, passwords or SSH private keys. Agents must follow root `AGENTS.md`: use [[01 Table of Contents]] to review relevant sections before changes, not the whole vault by default.
 
 Install the versions above, Docker, Python 3 and PostgreSQL 18 client tools: `psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb` and `pg_isready`. Put their executable directory on PATH; the earlier local test rerun needed that explicitly. Keep hosted `PG*` credentials and `DATABASE_URL` out of this local shell. Use `bundle install`, not an unrequested dependency update.
 
@@ -120,7 +132,7 @@ From the repository root, first inspect the checkout:
 git status --short
 ```
 
-The checkout reviewed for this guide already had unrelated uncommitted work on `main`. Preserve and organize that work before switching branches. The following commands assume a clean checkout; do not discard, reset, or blindly stash another person's work to satisfy that assumption.
+The following commands assume a clean checkout. If `git status` lists existing work, preserve and coordinate it before switching branches; do not discard, reset, or blindly stash another person's work. At this review's start the checkout was clean; the founder then removed `reference/`, and this task adds documentation/ignore changes. Those local changes are not automatically committed or published.
 
 ```sh
 git switch main
@@ -228,7 +240,7 @@ The old `site/backend/.github/workflows/ci.yml` was not discoverable as the pare
 
 CI uses read-only repository permissions, does not persist checkout credentials, and uses sparse checkout for the application/workflow paths. It does not check out the vault directory into its working tree, upload logs/database artifacts, receive AWS or production secrets, or run on the EC2 server. Dependencies and public vulnerability metadata are downloaded. Tests remain wholly synthetic. No path filters are used, so documentation-only pull requests also receive the same checks rather than leaving a future required check pending.
 
-After committing/pushing this repair, open the pull request's **Checks** tab or repository **Actions → CI**. Inspect the exact commit and all five results; a successful local check is not an observed GitHub run. If Actions or the referenced actions are restricted by repository policy, resolve that with the repository owner. Runner availability/minutes depend on the account plan; no plan or billing setting was changed. T-22/M0 stays open until its remaining remote-CI/browser criteria have evidence.
+After publishing reviewed changes through the team workflow, open the pull request's **Checks** tab or repository **Actions → CI**. Inspect the exact commit and all five results; a successful local check is not an observed GitHub run. If Actions or the referenced actions are restricted by repository policy, resolve that with the repository owner. Runner availability/minutes depend on the account plan; no plan or billing setting was changed. T-22/M0 stays open until its remaining remote-CI/browser criteria have evidence.
 
 ## Image, container, server and database
 
@@ -328,6 +340,7 @@ Production disables sample content without deleting historical records; ordinary
 
 ## Database collaboration and rollback rules
 
+- Root `.gitignore` and the app-specific rules exclude local environments/keys, database files and dumps, logs, dependencies and build caches. Keep migrations, `db/structure.sql`, lockfiles and synthetic test source tracked. Check a proposed path with `git check-ignore -v PATH`; review `git status` and the staged diff before committing. Ignore rules neither remove tracked files nor make sensitive files safe, and they do not replace `.dockerignore` or the separate app build contexts.
 - Share migrations under `apps/api/db/migrate/` and the canonical `db/structure.sql`. Do not commit, email or copy database files/dumps, legacy SQLite/WAL/SHM files, hosted keys, secrets or real records between developers/environments. Wholly synthetic upgrade fixtures are generated independently by the rehearsal tool.
 - Each developer applies merged migrations to their own database. A Git pull updates files; it does not change the running server or apply its migrations. Coordinate simultaneous edits to the same tables and reconcile the SQL schema from the combined migrations; never hand-resolve a conflict by dropping unfamiliar triggers or constraints.
 - Once a migration has been shared/applied, add a new corrective migration rather than rewriting its history. Test both a fresh database and upgrading a prior synthetic schema when changing migrations.
@@ -350,7 +363,7 @@ Production disables sample content without deleting historical records; ordinary
 
 [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]] records 76 Rails tests / 784 assertions, 11 frontend tests, five offline release-pair tests, formatting/typecheck/build/static checks and local staging/production container verification. Those are prior application/container results, not new runs for this CI/CD update.
 
-This update passes all 12 offline delivery tests, including seven new launcher tests. The name/service regression cases failed before the correction and pass afterward. Actionlint, ShellCheck and individual Bash syntax checks pass. Vault frontmatter, JSON, links and whitespace are checked separately; no application build, database rehearsal or container verifier was rerun.
+The earlier launcher correction passed all 12 offline delivery tests, including seven then-new launcher tests; the regression cases failed before that correction. Its actionlint, ShellCheck and Bash results are recorded in the linked progress entry. See the newest [[Progress Log]] entry for checks actually rerun during this handoff review; prior application/container results are not fresh acceptance.
 
 The paired container verifier covers TLS/routing, guards, persistence/restart and separate PostgreSQL restore, but launches disposable containers directly. The new launcher tests complement that evidence; neither verifies live systemd/SSM installation, actual IAM/EBS recovery, browser interactions or operational capacity.
 

@@ -1,7 +1,7 @@
 ---
 type: product-discovery
 status: unreviewed-workflow
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # SharePoint and EMR
 
@@ -61,7 +61,7 @@ The founder has selected an eventual custom replacement as the direction; do not
 
 ## Future product discovery — no architecture commitment
 
-The founder requested a PostgreSQL backend modeling note on 2026-08-30. [[Data Modeling]] now proposes clinic-scoped tables, composite relationships, access controls/RLS, auditing, and synthetic acceptance criteria. It is documentation only: no database or patient-data integration was built, and neither shared hosting nor production architecture is approved. T-13 remains open; T-18 records delivery of the proposal.
+The founder requested a PostgreSQL backend modeling note on 2026-08-30. [[Data Modeling]] now proposes clinic-scoped tables, composite relationships, access controls/RLS, auditing, and synthetic acceptance criteria. That note remains a broader clinical/security proposal, not an executable schema. Separately, D-031/D-033 delivered the synthetic PostgreSQL inventory foundation and frontend/API split in [[PostgreSQL and Inventory Foundation]] and [[Software Architecture]]. This does not implement the proposed trusted identity/RLS/read-audit model, validate SharePoint or approve clinical production architecture. T-13 remains open; T-18 records the original proposal delivery.
 
 - D-028 establishes broad pharmacy configurability; shared inventory, purchasing, lot/container and movement requirements can progress without first choosing one clinic setup. Use [[Pharmacy Inventory Data Requirements]] for the proposed capability model and collection detail. Actual SharePoint mapping, clinic-specific workflow validation and clinical production architecture remain separate dependencies.
 - Document who owns the current setup and future code, licenses the software, contracts with the clinic, pays cloud vendors, and provides support.

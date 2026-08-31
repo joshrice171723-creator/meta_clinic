@@ -76,6 +76,12 @@ Earlier table entries preserve what was known then; D-019 supplies the later ans
 
 Open implementation details do not negate confirmed direction. Kevin's prior attorney involvement is recorded as supporting context in [[MD Pilot]] and [[Source Register]], not as approval of the consultancy's entire client packet. Record amendments here without repeatedly reopening settled market, execution, or entity-stage decisions.
 
+## Repository and vault handoff maintenance
+
+**D-034 — 2026-08-31 / founder's removal and documentation requests:** the founder removed the retired `reference/` folder after mapping the generic app into the current implementation. Keep it removed and reconcile active documentation; prior source remains in Git history. This supersedes D-032's retention of imported reference files, not its domain boundaries. Rails migrations and `apps/api/db/structure.sql` remain authoritative. No application feature, runtime data or hosted release is removed by this documentation work.
+
+**D-035 — 2026-08-31 / founder's explicit review-protocol request:** add [[01 Table of Contents]] and change root `AGENTS.md` to require relevant-section review selected through that index instead of a full-vault read. Keep CI/CD prominent for developer onboarding. This changes reading/navigation scope only; synthetic-only, secret-handling, source/evidence, preservation and professional/release safeguards remain unchanged. The preceding full-review records stay historical, not future requirements.
+
 ## Decision entry format
 
 - ID and title:
@@ -104,3 +110,7 @@ Open implementation details do not negate confirmed direction. Kevin's prior att
 **D-033 — 2026-08-30 / founder's frontend/backend request and approval:** separate browser presentation from backend responsibilities. The founder accepted the proposed independent frontend and Rails API, superseding D-024's JavaScript removal and the single Rails-rendered runtime aspect of D-025/D-032. Keep one repository and the established launch/care/inventory/staff/identity domain ownership. Implementation uses `apps/web` for React/TypeScript screens and `apps/api` for Rails JSON, sessions/CSRF, authorization, workflows and PostgreSQL. Preserve browser URLs, data history, encryption derivation, clinic permissions and production clinic/demo denial. Source/build/local-tooling changes are authorized; Git publication, hosted cutover, new integrations and real-data use are not. Implementation initially paused under T-40 for the verification-cleanup issue recorded in [[Progress Log#2026-08-30 — Frontend API split paused after verification cleanup issue]].
 
 **D-033 continuation — 2026-08-31:** after disclosure of the verifier cleanup issue, the founder confirmed `apply_test` was disposable test/development data and explicitly authorized recreating it. Recreated from current migrations; no original test-data recovery claimed. The corrected scratch cleanup preserves the recreated database identity. The authorized frontend/API refactor is now complete locally under T-40; see [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]]. Deployment and real-data exclusions remain unchanged.
+
+## Selectable clinic themes
+
+**D-036 — 2026-08-31 / founder's design follow-up (U-27):** staff will use both desktop and tablet; implement all three presented clinic themes and let users choose. Sage & ivory, Mineral blue and Warm graphite each support Light, Dark and Follow system. Browser-local persistence and Sage / Follow system as the initial default are bounded implementation choices, not a request for cross-device account sync. [[Clinic Workspace Design]] records behavior and T-41 local delivery. This accepts theme choice, not the proposed intake/clinician layouts, clinical authority, intake/triage/signing/prescription implementation, deployment or real-data use.

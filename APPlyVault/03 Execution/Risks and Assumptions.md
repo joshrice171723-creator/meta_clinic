@@ -1,7 +1,7 @@
 ---
 type: risk-register
 status: active
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Risks and Assumptions
 
@@ -30,7 +30,7 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 
 **R-14 — High / open:** an internal medication room, prescriptive authority or “small/cash-pay/our patients only” description is mistaken for authority to dispense or sell drugs, leaving professional coverage, product safety and records inadequate. Mitigation: document the exact activity/site/operator/formulary; obtain scoped classification, supply/charging and staffing findings; validate storage, tracing, controlled/compounding and incident procedures before affected use. Use [[Pharmacy Provider and Counsel Questions]] under T-36 and L-02/L-04/L-05/L-06. No clinic exception or operating pathway has been approved; owner remains unassigned.
 
-**R-15 — High / open:** a named production container is mistaken for security, clinical or operational release readiness. The private bootstrap image still has critical/high OS findings; the prepared production-promotion gate rejects those findings. Resolve advisories, domain/TLS, operator/MFA, recovery/monitoring and applicable real-data gates before wider use. The installed SQLite bootstrap environments remain pending PostgreSQL cutover; the proposed single-host PostgreSQL setup is also not high availability. T-20/T-22/T-25 and [[CICD]] track the work; owner remains unassigned.
+**R-15 — High / open:** a named production container is mistaken for security, clinical or operational release readiness. The last recorded bootstrap scan (2026-08-30) had critical/high OS findings; no fresh scan is asserted here; the prepared production-promotion gate rejects those findings. Resolve advisories, domain/TLS, operator/MFA, recovery/monitoring and applicable real-data gates before wider use. The installed SQLite bootstrap environments remain pending PostgreSQL cutover; the proposed single-host PostgreSQL setup is also not high availability. T-20/T-22/T-25 and [[CICD]] track the work; owner remains unassigned.
 
 **R-16 — High / open:** a PostgreSQL code migration is deployed onto a SQLite host without preserving data, keys or recovery evidence, or a shared database is mistaken for complete tenant security. Mitigation: the explicit synthetic-only conversion/restore checks and maintenance procedure in [[PostgreSQL and Inventory Foundation]], runtime/owner separation and the still-open trusted identity/RLS/read-audit review. T-38 owns cutover; T-13/T-34 and L-05/E2/E3 retain broader gates.
 

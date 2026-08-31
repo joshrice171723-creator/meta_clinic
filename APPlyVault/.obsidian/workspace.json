@@ -188,6 +188,8 @@
   },
   "active": "109dfc443f25186a",
   "lastOpenFiles": [
+    "03 Execution/Clinic Workspace Design.md",
+    "01 Table of Contents.md",
     "03 Execution/Software Architecture.md",
     "03 Execution/PostgreSQL and Inventory Foundation.md",
     "03 Execution/Progress Log.md",
@@ -211,8 +213,6 @@
     "02 Research/Texas Diligence.md",
     "02 Research/Source Register.md",
     "02 Research/SharePoint and EMR.md",
-    "01 Foundation/Knowledge Bank and Mentorship.md",
-    "01 Foundation/Entity and Product Boundary.md",
-    "01 Foundation/Company Foundation.md"
+    "01 Foundation/Knowledge Bank and Mentorship.md"
   ]
 }
