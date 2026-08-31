@@ -1,11 +1,11 @@
 ---
 type: source-register
 status: preliminary
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Source Register
 
-Home: [[00 Home]] · Used in: [[Texas Diligence]], [[SharePoint and EMR]], [[Data Modeling]], [[Pharmacy Inventory Data Requirements]]
+Home: [[00 Home]] · Used in: [[Texas Diligence]], [[SharePoint and EMR]], [[Data Modeling]], [[Pharmacy Inventory Data Requirements]], [[Pharmacy Provider and Counsel Questions]]
 
 ## How to use this register
 
@@ -35,9 +35,9 @@ These are primary-source starting references, not a completed legal or security 
 | S-20 | [PostgreSQL 18 — Encryption options](https://www.postgresql.org/docs/18/encryption-options.html) | 2026-08-30 | Storage/transport/client-side encryption distinctions; proposed application envelopes and key lifecycle are not implemented |
 | S-21 | [PostgreSQL 18 — CREATE VIEW](https://www.postgresql.org/docs/18/sql-createview.html) | 2026-08-30 | Invoker versus owner privileges and RLS behavior; no views or reports deployed |
 | S-22 | [HHS — Security Rule rulemaking](https://www.hhs.gov/hipaa/for-professionals/security/hipaa-security-rule-nprm/index.html) | 2026-08-30 | Reviewed page describes proposed changes and current-rule continuity; recheck controlling law/effective dates before reliance |
-| S-23 | [GitHub — Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) | 2026-08-30 | Workflow YAML belongs in the repository's `.github/workflows` directory. Supports the local finding that `site/backend/.github/workflows/ci.yml` is not a site-root GitHub workflow; no remote CI configuration or run was inspected |
+| S-23 | [GitHub — Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) | 2026-08-30 | Workflow YAML belongs in repository-root `.github/workflows`. Rechecked for [[CICD]] and the local relocation from `site/backend/.github/workflows/ci.yml`; supports event, permission and working-directory configuration, not evidence of a successful remote run |
 | S-24 | [TSBP — New pharmacy licenses](https://www.pharmacy.texas.gov/applicants/new-pharmacy.asp) | 2026-08-30 | Class A versus Class D; physician-office exclusion from Class D. Does not classify or license any APPly client |
-| S-25 | [TSBP — Board rules compilation](https://www.pharmacy.texas.gov/files_pdf/TSBP%20Rules_MASTER%20FILE.pdf) | 2026-08-30 | Selected §§291.17, 291.33 and 291.34 passages on counts, prepackaging and records; not a full 344-page review. Reconcile controlling TAC text and amendments before implementation; compilation contains older procedural wording in places |
+| S-25 | [TSBP — Board rules compilation](https://www.pharmacy.texas.gov/files_pdf/TSBP%20Rules_MASTER%20FILE.pdf) | 2026-08-30 | Selected §§291.17 and 291.32–291.34 passages on counts, PIC/personnel, operations, prepackaging and records; not a full 344-page review. Reconcile controlling TAC text and amendments before implementation; compilation contains older procedural wording in places |
 | S-26 | [DEA — Practitioner’s Manual, 2023](https://www.deadiversion.usdoj.gov/GDP/%28DEA-DC-071%29%28EO-DEA226%29_Practitioner%27s_Manual_%28final%29.pdf) | 2026-08-30 | Selected section V recordkeeping, inventory and disposal passages. Official guidance with activity exceptions; direct current eCFR retrieval failed and current controlling-rule review remains open |
 | S-27 | [FDA — NDC Directory](https://www.fda.gov/drugs/drug-approvals-and-databases/national-drug-code-directory) | 2026-08-30 | Catalog provenance, coverage and limitations; listing/NDC does not establish approval, verified accuracy or actual stock |
 | S-28 | [openFDA — NDC endpoint](https://open.fda.gov/apis/drug/ndc/), [searchable fields](https://open.fda.gov/apis/drug/ndc/searchable-fields/), [field definitions](https://open.fda.gov/fields/drugndc.yaml) and [API access](https://open.fda.gov/apis/authentication/) | 2026-08-30 | Public catalog/API and responsible-use limits; rechecked for the Rails adaptation. Public name and exact-package HTTPS requests passed without an API key. Not clinical decision support, FDA approval or lot-level receipt evidence; no patient/clinic payload submitted |
@@ -69,6 +69,22 @@ Researched 2026-08-30 for [[Inventory Price Comparison Sources]]. These support 
 | S-45 | [CMS — NADAC 2026 dataset](https://catalog.data.gov/dataset/nadac-national-average-drug-acquisition-cost-2026) and [field definitions](https://www.medicaid.gov/medicaid-chip-program-information/by-topics/prescription-drugs/ful-nadac-downloads/nadacdatadefinitions.pdf) | 2026-08-30 | Metadata, CSV header/initial sample and definitions checked. Pharmacy acquisition-cost benchmark; dates/units need normalization, whole file not validated |
 | S-46 | [CDC — vaccine price lists](https://www.cdc.gov/vaccines-for-children/php/price-list/index.html) | 2026-08-30 | Current hub and four-page adult PDF reviewed; distinguish manufacturer-reported private-sector figures from restricted CDC contract pricing |
 
+## Supplier integration and procurement-platform references
+
+Reviewed during the 2026-08-30 supplier-pricing discussion and recorded when the founder deferred implementation. Used in [[Inventory Price Comparison Sources]] under D-029/T-37. Published capabilities are not tested access, supplier selection, commercial permission or evidence of clinic savings.
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-68 | [Medline — eCommerce capabilities](https://www.medline.com/business/ecommerce-capabilities/) and [Digital Integration Services guide](https://www.medline.com/media/assets/pdf/Digital%20Integration%20Services%20060122.pdf) | 2026-08-30 | Page and four-page guide text reviewed; p.3 lists pricing, inventory and product APIs plus files/EDI/PunchOut. API schemas, account eligibility, licenses, costs and APPly access unverified; older FAQ's Level II limitation conflicts with this guide |
+| S-69 | [McKesson — Technology Consultants](https://mms.mckesson.com/content/inventory-management/technology-consultants/) and [Connectivity API flyer](https://mms.mckesson.com/content/wp-content/uploads/2026/07/FINAL-2025_4780850-API-Product-Marketing-Flyer.pdf) | 2026-08-30 | Integration options and one-page flyer reviewed: third-party/internal integration, access agreement and sandbox. PunchOut includes pricing; a standalone API price endpoint is not expressly established. No signup or account access |
+| S-70 | [Bound Tree — Operative IQ](https://www.boundtree.com/operative-iq) | 2026-08-30 | Supplier describes integrated price/availability checks, orders and receiving. Existing partner capability only; no public APPly interface or terms verified |
+| S-71 | [Henry Schein — Special Markets eCommerce](https://www.henryschein.com/us-en/SpecialMarkets/Services/EZ_Scan.aspx?hsec=1) | 2026-08-30 | Primary-site search-index text advertises PunchOut/cXML/EDI/XML services; direct retrieval failed. Medical division applicability and price API scope remain unverified |
+| S-72 | [GHX — Marketplace](https://www.ghx.com/marketplace/) | 2026-08-30 | Vendor describes procurement network and more than 250 supplier PunchOut sites; not independently tested coverage, pricing or APPly eligibility |
+| S-73 | [Hybrent — Supplier channel program](https://hybrent.com/suppliers/) | 2026-08-30 | Supplier commercial agreements and optional pricing/stock/custom APIs; no agreement, pricing proposal or resale permission reviewed |
+| S-74 | [Premier — Group purchasing organization](https://premierinc.com/providers/group-purchasing-organization) | 2026-08-30 | Negotiated-contract model; no membership, contract activation, clinic eligibility or attainable discount established |
+| S-75 | [ADC — Where to buy](https://www.adctoday.com/dealers/locate) | 2026-08-30 | Manufacturer describes dealer sales rather than direct purchasing; no live pricing feed or dealer contract reviewed |
+| S-76 | [Dynarex — FAQs](https://dynarex.com/faqs) | 2026-08-30 | Distributor/resale-certificate, minimum-order and established-customer context; no APPly qualification or API terms inferred |
+
 ## EC2 staging references
 
 Reviewed 2026-08-30 for D-027/T-20. These support the synthetic deployment package in `site/deploy/ec2/`, not cloud go-live or a patient-data approval.
@@ -77,8 +93,44 @@ Reviewed 2026-08-30 for D-027/T-20. These support the synthetic deployment packa
 | --- | --- | --- | --- |
 | S-47 | [AWS — EC2 CloudFormation resource](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ec2-instance.html), [AL2023 Docker setup](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/create-container-image.html), [AL2023 AWS CLI v2](https://docs.aws.amazon.com/linux/al2023/ug/awscli2.html) | 2026-08-30 | Instance/metadata/storage configuration and runtime setup; template validation does not verify actual bootstrap or available account capacity |
 | S-48 | [AWS — Session Manager prerequisites](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-prerequisites.html) and [starting sessions](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) | 2026-08-30 | Managed-node and local-plugin prerequisites, private port forwarding; actual operator permissions, MFA, tunnel and certificate trust remain unverified |
-| S-49 | [AWS — T3](https://aws.amazon.com/ec2/instance-types/t3/), [EBS](https://aws.amazon.com/ebs/pricing/), [IPv4](https://aws.amazon.com/vpc/pricing/), [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/) and [ECR](https://aws.amazon.com/ecr/pricing/) | 2026-08-30 | Roughly $25/month staging baseline, excluding snapshots/extra usage/tax. Exact us-east-1 Pricing API returned t3.small $0.0208/hour and gp3 $0.08/GB-month; public T3 page displays $0.0209/hour. Recheck before spending; no Free Tier or cap assumed |
+| S-49 | [AWS — T3](https://aws.amazon.com/ec2/instance-types/t3/), [EBS](https://aws.amazon.com/ebs/pricing/), [IPv4](https://aws.amazon.com/vpc/pricing/), [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/) and [ECR](https://aws.amazon.com/ecr/pricing/) | 2026-08-30 | Revised micro/10 GiB baseline is $13.64/month before image storage, snapshots, extra usage and tax; Pricing API t3.micro $0.0104/hour. Earlier small/50 GiB proposal was about $25; API small $0.0208/hour vs public page $0.0209. No spending cap or Free Tier assumed |
 | S-50 | [Rails — Active Record Encryption configuration](https://guides.rubyonrails.org/active_record_encryption.html#configuration) | 2026-08-30 | Environment-sourced encryption configuration. Local Rails 8.1.3.1 railtie inspection and a production container write exposed the late-initialization defect; source alone does not establish tested encryption or recovery |
+| S-51 | [AWS — EC2 Free Tier eligibility](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-free-tier-usage.html) and [Account Management API](https://docs.aws.amazon.com/accounts/latest/APIReference/API_GetAccountInformation.html) | 2026-08-30 | Account API reports creation in December 2021, outside the legacy 12-month EC2 allowance; instance/AMI eligibility labels do not renew it. Plan API returned no data, usage API no EC2 offer. Promotional credits unverified, not assumed; no account-plan change |
+
+## Pharmacy provider and counsel discussion references
+
+Reviewed 2026-08-30 for [[Pharmacy Provider and Counsel Questions]]. These extend the earlier inventory DD; they do not establish any clinic's legal pathway. Rechecked S-06/S-24/S-25/S-37 and the sources below. Selected provisions/pages were reviewed, not entire linked rulebooks.
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-60 | [Texas Legislature — Occupations Code Chapter 158](https://tcss.legis.texas.gov/resources/OC/htm/OC.158.htm) | 2026-08-30 | Official chapter text retrieved directly from the legislature's content server after earlier public-site retrieval failed. §§158.001–158.003 distinguish physician immediate-needs supply, free samples and narrow rural reimbursement. Resolves the retrieval gap, not NP/PA applicability or clinic eligibility |
+| S-61 | [Texas Legislature — Occupations Code Chapter 157](https://tcss.legis.texas.gov/resources/OC/htm/OC.157.htm) | 2026-08-30 | Selected §157.002 and §§157.0511–157.0512 passages on administration/provision, prescribing limits and agreement requirements. Not a full chapter/current profession-specific rule review or accepted delegation agreement |
+| S-62 | [Texas Legislature — Occupations Code Chapter 102](https://tcss.legis.texas.gov/resources/OC/htm/OC.102.htm) | 2026-08-30 | Selected solicitation/remuneration, construction, advertising, exception and disclosure provisions; §102.001 includes a 2025 amendment. No finding that an actual APPly fee/referral arrangement is permitted or prohibited |
+| S-63 | [TSBP — Class A application](https://www.pharmacy.texas.gov/files_pdf/licensing/LIC-Class_A.pdf) and [application timeline](https://www.pharmacy.texas.gov/applicants/pharmacy-timeline.asp) | 2026-08-30 | Version 09/25 packet: ownership/premises/supplier evidence, sensitive identity documents, PIC attestation and staffing; timeline advises at least 90 days for a complete application, subject to delay. No application prepared/submitted, fee budget or opening date approved. S-24 and timeline describe cancellation stages differently; confirm before changing a pending application |
+| S-64 | [Texas DSHS — Drug manufacturer/distributor licensing](https://www.dshs.texas.gov/drug-manufacturers-distributors/licensing-requirements-drug-manufacturers-distributors) | 2026-08-30 | Descriptions include wholesale distribution, brokerage, warehouses and logistics providers. Actual procurement/title/custody/transfer activity and exceptions need review; no APPly license finding |
+| S-65 | [HHS OIG — Fraud and abuse laws](https://oig.hhs.gov/compliance/physician-education/fraud-abuse-laws/) | 2026-08-30 | Selected AKS/Stark scope, financial relationships and exception/safe-harbor background. Not a review of all law or current penalty amounts; cash-pay branding and percentage pricing alone do not decide applicability |
+| S-66 | [TMB — Occupations Code and board rules](https://www.tmb.texas.gov/laws-rules/occupations-code-board-rules) | 2026-08-30 | Index links current TAC and a rule-reorganization matrix. Exact current profession/practitioner-supply rule mapping remains open; do not present obsolete rule numbering as current authority |
+| S-67 | [FDA — Human drug compounding laws](https://www.fda.gov/drugs/human-drug-compounding/human-drug-compounding-laws) | 2026-08-30 | 503A/503B overview, patient-specific versus office-stock context and lack of FDA approval for compounded drugs. Product/setting-specific restrictions, standards and supplier status remain unreviewed |
+
+## CI and delivery references
+
+Reviewed 2026-08-30 for [[CICD]] and the repository-root workflow repair. These support development instructions and proposed delivery controls, not production approval or evidence of an executed GitHub workflow.
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-52 | [Rails — Getting started](https://guides.rubyonrails.org/getting_started.html) | 2026-08-30 | Local server and development concepts; APPly commands/versions were reconciled with its own README, configuration and lockfile |
+| S-53 | [ruby/setup-ruby — Working directory and Bundler caching](https://github.com/ruby/setup-ruby#working-directory) | 2026-08-30 | Action-specific working directory resolves nested `.ruby-version` and `Gemfile.lock`; supports the CI repair independently of shell defaults |
+| S-54 | [GitHub — OpenID Connect](https://docs.github.com/en/actions/concepts/security/openid-connect) | 2026-08-30 | Short-lived workload identity for a future scoped AWS deployment role; no role, trust policy or deployment permission created |
+| S-55 | [GitHub — Workflow concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) | 2026-08-30 | CI cancellation and proposed serialized release controls; a runner-level group alone does not establish safe remote migration locking/recovery |
+
+## Staging and production delivery references
+
+Reviewed 2026-08-30 for D-030 and [[CICD]].
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-77 | [GitHub — OIDC in AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws), [OIDC reference](https://docs.github.com/en/actions/reference/security/oidc) and [OIDC REST API](https://docs.github.com/en/rest/actions/oidc) | 2026-08-30 | Exact repository/branch/environment trust; newer immutable owner/repository-ID subject format. Prepared setup checks actual metadata; no GitHub login or successful role assumption observed |
+| S-78 | [GitHub — Deployment environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) | 2026-08-30 | Branch restrictions and plan-dependent private-repository/reviewer support; account plan and production settings unverified. No plan upgrade or visibility change |
 
 ## Discovery references not fully reviewed
 
@@ -86,9 +138,11 @@ Reviewed 2026-08-30 for D-027/T-20. These support the synthetic deployment packa
 - Current Texas statutes and administrative rules for the selected entity/practice model: exact relevant provisions and effective dates to be resolved with counsel.
 - City/county zoning, occupancy, fire/building, and other applicable local sources: reference clinic is in Sherman; exact jurisdiction and client-service geography still to confirm. No permitting source has been reviewed.
 - Service-specific agencies, payer requirements, and vendor terms: select after clinic profile is known.
-- Pharmacy-specific limits from this review: current eCFR sections and Texas Occupations Code chapter 158 could not be retrieved; live TAC and the linked §291.17 amendment text remain unreviewed. FDA's linked July 2022 trading-partner guidance is explicitly draft, not an effective-rule basis. See [[Pharmacy Inventory Data Requirements#Evidence to request next and remaining limits]].
+- Pharmacy-specific limits: the initial inventory review could not retrieve current eCFR sections or Texas Occupations Code chapter 158. The later same-day discussion-guide review retrieved official Chapter 158 and selected Chapter 157/102 provisions (S-60–S-62); that access gap is resolved. Current eCFR reconciliation, live TAC and the linked §291.17 amendment text remain unreviewed. FDA's linked July 2022 trading-partner guidance is explicitly draft, not an effective-rule basis. See [[Pharmacy Inventory Data Requirements#Evidence to request next and remaining limits]].
 
 ## Private and first-hand evidence
+
+- U-19: founder's inventory-pricing discussion and deferral, 2026-08-30: requested supplier/manufacturer price-comparison sources, asked about extensible product/price integrations and supplier APIs/partnerships, then asked to put the work on hold and update the vault with current state and future work. D-029 records the deferral; T-37 is the deferred integration task. The assistant's architecture and suggested sequence remain proposals, not accepted implementation, supplier selection, spending, outreach or purchase authority.
 
 - U-01: founder's initial brief, 2026-08-30; summarized in [[Company Foundation]]. Reported context, not independent validation.
 - U-02: founder's first answers, 2026-08-30: cash-pay primary-care / concierge-adjacent focus; MD cofounder and two engineers; documented MD setup process to become applicant packet; consulting through first-patient readiness including starter EHR; substantial local demand reported.
@@ -108,5 +162,27 @@ For new evidence, create an [[Evidence Note Template|evidence note]] with source
 - U-12: founder's navigation/development requests, 2026-08-30: My Launch appeared to auto-sign in as a demo; remove create-clinic and selection, route directly to the login's assigned clinic, and use separate logins for people at multiple clinics. Developers provision clinics. Follow-up explicitly requests a generic Test Clinic for development. See D-026; no real-data or deployment authorization.
 - U-13: founder's due-diligence request, 2026-08-30, clarified to focus on inventory management, particularly pharmacy, while broader business collection remains useful. [[Pharmacy Inventory Data Requirements]] records proposed collection fields and conditional requirements; no operating-model selection, clinical clearance, code change or collection of real inventory/patient data was requested or performed by this research task.
 - U-14: founder's EHR update and subsequent pull request, 2026-08-30: reuse the new pharmacy background folder, including schema and NDC API ingestion, and remove unnecessary Vite material. Fast-forward pull to `f0421ae` supplied `pharmacy-inventory/`; reviewed its specifications, schema and relevant application/helper code. [[Clinic Workspace#Pharmacy background integration]] records the local Rails adaptation. This prototype is not the missing MD/SharePoint/governance material or authority for real inventory/clinical use.
-- U-15: founder's EC2 request and login follow-up, 2026-08-30: set up a server for the application and database, then authenticate the local AWS CLI. The later instruction expressly authorizes the current root session until further notice. D-027 records both directions; root access is no longer an unresolved task prerequisite. A reviewed, unexecuted `us-east-1` change set is ready; cost/region acceptance remains pending. No real-data authorization or public release is inferred from these instructions.
+- U-15: founder's EC2 request and login follow-up, 2026-08-30: set up a server for the application and database and use root until further notice. Subsequently requested free operation with less storage; after the expired EC2 allowance and reduced roughly $14 baseline were explained, explicitly instructed starting the server and accepted paying. D-027 records this sequence. The reduced `us-east-1` change set was executed; no real-data authorization or public release is inferred.
 - U-16: founder's pharmacy-scope clarification, 2026-08-30: assume clinics will want the option of any pharmacy setup and build from that broad scope. D-028 records the direction. [[Pharmacy Inventory Data Requirements]] and [[Data Modeling]] provide proposed shared records and configurable capabilities, with implementation sequence in [[Roadmap and Tasks]]. This removes selection of one setup as a planning prerequisite; it does not establish customer demand, clinic authority or release approval.
+- U-17: founder's CI/CD request, 2026-08-30: document local Rails development, concurrent teamwork and release concepts in [[CICD]], repair the misplaced CI workflow, and clarify image builds/staging versus production. Authorizes the guide and CI checks, not a deployment schedule, new AWS resources, production data or automatic image publication/deployment.
+
+- U-18: founder's internal-pharmacy legal question and follow-up documentation request, 2026-08-30: supplied TSBP's new-pharmacy page and asked to update relevant vault sections with findings, concerns and comprehensive open questions for providers and potentially counsel. Authorizes this research/documentation, not outreach, a professional engagement, pharmacy application, purchase, new business decision or real medication/patient-data use. T-35/T-36 record delivery and proposed review.
+
+- U-20: founder's follow-up, 2026-08-30: set up the project with production and staging containers, and remove or turn off the production demo. D-030 records that infrastructure/release direction. Existing root/payment authorization persists; no public domain, real-data or clinical-release approval was supplied.
+
+## PostgreSQL implementation references
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-79 | [PostgreSQL 18 — Explicit locking](https://www.postgresql.org/docs/18/explicit-locking.html) and [numeric types](https://www.postgresql.org/docs/18/datatype-numeric.html) | 2026-08-30 | Row locking/concurrency and exact numeric representation informed inventory posting and rejection of unsupported precision. Local synthetic tests provide implementation evidence; no capacity or clinical validation |
+| S-80 | [PostgreSQL 18 — SQL dump](https://www.postgresql.org/docs/18/backup-dump.html), [privileges](https://www.postgresql.org/docs/18/ddl-priv.html), [official image](https://hub.docker.com/_/postgres) and [Ubuntu client packages](https://www.postgresql.org/download/linux/ubuntu/) | 2026-08-30 | Separate restore, role/grant limitations, PostgreSQL 18 volume layout and matching CI client version. Both local container configurations and synthetic restore passed; hosted cutover/operations remain pending |
+
+- U-21: founder's database follow-up, 2026-08-30: switch everything to Postgres and work through the gaps, deferring to engineering recommendations. D-031 records accepted technical direction. [[PostgreSQL and Inventory Foundation]] distinguishes implemented local controls, preserved legacy data, prepared hosted cutover and unimplemented specialist/security capabilities. No real-data permission or closure of professional gates is inferred.
+
+- U-22: founder's architecture review and follow-ups, 2026-08-30: asked for a coherent software structure to prevent folder sprawl, explicitly asked to begin the recommended refactor, then authorized moving through the full refactor unless issues require escalation. D-032 and [[Software Architecture]] record the one-app/source-ownership direction, completed source implementation and verified local path transition. This does not authorize deployment, hosted cutover, supplier integration resumption or real-data access.
+
+S-49 Secrets Manager pricing was rechecked for D-031 on 2026-08-30: the prepared two additional credentials per environment imply approximately $0.80/environment/month before API calls. This is an incremental estimate; no database secrets or hosted cutover were provisioned by the local migration work.
+
+- U-23: founder's frontend/backend separation request and follow-up approval, 2026-08-30: accepted independent frontend presentation and Rails API responsibilities. D-033 supersedes the prior Rails-rendered-UI choice while retaining domain, data and safety boundaries. Source implementation initially paused for the local test-database cleanup issue; U-24 authorized its resolution and T-40 subsequently completed locally. No hosted deployment or real-data access authorized.
+
+- U-24: founder's response to the disclosed local test-database cleanup issue, 2026-08-31: explicitly authorized recreating `apply_test`, confirming it was only a test/development database. Supports recreation from migrations and continuation, not a claim of original-data restoration or authority to reset development/hosted databases.

@@ -1,0 +1,54 @@
+require "test_helper"
+
+class BoundariesTest < ActiveSupport::TestCase
+  test "API controllers share transport but not a frontend or sibling product controller" do
+    assert_equal ApplicationController, Clinic::BaseController.superclass
+    assert_equal ApplicationController, Identity::Api::SessionsController.superclass
+    assert_equal ApplicationController, Launch::Api::MaterialsController.superclass
+    assert_not ApplicationController.private_method_defined?(:available_materials)
+    assert_not Clinic::BaseController.private_method_defined?(:available_materials)
+    assert_equal Launch::MaterialAccess, Launch::Api::MaterialsController.instance_method(:available_materials).owner
+    assert_empty Rails.root.glob("app/views/**/*.erb")
+    assert_empty Rails.root.glob("app/assets/**/*").select(&:file?)
+  end
+
+  test "API route names verbs and paths have an explicit versioned contract" do
+    expected = JSON.parse(File.read(Rails.root.join("test/architecture/routes_contract.json")))
+    actual = Rails.application.routes.routes.reject { |route| route.path.spec.to_s.start_with?("/rails/") }
+      .map { |route| [ route.name, route.verb, route.path.spec.to_s ] }.sort_by(&:to_json)
+    assert_equal expected, actual
+    actual.each { |_, _, path| assert path.start_with?("/api/") || path == "/up(.:format)", path }
+  end
+
+  test "models retain their original storage identities and resolve domain associations" do
+    mappings = {
+      Launch::ContactMessage => "contact_messages", Launch::Material => "materials",
+      Launch::LearningProgress => "learning_progresses", Launch::Paperwork => "paperworks",
+      Clinic::Care::Patient => "clinic_patients", Clinic::Care::Note => "clinic_notes",
+      Clinic::Staff::Member => "clinic_staff_members", Clinic::Inventory::Item => "clinic_items",
+      Clinic::Inventory::PharmacyProduct => "clinic_pharmacy_products", Clinic::Inventory::PharmacyBatch => "clinic_pharmacy_batches",
+      Clinic::Inventory::PharmacyBatchEvent => "clinic_pharmacy_batch_events",
+      Clinic::Inventory::Entry => "clinic_inventory_entries", Clinic::Inventory::StockMovement => "clinic_inventory_entries",
+      Clinic::Inventory::PharmacyMovement => "clinic_inventory_entries", Clinic::Inventory::Count => "clinic_inventory_counts",
+      Clinic::Inventory::CountApproval => "clinic_inventory_count_approvals", Clinic::Inventory::Hold => "clinic_inventory_holds",
+      Clinic::Inventory::HoldRelease => "clinic_inventory_hold_releases", Clinic::Inventory::Location => "clinic_inventory_locations",
+      Clinic::Inventory::Lot => "clinic_inventory_lots", Clinic::Inventory::Profile => "clinic_inventory_profiles",
+      Clinic::Inventory::Receipt => "clinic_inventory_receipts", Clinic::Inventory::ReceiptLine => "clinic_inventory_receipt_lines",
+      Clinic::Inventory::Supplier => "clinic_inventory_suppliers"
+    }
+    mappings.each do |model, table|
+      assert_equal table, model.table_name, model.name
+      model.reflect_on_all_associations.each { |association| assert association.klass < ApplicationRecord, "#{model.name}.#{association.name}" }
+    end
+    assert_equal Launch::Paperwork, User.reflect_on_association(:paperworks).klass
+    assert_equal Clinic::Care::Patient, Clinic::Practice.reflect_on_association(:patients).klass
+    assert_equal Clinic::Staff::Member, Clinic::Practice.reflect_on_association(:staff_members).klass
+  end
+
+
+  test "model roots contain only shared identity and clinic tenancy" do
+    assert_equal %w[application_record.rb member_session.rb user.rb], Rails.root.glob("app/models/*.rb").map { |p| p.basename.to_s }.sort
+    assert_equal %w[membership.rb practice.rb], Rails.root.glob("app/models/clinic/*.rb").map { |p| p.basename.to_s }.sort
+    assert_not MemberAuthentication.private_instance_methods.include?(:create_development_member)
+  end
+end

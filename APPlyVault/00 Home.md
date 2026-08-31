@@ -1,7 +1,7 @@
 ---
 type: dashboard
 status: active
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # APPly — Home
 
@@ -16,11 +16,13 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 - **Reference clinic:** Kevin Stacks, MD, PLLC, general adult medicine in Sherman, verified on the public website. The founder reports the MD has recently gone through cash-pay PLLC setup and documented the legal steps taken so far.
 - **Starting assets:** Kevin's attorney helped with his setup process. Existing diligence and workflow materials are expected on 2026-08-31 morning; contents and review scope have not yet been examined here.
 - **Commercial structure:** consultancy launch package with ongoing support; support and package-cost details explicitly TBD. Software implementation fee plus recurring fees calculated as a percentage of ordered inventory value; rate, eligible value, billing trigger, and terms remain open. This is not a selected percentage of patient-care revenue.
-- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. D-027 selects EC2 for the current app/database hosting task; a private synthetic staging package is prepared, not provisioned. Future clinical architecture and S3 use remain open.
+- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. D-027/D-030 authorize small paid EC2 staging and production environments; each runs Rails/SQLite with 10 GiB encrypted storage and independent secrets. Production demo content is disabled; [[CICD]] records the release flow and pending GitHub activation. Future clinical architecture and S3 use remain open.
+- **Database implementation:** D-031 selects PostgreSQL throughout Rails, tests and prepared deployment tooling. [[PostgreSQL and Inventory Foundation]] records the tested shared ledger, units, receipts, holds and counts. The two hosted SQLite bootstrap releases remain unchanged until the verified maintenance cutover.
+- **Source structure:** D-033 separates browser UI (`apps/web`) and Rails API (`apps/api`), retaining D-032's domain ownership. [[Software Architecture]] and [[CICD]] define the two build/runtime boundaries and development commands. The temporary link is retired; hosted releases remain unchanged. The local `apply_test` cleanup issue was resolved by authorized recreation; [[Progress Log]] retains the incident and corrected cleanup checks.
 - **Pharmacy scope:** D-028 sets broad configurability: clinics should be able to choose and combine pharmacy setups. [[Pharmacy Inventory Data Requirements]] covers the shared inventory foundation and proposed capability extensions; individual clinic activation and real-data release still need their own evidence.
 - **Demand:** substantial local demand is founder-reported; founder is currently unsure how many first applicants are available. No pipeline count or paid commitment is assumed.
 - **Timing:** no deadline pressure was expressed. Budget and actual team capacity are still unknown; no 90-day deadline is imposed.
-- **Near-term objective:** build both experiences in one Rails app: [[Website MVP]] / [[Client Portal]] for selling, Contact, paperwork and training; [[Clinic Workspace]] for synthetic clinic operations. Separate layouts/navigation and clinic permissions, not a separate-domain requirement. No real patient data or released EHR; hosting and actual packet/content remain pending. Business-decision interviews stay deferred.
+- **Near-term objective:** build both experiences through a separate frontend and Rails API: [[Website MVP]] / [[Client Portal]] for selling, Contact, paperwork and training; [[Clinic Workspace]] for synthetic clinic operations. Separate layouts/navigation and clinic permissions, not a separate-domain requirement. No real patient data or released EHR; public release and actual packet/content remain pending. Business-decision interviews stay deferred.
 
 ## Start here
 
@@ -35,13 +37,13 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 | Strategy | [[Company Foundation]], [[Customer and Offer]], [[Business Model]], [[Entity and Product Boundary]], [[Foundation Questions]] |
 | Delivery | [[Clinic Launch Packet]], [[Knowledge Bank and Mentorship]] |
 | Learning | [[MD Pilot]], [[Customer Discovery]], [[Texas Diligence]], [[SharePoint and EMR]], [[Source Register]] |
-| Execution | [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[Data Modeling]], [[Roadmap and Tasks]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
+| Execution | [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[PostgreSQL and Inventory Foundation]], [[Data Modeling]], [[Roadmap and Tasks]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[CICD]], [[Progress Log]] |
 | Reusable notes | [[Evidence Note Template]], [[Weekly Review Template]] |
 
 ## Next three moves
 
-- Establish the reproducible local baseline and browser acceptance in M0/T-22, preserving the guarded local demo and fixing the observed test-setup/CI gaps.
-- Finish M1/T-20 EC2 staging after acceptance of the proposed `us-east-1` / roughly $25 monthly baseline; the founder authorized root until further notice and an unexecuted change set is ready. Verify the actual host and recovery before changing hosted access.
+- Finish the PostgreSQL maintenance cutover under T-38 and the remaining M0/T-22 remote-CI/browser acceptance. The local migration, concurrency, inventory and container restore checks pass; preserve the guarded demo and all existing data/key recovery evidence.
+- Finish M1/T-20 acceptance for the two running private environments: outstanding OS advisories, account/browser acceptance and recovery ownership. Complete GitHub sign-in/activation under [[CICD]]; public HTTPS needs a domain/DNS setup. The combined baseline is roughly $28/month before extras; root remains authorized until further notice. Real-data/clinical release remains gated.
 - When authorized materials arrive, index and review them for M3/T-12/T-24; real applicant documents and signing remain gated by M4. Keep clinic operations front-facing and permission-separated; real clinical release remains gated.
 
 Task status lives in [[Roadmap and Tasks]]; this page is a summary, not a second task list.

@@ -1,0 +1,99 @@
+#!/usr/bin/env ruby
+# Native HTTP integration only: synthetic scratch database, no browser or external API.
+require "json"
+require "net/http"
+require "open3"
+require "securerandom"
+require "socket"
+root = File.expand_path("..", __dir__)
+api_root = File.join(root, "apps/api")
+abort "Verification requires loopback PostgreSQL" unless [nil, "127.0.0.1", "localhost", "::1"].include?(ENV["PGHOST"])
+database_command = ENV["PGPASSWORD"] ? [] : ["bin/postgres", "exec"]
+database = "apply_web_verify_#{SecureRandom.hex(6)}"
+environment = {
+  "RAILS_ENV" => "development", "APPLY_DEVELOPMENT_DATABASE" => database,
+  "APPLY_TEST_DATABASE" => database + "_test", "SKIP_TEST_DATABASE" => "1",
+  "DATABASE_URL" => nil, "APP_DEVELOPMENT_LOGIN" => "1"
+}
+ports = 2.times.map { socket = TCPServer.new("127.0.0.1", 0); port = socket.addr[1]; socket.close; port }
+children = []
+created = false
+phase = "database setup"
+def command!(environment, directory, *args)
+  _, status = Open3.capture2e(environment, *args, chdir: directory)
+  raise "Local verification command failed; raw output suppressed" unless status.success?
+end
+begin
+  # PostgreSQL CLI targets exactly this generated name, never Rails' companion DBs.
+  command!(environment, api_root, *database_command, "createdb", database)
+  created = true
+  command!(environment, api_root, *database_command, "bin/rails", "db:migrate", "db:seed")
+  phase = "process startup"
+  children << Process.spawn(environment, *database_command, "bin/rails", "server", "-b", "127.0.0.1", "-p", ports[0].to_s, "--pid", "tmp/pids/#{database}.pid", chdir: api_root, pgroup: true, out: File::NULL, err: File::NULL)
+  children << Process.spawn({ "APPLY_API_PORT" => ports[0].to_s }, "node_modules/.bin/vite", "--host", "127.0.0.1", "--port", ports[1].to_s, "--strictPort", chdir: File.join(root, "apps/web"), pgroup: true, out: File::NULL, err: File::NULL)
+  origin = "http://127.0.0.1:#{ports[1]}"
+  cookies = {}
+  request = lambda do |path, method: "GET", body: nil, token: nil, origin_header: origin|
+    uri = URI(origin + path)
+    req = Net::HTTPGenericRequest.new(method, !body.nil?, true, uri.request_uri)
+    req["Cookie"] = cookies.map { |k, v| "#{k}=#{v}" }.join("; ")
+    req["Origin"] = origin_header
+    req["X-CSRF-Token"] = token if token
+    req["Content-Type"] = "application/json" if body
+    req.body = JSON.generate(body) if body
+    response = Net::HTTP.start(uri.host, uri.port, nil, open_timeout: 2, read_timeout: 10) { |http| http.request(req) }
+    response.get_fields("Set-Cookie")&.each { |value| k, v = value.split(";").first.split("=", 2); cookies[k] = v }
+    response
+  end
+  ready = false
+  50.times do
+    begin
+      ready = request.call("/api/csrf").code == "200"
+      break if ready
+    rescue Errno::ECONNREFUSED, EOFError, Net::ReadTimeout
+      nil
+    end
+    sleep 0.2
+  end
+  raise "Local frontend/API readiness failed" unless ready
+  phase = "frontend and session contract"
+  page = request.call("/login")
+  raise "Missing frontend entry" unless page.code == "200" && page.body.include?("/src/main.tsx")
+  csrf = -> { JSON.parse(request.call("/api/csrf").body).fetch("csrf_token") }
+  post = ->(path, body = {}, method: "POST") { request.call(path, method: method, body: body, token: csrf.call) }
+  raise "Anonymous clinic access" unless request.call("/api/clinic").code == "401"
+  raise "CSRF accepted without token" unless request.call("/api/development_session", method: "POST", body: {}).code == "422"
+  raise "Origin accepted" unless request.call("/api/development_session", method: "POST", body: {}, token: csrf.call, origin_header: "http://outside.example.invalid").code == "422"
+  raise "Local demo login failed" unless post.call("/api/development_session").code == "201"
+  user = JSON.parse(request.call("/api/session").body).fetch("user")
+  raise "Demo contract failed" unless user.fetch("development_demo") && !user.fetch("admin")
+  clinic = JSON.parse(request.call("/api/clinic").body)
+  raise "Missing clinic capabilities" unless clinic.fetch("capabilities").fetch("inventory_access") && clinic.fetch("inventory_actions").fetch("receive")
+  phase = "inventory wire contract"
+  response = post.call("/api/clinic/pharmacy", { clinic_pharmacy_product: { name: "Synthetic split verification", sku: "SPLIT-VERIFY", stock_unit: "mL", quantity_scale: 6, package_size: "0.000001", unit_reference: "Fictional package verification" } })
+  raise "Catalog create failed" unless response.code == "201"
+  id = JSON.parse(response.body).fetch("id")
+  receipt = { batch: { lot_number: "SYNTHETIC-LOT", location: "Example shelf", expires_on: "2099-01-01" }, amount: "0.000001", input_unit: "mL", reason: "Synthetic split test", request_key: SecureRandom.uuid }
+  2.times { raise "Receipt/retry failed" unless post.call("/api/clinic/pharmacy/#{id}/receive", receipt).code == "204" }
+  details = JSON.parse(request.call("/api/clinic/pharmacy/#{id}").body)
+  raise "Decimal/retry wire contract failed" unless details.dig("product", "available_quantity") == "0.000001" && details.fetch("batches").length == 1 && details.fetch("batches").first.fetch("receipts").length == 1
+  phase = "portal and logout"
+  documents = JSON.parse(request.call("/api/paperworks").body).fetch("paperworks")
+  raise "Unexpected assigned documents" unless documents.length == 1
+  document = documents.first
+  raise "Review failed" unless post.call("/api/paperworks/#{document.fetch('id')}/start").code == "200"
+  raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
+  raise "Protected content after logout" unless request.call("/api/clinic").code == "401"
+  puts "PASS: real frontend proxy → Rails session/CSRF/origin, synthetic clinic, exact decimal receipt/retry, portal and logout"
+rescue => error
+  warn "FAIL during #{phase}: #{error.class}; raw diagnostics suppressed"
+  exit 1
+ensure
+  children.each { |pid| Process.kill("TERM", -pid) rescue Errno::ESRCH }
+  children.each { |pid| Process.wait(pid) rescue Errno::ECHILD }
+  if created
+    raise "Unexpected scratch database name" unless database.match?(/\Aapply_web_verify_[a-f0-9]{12}\z/)
+    command!(environment, api_root, *database_command, "dropdb", database)
+    puts "Removed only this run's synthetic scratch database and child processes."
+  end
+end

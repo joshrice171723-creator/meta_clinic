@@ -1,5 +1,0 @@
-<section class="rx-stat-grid" aria-label="Inventory summary">
-  <% [["Active products", @products.count(&:active?), "In your clinic catalog", "inventory", "blue"], ["Available packages", @available, "Excludes held and expired stock", "inventory", "teal"], ["Low stock", @low_stock.length, "Products at reorder level", "alerts", "amber"], ["Expiring soon", @expiring.length, "Available lots · within 30 days", "alerts", "coral"]].each do |label, count, detail, icon, tone| %>
-    <div class="rx-stat"><span class="rx-stat-icon <%= tone %>"><%= pharmacy_icon(icon) %></span><span><%= label %></span><strong><%= number_with_delimiter(count) %></strong><small><%= detail %></small></div>
-  <% end %>
-</section>

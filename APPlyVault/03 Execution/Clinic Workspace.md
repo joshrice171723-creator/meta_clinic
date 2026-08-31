@@ -1,11 +1,14 @@
 ---
 type: implementation
 status: synthetic-local-prototype
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Clinic Workspace
 
 Home: [[00 Home]] · Launch: [[Client Portal]] · Scope: [[Entity and Product Boundary]] · Design: [[Data Modeling]] · Tasks: [[Roadmap and Tasks]] · Authority: [[Decisions]]
+
+
+**Frontend/API update, D-033:** the separate clinic interface now renders in `apps/web`, with permission-scoped JSON under `/api/clinic` in `apps/api`. Backend inventory rules, transactions, ledger/history, one-clinic assignment and production denial are unchanged. Static deployed clinic routes also return 404. Earlier Rails-rendered layout/form results below are historical, not current browser acceptance; see [[Software Architecture]] and the latest [[Progress Log]].
 
 ## Founder-selected direction
 
@@ -17,7 +20,13 @@ D-026 confirms one clinic per login, provisioned by developers. People working a
 
 D-028 sets the pharmacy product direction: allow clinics to choose and combine pharmacy setups rather than design for one operating model. [[Pharmacy Inventory Data Requirements#Configurable pharmacy capabilities]] defines the proposed shared foundation and extensions. This is future capability scope, not a claim that the delivered slice below supports dispensing, compounding or every pharmacy setting. Clinic-specific activation, professional permissions and real-data release remain separate.
 
-## Delivered synthetic slice
+## Current PostgreSQL inventory implementation
+
+D-032's completed source refactor separates `Clinic::Care`, `Clinic::Inventory` and `Clinic::Staff`; clinic tenancy remains `Clinic::Practice`/`Clinic::Membership`. Scoped catalog/detail queries and authorized NDC-import orchestration are separate from HTTP; inventory receiving and the shared ledger are preserved. Clinic presentation depends on neutral shared CSS/views, not launch content. See [[Software Architecture]] and [[Progress Log#2026-08-30 — Full software-structure refactor completed]] for the current source contract and verification. Historical paths/results below are not current startup instructions.
+
+D-031 and [[PostgreSQL and Inventory Foundation]] supersede the initial SQLite/whole-package inventory implementation below. Rails now uses PostgreSQL with a shared office/pharmacy ledger, verified typed units, distinct same-lot receipts and optional costs, independent holds/releases, count observation/approval, action permissions and versioned synthetic profiles. The local checks pass; the two hosted bootstrap releases remain on SQLite pending the explicit maintenance cutover. All production clinic denial and real-data gates remain.
+
+## Initial delivered synthetic slice — historical
 
 | Area | Local behavior | Limits |
 | --- | --- | --- |
@@ -35,22 +44,30 @@ Clinic reads/writes are scoped to the active membership; module permissions are 
 
 The founder requested reuse of the new pharmacy folder and removal of unnecessary Vite scaffolding, then requested `git pull`. The fast-forward to `f0421ae` supplied `pharmacy-inventory/`; its specification and PostgreSQL schema remain as background. The standalone React/Vite UI and NDC helper were replaced by a Rails adaptation; the original PostgreSQL proposal was not executed against the application.
 
+**UI correction, 2026-08-30:** the founder clarified that the supplied code should map onto the existing EHR structure. Removed the attempted separate pharmacy layout, sidebar, dashboard and stylesheet. Catalog, FDA lookup, product details and receiving now use the existing clinic layout and EHR tabs; stock alerts and recent movements stay on the catalog page. The browser form failure was traced to `no-referrer` producing a null POST Origin; `same-origin` now permits native same-origin forms while withholding referrers from external destinations. CSRF and Origin validation remain enabled. Invalid forms offer a fresh-page recovery link, and an expired login returns to pharmacy after explicit sign-in without replaying the write. See [[Progress Log#2026-08-30 — Pharmacy mapped into the existing EHR layout]].
+
 The implementation uses clinic-prefixed products, lot/location batches, movements and batch-status events. Quantities are whole sealed packages, not doses or fractional dispensing units. Balances derive from movement rows; receipts commit with their batch, repeat submissions do not duplicate stock, and invalid deductions are rejected without clamping an overdraw. Expired, quarantined, recalled and inactive-product stock is excluded from availability. SQLite composite clinic/actor constraints and append-only/stock-range triggers are preserved in `site/backend/db/structure.sql` for fresh databases. This does not implement the full PostgreSQL/RLS/audit proposal.
 
 FDA lookup sends only an explicitly submitted public name/NDC to the public directory. It expands package options and matches the selected NDC to its own description; authenticated imports use signed, expiring account/clinic-bound results and add no stock. No patient/clinic payload, API key, background ingestion or live EHR connection is used. Labeler-submitted metadata is not FDA approval or medical guidance; S-28 in [[Source Register]] records the recheck. Optional synthetic sample stock never replaces an existing catalog.
 
 Broad pharmacy configurability is confirmed by D-028; the detailed specification and implementation sequence in [[Pharmacy Inventory Data Requirements]] remain proposals. Verified unit conversions, receipt-level supplier/cost history, containers/BUD, overlapping holds, transfers, barcode hardware, purchasing, valuation/export, persistent alert acknowledgment, controlled-substance and prescription workflows are not implemented. The prototype has one status per lot/location, not a complete hold/release process. T-32 records bounded delivery; [[Progress Log#2026-08-30 — Pharmacy background integrated into Rails EHR]] records checks.
 
+## Supplier pricing integration — deferred
+
+D-029 defers the product/price integration discussion; [[Inventory Price Comparison Sources]] records the source baseline, advertised supplier APIs and purchasing connections, access gaps and proposed extensible design. T-37 holds future implementation. No supplier accounts, negotiated-price feed, price-history/comparison module or procurement connection has been added by this work. Public FDA catalog lookup remains separate from pricing and actual stock. The proposed comparison layer must preserve the existing whole-package ledger and keep prices, approved orders, receipts and invoices distinct. Broad pharmacy work under T-13/T-34 and all existing release limits remain unchanged.
+
 ## Data and release boundary
 
 Wholly synthetic examples only. All clinic routes are disabled in Rails production mode regardless of account or flags. The demo login separately requires development mode, explicit enablement, loopback and matching POST Origin. No AWS, S3, SharePoint or live EHR connection was made.
 
-Clinic-prefixed tables share the local SQLite database with the launch portal. They do not implement the PostgreSQL, trusted capabilities, RLS, independent audit or operational design in [[Data Modeling]]. Front-facing separation is not process/database isolation; production boundaries must be reviewed before either business handles real confidential/clinical information.
+Clinic-prefixed tables now share PostgreSQL with the launch portal. The complete trusted capabilities, RLS, independent audit and operational design in [[Data Modeling]] remains unimplemented; [[PostgreSQL and Inventory Foundation]] records the bounded controls actually delivered. Front-facing separation is not process/database isolation; production boundaries must be reviewed before either business handles real confidential/clinical information.
 
 BAA absence does not authorize PHI. L-05 and applicable clinical/operational gates remain open. SharePoint remains the intended starter workflow, to be mapped and reviewed. Do not remove production denial merely to expose these screens.
 
+D-030 deploys separate private staging and production containers for the application; it does not release clinic routes. Both use Rails production mode, keep clinic access denied, and hide the unavailable clinic navigation link. Synthetic clinic development remains local; staging tests the hosted launch portal with ordinary synthetic accounts. See [[CICD]] for the environment boundary.
+
 ## Verification and next work
 
-Native Rails/HTTP checks cover layouts, explicit login, direct assigned-clinic navigation, fictional drafts, escaped content, other-clinic and per-module denial, revocation, stock invariants/retry behavior, staff-directory isolation and production denial. Latest results: [[Progress Log#2026-08-30 — Assigned Test Clinic and explicit login navigation]]. Original slice: [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. No browser visual/accessibility QA, cloud deployment, independent security assessment or clinical acceptance performed.
+Native Rails/HTTP checks cover layouts, explicit login, direct assigned-clinic navigation, fictional drafts, escaped content, other-clinic and per-module denial, revocation, stock invariants/retry behavior, staff-directory isolation and production denial. Latest results and scoped local-browser pharmacy checks: [[Progress Log#2026-08-30 — Pharmacy mapped into the existing EHR layout]]. Earlier navigation results: [[Progress Log#2026-08-30 — Assigned Test Clinic and explicit login navigation]]. Original slice: [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. Full application browser/accessibility acceptance, hosted clinic verification, independent security assessment and clinical acceptance remain open.
 
 T-29 records this bounded slice, not a completed EHR. Full requirements, clinical record/signing workflows, employee identity/lifecycle, audit, MFA, recovery, production boundaries, migration and qualified review stay open under T-13/T-09 and E2/E3. Canonical status stays in [[Roadmap and Tasks]].

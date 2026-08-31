@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# Start only local application children; never reset a database or kill another server.
+root = File.expand_path("..", __dir__)
+require "socket"
+[3000, 3001].each do |port|
+  socket = TCPServer.new("127.0.0.1", port)
+  socket.close
+rescue Errno::EADDRINUSE
+  abort "Port #{port} is already in use. Stop the existing local server before starting bin/dev."
+end
+children = []
+begin
+  children << Process.spawn("bin/postgres", "exec", "bin/dev", chdir: File.join(root, "apps/api"), pgroup: true)
+  children << Process.spawn("npm", "run", "dev", chdir: File.join(root, "apps/web"), pgroup: true)
+  %w[INT TERM].each { |signal| Signal.trap(signal) { raise Interrupt } }
+  _, status = Process.wait2
+  exit status.exitstatus || 1
+rescue Interrupt
+  exit 0
+ensure
+  children.each do |pid|
+    Process.kill("TERM", -pid)
+  rescue Errno::ESRCH
+    nil
+  end
+  children.each do |pid|
+    Process.wait(pid)
+  rescue Errno::ECHILD
+    nil
+  end
+end

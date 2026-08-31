@@ -29,6 +29,12 @@ The senior-developer friend will work with both businesses: employee of the cons
 
 Kevin's attorney helped with his clinic setup. Whether that attorney will advise the consultancy, software entity, or client clinics—and on which issues—is not yet established.
 
+## Medication supply and pharmacy boundary
+
+An internal pharmacy may introduce a distinct licensed operator, PIC, stock owner and record custodian. Do not automatically assign those roles to the consultancy, software company, Kevin or the customer clinic. Map who buys, pays, owns, stores, prepares, supplies/dispenses and receives returns. Taking title, brokering, central storage or cross-clinic supply needs separate distribution-role review; merely recording an order grants no such authority.
+
+[[Pharmacy Provider and Counsel Questions]] provides the proposed provider/counsel agenda, especially PQ-16 and PQ-26–PQ-30. Related ownership, fees, supplier incentives, contracts, clinical independence and record access remain L-01/L-04/L-05/L-08 matters. No pharmacy entity formation, procurement role, contract or clinical authority is selected by this update.
+
 ## Decisions before bundling a software product with consulting
 
 1. **Customer contract:** one agreement, separate agreements, or a disclosed bundled arrangement? Who invoices for setup, licenses, maintenance, and support?

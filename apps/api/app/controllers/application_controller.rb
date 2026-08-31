@@ -1,0 +1,47 @@
+class ApplicationController < ActionController::Base
+  protect_from_forgery with: :exception
+  before_action :prevent_caching
+
+  rescue_from ActionController::InvalidAuthenticityToken do
+    render json: { error: "Your session expired. Please try again." }, status: :unprocessable_entity
+  end
+  rescue_from ActiveRecord::RecordNotFound do
+    render json: { error: "Not found." }, status: :not_found
+  end
+  rescue_from ActionController::ParameterMissing do
+    render json: { error: "Please complete the required fields." }, status: :bad_request
+  end
+
+  private
+
+  def prevent_caching
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+  end
+
+  def current_member_session
+    @current_member_session ||= MemberSession.includes(:user).find_by(id: session[:member_session_id])
+  end
+
+  def current_user
+    record = current_member_session
+    return if session[:development_demo_user_id] && !development_demo?
+    record.user if record && record.expires_at.future? && record.user.active?
+  end
+
+  def development_demo?
+    record = current_member_session
+    DevelopmentAccess.allowed?(request) && record && !record.user.admin? &&
+      session[:development_demo_user_id] == record.user_id
+  end
+
+  def require_member
+    render json: { error: "Please sign in to continue." }, status: :unauthorized unless current_user
+  end
+
+  def require_admin
+    require_member
+    return if performed?
+    render json: { error: "This page is for APPly administrators." }, status: :forbidden unless current_user.admin?
+  end
+end

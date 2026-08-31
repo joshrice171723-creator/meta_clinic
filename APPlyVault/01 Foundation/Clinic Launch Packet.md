@@ -34,6 +34,7 @@ Do not use the planning vault as a live applicant database. Keep actual applican
 | 3. Location and readiness dependencies | Site, lease/buildout status, local authority contacts, applicable permits/inspections | Site-specific checklist with sources, owners, dependencies, and evidence |
 | 4. Business operations | Banking/accounting, insurance, payment workflow, staffing/vendor needs, scheduling and communications | Scope-specific setup checklist; identify applicant versus consultancy versus third-party work |
 | 5. Clinical operating preparation | Service list, equipment/supplies, protocols and escalation arrangements needing clinical review | Named clinical reviewer and documented readiness requirements for that service mix |
+| 5a. Medication and pharmacy module — if included for this clinic | Operating profile, supply/dispensing pathway, formulary, professional roles, patient charges, procurement, licensing/site needs, storage/tracing, controlled/compounding overlays, records and continuity | Scoped professional findings and applicable approvals; use [[Pharmacy Provider and Counsel Questions]] and L-02/L-04/L-05/L-06. Define included work/costs and required signatures; no universal pharmacy package or clearance implied |
 | 6. Starter SharePoint EHR | Tenant and licensing choice, configuration, users/roles, training, data handling, record lifecycle, recovery | Reviewed configuration record and synthetic end-to-end rehearsal |
 | 7. First-patient handoff and ongoing support | Evidence index, open issues, accountable people, operational walkthrough, physician/mentorship/support contacts | Handoff and continuing-service record; blocking items and responsibility boundaries visible |
 
@@ -69,6 +70,7 @@ The engagement's endpoint is an agreed, evidence-backed handoff—not a guarante
 
 - Relevant formation, professional arrangements, and site/service readiness items evidenced for the specific clinic.
 - Agreed business workflows, necessary equipment/supplies, and responsible staff in place.
+- If medication supply/pharmacy work is included: activity-specific authority, applicable licenses/registrations, required professional coverage, approved charging/sourcing, storage/records/incident procedures and a synthetic rehearsal evidenced. Unsupported activities remain excluded until separately cleared.
 - Starter EHR configured within its reviewed scope, with staff trained and a synthetic intake-to-record-to-follow-up rehearsal completed.
 - Open issues categorized as blocking or nonblocking by the appropriate responsible people, not unilaterally by the consultancy.
 - Client acknowledgment of the delivered scope, exclusions, ongoing responsibilities, and support/exit path.

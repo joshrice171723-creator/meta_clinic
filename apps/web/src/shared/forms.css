@@ -1,0 +1,50 @@
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.pharmacy-form-grid {
+  display: block;
+}
+.pharmacy-form-grid > fieldset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: end;
+}
+.pharmacy-form-grid > fieldset > p {
+  grid-column: 1/-1;
+}
+.pharmacy-form-grid button {
+  justify-self: start;
+}
+.form-card .pharmacy-form-grid > fieldset {
+  grid-template-columns: 1fr;
+}
+.member-navigation {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+.member-navigation form {
+  margin-left: auto;
+}
+.preserve-lines {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+code {
+  overflow-wrap: anywhere;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+@media (max-width: 650px) {
+  .pharmacy-form-grid > fieldset {
+    grid-template-columns: 1fr;
+  }
+}

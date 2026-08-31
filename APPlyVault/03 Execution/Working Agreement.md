@@ -1,7 +1,7 @@
 ---
 type: operating-guide
 status: proposed
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Working Agreement
 
@@ -22,6 +22,8 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 - [[Risks and Assumptions]]: uncertainties and tests, not hidden conclusions.
 - Research notes and evidence notes: observations, sources, applicability, and reviews.
 - [[Progress Log]]: dated changes, outcomes, and links; not a second backlog.
+- [[CICD]]: local frontend/API setup, two-developer Git/PR instructions, current CI checks, and the prepared staging-to-production release process. Activation and observed remote runs remain pending.
+- [[Software Architecture]]: repository responsibilities and module/dependency rules; independent frontend/Rails API with domain ownership, not a second task or decision register.
 
 ## Working session protocol
 

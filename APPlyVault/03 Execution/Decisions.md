@@ -1,7 +1,7 @@
 ---
 type: decision-log
 status: active
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Decisions
 
@@ -51,11 +51,19 @@ Earlier table entries preserve what was known then; D-019 supplies the later ans
 
 ## EC2 hosting request
 
-**D-027 — 2026-08-30 / founder's EC2 setup request:** Set up EC2 to host the current application and database. This selects the hosting workstream previously prepared under D-024; it does not select the future clinical production architecture or authorize real records. The implementation package keeps the existing SQLite adapter for private synthetic staging. **Later same-session clarification:** use the current root session until further notice. This expressly supersedes the earlier non-root prerequisite for this task; individual least-privilege access remains recommended, with no MFA assessment or other-user access granted. The authenticated account's `us-east-1` change set is prepared and unexecuted; proposed region and roughly $25/month baseline cost still await acceptance before paid provisioning. See T-20 and [[Progress Log]].
+**D-027 — 2026-08-30 / founder's EC2 setup request:** Set up EC2 to host the current application and database. This selects the hosting workstream previously prepared under D-024; it does not select the future clinical production architecture or authorize real records. The implementation keeps the existing SQLite adapter for private synthetic staging. **Later same-session clarifications:** use the current root session until further notice; then reduce storage and start free. After the account's introductory EC2 allowance was found expired, the founder explicitly instructed launch and accepted paying. The revised `us-east-1` setup is t3.micro with 8 GiB root plus 2 GiB data, about $14/month before image storage, snapshots, extra usage and tax. This replaces the larger unapproved $25 proposal and supersedes the earlier non-root prerequisite for this task; individual least-privilege access remains recommended. No MFA assessment, other-user access, unlimited spending, public release or real-data approval is implied. See T-20 and [[Progress Log]].
 
 ## Pharmacy scope clarification
 
 **D-028 — 2026-08-30 / founder's pharmacy-scope clarification:** Assume clinics will want the option of any pharmacy setup and develop the product from that broad scope. Do not require choosing one operating model before designing the shared pharmacy foundation. [[Pharmacy Inventory Data Requirements#Configurable pharmacy capabilities]] translates this into a proposed configurable model; exact schema, capability combinations and delivery sequence remain implementation details. This is a product planning assumption, not validated customer demand, professional authority for every clinic, a claim of universal implemented coverage, or permission for APPly to distribute drugs. Real-data/professional gates and the separate consultancy/software/clinic boundaries remain unchanged. Refines the earlier DD's model-selection dependency without superseding its applicability findings.
+
+## Supplier pricing integration deferred
+
+**D-029 — 2026-08-30 / founder's explicit deferral:** put supplier product/price integration work on hold and preserve the current findings and necessary future work in the vault. [[Inventory Price Comparison Sources]] holds the source baseline, advertised API/network capabilities and proposed design; T-37 in [[Roadmap and Tasks]] holds the deferred task. Resume only when the founder reprioritizes it; no date or automatic follow-up is set. This accepts the deferral, not a supplier, commercial agreement, architecture, implementation scope or purchasing/billing workflow. D-028's broad pharmacy direction, T-13/T-34 inventory work, T-14 pricing mechanics, existing hosting work and all professional/real-data gates remain unchanged.
+
+## Separate staging and production
+
+**D-030 — 2026-08-30 / founder request:** establish separate production and staging containers as the project's release structure, and remove or disable the demo in production. Implemented as two small private EC2 environments with independent SQLite storage, secrets and instance roles, preserving the existing staging records. The existing payment/root authorization continues; estimated combined baseline is about $28/month before extras. The release design builds on successful main CI, deploys staging, then explicitly promotes the same digest to production. GitHub activation and public domain/DNS configuration remain outstanding. This does not authorize PHI, confidential applicant records, real signatures or removal of clinic-production denial; broader security/operational gates remain open. See [[CICD]] and T-20/T-22.
 
 ## Pending choices
 
@@ -80,3 +88,19 @@ Open implementation details do not negate confirmed direction. Kevin's prior att
 - Needed professional review, if any:
 - Owner, follow-up tasks, and review trigger:
 - Supersedes / superseded by:
+
+## PostgreSQL and inventory foundation
+
+**D-031 — 2026-08-30 / founder's database implementation request:** Switch everything to PostgreSQL because SQLite is unsuitable for the intended scope, and work through the identified gaps using engineering recommendations. This authorizes the synthetic runtime/schema/inventory-foundation implementation recorded in [[PostgreSQL and Inventory Foundation]], superseding the SQLite starter choice for future application releases. Preserve existing history and verify conversion/recovery; do not conflate prepared code with a completed hosted cutover. D-028 broad optionality, D-029 supplier-pricing deferral and D-030 environment/demo separation remain. This request does not approve clinical capability activation, PHI, public release, new supplier integrations or bypass of existing security/release gates.
+
+## Software structure and incremental refactor
+
+**D-032 — 2026-08-30 / founder's approval to begin the recommended refactor:** Keep one Rails application with explicit launch, clinic-care, inventory, staff, shared identity/HTML and external-integration ownership. Place the complete app in `apps/apply/`, AWS tooling in `ops/aws/`, and imported pharmacy designs in `reference/pharmacy/`; keep the vault canonical for requirements, decisions and tasks. [[Software Architecture]] records the contract and incremental implementation. Preserve current behavior, data/history, dependencies, existing work and historical Sites metadata; no microservice/engine/new frontend is selected. The first increment retained a temporary local compatibility link to protect existing runtime paths. This authorizes source refactoring, not Git publication, deployment, hosted PostgreSQL cutover, new integrations or removal of any clinical/confidential-data gate.
+
+**D-032 continuation — 2026-08-30 / founder follow-up:** proceed through the full recommended refactor unless an issue requires escalation. The cohesive domain/query/workflow/presentation changes and verified local path transition are now complete; the temporary link was retired without resetting storage or credentials. This extends source implementation scope only; the release, integration and real-data exclusions above remain. See [[Progress Log#2026-08-30 — Full software-structure refactor completed]].
+
+## Frontend and backend separation
+
+**D-033 — 2026-08-30 / founder's frontend/backend request and approval:** separate browser presentation from backend responsibilities. The founder accepted the proposed independent frontend and Rails API, superseding D-024's JavaScript removal and the single Rails-rendered runtime aspect of D-025/D-032. Keep one repository and the established launch/care/inventory/staff/identity domain ownership. Implementation uses `apps/web` for React/TypeScript screens and `apps/api` for Rails JSON, sessions/CSRF, authorization, workflows and PostgreSQL. Preserve browser URLs, data history, encryption derivation, clinic permissions and production clinic/demo denial. Source/build/local-tooling changes are authorized; Git publication, hosted cutover, new integrations and real-data use are not. Implementation initially paused under T-40 for the verification-cleanup issue recorded in [[Progress Log#2026-08-30 — Frontend API split paused after verification cleanup issue]].
+
+**D-033 continuation — 2026-08-31:** after disclosure of the verifier cleanup issue, the founder confirmed `apply_test` was disposable test/development data and explicitly authorized recreating it. Recreated from current migrations; no original test-data recovery claimed. The corrected scratch cleanup preserves the recreated database identity. The authorized frontend/API refactor is now complete locally under T-40; see [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]]. Deployment and real-data exclusions remain unchanged.

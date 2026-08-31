@@ -23,6 +23,8 @@ The founder expressed no deadline pressure. This does not supply a cash budget, 
 
 No fee amount, referral arrangement, clinical-revenue share, supplier rebate, or equity-in-clinic model is approved. The chosen pricing basis is ordered inventory value, not encounters or patient-care revenue. Document the actual commercial and procurement relationships for review under L-04 in [[Texas Diligence]]; do not infer legality or an undisclosed vendor commission from the pricing description.
 
+For a clinic with internal medication supply, review patient medication/dispensing/administration or membership charges separately from the software fee. [[Pharmacy Provider and Counsel Questions#E. Patient charges, samples and payment arrangements]] covers patient charges; [[Pharmacy Provider and Counsel Questions#F. APPly, procurement, ownership and financial relationships]] covers goods/money flow, distribution roles, supplier incentives and the selected software-fee structure. These are unresolved L-04 questions, not approved charges or a conclusion that percentage pricing is prohibited.
+
 ## Inventory-value pricing — basis confirmed, mechanics open
 
 Conceptual variable fee = agreed percentage × eligible value of inventory ordered during the billing period. This describes the founder's selected basis, not a completed billing specification or price quote.

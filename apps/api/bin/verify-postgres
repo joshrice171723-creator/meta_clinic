@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Destructive only to uniquely named scratch databases created by this process.
+
+Requires local PostgreSQL 18 client/server, CREATE DATABASE permission and Python.
+Exercises old SQLite -> PostgreSQL 004 -> current, concurrency, and dump/restore.
+Never reads an existing application's database or emits rows/credentials.
+"""
+import os
+import pathlib
+import sqlite3
+import subprocess
+import tempfile
+import uuid
+
+root = pathlib.Path(__file__).resolve().parents[1]
+prefix = "apply_verify_" + uuid.uuid4().hex[:12]
+databases = [prefix + suffix for suffix in ("_upgrade", "_restore", "_fresh")]
+environment = os.environ.copy()
+environment.update(PGHOST=os.environ.get("PGHOST", "127.0.0.1"), PGPORT=os.environ.get("PGPORT", "54329"), PGUSER=os.environ.get("PGUSER", "postgres"), RAILS_ENV="development")
+environment.pop("DATABASE_URL", None)
+
+def run(command, env=environment, data=None):
+    result = subprocess.run(command, cwd=root, env=env, input=data, capture_output=True, text=True)
+    if result.returncode:
+        # All fixture data is synthetic, but do not echo connection diagnostics.
+        raise RuntimeError("Verification step failed: " + command[0] + " " + command[1])
+    return result.stdout
+
+with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
+    environment["SCHEMA"] = str(pathlib.Path(temporary) / "structure.sql")
+    created = []
+    try:
+        for name in databases:
+            run(["createdb", "--template=template0", name])
+            created.append(name)
+        environment.update(PGDATABASE=databases[0], APPLY_DEVELOPMENT_DATABASE=databases[0])
+        run(["bin/rails", "db:migrate", "VERSION=20260830000400"])
+        source = pathlib.Path(temporary) / "legacy.sqlite3"
+        db = sqlite3.connect(source)
+        db.executescript((root / "test/legacy/sqlite_structure.sql").read_text())
+        stamp = "2026-08-30 12:00:00.123456"
+        def insert(table, **values):
+            values.update(created_at=stamp, updated_at=stamp)
+            db.execute("INSERT INTO " + table + " (" + ",".join(values) + ") VALUES (" + ",".join("?" for _ in values) + ")", list(values.values()))
+        insert("users", id=41, email_address="upgrade@example.invalid", password_digest="synthetic-unusable-digest")
+        insert("clinic_practices", id=51, name="Fictional upgrade clinic")
+        insert("clinic_memberships", id=61, practice_id=51, user_id=41, inventory_access=True)
+        insert("clinic_items", id=71, practice_id=51, name="Fictional stock", sku="UPGRADE", quantity=9)
+        insert("clinic_stock_movements", id=81, item_id=71, actor_id=41, delta=-2, reason="Legacy synthetic loss", request_key=str(uuid.uuid4()))
+        insert("clinic_pharmacy_products", id=91, practice_id=51, name="Fictional package", sku="UPGRADE-P")
+        insert("clinic_pharmacy_batches", id=101, practice_id=51, product_id=91, lot_number="LEGACY", location="Shelf", expires_on="2027-08-30", status="recalled")
+        insert("clinic_pharmacy_movements", id=111, practice_id=51, batch_id=101, actor_id=41, quantity=5, kind="receipt", reason="Legacy synthetic receipt", request_key=str(uuid.uuid4()))
+        # Ciphertext-like bytes must round trip without models interpreting them.
+        insert("contact_messages", id=121, name='{"p":"synthetic","h":{"iv":"synthetic"}}', email="synthetic-encrypted-marker", message="synthetic-encrypted-marker")
+        db.commit()
+        db.close()
+        run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)])
+        # Re-import is refused without changing the destination.
+        retry = subprocess.run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)], cwd=root, env=environment, capture_output=True)
+        assert retry.returncode != 0
+        run(["bin/rails", "db:migrate"])
+        checks = """
+          raise unless Clinic::Inventory::Item.find(71).quantity == 9
+          raise unless Clinic::Inventory::StockMovement.where(item_id: 71).sum(:quantity) == 9
+          opening = Clinic::Inventory::StockMovement.find_by!(item_id: 71, origin: 'legacy_opening_balance')
+          raise unless opening.actor_id.nil? && opening.quantity == 11
+          batch = Clinic::Inventory::PharmacyBatch.find(101)
+          raise unless batch.quantity == 5 && batch.status == 'recalled'
+          raise unless batch.movements.find(111).origin == 'legacy_movement'
+          raise unless Clinic::Membership.find(61).inventory_receive?
+          raise unless ApplicationRecord.connection.select_value('SELECT message FROM contact_messages WHERE id=121') == 'synthetic-encrypted-marker'
+        """
+        run(["bin/rails", "runner", checks])
+        print("PASS: legacy IDs, values, encrypted bytes, history, opening balances and holds survive upgrade", flush=True)
+        concurrency = """
+          user = User.create!(email_address: 'concurrent@example.invalid', password: SecureRandom.hex(20))
+          practice = Development::TestClinic.create!(user).practice
+          product = Clinic::Inventory::PharmacyProduct.create!(practice: practice, name: 'Synthetic concurrency', sku: 'RACE')
+          batch = product.batches.create!(practice_id: practice.id, lot_number: 'RACE', location: 'Shelf', expires_on: Date.current+30)
+          batch.move!(kind: 'receipt', amount: 5, reason: 'Synthetic opening', actor: user, request_key: SecureRandom.uuid)
+          gate = Queue.new
+          threads = 2.times.map do
+            Thread.new do
+              ApplicationRecord.connection_pool.with_connection do
+                gate.pop
+                begin
+                  Clinic::Inventory::PharmacyBatch.find(batch.id).move!(kind: 'adjustment_out', amount: 4, reason: 'Concurrent loss', actor: user, request_key: SecureRandom.uuid)
+                  :posted
+                rescue ArgumentError
+                  :rejected
+                end
+              end
+            end
+          end
+          2.times { gate << true }
+          raise unless threads.map(&:value).sort == [:posted, :rejected] && batch.reload.quantity == 1
+          key = SecureRandom.uuid
+          gate = Queue.new
+          threads = 2.times.map do
+            Thread.new do
+              ApplicationRecord.connection_pool.with_connection do
+                gate.pop
+                Clinic::Inventory::PharmacyBatch.find(batch.id).move!(kind: 'receipt', amount: 2, reason: 'Concurrent retry', actor: user, request_key: key).id
+              end
+            end
+          end
+          2.times { gate << true }
+          raise unless threads.map(&:value).uniq.size == 1 && batch.reload.quantity == 3
+        """
+        run(["bin/rails", "runner", concurrency])
+        print("PASS: simultaneous stock deductions cannot overdraw; duplicate deliveries post once", flush=True)
+        dump = str(pathlib.Path(temporary) / "backup.dump")
+        run(["pg_dump", "--format=custom", "--no-owner", "--no-acl", "--file", dump, databases[0]])
+        run(["pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl", "--dbname", databases[1], dump])
+        environment.update(PGDATABASE=databases[1], APPLY_DEVELOPMENT_DATABASE=databases[1])
+        run(["bin/rails", "runner", checks])
+        print("PASS: PostgreSQL backup restores into a separate database with history and constraints", flush=True)
+        environment.update(PGDATABASE=databases[2], APPLY_DEVELOPMENT_DATABASE=databases[2])
+        run(["bin/rails", "db:migrate"])
+        run(["bin/rails", "runner", "raise unless ApplicationRecord.connection.adapter_name=='PostgreSQL' && Clinic::Inventory::Entry.count.zero?; Clinic::Practice.create!(name:'Fresh synthetic clinic')"])
+        print("PASS: all migrations initialize a fresh PostgreSQL database", flush=True)
+    finally:
+        for name in reversed(created):
+            subprocess.run(["dropdb", "--if-exists", name], env=environment, capture_output=True)

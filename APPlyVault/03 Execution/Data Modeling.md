@@ -1,7 +1,7 @@
 ---
 type: architecture-proposal
 status: proposed-not-for-production
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 # Data Modeling
 
@@ -19,7 +19,7 @@ The consultancy, future software entity, Kevin's clinic/physician services, and 
 
 ## Tenant boundary and architecture proposal
 
-**Later prototype:** D-025 authorizes a synthetic [[Clinic Workspace]] in the same Rails app as selling/onboarding, with separate presentation and explicit membership. That local SQLite scaffold does not implement the PostgreSQL/capability/RLS/audit design below. Shared runtime, identity and database privileges require separately reviewed production boundaries; no PHI or clinical release is authorized.
+**Later prototype:** D-025 authorizes a synthetic [[Clinic Workspace]] in the same Rails app as selling/onboarding, with separate presentation and explicit membership. D-031 later moves that scaffold to PostgreSQL with the bounded inventory implementation in [[PostgreSQL and Inventory Foundation]]. The trusted capability/RLS/read-audit and complete clinical design below remains unimplemented. Shared runtime, identity and database privileges require separately reviewed production boundaries; no PHI or clinical release is authorized.
 
 Use **one `clinic_id` per independently authorized record-custody boundary**, normally a customer clinic business. Model that clinic's physical offices as `locations`. Confirm the legal custody boundary before provisioning; a building, physician, parent company, or billing account alone does not define it.
 

@@ -1,11 +1,14 @@
 ---
 type: implementation
-status: local-prototype
-updated: 2026-08-30
+status: private-hosted-prototype
+updated: 2026-08-31
 ---
 # Client Portal
 
 Home: [[00 Home]] · Website: [[Website MVP]] · Decisions: [[Decisions]] · Status: [[Roadmap and Tasks]]
+
+
+**Frontend/API update, D-033:** portal rendering and form state moved to `apps/web`; sessions, account-scoped paperwork/training, signing eligibility and inquiry permissions remain in `apps/api`. The browser uses explicit JSON contracts and an authenticated text-receipt endpoint, never backend credentials or persistent record/token storage. Earlier HTML implementation/test observations below remain historical; see [[Software Architecture]] and the latest [[Progress Log]].
 
 ## Founder-selected scope
 
@@ -14,9 +17,11 @@ After payment, APPly generates and securely delivers a client login. There is no
 1. **Paperwork:** assigned documents, Not Started / Started / Completed status, review and signing.
 2. **Onboarding & Training:** written how-to material and, later, Kevin's videos and information resources.
 
-The founder excluded an EHR from this launch portal. D-025 now authorizes a separately presented [[Clinic Workspace]] in the same Rails application, with distinct navigation/layout and explicit clinic permissions. Consultancy administration does not grant clinic access. Software ownership remains separate; SharePoint remains the intended starter workflow, to be mapped later. [[Data Modeling]] is still a future PostgreSQL proposal, not this local SQLite prototype.
+The founder excluded an EHR from this launch portal. D-025 now authorizes a separately presented [[Clinic Workspace]] in the same Rails application, with distinct navigation/layout and explicit clinic permissions. Consultancy administration does not grant clinic access. Software ownership remains separate; SharePoint remains the intended starter workflow, to be mapped later. [[Data Modeling]] remains the broader clinical/security proposal. D-031 now moves the actual prototype to PostgreSQL; [[PostgreSQL and Inventory Foundation]] records its bounded controls and pending hosted cutover.
 
 ## Current local implementation
+
+D-032's source refactor places selling/onboarding under `Launch::*` and sessions under `Identity::*`. HTML and retained JSON share signing, training and contact operations plus inquiry/material queries; routes, form fields, storage and existing guards are preserved. [[Software Architecture]] owns code-placement rules. Latest full-suite and container evidence: [[Progress Log#2026-08-30 — Full software-structure refactor completed]]; older verification paragraphs below describe their dated increments.
 
 | Area | Implemented behavior | Limit |
 | --- | --- | --- |
@@ -29,7 +34,7 @@ The founder excluded an EHR from this launch portal. D-025 now authorizes a sepa
 
 “Completed” means the demonstration signing step finished; it does not mean sent, received, accepted, approved, filed, or ready to see patients. Training completion is self-marked progress, not a competency credential.
 
-Source and operational instructions live in `site/README.md` and `site/backend/README.md`. No credentials are recorded in the vault. No default account or known demo password is published.
+Source and operational instructions live in the repository `README.md` and `apps/api/README.md`. No credentials are recorded in the vault. No default account or known demo password is published.
 
 ## Local development access
 
@@ -43,7 +48,9 @@ The hosted preview's ChatGPT screen is a separate owner-only hosting gate, not A
 
 ## Infrastructure boundary
 
-D-024 replaces the JavaScript frontend with Rails-rendered ERB, native forms and CSS. Both experiences now run through one local Rails server at localhost:3000. D-027 requests EC2 application/database hosting. The package in `site/deploy/ec2/` retains SQLite on encrypted persistent EBS, with a private SSM/TLS preview, generated managed secrets and no inbound network ports. No PostgreSQL migration or existing S3 access is included. The founder authorized the current root session until further notice; a reviewed, unexecuted change set in `us-east-1` awaits region/cost acceptance. Actual EC2 bootstrap, hosted acceptance and cloud recovery remain unverified; no paid infrastructure has been provisioned.
+D-024 replaces the JavaScript frontend with Rails-rendered ERB, native forms and CSS. Both experiences run through one local Rails server at localhost:3000. D-027 now authorizes paid EC2 application/database hosting: t3.micro in `us-east-1`, with 8 GiB encrypted root and 2 GiB encrypted SQLite storage. Rails is running behind private SSM/TLS, with generated managed secrets and no inbound network ports. Root remains authorized until further notice. Actual HTTPS, login/logout, session/CSRF guards, encrypted inquiry writes and survival across a host reboot were verified. The `ops/aws/ec2/` runbook records access, costs and unresolved OS scan findings; broader M1 acceptance remains open. That historical host verification used SQLite. D-031 delivers PostgreSQL source and local migration checks, with hosted maintenance cutover still pending. No existing S3 access, real data or public release is included.
+
+D-030 adds a separate private production container with independent storage/keys. Production skips sample seeds, creates no demo assignments, hides existing sample material/demo paperwork and rejects demo signing; records are not deleted. Staging keeps synthetic portal content with ordinary login. See [[CICD]] for the prepared pipeline and pending GitHub activation. No actual client account, confidential release or clinical guard removal is included.
 
 The former private Sites preview is historical and unchanged; it does not serve the new Rails implementation. Its ChatGPT hosting gate is unrelated to local Rails authentication. Verified Rails hosting remains T-20.
 
@@ -55,7 +62,7 @@ Before real use: obtain the actual reviewed packet and reuse rights; map NP/PA/l
 
 ## Verification and release limits
 
-**Current navigation update:** 41 tests / 508 assertions pass across HTML and retained API flows. Direct Test Clinic navigation, explicit demo login, no session creation on navigation, membership preservation and removed clinic-create route are covered. Latest native HTTP results are in [[Progress Log#2026-08-30 — Assigned Test Clinic and explicit login navigation]]. The earlier Rails migration passed 37 tests / 422 assertions and corrected test seed setup; see [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. Frontend results below are historical, not requirements for the removed JavaScript frontend.
+**Historical navigation update:** 41 tests / 508 assertions pass across HTML and retained API flows. Direct Test Clinic navigation, explicit demo login, no session creation on navigation, membership preservation and removed clinic-create route are covered. Latest native HTTP results are in [[Progress Log#2026-08-30 — Assigned Test Clinic and explicit login navigation]]. The earlier Rails migration passed 37 tests / 422 assertions and corrected test seed setup; see [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. Frontend results below are historical, not requirements for the removed JavaScript frontend.
 
 The current review and proposed release sequence are in [[Roadmap and Tasks#Development plan — proposed 2026-08-30]]. The code supports the prototype described above, including the existing local-demo edits. Operator activation/recovery delivery, controlled content administration/versioned learning, durable activity auditing and approved real signing are still development work. Per-user ownership is the implemented boundary; multi-person engagement access is not implemented and must not use shared accounts.
 

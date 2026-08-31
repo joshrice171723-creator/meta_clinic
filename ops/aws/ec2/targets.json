@@ -1,0 +1,16 @@
+{
+  "account": "433771117038",
+  "region": "us-east-1",
+  "staging": {
+    "stack": "apply-synthetic-staging",
+    "instance": "i-011a8232817dc587f",
+    "repository": "apply-synthetic-staging-images-9bigtc87uopg",
+    "role": "arn:aws:iam::433771117038:role/apply-github-staging"
+  },
+  "production": {
+    "stack": "apply-production",
+    "instance": "i-0df3819ee5050b27b",
+    "repository": "apply-production-images-e06ffhugf9pt",
+    "role": "arn:aws:iam::433771117038:role/apply-github-production"
+  }
+}

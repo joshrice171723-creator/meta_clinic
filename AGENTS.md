@@ -1,6 +1,6 @@
 # Agent instructions — APPly
 
-These instructions apply to the entire repository, including `APPlyVault/`, `site/`, and new files. Read this file before working. This is a business-planning workspace, not a patient-record system. The safeguards below are project operating rules, not legal advice, a compliance certification, or authorization to handle patient data.
+These instructions apply to the entire repository, including `APPlyVault/`, `apps/api/`, `apps/web/`, `ops/`, `reference/`, historical `site/`, and new files. Read this file before working. This is a business-planning workspace, not a patient-record system. The safeguards below are project operating rules, not legal advice, a compliance certification, or authorization to handle patient data.
 
 ## Mandatory: review the entire vault before any changes
 
@@ -30,7 +30,11 @@ Do not weaken this gate or the information-handling rules to finish a task faste
 | `APPlyVault/03 Execution/Working Agreement.md` | Information handling, editing conventions, and session workflow |
 | `APPlyVault/90 Templates/` | Reusable evidence and weekly-review structures; templates are not evidence |
 | `APPlyVault/.obsidian/` | Local vault configuration; inspect but preserve unless configuration changes are requested |
-| `site/` | Separate website surface; never assume it is approved for patient or confidential applicant data |
+| `apps/api/` | Rails JSON API, domain workflows and PostgreSQL; not approved for patient or confidential applicant data |
+| `apps/web/` | Independent browser UI; no database credentials, authority or sensitive-data approval |
+| `ops/aws/` | Infrastructure, release and recovery tooling; source changes do not authorize deployment |
+| `reference/pharmacy/` | Imported specifications and archived SQL, not a second application or executable schema |
+| `site/` | Historical Sites metadata/assets only; new application work belongs in `apps/web/` or `apps/api/` |
 
 ### Preserve the business boundaries
 
@@ -91,7 +95,7 @@ Preserve evidence and existing audit/history records. Do not independently delet
 - Keep reported facts, direct observations, sourced background, hypotheses/proposals, and explicit decisions distinct. Record sources, access/event dates, applicability, limitations, and reviewer scope. A link, checklist tick, or attorney's prior involvement is not blanket legal/compliance approval.
 - Use plain Markdown, existing `type`/`status`/`updated` frontmatter, ISO dates, descriptive unique filenames, and Obsidian wiki links. Update `updated` on materially changed notes. Preserve IDs such as `D-`, `T-`, `R-`, `A-`, `L-`, and `S-`, backlinks, heading targets, and superseded history. Avoid unnecessary renames, bulk reformatting, plugins, or configuration edits.
 - For substantive vault changes, update affected current-state notes, the canonical task register when status changes, and explicit decisions only when actually made. Add a concise dated Progress Log entry with outcomes, limits, and next steps. Refresh Home only when direction/priorities change. Do not create competing task or decision lists.
-- Treat `site/` as a separate implementation surface. Inspect its current scripts and configuration before code work; preserve its package manager and lockfile. The existing `.openai/hosting.json` means applicable Sites building/hosting instructions must be followed for website work. Never publish vault contents or introduce patient-data collection because a website can technically support it. Documentation-only work does not require a website build or deployment.
+- Treat `apps/web/` and `apps/api/` as separate frontend/backend implementation surfaces and follow `Software Architecture.md` in the vault for module ownership. Inspect its current scripts and configuration before code work; preserve each package manager and lockfile. The historical `site/.openai/hosting.json` means applicable Sites building/hosting instructions must be followed for website work; it does not authorize publishing Rails through the old Sites workflow. Never publish vault contents or introduce patient-data collection because a website can technically support it. Documentation-only work does not require a website build or deployment.
 - Before finishing, inspect the diff and confirm no unrelated user changes were overwritten. Validate touched Markdown/frontmatter, wiki-link targets including headings/aliases, unique names, and discoverability from Home. Distinguish pre-existing broken links from new failures. For code changes, run the relevant checks defined by the current project; do not invent passing tests or treat a build as a security assessment.
 - Report what changed, what was actually checked, and remaining limitations. Never mark a task, source review, professional gate, or HIPAA assessment complete without supporting evidence.
 

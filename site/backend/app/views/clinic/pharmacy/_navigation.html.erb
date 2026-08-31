@@ -1,4 +1,0 @@
-<nav class="ehr-tabs" aria-label="EHR sections">
-  <% if clinic_membership.patients_access? %><%= link_to "Patient records", clinic_patients_path, aria: { current: controller_name == "patients" ? "page" : nil } %><% end %>
-  <% if clinic_membership.inventory_access? %><%= link_to "Pharmacy inventory", clinic_pharmacy_index_path, aria: { current: controller_name == "pharmacy" ? "page" : nil } %><% end %>
-</nav>

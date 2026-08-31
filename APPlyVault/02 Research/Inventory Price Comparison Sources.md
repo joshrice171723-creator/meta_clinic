@@ -1,6 +1,6 @@
 ---
 type: research
-status: source-shortlist
+status: research-recorded-integration-deferred
 updated: 2026-08-30
 ---
 # Inventory Price Comparison Sources
@@ -12,6 +12,8 @@ Home: [[00 Home]] · Evidence: [[Source Register]] · Product: [[Clinic Workspac
 Public supplier/manufacturer documents and pricing references for comparing U.S. clinic inventory costs, researched on 2026-08-30 at the founder's request. This is a source shortlist, not a completed price comparison, approved supplier list, purchasing commitment, clinical substitution decision, or product integration.
 
 **Suggested starting point:** DiaMedical's priced PDF and Bound Tree's public list prices for supplies/equipment; CMS NADAC for pharmacy acquisition-cost background; CDC's private-sector column for vaccines. Add authorized supplier quotes for the clinic's actual basket before claiming achievable savings. Keep routine supplies, medications, vaccines, and capital equipment distinct.
+
+**Current status — deferred by founder, 2026-08-30 (D-029 / U-19):** preserve the source shortlist, supplier-integration findings and proposed extensible design below; do not start integration implementation or supplier onboarding now. T-37 in [[Roadmap and Tasks]] is the canonical deferred work item. No supplier, network, API contract, build scope, budget or delivery date has been selected. T-13/T-34's broader inventory work and T-14's unresolved billing mechanics remain unchanged.
 
 ## Supplier and manufacturer documents
 
@@ -62,5 +64,59 @@ For usable quotes, the desired documents are a dated itemized quote or authorize
 - Several search-indexed GSA/FSS price-list PDFs returned 404 on direct retrieval; none is included as a verified current price source. Government contract prices would require separate applicability checks in any event.
 - No clinic purchasing basket, supplier account terms, live stock, delivered quotes or manufacturer reuse/feed permissions have been supplied. No cheapest-vendor or savings conclusion is supported yet.
 - Before automated collection, verify permitted catalog reuse, export/API availability and licensing with each source. Public visibility alone does not establish permission for bulk scraping, redistribution or commercial embedding. No connector, scraper, import or recurring monitor was created.
-- Suggested next use under T-13: define a small non-sensitive basket, match exact identifiers and packaging, then compare dated supplier quotes against these references. This research does not close T-13 or T-14, authorize purchases, select suppliers, or change ordered-inventory-value billing rules. Real clinical/PHI gates remain unchanged.
+- Earlier suggested next use under T-13 was a small non-sensitive basket and dated supplier quotes. The founder has now deferred the supplier-pricing work under T-37; the steps below are retained for resumption, not current commitments. This research does not close T-13 or T-14, authorize purchases, select suppliers, or change ordered-inventory-value billing rules. Real clinical/PHI gates remain unchanged.
 
+## Supplier integrations — research snapshot
+
+Public-source research from the same 2026-08-30 discussion. These are advertised capabilities, not tested APPly connections or confirmation that a particular clinic qualifies. Public reference prices, negotiated account prices and actual transaction costs must remain distinct.
+
+| Supplier | Public evidence | Access and unresolved limits |
+| --- | --- | --- |
+| Medline — S-68 | [eCommerce capabilities](https://www.medline.com/business/ecommerce-capabilities/) and [Digital Integration Services guide](https://www.medline.com/media/assets/pdf/Digital%20Integration%20Services%20060122.pdf), especially p.3, describe APIs for live contract prices, product information and warehouse-related availability, alongside hosted catalogs, EDI and PunchOut | Guide text reviewed; API schemas are Medline-defined. Account eligibility, technical documentation, commercial terms, rate limits and APPly's right to cache/display data are unverified. This does not resolve the separate failed price-catalog retrieval above |
+| McKesson — S-69 | [Technology Consultants](https://mms.mckesson.com/content/inventory-management/technology-consultants/) describes PunchOut pricing/availability, cXML, EDI and SFTP. Its [2026 API flyer](https://mms.mckesson.com/content/wp-content/uploads/2026/07/FINAL-2025_4780850-API-Product-Marketing-Flyer.pdf) supports third-party/internal software, order/invoice access and sandbox testing | Flyer describes an API agreement and account information. It does not expressly establish a standalone price-query endpoint; confirm that capability before designing against it. No agreement signed, credentials obtained or patient-related API capability included in scope |
+| Bound Tree — S-70 | [Operative IQ integration](https://www.boundtree.com/operative-iq) checks pricing/availability during ordering and supports orders and receiving | Evidence of an existing partner connection, not published developer access for APPly. Protocol, eligibility and commercial/data-use terms remain unknown |
+| Henry Schein — S-71 | [Special Markets integration page](https://www.henryschein.com/us-en/SpecialMarkets/Services/EZ_Scan.aspx?hsec=1) advertises PunchOut, cXML, EDI and XML web services | Primary-site search-index text reviewed; direct retrieval failed. Medical division coverage, current price-query scope and access remain to verify; do not treat Special Markets marketing as a Medical API specification |
+| DiaMedical, ADC and Dynarex | Existing catalog references remain useful; no public live-pricing developer documentation verified in this search. ADC's [dealer page](https://www.adctoday.com/dealers/locate) (S-75) and Dynarex's [FAQ](https://dynarex.com/faqs) (S-76) describe dealer/distributor sales | No public documentation found is not proof that an integration is unavailable. Manufacturer identity/specification data can be useful even when the clinic's purchase price comes from a reseller |
+
+The Medline guide describes returning the PunchOut cart to the procurement system, followed by an approved order through a separate transaction. PunchOut is not itself a universal bulk-price API or an order-placement authorization. An [older FAQ](https://www.medline.com/media/assets/pdf/PunchOut/Medline-PunchOut-FAQ-pages.pdf) found during research conflicts with the newer guide on Level II support; use current supplier confirmation before relying on that detail.
+
+## How existing comparison platforms connect
+
+These examples support several arrangements rather than a claim that every inventory system compares the whole market:
+
+- **Direct supplier integration:** the software connects through supported interfaces, with the buyer's supplier account and applicable prices. Technical connectivity does not grant a discount or permission to redistribute pricing.
+- **Procurement network:** [GHX Marketplace](https://www.ghx.com/marketplace/) advertises one connection to more than 250 supplier PunchOut sites (S-72). This is vendor-reported coverage, not evidence of APPly access or a verified price feed for every supplier.
+- **Supplier commercial program:** [Hybrent](https://hybrent.com/suppliers/) describes supplier agreements and optional custom APIs, including pricing/stock availability (S-73). A platform may have supplier partnerships; no commission or commercial relationship is inferred for APPly.
+- **Group purchasing contracts:** [Premier](https://premierinc.com/providers/group-purchasing-organization) describes negotiated contracts across care settings (S-74). The customer's eligibility and activated terms must be established separately from software access.
+
+Implementation can combine API requests, permitted catalog/price files and EDI, with PunchOut for supplier-hosted shopping. A comparison may cover only connected suppliers and eligible contracts. Display that coverage explicitly; do not label a limited result the cheapest price in the market.
+
+## Proposed extensible design — not implemented
+
+Keep this as an adjacent procurement module to the existing product/lot ledger in [[Clinic Workspace]], using the boundaries in [[Data Modeling#Inventory and commercial boundary]]. APIs are one connector type in the same design as approved imports. Do not put one mutable supplier price on an inventory product or overwrite acquisition history when a catalog changes.
+
+| Record / responsibility | Proposed content and rule |
+| --- | --- |
+| Product and package | Manufacturer/labeler, exact variant, raw identifiers and schemes, package contents, verified dimensional units/conversions and evidence. Shared catalog data only where reuse is permitted; clinic formularies and stock stay separate |
+| Supplier listing | Supplier SKU and offered package mapped to a verified product/package. Preserve original description/unit and mapping provenance; ambiguous matches await review |
+| Clinic supplier account | Clinic, supplier account/contract scope and permissions; secure credential reference only. Never make a clinic's negotiated price visible to another clinic by using a shared cache or product ID |
+| Price and availability observations | Source, listing/account scope, exact amount/currency, price type, quantity tier/minimum order, effective/retrieval/expiry dates, availability/lead time and known cost components. Preserve history; unknown charges or expiry are not zero or an invented guarantee |
+| Connector and import run | Declared capabilities such as catalog, prices and availability; source/version, cursor, validation/mapping outcomes, timestamps and failure state. Add ordering/invoice capabilities only under later scope. Use bounded retries, deduplication and supplier-specific limits; exclude secrets and patient details from logs |
+| Comparison | Exact package/unit matching, quantity-sensitive delivered-cost estimate, price type, freshness, coverage and missing-cost warnings. Keep potential substitutes in a separate professional review path; no automatic clinical equivalence |
+
+Conceptual flow: **permitted source → connector/import validation → product/package matching → scoped offer history → comparison**. Purchase approval, supplier submission, physical receiving and invoice/credit reconciliation are separate later workflows. Importing a price or catalog row must never create stock, place an order or calculate an APPly fee.
+
+The current pharmacy slice tracks whole sealed packages and has no verified conversions or receipt-level acquisition-cost history. Preserve those semantics during any future migration; do not reinterpret old package movements as doses or fractional units. Public FDA metadata, NADAC and CDC benchmarks are not supplier quotes or stock evidence.
+
+## Future work when reprioritized
+
+T-37 holds status and ownership; this sequence records scope and acceptance considerations, not a separate backlog or authorization to act now.
+
+1. **Revalidate scope and access.** Define a small non-sensitive comparison basket and required suppliers; recheck public documentation. Obtain authorized account/feed documentation, sandbox eligibility, fees, support, rate limits, permitted caching/display/retention and clinic-specific price scope. Choose direct integration versus a network using actual coverage and cost evidence, not supplier size or marketing alone.
+2. **Reconcile the data model.** Coordinate with T-13/T-34 on product identity, typed units, supplier/receipt provenance and clinic isolation. Keep quote/list/benchmark/invoice values distinct. Define how freight, cold-chain fees, discounts, order thresholds, tax and credits affect a comparison; display unresolved components.
+3. **Build a bounded synthetic first slice.** After scope is resumed and accepted, implement validated CSV/quote imports, mappings, price history and a read-only comparison view. Review extracted PDF rows before acceptance; do not make unattended PDF scraping the live-price foundation. Preserve permitted source evidence and reject ambiguous or malformed rows without silently replacing prior prices.
+4. **Validate useful failure cases.** Compare differing pack sizes; preserve leading-zero identifiers; reject incompatible units and unreviewed variants; isolate two clinics' different prices for the same item; keep dated/tiered offers separate; test duplicate imports, partial failures, stale data and unavailable suppliers. Unknown shipping must not yield a false delivered-price ranking, and a price refresh must leave stock/order/billing history unchanged.
+5. **Add one authorized live connector.** Confirm its actual price/availability endpoints, authentication and sandbox behavior. Test clinic scope, mapping, throttling, expiry and outage recovery; make freshness visible and revalidate relevant prices before a later approved purchase. No live credentials or confidential contracts belong in this vault.
+6. **Scope procurement and billing separately.** Orders, approvals, acknowledgments, partial receipts, invoices/credits and returns need their own accepted workflow and evidence. T-14 must settle fee mechanics before metering. Use T-09 and L-04/L-08, including PQ-26–PQ-30 in [[Pharmacy Provider and Counsel Questions]], for contract/procurement/incentive boundaries. Keep patient workflows outside this integration; all applicable real-use gates remain open.
+
+**Resume only when the founder explicitly reprioritizes this work.** Owner remains unassigned; no date, recurring monitor, outreach, supplier signup, purchase or deployment is scheduled. Research documentation is complete for this discussion; integration feasibility, access, costs and implementation acceptance remain future work.
