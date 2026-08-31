@@ -6,6 +6,15 @@ module Clinic
     before_action :require_prototype
     before_action :require_member
     before_action :require_clinic
+    around_action :attribute_clinic_mutations
+
+    rescue_from Clinic::Authorization::Denied, CanCan::AccessDenied do
+      render_error("Your account does not have permission for this clinic action.", :forbidden)
+    end
+
+    rescue_from ActiveRecord::InvalidForeignKey do
+      render_error("The related records do not belong to the selected context.", :unprocessable_entity)
+    end
 
     rescue_from ActiveRecord::RecordInvalid do |error|
       render_error(error.record.errors.full_messages.to_sentence, :unprocessable_entity)
@@ -16,6 +25,12 @@ module Clinic
     end
 
     private
+
+    def attribute_clinic_mutations
+      # Generate correlation on the server; never trust submitted audit metadata.
+      PaperTrail.request(whodunnit: current_user.id.to_s,
+        controller_info: { request_id: SecureRandom.uuid }) { yield }
+    end
 
     def render_error(message, status)
       render json: { error: message }, status: status

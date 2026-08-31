@@ -3,6 +3,7 @@ module Clinic
     class Entry < ApplicationRecord
       self.table_name = "clinic_inventory_entries"
       include Clinic::TenantScoped
+      has_one :count_approval, class_name: "Clinic::Inventory::CountApproval", foreign_key: :entry_id, dependent: :restrict_with_error
       belongs_to :actor, class_name: "User", optional: true
       belongs_to :profile, class_name: "Clinic::Inventory::Profile", optional: true
       belongs_to :item, class_name: "Clinic::Inventory::Item", optional: true

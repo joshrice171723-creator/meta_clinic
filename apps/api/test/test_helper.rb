@@ -1,4 +1,5 @@
 ENV["RAILS_ENV"] ||= "test"
+abort "Rails tests require RAILS_ENV=test" unless ENV["RAILS_ENV"] == "test"
 require_relative "../config/environment"
 require "rails/test_help"
 require_relative "support/authorization_helpers"

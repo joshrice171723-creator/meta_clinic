@@ -174,10 +174,10 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       encrypted_content: "content"
     )
     assert_equal "pending", intent.outbox.dispatch_state
-    first = Clinic::Messaging::RecordDelivery.call(intent: intent, provider_event_reference: "provider-1", outcome: "unknown")
-    assert_equal first, Clinic::Messaging::RecordDelivery.call(intent: intent, provider_event_reference: "provider-1", outcome: "unknown")
+    first = Clinic::Messaging::RecordDelivery.call(intent: intent, actor: @actor, provider_event_reference: "provider-1", outcome: "unknown")
+    assert_equal first, Clinic::Messaging::RecordDelivery.call(intent: intent, actor: @actor, provider_event_reference: "provider-1", outcome: "unknown")
     assert_equal "unknown", intent.outbox.reload.dispatch_state
-    Clinic::Messaging::RecordDelivery.call(intent: intent, provider_event_reference: "provider-2", outcome: "delivered")
+    Clinic::Messaging::RecordDelivery.call(intent: intent, actor: @actor, provider_event_reference: "provider-2", outcome: "delivered")
     assert_equal "delivered", intent.outbox.reload.dispatch_state
   end
 

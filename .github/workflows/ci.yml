@@ -134,6 +134,9 @@ jobs:
       - name: Check eager loading
         run: bin/rails zeitwerk:check
 
+      - name: Verify backend concurrent workflow invariants
+        run: bin/verify-backend
+
       - name: Verify legacy conversion, concurrency and restore
         run: bin/verify-postgres
 

@@ -95,6 +95,7 @@ module Clinic
 
       def time_param!(value, field:)
         text = required_string!(value, field: field, maximum: 80)
+        raise ArgumentError unless text.match?(/(?:Z|[+-]\d{2}:\d{2})\z/)
         Time.iso8601(text)
       rescue ArgumentError
         raise Invalid.new("#{field} must be an ISO 8601 timestamp with an offset.", field: field)

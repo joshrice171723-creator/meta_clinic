@@ -7,6 +7,7 @@ module Clinic
       include Clinic::Auditable
       belongs_to :product, class_name: "Clinic::Inventory::PharmacyProduct"
       belongs_to :lot, class_name: "Clinic::Inventory::Lot"
+      has_many :receipt_lines, class_name: "Clinic::Inventory::ReceiptLine", foreign_key: :batch_id, dependent: :restrict_with_error
       has_many :movements, class_name: "Clinic::Inventory::PharmacyMovement", foreign_key: :batch_id, dependent: :restrict_with_error
       has_many :events, class_name: "Clinic::Inventory::PharmacyBatchEvent", foreign_key: :batch_id, dependent: :restrict_with_error
       has_many :holds, class_name: "Clinic::Inventory::Hold", foreign_key: :batch_id

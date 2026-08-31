@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-status: replacement-baseline-awaiting-amendments
+status: design-baseline-with-implementation-review
 updated: 2026-08-31
 ---
 # Target-State Clinic ERD
@@ -9,9 +9,11 @@ Home: [[00 Home]] · Index: [[01 Table of Contents]] · Rationale: [[Multi-Clini
 
 ## Scope and reading key
 
+**Observed implementation update — 2026-08-31:** [[Backend Verification Report]] maps all 68 entities and 103 diagram relationships to the current Rails/PostgreSQL schema, models and APIs. Historical E/E+/P labels below retain their design-time origin; P no longer means the table is absent from current source. The report distinguishes structural implementation from incomplete clinical/audit/storage workflows. The final amendment record remains unresolved; no new founder approval or clinical release is inferred. Migrations and generated `structure.sql` remain runtime truth.
+
 **D-044 scope update — 2026-08-31:** this corrected ERD is the baseline for the requested **full backend replacement**, pending the founder's minor amendments. [[ERD Implementation Prompt]] revision 5 supersedes the former existing-foundation-only first run. Reconcile the complete target before structural implementation; pictured modules are not automatically deferred because they were originally proposed. This note is not the current database or evidence that the replacement has run. No migrations or source-system imports accompany this scope update.
 
-`E` = existing table in the original retained baseline; `E+` = existing table with a proposed extension; `P` = proposed table, not implemented. These labels describe origin/current state, **not a requirement to retain old implementation shape or exclude P entities**. Final names, fields and constraints must follow the approved amendments and complete schema contract. More detailed decompositions below are recommendations, not recovered raster text. [structure.sql](../../apps/api/db/structure.sql) and its migrations remain current runtime truth, not the replacement's design limit. Existing behavior/history needs an explicit transition; identity, clinical, service, retention, billing and release choices remain at their applicable gates. Work stays synthetic-only.
+`E` = existing table in the original retained baseline; `E+` = existing table with a proposed extension; `P` = proposed table at the original diagram review. These historical labels describe design-time origin, **not current implementation status or a requirement to retain old implementation shape or exclude P entities**. Final names, fields and constraints must follow the approved amendments and complete schema contract. More detailed decompositions below are recommendations, not recovered raster text. [structure.sql](../../apps/api/db/structure.sql) and its migrations remain current runtime truth, not the replacement's design limit. Existing behavior/history needs an explicit transition; identity, clinical, service, retention, billing and release choices remain at their applicable gates. Work stays synthetic-only.
 
 Each box uses the physical table name. Repeated boxes in different panels are the **same entity**, not duplicate tables. Common timestamps and most payload fields are omitted. Existing attributes shown retain their actual names; proposed `encrypted_*` attributes describe protected payloads, not a selected encryption/storage implementation. No invented patient examples are needed.
 

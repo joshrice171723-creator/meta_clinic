@@ -8,7 +8,8 @@ module Clinic
         signer_membership = note.practice.memberships.find_by!(user: actor)
 
         note.with_lock do
-          revision = note.revisions.find_by!(revision_no: revision_no)
+          revision = note.revisions.order(revision_no: :desc).first!
+          raise ArgumentError, "Reload and sign the current revision." unless revision.revision_no == revision_no.to_i
           expected_digest = Digest::SHA256.hexdigest(revision.encrypted_body)
           raise ArgumentError, "The note content changed. Reload and sign the current revision." unless content_digest == expected_digest
 

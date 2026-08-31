@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class EncountersController < Clinic::ApiController
       before_action -> { require_capability("patients.read") }, only: %i[index show]
-      before_action -> { require_capability("encounters.write") }, only: %i[create close]
+      # Mutation services authorize the actual site and action.
 
       def index
         patient_id = params[:patient_id].present? ? requested_id!(params[:patient_id], :patient_id) : nil

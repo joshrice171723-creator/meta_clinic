@@ -1,12 +1,3 @@
---
--- PostgreSQL database dump
---
-
-\restrict WiuBCCpOlP05VQoNN1dCsJDkWXZIsYjlAIfwuIYzlb1x4zA4E8imUkyxXmYUNcw
-
--- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
--- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -47,6 +38,26 @@ $$;
 
 
 --
+-- Name: erd_freeze_granted_role(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.erd_freeze_granted_role() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  -- Both grant creation and permission insertion serialize on the role.
+  PERFORM 1 FROM role_versions WHERE id = NEW.role_version_id FOR UPDATE;
+  IF TG_TABLE_NAME = 'role_version_permissions' AND EXISTS (
+    SELECT 1 FROM clinic_role_grants WHERE role_version_id = NEW.role_version_id
+  ) THEN
+    RAISE EXCEPTION 'Create a new role version instead of changing a granted permission set';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: erd_immutable_record(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -55,6 +66,25 @@ CREATE FUNCTION public.erd_immutable_record() RETURNS trigger
     AS $$
 BEGIN
   RAISE EXCEPTION 'This record is append-only';
+END;
+$$;
+
+
+--
+-- Name: erd_preserve_identity(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.erd_preserve_identity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE field text;
+BEGIN
+  FOREACH field IN ARRAY TG_ARGV LOOP
+    IF (to_jsonb(OLD) -> field) IS DISTINCT FROM (to_jsonb(NEW) -> field) THEN
+      RAISE EXCEPTION 'Record ownership and historical identity cannot be reassigned';
+    END IF;
+  END LOOP;
+  RETURN NEW;
 END;
 $$;
 
@@ -461,7 +491,7 @@ CREATE TABLE public.clinic_audit_events (
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY ((ARRAY['attempted'::character varying, 'denied'::character varying, 'prepared'::character varying, 'committed'::character varying, 'released'::character varying, 'failed'::character varying])::text[])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
+    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY (ARRAY[('attempted'::character varying)::text, ('denied'::character varying)::text, ('prepared'::character varying)::text, ('committed'::character varying)::text, ('released'::character varying)::text, ('failed'::character varying)::text])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
 );
 
 
@@ -813,7 +843,7 @@ CREATE TABLE public.clinic_documents (
     scan_state character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY ((ARRAY['pending'::character varying, 'quarantined'::character varying, 'clean'::character varying, 'rejected'::character varying])::text[]))),
+    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('quarantined'::character varying)::text, ('clean'::character varying)::text, ('rejected'::character varying)::text]))),
     CONSTRAINT clinic_documents_values CHECK (((byte_size >= 0) AND (length(TRIM(BOTH FROM object_key)) > 0) AND (length(TRIM(BOTH FROM object_version)) > 0) AND (length(TRIM(BOTH FROM checksum)) > 0) AND (length(TRIM(BOTH FROM media_type)) > 0)))
 );
 
@@ -1864,7 +1894,7 @@ CREATE TABLE public.clinic_model_versions (
     changed_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY ((ARRAY['create'::character varying, 'update'::character varying, 'destroy'::character varying, 'touch'::character varying])::text[])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
+    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY (ARRAY[('create'::character varying)::text, ('update'::character varying)::text, ('destroy'::character varying)::text, ('touch'::character varying)::text])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
 );
 
 
@@ -1982,7 +2012,7 @@ CREATE TABLE public.clinic_observations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_observations_finite_numeric CHECK (((numeric_value IS NULL) OR (numeric_value <> 'NaN'::numeric))),
-    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY ((ARRAY['numeric'::character varying, 'text'::character varying, 'coded'::character varying, 'missing'::character varying, 'group'::character varying])::text[]))),
+    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY (ARRAY[('numeric'::character varying)::text, ('text'::character varying)::text, ('coded'::character varying)::text, ('missing'::character varying)::text, ('group'::character varying)::text]))),
     CONSTRAINT clinic_observations_value_shape CHECK (((((value_kind)::text = 'numeric'::text) AND (numeric_value IS NOT NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NOT NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'text'::text) AND (numeric_value IS NULL) AND (text_value IS NOT NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'coded'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NOT NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'missing'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NOT NULL)) OR (((value_kind)::text = 'group'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))))
 );
 
@@ -2752,8 +2782,8 @@ CREATE TABLE public.identity_preferences (
     revision integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY ((ARRAY['system'::character varying, 'light'::character varying, 'dark'::character varying])::text[]))),
-    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['sage'::character varying, 'blue'::character varying, 'graphite'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY (ARRAY[('sage'::character varying)::text, ('blue'::character varying)::text, ('graphite'::character varying)::text]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
 
@@ -3680,7 +3710,7 @@ ALTER TABLE ONLY public.clinic_allergies
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE ((booked_clinician_id IS NOT NULL));
+    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -3688,7 +3718,7 @@ ALTER TABLE ONLY public.clinic_appointments
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE ((room_id IS NOT NULL));
+    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -5560,6 +5590,216 @@ CREATE UNIQUE INDEX role_versions_code_version ON public.role_versions USING btr
 
 
 --
+-- Name: verify_fk_05e55ba80c441f84; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_05e55ba80c441f84 ON public.clinic_encounter_note_revisions USING btree (practice_id, author_membership_id);
+
+
+--
+-- Name: verify_fk_14e7158268b15cfb; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_14e7158268b15cfb ON public.clinic_message_attachments USING btree (practice_id, patient_id, document_id);
+
+
+--
+-- Name: verify_fk_2f36435c9c409f53; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_2f36435c9c409f53 ON public.clinic_observation_sources USING btree (practice_id, patient_id, source_observation_id);
+
+
+--
+-- Name: verify_fk_319afa301b7ecc89; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_319afa301b7ecc89 ON public.clinic_role_grants USING btree (practice_id, site_id);
+
+
+--
+-- Name: verify_fk_3345c08012f0b626; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_3345c08012f0b626 ON public.clinic_encounters USING btree (practice_id, patient_id, appointment_id);
+
+
+--
+-- Name: verify_fk_424a7d469349f51a; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_424a7d469349f51a ON public.clinic_observations USING btree (practice_id, patient_id, encounter_id);
+
+
+--
+-- Name: verify_fk_49601f2b7931a479; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_49601f2b7931a479 ON public.clinic_invoice_lines USING btree (practice_id, patient_id, invoice_id);
+
+
+--
+-- Name: verify_fk_574a9539ab4421d1; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_574a9539ab4421d1 ON public.role_version_permissions USING btree (permission_id);
+
+
+--
+-- Name: verify_fk_61fe34589c16b346; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_61fe34589c16b346 ON public.clinic_encounter_note_revisions USING btree (practice_id, note_id, prior_revision_id);
+
+
+--
+-- Name: verify_fk_63186da3066c4b0b; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_63186da3066c4b0b ON public.clinic_observation_sources USING btree (practice_id, patient_id, derived_observation_id);
+
+
+--
+-- Name: verify_fk_673e1be8421af39a; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_673e1be8421af39a ON public.clinic_documents USING btree (practice_id, category_id);
+
+
+--
+-- Name: verify_fk_78440b5717b94c15; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_78440b5717b94c15 ON public.clinic_encounters USING btree (practice_id, site_id, room_id);
+
+
+--
+-- Name: verify_fk_89e6ddbe1366e57a; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_89e6ddbe1366e57a ON public.clinic_observations USING btree (practice_id, author_membership_id);
+
+
+--
+-- Name: verify_fk_8babd52a3e159577; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_8babd52a3e159577 ON public.clinic_message_attachments USING btree (practice_id, patient_id, message_intent_id);
+
+
+--
+-- Name: verify_fk_8e20bf37ea73eb75; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_8e20bf37ea73eb75 ON public.clinic_appointments USING btree (practice_id, site_id, room_id);
+
+
+--
+-- Name: verify_fk_9044ba684ce3d830; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_9044ba684ce3d830 ON public.clinic_encounter_note_signatures USING btree (practice_id, signer_membership_id);
+
+
+--
+-- Name: verify_fk_9b173034a584a9e7; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_9b173034a584a9e7 ON public.clinic_refund_events USING btree (practice_id, patient_id);
+
+
+--
+-- Name: verify_fk_af4339bd977d3fd5; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_af4339bd977d3fd5 ON public.clinic_credit_notes USING btree (practice_id, patient_id, invoice_id);
+
+
+--
+-- Name: verify_fk_bf9c3e527269d842; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_bf9c3e527269d842 ON public.clinic_appointments USING btree (practice_id, visit_type_id);
+
+
+--
+-- Name: verify_fk_c1179afd5b0a40d5; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_c1179afd5b0a40d5 ON public.clinic_encounter_participants USING btree (practice_id, patient_id, encounter_id);
+
+
+--
+-- Name: verify_fk_c813f106df235365; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_c813f106df235365 ON public.clinic_observations USING btree (practice_id, patient_id, parent_observation_id);
+
+
+--
+-- Name: verify_fk_cf68d7fced7a04cc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_cf68d7fced7a04cc ON public.clinic_encounter_notes USING btree (practice_id, patient_id, encounter_id);
+
+
+--
+-- Name: verify_fk_d1f26d9eae75d2e7; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_d1f26d9eae75d2e7 ON public.clinic_insurance_claims USING btree (practice_id, patient_id, coverage_version_id);
+
+
+--
+-- Name: verify_fk_d2e868c6d555e796; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_d2e868c6d555e796 ON public.clinic_refund_events USING btree (practice_id, patient_id, payment_event_id);
+
+
+--
+-- Name: verify_fk_dbd5f51b73eaaf39; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_dbd5f51b73eaaf39 ON public.clinic_clinician_assignments USING btree (practice_id, department_id);
+
+
+--
+-- Name: verify_fk_ed52a7441d37d530; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_ed52a7441d37d530 ON public.clinic_documents USING btree (practice_id, patient_id, encounter_id);
+
+
+--
+-- Name: verify_fk_eecceb7f2094ff07; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_eecceb7f2094ff07 ON public.clinic_insurance_claims USING btree (practice_id, patient_id, invoice_id);
+
+
+--
+-- Name: verify_fk_efcb45f7bc4e511d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verify_fk_efcb45f7bc4e511d ON public.clinic_role_grants USING btree (role_version_id);
+
+
+--
+-- Name: clinic_allergies clinic_allergies_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_allergies_preserve_identity BEFORE UPDATE ON public.clinic_allergies FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id');
+
+
+--
+-- Name: clinic_appointments clinic_appointments_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_appointments_preserve_identity BEFORE UPDATE ON public.clinic_appointments FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id');
+
+
+--
 -- Name: clinic_audit_delivery_receipts clinic_audit_delivery_receipts_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5581,6 +5821,34 @@ CREATE TRIGGER clinic_audit_resource_manifests_immutable BEFORE DELETE OR UPDATE
 
 
 --
+-- Name: clinic_clinician_assignments clinic_clinician_assignments_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_clinician_assignments_preserve_identity BEFORE UPDATE ON public.clinic_clinician_assignments FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'clinician_profile_id', 'department_id', 'site_id', 'effective_from');
+
+
+--
+-- Name: clinic_clinician_credentials clinic_clinician_credentials_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_clinician_credentials_preserve_identity BEFORE UPDATE ON public.clinic_clinician_credentials FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'clinician_profile_id');
+
+
+--
+-- Name: clinic_clinician_profiles clinic_clinician_profiles_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_clinician_profiles_preserve_identity BEFORE UPDATE ON public.clinic_clinician_profiles FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'membership_id');
+
+
+--
+-- Name: clinic_conditions clinic_conditions_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_conditions_preserve_identity BEFORE UPDATE ON public.clinic_conditions FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id');
+
+
+--
 -- Name: clinic_coverage_versions clinic_coverage_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5592,6 +5860,27 @@ CREATE TRIGGER clinic_coverage_versions_immutable BEFORE DELETE OR UPDATE ON pub
 --
 
 CREATE TRIGGER clinic_credit_notes_immutable BEFORE DELETE OR UPDATE ON public.clinic_credit_notes FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_departments clinic_departments_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_departments_preserve_identity BEFORE UPDATE ON public.clinic_departments FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
+-- Name: clinic_document_categories clinic_document_categories_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_document_categories_preserve_identity BEFORE UPDATE ON public.clinic_document_categories FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
+-- Name: clinic_documents clinic_documents_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_documents_preserve_identity BEFORE UPDATE ON public.clinic_documents FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'object_key', 'object_version', 'checksum', 'byte_size', 'media_type');
 
 
 --
@@ -5609,6 +5898,90 @@ CREATE TRIGGER clinic_encounter_note_signatures_immutable BEFORE DELETE OR UPDAT
 
 
 --
+-- Name: clinic_encounter_notes clinic_encounter_notes_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_notes_preserve_identity BEFORE UPDATE ON public.clinic_encounter_notes FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id');
+
+
+--
+-- Name: clinic_encounter_participants clinic_encounter_participants_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_participants_preserve_identity BEFORE UPDATE ON public.clinic_encounter_participants FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'membership_id', 'effective_from');
+
+
+--
+-- Name: clinic_encounters clinic_encounters_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounters_preserve_identity BEFORE UPDATE ON public.clinic_encounters FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'appointment_id');
+
+
+--
+-- Name: clinic_insurance_claims clinic_insurance_claims_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_insurance_claims_immutable BEFORE DELETE OR UPDATE ON public.clinic_insurance_claims FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_invoice_lines clinic_invoice_lines_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_invoice_lines_immutable BEFORE DELETE OR UPDATE ON public.clinic_invoice_lines FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_invoices clinic_invoices_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_invoices_preserve_identity BEFORE UPDATE ON public.clinic_invoices FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'currency', 'rounding_policy_version');
+
+
+--
+-- Name: clinic_medication_statements clinic_medication_statements_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_medication_statements_preserve_identity BEFORE UPDATE ON public.clinic_medication_statements FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id');
+
+
+--
+-- Name: clinic_memberships clinic_memberships_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_memberships_preserve_identity BEFORE UPDATE ON public.clinic_memberships FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'user_id');
+
+
+--
+-- Name: clinic_message_attachments clinic_message_attachments_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_message_attachments_immutable BEFORE DELETE OR UPDATE ON public.clinic_message_attachments FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_message_delivery_events clinic_message_delivery_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_message_delivery_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_message_delivery_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_message_intents clinic_message_intents_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_message_intents_immutable BEFORE DELETE OR UPDATE ON public.clinic_message_intents FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_message_outbox clinic_message_outbox_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_message_outbox_preserve_identity BEFORE UPDATE ON public.clinic_message_outbox FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'message_intent_id');
+
+
+--
 -- Name: clinic_model_versions clinic_model_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5623,10 +5996,24 @@ CREATE TRIGGER clinic_observation_sources_immutable BEFORE DELETE OR UPDATE ON p
 
 
 --
+-- Name: clinic_observations clinic_observations_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_observations_preserve_identity BEFORE UPDATE ON public.clinic_observations FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'author_membership_id', 'parent_observation_id');
+
+
+--
 -- Name: clinic_patient_address_versions clinic_patient_address_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER clinic_patient_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patients clinic_patients_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patients_preserve_identity BEFORE UPDATE ON public.clinic_patients FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
 
 
 --
@@ -5658,6 +6045,27 @@ CREATE TRIGGER clinic_role_grant_events_immutable BEFORE DELETE OR UPDATE ON pub
 
 
 --
+-- Name: clinic_role_grants clinic_role_grants_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_role_grants_preserve_identity BEFORE UPDATE ON public.clinic_role_grants FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'membership_id', 'role_version_id', 'scope_kind', 'site_id');
+
+
+--
+-- Name: clinic_rooms clinic_rooms_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_rooms_preserve_identity BEFORE UPDATE ON public.clinic_rooms FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'site_id');
+
+
+--
+-- Name: clinic_sites clinic_sites_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_sites_preserve_identity BEFORE UPDATE ON public.clinic_sites FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
 -- Name: clinic_staff_address_versions clinic_staff_address_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5665,10 +6073,31 @@ CREATE TRIGGER clinic_staff_address_versions_immutable BEFORE DELETE OR UPDATE O
 
 
 --
+-- Name: clinic_staff_members clinic_staff_members_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_staff_members_preserve_identity BEFORE UPDATE ON public.clinic_staff_members FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
 -- Name: clinic_supplier_address_versions clinic_supplier_address_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER clinic_supplier_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_supplier_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_visit_types clinic_visit_types_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_visit_types_preserve_identity BEFORE UPDATE ON public.clinic_visit_types FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
+-- Name: role_version_permissions freeze_granted_role_permissions; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER freeze_granted_role_permissions BEFORE INSERT ON public.role_version_permissions FOR EACH ROW EXECUTE FUNCTION public.erd_freeze_granted_role();
 
 
 --
@@ -5886,6 +6315,13 @@ CREATE TRIGGER legacy_inventory_frozen BEFORE INSERT OR DELETE OR UPDATE ON publ
 --
 
 CREATE TRIGGER legacy_inventory_frozen BEFORE INSERT OR DELETE OR UPDATE ON public.clinic_stock_movements FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_role_grants lock_granted_role; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER lock_granted_role BEFORE INSERT ON public.clinic_role_grants FOR EACH ROW EXECUTE FUNCTION public.erd_freeze_granted_role();
 
 
 --
@@ -7391,4 +7827,20 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WiuBCCpOlP05VQoNN1dCsJDkWXZIsYjlAIfwuIYzlb1x4zA4E8imUkyxXmYUNcw
+SET search_path TO "$user", public;
+
+INSERT INTO "schema_migrations" (version) VALUES
+('20260831000800'),
+('20260831000700'),
+('20260831000400'),
+('20260831000300'),
+('20260831000200'),
+('20260831000100'),
+('20260830000800'),
+('20260830000700'),
+('20260830000600'),
+('20260830000500'),
+('20260830000400'),
+('20260830000300'),
+('20260830000200'),
+('20260830000100');

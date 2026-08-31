@@ -43,7 +43,7 @@ class Clinic::Inventory::PharmacyTest < ActiveSupport::TestCase
   end
 
   test "dates determine expiry without inventing an alert completion" do
-    travel_to Time.utc(2026, 8, 30, 12) do
+    travel_to Time.current.change(hour: 12) + 1.day do
       @batch = @product.batches.create!(practice_id: @practice.id, lot_number: "DATED", location: "Test shelf", expires_on: Date.current)
       @batch.move!(kind: "receipt", amount: 1, reason: "Fictional date test", actor: @user, request_key: SecureRandom.uuid)
       assert @batch.expiring?

@@ -9,7 +9,7 @@ module Clinic
 
       def self.decimal(value, name: "amount", positive: false)
         number = BigDecimal(value.to_s)
-        invalid = !number.finite? || number.negative? || (positive && number.zero?) || number > MAX_AMOUNT
+        invalid = !number.finite? || number.negative? || (positive && number.zero?) || number > MAX_AMOUNT || number != number.round(6)
         raise ArgumentError, "#{name} is outside the supported monetary range." if invalid
 
         number

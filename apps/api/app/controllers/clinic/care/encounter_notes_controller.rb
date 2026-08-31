@@ -2,7 +2,7 @@ module Clinic
   module Care
     class EncounterNotesController < Clinic::ApiController
       before_action -> { require_capability("patients.read") }, only: :show
-      before_action -> { require_capability("notes.write") }, only: %i[create revise sign]
+      # Mutation services authorize the actual site and action.
 
       def show
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
@@ -36,7 +36,7 @@ module Clinic
       end
 
       def sign
-        input = parameter_hash!(:signature, %i[revision_no content_digest attestation_version signed_at])
+        input = parameter_hash!(:signature, %i[revision_no content_digest attestation_version])
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
         signature = Clinic::Care::SignEncounterNote.call(
           note: note,
@@ -44,7 +44,7 @@ module Clinic
           revision_no: bounded_integer!(input[:revision_no], field: :revision_no, min: 1, max: 2_147_483_647),
           content_digest: required_string!(input[:content_digest], field: :content_digest, maximum: 128),
           attestation_version: required_string!(input[:attestation_version], field: :attestation_version, maximum: 80),
-          signed_at: input[:signed_at].present? ? time_param!(input[:signed_at], field: :signed_at) : Time.current
+          signed_at: Time.current
         )
         render json: { signature: signature_json(signature) }, status: :created
       end

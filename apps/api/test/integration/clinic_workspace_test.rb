@@ -64,9 +64,13 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
 
   test "patient creation and append-only draft scoped to clinic regardless of submitted ownership" do
     get "/api/clinic/patients", headers: @headers
-    assert_difference "Clinic::Care::Patient.count" do
+    assert_no_difference "Clinic::Care::Patient.count" do
       submit "/api/clinic/patients", { clinic_patient: { display_name: "Example C", reference: "DEMO-003", practice_id: @other.id } }
-      assert_response :success
+      assert_response :bad_request
+    end
+    assert_difference "Clinic::Care::Patient.count" do
+      submit "/api/clinic/patients", { clinic_patient: { display_name: "Example C", reference: "DEMO-003" } }
+      assert_response :created
     end
     patient = @practice.patients.find_by!(reference: "DEMO-003")
     submit "/api/clinic/patients/#{patient.id}/note", { body: "<script>fictional only</script>", practice_id: @other.id, author_id: @other_user.id }
@@ -108,19 +112,23 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_equal original + 2, item.reload.quantity
     submit "/api/clinic/inventory/#{item.id}/adjust", payload.merge(reason: "", request_key: SecureRandom.uuid)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
     assert_equal original + 2, item.reload.quantity
     submit "/api/clinic/inventory/#{@other.items.first.id}/adjust", payload
     assert_response :not_found
     submit "/api/clinic/inventory", { clinic_item: { name: "Desk paper", sku: "DESK", reorder_level: 4, quantity: 100, practice_id: @other.id } }
-    assert_response :success
+    assert_response :bad_request
+    submit "/api/clinic/inventory", { clinic_item: { name: "Desk paper", sku: "DESK", reorder_level: 4 } }
+    assert_response :created
     assert_equal 0, @practice.items.find_by!(sku: "DESK").quantity
   end
 
   test "staff directory cannot grant access and status changes stay in clinic" do
     assert_no_difference "User.count" do
       submit "/api/clinic/staff", { clinic_staff_member: { display_name: "Morgan Example", job_title: "Coordinator", user_id: @other_user.id, admin: true, practice_id: @other.id } }
-      assert_response :success
+      assert_response :bad_request
+      submit "/api/clinic/staff", { clinic_staff_member: { display_name: "Morgan Example", job_title: "Coordinator" } }
+      assert_response :created
     end
     person = @practice.staff_members.order(:id).last
     submit "/api/clinic/staff/#{person.id}", { active: "false" }, method: :patch

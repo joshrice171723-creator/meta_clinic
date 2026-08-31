@@ -50,5 +50,4 @@ class AbilityTest < ActiveSupport::TestCase
   end
 
   private
-
 end

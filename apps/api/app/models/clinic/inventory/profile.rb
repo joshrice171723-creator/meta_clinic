@@ -3,6 +3,9 @@ module Clinic
     class Profile < ApplicationRecord
       self.table_name = "clinic_inventory_profiles"
       include Clinic::TenantScoped
+      has_many :receipts, class_name: "Clinic::Inventory::Receipt", foreign_key: :profile_id, dependent: :restrict_with_error
+      has_many :counts, class_name: "Clinic::Inventory::Count", foreign_key: :profile_id, dependent: :restrict_with_error
+      has_many :entries, class_name: "Clinic::Inventory::Entry", foreign_key: :profile_id, dependent: :restrict_with_error
       validates :status, inclusion: { in: %w[draft synthetic suspended retired] }
       validates :reason, presence: true, length: { maximum: 200 }
       before_update { throw :abort }

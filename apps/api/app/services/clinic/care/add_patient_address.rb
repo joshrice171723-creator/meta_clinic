@@ -6,6 +6,7 @@ module Clinic
         patient = practice.patients.find(patient.id)
 
         ApplicationRecord.transaction do
+          patient.lock!
           latest_version = patient.address_versions.maximum(:version).to_i
           address = patient.address_versions.create!(
             practice: practice,

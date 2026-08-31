@@ -12,10 +12,14 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO apply_runtime;
 DO $$
 DECLARE relation text;
 BEGIN
-  FOREACH relation IN ARRAY ARRAY['clinic_inventory_profiles','clinic_inventory_lots','clinic_inventory_receipts','clinic_inventory_receipt_lines','clinic_inventory_entries','clinic_inventory_holds','clinic_inventory_hold_releases','clinic_inventory_counts','clinic_inventory_count_approvals','clinic_inventory_catalog_events','clinic_notes','clinic_pharmacy_batch_events'] LOOP
+  FOREACH relation IN ARRAY ARRAY['clinic_inventory_profiles','clinic_inventory_lots','clinic_inventory_receipts','clinic_inventory_receipt_lines','clinic_inventory_entries','clinic_inventory_holds','clinic_inventory_hold_releases','clinic_inventory_counts','clinic_inventory_count_approvals','clinic_inventory_catalog_events','clinic_notes','clinic_pharmacy_batch_events',
+    'clinic_model_versions','clinic_role_grant_events','clinic_audit_events','clinic_audit_resource_manifests','clinic_audit_delivery_receipts','platform_audit_events',
+    'clinic_patient_address_versions','clinic_staff_address_versions','clinic_supplier_address_versions','clinic_encounter_note_revisions','clinic_encounter_note_signatures',
+    'clinic_observation_sources','clinic_payment_events','clinic_payment_allocations','clinic_credit_notes','clinic_refund_events','clinic_coverage_versions',
+    'clinic_message_intents','clinic_message_attachments','clinic_message_delivery_events','clinic_invoice_lines','clinic_insurance_claims'] LOOP
     EXECUTE format('REVOKE UPDATE, DELETE ON %I FROM apply_runtime',relation);
   END LOOP;
-  FOREACH relation IN ARRAY ARRAY['clinic_pharmacy_movements','clinic_stock_movements','schema_migrations','ar_internal_metadata'] LOOP
+  FOREACH relation IN ARRAY ARRAY['clinic_pharmacy_movements','clinic_stock_movements','schema_migrations','ar_internal_metadata','role_versions','permissions','role_version_permissions'] LOOP
     EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON %I FROM apply_runtime',relation);
   END LOOP;
 END $$;

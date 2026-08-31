@@ -16,6 +16,7 @@ module Clinic
       belongs_to :primary_address_version, class_name: "Clinic::Care::PatientAddressVersion", optional: true
       has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
       has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error
+      has_many :payment_events, class_name: "Clinic::PaymentEvent", dependent: :restrict_with_error
       has_many :invoices, class_name: "Clinic::Invoice", dependent: :restrict_with_error
       has_many :coverage_versions, class_name: "Clinic::CoverageVersion", dependent: :restrict_with_error
       encrypts :display_name

@@ -20,7 +20,7 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 
 The retired `reference/` folder was removed by the founder after its useful behavior was mapped into the app. Use Rails migrations and `apps/api/db/structure.sql`, not the old reference SQL. Shared `.gitignore` rules now protect local artifacts; the vault and source remain tracked. All development stays synthetic; no clinical/confidential release is implied.
 
-**Planned backend replacement (D-044):** [[ERD Implementation Prompt]] revision 5 prepares a full backend/schema replacement from [[Target-State Clinic ERD]], with PaperTrail mutation auditing. The founder's minor ERD amendments are pending. This is the next-pass handoff, not an implemented replacement or permission to reset databases/deploy; current source/hosted evidence above remains unchanged.
+**Backend verification (2026-08-31):** source commits `600976f`/`5436764` implement the ERD schema, domain workflows and API. [[Backend Verification Report]] records the subsequent full validation, guarded synthetic seeds, corrections and all 68 entities/103 relationships. Structural coverage is present; access auditing, protected-value handling and several clinical workflows remain incomplete. D-044's historical prompt and pending amendment record do not establish clinical approval, database-reset permission or deployment readiness.
 
 ## Current position
 

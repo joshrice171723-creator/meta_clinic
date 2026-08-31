@@ -160,6 +160,7 @@ Edit and exercise the app using fictional data. From `apps/api/`:
 bin/postgres exec env RAILS_ENV=test bin/rails db:prepare
 bin/postgres exec bin/rails test
 bin/postgres exec env RAILS_ENV=test bin/rails zeitwerk:check
+bin/postgres exec bin/verify-backend
 bin/postgres exec bin/verify-postgres
 bin/rubocop
 bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
@@ -191,13 +192,14 @@ done
 | --- | --- |
 | Rails preparation/tests | Uses `APPLY_TEST_DATABASE` (default `apply_test`). Tests replace test fixtures: the selected database must be disposable and distinct from development/hosted databases. Run preparation and tests as separate Rails processes. |
 | `apps/api/bin/verify-postgres` | Generates its own synthetic legacy SQLite fixture and uniquely named PostgreSQL upgrade/restore/fresh databases; cleans up only those scratch targets. Requires Python 3 and PostgreSQL clients. |
+| `apps/api/bin/verify-backend` | Generates a unique loopback test database and no-login role; checks concurrent payments, addresses, appointments, note revisions and actual runtime history/catalog grants, then removes only those targets. Requires local PostgreSQL role/database creation rights. |
 | Root `bin/verify-web` | Starts its own API/Vite children on temporary ports and a generated synthetic database; exercises proxy/session/CSRF/origin, clinic, decimal receipt/retry, portal and logout without browser automation or FDA requests. Cleans up its own database/processes. |
 | Frontend tests/build | No application database or backend credentials. |
-| Offline delivery tests | Five release-pair tests plus seven launcher tests; mock external operations, with no AWS/Docker calls, host configuration or credentials. Launcher tests verify service/container naming; syntax checks parse each host script separately. |
+| Offline delivery tests | Discover all current release/configuration/launcher/route tests; mock external operations, with no AWS/Docker calls, host configuration or credentials. Syntax checks parse each host script separately. |
 
 `bin/postgres` is the persistent local server/credential wrapper and never deletes storage. The verification harnesses are different: they intentionally create and remove their own scratch databases. Root HTTP cleanup uses explicit-name PostgreSQL commands, clears inherited `DATABASE_URL`, isolates the companion test configuration and sets `SKIP_TEST_DATABASE=1`. Never use an unqualified development `rails db:drop` for scratch cleanup: it can include the configured test database. The earlier default-test deletion and authorized recreation remain in [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]].
 
-A passing local command is not GitHub execution, browser/accessibility acceptance, live host acceptance or a security certification. Application/container results linked below are earlier evidence. Only the stated delivery/static/documentation checks were rerun for this update.
+A passing local command is not GitHub execution, browser/accessibility acceptance, live host acceptance or a security certification. [[Backend Verification Report#Validation evidence]] records the latest source verification; application/container results linked below retain their earlier event-date scope.
 
 ### 3. Commit only your intended changes and open a pull request
 
@@ -241,8 +243,8 @@ After merging, each developer updates their own clean `main` with `git pull --ff
 | `scan_ruby` | Brakeman static security analysis and Bundler Audit with refreshed vulnerability data. |
 | `lint` | RuboCop code-style checks. |
 | `frontend` | Install the npm lockfile, run Vitest, Prettier format check, TypeScript/Vite build and npm audit; no app secrets. |
-| `delivery_contract` | Run all 22 offline release/configuration/launcher/route tests and a separate Bash syntax check for every host shell script; no AWS or Docker requests. |
-| `test` | Start PostgreSQL 18.6 and matching client tools; prepare/test Rails, check eager loading and rehearse legacy conversion/concurrency/restore. Then install Node/frontend dependencies and run the real Vite-to-API HTTP harness. |
+| `delivery_contract` | Run all discovered offline release/configuration/launcher/route tests and a separate Bash syntax check for every host shell script; no AWS or Docker requests. |
+| `test` | Start PostgreSQL 18.6 and matching client tools; prepare/test Rails, check eager loading, backend concurrency/runtime grants, and legacy conversion/concurrency/restore. Then install Node/frontend dependencies and run the real Vite-to-API HTTP harness. |
 
 Triggers are pull requests targeting `main`, pushes to `main` (including merges), and a manual **Run workflow** action once the workflow is on the default branch. There is no scheduled trigger. Updates to an open pull request rerun its checks. New checks for the same ref cancel obsolete CI runs; this cancellation policy must not be copied blindly into a database deployment.
 

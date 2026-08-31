@@ -42,6 +42,7 @@ module Clinic
         intent = current_practice.message_intents.find(requested_id!(params[:id], :id))
         event = Clinic::Messaging::RecordDelivery.call(
           intent: intent,
+          actor: current_user,
           provider_event_reference: required_string!(input[:provider_event_reference], field: :provider_event_reference, maximum: 255),
           outcome: enum_param!(input[:outcome], field: :outcome, allowed: Clinic::Messaging::RecordDelivery::OUTCOMES)
         )

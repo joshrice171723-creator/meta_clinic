@@ -94,3 +94,18 @@ For reusable local personas, run `APP_DEVELOPMENT_LOGIN=1 bin/postgres exec bin/
 The Ruby application module remains `Backend::Application`. Tables, migrations, database names, session cookie and encryption derivation are preserved. Browser URLs moved to the frontend; clinic JSON endpoints now live beneath `/api/clinic`. Native page controllers/views and compatibility symlinks were retired. Ignored runtime data/keys moved with Rails, and the PostgreSQL bind path now uses `apps/api` with the same persistent storage identity. Existing development records were not reset.
 
 The generated nested `.github/dependabot.yml` remains dormant; moving it to repository-root would enable scheduled work and is not part of this refactor. Active CI/release workflow definitions live only in repository-root `.github/workflows/`.
+
+## Final backend verification and synthetic scenarios
+
+The [backend verification report](../../APPlyVault/03%20Execution/Backend%20Verification%20Report.md) maps all 68 ERD entities and 103 diagram edges, records tests and corrections, and identifies the remaining security/clinical gaps. The current backend is synthetic-only; field names beginning with `encrypted_` do not yet establish encryption, and operation/read auditing remains incomplete.
+
+For richer local scenarios, explicitly opt in on your own development database:
+
+```sh
+APP_SYNTHETIC_SEEDS=1 bin/postgres exec bin/rails db:seed
+bin/postgres exec bin/verify-backend
+```
+
+Seeds create two synthetic organizations/practices, 60 patients, eight accounts with distinct clinic roles, four sites/rooms and related draft clinical/document/message/invoice/office-stock examples. They preserve existing scenario edits and revoked grants on rerun. No document objects, real messages or payment processing exist. Passwords are random and never printed; use the existing interactive `members:reset_password` task for a selected `synthetic-review-a-admin@example.invalid` (or b/clinician/staff/reader) account when manually testing. No new login shortcut is enabled. Ordinary and production seeds create no clinic examples.
+
+`bin/verify-backend` creates its own uniquely named test database, tests true concurrent allocations/addresses/bookings/revisions and restricted runtime history/catalog grants, then removes only that database and its unique temporary no-login role. Run it through `bin/postgres exec`, with PostgreSQL client tools on PATH. Tests require `RAILS_ENV=test`; never point them at an existing development/hosted database. Migration `20260831000800` adds identity/history/index/reservation guards without editing prior migrations. It is forward-only and has not been applied to existing development or hosted databases; review backups, locks and legacy access-equivalence before any cutover.

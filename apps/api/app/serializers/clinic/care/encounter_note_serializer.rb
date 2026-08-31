@@ -13,7 +13,7 @@ module Clinic
         return payload unless detail
 
         payload.merge(
-          revisions: note.revisions.chronological.map { |revision|
+          revisions: note.revisions.chronological.includes(:signatures).map { |revision|
             {
               id: revision.id,
               revision_no: revision.revision_no,
@@ -21,7 +21,7 @@ module Clinic
               author_membership_id: revision.author_membership_id,
               payload_version: revision.payload_version,
               created_at: revision.created_at,
-              signed: revision.signatures.exists?
+              signed: revision.signatures.any?
             }
           },
           signatures: note.signatures.order(:signed_at, :id).map { |signature|

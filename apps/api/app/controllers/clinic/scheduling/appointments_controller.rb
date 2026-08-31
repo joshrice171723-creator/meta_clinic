@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class AppointmentsController < Clinic::ApiController
       before_action -> { require_capability("patients.read") }, only: %i[index show]
-      before_action -> { require_capability("appointments.write") }, only: %i[create transition]
+      # Mutation services authorize the actual site and action.
 
       def index
         appointments = current_practice.appointments

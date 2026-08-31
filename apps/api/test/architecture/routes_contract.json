@@ -10,6 +10,56 @@
     "/api/materials/:material_id/start(.:format)"
   ],
   [
+    "api_clinic_appointment",
+    "GET",
+    "/api/clinic/appointments/:id(.:format)"
+  ],
+  [
+    "api_clinic_appointments",
+    "GET",
+    "/api/clinic/appointments(.:format)"
+  ],
+  [
+    "api_clinic_clinicians",
+    "GET",
+    "/api/clinic/clinicians(.:format)"
+  ],
+  [
+    "api_clinic_context",
+    "GET",
+    "/api/clinic/context(.:format)"
+  ],
+  [
+    "api_clinic_document",
+    "GET",
+    "/api/clinic/documents/:id(.:format)"
+  ],
+  [
+    "api_clinic_document_categories",
+    "GET",
+    "/api/clinic/document_categories(.:format)"
+  ],
+  [
+    "api_clinic_encounter",
+    "GET",
+    "/api/clinic/encounters/:id(.:format)"
+  ],
+  [
+    "api_clinic_encounter_notes",
+    "POST",
+    "/api/clinic/encounters/:encounter_id/notes(.:format)"
+  ],
+  [
+    "api_clinic_encounters",
+    "GET",
+    "/api/clinic/encounters(.:format)"
+  ],
+  [
+    "api_clinic_facilities",
+    "GET",
+    "/api/clinic/facilities(.:format)"
+  ],
+  [
     "api_clinic_inventory_configuration",
     "POST",
     "/api/clinic/inventory_configuration(.:format)"
@@ -25,9 +75,54 @@
     "/api/clinic/inventory(.:format)"
   ],
   [
+    "api_clinic_invoice",
+    "GET",
+    "/api/clinic/invoices/:id(.:format)"
+  ],
+  [
+    "api_clinic_message_intent",
+    "GET",
+    "/api/clinic/message_intents/:id(.:format)"
+  ],
+  [
+    "api_clinic_note",
+    "GET",
+    "/api/clinic/notes/:id(.:format)"
+  ],
+  [
     "api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id(.:format)"
+  ],
+  [
+    "api_clinic_patient_address_versions",
+    "GET",
+    "/api/clinic/patients/:patient_id/address_versions(.:format)"
+  ],
+  [
+    "api_clinic_patient_documents",
+    "GET",
+    "/api/clinic/patients/:patient_id/documents(.:format)"
+  ],
+  [
+    "api_clinic_patient_encounters",
+    "GET",
+    "/api/clinic/patients/:patient_id/encounters(.:format)"
+  ],
+  [
+    "api_clinic_patient_invoices",
+    "GET",
+    "/api/clinic/patients/:patient_id/invoices(.:format)"
+  ],
+  [
+    "api_clinic_patient_message_intents",
+    "GET",
+    "/api/clinic/patients/:patient_id/message_intents(.:format)"
+  ],
+  [
+    "api_clinic_patient_observations",
+    "GET",
+    "/api/clinic/patients/:patient_id/observations(.:format)"
   ],
   [
     "api_clinic_patients",
@@ -58,6 +153,16 @@
     "api_clinic_pharmacy_movement",
     "POST",
     "/api/clinic/pharmacy_batches/:id/movement(.:format)"
+  ],
+  [
+    "api_clinic_role_grants",
+    "GET",
+    "/api/clinic/role_grants(.:format)"
+  ],
+  [
+    "api_clinic_role_versions",
+    "GET",
+    "/api/clinic/role_versions(.:format)"
   ],
   [
     "api_clinic_root",
@@ -125,6 +230,16 @@
     "/api/settings(.:format)"
   ],
   [
+    "close_api_clinic_encounter",
+    "POST",
+    "/api/clinic/encounters/:id/close(.:format)"
+  ],
+  [
+    "delivery_events_api_clinic_message_intent",
+    "POST",
+    "/api/clinic/message_intents/:id/delivery_events(.:format)"
+  ],
+  [
     "demo_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/demo(.:format)"
@@ -145,6 +260,16 @@
     "/api/clinic/patients/:id/note(.:format)"
   ],
   [
+    "payment_allocations_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/payment_allocations(.:format)"
+  ],
+  [
+    "post_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/post(.:format)"
+  ],
+  [
     "rails_health_check",
     "GET",
     "/up(.:format)"
@@ -160,14 +285,34 @@
     "/api/clinic/pharmacy/:id/receive(.:format)"
   ],
   [
+    "revisions_api_clinic_note",
+    "POST",
+    "/api/clinic/notes/:id/revisions(.:format)"
+  ],
+  [
+    "revoke_api_clinic_role_grant",
+    "POST",
+    "/api/clinic/role_grants/:id/revoke(.:format)"
+  ],
+  [
     "sign_api_paperwork",
     "POST",
     "/api/paperworks/:id/sign(.:format)"
   ],
   [
+    "signatures_api_clinic_note",
+    "POST",
+    "/api/clinic/notes/:id/signatures(.:format)"
+  ],
+  [
     "start_api_paperwork",
     "POST",
     "/api/paperworks/:id/start(.:format)"
+  ],
+  [
+    "transition_api_clinic_appointment",
+    "POST",
+    "/api/clinic/appointments/:id/transition(.:format)"
   ],
   [
     null,
@@ -187,6 +332,11 @@
   [
     null,
     "POST",
+    "/api/clinic/appointments(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/inventory(.:format)"
   ],
   [
@@ -197,7 +347,37 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/address_versions(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/invoices(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/message_intents(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/observations(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/pharmacy(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/role_grants(.:format)"
   ],
   [
     null,

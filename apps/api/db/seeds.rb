@@ -26,3 +26,8 @@ samples.each do |attributes|
     material.assign_attributes(attributes.except(:slug).merge(sample: true, published_at: Time.current))
   end
 end
+
+# Explicit opt-in; ordinary seeds and all production runs create no clinic data.
+if Rails.env.development? && ENV["APP_SYNTHETIC_SEEDS"] == "1"
+  Development::BackendSamples.call
+end

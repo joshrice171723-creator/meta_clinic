@@ -3,7 +3,8 @@ module Clinic
     class RecordDelivery
       OUTCOMES = %w[delivered failed unknown].freeze
 
-      def self.call(intent:, provider_event_reference:, outcome:)
+      def self.call(intent:, actor:, provider_event_reference:, outcome:)
+        Authorization.authorize!(actor: actor, practice: intent.practice, action: "messages.write")
         outcome = outcome.to_s
         raise ArgumentError, "Choose a supported delivery outcome." unless OUTCOMES.include?(outcome)
 

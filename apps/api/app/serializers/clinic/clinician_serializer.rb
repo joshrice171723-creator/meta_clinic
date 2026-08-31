@@ -8,7 +8,7 @@ module Clinic
       return payload unless detail
 
       payload.merge(
-        assignments: profile.assignments.order(:effective_from, :id).map { |assignment|
+        assignments: profile.assignments.sort_by { |row| [ row.effective_from, row.id ] }.map { |assignment|
           {
             id: assignment.id,
             department_id: assignment.department_id,
@@ -17,7 +17,7 @@ module Clinic
             effective_until: assignment.effective_until&.iso8601(6)
           }
         },
-        credentials: profile.credentials.order(:id).map { |credential|
+        credentials: profile.credentials.sort_by(&:id).map { |credential|
           {
             id: credential.id,
             credential_type: credential.credential_type,

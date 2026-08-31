@@ -12,6 +12,7 @@ module Clinic
 
       def create
         require_capability("patients.write")
+        return if performed?
         input = parameter_hash!(:address_version, %i[encrypted_address make_primary])
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
         address = Clinic::Care::AddPatientAddress.call(
@@ -21,7 +22,7 @@ module Clinic
           encrypted_address: required_string!(input[:encrypted_address], field: :encrypted_address, maximum: 20_000),
           make_primary: boolean_or_default(input[:make_primary], field: :make_primary)
         )
-        render json: { address_version: address_json(address, patient) }, status: :created
+        render json: { address_version: address_json(address, patient.reload) }, status: :created
       end
 
       private

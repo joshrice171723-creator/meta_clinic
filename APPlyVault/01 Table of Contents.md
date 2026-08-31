@@ -47,7 +47,8 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Data Modeling]] | Broader proposed clinical/security model, illustrative SQL and acceptance scenarios; not the executable schema |
 | [[Multi-Clinic ERD Adversarial Review]] | Original image findings, revision-2 integrity recommendations and adverse-path cases; D-044 supersedes its former hardening-only scope, not its safety invariants |
 | [[ERD Implementation Prompt]] | Revision-5 full backend/schema replacement handoff: final ERD amendments, complete module mapping, PaperTrail callback/job coverage, API/data transition and adversarial acceptance |
-| [[Target-State Clinic ERD]] | Corrected replacement baseline pending founder amendments; modular cardinalities/composite-key contracts with origin labels, not the current schema or evidence of implementation |
+| [[Backend Verification Report]] | Final source audit: 68-entity/103-edge matrices, tests/seeds, corrections, security findings and open release gaps |
+| [[Target-State Clinic ERD]] | Corrected design baseline with historical origin labels; use Backend Verification Report for observed table/model/API coverage and remaining gaps |
 | [[Roadmap and Tasks]] | Canonical parent tasks and 27 smaller chunks across five workstreams, with dependencies, failure scenarios, exit evidence and unchanged milestone gates |
 | [[Decisions]] | Explicit direction and supersession. Read relevant decisions and later refinements |
 | [[Progress Log]] | Dated actual outcomes, failures and checks. Read relevant entries; earlier statements retain their event-date scope |
