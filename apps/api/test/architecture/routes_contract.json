@@ -190,6 +190,11 @@
     "/api/csrf(.:format)"
   ],
   [
+    "api_development_access",
+    "PATCH",
+    "/api/development_access(.:format)"
+  ],
+  [
     "api_development_session",
     "POST",
     "/api/development_session(.:format)"
@@ -408,6 +413,11 @@
     null,
     "PUT",
     "/api/clinic/staff/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/development_access(.:format)"
   ],
   [
     null,

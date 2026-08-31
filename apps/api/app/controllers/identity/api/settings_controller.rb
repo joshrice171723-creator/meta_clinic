@@ -27,7 +27,9 @@ module Identity
       private
 
       def render_settings(record)
-        render json: { user_id: current_user.id, appearance: record.appearance }
+        payload = { user_id: current_user.id, appearance: record.appearance }
+        payload[:development_access] = Development::OmniAccess.settings_for(current_user) if development_omni?
+        render json: payload
       end
     end
   end

@@ -11,7 +11,6 @@ import "./appearance.css";
 import "./clinicFrame.css";
 import "./trackingBoard.css";
 import "./careFlow.css";
-import "./careFlow.css";
 import {
   CLINIC_MODES,
   CLINIC_PALETTES,
@@ -39,12 +38,30 @@ export function ownedSettings(value: unknown, userId: number): UserSettings {
     throw new Error(
       "Unable to verify these settings. Reload and check your signed-in account.",
     );
+  const developmentAccess = data.development_access;
+  if (
+    developmentAccess &&
+    (!developmentAccess.options.length ||
+      !developmentAccess.options.every(
+        (option) =>
+          typeof option.id === "string" &&
+          typeof option.label === "string" &&
+          typeof option.description === "string",
+      ) ||
+      !developmentAccess.options.some(
+        (option) => option.id === developmentAccess.profile,
+      ))
+  )
+    throw new Error(
+      "Unable to verify the development view. Reload and check your signed-in account.",
+    );
   return {
     user_id: userId,
     appearance: {
       ...normalizeAppearance(appearance),
       version: appearance.version,
     },
+    ...(developmentAccess ? { development_access: developmentAccess } : {}),
   };
 }
 

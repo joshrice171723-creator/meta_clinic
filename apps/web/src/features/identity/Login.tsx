@@ -48,6 +48,17 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
             <h3>Reusable local test logins</h3>
             <Form
               endpoint="/api/development_session"
+              submit="OmniLogin"
+              onSuccess={done}
+              values={{ profile: "omni" }}
+            />
+            <p className="form-note">
+              One synthetic clinic identity for rapid review. After login, use
+              Settings → Development view to swap between administrator,
+              clinician, staff, inventory, read-only and client views.
+            </p>
+            <Form
+              endpoint="/api/development_session"
               submit="Use test login"
               onSuccess={done}
             >

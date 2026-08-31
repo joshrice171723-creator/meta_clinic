@@ -8,31 +8,33 @@ module Development
       documents.read billing.write roles.manage
     ].freeze
 
-    def self.create!(user)
+    def self.create!(user, permissions: DEFAULT_PERMISSIONS)
       raise "Test clinics are only available in development and test." unless Rails.env.development? || Rails.env.test?
 
       User.transaction do
         user.lock!
         existing = Clinic::Membership.find_by(user: user)
-        return grant_default_access!(existing) if existing
+        return grant_access!(existing, permissions) if existing
         practice = Clinic::Practice.create!(name: "Test Clinic")
         membership = Clinic::Membership.create!(practice: practice, user: user)
-        grant_default_access!(membership)
+        grant_access!(membership, permissions)
         practice.patients.create!(display_name: "Sample Patient A", reference: "DEMO-001")
         practice.patients.create!(display_name: "Sample Patient B", reference: "DEMO-002")
         paper = practice.items.create!(name: "Printer paper", sku: "OFFICE-001", reorder_level: 5)
-        paper.adjust!(delta: 3, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
         folders = practice.items.create!(name: "File folders", sku: "OFFICE-002", reorder_level: 10)
-        folders.adjust!(delta: 24, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
+        if permissions.include?("inventory.adjust")
+          paper.adjust!(delta: 3, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
+          folders.adjust!(delta: 24, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
+        end
         practice.staff_members.create!(display_name: "Alex Example", job_title: "Office coordinator")
         membership
       end
     end
 
-    def self.grant_default_access!(membership)
+    def self.grant_access!(membership, permissions)
       return membership unless membership
 
-      DEFAULT_PERMISSIONS.each do |action_code|
+      permissions.each do |action_code|
         role_code = "test-#{action_code.tr('.', '-')}"
         role = RoleVersion.find_or_create_by!(role_code: role_code, version: 1)
         permission = Permission.find_or_create_by!(action_code: action_code)
@@ -47,6 +49,6 @@ module Development
       end
       membership
     end
-    private_class_method :grant_default_access!
+    private_class_method :grant_access!
   end
 end
