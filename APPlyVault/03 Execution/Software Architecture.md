@@ -67,7 +67,7 @@ Use frontend feature folders and Rails layer-then-domain namespaces. Do not crea
 4. **Queries own complex reads.** Catalog filtering/totals/pagination and bounded batch/count/receipt/history composition remain server-side. Serialize only selected fields; exact quantities cross HTTP as decimal strings.
 5. **Transport remains same-origin.** Development Vite proxies `/api` to private Rails without changing Host/Origin. The deployed trusted nginx edge routes `/api/*` and `/up` to Rails and page/assets to the web container. Do not add broad CORS or store credentials in browser persistence.
 6. **Retain session/CSRF middleware.** `ApplicationController < ActionController::Base` deliberately retains cookies, CSRF and Origin checks despite JSON-only transport. Do not switch blindly to a minimal API stack.
-7. **No unsafe browser persistence or replay.** Records/tokens remain in memory, content is rendered as text, protected state is discarded on account changes/logout and history restoration reauthorizes. Failed mutations are not automatically retried; inventory retry keys persist only for the current form until acknowledgement/navigation.
+7. **No unsafe browser persistence or replay.** Records/tokens remain in memory, content is rendered as text, protected state is discarded on account changes/logout and history restoration reauthorizes. Failed mutations are not automatically retried; inventory retry keys persist only for the current form until acknowledgement/navigation. The sole cosmetic exception is clinic appearance: two allowlisted palette/mode enums under `apply.clinic.appearance.v1`, accessed only through `appearancePreferences.ts`. No identifiers, records, credentials, arbitrary keys or account sync; blocked storage must not break the page.
 8. **Adapters do not grant business authority.** FDA requests retain a fixed host, explicit bounded public queries and account/clinic-bound expiring import references. No new supplier integration, patient data, orders or spending.
 9. **Keep shared code neutral.** Launch, clinic and identity controllers share transport without inheriting another product. Do not create catch-all `utils`, `common` or `manager` folders.
 
@@ -75,7 +75,9 @@ These boundaries and tests are not complete tenant isolation. Trusted identity/R
 
 ## Shared workflows and presentation
 
-Browser URLs remain `/`, `/contact`, `/login`, `/portal`, `/paperwork`, `/training`, `/inquiries` and `/clinic/*`. Application-page rendering, native ERB controllers/views and CSS ownership moved out of Rails. Frontend code preserves the existing green visual language and product copy; this is not a redesign.
+Browser URLs remain `/`, `/contact`, `/login`, `/portal`, `/paperwork`, `/training`, `/inquiries` and `/clinic/*`. Application-page rendering, native ERB controllers/views and CSS ownership moved out of Rails. The D-033 split preserved the existing green visual language and product copy; that split was not a redesign.
+
+D-036/T-41 subsequently add three clinic palettes and system/light/dark modes. `src/features/clinic/Appearance.tsx` owns presentation/preferences; its stylesheet is scoped under the clinic wrapper/picker, leaving shared public CSS and launch presentation intact. `appearancePreferences.ts` owns tokens and the audited cosmetic storage boundary. The native picker, active navigation and readable control sizes do not change APIs, permissions or workflow. [[Clinic Workspace Design]] distinguishes implemented themes from proposed intake/clinician layouts.
 
 Existing launch JSON endpoints remain, with an authenticated paperwork text-receipt endpoint. Clinic JSON endpoints live under `/api/clinic`. `apps/web/src/api/contracts.ts` and `apps/api/test/architecture/routes_contract.json` define the browser response types and API route contract. Change producers/consumers and their tests together; do not import Ruby/backend code into the web app.
 

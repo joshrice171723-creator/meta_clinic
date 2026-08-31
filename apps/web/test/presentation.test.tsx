@@ -35,19 +35,30 @@ describe("frontend responsibility", () => {
     expect(html).toContain('required=""');
   });
   it("has no backend imports, persistent record storage, unsafe HTML or service worker", () => {
-    function sources(dir: string): string[] {
+    function sources(dir: string): { path: string; content: string }[] {
       return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
         e.isDirectory()
           ? sources(resolve(dir, e.name))
           : /\.tsx?$/.test(e.name)
-            ? [readFileSync(resolve(dir, e.name), "utf8")]
+            ? [
+                {
+                  path: resolve(dir, e.name),
+                  content: readFileSync(resolve(dir, e.name), "utf8"),
+                },
+              ]
             : [],
       );
     }
     for (const source of sources(resolve("src"))) {
-      expect(source).not.toMatch(
-        /localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
+      expect(source.content).not.toMatch(
+        /sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
       );
+      // A single audited boundary may persist only allowlisted appearance enums.
+      // All other modules retain the no-browser-persistence rule.
+      if (
+        source.path !== resolve("src/features/clinic/appearancePreferences.ts")
+      )
+        expect(source.content).not.toContain("localStorage");
     }
   });
 });

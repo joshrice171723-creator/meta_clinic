@@ -1,0 +1,572 @@
+.clinic-theme .clinic-shell {
+  background: var(--clinic-background);
+  color: var(--clinic-text);
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+.clinic-theme .clinic-sidebar {
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+}
+.clinic-theme .clinic-sidebar .wordmark {
+  color: var(--clinic-text);
+}
+.clinic-theme .workspace-label {
+  color: var(--clinic-muted);
+  font-size: 14px;
+}
+.clinic-theme .practice-label {
+  border-top: 1px solid var(--clinic-border);
+  border-bottom: 1px solid var(--clinic-border);
+  font-size: 14px;
+}
+.clinic-theme .practice-label span {
+  color: var(--clinic-muted);
+  font-size: 14px;
+}
+.clinic-theme .clinic-sidebar nav a {
+  font-size: 14px;
+}
+.clinic-theme .clinic-sidebar nav a:hover,
+.clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+.clinic-theme .clinic-sidebar-bottom {
+  font-size: 14px;
+}
+.clinic-theme .clinic-sidebar-bottom .button {
+  color: var(--clinic-text);
+  border-color: var(--clinic-control);
+}
+.clinic-theme .clinic-topbar {
+  background: var(--clinic-surface);
+  border-bottom: 1px solid var(--clinic-border);
+  font-size: 14px;
+}
+.clinic-theme .clinic-topbar a {
+  font-size: 14px;
+}
+.clinic-theme .clinic-safety {
+  background: var(--clinic-warning-bg);
+  color: var(--clinic-warning);
+  font-size: 14px;
+}
+.clinic-theme .clinic-content h1 {
+  font-family: inherit;
+}
+.clinic-theme .clinic-lead {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .clinic-stat {
+  background: var(--clinic-surface);
+  border: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-stat span {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .clinic-stat small {
+  font-size: 14px;
+  color: var(--clinic-accent);
+}
+.clinic-theme .clinic-card {
+  background: var(--clinic-surface);
+  border: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-card p {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .clinic-card .primary-link {
+  font-size: 14px;
+}
+.clinic-theme .clinic-feature-list li,
+.clinic-theme .stock-alerts li {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-feature-list strong,
+.clinic-theme .stock-alerts strong {
+  font-size: 14px;
+}
+.clinic-theme .clinic-feature-list span,
+.clinic-theme .stock-alerts span {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .clinic-fine-print {
+  font-size: 14px !important;
+}
+.clinic-theme .clinic-content table {
+  font-size: 14px;
+}
+.clinic-theme .clinic-content th {
+  color: var(--clinic-muted);
+  font-size: 14px;
+}
+.clinic-theme .clinic-content td {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-content td small {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .clinic-content td .stock-low {
+  color: var(--clinic-warning);
+}
+.clinic-theme .clinic-content .form-field label {
+  font-size: 14px;
+}
+.clinic-theme .clinic-content .form-field input,
+.clinic-theme .clinic-content .form-field textarea {
+  font-size: 14px;
+  background: var(--clinic-surface);
+}
+.clinic-theme .clinic-note {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-note .material-body {
+  font-size: 14px;
+}
+.clinic-theme .clinic-note .eyebrow {
+  font-size: 14px;
+}
+.clinic-theme .stock-form input {
+  border: 1px solid var(--clinic-control);
+  font-size: 14px;
+}
+.clinic-theme .ehr-tabs {
+  border-bottom: 1px solid var(--clinic-border);
+  background: var(--clinic-surface);
+}
+.clinic-theme .ehr-tabs a {
+  font-size: 14px;
+}
+.clinic-theme .ehr-tabs a[aria-current="page"] {
+  border-color: var(--clinic-accent);
+}
+.clinic-theme .pharmacy-heading .primary-link {
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-notice {
+  border: 1px solid var(--clinic-border);
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+  font-size: 14px;
+}
+.clinic-theme .clinic-content select {
+  border: 1px solid var(--clinic-control);
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-badge {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-warning {
+  background: var(--clinic-warning-bg);
+  color: var(--clinic-warning);
+}
+.clinic-theme .pharmacy-movement {
+  border-top: 1px solid var(--clinic-border);
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-movement small {
+  color: var(--clinic-muted);
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-details {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .pharmacy-details summary {
+  font-size: 14px;
+}
+.clinic-theme .ndc-result {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .ndc-result small {
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-summary {
+  border: 1px solid var(--clinic-border);
+  background: var(--clinic-surface);
+}
+.clinic-theme .pharmacy-summary-item > span {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .pharmacy-summary-item > small {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .pharmacy-caption {
+  font-size: 14px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .pharmacy-page .pharmacy-catalog th {
+  background: var(--clinic-background);
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-page .pharmacy-catalog td {
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-page .pharmacy-catalog tbody tr:hover {
+  background: var(--clinic-soft);
+}
+.clinic-theme .pharmacy-page .pharmacy-catalog code {
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-page td a.pharmacy-product-name {
+  font-size: 14px;
+}
+.clinic-theme .pharmacy-product-avatar {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+  font: 600 14px monospace;
+}
+.clinic-theme .pharmacy-product-avatar.tone-1 {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+.clinic-theme .pharmacy-product-avatar.tone-2 {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+.clinic-theme .pharmacy-product-avatar.tone-3 {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+.clinic-theme .pharmacy-page .pharmacy-lookup {
+  background: var(--clinic-soft);
+}
+.clinic-theme .pharmacy-page .ndc-result {
+  border: 1px solid var(--clinic-border);
+  background: var(--clinic-surface);
+}
+.clinic-theme .pharmacy-page .clinic-table-wrap:focus-visible,
+.clinic-theme .pharmacy-page summary:focus-visible {
+  outline: 3px solid var(--clinic-accent);
+}
+@media (max-width: 1150px) {
+  .clinic-theme .clinic-shell {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .clinic-theme .clinic-sidebar nav a {
+    font-size: 14px;
+  }
+}
+/* Clinic-only appearance. No global theme class or launch-page color changes. */
+.clinic-theme {
+  --background: var(--clinic-background);
+  --foreground: var(--clinic-text);
+  --border: var(--clinic-border);
+  --font-dm-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--clinic-background);
+  color: var(--clinic-text);
+  min-height: 100vh;
+  font-family: var(--font-dm-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.clinic-theme ::selection {
+  background: var(--clinic-accent);
+  color: var(--clinic-on-accent);
+}
+.clinic-theme .brand-dot {
+  background: var(--clinic-accent);
+}
+.clinic-theme .clinic-sidebar {
+  border-right: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-sidebar nav a {
+  min-height: 44px;
+}
+.clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+  box-shadow: inset 3px 0 var(--clinic-accent);
+  font-weight: 600;
+}
+.clinic-theme .clinic-sidebar-bottom {
+  font-size: 14px;
+}
+.clinic-theme .clinic-sidebar-bottom a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.clinic-theme .clinic-topbar {
+  align-items: center;
+  flex-wrap: wrap;
+  padding-block: 18px;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.clinic-theme .clinic-safety {
+  font-size: 14px;
+}
+.clinic-theme .eyebrow {
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+.clinic-theme .clinic-card p,
+.clinic-theme .clinic-lead {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.clinic-theme .clinic-card h2 {
+  font-size: 20px;
+}
+.clinic-theme .clinic-card {
+  border-radius: 10px;
+}
+.clinic-theme .clinic-content table {
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .clinic-content td a {
+  white-space: normal;
+}
+.clinic-theme .pharmacy-summary {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.clinic-theme .pharmacy-summary-item {
+  min-width: 0;
+}
+.clinic-theme .pharmacy-badge {
+  white-space: normal;
+}
+.clinic-theme .pharmacy-product-cell small {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+.clinic-theme .form-field input,
+.clinic-theme .form-field textarea,
+.clinic-theme .clinic-content .form-field input,
+.clinic-theme .clinic-content .form-field textarea,
+.clinic-theme .clinic-content select,
+.clinic-theme select,
+.clinic-theme .stock-form input {
+  color: var(--clinic-text);
+  background: var(--clinic-surface);
+  border-color: var(--clinic-control);
+  font-size: 16px;
+  max-width: 100%;
+  min-width: 0;
+}
+.clinic-theme input:not([type="checkbox"]):not([type="radio"]),
+.clinic-theme select {
+  min-height: 44px;
+}
+.clinic-theme input::placeholder,
+.clinic-theme textarea::placeholder {
+  color: var(--clinic-muted);
+  opacity: 1;
+}
+.clinic-theme input {
+  accent-color: var(--clinic-accent);
+}
+.clinic-theme .form-field label,
+.clinic-theme .form-note,
+.clinic-theme .form-intro {
+  color: var(--clinic-muted);
+  font-size: 14px;
+}
+.clinic-theme .primary-link,
+.clinic-theme .clinic-content .primary-link {
+  background: var(--clinic-accent);
+  color: var(--clinic-on-accent);
+  border: 1px solid var(--clinic-accent);
+  min-height: 44px;
+  padding: 12px 18px;
+  font-size: 16px;
+  border-radius: 6px;
+}
+.clinic-theme .primary-link:hover {
+  background: var(--clinic-accent);
+  transform: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.clinic-theme .button {
+  background: var(--clinic-surface);
+  color: var(--clinic-accent);
+  border-color: var(--clinic-control);
+  min-height: 44px;
+  font-size: 16px;
+}
+.clinic-theme .text-link {
+  color: var(--clinic-accent);
+  border-color: var(--clinic-control);
+  min-height: 44px;
+  font-size: 14px;
+}
+.clinic-theme .form-card {
+  background: var(--clinic-soft);
+}
+.clinic-theme .form-card h2 {
+  font-family: inherit;
+  font-size: 24px;
+}
+.clinic-theme .form-error,
+.clinic-theme .flash-alert {
+  color: var(--clinic-error);
+  background: var(--clinic-error-bg);
+  border: 1px solid var(--clinic-error);
+  padding: 14px 18px;
+  border-radius: 6px;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.clinic-theme .form-success {
+  color: var(--clinic-success);
+  background: var(--clinic-success-bg);
+  font-size: 16px;
+}
+.clinic-theme .form-success p {
+  color: inherit;
+}
+.clinic-theme .demo-notice {
+  color: var(--clinic-warning);
+  background: var(--clinic-warning-bg);
+  border-color: var(--clinic-warning);
+  font-size: 14px;
+}
+.clinic-theme .status-not_started {
+  color: var(--clinic-muted);
+  background: var(--clinic-background);
+  border-color: var(--clinic-border);
+}
+.clinic-theme .status-started {
+  color: var(--clinic-warning);
+  background: var(--clinic-warning-bg);
+  border-color: var(--clinic-warning);
+}
+.clinic-theme .status-completed {
+  color: var(--clinic-success);
+  background: var(--clinic-success-bg);
+  border-color: var(--clinic-success);
+}
+.clinic-theme .status-badge {
+  font-size: 14px;
+  white-space: normal;
+}
+.clinic-theme hr {
+  border-color: var(--clinic-border);
+}
+.clinic-theme
+  :is(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    summary,
+    .clinic-table-wrap
+  ):focus-visible {
+  outline: 3px solid var(--clinic-accent);
+  outline-offset: 3px;
+}
+.clinic-theme .pharmacy-details summary,
+.clinic-theme .pharmacy-receive > summary {
+  min-height: 44px;
+  padding-block: 10px;
+}
+.clinic-appearance {
+  width: min(100%, 420px);
+  min-width: 0;
+  margin-left: auto;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.clinic-appearance summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--clinic-control);
+  border-radius: 6px;
+  color: var(--clinic-accent);
+  background: var(--clinic-surface);
+  cursor: pointer;
+  list-style: none;
+}
+.clinic-appearance summary::-webkit-details-marker {
+  display: none;
+}
+.clinic-appearance-current {
+  color: var(--clinic-muted);
+}
+.clinic-appearance details[open] summary {
+  background: var(--clinic-soft);
+}
+.clinic-appearance-panel {
+  padding: 16px;
+  margin-top: 10px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  background: var(--clinic-surface);
+}
+.clinic-appearance-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.clinic-appearance-fields label {
+  display: block;
+  margin-bottom: 8px;
+}
+.clinic-appearance-fields select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--clinic-control);
+  border-radius: 4px;
+}
+.clinic-appearance-panel p {
+  color: var(--clinic-muted);
+  margin: 14px 0 0;
+  line-height: 1.5;
+}
+@media (max-width: 760px) {
+  .clinic-theme .clinic-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--clinic-border);
+  }
+  .clinic-theme .clinic-topbar {
+    align-items: stretch;
+  }
+  .clinic-appearance {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+@media (max-width: 440px) {
+  .clinic-appearance-fields {
+    grid-template-columns: 1fr;
+  }
+}
+@media (forced-colors: active) {
+  .clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+  .clinic-theme
+    :is(
+      a,
+      button,
+      input,
+      textarea,
+      select,
+      summary,
+      .clinic-table-wrap
+    ):focus-visible {
+    outline: 3px solid Highlight;
+  }
+}

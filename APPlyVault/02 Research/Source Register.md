@@ -148,6 +148,10 @@ Reviewed 2026-08-30 for D-030 and [[CICD]].
 
 ## Private and first-hand evidence
 
+- U-27: founder's clinic design follow-up, 2026-08-31: staff use both desktop and tablet; implement all the presented themes and allow users to choose. D-036 records this selection and T-41 the local cosmetic implementation. Browser-local persistence/default appearance are implementation choices, not evidence of account-sync requirements or clinical workflow approval.
+
+- U-26: founder's clinic frontend/design request and follow-ups, 2026-08-31: inspect the current interface, research clinic workflow/accessibility, explore sleek palettes/fonts/layouts, and work on a feature branch. Clarified that staff primarily use intake/triage, while the physician mainly creates/signs notes and prescriptions. Supports [[Clinic Workspace Design]] and synthetic comparisons, not clinical authority, live-data access, runtime signing/prescribing implementation or deployment. Device mix and design choice were initially open; U-27 subsequently confirms desktop/tablet and selectable themes, not a workflow layout.
+
 - U-25: founder's current review and follow-ups, 2026-08-31: review code/vault, reconcile stale documentation, foreground [[CICD]] for the other developer, preserve the founder's removal of retired `reference/`, add shared `.gitignore` coverage, add [[01 Table of Contents]], and change `AGENTS.md` to require relevant-section review through it rather than the entire vault. D-034/D-035 record the removal/protocol changes. No runtime feature change, deployment, Git publication or real-data access requested.
 
 - U-19: founder's inventory-pricing discussion and deferral, 2026-08-30: requested supplier/manufacturer price-comparison sources, asked about extensible product/price integrations and supplier APIs/partnerships, then asked to put the work on hold and update the vault with current state and future work. D-029 records the deferral; T-37 is the deferred integration task. The assistant's architecture and suggested sequence remain proposals, not accepted implementation, supplier selection, spending, outreach or purchase authority.
@@ -194,3 +198,15 @@ S-49 Secrets Manager pricing was rechecked for D-031 on 2026-08-30: the prepared
 - U-23: founder's frontend/backend separation request and follow-up approval, 2026-08-30: accepted independent frontend presentation and Rails API responsibilities. D-033 supersedes the prior Rails-rendered-UI choice while retaining domain, data and safety boundaries. Source implementation initially paused for the local test-database cleanup issue; U-24 authorized its resolution and T-40 subsequently completed locally. No hosted deployment or real-data access authorized.
 
 - U-24: founder's response to the disclosed local test-database cleanup issue, 2026-08-31: explicitly authorized recreating `apply_test`, confirming it was only a test/development database. Supports recreation from migrations and continuation, not a claim of original-data restoration or authority to reset development/hosted databases.
+
+## Clinic interface design references
+
+Reviewed 2026-08-31 for [[Clinic Workspace Design]]. Public-source background supports design proposals, not validation of the missing MD/SharePoint workflow or clinical release.
+
+| ID | Source | Accessed | Limited relevance / limitation |
+| --- | --- | --- | --- |
+| S-82 | W3C WCAG 2.2 Understanding: [Contrast minimum](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), [Target size minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), [Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) | 2026-08-31 | Contrast, 24px AA target-size criterion/exceptions and 320 CSS px reflow inform targets. Preferred 16px text/44px controls are project choices; no conformance assessment claimed |
+| S-83 | W3C WCAG 2.2 Understanding: [Accessible authentication minimum](https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html), [Focus not obscured minimum](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html) | 2026-08-31 | Password-manager/paste-compatible authentication and focus visibility. Does not approve account, MFA, session or recovery design |
+| S-84 | [AHRQ — Workflow Assessment for Health IT Toolkit](https://digital.ahrq.gov/health-it-tools-and-resources/evaluation-resources/workflow-assessment-health-it-toolkit) | 2026-08-31 | Overview's ambulatory clinical/administrative workflow framing; proposed clinic sequence is our inference plus founder input, not an observed clinic workflow |
+| S-85 | [HealthIT.gov — SAFER Guides](https://healthit.gov/clinical-quality-and-safety/safer-guides/) | 2026-08-31 | Reviewed hub descriptions of patient identification, clinical communication, test-result follow-up and contingency planning; linked full guide PDFs were not reviewed. Informs identity/handoff/ownership design questions, not checklist completion or clinical acceptance |
+| S-86 | [Adobe — Source Sans](https://github.com/adobe-fonts/source-sans), [Inter official site](https://rsms.me/inter/) | 2026-08-31 | UI-oriented Source Sans 3 and Inter typography/tabular-figure/open-license background; neither font installed. Final choice, self-hosted files and bundled license remain implementation work |

@@ -20,6 +20,12 @@ D-026 confirms one clinic per login, provisioned by developers. People working a
 
 D-028 sets the pharmacy product direction: allow clinics to choose and combine pharmacy setups rather than design for one operating model. [[Pharmacy Inventory Data Requirements#Configurable pharmacy capabilities]] defines the proposed shared foundation and extensions. This is future capability scope, not a claim that the delivered slice below supports dispensing, compounding or every pharmacy setting. Clinic-specific activation, professional permissions and real-data release remain separate.
 
+## Interface design exploration — 2026-08-31
+
+The founder clarified that staff primarily perform intake/triage, while the physician mainly creates and signs notes/prescriptions. [[Clinic Workspace Design]] proposes a staff-first queue, focused clinician view and supporting inventory layout. The follow-up confirms staff use desktop and tablet and accepts all three palettes as user-selectable themes (D-036/U-27).
+
+T-41 implements clinic-only Appearance controls for Sage & ivory, Mineral blue and Warm graphite, each with Light/Dark/Follow system, plus readable controls and active navigation. Preferences are cosmetic and browser-local, not account-synced; no records or account identifiers are persisted. The launch interface retains its existing styles. This local source change on `feature/clinic-workspace-design` does not implement intake, triage, signing or prescribing, or accept the conceptual workflow layouts. T-13/T-22 retain requirements and browser/accessibility acceptance; clinical release gates are unchanged.
+
 ## Current PostgreSQL inventory implementation
 
 D-032's completed source refactor separates `Clinic::Care`, `Clinic::Inventory` and `Clinic::Staff`; clinic tenancy remains `Clinic::Practice`/`Clinic::Membership`. Scoped catalog/detail queries and authorized NDC-import orchestration are separate from HTTP; inventory receiving and the shared ledger are preserved. D-033 puts clinic presentation and shared CSS in `apps/web`, not Rails views. See [[Software Architecture]] and [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]] for current ownership and the latest recorded full-suite/container evidence. Historical paths/results below are not current startup instructions.
