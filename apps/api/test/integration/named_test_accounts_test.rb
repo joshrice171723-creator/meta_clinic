@@ -156,4 +156,42 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_equal 0, MemberSession.count
     end
   end
+
+  test "password reset and deactivation revoke named sessions without silently repairing access" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      enter("client-a")
+      assert_response :created
+      client = User.find_by!(email_address: "test-client-a@example.invalid")
+      client.update!(password: SecureRandom.hex(20))
+      get "/api/session", headers: @headers
+      assert_response :unauthorized
+      enter("client-a")
+      assert_response :unauthorized
+      assert_raises(Development::TestAccounts::Unavailable) { Development::TestAccounts.prepare! }
+
+      enter("admin")
+      assert_response :created
+      User.find_by!(email_address: "test-admin@example.invalid").update!(active: false)
+      get "/api/inquiries", headers: @headers
+      assert_response :unauthorized
+      enter("admin")
+      assert_response :unauthorized
+    end
+  end
+
+  test "existing named sessions reject a non-loopback host or peer and a mismatched origin" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      enter("admin")
+      assert_response :created
+      get "/api/inquiries", headers: @headers.merge("REMOTE_ADDR" => "203.0.113.20")
+      assert_response :unauthorized
+      get "/api/inquiries", headers: @headers.merge("Origin" => "http://untrusted.example")
+      assert_response :unauthorized
+      host! "www.example.com"
+      get "/api/inquiries", headers: @headers.merge("Origin" => "http://www.example.com")
+      assert_response :unauthorized
+    end
+  end
 end

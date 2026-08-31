@@ -46,7 +46,7 @@ No copied password or ChatGPT sign-in is needed locally. The demo signing step s
 
 **D-040 adds reusable local test logins:** Test Admin (inquiry inbox, no clinic), Test Client A and Test Client B (separate personal progress/Test Clinics), and Test Disabled (expected denial). Select them explicitly on the local login page; no passwords are published. Their setup preserves existing progress/access state and refuses conflicting identities. They retain the development/loopback/CSRF guards and cannot use ordinary password login. [[Client Access Workflow#Reusable local test accounts]] owns usage and limits; the existing fresh demo remains available. These are synthetic personas, not appointments to production roles.
 
-**Session maximum:** local source/runtime now uses 12 hours from login, without sliding extension. Both explicit expiry and session age are checked, including older sessions originally issued for 24 hours. Logout, password changes and deactivation still revoke access. Staging/production were not updated; broader MFA/recovery acceptance remains open.
+**Session maximum:** local source/runtime now uses 12 hours from login, without sliding extension. Both explicit expiry and session age are checked, including older sessions originally issued for 24 hours. Logout, password changes and deactivation still revoke access. The initial local change updated neither host. The later D-040 continuation authorizes reviewed merge/CI delivery to staging; production remains unchanged and broader MFA/recovery acceptance remains open.
 
 The hosted preview's ChatGPT screen is a separate owner-only hosting gate, not APPly's Rails login. No hosted access policy, production account, public signup or deployment was changed for this development request.
 

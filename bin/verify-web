@@ -28,6 +28,7 @@ begin
   command!(environment, api_root, *database_command, "createdb", database)
   created = true
   command!(environment, api_root, *database_command, "bin/rails", "db:migrate", "db:seed")
+  command!(environment, api_root, *database_command, "bin/rails", "members:prepare_test_accounts")
   phase = "process startup"
   children << Process.spawn(environment, *database_command, "bin/rails", "server", "-b", "127.0.0.1", "-p", ports[0].to_s, "--pid", "tmp/pids/#{database}.pid", chdir: api_root, pgroup: true, out: File::NULL, err: File::NULL)
   children << Process.spawn({ "APPLY_API_PORT" => ports[0].to_s }, "node_modules/.bin/vite", "--host", "127.0.0.1", "--port", ports[1].to_s, "--strictPort", chdir: File.join(root, "apps/web"), pgroup: true, out: File::NULL, err: File::NULL)
@@ -64,6 +65,20 @@ begin
   raise "Anonymous clinic access" unless request.call("/api/clinic").code == "401"
   raise "CSRF accepted without token" unless request.call("/api/development_session", method: "POST", body: {}).code == "422"
   raise "Origin accepted" unless request.call("/api/development_session", method: "POST", body: {}, token: csrf.call, origin_header: "http://outside.example.invalid").code == "422"
+  phase = "named test account contract"
+  raise "Named client login failed" unless post.call("/api/development_session", { profile: "client-a", admin: true }).code == "201"
+  first = JSON.parse(request.call("/api/session").body).fetch("user")
+  raise "Client privilege escalation" unless first.fetch("email_address") == "test-client-a@example.invalid" && !first.fetch("admin") && request.call("/api/inquiries").code == "403"
+  first_document = JSON.parse(request.call("/api/paperworks").body).fetch("paperworks").first.fetch("id")
+  raise "Named second login failed" unless post.call("/api/development_session", { profile: "client-b" }).code == "201"
+  raise "Cross-client disclosure" unless request.call("/api/paperworks/#{first_document}").code == "404"
+  raise "Named repeat login failed" unless post.call("/api/development_session", { profile: "client-a" }).code == "201"
+  raise "Named identity replaced" unless JSON.parse(request.call("/api/session").body).dig("user", "id") == first.fetch("id")
+  raise "Named admin login failed" unless post.call("/api/development_session", { profile: "admin" }).code == "201"
+  raise "Admin scope incorrect" unless request.call("/api/inquiries").code == "200" && request.call("/api/clinic").code == "403"
+  raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
+  raise "Disabled login accepted" unless post.call("/api/development_session", { profile: "disabled" }).code == "401"
+  raise "Failed login granted access" unless request.call("/api/session").code == "401"
   raise "Local demo login failed" unless post.call("/api/development_session").code == "201"
   user = JSON.parse(request.call("/api/session").body).fetch("user")
   raise "Demo contract failed" unless user.fetch("development_demo") && !user.fetch("admin")
@@ -93,7 +108,7 @@ begin
   raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
   raise "Protected content after logout" unless request.call("/api/clinic").code == "401"
   raise "Settings exposed after logout" unless request.call("/api/settings").code == "401"
-  puts "PASS: real frontend proxy → Rails session/CSRF/origin, account settings/conflict, synthetic clinic, exact decimal receipt/retry, portal and logout"
+  puts "PASS: real frontend proxy → Rails session/CSRF/origin, named test roles/isolation, account settings/conflict, fresh demo, synthetic clinic, exact decimal receipt/retry, portal and logout"
 rescue => error
   warn "FAIL during #{phase}: #{error.class}; raw diagnostics suppressed"
   exit 1
