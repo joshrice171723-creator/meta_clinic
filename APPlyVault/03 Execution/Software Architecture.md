@@ -87,6 +87,8 @@ Existing launch JSON endpoints remain, with an authenticated paperwork text-rece
 
 Each app has its own dependency lockfile and Docker context. The web image contains only static assets and nginx, runs unprivileged and receives no application secrets. Rails retains backend secrets and private PostgreSQL access. Packaged clinic UI and API both return 404; staging/production use Rails production mode. Protected frontend shells contain no record data.
 
+The browser transport shares one in-flight CSRF bootstrap and waits for it before parallel session/resource reads. This prevents initial cookie snapshots from racing the CSRF initialization after login. Session rotation invalidates both the cached token and older bootstrap responses; failed mutations are never automatically replayed. The integration checks cover named-client settings persistence/isolation alongside admin and disabled-account denial.
+
 ## Adding or changing a feature
 
 - Select a bounded chunk from [[Roadmap and Tasks#Five-step implementation plan]] and apply [[Working Agreement#Failure-first planning and review]]. Name how a wrong identity, stale version, repeated write or partial failure crosses this feature's boundary, how it is detected, and the safe recovery path before coding. The broader clinical schema remains a proposal, not the implementation backlog.

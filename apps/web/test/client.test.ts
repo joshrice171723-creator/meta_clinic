@@ -3,6 +3,7 @@ import {
   api,
   ApiError,
   clearCsrf,
+  csrf,
   formBody,
   loginDestination,
 } from "../src/api/client";
@@ -16,6 +17,48 @@ beforeEach(() => clearCsrf());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("same-origin API boundary", () => {
+  it("shares bootstrap and holds parallel reads until the CSRF cookie is initialized", async () => {
+    let release!: (response: Response) => void;
+    const fetch = vi.fn().mockImplementation((path: string) =>
+      path === "/api/csrf"
+        ? new Promise<Response>((resolve) => {
+            release = resolve;
+          })
+        : Promise.resolve(json({ ok: true })),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const boot = csrf();
+    const session = api("/api/session");
+    const settings = api("/api/settings");
+    expect(fetch.mock.calls.map((call) => call[0])).toEqual(["/api/csrf"]);
+    release(json({ csrf_token: "initialized" }));
+    await Promise.all([boot, session, settings]);
+    expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+      "/api/csrf",
+      "/api/session",
+      "/api/settings",
+    ]);
+  });
+  it("rejects an old bootstrap response after session rotation without caching its token", async () => {
+    let release!: (response: Response) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(json({ csrf_token: "current" }))
+      .mockResolvedValueOnce(json({ saved: true }));
+    vi.stubGlobal("fetch", fetch);
+    const stale = csrf();
+    clearCsrf();
+    release(json({ csrf_token: "stale" }));
+    await expect(stale).rejects.toThrow("Your session changed");
+    await api("/api/settings", { method: "PATCH", body: {} });
+    expect(fetch.mock.calls[2][1].headers["X-CSRF-Token"]).toBe("current");
+  });
   it("gets CSRF before mutation, sends cookies and never persists a bearer token", async () => {
     const fetch = vi
       .fn()
@@ -73,6 +116,7 @@ describe("same-origin API boundary", () => {
   it("returns safe API failures and rejects off-origin targets", async () => {
     const fetch = vi
       .fn()
+      .mockResolvedValueOnce(json({ csrf_token: "initialized" }))
       .mockResolvedValueOnce(json({ error: "Please sign in." }, 401));
     vi.stubGlobal("fetch", fetch);
     await expect(api("/api/clinic")).rejects.toEqual(
@@ -81,7 +125,7 @@ describe("same-origin API boundary", () => {
     await expect(api("https://example.invalid/api/session")).rejects.toThrow(
       "same-origin",
     );
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 describe("form contracts", () => {

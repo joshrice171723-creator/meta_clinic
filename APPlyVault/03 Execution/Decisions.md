@@ -125,6 +125,7 @@ This approves a planning-document update and its failure-oriented method, not bl
 ## Account-owned settings and responsive corrections
 
 **D-039 — 2026-08-31 / founder's UI correction request (U-28):** work on a feature branch, revisit cramped containers and test different device sizes; move theme selection to a Settings page tied to the currently signed-in user, as a foundation for later settings. This supersedes D-036's browser-local implementation choice, not the three palettes or clinical boundaries. T-43 implements initial `/clinic/settings`, server-owned cosmetic preferences and summary/footer corrections; live browser acceptance remains pending. No permission-management, password, clinical workflow, deployment or live-record authority is added.
+
 ## Initial client-access responsibility
 
 **D-038 — 2026-08-31 / founder's T-23.1 follow-up:** in response to who should initially confirm payment and authorize client access, the founder said, “We can leave that to me.” Assign the founder both initial payment confirmation and authorization of the intended client's portal access. [[Client Access Workflow]] records the assignment within its still-proposed lifecycle; T-23.1 remains in progress.
@@ -134,6 +135,7 @@ This resolves those two responsibilities, not the entire workflow. Account provi
 ## Workload-first clinic presentation
 
 **D-041 — 2026-08-31 / founder's tracking-board request (U-29):** use Overview for patient flow in the cash-pay, membership-based clinic experience: first initial / first three surname characters, patient/triage information when available, membership and wait times. Move reorder and active-directory work to Operations; simplify Patients/Pharmacy labels; keep sidebar height within the viewport with overflow on small screens, and make it collapsible using a paper-chart-style pullout tab. Supporting frontend changes are authorized. T-44 delivers the labeled example-shift UI and navigation, not persisted arrivals, clinical triage rules or live workload integration. Unique references accompany potentially colliding abbreviations; no de-identification, new clinical authority, billing rules or release approval is inferred.
+
 ## Client workflow acceptance and local test access
 
 **D-040 — 2026-08-31 / founder's T-23.1 continuation:** select a **12-hour login session**, replacing the observed 24-hour setting, and accept the otherwise proposed client-access structure. The founder's rationale is the expected maximum shift length; implementation uses an absolute maximum from login, not a sliding timeout. Shorter explicit expiry, logout, password-change revocation and deactivation still apply. Idle-timeout, factor/enrollment and challenge-expiry details remain separate implementation/release choices.
