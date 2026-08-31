@@ -80,6 +80,38 @@ describe("account-owned appearance", () => {
     expect(loginDestination("//example.invalid")).toBe("/portal");
     expect(loginDestination("/clinic/settings?other=1")).toBe("/portal");
   });
+  it("retains only a verified Omni development-view projection", () => {
+    const development_access = {
+      profile: "clinician",
+      options: [
+        {
+          id: "clinician",
+          label: "Clinician",
+          description: "Synthetic clinician view.",
+        },
+      ],
+    };
+    expect(
+      ownedSettings(
+        {
+          user_id: 7,
+          appearance: { ...DEFAULT_APPEARANCE, version: 0 },
+          development_access,
+        },
+        7,
+      ).development_access,
+    ).toEqual(development_access);
+    expect(() =>
+      ownedSettings(
+        {
+          user_id: 7,
+          appearance: { ...DEFAULT_APPEARANCE, version: 0 },
+          development_access: { profile: "admin", options: [] },
+        },
+        7,
+      ),
+    ).toThrow(/development view/);
+  });
 });
 
 describe("system appearance and UI scope", () => {
@@ -129,6 +161,38 @@ describe("system appearance and UI scope", () => {
     expect(html).toContain('name="appearance[version]"');
     expect(html).toContain("reload saved settings");
     expect(html).not.toContain("<details");
+  });
+  it("renders the Omni development-view swap only when the server supplies it", () => {
+    const html = renderToStaticMarkup(
+      <AppearanceSettings
+        user={user}
+        settings={{
+          user_id: 7,
+          appearance: { palette: "sage", mode: "system", version: 0 },
+          development_access: {
+            profile: "clinician",
+            options: [
+              {
+                id: "administrator",
+                label: "Administrator",
+                description: "Full synthetic view.",
+              },
+              {
+                id: "clinician",
+                label: "Clinician",
+                description: "Synthetic clinician view.",
+              },
+            ],
+          },
+        }}
+        accept={() => {}}
+      />,
+    );
+    expect(html).toContain("Development view");
+    expect(html).toContain("Swap view");
+    expect(html).toContain('name="profile"');
+    expect(html).toContain('value="clinician" selected=""');
+    expect(html).toContain("server-enforced permissions");
   });
   it.each(CLINIC_PALETTES)(
     "scopes $label styles to the clinic and renders loading without protected content",

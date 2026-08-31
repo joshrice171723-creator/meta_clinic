@@ -61,6 +61,42 @@ export function AppearanceSettings({
           again. Reloading discards unsaved selections.
         </p>
       </Card>
+      {settings.development_access && (
+        <Card title="Development view">
+          <p>
+            Swap the OmniLogin account’s server-enforced permissions without
+            signing out. This control exists only on the loopback development
+            server.
+          </p>
+          <Form
+            endpoint="/api/development_access"
+            method="PATCH"
+            submit="Swap view"
+            className="settings-form"
+            values={{ expected_user_id: user.id }}
+            onSuccess={() => window.location.assign("/clinic/settings")}
+          >
+            <Field
+              name="profile"
+              label="Privilege view"
+              value={settings.development_access.profile}
+              options={settings.development_access.options.map((option) => [
+                option.id,
+                option.label,
+              ])}
+            />
+          </Form>
+          <p className="form-note">
+            {
+              settings.development_access.options.find(
+                (option) => option.id === settings.development_access?.profile,
+              )?.description
+            }{" "}
+            The selected view is shared by OmniLogin sessions using this local
+            database. Reloaded requests continue through normal authorization.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

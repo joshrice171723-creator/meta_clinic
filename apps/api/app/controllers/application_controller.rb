@@ -41,6 +41,14 @@ class ApplicationController < ActionController::Base
       session[:development_demo_user_id] == record.user_id
   end
 
+  def development_omni?
+    record = current_member_session
+    DevelopmentAccess.allowed?(request) && record &&
+      session[:development_test_profile] == "omni" &&
+      session[:development_demo_user_id] == record.user_id &&
+      Development::TestAccounts.matches?(record.user, "omni")
+  end
+
   def require_member
     render json: { error: "Please sign in to continue." }, status: :unauthorized unless current_user
   end

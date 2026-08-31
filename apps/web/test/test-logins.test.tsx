@@ -15,6 +15,8 @@ describe("local named test logins", () => {
     expect(html).toContain('name="profile"');
     expect(html).toContain("Sessions end 12 hours after login");
     expect(html).toContain("Continue as demo client");
+    expect(html).toContain("OmniLogin");
+    expect(html).toContain("Settings → Development view");
   });
 
   it("keeps test identities out of the normal hosted login", () => {
@@ -22,6 +24,7 @@ describe("local named test logins", () => {
     expect(html).not.toContain('name="profile"');
     expect(html).not.toContain("Test Admin");
     expect(html).not.toContain("Use test login");
+    expect(html).not.toContain("OmniLogin");
     expect(html).toContain("Email address");
   });
 });

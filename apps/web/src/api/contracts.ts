@@ -7,6 +7,14 @@ export type AppearancePreference = {
 export type UserSettings = {
   user_id: number;
   appearance: AppearancePreference & { version: number };
+  development_access?: {
+    profile: string;
+    options: {
+      id: string;
+      label: string;
+      description: string;
+    }[];
+  };
 };
 export type User = {
   id: number;

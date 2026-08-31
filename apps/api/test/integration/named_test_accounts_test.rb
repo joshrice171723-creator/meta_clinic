@@ -29,7 +29,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
 
   test "setup is atomic, repeatable and preserves progress and disabled status" do
     local_mode do
-      assert_difference "User.count", 4 do
+      assert_difference "User.count", 5 do
         Development::TestAccounts.prepare!
       end
       client = User.find_by!(email_address: "test-client-a@example.invalid")
@@ -107,6 +107,78 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       enter("client-a")
       assert_response :unauthorized
       assert_raises(Development::TestAccounts::Unavailable) { Development::TestAccounts.prepare! }
+    end
+  end
+
+  test "OmniLogin switches explicit server-authorized views without replacing its session" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      enter("omni")
+      assert_response :created
+      omni = User.find_by!(email_address: "test-omni@example.invalid")
+
+      get "/api/settings", headers: @headers
+      assert_response :success
+      assert_equal "administrator", response.parsed_body.dig("development_access", "profile")
+      assert_equal %w[administrator clinician staff inventory reader client],
+        response.parsed_body.dig("development_access", "options").pluck("id")
+      get "/api/inquiries", headers: @headers
+      assert_response :success
+
+      patch "/api/development_access", params: { expected_user_id: omni.id, profile: "clinician" },
+        headers: csrf, as: :json
+      assert_response :success
+      assert_equal "clinician", response.parsed_body.dig("development_access", "profile")
+      assert_not omni.reload.admin?
+      get "/api/session", headers: @headers
+      assert_equal omni.id, response.parsed_body.dig("user", "id")
+      get "/api/clinic/context", headers: @headers
+      assert_response :success
+      assert_equal true, response.parsed_body.dig("capabilities", "patients")
+      assert_equal true, response.parsed_body.dig("capabilities", "encounters")
+      assert_equal false, response.parsed_body.dig("capabilities", "inventory")
+      assert_equal false, response.parsed_body.dig("capabilities", "roles")
+      get "/api/inquiries", headers: @headers
+      assert_response :forbidden
+
+      patch "/api/development_access", params: { expected_user_id: omni.id, profile: "client" },
+        headers: csrf, as: :json
+      assert_response :success
+      get "/api/clinic/context", headers: @headers
+      assert response.parsed_body.fetch("capabilities").values.none?
+      get "/api/settings", headers: @headers
+      assert_response :success
+
+      patch "/api/development_access", params: { expected_user_id: omni.id, profile: "administrator" },
+        headers: csrf, as: :json
+      assert_response :success
+      assert omni.reload.admin?
+      get "/api/inquiries", headers: @headers
+      assert_response :success
+      assert_equal 1, omni.clinic_membership.role_grants.active.count
+
+      assert_no_changes -> { Development::OmniAccess.profile_for(omni.reload) } do
+        patch "/api/development_access", params: { expected_user_id: omni.id, profile: "unknown" },
+          headers: csrf, as: :json
+        assert_response :unprocessable_entity
+      end
+    end
+  end
+
+  test "development view switching is hidden from ordinary and production sessions" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      enter("client-a")
+      client = User.find_by!(email_address: "test-client-a@example.invalid")
+      patch "/api/development_access", params: { expected_user_id: client.id, profile: "administrator" },
+        headers: csrf, as: :json
+      assert_response :not_found
+      assert_not client.reload.admin?
+    end
+    local_mode("production") do
+      patch "/api/development_access", params: { expected_user_id: 1, profile: "administrator" },
+        headers: csrf, as: :json
+      assert_response :not_found
     end
   end
 

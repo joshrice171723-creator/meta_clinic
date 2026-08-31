@@ -3,6 +3,7 @@ module Development
     class Unavailable < StandardError; end
 
     PROFILES = {
+      "omni" => { email: "test-omni@example.invalid", admin: true, active: true, omni: true },
       "admin" => { email: "test-admin@example.invalid", admin: true, active: true },
       "client-a" => { email: "test-client-a@example.invalid", admin: false, active: true, clinic: "Test Clinic A" },
       "client-b" => { email: "test-client-b@example.invalid", admin: false, active: true, clinic: "Test Clinic B" },
@@ -15,7 +16,10 @@ module Development
 
     def self.matches?(user, profile)
       settings = PROFILES[profile]
-      settings && user.email_address == settings[:email] && user.admin? == settings[:admin]
+      return false unless settings && user.email_address == settings[:email]
+      return OmniAccess.profile_for(user).present? if settings[:omni]
+
+      user.admin? == settings[:admin]
     end
 
     def self.sign_in_account(profile)
@@ -34,17 +38,23 @@ module Development
         PROFILES.map do |profile, settings|
           user = User.find_by(email_address: settings[:email])
           if user
-            unless matches?(user, profile) && user.authenticate(password_for(profile))
+            identity_matches = user.email_address == settings[:email] &&
+              (settings[:omni] || user.admin? == settings[:admin])
+            unless identity_matches && user.authenticate(password_for(profile))
               raise Unavailable, "A test identity conflicts with an existing account. No accounts were changed."
             end
           else
             user = User.create!(email_address: settings[:email], admin: settings[:admin],
               active: settings[:active], password: password_for(profile))
-            if settings[:clinic]
+            if settings[:omni]
+              Launch::Paperwork.assign_demo!(user)
+              OmniAccess.prepare!(user)
+            elsif settings[:clinic]
               Launch::Paperwork.assign_demo!(user)
               TestClinic.create!(user).practice.update!(name: settings[:clinic])
             end
           end
+          OmniAccess.prepare!(user) if settings[:omni] && !user.previously_new_record?
           user
         end
       end
