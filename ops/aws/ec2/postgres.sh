@@ -22,7 +22,8 @@ for name,reference in [('owner','APPLY_DATABASE_OWNER_SECRET'),('runtime','APPLY
 PY
 if [ "$command" = start ]; then
   docker network inspect apply-database >/dev/null 2>&1 || docker network create --internal apply-database >/dev/null
-  install -d -m 700 /srv/apply/postgres
+  # The entrypoint drops to postgres and must still traverse the bind root.
+  install -d -o 999 -g 999 -m 700 /srv/apply/postgres
   # PostgreSQL 18 stores its versioned cluster below /var/lib/postgresql.
   if ! docker container inspect apply-postgres >/dev/null 2>&1; then
     docker run -d --name apply-postgres --restart unless-stopped --network apply-database \

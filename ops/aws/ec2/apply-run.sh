@@ -6,13 +6,44 @@ umask 077
 source /etc/apply/config
 [[ "$APPLY_ENVIRONMENT" = staging || "$APPLY_ENVIRONMENT" = production ]] || exit 1
 mountpoint -q /srv/apply
+if [ "${1:-}" = route ]; then
+  component=${2:-}
+  [[ "$component" = api || "$component" = web ]] || exit 1
+  # Internal Docker networks do not publish host ports. Refresh the trusted
+  # host proxy after every container recreation without enabling app egress.
+  python3 - "$component" <<'PY'
+import ipaddress, json, os, subprocess, sys, tempfile, time
+from pathlib import Path
+component = sys.argv[1]
+network, port = ('apply-database', 3001) if component == 'api' else ('apply-frontend', 8080)
+for attempt in range(60):
+    result = subprocess.run(['docker', 'inspect', '--format', '{{json .NetworkSettings.Networks}}', 'apply-' + component], capture_output=True, text=True)
+    if result.returncode == 0:
+        address = json.loads(result.stdout).get(network, {}).get('IPAddress')
+        if address:
+            address = str(ipaddress.IPv4Address(address))
+            break
+    time.sleep(1)
+else:
+    raise SystemExit('Private container address unavailable')
+directory = Path('/etc/apply/upstreams')
+directory.mkdir(mode=0o700, exist_ok=True)
+fd, temporary = tempfile.mkstemp(prefix=component + '-', dir=directory)
+with os.fdopen(fd, 'w') as output:
+    output.write(f'server {address}:{port};\n')
+os.replace(temporary, directory / (component + '.conf'))
+PY
+  nginx -t
+  if systemctl is-active --quiet nginx.service; then systemctl reload nginx.service; fi
+  exit 0
+fi
 # The static frontend never fetches or receives database/session secrets.
 if [ "${1:-api}" = web ]; then
   image=$(cat /etc/apply/web-image)
   [[ "$image" == "$APPLY_REPOSITORY"@sha256:* ]] || exit 1
   [[ "${image##*@sha256:}" =~ ^[a-f0-9]{64}$ ]] || exit 1
   docker network inspect apply-frontend >/dev/null 2>&1 || docker network create --internal apply-frontend >/dev/null
-  exec docker run --rm --name apply-web --network apply-frontend --publish 127.0.0.1:3000:8080 \
+  exec docker run --rm --name apply-web --network apply-frontend \
     --read-only --tmpfs /tmp:uid=101,gid=101,mode=700,size=32m --cap-drop ALL --security-opt no-new-privileges:true \
     --memory 64m --memory-swap 64m --pids-limit 128 \
     --log-driver local --log-opt max-size=10m --log-opt max-file=3 "$image"
@@ -55,7 +86,6 @@ image=$(cat /etc/apply/image)
 [[ "${image##*@sha256:}" =~ ^[a-f0-9]{64}$ ]] || exit 1
 
 exec docker run --rm --name apply-api --network apply-database \
-  --publish 127.0.0.1:3001:3001 \
   --env-file /run/apply/runtime.env \
   --read-only --tmpfs /rails/tmp:uid=1000,gid=1000,mode=700 \
   --tmpfs /rails/log:uid=1000,gid=1000,mode=700 \

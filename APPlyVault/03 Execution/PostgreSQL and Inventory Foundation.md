@@ -1,6 +1,6 @@
 ---
 type: implementation
-status: local-verified-hosted-cutover-pending
+status: staging-verified-production-cutover-pending
 updated: 2026-08-31
 ---
 # PostgreSQL and Inventory Foundation
@@ -11,7 +11,7 @@ Home: [[00 Home]] · Scope: [[Clinic Workspace]], [[Pharmacy Inventory Data Requ
 
 D-031/U-21 authorize PostgreSQL throughout the application and engineering recommendations for the database/inventory gaps, following D-028's broad pharmacy optionality. Rails now uses PostgreSQL 18 in development, tests and production configuration; SQLite is no longer an application adapter. The Gemfile, canonical SQL structure, eight migrations, CI service, container configuration and prepared host release tools agree on PostgreSQL. The founder removed retired `reference/` on 2026-08-31; its SQL was never an executable dependency. `apps/api/db/migrate/` and generated `apps/api/db/structure.sql` remain authoritative.
 
-**Local implementation and verification are delivered. The last recorded EC2 verification (2026-08-30) used SQLite; the maintenance cutover remains pending in the record.** Current host state was not rechecked in this documentation review. No existing SQLite database, hosted record, image, encryption key or recovery snapshot was overwritten. A durable local PostgreSQL container with a generated local credential replaces the task's disposable scratch server. New synthetic walkthroughs can be created through the existing explicit demo login; prior SQLite walkthroughs remain in their original files until an authorized conversion.
+**Staging's PostgreSQL cutover and independent dump/restore were verified on 2026-08-31; production remains unchanged on SQLite.** The original staging SQLite database, image, keys and recovery snapshots were preserved. Five synthetic rows across 17 tables were imported and round-trip verified; later migrations, runtime grants, reconciliation, matching-key decryption and app restart passed. See [[Progress Log#2026-08-31 — Staging delivery activated and PostgreSQL cutover verified]] for recovery references and limits. A durable local PostgreSQL container with a generated local credential replaces the task's disposable scratch server. New synthetic walkthroughs can be created through the existing explicit demo login; prior SQLite walkthroughs remain in their original files until an authorized conversion.
 
 The [PostgreSQL cutover runbook](../../ops/aws/ec2/postgres-cutover.md) identifies the source/destination checks, old-image/key/snapshot preservation, explicit import, reconciliation, recovery test, cutover point and post-write recovery limits. Current source alone cannot run against the old SQLite volume. The normal installer refuses to bypass the conversion marker. Updating an existing CloudFormation host through changed UserData risks replacement, so a separate additions-only credential template is provided for existing hosts.
 
@@ -30,7 +30,7 @@ The [PostgreSQL cutover runbook](../../ops/aws/ec2/postgres-cutover.md) identifi
 | No configuration provenance | Immutable clinic inventory profile versions, status, non-sensitive operator reference and actor/reason; UI can suspend posting without hiding history | Only synthetic inventory is supported. Per-location/operator capability matrices and clinical activations are not implemented |
 | Weak historical integrity | Composite clinic/actor keys, append-only history, receipt-to-posting checks, metadata-only catalog audit and count linkage | Database owners remain privileged. Field-change metadata is not a full before/after audit or read-access audit |
 | Unbounded dashboard aggregation | SQL balance/availability aggregation, indexed worklists, 25-product pages, 10-position pages and bounded recent histories | No full search/export/reporting system; query/load acceptance remains a later scale check |
-| Owner credentials inside server / unsafe migration rollback | Prepared restricted runtime role, separate maintenance credentials, explicit migration job and PostgreSQL dump/restore procedure | Hosted role/service installation is pending; no RLS, independent audit sink, high availability, scheduled backup or monitoring claimed |
+| Owner credentials inside server / unsafe migration rollback | Prepared restricted runtime role, separate maintenance credentials, explicit migration job and PostgreSQL dump/restore procedure | Staging role/service installation is verified; production is pending. No RLS, independent audit sink, high availability, scheduled backup or monitoring claimed |
 
 Balance and provenance restrictions also protect direct SQL paths against ordinary application mistakes. They are not proof of isolation against a compromised application identity: request actor IDs and local SQL context are not signed capabilities. All actual clinic reads still rely on scoped Rails authorization; the larger trusted-identity/RLS design requires a separately accepted security slice.
 
@@ -52,7 +52,7 @@ These checks use wholly synthetic fixtures. They are not a hosted cutover, succe
 
 ## Remaining work in order
 
-Canonical work remains in T-38 for hosted PostgreSQL cutover, T-34 for remaining configuration breadth, T-22/T-20 for remote CI and operational acceptance, and T-13 for full inventory/clinical requirements. Recommended next foundation work is location/operator-specific configuration, permission management and a scoped trusted identity/RLS/read-audit proof with negative tests. Do not switch on clinical modules merely because their catalog tables could be added.
+Canonical work remains in T-38 for production PostgreSQL cutover (staging completed), T-34 for remaining configuration breadth, T-22/T-20 for remote CI and operational acceptance, and T-13 for full inventory/clinical requirements. Recommended next foundation work is location/operator-specific configuration, permission management and a scoped trusted identity/RLS/read-audit proof with negative tests. Do not switch on clinical modules merely because their catalog tables could be added.
 
 Containers/BUD and storage excursions, transfers, purchasing/invoice/credit matching, exports/valuation, administration, practitioner supply, dispensing, controlled-drug/tracing and compounding remain separate increments in [[Roadmap and Tasks#Pharmacy capability implementation sequence]]. Supplier pricing integration stays deferred by D-029/T-37. No rates, staffing, dates, pharmacy license/pathway or professional approval was invented.
 

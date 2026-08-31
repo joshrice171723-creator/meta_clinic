@@ -1,6 +1,6 @@
 ---
 type: operating-guide
-status: current-source-documented-delivery-activation-pending
+status: staging-active-production-activation-pending
 updated: 2026-08-31
 ---
 # CICD
@@ -23,7 +23,7 @@ This is the first handoff for either developer. Use the sections in this order:
 
 D-033 separates the browser application in `apps/web/` from the Rails JSON backend in `apps/api/`. [[Software Architecture]] owns the module/dependency rules; this guide owns local commands, team workflow, CI and release procedures. The apps build independently but the prepared delivery pipeline releases a **matched API/web pair from one commit**.
 
-**Documentation/source review: 2026-08-31. Last recorded hosted verification: 2026-08-30.** The local split and its tests are complete under T-40. The two private EC2 environments were last verified on the older Rails/SQLite bootstrap, not this checkout. The earlier launcher/CI correction is recorded in [[Progress Log#2026-08-31 — CI/CD documentation aligned and launcher regression fixed]]. This review reconciles the developer handoff and ignore rules; no AWS/GitHub session, deployed state or remote run was checked.
+**Staging verification: 2026-08-31. Production's last hosted verification remains 2026-08-30.** The founder authorized staging configuration and its backed-up PostgreSQL cutover, leaving production untouched. Staging now runs the separate API/static frontend and PostgreSQL with original encryption keys and synthetic records preserved. Main CI passed all five jobs. See [[Progress Log#2026-08-31 — Staging delivery activated and PostgreSQL cutover verified]] for exact release and recovery evidence. Source fixes use `feat/staging-delivery-activation` and a PR, not a direct main push.
 
 | Area | Verified source or recorded state |
 | --- | --- |
@@ -31,15 +31,15 @@ D-033 separates the browser application in `apps/web/` from the Rails JSON backe
 | API | Rails 8.1.3.1 / Ruby 3.4.10 / Bundler 4.0.15; JSON, sessions/CSRF, permissions, domain workflows and PostgreSQL. |
 | Frontend | React/TypeScript/Vite with Node 24 and its own npm lockfile; screens, navigation, forms and styles, with no database credentials. |
 | Local development | Frontend at `127.0.0.1:3000`, Rails at `127.0.0.1:3001`, PostgreSQL helper at `127.0.0.1:54329`. Synthetic records only. |
-| CI | Five jobs in repository-root `.github/workflows/ci.yml`; exact checks below. Local success is not an observed GitHub run. |
-| Hosted baseline | Last verified as independent private staging/production t3.micro hosts with Rails/SQLite, separate storage/keys and ECR repositories. Production started empty with sample content disabled; present record counts are not asserted. |
-| Delivery | Paired-image workflows are prepared, not activated. PostgreSQL cutover, coordinated host/SSM installation and GitHub configuration/publication are still prerequisites. |
+| CI | Five jobs in repository-root `.github/workflows/ci.yml`; exact checks below. Main run `33366127061` passed for `a710f635f4f0ca653cb6213200a6b4b3845a6914`. |
+| Hosted baseline | Staging: PostgreSQL 18.6 plus separate API/web services verified 2026-08-31. Production: unchanged Rails/SQLite bootstrap; no fresh production row-count assertion. Independent storage/keys and ECR remain. |
+| Delivery | Staging OIDC role and fixed pair-aware SSM document installed; main-push CI drives staging. Production role, controls and cutover were deliberately not activated. |
 
 Runtime references are `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. T-22/M0 owns CI/browser acceptance, T-20/M1 hosted operations, and T-38 the controlled PostgreSQL cutover. Do not install PostgreSQL source over the SQLite host without the [cutover runbook](../../ops/aws/ec2/postgres-cutover.md).
 
 ### Host release contract
 
-The API launcher starts `apply-api`; the static frontend starts `apply-web`. Each name matches its service's cleanup/stop target. The API receives runtime credentials on the database network; the frontend stays on its own network and never prepares or receives those credentials.
+The API launcher starts `apply-api`; the static frontend starts `apply-web`. Names match service cleanup/stop targets. API and frontend retain separate internal networks; frontend receives no credentials. Docker on EC2 does not publish internal-only container ports. Each service's `ExecStartPost` refreshes a validated private container IP in root-only nginx upstream configuration and reloads the trusted edge. PostgreSQL stays unpublished; the host's loopback TLS listener is accessed through SSM.
 
 The offline launcher tests execute the actual Bash script with isolated command stubs. They check API/default, frontend and prepare modes, service/container consistency, digest rejection, missing mounts and invalid modes/environments without contacting Docker/AWS or reading host credentials. CI discovers both release and launcher test files and runs Bash syntax checks separately for every host shell script. These checks cover the naming regression fixed on 2026-08-31; they do not claim live systemd/SSM or database recovery acceptance.
 
@@ -85,8 +85,8 @@ After setup, root `bin/dev` starts only Rails and Vite; it does not start Postgr
 
 | Surface | Local development | Prepared host after coordinated cutover |
 | --- | --- | --- |
-| Pages/assets | Vite on 3000 | Static `apply-web` container: host loopback 3000 → container 8080 |
-| `/api/*` | Vite proxies to Rails 3001 without changing Host/Origin | Trusted TLS edge routes directly to `apply-api` on loopback 3001 |
+| Pages/assets | Vite on 3000 | Static `apply-web`: private container IP, port 8080; no host port |
+| `/api/*` | Vite proxies to Rails 3001 without changing Host/Origin | Trusted TLS edge routes to `apply-api`'s private container IP, port 3001 |
 | API health | Direct `http://127.0.0.1:3001/up`; Vite only proxies `/api` | `https://localhost:8443/up` |
 | Frontend health | Successful Vite page response | `https://localhost:8443/health` |
 | Database/credentials | Rails through the local PostgreSQL helper; browser has none | PostgreSQL is private; Rails receives runtime secrets, static frontend receives none |
@@ -201,7 +201,7 @@ git commit -m "Improve client onboarding"
 git push -u origin feature/client-onboarding
 ```
 
-`git add -p` reviews tracked changes interactively; add each intended new file explicitly by path. Do not use a blanket `git add .` in a checkout with unrelated work. Review staged content for secrets, database files and accidental changes. A commit records a code version; a push copies commits to GitHub. Neither updates EC2 while delivery remains inactive. After activation, a successful CI run for a main push triggers staging; production still needs explicit promotion.
+`git add -p` reviews tracked changes interactively; add each intended new file explicitly by path. Do not use a blanket `git add .` in a checkout with unrelated work. Review staged content for secrets, database files and accidental changes. A commit records a code version; a push copies commits to GitHub. Feature-branch pushes do not deploy. A successful CI run for a main push now triggers staging; production still needs separate activation and explicit promotion.
 
 Open a GitHub pull request targeting `main`. Describe the problem, behavior changed, checks performed, screenshots if useful, and any migration/deployment implications. The other developer reviews it while CI runs. A pull request is a proposed integration, not a deployment.
 
@@ -231,7 +231,7 @@ After merging, each developer updates their own clean `main` with `git pull --ff
 | `scan_ruby` | Brakeman static security analysis and Bundler Audit with refreshed vulnerability data. |
 | `lint` | RuboCop code-style checks. |
 | `frontend` | Install the npm lockfile, run Vitest, Prettier format check, TypeScript/Vite build and npm audit; no app secrets. |
-| `delivery_contract` | Run all 12 offline release/launcher tests and a separate Bash syntax check for every host shell script; no AWS or Docker requests. |
+| `delivery_contract` | Run all 22 offline release/configuration/launcher/route tests and a separate Bash syntax check for every host shell script; no AWS or Docker requests. |
 | `test` | Start PostgreSQL 18.6 and matching client tools; prepare/test Rails, check eager loading and rehearse legacy conversion/concurrency/restore. Then install Node/frontend dependencies and run the real Vite-to-API HTTP harness. |
 
 Triggers are pull requests targeting `main`, pushes to `main` (including merges), and a manual **Run workflow** action once the workflow is on the default branch. There is no scheduled trigger. Updates to an open pull request rerun its checks. New checks for the same ref cancel obsolete CI runs; this cancellation policy must not be copied blindly into a database deployment.
@@ -251,8 +251,8 @@ After publishing reviewed changes through the team workflow, open the pull reque
 | Image tag and digest | A tag is a readable release label; a digest identifies the exact image contents. Use an immutable commit/release label and record the deployment digest. Rebuilding the same commit later can produce a different digest as base packages change. |
 | ECR | AWS's private registry where release images are stored. It is not the running application. |
 | Container | A running instance created from an image, with environment-specific configuration supplied at runtime. |
-| EC2 | The Linux host for the prepared API, static-web and PostgreSQL containers plus the trusted HTTPS edge. The installed bootstrap still has the older arrangement. |
-| EBS / PostgreSQL | EBS retains database files and backups outside disposable application containers. Current source expects PostgreSQL; installed bootstrap storage is still SQLite until cutover. No developer database is included in an image. |
+| EC2 | Staging runs API, static-web and PostgreSQL containers plus the trusted HTTPS edge. Production retains its bootstrap arrangement. |
+| EBS / PostgreSQL | EBS retains database files and backups outside disposable application containers. Staging uses PostgreSQL; production remains SQLite pending its authorized cutover. No developer database is included in an image. |
 
 Neither a Git merge nor EC2 itself builds or installs an image automatically. A configured workflow must perform those steps. The usual release trigger is a successful CI run for a new `main` commit; a scheduled interval is optional, not required. Scheduled rebuilds/scans can later support maintenance even with unchanged source, but must be verified before deployment. No schedule is created here.
 
@@ -273,9 +273,9 @@ Staging catches issues that local tests may miss: missing runtime configuration,
 
 D-030 selected separate environments. As last recorded on 2026-08-30, staging is `i-011a8232817dc587f`; production is `i-0df3819ee5050b27b`. Each uses a t3.micro with 8 GiB encrypted root and 2 GiB encrypted data. The 2026-08-30 combined bootstrap estimate was $27.28/month before extras; it was not repriced in this review. Staging data and secrets were not copied to production. Both private previews use authenticated SSM and their own TLS certificate; see the runbook for one-tunnel-at-a-time access.
 
-## Delivery pipeline — prepared; activation pending
+## Delivery pipeline — staging active; production pending
 
-The files are implemented locally. The initial environments were installed through the manual SSM runbook from a verified working-tree bootstrap image; this is not evidence of an automatic GitHub release.
+The original bootstrap was manual. Staging's 2026-08-31 activation installs the fixed SSM contract and scoped OIDC role, completes PostgreSQL cutover and exercises GitHub delivery. Production remains outside that scope.
 
 ```mermaid
 flowchart TD
@@ -303,7 +303,7 @@ The deployment identity uses GitHub OIDC and scoped AWS roles, never AWS root ke
 
 ### Finish activation
 
-Activation is a coordinated maintenance/release task, not performed by this source/documentation update. Keep T-22/T-38 open until evidence exists.
+Staging configuration, cutover and recovery were verified on 2026-08-31. The steps below remain the procedure for separately authorized production activation or a new environment. T-22 retains browser/accessibility acceptance; T-38 retains production cutover. Do not repeat staging conversion or activate production merely to complete a checklist.
 
 1. Run the local delivery checks above and verify both packaged configurations from the intended commit. The launcher/service consistency regression is now fixed and included in CI.
 2. Complete the [PostgreSQL cutover](../../ops/aws/ec2/postgres-cutover.md) for each existing SQLite environment, preserving old data, matching keys, scripts and recovery evidence. Install the revised launcher/installer, both application services, PostgreSQL service and trusted edge together; accept the actual host path before declaring it ready.
@@ -315,18 +315,20 @@ When an authorized operator is ready, GitHub sign-in and read-only configuration
 
 ```sh
 gh auth login --hostname github.com --git-protocol ssh --web --skip-ssh-key
-python3 ops/aws/ec2/configure-delivery.py
+python3 ops/aws/ec2/configure-delivery.py --staging-only
 ```
 
-GitHub CLI was unauthenticated at the last recorded setup; current login state was not inspected here. The preflight makes read-only AWS/GitHub API requests to check account, repository admin access, OIDC subject metadata and production rules. It does **not** inspect the host's launcher, database, service installation or a current delivery change set.
+GitHub authentication/admin access were verified on 2026-08-31. `--staging-only` checks account, admin access and resolved OIDC metadata without reading/changing production controls; omit it only for authorized two-environment configuration. It does **not** inspect the host's launcher, database, service installation or a current delivery change set.
 
 Only within an approved activation task:
 
 ```sh
-python3 ops/aws/ec2/configure-delivery.py --apply
+python3 ops/aws/ec2/configure-delivery.py --staging-only --apply
 ```
 
-`--apply` can create a missing GitHub production environment/main-only rule, create a CloudFormation change set and execute it only when every resource change is an addition. It refuses incompatible existing protections and AWS modifications. It is not transactional across GitHub/AWS: if a later check fails, an earlier environment or unexecuted change set may already exist. Inspect the actual outcome before retrying. This tool does not configure required reviewers/branch protection, install host files, migrate data, commit/push or deploy the apps.
+`--staging-only --apply` sets `EnableProduction=false`, skips production GitHub settings and creates no production role. Without that flag, `--apply` may create a missing production environment/main-only rule. Both modes execute a CloudFormation change set only when every resource change is an addition. It refuses incompatible existing protections and AWS modifications. It is not transactional across GitHub/AWS: if a later check fails, an earlier environment or unexecuted change set may already exist. Inspect the actual outcome before retrying. This tool does not configure required reviewers/branch protection, install host files, migrate data, commit/push or deploy the apps.
+
+Validate GitHub's resolved `sub_claim_prefix` against the exact repository names/immutable IDs; do not infer it from `use_immutable_subject`, because a new repository's default may include IDs while the opt-in flag is false. Staging uses the exact main subject and STS audience, without wildcards. A reviewed staging-role-only change set corrected the initial mismatch; the helper's additions-only guard remains intact.
 
 Wait for the actual delivery stack completion and validate trust/permissions before relying on it. An existing SSM document update needs its own reviewed change set; do not weaken trust or broaden GitHub shell/secret permissions to bypass that requirement. Private-repository feature availability and independent required reviewers must be checked against the actual plan at activation; no upgrade or visibility change is authorized by this guide.
 
@@ -334,7 +336,7 @@ The [environment runbook](../../ops/aws/ec2/environments.md) holds installed-res
 
 ### Current release limits
 
-The last recorded 2026-08-30 scan of the patched bootstrap image had four critical and fourteen high OS-package findings; no fresh scan was run for this guide. The automated production gate rejects it. Private bootstrap operation is not security acceptance or authorization for real data. Public HTTPS additionally needs a chosen domain, DNS access and certificate/proxy configuration. Backups/monitoring schedules, recovery objectives, MFA/account operations and complete browser/security acceptance remain open.
+The 2026-08-31 candidate scans reported API four critical/fourteen high and web seven high findings. Staging requires completed scans but no severity threshold; the unchanged production gate rejects this pair. Private bootstrap operation is not security acceptance or authorization for real data. Public HTTPS additionally needs a chosen domain, DNS access and certificate/proxy configuration. Backups/monitoring schedules, recovery objectives, MFA/account operations and complete browser/security acceptance remain open.
 
 Production disables sample content without deleting historical records; ordinary account provisioning adds no demonstration paperwork. Staging keeps sample portal material but never enables the local password-free login or clinic routes. Real signing and patient-system deployment remain gated. This establishes separate deployment environments, not the final clinical architecture or a highly available service.
 
@@ -367,7 +369,7 @@ The earlier launcher correction passed all 12 offline delivery tests, including 
 
 The paired container verifier covers TLS/routing, guards, persistence/restart and separate PostgreSQL restore, but launches disposable containers directly. The new launcher tests complement that evidence; neither verifies live systemd/SSM installation, actual IAM/EBS recovery, browser interactions or operational capacity.
 
-M0 still needs observed remote CI and scoped browser/accessibility acceptance. M1/T-38 retain actual host cutover/recovery and release-activation evidence. No new schedule, reviewer commitment or deadline is created here.
+M0 now has observed successful main CI; scoped browser/accessibility acceptance remains open. Staging has actual cutover, restart, decryption and separate PostgreSQL restore evidence. M1 retains operational ownership/schedules/targets and broader acceptance; T-38 retains production cutover. No new schedule, reviewer commitment or deadline is created here.
 
 ## Boundaries and maintenance
 

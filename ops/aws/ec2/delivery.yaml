@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: APPly delivery roles; trusted GitHub main and production environment only.
 Parameters:
+  EnableProduction:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Set false for staging-only activation; no production role is created
   GitHubSubjectPrefix:
     Type: String
     Description: Exact repo subject prefix, including immutable IDs when enabled; no wildcards
@@ -17,6 +22,8 @@ Parameters:
   ProductionRepository:
     Type: String
     AllowedPattern: '[a-z0-9/_-]+'
+Conditions:
+  ProductionEnabled: !Equals [!Ref EnableProduction, 'true']
 Resources:
   GitHubIdentity:
     Type: AWS::IAM::OIDCProvider
@@ -91,6 +98,7 @@ Resources:
                 Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/staging'
   ProductionRole:
     Type: AWS::IAM::Role
+    Condition: ProductionEnabled
     Properties:
       RoleName: apply-github-production
       MaxSessionDuration: 3600
@@ -136,6 +144,7 @@ Outputs:
   StagingRoleArn:
     Value: !GetAtt StagingRole.Arn
   ProductionRoleArn:
+    Condition: ProductionEnabled
     Value: !GetAtt ProductionRole.Arn
   ReleaseDocument:
     Value: !Ref ReleaseCommand

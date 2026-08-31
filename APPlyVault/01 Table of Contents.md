@@ -33,9 +33,9 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 | Note | What it owns / how to use it |
 | --- | --- |
-| **[[CICD]]** | First developer handoff: local commands, two-developer branches/PRs, five CI jobs and prepared paired-image release procedure |
+| **[[CICD]]** | First developer handoff: local commands, two-developer branches/PRs, five CI jobs, active staging delivery and pending production activation |
 | [[Software Architecture]] | Current frontend/API ownership, dependency and transport rules |
-| [[PostgreSQL and Inventory Foundation]] | Implemented database/inventory controls, legacy preservation and pending hosted cutover |
+| [[PostgreSQL and Inventory Foundation]] | Implemented database/inventory controls, verified staging cutover/recovery and pending production cutover |
 | [[Website MVP]] | Current selling-site scope and source-versus-hosted distinction |
 | [[Client Portal]] | Provisioned access, Contact, synthetic paperwork/signing, training and confidential-release limits |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
