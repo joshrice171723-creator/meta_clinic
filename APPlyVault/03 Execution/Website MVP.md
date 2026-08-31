@@ -11,12 +11,12 @@ Home: [[00 Home]] · Portal: [[Client Portal]] · Tasks: [[Roadmap and Tasks]] �
 
 The consultancy website now leads to Contact and a client login. The founder explicitly removed the clinic brief and requested Ruby on Rails, then defined the paid-client portal as Paperwork plus Onboarding & Training. See D-021/D-022 and [[Client Portal]]. APPly remains a working name.
 
-The source lives in the separate `site/` repository. The vault and parent repository are not pushed to the website host. The owner-only review address is [APPly private preview](https://apply-clinic-launch.wdmcdonough.chatgpt.site). The revised frontend publication succeeded on 2026-08-30, with the correct hosted canonical origin. No public access or custom domain is configured. The Rails backend is not deployed.
+The source lives in `site/` as a normal folder tracked by the APPly repository, per D-023 in [[Decisions]]. Keep one Git history; do not initialize a nested repository or submodule in `site/`. Any future Sites source publication must use an isolated site-only export outside this working tree, never push the APPly repository or vault to the website host. The owner-only review address is [APPly private preview](https://apply-clinic-launch.wdmcdonough.chatgpt.site). The revised frontend publication succeeded on 2026-08-30, with the correct hosted canonical origin. No public access or custom domain is configured. The Rails backend is not deployed.
 
 ## Implemented
 
 - Existing green-and-cream consultancy landing page, positioning, services, process, Kevin's reference-clinic experience, FAQs, favicon and social card preserved.
-- Entire brief section, generator, download code and brief tests removed; prior version remains recoverable in site Git history.
+- Entire brief section, generator, download code and brief tests removed; the prior version remains recoverable in the local backup of the former site repository, not imported into APPly history.
 - Contact page and Rails-backed encrypted inquiry inbox for administrators.
 - Provisioned-account login and the [[Client Portal]] foundation; no public signup or EHR.
 - Metadata uses an operator-controlled origin; normal full-page navigation avoids client-side protected-page cache reuse.

@@ -51,6 +51,8 @@ The G0–G3 gates above concern the business. The M0–M6 milestones below conce
 | Workflow gaps | Provision/reset are interactive tasks; no activation/reset delivery, content-management flow, durable activity audit, real signing, PDF or submission pipeline | Build the smallest operator workflow and approved record lifecycle before real-client release |
 | Evidence gaps | Actual MD packet, reuse permission, governance and SharePoint/security originals remain absent | These block dependent content, commercial or clinical conclusions, not M0 local engineering |
 
+**Later repository-layout correction, 2026-08-30:** D-023 replaces the separate-repository arrangement described in the historical baseline above. `site/` is now an ordinary folder in APPly; future GitHub CI belongs at APPly's root `.github/workflows/`, with explicit `site/` and `site/backend/` working directories. This Git repair does not complete T-22 or change application/runtime behavior. See [[Progress Log#2026-08-30 — Site moved into the main Git repository]].
+
 The homepage says Kevin has “opened the doors,” while [[MD Pilot]] leaves opening/first-patient status unknown. M0 must remove that unsupported implication or obtain permitted evidence and copy approval. Do not change the historical founder record to match marketing copy.
 
 ### Dependencies and scope

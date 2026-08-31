@@ -9,6 +9,16 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-08-30 — Site moved into the main Git repository
+
+**Request and outcome:** founder reported Git's embedded-repository warning, then specified that `site/` should not have its own history. Replaced the staged `160000` repository pointer with 201 ordinary site files, including the existing local-demo edits without changing their contents. Moved the former `site/.git` into `.git/local-backups/site-20260831T000043Z/site.git` and saved the prior parent index alongside it for local recovery. No nested repository or submodule remains in `site/`; no old commits were imported or shared history rewritten. Changes are staged locally, not committed or pushed by this repair.
+
+**Documentation:** recorded D-023, updated [[Website MVP]], and annotated the historical repository/CI baseline in [[Roadmap and Tasks]]. Future website publication must use only site source/build from an isolated export, never send the parent repository or vault to Sites. No application code, dependency, hosting/access setting, or task-completion status changed.
+
+**Checks and limits:** personally reviewed all 23 Markdown notes and five JSON configurations and rechecked their hashes before writing. Every site's source-file hash and mode matched the pre-repair snapshot. A Git archive of the staged site contained all 201 files with matching content; the site entry is a normal tree and Git invoked from `site/` resolves to APPly. Existing ignore rules still exclude local environments, keys, databases, logs, dependencies and build output. Git whitespace checks passed. No application build/test, external source review, deployment or patient-data access was needed or performed. External MD/governance/security originals remain unavailable and unreviewed.
+
+**Next:** review and commit the staged repair, then push normally to `origin main`; no force push or remote-history cleanup is needed.
+
 ## 2026-08-30 — Current-state review and development milestones
 
 **Delivered:** reviewed the entire vault and the application code, then added the proposed M0–M6 sequence and separate SharePoint/EHR path to [[Roadmap and Tasks#Development plan — proposed 2026-08-30]]. Each milestone names dependencies, observable exit criteria, evidence and proposed accepting roles. Added T-22–T-27 while preserving existing task IDs/history and G0–G3 business gates. Updated [[00 Home]], [[Client Portal]], [[Website MVP]] and [[Source Register]]. No further business interview was necessary; host/operator, source-review, signing and pilot choices remain questions at the relevant gates. No deadlines, budgets or human commitments were invented.
