@@ -26,6 +26,8 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 | R-11 | High   | Kevin's physician/mentorship workload, availability, or backup limits delivery capacity                                | Define service cadence, capacity, agreements, fees, coverage, and escalation for both professions                  | T-15; L-02 / L-04                     |
 | R-12 | High   | Undefined inventory-value billing mechanics produce unsuitable metering, unclear bills, or incorrect commercial assumptions | Ordered-inventory-value basis is confirmed; define eligible value, events/adjustments, rates, and actual fee relationships before implementation | T-14; [[Business Model]] |
 
+**R-13 — High / open:** broad pharmacy configurability is mistaken for universal implemented coverage, every clinic's authority, or a requirement to collect every field. Mitigation: a shared inventory core, explicit capability dependencies, versioned per-clinic/location profiles, separate action permissions and scoped acceptance evidence; unsupported combinations stay disabled. Track implementation under T-13/T-34 and real-use applicability under L-02/L-05/L-06. Owner remains unassigned.
+
 ## Assumptions to test
 
 | ID | Hypothesis | Current evidence | What would challenge it? |
@@ -36,6 +38,7 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 | A-04 | Launch delivery and its packet can be repeatable enough for sustainable consulting | Existing MD process and planned packet; no customer delivery economics yet | Most work remains bespoke or requires unpriced expert/support effort |
 | A-05 | The separate EHR/inventory product will support sustainable recurring revenue | Implementation + percentage of ordered inventory value confirmed; rate/mechanics, retention, and costs unknown | Buyers prefer existing products, support costs dominate, or the metric does not align with value |
 | A-06 | Consultancy setup can avoid routine patient-data access while software is operated separately | Earlier administrative-only starting hypothesis narrowed by confirmed starter EHR inclusion | Provisioning/support requires access; roles, scope, and agreements must be reviewed |
+| A-07 | Clinics value the option to choose and combine pharmacy setups | Founder-selected product planning assumption in D-028; no new customer evidence | Actual adoption, workflow research or delivery/support cost favors different capability priorities; do not confuse broad optionality with every clinic needing every module |
 
 ## Review protocol
 

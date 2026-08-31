@@ -15,6 +15,7 @@
     <nav aria-label="Clinic navigation">
       <%= link_to "Overview", clinic_root_path, aria: { current: request.path == "/clinic" ? "page" : nil } %>
       <% if clinic_membership&.patients_access? %><%= link_to "EHR · Patients", clinic_patients_path, aria: { current: request.path.start_with?("/clinic/patients") ? "page" : nil } %><% end %>
+      <% if clinic_membership&.inventory_access? %><%= link_to "EHR · Pharmacy", clinic_pharmacy_index_path, aria: { current: request.path.start_with?("/clinic/pharmacy") ? "page" : nil } %><% end %>
       <% if clinic_membership&.inventory_access? %><%= link_to "Inventory", clinic_inventory_index_path, aria: { current: request.path.start_with?("/clinic/inventory") ? "page" : nil } %><% end %>
       <% if clinic_membership&.staff_access? %><%= link_to "Employees", clinic_staff_index_path, aria: { current: request.path.start_with?("/clinic/staff") ? "page" : nil } %><% end %>
     </nav>

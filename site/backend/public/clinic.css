@@ -52,5 +52,38 @@
 .clinic-inline-form { display:flex; align-items:end; flex-wrap:wrap; gap:18px; }
 .clinic-inline-form .form-field { flex:1; min-width:150px; margin:0; }
 .clinic-inline-form input[type=submit] { min-height:43px; }
+.ehr-tabs { display:flex; gap:24px; padding:0 38px; border-bottom:1px solid #cfdcd1; background:#fff; }
+.ehr-tabs a { padding:18px 0; font-size:12px; border-bottom:3px solid transparent; }
+.ehr-tabs a[aria-current=page] { border-color:#376b56; font-weight:700; }
+.pharmacy-heading,.pharmacy-section-heading { display:flex; align-items:center; justify-content:space-between; gap:22px; }
+.pharmacy-heading .primary-link { white-space:nowrap; font-size:12px; }
+.pharmacy-heading .clinic-lead { margin-bottom:12px; }
+.pharmacy-notice { padding:16px 20px; border:1px solid #d8dfcd; background:#edf1e7; color:#4b624a; font-size:12px; line-height:1.8; margin-top:20px; border-radius:6px; }
+.pharmacy-stats { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.pharmacy-search { display:flex; flex-wrap:wrap; gap:15px; align-items:end; margin:24px 0; }
+.pharmacy-search .form-field { flex:1; min-width:170px; margin:0; }
+.pharmacy-search .button,.pharmacy-search .primary-link { min-height:44px; }
+.pharmacy-search .text-link { padding:13px 0; }
+.clinic-content select { display:block; width:100%; min-height:44px; border:1px solid #c9d4c5; border-radius:4px; padding:10px; background:#fcfdfa; color:#253c37; font:inherit; font-size:12px; }
+.pharmacy-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:22px; }
+.pharmacy-form-grid .form-field { margin:0; }
+.pharmacy-wide { grid-column:1/-1; }
+.pharmacy-badge { display:inline-block; background:#e7f0e7; color:#345a3d; border-radius:4px; padding:7px 10px; font-size:10px; white-space:nowrap; }
+.pharmacy-warning { background:#f5e7ce; color:#7b5423; }
+.pharmacy-empty { padding:22px 0; }
+.pharmacy-empty h3 { font-size:20px; }
+.pharmacy-empty form { display:inline-block; margin:15px; }
+.pharmacy-movement { display:flex; justify-content:space-between; align-items:center; gap:18px; border-top:1px solid #e2e8e0; padding:18px 0; font-size:12px; }
+.pharmacy-movement small { display:block; margin-top:8px; color:#65796c; font-size:10px; }
+.pharmacy-details { border-top:1px solid #e2e8e0; padding:18px 0; }
+.pharmacy-details summary { cursor:pointer; font-size:12px; font-weight:600; }
+.pharmacy-details table { margin-top:20px; }
+.ndc-result { display:flex; gap:24px; align-items:center; justify-content:space-between; padding:22px 0; border-top:1px solid #e2e8e0; }
+.ndc-result h3 { font-size:16px; margin:0; }
+.ndc-result p { margin:8px 0; }
+.ndc-result small { font-size:11px; }
+.ndc-result .button { white-space:nowrap; }
+@media(max-width:1150px) { .pharmacy-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .pharmacy-heading { align-items:start; flex-direction:column; } }
+@media(max-width:760px) { .ehr-tabs { padding:0 20px; } .pharmacy-stats,.pharmacy-form-grid { grid-template-columns:1fr; } .pharmacy-section-heading,.ndc-result { align-items:start; flex-direction:column; } .pharmacy-heading .primary-link { white-space:normal; } .pharmacy-empty form { margin:15px 0; } }
 @media(max-width:1150px) { .clinic-shell { grid-template-columns:195px minmax(0,1fr); } .clinic-sidebar { padding:27px 18px; } .clinic-content { padding:22px 25px 60px; } .clinic-grid { grid-template-columns:1fr; gap:0; } .clinic-stats { gap:10px; } .clinic-stat { padding:18px; } }
 @media(max-width:760px) { .clinic-shell { display:block; } .clinic-sidebar { padding:20px; } .clinic-sidebar .wordmark { font-size:28px; } .workspace-label { margin:0; } .practice-label { margin:7px 0; padding:12px 0; } .clinic-sidebar nav { display:flex; flex-wrap:wrap; gap:5px; } .clinic-sidebar nav a { font-size:12px; padding:12px 10px; } .clinic-sidebar-bottom { margin:15px 0 0; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; } .clinic-topbar,.clinic-safety { padding:15px 20px; } .clinic-content { padding:18px 20px 45px; } .clinic-stats { grid-template-columns:1fr; } .clinic-stat { display:grid; grid-template-columns:1fr auto; align-items:center; } .clinic-stat strong { grid-column:2; grid-row:1/3; margin:0; } .clinic-stat small { margin-top:12px; } .clinic-card { padding:22px; } .clinic-record-heading { align-items:start; flex-direction:column; } }

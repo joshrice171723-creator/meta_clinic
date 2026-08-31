@@ -8,7 +8,6 @@ module Web
       with: -> { render_error("Too many sign-in attempts. Try again in five minutes.", :too_many_requests) }
 
     def new
-      redirect_to portal_path if current_user
     end
 
     def create
@@ -17,22 +16,34 @@ module Web
         flash.now[:alert] = "Email or password is incorrect."
         return render :new, status: :unauthorized
       end
+      destination = login_destination
       establish_session(user)
-      redirect_to portal_path, status: :see_other
+      redirect_to destination, status: :see_other
     end
 
     def development
       return render_error("Not found.", :not_found) unless DevelopmentAccess.allowed?(request)
       user = create_development_member
+      destination = login_destination
       establish_session(user)
       session[:development_demo_user_id] = user.id
-      redirect_to portal_path, status: :see_other
+      redirect_to destination, status: :see_other
     end
 
     def destroy
       current_member_session&.destroy!
       reset_session
       redirect_to login_path, status: :see_other, notice: "You have been signed out."
+    end
+
+    private
+
+    def login_destination
+      case session.delete(:after_login)
+      when "/clinic/pharmacy" then clinic_pharmacy_index_path
+      when "/clinic" then clinic_root_path
+      else portal_path
+      end
     end
   end
 end

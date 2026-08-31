@@ -4,7 +4,9 @@ module Web
     layout "application"
 
     rescue_from ActionController::InvalidAuthenticityToken do
-      render_error("Your session expired. Return to the page and try again.", :unprocessable_entity)
+      @recovery_path = request.path.start_with?("/clinic/pharmacy") ? clinic_pharmacy_index_path : login_path
+      @recovery_label = @recovery_path == login_path ? "Return to sign in" : "Return to pharmacy"
+      render_error("We could not verify this form. Nothing was saved. Open a fresh page and try again; sign in if prompted.", :unprocessable_entity)
     end
     rescue_from ActiveRecord::RecordNotFound do
       render_error("That page is not available to your account.", :not_found)
@@ -16,7 +18,16 @@ module Web
     private
 
     def require_member
-      redirect_to login_path, alert: "Please sign in to continue." unless current_user
+      return if current_user
+
+      session[:after_login] = if request.path.start_with?("/clinic/pharmacy")
+        "/clinic/pharmacy"
+      elsif request.path == "/clinic" || request.path.start_with?("/clinic/")
+        "/clinic"
+      else
+        "/portal"
+      end
+      redirect_to login_path, alert: "Please sign in to continue."
     end
 
     def require_admin

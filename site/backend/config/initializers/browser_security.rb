@@ -11,6 +11,8 @@ Rails.application.config.content_security_policy do |policy|
   policy.frame_ancestors :none
 end
 Rails.application.config.action_dispatch.default_headers.merge!(
-  "Referrer-Policy" => "no-referrer",
+  # Native POST forms need a same-origin Origin for Rails' forgery checks.
+  # External destinations still receive no referrer (including path/query data).
+  "Referrer-Policy" => "same-origin",
   "Permissions-Policy" => "camera=(), microphone=(), geolocation=()"
 )

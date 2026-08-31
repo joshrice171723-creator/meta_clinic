@@ -16,7 +16,8 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 - **Reference clinic:** Kevin Stacks, MD, PLLC, general adult medicine in Sherman, verified on the public website. The founder reports the MD has recently gone through cash-pay PLLC setup and documented the legal steps taken so far.
 - **Starting assets:** Kevin's attorney helped with his setup process. Existing diligence and workflow materials are expected on 2026-08-31 morning; contents and review scope have not yet been examined here.
 - **Commercial structure:** consultancy launch package with ongoing support; support and package-cost details explicitly TBD. Software implementation fee plus recurring fees calculated as a percentage of ordered inventory value; rate, eligible value, billing trigger, and terms remain open. This is not a selected percentage of patient-care revenue.
-- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. EC2/S3 remain possibilities, not an architecture decision.
+- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. D-027 selects EC2 for the current app/database hosting task; a private synthetic staging package is prepared, not provisioned. Future clinical architecture and S3 use remain open.
+- **Pharmacy scope:** D-028 sets broad configurability: clinics should be able to choose and combine pharmacy setups. [[Pharmacy Inventory Data Requirements]] covers the shared inventory foundation and proposed capability extensions; individual clinic activation and real-data release still need their own evidence.
 - **Demand:** substantial local demand is founder-reported; founder is currently unsure how many first applicants are available. No pipeline count or paid commitment is assumed.
 - **Timing:** no deadline pressure was expressed. Budget and actual team capacity are still unknown; no 90-day deadline is imposed.
 - **Near-term objective:** build both experiences in one Rails app: [[Website MVP]] / [[Client Portal]] for selling, Contact, paperwork and training; [[Clinic Workspace]] for synthetic clinic operations. Separate layouts/navigation and clinic permissions, not a separate-domain requirement. No real patient data or released EHR; hosting and actual packet/content remain pending. Business-decision interviews stay deferred.
@@ -40,7 +41,7 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 ## Next three moves
 
 - Establish the reproducible local baseline and browser acceptance in M0/T-22, preserving the guarded local demo and fixing the observed test-setup/CI gaps.
-- Resolve the Rails hosting/operator choice for M1/T-20; develop the synthetic account/operations flow in parallel without changing hosted access.
+- Finish M1/T-20 EC2 staging after acceptance of the proposed `us-east-1` / roughly $25 monthly baseline; the founder authorized root until further notice and an unexecuted change set is ready. Verify the actual host and recovery before changing hosted access.
 - When authorized materials arrive, index and review them for M3/T-12/T-24; real applicant documents and signing remain gated by M4. Keep clinic operations front-facing and permission-separated; real clinical release remains gated.
 
 Task status lives in [[Roadmap and Tasks]]; this page is a summary, not a second task list.

@@ -33,7 +33,9 @@ Source and operational instructions live in `site/README.md` and `site/backend/R
 
 ## Local development access
 
-After the founder encountered the private host's ChatGPT gate, they authorized a generic development login. The local login page now offers **Continue as demo client** when explicitly enabled. It creates a fresh, non-admin synthetic client with one demo document and access only to sample training. Progress persists locally for that session; signing out and entering again starts fresh, without deleting prior synthetic records.
+After the founder encountered the private host's ChatGPT gate, they authorized a generic development login. The local login page offers **Continue as demo client** when explicitly enabled. It creates a fresh, non-admin synthetic client with one demo document, access only to sample training, and an isolated assigned Test Clinic. Progress persists locally for that session; signing out and entering again starts fresh, without deleting prior synthetic records.
+
+D-026 removes the clinic-create step. Clinic Workspace opens the login's assigned clinic directly; a signed-out visitor returns there after explicit login. My launch uses an existing session and never creates one. Development sessions now show a persistent demo notice and Sign out button; the login form remains accessible while signed in. Missing/revoked clinic assignment requires developer assistance, not a picker or self-service creation.
 
 No copied password or ChatGPT sign-in is needed locally. The demo signing step still checks review, consent, fictional name and document version; password confirmation is skipped only for the guarded development session and a demo document. Regular account signing still requires its password. Rails development mode, explicit enablement, loopback checks and matching POST Origin are required; safe GET navigation may omit Origin. Production rejects the shortcut regardless of flag. The single Rails server must remain bound to loopback, never tunneled.
 
@@ -41,7 +43,7 @@ The hosted preview's ChatGPT screen is a separate owner-only hosting gate, not A
 
 ## Infrastructure boundary
 
-D-024 replaces the JavaScript frontend with Rails-rendered ERB, native forms and CSS. Both experiences now run through one local Rails server at localhost:3000. SQLite remains the development database. AWS/EC2 preparation is in site/deploy/aws.md; exact US East region, budget, operator, domain and restore testing remain open. No AWS resources or S3 access were created.
+D-024 replaces the JavaScript frontend with Rails-rendered ERB, native forms and CSS. Both experiences now run through one local Rails server at localhost:3000. D-027 requests EC2 application/database hosting. The package in `site/deploy/ec2/` retains SQLite on encrypted persistent EBS, with a private SSM/TLS preview, generated managed secrets and no inbound network ports. No PostgreSQL migration or existing S3 access is included. The founder authorized the current root session until further notice; a reviewed, unexecuted change set in `us-east-1` awaits region/cost acceptance. Actual EC2 bootstrap, hosted acceptance and cloud recovery remain unverified; no paid infrastructure has been provisioned.
 
 The former private Sites preview is historical and unchanged; it does not serve the new Rails implementation. Its ChatGPT hosting gate is unrelated to local Rails authentication. Verified Rails hosting remains T-20.
 
@@ -53,7 +55,7 @@ Before real use: obtain the actual reviewed packet and reuse rights; map NP/PA/l
 
 ## Verification and release limits
 
-**Current Rails-only update:** 37 tests / 422 assertions pass across HTML and retained API flows. Native HTTP checks cover assets, demo login, signing/receipt, training, explicit clinic setup, fictional patient draft and logout. A deterministic materials fixture and test-seed guard resolve the earlier seed-dependent failures. Final checks are in [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. Frontend results below are historical, not requirements for the removed JavaScript frontend.
+**Current navigation update:** 41 tests / 508 assertions pass across HTML and retained API flows. Direct Test Clinic navigation, explicit demo login, no session creation on navigation, membership preservation and removed clinic-create route are covered. Latest native HTTP results are in [[Progress Log#2026-08-30 — Assigned Test Clinic and explicit login navigation]]. The earlier Rails migration passed 37 tests / 422 assertions and corrected test seed setup; see [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. Frontend results below are historical, not requirements for the removed JavaScript frontend.
 
 The current review and proposed release sequence are in [[Roadmap and Tasks#Development plan — proposed 2026-08-30]]. The code supports the prototype described above, including the existing local-demo edits. Operator activation/recovery delivery, controlled content administration/versioned learning, durable activity auditing and approved real signing are still development work. Per-user ownership is the implemented boundary; multi-person engagement access is not implemented and must not use shared accounts.
 

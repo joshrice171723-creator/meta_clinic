@@ -70,6 +70,7 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     with_environment do
       first = enter_demo
       assert_not first.admin?
+      assert_equal "Test Clinic", first.clinic_membership.practice.name
       document = first.paperworks.sole
       assert document.demo?
       get "/api/inquiries", headers: headers
@@ -96,6 +97,7 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
       assert_equal "completed", document.reload.status
       second = enter_demo
       assert_not_equal first.id, second.id
+      assert_not_equal first.clinic_membership.practice_id, second.clinic_membership.practice_id
       get "/api/paperworks/#{document.id}", headers: headers
       assert_response :not_found
       assert_equal "not_started", second.paperworks.sole.status

@@ -54,7 +54,7 @@ The earlier assessment-first suggestion is not the selected business direction; 
 - Advisor handoffs, unresolved questions, and administrative reminders.
 - Workflow configuration or integrations, subject to [[SharePoint and EMR]].
 
-The SharePoint starter EHR is included in the intended launch scope, but its detailed functions are unverified. The eventual custom EHR and inventory product is a separate-entity offering. No specific charting, prescribing, billing, inventory, or integration features beyond that broad direction have been approved.
+The SharePoint starter EHR is included in the intended launch scope, but its detailed functions are unverified. The eventual custom EHR and inventory product is a separate-entity offering. D-025 authorizes a synthetic [[Clinic Workspace]]; D-028 now establishes broad pharmacy configurability so clinics can choose and combine setups. [[Pharmacy Inventory Data Requirements]] defines proposed collection/capability details. This product direction is not a released prescribing/dispensing service or a promise that every pharmacy setup is included in the consultancy's launch package.
 
 ## What the first written offer must contain
 

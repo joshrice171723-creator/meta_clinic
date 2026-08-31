@@ -213,6 +213,7 @@ em { font-family:var(--font-instrument-serif),Georgia,serif; font-weight:400; co
 .document-title h1 { font-size:clamp(36px,4vw,50px); margin-bottom:10px; }
 .document-title p:last-child { font-size:11px; color:#7a826f; }
 .demo-notice { padding:14px 18px; background:#f5f0de; border:1px solid #e6dfc3; border-radius:4px; color:#82714a; font-size:11px; line-height:1.8; margin:27px 0; }
+.session-notice { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:12px 0; }
 .signing-layout { display:grid; grid-template-columns:1.65fr 1fr; gap:30px; align-items:start; }
 .document-paper { background:#fffefa; border:1px solid #d9ddcf; padding:35px; border-radius:3px; }
 .document-paper-brand { display:flex; justify-content:space-between; font-family:var(--font-instrument-serif),Georgia,serif; font-size:25px; padding-bottom:23px; border-bottom:1px solid #dfe2d6; margin-bottom:25px; }

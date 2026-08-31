@@ -1,0 +1,32 @@
+<% content_for :title, "Add pharmacy product — APPly" %>
+<main id="main" class="rx-content rx-form-page">
+  <%= link_to "← Pharmacy inventory", clinic_pharmacy_index_path, class: "text-link" %>
+  <div class="rx-page-heading"><div><p class="rx-eyebrow">01 · Product details <span>—</span> 02 · Receive stock</p><h1>Add a product</h1><p>Find an FDA-listed package or create a fictional catalog entry.</p></div></div>
+  <section class="rx-panel rx-lookup-panel">
+    <div class="rx-panel-heading"><div><p class="rx-eyebrow">FDA reference lookup</p><h2>Find a listed package</h2></div><%= pharmacy_icon("search") %></div><p class="rx-caption">Search sends only the public name or NDC to api.fda.gov. Never enter patient details or private notes.</p>
+    <%= form_with url: lookup_clinic_pharmacy_index_path, class: "pharmacy-search" do |form| %>
+      <div class="form-field"><%= form.label :ndc_query, "Search brand, generic or NDC" %><%= form.search_field :ndc_query, value: @ndc_query, required: true, minlength: 2, maxlength: 80, placeholder: "e.g. ibuprofen or 0573-0130-40", autocomplete: "off" %></div>
+      <%= form.submit "Search FDA directory", class: "primary-link" %>
+    <% end %>
+    <% if @results %>
+      <% if @results.empty? %><p role="status">No matching packages found. Try the NDC with its printed hyphens, a different public name, or manual entry below.</p><% else %><p role="status"><%= @results.length %> package options from up to 8 matching products (maximum 40 packages shown). Select the exact package.</p><% end %>
+      <div class="ndc-results"><% @results.each do |record, token| %><article class="ndc-result">
+        <div><h3><%= record[:name] %></h3><p><%= record[:ingredients] %> · <%= record[:dosage_form] %></p><p><%= record[:package_description] %></p><small>NDC <%= record[:ndc] %> · Labeler: <%= record[:labeler] %></small></div>
+        <%= form_with url: import_clinic_pharmacy_index_path do |form| %><%= form.hidden_field :reference_token, value: token %><%= form.submit "Import this package", class: "button" %><% end %>
+      </article><% end %></div>
+    <% end %>
+    <p class="rx-caption"><a href="https://open.fda.gov/apis/drug/ndc/" target="_blank" rel="noopener noreferrer">openFDA reference information</a> is submitted by labelers. NDC listing does not establish FDA approval. Verify the physical package; do not use this lookup to make medical-care decisions.</p>
+  </section>
+  <section class="rx-panel"><div class="rx-panel-heading"><div><p class="rx-eyebrow">Manual entry</p><h2>Product details</h2></div></div><p class="rx-caption">For fictional products without a directory match. Start at zero stock, then add a receipt.</p>
+    <%= form_with model: @product, url: clinic_pharmacy_index_path, class: "pharmacy-form-grid" do |form| %>
+      <div class="form-field"><%= form.label :name, "Fictional product name" %><%= form.text_field :name, required: true, maxlength: 160 %></div>
+      <div class="form-field"><%= form.label :sku, "Internal SKU" %><%= form.text_field :sku, required: true, maxlength: 160 %></div>
+      <div class="form-field"><%= form.label :generic_name, "Generic name (optional)" %><%= form.text_field :generic_name, maxlength: 500 %></div>
+      <div class="form-field"><%= form.label :dosage_form, "Dosage form (optional)" %><%= form.text_field :dosage_form, maxlength: 500 %></div>
+      <div class="form-field"><%= form.label :ingredients, "Ingredients / strength (optional)" %><%= form.text_field :ingredients, maxlength: 4000 %></div>
+      <div class="form-field"><%= form.label :reorder_point, "Reorder point (whole packages)" %><%= form.number_field :reorder_point, min: 0, max: 1000000, step: 1, required: true %></div>
+      <div class="form-field rx-wide"><%= form.label :package_description, "Fictional package description" %><%= form.text_field :package_description, maxlength: 4000 %></div>
+      <div><%= form.submit "Create catalog product", class: "primary-link" %></div>
+    <% end %>
+  </section>
+</main>

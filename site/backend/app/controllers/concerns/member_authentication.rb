@@ -23,6 +23,7 @@ module MemberAuthentication
     User.transaction do
       account = User.create!(email_address: "demo-#{SecureRandom.uuid}@example.invalid", password: SecureRandom.hex(32), admin: false)
       Paperwork.assign_demo!(account)
+      Clinic::DemoSetup.create!(account)
       account
     end
   end

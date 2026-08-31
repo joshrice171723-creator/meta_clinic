@@ -23,7 +23,7 @@ The consultancy, future software entity, Kevin's clinic/physician services, and 
 
 Use **one `clinic_id` per independently authorized record-custody boundary**, normally a customer clinic business. Model that clinic's physical offices as `locations`. Confirm the legal custody boundary before provisioning; a building, physician, parent company, or billing account alone does not define it.
 
-The same clinician can have separate memberships at several clinics. The same person receiving care at two clinics has two separate patient records; no global patient index, automatic matching, chart merging, or implied sharing is proposed. Any later transfer must be a reviewed disclosure/import workflow with provenance and recipient authorization.
+**Later founder correction (D-026):** one clinic per login; the same clinician working at several clinics uses separate accounts. Clinic assignment is developer-managed, with no selection or creation interface. The earlier shared-principal/multiple-membership possibility in the illustrative schema below is superseded for the account model and must be revised before implementation. The same person receiving care at two clinics still has two separate patient records; no global patient index, automatic matching, chart merging, or implied sharing is proposed. Any later transfer must be a reviewed disclosure/import workflow with provenance and recipient authorization.
 
 | Storage approach | Fit and tradeoff |
 | --- | --- |
@@ -104,6 +104,8 @@ Field-level release rules, restricted record categories, representative/minor ac
 
 ### Inventory and commercial boundary
 
+**D-028 establishes broad pharmacy configurability as the product direction:** do not require choosing one pharmacy setup before developing the shared model. [[Pharmacy Inventory Data Requirements#Configurable pharmacy capabilities]] covers administration, practitioner supply, licensed dispensing and composable specialist capabilities. The specific schema below remains a proposal under T-13; accepting broad scope does not accept this DDL, enable real medication workflows or change D-026's one-clinic-per-login boundary.
+
 | Table | Main columns beyond common keys | Constraints and use |
 | --- | --- | --- |
 | `inventory.items`, `inventory.lots` | Clinic SKU/name/unit/status; item reference, lot code, expiry | `UNIQUE (clinic_id, sku)`; lot belongs to the same clinic/item. Supplies, medications, devices, and equipment are not presumed interchangeable. |
@@ -111,6 +113,27 @@ Field-level release rules, restricted record categories, representative/minor ac
 | `inventory.order_events` | Order reference, event type/version/time, source event ID, adjustment reference, recorded amounts | Append-only placed/cancelled/returned/credited history; unique clinic/source event for idempotency. Business event is not automatically a billable event. |
 | `inventory.stock_movements` | Item/lot/location, signed quantity, movement/reversal type, source event ID | Append-only stock ledger; atomic posting and concurrency control, reversals rather than rewriting history. Balance is derived/reconciled. |
 | `clinical.inventory_usage` (optional) | `patient_id`, `encounter_id`, stock movement reference, quantity, clinician | Put patient-to-stock linkage in the clinical boundary. Inventory staff and software billing cannot join to patients. Enable only after service/workflow review. |
+
+The five-row catalog above is the earlier foundation, not the complete broad-pharmacy schema. Proposed logical extensions follow; these are record responsibilities, not executed migrations or a requirement for separate services. Namespace choices and physical storage remain implementation decisions.
+
+| Proposed record family | Key fields / relationships | Invariant or boundary |
+| --- | --- | --- |
+| Operating profiles, capability states and configuration events | Clinic, operator/custodian, locations, activities, product categories, dependencies, profile/policy versions, scope evidence, reviewer, effective dates and status | Distinguish implemented, requested, synthetic and approved-for-defined-use states. User action permissions remain separate. Preserve configuration history and recheck scope at execution. |
+| Package variants and unit conversions | Product, identifier scheme/raw value, order/base unit, package contents, exact conversion, dimensional unit, version and verification evidence | Preserve original quantity/unit and the applied conversion on each transaction. No silent reinterpretation of existing whole-package movements or automatic mass-to-volume conversion. |
+| Receipts, receipt lines and lot allocations | Supplier, PO/invoice references, observed/accepted/rejected quantities, package/unit, lot, expiry, condition, receiver and time | Several receipts may share a manufacturing lot; one delivery may contain several lots. Supplier and acquisition-cost history belong to receipts, not just the lot. |
+| Physical containers and container events | Lot/receipt allocation, location, opening/reconstitution/thaw event, instruction version, calculated use-by limit and disposition | Containers from one lot can have different use-by limits. Quantity allocations and container history must reconcile. |
+| Holds, hold allocations and resolution events | Recall/excursion/damage reason, affected stock, source evidence, discovery and authorized disposition | Multiple holds can overlap. Release of one cannot release stock still restricted by another; count held quantities once when calculating availability. |
+| Count sessions and count lines | Scoped cutoff, expected and observed balance/unit, counter/recount, variance, approval and linked correction | Freeze the counted scope/cutoff; later movements do not rewrite the observation. Formal regulatory inventory formats remain profile-specific. |
+| Invoices, line matches and credits | Supplier, order/receipt matches, original amounts/currency, discounts/fees, partial matches, reversals and credits | Physical returns and financial credits can occur at different times. No patient-level billing or automatic APPly fee formula. |
+| Transfer and shipment records | Source/destination, owner/custodian, line/lot/container allocations, dispatch, in-transit stock, receipt and discrepancies | Internal stock moves conserve quantity; dispatch and receipt cannot both create stock. Cross-entity sharing needs separate authority and scoped records, not a cross-clinic FK shortcut. |
+| Storage readings and excursion cases | Device/sensor/calibration, timestamp/value/unit, missing-data intervals, affected locations/lots/containers, review and resolution | Maintain historical location and stock exposure; ordinary readings cannot silently close an excursion hold. |
+| Tracing evidence and investigation records | Trading partner, transaction/receipt, package identifiers, document/message version, verification requests/results and case history | Controlled references and retrievable evidence, not embedded private supplier credentials. Patient delivery and stock-supply transactions remain distinct. |
+| Controlled-stock records | Registrant/location/schedule, acquisition/disposition links, formal snapshots, discrepancy/custody evidence and applicable report acknowledgments | An overlay tied to the stock ledger, not a second independent stock balance. Professional/reporting workflows require their own acceptance. |
+| Preparation inputs and outputs | Formula/instruction version, source lot/container quantities, output batches, yield/waste, preparer/checker and release evidence | Preserve batch genealogy and reconcile measured inputs/outputs. Sterile/nonsterile/hazardous profiles need additional reviewed requirements. |
+| Protected medication-use events and allocations | Patient/order or other permitted authority, administration/supply type, responsible professional, actual quantity/unit/time and stock allocations | Refines `clinical.inventory_usage`: optional encounter where appropriate, multiple lots per use, waste separate. Exactly one attributable stock-posting path per actual event. |
+| Protected prescriptions, fills and dispensing events | Prescriber/authority, prescription version, fill/partial-fill/refill, preparation/check/release, label version, recipient handoff and correction | Separate from inventory access and medication-history statements. A prescribed item need not be stocked locally; a written prescription alone never posts stock. Clinical completeness and interfaces remain to specify. |
+
+Keep shared product metadata separate from each clinic's formulary, permissions and stock. Avoid one universal nullable table for all workflow types. Preserve the existing catalog/ledger during any future schema transition; verify conversions with synthetic data rather than guessing the meaning of older quantities. Profile retirement cannot erase required history or prevent controlled reconciliation/offboarding.
 
 The founder selected recurring fees based on **ordered inventory value**, not patient revenue. Preserve order events, but do not implement eligibility, rate, or billing-trigger calculations until T-14 resolves them. Any later software billing service receives only approved clinic/order-value fields, never charts or patient-level usage. Patient billing, payment credentials, card data, and the consultancy's finances are outside this schema proposal.
 
@@ -430,7 +453,7 @@ These are design acceptance criteria under T-13/T-09 and L-05, not completed tas
 | --- | --- |
 | Clinic A user requests Clinic B patient, including guessed valid UUID | Denied without confirming existence; no patient content in response/error/log; denial evidence captured. |
 | Cross-clinic FK or note linked to a different patient in the same clinic | Database rejects the invalid relationship; API cannot move immutable clinic/patient keys. |
-| Same clinician belongs to two clinics | A request is scoped to exactly one; no combined chart/query/export without separate authorizations. |
+| Same clinician works at two clinics using separate logins (D-026) | Each account has exactly one assigned clinic; no picker, cross-account access or combined chart/query/export. |
 | Missing/forged/expired/replayed capability, caller-set GUC, pooled connection reused | No access; identity cannot be rebound or leaked between transactions. Test concurrency and prepared statements. |
 | Reception, inventory, access admin, developer, or mentor requests a chart | Denied unless a separately approved clinical/case permission applies; response fields and decryption obey the matrix. |
 | Self-grant, unauthorized care assignment, expired support or emergency access | Rejected and audited; narrow approved emergency access works and triggers review. |

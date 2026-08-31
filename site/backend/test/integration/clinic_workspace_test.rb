@@ -40,6 +40,37 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_select "nav[aria-label='Launch navigation']", count: 1
   end
 
+  test "clinic login resumes directly at the assigned clinic without a selector or creation" do
+    submit "/logout"
+    get "/clinic", headers: @headers
+    assert_redirected_to "/login"
+    follow_redirect!
+    post "/login", params: { email_address: @user.email_address, password: "wrong", authenticity_token: csrf }, headers: @headers
+    assert_response :unauthorized
+    assert_no_difference [ "User.count", "Clinic::Practice.count", "Clinic::Membership.count" ] do
+      post "/login", params: { email_address: @user.email_address, password: @password, authenticity_token: csrf, return_to: "https://example.invalid", practice_id: @other.id }, headers: @headers
+      assert_redirected_to "/clinic"
+      follow_redirect!
+      assert_response :success
+      assert_select ".practice-label strong", text: "Test Clinic"
+      assert_select "select", count: 0
+      assert_select "form[action='/clinic/demo']", count: 0
+    end
+    assert_equal @practice.id, @user.reload.clinic_membership.practice_id
+  end
+
+  test "a login has one clinic and setup never changes or reactivates its membership" do
+    @membership.update!(active: false, patients_access: false)
+    assert_no_difference [ "Clinic::Practice.count", "Clinic::Membership.count" ] do
+      assert_equal @membership, Clinic::DemoSetup.create!(@user)
+    end
+    assert_not @membership.reload.active?
+    assert_not @membership.patients_access?
+    duplicate = Clinic::Membership.new(user: @user, practice: @other)
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:user_id], "has already been taken"
+  end
+
   test "patient creation and append-only draft scoped to clinic regardless of submitted ownership" do
     assert_difference "Clinic::Patient.count" do
       submit "/clinic/patients", { clinic_patient: { display_name: "Example C", reference: "DEMO-003", practice_id: @other.id } }

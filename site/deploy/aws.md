@@ -1,6 +1,8 @@
 # AWS staging preparation — not deployed
 
-This is a setup checklist, not a provisioned environment or a HIPAA-compliant configuration. Current development is wholly synthetic. The founder reports no AWS BAA yet and location in US East. No AWS account, bucket, policies or objects were inspected.
+The founder has now requested EC2 setup for the app and database. The concrete [EC2 deployment package](ec2/README.md) supplies CloudFormation, private SSM/TLS access, encrypted persistent SQLite storage, managed secrets, release tooling and a recovery runbook. It is **prepared, not provisioned**. The founder expressly authorized the current root session until further notice. A reviewed, unexecuted CloudFormation change set in `us-east-1` proposes 18 additions; only its empty review stack exists. No compute/storage/secrets/roles have been provisioned and no bucket/objects were accessed. Acceptance of the roughly $25/month baseline and proposed region remains pending.
+
+The checklist below preserves the earlier preparation context. Current development remains wholly synthetic, with no reported BAA and unchanged real-data gates. This is not a HIPAA-compliant configuration claim.
 
 ## Proposed low-dependency path
 
@@ -10,13 +12,13 @@ This is a setup checklist, not a provisioned environment or a HIPAA-compliant co
 - The existing private S3 bucket can be evaluated for documents and versioned backups after its region, encryption, ownership, access, retention and recovery requirements are reviewed. Do not mount it as a live SQLite/PostgreSQL data directory.
 - Clinic functionality remains local-only and disabled in production until a separate release decision and implementation.
 
-EC2, EBS, S3, data transfer, public IPv4, snapshots and any selected key/logging services can incur AWS charges. No Render, hosted database subscription, GitHub deployment or paid third-party authentication is needed by this plan. **No resources have been created or budget assumed.**
+EC2, EBS, S3, data transfer, public IPv4, snapshots and any selected key/logging services can incur AWS charges. No Render, hosted database subscription, GitHub deployment or paid third-party authentication is needed by this plan. **No paid infrastructure has been provisioned or budget assumed.**
 
 ## Before creating an instance
 
 1. Confirm `us-east-1` (N. Virginia) versus `us-east-2` (Ohio), including the existing bucket's actual region. Do not infer this from your physical location.
 2. Agree the staging budget, instance size/CPU architecture, domain/TLS setup, authorized audience and operator. The Dockerfile must be built and tested on the selected architecture.
-3. Use individual MFA-protected administrative identities and least privilege. Prefer Session Manager access; review its role/network configuration. Do not enable public SSH or a database port by default.
+3. Individual MFA-protected administrative identities and least privilege remain recommended; the founder's later root authorization is the current task exception, not an IAM or MFA assessment. Prefer Session Manager access; review its role/network configuration. Do not enable public SSH or a database port by default.
 4. Require IMDSv2, encrypt EBS/root volumes, set deliberate termination/snapshot behavior, and patch the OS and application. Do not give the instance broad S3 access.
 5. Expose only the reviewed HTTPS entrypoint; use a private database socket/network. Decide whether HTTP is needed solely for certificate issuance/redirect. Restrict synthetic staging to approved reviewers; noindex is not access control.
 6. Store deployment secrets outside Git, images, logs, chat and this vault. Ensure logs/errors contain no submitted names, documents, passwords or patient content.

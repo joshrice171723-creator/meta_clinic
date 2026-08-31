@@ -29,6 +29,9 @@
       <a class="nav-cta" href="/contact">Contact us <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
+  <% if current_user && development_demo? %>
+    <div class="wrap"><div class="demo-notice session-notice"><span>Development demo session · You are already signed in.</span><%= button_to "Sign out", logout_path, class: "button" %></div></div>
+  <% end %>
   <%= render "web/shared/flash" %>
   <%= yield %>
   <footer class="wrap footer-wrap">

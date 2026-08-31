@@ -44,6 +44,35 @@ class RailsPagesTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "navigation never creates or replaces a login and signed in accounts can open login" do
+    assert_no_difference [ "User.count", "MemberSession.count", "Clinic::Practice.count" ] do
+      get "/", headers: @headers
+      assert_select ".site-header a[href='/login']", text: "Member login"
+      get "/portal", headers: @headers
+      assert_redirected_to "/login"
+      get "/login", headers: @headers
+      assert_response :success
+    end
+    sign_in
+    session_ids = @user.member_sessions.pluck(:id)
+    assert_no_difference [ "User.count", "MemberSession.count", "Clinic::Practice.count" ] do
+      get "/", headers: @headers
+      assert_select ".site-header a[href='/portal']", text: "My launch"
+      get "/portal", headers: @headers
+      assert_response :success
+      get "/login", headers: @headers
+      assert_response :success
+      assert_select "form[action='/login']", count: 1
+    end
+    assert_equal session_ids, @user.member_sessions.pluck(:id)
+    get "/clinic", headers: @headers
+    assert_response :forbidden
+    assert_includes response.body, "assigns one clinic to each login"
+    assert_select "form[action='/clinic/demo']", count: 0
+    post "/clinic/demo", params: { authenticity_token: Nokogiri::HTML(response.body).at_css('meta[name="csrf-token"]')["content"] }, headers: @headers
+    assert_response :not_found
+  end
+
   test "login, progress, escaped guides and logout work without JavaScript" do
     post "/login", params: { email_address: @user.email_address, password: @password }, headers: @headers
     assert_response :unprocessable_entity
@@ -137,9 +166,36 @@ class RailsPagesTest < ActionDispatch::IntegrationTest
     get "/portal", headers: { "REMOTE_ADDR" => "127.0.0.1" }
     assert_response :success
     assert_includes response.body, "Local development walkthrough"
+    assert_select ".session-notice", text: /already signed in/
+    assert_select ".session-notice form[action='/logout']", count: 1
+    assert_no_difference [ "User.count", "MemberSession.count", "Clinic::Practice.count" ] do
+      get "/clinic", headers: { "REMOTE_ADDR" => "127.0.0.1" }
+      assert_response :success
+      assert_select ".practice-label strong", text: "Test Clinic"
+      assert_select "form[action='/clinic/demo']", count: 0
+      get "/login", headers: { "REMOTE_ADDR" => "127.0.0.1" }
+      assert_response :success
+      assert_select "form[action='/login']", count: 1
+    end
     ENV["APP_DEVELOPMENT_LOGIN"] = "0"
     get "/portal", headers: @headers
     assert_redirected_to "/login"
+  ensure
+    Rails.env = old_env
+    ENV["APP_DEVELOPMENT_LOGIN"] = old_flag
+  end
+
+  test "explicit development login returns directly to the requested clinic workspace" do
+    old_env, old_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
+    Rails.env = "development"
+    ENV["APP_DEVELOPMENT_LOGIN"] = "1"
+    get "/clinic", headers: @headers
+    assert_redirected_to "/login"
+    submit "/login/development"
+    assert_redirected_to "/clinic"
+    follow_redirect!
+    assert_response :success
+    assert_select ".practice-label strong", text: "Test Clinic"
   ensure
     Rails.env = old_env
     ENV["APP_DEVELOPMENT_LOGIN"] = old_flag

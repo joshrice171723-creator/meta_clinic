@@ -1,11 +1,13 @@
 module Clinic
   class DemoSetup
     def self.create!(user)
+      raise "Test clinics are only available in development and test." unless Rails.env.development? || Rails.env.test?
+
       User.transaction do
         user.lock!
         existing = Membership.find_by(user: user)
         return existing if existing
-        practice = Practice.create!(name: "Example Clinic · Synthetic")
+        practice = Practice.create!(name: "Test Clinic")
         membership = Membership.create!(practice: practice, user: user, patients_access: true, inventory_access: true, staff_access: true)
         practice.patients.create!(display_name: "Sample Patient A", reference: "DEMO-001")
         practice.patients.create!(display_name: "Sample Patient B", reference: "DEMO-002")

@@ -2,9 +2,7 @@
   <p class="eyebrow">A SEPARATE WORKSPACE</p><h1>Your clinic starts here.</h1>
   <p class="clinic-lead">EHR, inventory, and employee management have their own navigation and access permissions. An APPly launch account does not automatically grant clinic access.</p>
   <section class="clinic-card"><h2>No clinic assigned yet.</h2>
-    <% if development_demo? %>
-      <p>Create an isolated fictional clinic to explore the working prototype. Nothing is connected to SharePoint or a live clinical system.</p>
-      <%= button_to "Create demo clinic", clinic_demo_path, class: "primary-link" %>
-    <% else %><p>Clinic access must be provisioned separately. For the local walkthrough, sign out and choose “Continue as demo client” on the login page.</p><% end %>
+    <p>APPly's development team assigns one clinic to each login. Contact us if your clinic has not been assigned or your access needs restoring.</p>
+    <a href="/contact" class="primary-link">Contact APPly</a>
   </section>
 </main>

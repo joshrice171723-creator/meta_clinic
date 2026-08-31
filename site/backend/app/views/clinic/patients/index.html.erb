@@ -1,4 +1,5 @@
 <% content_for :title, "EHR · Patients — APPly" %>
+<%= render "clinic/pharmacy/navigation" %>
 <main id="main" class="clinic-content"><p class="eyebrow">EHR FOUNDATION</p><h1>Patients.</h1><p class="clinic-lead">A fictional directory for testing the record workflow. No real patient information.</p>
   <div class="clinic-grid">
     <section class="clinic-card"><h2>Patient directory</h2><div class="clinic-table-wrap"><table><thead><tr><th>Name</th><th>Reference</th><th>Record</th></tr></thead><tbody><% @patients.each do |patient| %><tr><td><%= patient.display_name %></td><td><%= patient.reference %></td><td><%= link_to "Open record", clinic_patient_path(patient) %></td></tr><% end %></tbody></table></div><% if @patients.empty? %><p>No fictional patients added yet.</p><% end %></section>

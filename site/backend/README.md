@@ -12,6 +12,10 @@ The retained `/api/*` endpoints continue to serve consultancy sessions/materials
 
 Clinic pages are a non-production synthetic prototype. They use separate prefixed tables in the local SQLite database, not the production EHR schema. Database composite constraints enforce note/patient clinic consistency. Shared runtime and operator privileges remain shared risks; these controls are not production tenant-isolation approval.
 
+The pharmacy module at `/clinic/pharmacy` requires the existing inventory capability, independently of patient access. It uses `clinic_pharmacy_products`, `clinic_pharmacy_batches`, `clinic_pharmacy_movements` and `clinic_pharmacy_batch_events`. Whole-package balances are computed from immutable movement rows; composite keys bind lots and actors to the clinic. SQLite triggers reject stock underflow and edits/deletions to movement/status history. `db/structure.sql` is the canonical schema because Ruby schema dumps omit triggers; keep the sqlite3 CLI available when loading/dumping it. This is not an independent audit system or production clinical authorization.
+
+`Pharmacy::NdcDirectory` performs only explicit public-directory searches over HTTPS, with time/size limits and controlled query fields. The lookup is rate-limited per account; no API key, background polling or bulk ingestion is configured. Responses are escaped as text. Signed import references expire after 20 minutes and are bound to the initiating clinic/account; public results cannot choose local ownership or add stock. See [the source-folder README](../../pharmacy-inventory/README.md) for supported features and intentional exclusions.
+
 ## Production configuration — not deployed
 
 The selling/onboarding application needs:
@@ -26,7 +30,7 @@ The selling/onboarding application needs:
 
 No `FRONTEND_ORIGIN` or `RAILS_BACKEND_URL` is required. Never copy local keys/databases into staging. Preserve independent encryption-key backups and prove restore; losing keys loses encrypted content. Use an approved secret-handling workflow, never paste values into the vault, Git, or agent output.
 
-The Dockerfile remains an unverified build starting point. Run it behind a trusted HTTPS terminator; never expose Puma directly to the internet. Mount persistent storage with UID 1000 ownership. Production assumes SSL termination; verify forwarded-protocol behavior and prevent direct backend access. Static CSS is revalidated rather than cached for a year.
+The Dockerfile was built and tested for `linux/amd64` during EC2 preparation. The [container verifier](../deploy/ec2/verify-container.py) checks TLS, production guards, encrypted writes, restart persistence and an isolated SQLite restore/decryption. It caught and fixed late encryption configuration: keys now load before production eager loading, with existing local derivation preserved. Run behind a trusted HTTPS terminator; never expose Puma directly to the internet. Mount persistent storage with UID 1000 ownership and provide writable temporary storage. Actual EC2 bootstrap and cloud recovery remain unverified. Static CSS is revalidated rather than cached for a year.
 
 Use one process/instance while SQLite and process-local rate limits remain. No PostgreSQL production adapter, durable shared limiter, high availability, access audit pipeline or automated restore is configured. Choose/review those before real client/clinical release; see [AWS guidance](../deploy/aws.md).
 

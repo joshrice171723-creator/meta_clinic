@@ -63,13 +63,13 @@ The founder has selected an eventual custom replacement as the direction; do not
 
 The founder requested a PostgreSQL backend modeling note on 2026-08-30. [[Data Modeling]] now proposes clinic-scoped tables, composite relationships, access controls/RLS, auditing, and synthetic acceptance criteria. It is documentation only: no database or patient-data integration was built, and neither shared hosting nor production architecture is approved. T-13 remains open; T-18 records delivery of the proposal.
 
-- Define the clinical and inventory workflows before choosing infrastructure. Inventory might mean supplies, stock counts, purchasing, lots/expiry, equipment, or medication inventory; none of these details is yet selected.
+- D-028 establishes broad pharmacy configurability; shared inventory, purchasing, lot/container and movement requirements can progress without first choosing one clinic setup. Use [[Pharmacy Inventory Data Requirements]] for the proposed capability model and collection detail. Actual SharePoint mapping, clinic-specific workflow validation and clinical production architecture remain separate dependencies.
 - Document who owns the current setup and future code, licenses the software, contracts with the clinic, pays cloud vendors, and provides support.
 - Record required data structure, access rules, audit/history behavior, backup/restore, export, and migration acceptance criteria.
 - Plan the transition from SharePoint: mapping, reconciliation, validation, cutover responsibilities, continuity, and an appropriate rollback/recovery approach. Do not migrate patient data during discovery.
 - Evaluate EC2/S3 and other necessary components only after requirements and applicable vendor/security review. Mentioning a cloud service does not establish a complete backend or deployment approval.
 
-No cloud account was accessed, infrastructure created, product implementation started, or patient system changed.
+This SharePoint discovery has not accessed its tenant or patient files, created infrastructure, or changed a patient system. The separately authorized synthetic Rails implementation is recorded in [[Clinic Workspace]]; it does not validate the original SharePoint workflow.
 
 ## Before our company handles real patient information
 

@@ -1,7 +1,16 @@
 Rails.application.routes.draw do
   namespace :clinic do
     root "dashboard#show"
-    post "demo", to: "dashboard#demo"
+    resources :pharmacy, only: %i[index new create show update] do
+      collection do
+        post :lookup
+        post :import
+        post :demo
+      end
+      post :receive, on: :member
+    end
+    post "pharmacy_batches/:id/movement", to: "pharmacy#movement", as: :pharmacy_movement
+    post "pharmacy_batches/:id/status", to: "pharmacy#batch_status", as: :pharmacy_batch_status
     resources :patients, only: %i[index show create] do
       post :note, on: :member
     end

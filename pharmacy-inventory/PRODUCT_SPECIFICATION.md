@@ -5,6 +5,8 @@
 **Scope:** Inventory operations only; no patient data  
 **Next action:** Confirm operating assumptions and approve the database target before application development.
 
+**Implementation note, 2026-08-30:** A bounded synthetic Rails slice is described in [README](README.md). The full MVP criteria below are still proposed, not completed. The current app uses whole packages, has no dispensing or transfer workflow, and does not perform purchases or clinical actions.
+
 ## 1. Product objective
 
 Provide pharmacy staff with a reliable view of what medicine is available, where it is stored, which batch should be used next, what needs reordering, and why inventory changed.

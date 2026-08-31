@@ -25,7 +25,7 @@ The source lives in `site/` as a normal folder tracked by the APPly repository, 
 
 ## Hosting and data boundary
 
-The old Sites deployment remains historical and unchanged. Rails now serves the entire local experience at localhost:3000. AWS staging guidance exists in site/deploy/aws.md; no EC2, S3 connection, deployment or paid subscription was created. Exact US East region remains unconfirmed.
+The old Sites deployment remains historical and unchanged. Rails now serves the entire local experience at localhost:3000. D-027 requests EC2 hosting for the app and database; `site/deploy/ec2/` now contains a private synthetic staging package. The existing SQLite database is retained on encrypted EBS rather than replaced by the clinical PostgreSQL proposal. The founder authorized the current root session until further notice. A reviewed, unexecuted change set in `us-east-1` awaits cost/region acceptance; no EC2, S3 connection or app deployment has been created. This region is not a confirmed bucket region. The proposed preview uses SSM port forwarding and operator-verified localhost TLS, with no public audience change.
 
 The owner-only hosted preview also requires ChatGPT sign-in at the hosting layer; that is separate from Rails account authentication. For local development, [[Client Portal#Local development access]] provides a guarded password-free demo at [local login](http://localhost:3000/login) while the single Rails development server is running. This does not change hosted access or resolve T-20.
 

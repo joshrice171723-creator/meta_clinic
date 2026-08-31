@@ -5,6 +5,8 @@
 **Dialect:** PostgreSQL 15+ baseline  
 **Next action:** Confirm database engine and decide whether inventory quantities are tracked in packages, dispensing units, or both.
 
+**Local adaptation, 2026-08-30:** APPly now implements a bounded synthetic slice in its existing Rails/SQLite workspace; [README](README.md) maps the files and exclusions. It reuses clinic accounts, tracks whole sealed packages, stores a lot/location pair per batch, and derives balances from movement rows. Composite clinic foreign keys, stock-range and append-only triggers, retry keys, and separate batch-status events strengthen the reference design. The complete PostgreSQL proposal below remains unimplemented and is not production authorization.
+
 ## Design principles
 
 - Batch-level traceability is mandatory.
