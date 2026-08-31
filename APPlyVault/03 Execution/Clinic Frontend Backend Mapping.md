@@ -1,6 +1,6 @@
 ---
 type: implementation-plan
-status: proposed-contract-and-layout-mapping
+status: current-state-mapping-before-design
 updated: 2026-08-31
 ---
 # Clinic Frontend Backend Mapping
@@ -9,42 +9,146 @@ Home: [[00 Home]] · Index: [[01 Table of Contents]] · Design: [[Clinic Workspa
 
 ## Outcome and boundary
 
-**Request, 2026-08-31:** map the new backend comprehensively onto the current frontend, adding or modifying the interface where necessary while retaining its structure, feel and flow. This is the frontend integration plan, not an executed backend replacement or a new task register. Proposed endpoints, fields and layouts below are explicitly proposals unless identified as observed source.
+**Request, 2026-08-31:** on a new branch, review the current code, map the proposed clinic frontend onto the implemented backend and prepare user-flow diagrams before any code change or design decision. This note is that pre-design integration map. It records observed interfaces, existing approved/proposed direction and unresolved dependencies separately. It does not select a new layout, change application code or make a clinical workflow decision.
 
 Keep the workload-first Overview, patient directory, Pharmacy, Operations, Office inventory, Employees and account-owned Settings. Add depth inside those destinations rather than a sidebar entry per database table. Staff do intake/triage and explicit handoff; clinicians get a focused note/review workspace. Preserve Sage & ivory, Mineral blue and Warm graphite, system/light/dark modes, the viewport-height chart-tab sidebar, desktop/tablet support and the separate launch experience.
 
-The corrected ERD and revision-5 handoff are the target, not proof that their workflows are available. D-044 supersedes older blanket deferrals of pictured modules; it does not supply the still-unrecorded minor ERD amendments, clinical definitions, patient membership terms or prescribing model. This plan includes all target families and marks missing dependent contracts individually. No database reset, code implementation, account provisioning, external delivery, commit/push, deployment or real-data access is performed by this mapping. Clinical/confidential/security/operational gates remain open.
+The corrected ERD and revision-5 handoff remain the target, while the current Rails code is the implementation source. D-044 supersedes older blanket deferrals of pictured modules; it does not supply the still-unrecorded minor ERD amendments, clinical definitions, patient membership terms or prescribing model. No database reset, application-code implementation, account provisioning, external delivery, commit/push, deployment or real-data access is performed by this mapping. Clinical/confidential/security/operational gates remain open.
 
 **Failure-first entry:** an attractive screen could report a live queue from example rows, treat access membership as a paid patient membership, sign the wrong revision, restore revoked access through legacy flags, or report success before an external action is known. Prevention is explicit source/provenance, workflow-specific commands, one authorization evaluator and visible pending/conflict/unknown states. The synthetic tests in [[Clinic Frontend Backend Mapping#Acceptance and recovery]] must disprove these failure hypotheses before the corresponding feature is accepted. Codex owns this planning deliverable; implementation/review owners and dates remain unassigned.
 
 ## Review baseline and source status
 
-Reviewed through Home/TOC: ERD and full implementation handoff; adversarial review and D-043/D-044 supersession; architecture and audit/callback requirements; relevant CI/CD checks; failure-first agreement; clinic design/workspace, current PostgreSQL inventory foundation, relevant Data Modeling sections, tasks, decisions and dated progress. Inspected frontend routing/contracts/components/client and current backend routes/controllers plus selected new migrations/models/services. MD/SharePoint originals, final ERD amendments and clinical workflow evidence remain unavailable, not assumed reviewed. No live database, patient chart or hosted system was inspected.
+Reviewed through Home/TOC: current backend verification, ERD and implementation handoff; D-043/D-044; architecture and audit requirements; CI/CD; failure-first agreement; clinic design; relevant tasks, decisions and progress. Inspected the current frontend route registry, browser contracts, request client, clinic shell, tracking board, patients, staff and operations components; inspected Rails routes, clinic controllers, serializers and permission rules. MD/SharePoint originals, final ERD amendments and clinical workflow evidence remain unavailable and were not assumed reviewed. No patient chart, hosted system or live external service was inspected.
 
-Snapshot: `feature/erd-adversarial-review`, HEAD `a90ce54b6302420406244d50cc5ce93bc29b2365`, with concurrent uncommitted backend and infrastructure work. Findings below refer to that changing working tree, not a released version. Recheck them at implementation handoff; a filename such as “approved” in a migration is not independent evidence of approval.
-
-**End-of-review consistency check:** concurrent work committed the backend as `600976f` and moved the shared checkout to `feature/clinic-api-layer`. This planning task did not switch branches or create that commit. The inspected ERD/handoff, schema, route and frontend-contract hashes remain unchanged at this check, so the mapping still describes that source. New API work on the next branch must be reconciled against the proposed contracts; neither a commit nor this check proves runtime acceptance.
-
-| Source, at review | SHA-256 |
-| --- | --- |
-| `Target-State Clinic ERD.md` | `a9558c4b4813c8e2f413243c229475e7385b15132bbf1bb5cb4f83dea7374499` |
-| `ERD Implementation Prompt.md` | `6b167c9b56826dd1ae87b3469dc2088bebbe42b3ac9d873175ffb0c25550cb7c` |
-| `apps/api/config/routes.rb` | `1093ac14c0b8a2a6399828948fd02184f7bcaa82cb2f501f5f7fdd06d419f5d5` |
-| `apps/api/db/structure.sql` | `50e13da6c6db7ff11149ad91fe4ea57088661afbb69905e7cc1d0d3d29edc6eb` |
-| `apps/web/src/api/contracts.ts` | `edace9a00ed1e5c3ced9d97b6e4fcf6cbd8825046d335065872226054c9b5d40` |
+Snapshot: branch `feature/frontend-backend-flow-mapping`, base HEAD `4989742264cb616c3c32e55d92e7357e673b1b67`, clean before this documentation update. This branch was created specifically for the mapping. The backend APIs described below are implementation observations, not release or clinical-readiness claims. [[Backend Verification Report]] is the detailed current verification source.
 
 Primary code: [frontend routes](../../apps/web/src/App.tsx), [current response types](../../apps/web/src/api/contracts.ts), [request client](../../apps/web/src/api/client.ts), [clinic shell](../../apps/web/src/features/clinic/Workspace.tsx), [board examples](../../apps/web/src/features/clinic/trackingBoardData.ts), [Patients](../../apps/web/src/features/clinic/Patients.tsx), [API routes](../../apps/api/config/routes.rb), [new schema candidate](../../apps/api/db/migrate/20260831000200_implement_approved_clinic_erd_schema.rb).
 
 | Area | Direct observation | Integration consequence |
 | --- | --- | --- |
 | Current browser | Existing directory/draft, inventory, staff and appearance contracts only; Overview imports `EXAMPLE_VISITS` with a fixed clock | Do not switch the board to directory records or fabricate visit state. Keep examples isolated until an accepted visit projection exists |
-| Backend schema/model work | New ERD tables/models, tenant-bound PaperTrail storage/opt-ins and scheduling/note/observation/message/billing/grant services are present as uncommitted source | Some documentation still says dependency-only/no models. That is a dated baseline, not the current checkout; source presence is not route availability or tested completeness |
-| HTTP boundary | Current routes still expose the old clinic modules; no board, appointment, encounter, revision/signature, document, message, billing or grant routes | New controllers, authorized queries, serializers and contract tests are needed; do not wire forms directly to model fields or private Ruby service arguments |
-| Authorization | `BaseController` now invokes a new evaluator, while dashboard capabilities/counts still use old membership flags | A single server-derived permission projection must drive both navigation and data release. Test counts as well as mutations |
-| Authorization transition risk | Evaluator uses grants when any active grant exists, otherwise legacy flags; new `notes.sign`, `messages.write` and `billing.write` can fall back to `patients_access?` | Last-grant expiry/revocation must not restore old access. Existing patient access must not silently become signing/billing authority. Resolve before exposing new commands; these are source-derived risks, not runtime exploit findings |
-| Clinical history | Conditions/allergies/medication statements currently have patient ownership but no clinical value fields in the candidate migration | Tables are scaffolding, not complete intake/reconciliation APIs. Define clinical dictionary and revision/correction rules before forms |
-| Note services | Create/revise/sign services exist. Revise rejects a signed latest revision; sign locates the supplied revision and hashes a field named `encrypted_body` | No accepted correction path or browser review-token contract yet. Prove encryption, latest-revision policy, exact reviewed content and save/sign races before calling this a signing workflow |
+| Backend schema/model work | The target ERD schema, models and services are committed; the verification report records 68 entities and 103 structural edges present | Structural coverage is not workflow completion. Keep the UI behind implemented, permissioned API projections rather than direct table-shaped contracts |
+| HTTP boundary | Rails now exposes context, facilities, clinicians, role versions/grants, appointments, encounters, note revision/signature, observations, patient address metadata, document metadata, message intents, invoices/allocations and the earlier directory/inventory routes | The browser currently consumes only the earlier clinic contracts. Add typed adapters and screens incrementally; do not call private services or mirror Active Record fields |
+| Authorization | `Ability` evaluates immutable role-version permissions with practice or site scope; `BaseController` requires active membership and exposes capability checks | Use `/api/clinic/context` for navigation capability projection, but reauthorize every resource/action. Site-scoped consumers must not infer practice-wide access |
+| Authorization transition risk | The current context returns coarse booleans and every practice site; facilities lookup requires `appointments.write`; patient read is reused for appointment/encounter reads | Before exposing broad navigation or facility filters, reconcile read-specific capabilities, permitted-site projection and role migration parity. Do not treat a visible link as authority |
+| Clinical history | Conditions/allergies/medication statements currently have patient ownership but no meaningful clinical value fields in the implemented model | Tables are scaffolding, not complete intake/reconciliation APIs. Define clinical dictionary and revision/correction rules before forms |
+| Note services | Create/revise/sign routes exist, require separate note-write/sign capabilities and sign an exact revision/digest | The serializer omits body content, the accepted correction/read-review contract is incomplete and `encrypted_body` is not actually encrypted at rest. Keep note-body UI blocked until protected-value handling and exact review are resolved |
 | Patient identity | API/model provides `display_name` and clinic-local `reference`, no structured given/family name or birth-date contract | Initial/surname abbreviation and age cannot be reliably populated by splitting names or guessing dates |
+
+## Current frontend-to-backend interface map
+
+Status meanings: **usable contract** means a current Rails JSON route exists and its data can support the named browser slice after typed frontend integration; **partial contract** means the route exists but cannot truthfully support the full UX; **backend gap** means the workflow must remain a labeled example or unavailable. These are implementation statuses, not design selections.
+
+| Frontend destination / current source | Current backend authority | Status and proposed mapping boundary |
+| --- | --- | --- |
+| Clinic shell and navigation (`Workspace.tsx`) | `GET /api/clinic`; `GET /api/clinic/context` | **Usable contract with reconciliation:** retain `/api/clinic` while moving identity, policy version and action visibility to context. Add only links supported by both capability and implemented route; resolve site visibility before a site filter |
+| Overview tracking board (`TrackingBoardPage.tsx`, fixed `EXAMPLE_VISITS`) | Appointment and encounter lists plus detail; observations by patient | **Backend gap for a live board:** there is no arrival, five-stage flow, handoff/owner event, commercial membership, board projection or trusted wait clock. Do not client-join these endpoints into a false live queue |
+| Patient directory/detail (`Patients.tsx`) | Patient list/show/create; patient encounter, observation, address, document, message and invoice collections | **Usable shell, partial record:** split directory from patient workspace and load authorized sections on demand. Keep the legacy `/patients/:id/note` history visible but do not convert it into signed encounter notes |
+| Scheduling (no current component) | Appointment list/show/create/transition; facilities; clinicians | **Usable initial contract:** supports a bounded scheduled-list/booking slice. No reschedule route, patient-friendly catalog labels or dedicated read-only facility capability yet |
+| Encounter workspace (no current component) | Encounter list/show/create/close; participants/counts in detail | **Partial contract:** supports open/read/close and identity context. It does not support intake ownership, handoff, board stages or correction/reopen policy |
+| Intake/triage (no current component) | Observation list/create | **Partial contract:** typed observations and provenance exist. Approved observation dictionary, history review semantics and meaningful condition/allergy/medication content remain absent |
+| Clinician note (legacy draft UI only) | Encounter-note create/show/revise/sign | **Blocked for body entry/signing UI:** route lifecycle exists, but protected body handling, body read/review DTO and signed-correction semantics are unresolved. Prescription workflow is absent |
+| Patient documents (no current component) | Category list; document metadata list/show | **Metadata-only:** object upload/download, scan execution and reauthorized streaming are absent |
+| Patient messages (no current component) | Intent list/show/create and delivery-event record | **Local intent/history only:** external transport/callback authority is absent; protected recipient/content handling is unresolved. A user must never record delivery manually in the intended workflow |
+| Patient billing (no current component) | Invoice list/show/create/post and payment allocation | **Synthetic bookkeeping slice:** exact server amounts and posting exist; credits/refunds/coverage/claims and external payment execution are incomplete or model-only |
+| Operations (`Operations.tsx`) | Legacy counts; facility/clinician catalogs; roles/grants; inventory and staff directory | **Usable expansion path:** keep reorder and directories here; add authorization-aware access/facility work only after read/action capability reconciliation. Employee directory status remains separate from account access |
+| Pharmacy and office inventory | Existing catalog, product/batch/receipt/hold/count/configuration and office-item routes | **Current integrated area:** preserve exact decimal strings and ledger semantics; align navigation with the common permission projection without redesigning inventory |
+| Account Settings | `GET/PATCH /api/settings` | **Current integrated area:** retain user-owned theme preference; do not place practice policy or role configuration here |
+
+## User-flow diagrams before design
+
+The diagrams below combine current route capability with the already recorded workflow hypothesis. Solid nodes are supportable by a current API; nodes explicitly marked **GAP** are not backend-authoritative yet. They define questions and integration seams, not approved clinical policy or a chosen interface.
+
+### 1. Session, clinic context and destination visibility
+
+```mermaid
+flowchart TD
+    A[Open clinic URL] --> B{Authenticated session?}
+    B -- No --> C[Login with safe internal return target]
+    C --> A
+    B -- Yes --> D[GET clinic context]
+    D --> E{Active clinic membership?}
+    E -- No --> F[Explain no clinic assignment and return to portal]
+    E -- Yes --> G[Render clinic shell for assigned practice]
+    G --> H[Show destinations from server capabilities]
+    H --> I[Reauthorize every resource read or action]
+    I -- Allowed --> J[Load bounded screen projection]
+    I -- Denied or revoked --> K[Restricted state; remove stale action]
+```
+
+### 2. Staff scheduling, intake and handoff
+
+```mermaid
+flowchart TD
+    A[Find or deliberately register patient] --> B{Visit source}
+    B -- Scheduled --> C[Select current appointment]
+    B -- Walk-in --> D[Create encounter without appointment]
+    C --> E[Create or open encounter]
+    D --> E
+    E --> F[Record approved typed observations]
+    F --> G[Review missing and unresolved intake items]
+    G --> H[GAP: request clinician handoff with owner and version]
+    H --> I[GAP: clinician explicitly accepts handoff]
+    I --> J[Open clinician encounter workspace]
+```
+
+Current safe stopping point: the API can create/open an encounter and record observations. It cannot truthfully claim arrival, intake ownership, “ready,” accepted handoff or current-stage wait.
+
+### 3. Clinician note, signature and visit completion
+
+```mermaid
+flowchart TD
+    A[Open authorized encounter] --> B[Review patient, encounter and intake context]
+    B --> C{Protected note body contract ready?}
+    C -- No --> D[Block editor; do not use legacy draft as clinical note]
+    C -- Yes --> E[Create or revise encounter note]
+    E --> F[Reload exact revision and digest for review]
+    F --> G{Current revision and signing authority still valid?}
+    G -- No --> H[Conflict or denied state; reload and review]
+    G -- Yes --> I[Sign exact reviewed revision]
+    I --> J[GAP: prescription order/sign/transmit, if separately approved]
+    I --> K[Deliberately close encounter]
+    K --> L[GAP: checkout flow and staff handoff]
+```
+
+The create/revise/sign/close route lifecycle exists. The “yes” branch at protected note body remains unavailable until actual encryption and a reviewable body DTO exist; signing must never be inferred from a save or encounter close.
+
+### 4. Patient support sections
+
+```mermaid
+flowchart LR
+    A[Patient workspace] --> B[Encounter history]
+    A --> C[Address version metadata]
+    A --> D[Document metadata]
+    A --> E[Outbound message intents]
+    A --> F[Invoices and allocations]
+    B --> G[Open authorized encounter]
+    C --> H[GAP: protected address value read and correction UX]
+    D --> I[GAP: upload, scan and download object]
+    E --> J[GAP: approved transport and verified callback]
+    F --> K[GAP: external payment, credit/refund and policy completion]
+```
+
+### 5. Operations and access administration
+
+```mermaid
+flowchart TD
+    A[Operations] --> B[Inventory work]
+    A --> C[Employee directory]
+    A --> D[Facilities and clinicians]
+    A --> E[Role versions and grants]
+    A --> F[Billing or message reconciliation]
+    B --> G[Existing authoritative inventory commands]
+    C --> H[Directory active state only]
+    D --> I[Appointment-supporting catalogs]
+    E --> J{roles.manage and valid scope?}
+    J -- No --> K[Read nothing; no self-elevation]
+    J -- Yes --> L[Grant or revoke with server event history]
+    F --> M[GAP: complete operational projection and durable audit trail]
+```
+
+Employee-directory changes never create or revoke login authority. Role administration must stay out of personal Settings and must not make platform or cross-clinic evidence visible.
 
 ## Navigation and layout
 
@@ -157,9 +261,9 @@ Every one of the ERD's 68 named entities is assigned below. Backend-only and his
 
 Additional source/transition records: `clinic_model_versions` is the in-progress tenant-bound PaperTrail store, not a general browser endpoint or clinical revision history. Preserve frozen `clinic_pharmacy_movements`, `clinic_stock_movements` and `clinic_pharmacy_batch_events` as historical evidence where present; show provenance through authorized inventory history, not new posting forms. Launch paperwork, learning progress, materials, inquiries/contact and their identity relationships are outside the ERD but remain supported; their routes and own authorization do not disappear in a clinic replacement.
 
-## Proposed API and frontend implementation boundary
+## Current API and frontend implementation boundary
 
-Keep Rails authoritative for tenancy, actors, permissions, validation, transitions, exact arithmetic, encryption and audit. Queries return authorized screen projections; commands express user intent. Do not expose one CRUD controller for each table. IDs identify a candidate resource, never grant access; Rails resolves every submitted link through the current practice and same-patient/site constraints.
+Keep Rails authoritative for tenancy, actors, permissions, validation, transitions and exact arithmetic. Encryption and durable audit must also be Rails/infrastructure authorities before protected values are enabled, but the current verification report shows those controls are incomplete. Queries return authorized screen projections; commands express user intent. Do not expose one CRUD controller for each table. IDs identify a candidate resource, never grant access; Rails resolves every submitted link through the current practice and same-patient/site constraints.
 
 ### Existing consumer transition
 
@@ -177,29 +281,39 @@ All routes below exist in the inspected source. Proposed replacement modules sho
 | `GET /api/csrf`; `GET/POST/DELETE /api/session`; `POST /api/development_session`; `GET/PATCH/PUT /api/settings` | App, Login, Appearance, Settings | Retain CSRF bootstrap serialization, explicit login, 12-hour absolute session, demo/environment guards and current-user preferences. No automatic test login, new role granted by persona name, or mutation replay |
 | `/api/materials` list/detail/start/complete, `/api/paperworks` list/detail/start/sign/receipt, `/api/contact_messages`, `/api/inquiries` | Launch components | Preserve all current methods and account/admin restrictions. Launch signing is not reusable clinical authority. Verify the route manifest and non-ERD data/history explicitly |
 
-### New screen-oriented contracts
+### Implemented screen-oriented contracts
 
-**All routes in this table are proposed, not implemented HTTP APIs.** Prefix `/api/clinic` is omitted. Command names may change when the final contract is accepted; maintain a single documented route/DTO source and producer-consumer fixtures. Use separate action checks for reads/writes/sign/review/admin rather than broad module grants.
+Prefix `/api/clinic` is omitted. These routes exist in the reviewed source; none is consumed by the current browser unless noted in the earlier consumer table.
 
-| Query / command family | Minimal response and mutations | Consumer / missing work |
+| Implemented query / command family | Current wire result | Safe frontend use and limitation |
 | --- | --- | --- |
-| `GET /context`; `GET /operations` | Assigned practice, expected user, policy version, authorized sites/modules; separately permission-filtered operational counts/links | `Workspace`/navigation and Operations; shared evaluator migration prerequisite |
-| `GET /board`; `POST /patients/search` | `BoardPage`; bounded patient matches/cursor with minimal identity | Extract example provider from `TrackingBoardPage`; separate API adapter. Add explicit empty/loading/stale/denied views |
-| `GET/POST /appointments`; `POST /appointments/:id/reschedule` and `/transition` | Zoned instant range, local display zone, version, authorized transitions; errors for room/provider conflict | Scheduled list and booking form, not a new calendar dependency initially |
-| `POST /patients/:patientId/encounters`; `GET /patients/:patientId/encounters`; `GET /encounters/:id` | Create/return actual encounter; minimal list and detailed `EncounterWorkspace`; actor/time/version from server | Check-in and patient visit history. Patient route ID must agree with encounter projection |
-| `POST /encounters/:id/transitions`; `POST /encounters/:id/handoffs` | Expected encounter/flow version, target action, permitted reason, request key; acknowledged owner/stage history | Requires accepted arrival/flow/handoff amendment; no generic status PATCH |
-| `GET /patients/:id/summary`; `PATCH /patients/:id`; `POST /patients/:id/address_versions` | Typed demographic/version payload; same-owner primary address command | Registration/correction and Summary. No names/search bodies in diagnostic logs |
-| `GET /encounters/:id/intake`; `POST /encounters/:id/observations`; typed patient history/review commands | Typed value/source versions, author/times and review completeness; append/correct under accepted policy | Grouped Intake; history entities need actual clinical content and correction/attestation schema |
-| `POST /encounters/:id/notes`; `GET /notes/:id`; `POST /notes/:id/revisions`, `/review`, `/signatures`, `/corrections` | Note header version, exact revision, safe review token, immutable signature/correction links | Dedicated `NoteEditor` + `NoteReview`; signed correction and exact reviewed-content contract missing |
-| `GET /patients/:id/documents`; upload-intent/finalize commands; authorized document download | Metadata-only list, pending/quarantined/clean/rejected state, immutable version reference; reauthorized streamed download | Dedicated binary transport; `formBody` currently rejects files. Upload size/type/checksum/version/scan validation and failure cleanup needed |
-| `GET/POST /patients/:id/messages`; `GET /messages/:id` | Minimal delivery summary; immutable intent, exact recipient/document versions, purpose, key; operation status | Composer + outbound history; local adapter only until separately selected delivery service and authority |
-| `GET /patients/:id/billing`; invoice draft/line/review/post, payment recording/allocation, credit/refund commands | Server exact totals/currency, policy version, immutable posting/event references, outstanding balance and unknown payment state | Billing section and work queue; point-of-use rates/rounding/refund/eligibility decisions required |
-| Patient coverage version / invoice claim commands | Same-patient version/invoice binding and explicit local status | Optional cash-pay UI capability; no claims vendor or filing commitment |
-| `GET /facilities`; scoped catalog commands; `GET /team`; grant/revoke commands | Catalog versions/effective assignments, role descriptions, permitted scope/ceiling and grant history | Operations pages; scoped same-site membership constraints, no account self-grant or arbitrary role editor |
-| `GET /suppliers`; owned supplier/staff address commands | Minimal directory and versioned owned address projection | Supplier/employee detail; no generic contact graph |
-| `GET /activity`; `GET /operations/:requestKey` | Narrow audited event projection; authenticated, authorized operation receipt for uncertain result | Restricted activity/reconciliation. Request key is not a bearer secret; never expose raw audit snapshots/session identifiers |
+| `GET /context` | Schema/policy versions, user, practice, membership, coarse capabilities and practice sites | Clinic bootstrap and module visibility after site/capability reconciliation; not proof an individual resource/action is allowed |
+| `GET /facilities`; `GET /clinicians`; `GET /role_versions`; `GET/POST /role_grants`; `POST /role_grants/:id/revoke` | Paged catalogs, clinician assignments/credentials, immutable role definitions and grant history | Scheduling selectors and Operations access administration. Facility read currently requires appointment-write; grant actions require `roles.manage` |
+| `GET/POST /appointments`; `GET /appointments/:id`; `POST /appointments/:id/transition` | Patient/site/room/clinician/visit-type IDs, UTC instants, status and optional encounter ID | Scheduled list, booking and supported status actions. No update/reschedule route or browser labels in appointment rows |
+| `GET /encounters`; `GET/POST /patients/:patient_id/encounters`; `GET /encounters/:id`; `POST /encounters/:id/close` | Patient/appointment/site/room IDs, start/end/status; detail adds participants, note IDs and counts | Encounter history/open/detail/close. No board-stage or handoff mutation |
+| `GET/POST /patients/:patient_id/observations` | Typed value, code/unit, encounter/group/source IDs and actor/observed/recorded timestamps | Intake data after an approved dictionary and field-level UX; no current history-review or correction route |
+| `GET/POST /patients/:patient_id/address_versions` | Metadata on read; create accepts `encrypted_address` | Do not expose protected address entry yet: the field is stored as plaintext despite its name and no value-read DTO exists |
+| `POST /encounters/:encounter_id/notes`; `GET /notes/:id`; `POST /notes/:id/revisions`; `POST /notes/:id/signatures` | Header/version, revision metadata and exact-revision signatures; body omitted | Lifecycle testing only until protected body encryption, body review and correction contract are complete |
+| `GET /document_categories`; `GET /patients/:patient_id/documents`; `GET /documents/:id` | Category and immutable document metadata including object version/checksum/size/type/scan state | Read-only metadata section; no upload/download/scan transport |
+| `GET/POST /patients/:patient_id/message_intents`; `GET /message_intents/:id`; `POST /message_intents/:id/delivery_events` | Intent purpose/key/state, attachments and recorded delivery outcomes | Labeled local intent history only. No external transport; content/recipient protected-value control is incomplete; delivery-event recording is not a clinic-user action |
+| `GET/POST /patients/:patient_id/invoices`; `GET /invoices/:id`; `POST /invoices/:id/post`; `POST /invoices/:id/payment_allocations` | Draft/posted invoice, exact string line values, allocated and credit totals | Synthetic invoice draft/post/allocation UI after policy review; does not execute a payment or complete refund/credit/coverage/claim workflows |
 
-Patient membership and prescribing endpoints deliberately remain undefined pending the amendments below; this is a named model gap, not permission to repurpose another entity. Generic operation-status lookup is also a proposed contract, not an existing table; implement with a protected per-domain receipt or approved shared record, not an audit-log scrape.
+### Still-required backend contracts
+
+| Missing query / command family | Required for | Why the frontend must wait |
+| --- | --- | --- |
+| Authorized board projection plus arrival, stage and handoff commands | Live Overview and trusted wait/owner/next-action fields | Client-side joins cannot create authoritative stage history, counts, timestamps or transition conflict handling |
+| Bounded body-based patient search and typed demographics | Scalable directory, short patient label, age and reason context | Current list filters `reference` in a GET query and patient identity lacks typed names/birth date |
+| Note body review/correction plus actual protected-value encryption | Clinician compose/review/sign | Current metadata cannot show the exact body being signed, and plaintext-at-rest fields fail the intended contract |
+| Commercial patient membership history | Board/summary member state | Clinic-access membership and insurance coverage are different concepts and cannot substitute |
+| Prescription order/revision/signature/transmission | Physician prescription task | No current prescribing entity or route exists |
+| Document object upload/scan/download | Patient Documents and message attachment release | Metadata cannot prove a private object is present, clean or authorized for download |
+| External message adapter/callback and reconciliation | Truthful sent/delivered/failed status | Queue intent and locally recorded event are not external delivery evidence |
+| Credits/refunds/coverage/claims plus payment execution/reconciliation | Complete cash-pay billing and optional coverage | Current APIs implement only a narrow bookkeeping subset |
+| Protected-value address/message/coverage handling and durable access/read/denial audit | Any protected clinical workflow | [[Backend Verification Report]] identifies plaintext and audit-pipeline gaps; successful JSON responses do not close them |
+| Restricted Operations projections/activity/receipts | Safe work queues and uncertain-result recovery | No complete operational aggregate, activity viewer or generic receipt lookup is exposed |
+
+Patient membership and prescribing endpoints deliberately remain undefined pending the amendments below; this is a named model gap, not permission to repurpose another entity. Generic operation-status lookup also remains a proposal; implement it with a protected per-domain receipt or approved shared record, not an audit-log scrape.
 
 ### Shared frontend changes
 
@@ -249,22 +363,22 @@ These additions should be reconciled in the ERD/implementation handoff by the ba
 
 ## Delivery sequence and migration
 
-This is a dependency sequence linked to canonical tasks, not a duplicate status list or new deadline. Align it to stages A–E of [[ERD Implementation Prompt]]. Run focused tests per slice and full regression/upgrade/restore before accepted integration. Work on a feature branch or dedicated worktree from the agreed candidate; this planning turn makes no branch changes and preserves concurrent edits, including the branch advance recorded above.
+This is a candidate dependency sequence linked to canonical tasks, not an accepted design, duplicate status list or new deadline. It starts from the APIs that now exist and keeps gaps ahead of their consumers. Run focused tests per slice and full regression/upgrade/restore before accepted integration. This documentation pass is on `feature/frontend-backend-flow-mapping`; it changes no application code.
 
-| Order / handoff stage | Independently reviewable slice | Entry / exit evidence; canonical ownership |
+| Order | Independently reviewable slice | Entry / exit evidence; canonical ownership |
 | --- | --- | --- |
-| 1 / A | Freeze final ERD delta, old/new route and data disposition, DTO/error/version/action catalog and rollout plan | Reconcile this map with actual backend source; synthetic fixture dictionary and named reviewers. T-13.1–T-13.3 own workflow/field review; no claim that this mapping alone completes them |
-| 2 / B | One authorization evaluator, clinic context/Operations projections and transport/audit contract | Test no-grant/revoked/site scope, counts, account/session changes and rollback/read evidence. Explicitly migrate old capabilities and remove fallback at activation. T-23/T-34.3/T-34.5 and E2, without inheriting clinical signing from `patients_access` |
-| 3 / C–D | Patient search/identity and facilities-backed scheduling; read-only encounter history | Preserve directory IDs/legacy drafts; new minimal queries and paged UI; same-patient/site/timezone/conflict tests. Safe prerequisite for actual check-in |
-| 4 / C–D | Check-in → flow/ownership → live synthetic board | Accepted flow amendment, atomic duplicate-safe arrival, authorized board aggregates, fresh/stale/empty modes and timers. T-13/T-44; remove example dependency only from API mode, keep labeled preview separately |
-| 5 / C–D | Staff intake/history review → explicit handoff → clinician draft | Accepted typed dictionary and provenance; wrong-patient, incomplete, absent-owner, stale/save-error and expiry tests. T-13.3/T-13.4; unsigned notes remain visibly unsigned |
-| 6 / C–D | Exact-revision review/sign/correction and encounter checkout | Independent signing policy, version/race/idempotency/audit evidence; no auto-prescription or auto-checkout. Rx remains a separately specified amendment and later vertical slice |
-| 7 / C–D | Documents/typed addresses, then outbound messages | Private-object/version/scan/read audit acceptance before attachments; unknown-delivery reconciliation and controlled local adapter. No real delivery or browser cache |
-| 8 / C–D | Patient billing/payment reconciliation and optional coverage/claims; membership integration when its model is accepted | Explicit rules and exact arithmetic; recorded versus executed payment distinction; preserve cash-pay default. No supplier/APPly-fee coupling |
-| Alongside 3–8 / C–D | Inventory adapter regression, Suppliers, Employees/access/facility configuration and restricted Activity | Preserve shared ledger/history/profile invariants and directory/access distinction; full ERD coverage. T-34 and relevant T-23/T-13 dependencies |
-| 9 / D–E | Consumer cutover, legacy write retirement, migration/restore and responsive/accessibility acceptance | Version-pinned API/web pair; old clients get explicit incompatibility for unsafe commands. Reconciled data, routes, audit/history and all tests below; T-22/E2/E3 remain evidence gates, not automatic approval |
+| 1 | Resolve release-blocking transport, protected-value, audit and site/capability contracts | Actual encryption for protected values; independent read/denial/download/login audit; permitted-site projection; role migration/revocation evidence. T-23/T-34.3/T-34.5 and E2; no clinical editor exposed |
+| 2 | Frontend contract foundation and read-only context | Add typed page envelopes, structured errors and context adapter; preserve CSRF/no-store/no-replay. Prove account change, revocation, stale resource and deep-link behavior |
+| 3 | Patient workspace, scheduled list and read-only encounter history | Consume current patient/appointment/encounter/facility/clinician APIs with bounded paging and same-patient/site tests. Preserve legacy drafts as unsigned history |
+| 4 | Arrival → flow/ownership → live synthetic board | Add the missing backend flow amendment and authorized board projection first. Prove duplicate-safe arrival, fresh/stale/empty/denied modes and timers before removing example-only mode. T-13/T-44 |
+| 5 | Staff intake/history review → explicit handoff | Accept typed dictionary/review semantics and handoff model; integrate observations with wrong-patient, incomplete, absent-owner and conflict tests. T-13.3/T-13.4 |
+| 6 | Protected clinician note review/sign/correction and encounter close | Complete encryption/body-read/review/correction contract; prove version/race/idempotency/audit behavior. Prescription and checkout remain separately gated rather than implied side effects |
+| 7 | Documents and addresses, then outbound messages | Private-object/version/scan/read-audit acceptance before attachments; protected addresses and unknown-delivery reconciliation. No real delivery or browser cache |
+| 8 | Patient billing/reconciliation and optional coverage/claims; membership only after its model is accepted | Explicit rules and exact arithmetic; recorded versus executed payment distinction; preserve cash-pay default. No supplier/APPly-fee coupling |
+| Alongside 2–8 | Inventory regression plus Suppliers, Employees/access/facility configuration and restricted Activity | Preserve shared ledger/history/profile invariants and directory/access distinction; full ERD coverage. T-34 and relevant T-23/T-13 dependencies |
+| 9 | Consumer cutover, legacy write retirement, migration/restore and responsive/accessibility acceptance | Version-pinned API/web pair; old clients get explicit incompatibility for unsafe commands. Reconciled data, routes, audit/history and all tests below; T-22/E2/E3 remain evidence gates, not automatic approval |
 
-Start the next implementation with **context/authorization projection and patient/encounter read contracts**, not the whole UI at once. This exposes backend gaps without committing users to unsafe mutation flows and gives a stable base for check-in and the board.
+The first candidate implementation slice is therefore **frontend context plus read-only patient/scheduling/encounter integration**, but only after the permission/site projection is accepted. Protected mutations stay blocked behind the named backend work; this sequence is ready for review and has not been selected in this documentation turn.
 
 Migration rules:
 
@@ -276,7 +390,7 @@ Migration rules:
 
 ## Acceptance and recovery
 
-Use the commands and isolated-data boundaries in [[CICD#2. Develop and check locally]]: frontend tests/typecheck/build/format; Rails tests/eager-load/lint/static checks; independent PostgreSQL upgrade/concurrency/restore; native HTTP verifier. Add producer-consumer fixtures for every new projection and command, not just snapshots of successful pages. Those checks have **not** been run for this documentation-only plan, and current in-progress backend behavior has not been accepted here.
+Use the commands and isolated-data boundaries in [[CICD#2. Develop and check locally]]: frontend tests/typecheck/build/format; Rails tests/eager-load/lint/static checks; independent PostgreSQL upgrade/concurrency/restore; native HTTP verifier. Add producer-consumer fixtures for every new projection and command, not just snapshots of successful pages. Those application checks have **not** been rerun for this documentation-only pass; the dated current backend evidence is in [[Backend Verification Report]].
 
 | Layer / scenario | Observable expected result |
 | --- | --- |
@@ -302,8 +416,8 @@ On affected-path failure: stop the action, retain truthful pending/unsaved/error
 
 ## Planning deliverables and remaining limits
 
-Delivered by this planning pass: source-versus-target baseline, navigation/encounter layout, board field mapping, all-entity coverage, current route transition matrix, proposed APIs/components, missing-contract amendments, dependency sequence and failure/acceptance cases. The accompanying inline layout study is presentation-only, with independently invented examples and no API, persistence, signing, billing or sending actions.
+Delivered by this planning pass: a current source baseline, frontend-to-implemented-backend readiness matrix, five user-flow diagrams, complete entity mapping, implemented-versus-missing API inventory, candidate dependency sequence and failure/acceptance cases. Existing layout language remains inherited proposal context; no new visual or workflow choice was made. No API, persistence, signing, billing or sending action was added.
 
-Planning validation: all 68 named ERD entities occur in the mapping; 37 vault notes have valid frontmatter, unique names and Home reachability; all 774 wiki/heading links and 19 relative links in touched notes resolve. Existing content in the four edited notes is preserved by a remove-only-our-insertions hash comparison. Whitespace checks pass. The layout fragment passes static safety checks and both view-switch interactions in a Node DOM stub; it has not undergone browser-rendered, responsive or assistive-technology acceptance. These checks validate this handoff, not application behavior.
+Planning validation: all 38 Markdown notes pass frontmatter/fence/unique-name checks; all 794 wiki/heading links resolve, as do 18 relative links in the four touched notes. The five Mermaid flows pass static declaration, edge and delimiter checks; no Mermaid renderer was available, so rendered geometry is not claimed. `git diff --check` passes and no `apps/web` or `apps/api` file changed. These checks validate the map, not application behavior, encryption, access auditing, browser rendering, clinical acceptance or deployment readiness.
 
-Next: reconcile the specific ERD amendments with the backend owner, accept the context/action/encounter read contracts and implement that bounded first slice. No runtime, browser, clinical, audit-durability or deployment acceptance is claimed by this note. [[Roadmap and Tasks]] remains the only task/status register.
+Next review point: accept or revise the permission/site projection and the candidate read-only patient/scheduling/encounter slice. Do not begin the live board or protected note editor until their named backend contracts exist. [[Roadmap and Tasks]] remains the only task/status register.
