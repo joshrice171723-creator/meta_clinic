@@ -35,11 +35,6 @@
     "/api/clinic/documents/:id(.:format)"
   ],
   [
-    "download_api_clinic_document",
-    "GET",
-    "/api/clinic/documents/:id/download(.:format)"
-  ],
-  [
     "api_clinic_document_categories",
     "GET",
     "/api/clinic/document_categories(.:format)"
@@ -248,6 +243,11 @@
     "demo_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/demo(.:format)"
+  ],
+  [
+    "download_api_clinic_document",
+    "GET",
+    "/api/clinic/documents/:id/download(.:format)"
   ],
   [
     "import_api_clinic_pharmacy_index",
