@@ -20,6 +20,19 @@ module Clinic
       render json: { document: DocumentSerializer.call(document).merge(category: DocumentSerializer.category(document.category)) }
     end
 
+    def download
+      document = current_practice.documents.find(requested_id!(params[:id], :id))
+      Clinic::Documents::Access.downloadable!(document: document, actor: current_user)
+      render json: {
+        document_id: document.id,
+        object_key: document.object_key,
+        object_version: document.object_version,
+        checksum: document.checksum,
+        media_type: document.media_type,
+        byte_size: document.byte_size
+      }
+    end
+
     private
 
     def verify_patient_scope!(document)

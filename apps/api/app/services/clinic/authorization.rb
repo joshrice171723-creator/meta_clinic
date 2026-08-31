@@ -14,7 +14,10 @@ module Clinic
       else
         ability.allowed_permission?(normalized_action, site: site)
       end
-      raise Denied, "Your account does not have permission for this clinic action." unless allowed
+      unless allowed
+        AuditRecorder.record(practice: practice, actor: actor, action_code: normalized_action, outcome: :denied)
+        raise Denied, "Your account does not have permission for this clinic action."
+      end
 
       ability.membership
     end
