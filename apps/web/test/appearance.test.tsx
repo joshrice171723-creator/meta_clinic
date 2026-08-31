@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import postcss from "postcss";
 import {
-  AppearancePicker,
+  ownedSettings,
   ClinicAppearanceScope,
 } from "../src/features/clinic/Appearance";
+import { AppearanceSettings } from "../src/features/identity/Settings";
+import { loginDestination } from "../src/api/client";
 import { ClinicNavigation, Workspace } from "../src/features/clinic/Workspace";
 import {
-  APPEARANCE_KEY,
   CLINIC_MODES,
   CLINIC_PALETTES,
   CLINIC_THEMES,
@@ -15,116 +17,68 @@ import {
   DEFAULT_APPEARANCE,
   clinicThemeStyle,
   normalizeAppearance,
-  observeClinicAppearance,
   observeSystemAppearance,
-  readClinicAppearance,
   readSystemDark,
   resolveColorScheme,
-  saveClinicAppearance,
 } from "../src/features/clinic/appearancePreferences";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function browserStorage() {
-  const values = new Map<string, string>();
-  const getItem = vi.fn((key: string) => values.get(key) ?? null);
-  const setItem = vi.fn((key: string, value: string) => values.set(key, value));
-  vi.stubGlobal("window", { localStorage: { getItem, setItem } });
-  return { values, getItem, setItem };
-}
-
-describe("cosmetic-only appearance persistence", () => {
-  it("defaults safely without a browser or a saved preference", () => {
-    expect(readClinicAppearance()).toEqual(DEFAULT_APPEARANCE);
-    expect(readSystemDark()).toBe(false);
-    expect(saveClinicAppearance(DEFAULT_APPEARANCE)).toBe(false);
-    browserStorage();
-    expect(readClinicAppearance()).toEqual(DEFAULT_APPEARANCE);
-  });
+const user = {
+  id: 7,
+  email_address: "synthetic@example.invalid",
+  admin: false,
+};
+describe("account-owned appearance", () => {
   it.each(CLINIC_PALETTES)(
-    "round-trips every brightness for $label",
+    "accepts every brightness for $label from the current account",
     ({ id }) => {
-      const storage = browserStorage();
-      for (const mode of CLINIC_MODES) {
-        const preference = { palette: id, mode: mode.id };
-        expect(saveClinicAppearance(preference)).toBe(true);
-        expect(readClinicAppearance()).toEqual(preference);
-        expect(storage.setItem).toHaveBeenLastCalledWith(
-          APPEARANCE_KEY,
-          JSON.stringify(preference),
-        );
-      }
-      expect([...storage.values.keys()]).toEqual([APPEARANCE_KEY]);
+      for (const { id: mode } of CLINIC_MODES)
+        expect(
+          ownedSettings(
+            { user_id: 7, appearance: { palette: id, mode, version: 1 } },
+            7,
+          ).appearance,
+        ).toEqual({ palette: id, mode, version: 1 });
     },
   );
-  it("rejects malformed, oversized or unsupported values without copying extra data", () => {
-    const { values } = browserStorage();
-    for (const raw of [
-      "not json",
-      "null",
-      "[]",
-      '"blue"',
-      "x".repeat(129),
-      '{"palette":"url(example.invalid)","mode":"invalid"}',
-    ]) {
-      values.set(APPEARANCE_KEY, raw);
-      expect(readClinicAppearance()).toEqual(DEFAULT_APPEARANCE);
-    }
-    const extra = {
-      palette: "blue",
-      mode: "dark",
-      unrelated: "synthetic ignored field",
-    };
-    const safe = normalizeAppearance(extra);
-    expect(safe).toEqual({ palette: "blue", mode: "dark" });
-    expect(saveClinicAppearance(safe)).toBe(true);
-    expect(values.get(APPEARANCE_KEY)).toBe('{"palette":"blue","mode":"dark"}');
+  it("rejects wrong account, malformed settings and invalid versions", () => {
+    for (const value of [
+      null,
+      {},
+      { user_id: 8, appearance: { ...DEFAULT_APPEARANCE, version: 0 } },
+      ...[-1, 1.5, "1", undefined].map((version) => ({
+        user_id: 7,
+        appearance: { ...DEFAULT_APPEARANCE, version },
+      })),
+      {
+        user_id: 7,
+        appearance: { palette: "unknown", mode: "dark", version: 0 },
+      },
+    ])
+      expect(() => ownedSettings(value, 7)).toThrow();
+    expect(normalizeAppearance({ palette: "bad", mode: "bad" })).toEqual(
+      DEFAULT_APPEARANCE,
+    );
+    expect(readSystemDark()).toBe(false);
+  });
+  it("drops extra response fields and retains an exact login return allowlist", () => {
     expect(
-      normalizeAppearance({ palette: "graphite", mode: "unsupported" }),
-    ).toEqual({ palette: "graphite", mode: "system" });
-  });
-  it("continues when browser policy blocks storage access or writes", () => {
-    vi.stubGlobal("window", {
-      get localStorage() {
-        throw new Error("Blocked");
-      },
-    });
-    expect(readClinicAppearance()).toEqual(DEFAULT_APPEARANCE);
-    expect(saveClinicAppearance(DEFAULT_APPEARANCE)).toBe(false);
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem() {
-          throw new Error("Unavailable");
+      ownedSettings(
+        {
+          user_id: 7,
+          extra: "ignored",
+          appearance: { ...DEFAULT_APPEARANCE, version: 2, extra: "ignored" },
         },
-        setItem() {
-          throw new Error("Quota");
-        },
-      },
+        7,
+      ),
+    ).toEqual({
+      user_id: 7,
+      appearance: { ...DEFAULT_APPEARANCE, version: 2 },
     });
-    expect(readClinicAppearance()).toEqual(DEFAULT_APPEARANCE);
-    expect(saveClinicAppearance(DEFAULT_APPEARANCE)).toBe(false);
-  });
-  it("only responds to its own storage key or an explicit browser-storage clear", () => {
-    const { values } = browserStorage();
-    const addEventListener = vi.fn(),
-      removeEventListener = vi.fn();
-    Object.assign(window, { addEventListener, removeEventListener });
-    const update = vi.fn();
-    const unsubscribe = observeClinicAppearance(update);
-    const listener = addEventListener.mock.calls[0][1];
-    listener({ key: "unrelated" });
-    expect(update).not.toHaveBeenCalled();
-    values.set(APPEARANCE_KEY, '{"palette":"graphite","mode":"light"}');
-    listener({ key: APPEARANCE_KEY });
-    expect(update).toHaveBeenLastCalledWith({
-      palette: "graphite",
-      mode: "light",
-    });
-    values.clear();
-    listener({ key: null });
-    expect(update).toHaveBeenLastCalledWith(DEFAULT_APPEARANCE);
-    unsubscribe();
-    expect(removeEventListener).toHaveBeenCalledWith("storage", listener);
+    expect(loginDestination("/clinic/settings")).toBe("/clinic/settings");
+    expect(loginDestination("//example.invalid")).toBe("/portal");
+    expect(loginDestination("/clinic/settings?other=1")).toBe("/portal");
   });
 });
 
@@ -153,24 +107,28 @@ describe("system appearance and UI scope", () => {
       media.addEventListener.mock.calls[0][1],
     );
   });
-  it("renders all choices as labeled native controls, outside mutation forms", () => {
+  it("renders labeled controls, account identity, explicit save and conflict recovery", () => {
     const html = renderToStaticMarkup(
-      <AppearancePicker
-        preferences={{ palette: "blue", mode: "dark" }}
-        change={() => {}}
-        message="Appearance saved in this browser."
+      <AppearanceSettings
+        user={user}
+        settings={{
+          user_id: 7,
+          appearance: { palette: "blue", mode: "dark", version: 2 },
+        }}
+        accept={() => {}}
       />,
     );
-    expect(html).toContain("<summary>");
     expect(html.match(/<select /g)).toHaveLength(2);
     expect(html.match(/<option /g)).toHaveLength(6);
-    expect(html).toMatch(/<label for="[^"]+">Color theme<\/label>/);
-    expect(html).toMatch(/<label for="[^"]+">Brightness<\/label>/);
+    expect(html).toContain("Color theme");
+    expect(html).toContain("Brightness");
     expect(html).toContain('value="blue" selected=""');
     expect(html).toContain('value="dark" selected=""');
-    expect(html).toContain('role="status"');
-    expect(html).toContain("People sharing this browser share its theme");
-    expect(html).not.toContain("<form");
+    expect(html).toContain("synthetic@example.invalid");
+    expect(html).toContain("Save appearance");
+    expect(html).toContain('name="appearance[version]"');
+    expect(html).toContain("reload saved settings");
+    expect(html).not.toContain("<details");
   });
   it.each(CLINIC_PALETTES)(
     "scopes $label styles to the clinic and renders loading without protected content",
@@ -191,7 +149,7 @@ describe("system appearance and UI scope", () => {
         "--clinic-background:" + CLINIC_THEMES[id].dark.background,
       );
       const loading = renderToStaticMarkup(
-        <Workspace>
+        <Workspace user={user}>
           <p>Must stay hidden before authorization</p>
         </Workspace>,
       );
@@ -228,7 +186,9 @@ describe("system appearance and UI scope", () => {
         path="/clinic"
       />,
     );
-    expect(restricted.match(/<a /g)).toHaveLength(1);
+    expect(restricted.match(/<a /g)).toHaveLength(3);
+    expect(restricted).toContain("/clinic/operations");
+    expect(restricted).toContain("/clinic/settings");
     expect(restricted).toContain('href="/clinic" aria-current="page"');
   });
 });
@@ -246,6 +206,67 @@ function contrast(a: string, b: string) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 describe("theme color and responsive contracts", () => {
+  // Source-level breakpoint regression checks, not a browser layout engine.
+  it.each([
+    [1440, 4],
+    [1280, 4],
+    [1151, 4],
+    [1150, 2],
+    [1024, 2],
+    [959, 2],
+    [834, 2],
+    [768, 2],
+    [761, 2],
+    [760, 2],
+    [601, 2],
+    [600, 1],
+    [390, 1],
+    [320, 1],
+  ])(
+    "uses %ipx responsive summary rules without side-by-side label/value squeeze",
+    (width, columns) => {
+      const root = postcss.parse(
+        readFileSync("src/features/clinic/appearance.css", "utf8"),
+      );
+      const declarations = (selector: string) => {
+        const result: Record<string, string> = {};
+        root.walkRules((rule) => {
+          if (!rule.selectors.includes(selector)) return;
+          let parent = rule.parent;
+          while (parent && parent.type !== "root") {
+            if (parent.type === "atrule") {
+              const media = /max-width:\s*(\d+)px/.exec(parent.params);
+              if (!media || width > Number(media[1])) return;
+            }
+            parent = parent.parent;
+          }
+          rule.walkDecls((declaration) => {
+            result[declaration.prop] = declaration.value;
+          });
+        });
+        return result;
+      };
+      expect(
+        declarations(".clinic-theme .pharmacy-summary")[
+          "grid-template-columns"
+        ],
+      ).toBe(columns === 1 ? "1fr" : `repeat(${columns}, minmax(0, 1fr))`);
+      expect(
+        declarations(".clinic-theme .pharmacy-summary-item")["flex-direction"],
+      ).toBe("column");
+      expect(
+        declarations(".clinic-theme .clinic-sign-out fieldset").display,
+      ).toBe("block");
+      expect(
+        declarations(".clinic-theme .clinic-sign-out button")["white-space"],
+      ).toBe("nowrap");
+      expect(
+        declarations(".clinic-theme .settings-form > fieldset")[
+          "grid-template-columns"
+        ],
+      ).toBe(width <= 600 ? "1fr" : "repeat(2, minmax(0, 1fr))");
+    },
+  );
   it.each(CLINIC_PALETTES)(
     "keeps $label text and controls readable in both appearances",
     ({ id }) => {
@@ -276,8 +297,13 @@ describe("theme color and responsive contracts", () => {
     expect(css).not.toMatch(/@import|url\(|#[0-9a-f]{3,8}\b/i);
     expect(css).toMatch(/min-height:\s*44px/);
     expect(css).toMatch(/max-width:\s*760px/);
-    expect(css).toMatch(/max-width:\s*440px/);
+    expect(css).toMatch(/max-width:\s*600px/);
     expect(css).toMatch(/forced-colors:\s*active/);
+    expect(css).toMatch(
+      /\.clinic-theme \.clinic-sign-out[^{}]*\{[^}]*display:\s*block/,
+    );
+    expect(css).toContain("white-space: nowrap");
+    expect(css).toContain("flex-direction: column");
     expect(css).not.toMatch(/position:\s*(fixed|absolute)/);
     // Every style-rule selector must be rooted in the clinic or its picker.
     for (const rule of css

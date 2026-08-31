@@ -26,11 +26,17 @@ class ApplicationController < ActionController::Base
   def current_user
     record = current_member_session
     return if session[:development_demo_user_id] && !development_demo?
-    record.user if record && record.expires_at.future? && record.user.active?
+    return if record && Development::TestAccounts.reserved_email?(record.user.email_address) && !development_demo?
+    record.user if record && record.unexpired? && record.user.active?
   end
 
   def development_demo?
     record = current_member_session
+    if session[:development_test_profile]
+      return DevelopmentAccess.allowed?(request) && record &&
+        session[:development_demo_user_id] == record.user_id &&
+        Development::TestAccounts.matches?(record.user, session[:development_test_profile])
+    end
     DevelopmentAccess.allowed?(request) && record && !record.user.admin? &&
       session[:development_demo_user_id] == record.user_id
   end

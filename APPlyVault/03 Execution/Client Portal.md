@@ -34,7 +34,7 @@ D-032's domain refactor places selling/onboarding under `Launch::*` and sessions
 
 “Completed” means the demonstration signing step finished; it does not mean sent, received, accepted, approved, filed, or ready to see patients. Training completion is self-marked progress, not a competency credential.
 
-Source and operational instructions live in the repository `README.md` and `apps/api/README.md`. No credentials are recorded in the vault. No default account or known demo password is published.
+Source and operational instructions live in the repository `README.md` and `apps/api/README.md`. No credentials are recorded in the vault or reusable passwords published. The named synthetic personas below are explicitly local-only.
 
 ## Local development access
 
@@ -43,6 +43,10 @@ After the founder encountered the private host's ChatGPT gate, they authorized a
 D-026 removes the clinic-create step. Clinic Workspace opens the login's assigned clinic directly; a signed-out visitor returns there after explicit login. My launch uses an existing session and never creates one. Development sessions now show a persistent demo notice and Sign out button; the login form remains accessible while signed in. Missing/revoked clinic assignment requires developer assistance, not a picker or self-service creation.
 
 No copied password or ChatGPT sign-in is needed locally. The demo signing step still checks review, consent, fictional name and document version; password confirmation is skipped only for the guarded development session and a demo document. Regular account signing still requires its password. Rails development mode, explicit enablement, loopback checks and matching POST Origin are required; safe GET navigation may omit Origin. Production rejects the shortcut regardless of flag. Both the frontend (3000) and API (3001) must remain bound to loopback, never tunneled. Use [[CICD#Rails can run locally]] for setup.
+
+**D-040 adds reusable local test logins:** Test Admin (inquiry inbox, no clinic), Test Client A and Test Client B (separate personal progress/Test Clinics), and Test Disabled (expected denial). Select them explicitly on the local login page; no passwords are published. Their setup preserves existing progress/access state and refuses conflicting identities. They retain the development/loopback/CSRF guards and cannot use ordinary password login. [[Client Access Workflow#Reusable local test accounts]] owns usage and limits; the existing fresh demo remains available. These are synthetic personas, not appointments to production roles.
+
+**Session maximum:** local source/runtime now uses 12 hours from login, without sliding extension. Both explicit expiry and session age are checked, including older sessions originally issued for 24 hours. Logout, password changes and deactivation still revoke access. Staging/production were not updated; broader MFA/recovery acceptance remains open.
 
 The hosted preview's ChatGPT screen is a separate owner-only hosting gate, not APPly's Rails login. No hosted access policy, production account, public signup or deployment was changed for this development request.
 
@@ -58,7 +62,7 @@ The former private Sites preview is historical and does not serve the current fr
 
 ## Implementation plan and failure checks
 
-[[Roadmap and Tasks#Step 2 — Client onboarding and operator workflow]] owns T-23.1–T-23.4 and T-17.1; [[Roadmap and Tasks#Step 3 — Synthetic packet and training infrastructure]] owns T-12.1 and T-24.1–T-24.6. These are unstarted chunks, not newly delivered features. Synthetic activation/recovery, content versions/assignment, learning progress and execution evidence need not wait for Kevin's actual documents. Actual source review and the released content manifest do.
+[[Roadmap and Tasks#Step 2 — Client onboarding and operator workflow]] owns T-23.1–T-23.4 and T-17.1; [[Roadmap and Tasks#Step 3 — Synthetic packet and training infrastructure]] owns T-12.1 and T-24.1–T-24.6. D-040 accepts the [[Client Access Workflow]] structure with a 12-hour session maximum, adds the local test personas above and defers production admin assignments. T-23.1 retains full lifecycle-tabletop evidence; T-23.2/T-23.3 now have bounded fixture/session work, not implemented activation/recovery. MFA/protected audit and production readiness remain open. Synthetic work need not wait for Kevin's actual documents; actual source review and the released content manifest do.
 
 Use [[Working Agreement#Failure-first planning and review]] to challenge wrong-recipient activation, duplicate/partial provisioning, reset-versus-deactivation races, operator self-grants, false inquiry acknowledgment, stale content/progress and cross-client history/export. Acceptance requires observable denial or recoverable error and preserved evidence, not just a working screen. M4/T-25 still owns confidential handling and real signing; the current demo receipt is not a substitute.
 

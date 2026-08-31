@@ -27,6 +27,7 @@ Rails.application.routes.draw do
   namespace :api, module: "identity/api" do
     get "csrf", to: "sessions#csrf"
     resource :session, only: %i[show create destroy]
+    resource :settings, only: %i[show update]
     post "development_session", to: "sessions#development"
   end
   namespace :api, module: "launch/api" do

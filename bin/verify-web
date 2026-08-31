@@ -69,6 +69,14 @@ begin
   raise "Demo contract failed" unless user.fetch("development_demo") && !user.fetch("admin")
   clinic = JSON.parse(request.call("/api/clinic").body)
   raise "Missing clinic capabilities" unless clinic.fetch("capabilities").fetch("inventory_access") && clinic.fetch("inventory_actions").fetch("receive")
+  phase = "account settings contract"
+  settings = JSON.parse(request.call("/api/settings").body)
+  raise "Settings owner/default mismatch" unless settings.fetch("user_id") == user.fetch("id") && settings.dig("appearance", "version") == 0
+  choice = { expected_user_id: user.fetch("id"), appearance: { palette: "graphite", mode: "dark", version: 0 } }
+  saved = post.call("/api/settings", choice, method: "PATCH")
+  raise "Settings save failed" unless saved.code == "200" && JSON.parse(saved.body).dig("appearance", "version") == 1
+  raise "Stale settings accepted" unless post.call("/api/settings", choice, method: "PATCH").code == "409"
+  raise "Settings did not persist" unless JSON.parse(request.call("/api/settings").body).dig("appearance", "palette") == "graphite"
   phase = "inventory wire contract"
   response = post.call("/api/clinic/pharmacy", { clinic_pharmacy_product: { name: "Synthetic split verification", sku: "SPLIT-VERIFY", stock_unit: "mL", quantity_scale: 6, package_size: "0.000001", unit_reference: "Fictional package verification" } })
   raise "Catalog create failed" unless response.code == "201"
@@ -84,7 +92,8 @@ begin
   raise "Review failed" unless post.call("/api/paperworks/#{document.fetch('id')}/start").code == "200"
   raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
   raise "Protected content after logout" unless request.call("/api/clinic").code == "401"
-  puts "PASS: real frontend proxy → Rails session/CSRF/origin, synthetic clinic, exact decimal receipt/retry, portal and logout"
+  raise "Settings exposed after logout" unless request.call("/api/settings").code == "401"
+  puts "PASS: real frontend proxy → Rails session/CSRF/origin, account settings/conflict, synthetic clinic, exact decimal receipt/retry, portal and logout"
 rescue => error
   warn "FAIL during #{phase}: #{error.class}; raw diagnostics suppressed"
   exit 1

@@ -71,7 +71,10 @@ export async function api<T>(
 }
 
 export function loginDestination(value: string | null): string {
-  return value === "/clinic" || value === "/clinic/pharmacy"
+  return value === "/clinic" ||
+    value === "/clinic/pharmacy" ||
+    value === "/clinic/operations" ||
+    value === "/clinic/settings"
     ? value
     : "/portal";
 }

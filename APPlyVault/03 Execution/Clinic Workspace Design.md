@@ -1,6 +1,6 @@
 ---
 type: design-proposal
-status: themes-implemented-layouts-proposed
+status: tracking-board-ui-prototype
 updated: 2026-08-31
 ---
 # Clinic Workspace Design
@@ -15,7 +15,29 @@ Home: [[00 Home]] · Index: [[01 Table of Contents]] · Current product: [[Clini
 
 The [interactive design comparison](../../apps/web/design/clinic-workspace-directions.html) contains three layouts and three interchangeable palettes, with system/light/dark appearances. It is an isolated HTML fragment, outside Vite's runtime/public entrypoints. All examples are independently invented; selections only change the preview. It makes no API requests and does not save, sign, prescribe, transmit or alter stock. Navigation chrome is illustrative; comparison controls, example rows, disclosures and review previews are interactive. The preview uses system fonts, not a downloaded font.
 
-The actual React app still provides the synthetic patient directory/append-only draft foundation, staff directory and inventory controls described in [[Clinic Workspace]]. Intake, triage, visits, scheduling, handoffs, clinical signatures and prescriptions are **not implemented**. No production guard, backend, schema, package dependency, deployment or authentication setting is changed by this design work.
+The actual React app still provides the synthetic patient directory/append-only draft foundation, staff directory and inventory controls described in [[Clinic Workspace]]. Intake, triage, visits, scheduling, handoffs, clinical signatures and prescriptions are **not implemented**. The initial study/themes did not change the backend or schema; D-039 subsequently adds account-owned cosmetic preferences as described below. Production guards, dependencies, authentication policy and hosting remain unchanged.
+
+## Tracking board and Operations — 2026-08-31
+
+### Tracking board increment — failure-first entry
+
+Founder request, 2026-08-31: make Overview a patient tracking board, separate Operations, simplify Patients/Pharmacy labels, and add viewport-height collapsible navigation with a paper-chart tab. Continue on `feature/clinic-settings-responsive`; Codex owns this local synthetic UI increment. Supporting frontend updates are authorized. Current API has directory records but no visit, arrival, triage or patient-membership contract. Do not infer visits or membership from directory entries or staff login membership. Use a prominently labeled, independently invented example shift to demonstrate the board; durable check-in/clinical workflows remain a separate contract, not an invented live feed.
+
+Failure controls: abbreviations can collide, so retain unique example visit references and selected-row identity; missing triage/membership remains unknown, not normal/nonmember. Waiting time means time in the current waiting stage, not total time in clinic; the example clock is fixed and labeled. Filtered counts cannot masquerade as the whole workload. Membership does not set clinical priority. Operations must retain existing capability filtering. Collapsed navigation must remove hidden links from keyboard reach, retain a visible toggle and provide Escape/focus return on small-screen drawers; sidebar scrolling is independent of long page content. Verify these with synthetic tests and permitted browser checks, without bypassing the prior URL-policy block. No new clinical scores, signs/prescriptions, record persistence, permissions or release authority.
+
+### Delivered presentation and data boundary
+
+D-041/U-29 select the tracking-board direction for this cash-pay, membership-based clinic experience. Overview now displays a clearly labeled **example shift**, not a live workload. A visit row includes first initial / first three surname characters, unique example visit reference, age if known, stage/location, reason/type, triage availability, membership, waiting-stage time versus total elapsed time, and next action/owner. Expanded rows show example vital signs with units, entry author/time and review/handoff context. Abbreviations are not de-identification or sufficient clinical identity confirmation. Patient membership is distinct from staff login membership.
+
+Stage filters, visible-label/visit/room/owner search, arrival/current-wait sorting, expansion and empty-filter recovery work. Member/non-member/not verified and missing triage/vitals/owner states remain explicit. The example clock is fixed at 10:20 AM; examples are not derived from directory rows and never enter the database. There are no actionable clinical buttons or fabricated save acknowledgements. New check-in, membership, visit, triage and handoff records still require a separately reviewed contract under T-13; this is not a completed clinical workflow.
+
+`/clinic/operations` uses the existing authorized overview response for office reorder items, active staff and patient-directory totals plus module shortcuts. Counts are not recast as today's attendance. Patients and Pharmacy lose the EHR prefix; Patients retains its directory/draft behavior with a board-return link. The Operations login return is explicitly allowlisted. Existing themes, backend authorization, production denial and launch styling remain.
+
+The sidebar is viewport-height and independently scrollable, with Sign out at its bottom when space permits. A 44px-wide, chart-tab-style button remains available when collapsed. At 760px and below, navigation starts closed and opens as a drawer with outside content inert, focus containment, Escape and focus return. Collapse is transient page state, not an account preference. Row cards reflow on intermediate widths; phone stage selection replaces the large button grid. The sample-source explanation is a disclosure whose closed summary still says **Example shift / Not live**.
+
+Research: S-87's outpatient whiteboard case study supports visit rows with location and workflow fields and iterative local adaptation; S-88 illustrates filtered, documentation-dependent tracking lists. Neither establishes this clinic's workflow or a clinical triage algorithm. S-89 informs disclosure semantics. The chosen columns and membership separation are design inferences plus founder direction, not imported EHR behavior.
+
+Verification and limits: [[Progress Log#2026-08-31 — Tracking board, Operations and chart-tab navigation]] records frontend tests and current browser checks. These do not close T-13, T-43's separate Settings/pharmacy matrix, T-22.2's full accessibility acceptance, or any clinical/security release gate.
 
 ## What the current frontend shows
 
@@ -36,6 +58,22 @@ Initial observations from `apps/web` source and the existing local synthetic cli
 Primary source locations: `apps/web/src/features/clinic/Workspace.tsx`, `Patients.tsx`, `Staff.tsx`; `src/features/inventory/Catalog.tsx`; `src/features/identity/Login.tsx`; `src/shared/ui.tsx`; `public/clinic.css` and `shared.css`. Actual source paths/ownership remain governed by [[Software Architecture]].
 
 ## Implemented appearance preferences — 2026-08-31
+
+### Account settings and responsive correction — local implementation
+
+The founder requested a feature branch, correction of squeezed pharmacy summaries/sidebar actions, testing across device sizes and moving themes into a Settings page tied to the signed-in user (D-039/U-28). Owner: Codex for this local synthetic increment on `feature/clinic-settings-responsive`; current account/clinic authorization, all themes and production denial remain. T-43 records implementation and pending live-browser acceptance. No clinical workflow, hosting or account-management expansion is included.
+
+Failure-first entry: browser-shared preferences could leak into the next account; narrow containers can make controls unreadable; expired sessions, conflicting tabs or lost save responses could falsely report completion. Use server-owned, allowlisted preferences resolved only from the current session, explicit save/error/conflict states and no automatic import of the old browser preference. Verify isolated synthetic accounts, validation/authorization/CSRF and repeated/stale writes, plus desktop/tablet/phone overflow, control wrapping and keyboard interaction. Keep failed edits visibly unsaved and offer reloading the saved settings.
+
+**Delivered:** `/clinic/settings` is the initial personal Settings page, reached from clinic navigation or My settings. It displays the signed-in account and provides Color theme / Brightness plus an explicit Save appearance action. Saved preferences are loaded on later page loads/sessions on that account; Follow system resolves separately on each device. There is no live push to other open tabs. Unsaved choices do not change the current theme. Reloading discards unsaved choices and retrieves the acknowledged server state.
+
+`Identity::Preference` stores only palette, mode and revision with a unique user foreign key, allowlist checks and revision constraints. `/api/settings` GET/PATCH/PUT derives the target from the authenticated session; the submitted expected user ID is a mismatch guard, never a target selector. Server-side user-row locking serializes first saves, stale versions return conflict, and the frontend validates response ownership before reporting success. Old browser-local preferences are no longer read/written or automatically assigned to any account; the unused old key is not deleted. No credentials or records move into browser persistence, and no permission/provisioning/password controls were added.
+
+**Containers:** summary labels, quantities and explanatory text now stack vertically within each tile. The grid has four columns above 1150px, two from 601–1150px, and one through 600px; Settings fields also stack through 600px. Sign out uses its own single-column form instead of the inventory form grid, with a nonwrapping button. Theme tokens and launch styling are preserved.
+
+**Evidence and remaining acceptance:** [[Progress Log#2026-08-31 — User settings and responsive container corrections]] records 83 Rails tests / 853 assertions, 42 frontend tests, migration/restore/concurrency and HTTP verification. Fourteen source-level width checks cover 320–1440px, not a rendering engine. Browser access was blocked by URL safety policy during navigation, including a connection-error document; it was not bypassed. No corrected-screen screenshots, live viewport, keyboard, screen-reader or zoom results are claimed. Manually verify 320/390px phones, 768/834px portrait tablets, 959/1024px intermediate/landscape widths and 1280/1440px desktop: summary/control wrapping, page versus contained-table overflow, keyboard focus, all themes, save/reload and account switching. T-43/T-22.2 stay open for that acceptance.
+
+### Original browser-local baseline — superseded by D-039
 
 D-036/T-41 implement **Sage & ivory**, **Mineral blue** and **Warm graphite** in the clinic's Appearance disclosure. Each supports Light, Dark or Follow system; system mode responds to device preference changes. The default is Sage & ivory / Follow system. Native labeled selects expand inline without covering work; the picker stacks on narrow screens and controls target at least 44px height. Active navigation now has a visible marker and `aria-current="page"`; the clinic uses system sans-serif, larger labels and 16px form/action text.
 

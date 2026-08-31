@@ -45,6 +45,28 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
         {developmentLogin && (
           <>
             <hr />
+            <h3>Reusable local test logins</h3>
+            <Form
+              endpoint="/api/development_session"
+              submit="Use test login"
+              onSuccess={done}
+            >
+              <Field
+                name="profile"
+                label="Test account"
+                options={[
+                  ["client-a", "Test Client A"],
+                  ["client-b", "Test Client B"],
+                  ["admin", "Test Admin — inquiry inbox"],
+                  ["disabled", "Test Disabled — expected sign-in denial"],
+                ]}
+              />
+            </Form>
+            <p className="form-note">
+              Local synthetic accounts only; no password needed. Client A and B
+              retain separate progress and test clinics. Test Admin has inbox
+              access, not clinic access. Sessions end 12 hours after login.
+            </p>
             <Form
               endpoint="/api/development_session"
               submit="Continue as demo client"

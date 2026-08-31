@@ -1,5 +1,13 @@
 // Browser-facing response types only. Business rules live in apps/api.
 export type Decimal = string;
+export type AppearancePreference = {
+  palette: "sage" | "blue" | "graphite";
+  mode: "system" | "light" | "dark";
+};
+export type UserSettings = {
+  user_id: number;
+  appearance: AppearancePreference & { version: number };
+};
 export type User = {
   id: number;
   email_address: string;
