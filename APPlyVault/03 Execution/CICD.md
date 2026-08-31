@@ -81,6 +81,14 @@ APP_DEVELOPMENT_LOGIN=1 bin/dev
 
 Open [local login](http://127.0.0.1:3000/login) and explicitly choose **Continue as demo client** for a new fictional Test Clinic. Omit the flag for ordinary provisioned-account login. No navigation action creates a session automatically. Both development servers must remain loopback-only and must never be tunneled.
 
+For D-040's **reusable local test logins**, prepare them once from `apps/api/` in your own development database:
+
+```sh
+APP_DEVELOPMENT_LOGIN=1 bin/postgres exec bin/rails members:prepare_test_accounts
+```
+
+Run the app with the same development flag, then select Test Client A, Test Client B, Test Admin or Test Disabled at login. The named identities retain progress; setup reruns do not reset existing accounts or their permissions. No passwords are issued. See [[Client Access Workflow#Reusable local test accounts]] for role limits, collision handling and the 12-hour absolute session maximum. This task refuses production mode; never run it against a hosted database or tunnel the local shortcut. Each developer uses their own checkout/database; staging is shared integration review, not an isolated personal sandbox. No production admin appointments are required for these synthetic personas.
+
 After setup, root `bin/dev` starts only Rails and Vite; it does not start PostgreSQL, install dependencies, apply migrations or reset databases. Start PostgreSQL first if stopped. Ctrl-C stops only the child processes it started, leaving persistent database storage intact. It refuses occupied ports 3000/3001; do not kill an unrelated server to free them. Frontend edits use Vite reload; restart the appropriate process after configuration/dependency changes.
 
 ### Request path and runtime ownership
