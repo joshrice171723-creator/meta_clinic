@@ -56,6 +56,8 @@ class ApplicationController < ActionController::Base
   def require_admin
     require_member
     return if performed?
-    render json: { error: "This page is for APPly administrators." }, status: :forbidden unless current_user.admin?
+    return if current_user.admin? || development_omni?
+
+    render json: { error: "This page is for APPly administrators." }, status: :forbidden
   end
 end
