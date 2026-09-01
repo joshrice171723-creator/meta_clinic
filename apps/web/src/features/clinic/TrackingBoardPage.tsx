@@ -1,4 +1,9 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   Box,
   Chip,
@@ -72,6 +77,15 @@ const initialColumns: ColumnKey[] = [
   "membership",
   "wait",
 ];
+const MIN_COLUMN_WIDTH = 110;
+const initialColumnWidths: Record<ColumnKey, number> = {
+  patient: 180,
+  stage: 190,
+  reason: 180,
+  triage: 220,
+  membership: 150,
+  wait: 170,
+};
 const columnLabels: Record<ColumnKey, string> = {
   patient: "Patient",
   stage: "Location",
@@ -84,10 +98,12 @@ function ExampleVisitRow({
   visit,
   now,
   columns,
+  striped,
 }: {
   visit: BoardVisit;
   now: string;
   columns: ColumnKey[];
+  striped: boolean;
 }) {
   const [soapOpen, setSoapOpen] = useState(false);
   const stage = VISIT_STAGES.find((s) => s.id === visit.stage)!;
@@ -95,7 +111,11 @@ function ExampleVisitRow({
   const tableLabel = patientTableLabel(visit);
   return (
     <>
-      <TableRow hover className="tracking-visit" data-stage={visit.stage}>
+      <TableRow
+        hover
+        className={`tracking-visit${striped ? " tracking-visit-alt" : ""}`}
+        data-stage={visit.stage}
+      >
         {columns.map((column) =>
           column === "patient" ? (
             <TableCell key={column} component="th" scope="row">
@@ -242,7 +262,7 @@ function ExampleVisitRow({
           ),
         )}
       </TableRow>
-      <TableRow>
+      <TableRow className={striped ? "tracking-detail-row-alt" : undefined}>
         <TableCell colSpan={columns.length} sx={{ p: 0, border: 0 }}>
           <Collapse in={soapOpen} timeout="auto" unmountOnExit>
             <Box
@@ -293,6 +313,14 @@ export function TrackingBoardView({
   const [sortBy, setSortBy] = useState<ColumnKey>("patient");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [columnWidths, setColumnWidths] =
+    useState<Record<ColumnKey, number>>(initialColumnWidths);
+  const [resizingColumn, setResizingColumn] = useState<ColumnKey | null>(null);
+  const resizeState = useRef<{
+    column: ColumnKey;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
   const filtered = filterVisits(visits, stage, query, "arrival", now);
   const sorted = [...filtered].sort((left, right) => {
     const value = (visit: BoardVisit) => {
@@ -335,6 +363,37 @@ export function TrackingBoardView({
       next.splice(toIndex, 0, from);
       return next;
     });
+  };
+  useEffect(() => {
+    if (!resizingColumn) return;
+    const handlePointerMove = (event: PointerEvent) => {
+      const current = resizeState.current;
+      if (!current) return;
+      const nextWidth = Math.max(
+        MIN_COLUMN_WIDTH,
+        current.startWidth + event.clientX - current.startX,
+      );
+      setColumnWidths((widths) => ({
+        ...widths,
+        [current.column]: nextWidth,
+      }));
+    };
+    const handlePointerUp = () => {
+      resizeState.current = null;
+      setResizingColumn(null);
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [resizingColumn]);
+  const resizeColumnWithKeyboard = (column: ColumnKey, delta: number) => {
+    setColumnWidths((widths) => ({
+      ...widths,
+      [column]: Math.max(MIN_COLUMN_WIDTH, widths[column] + delta),
+    }));
   };
   return (
     <section className="tracking-board" aria-labelledby="tracking-title">
@@ -408,8 +467,19 @@ export function TrackingBoardView({
         <Table
           stickyHeader
           aria-label="Clinic patient tracking board"
-          sx={{ minWidth: 980 }}
+          sx={{
+            minWidth: columns.reduce(
+              (total, column) => total + columnWidths[column],
+              0,
+            ),
+            tableLayout: "fixed",
+          }}
         >
+          <colgroup>
+            {columns.map((column) => (
+              <col key={column} style={{ width: columnWidths[column] }} />
+            ))}
+          </colgroup>
           <TableHead>
             <TableRow>
               {columns.map((column) => (
@@ -456,17 +526,54 @@ export function TrackingBoardView({
                       ↔ Drag to move
                     </Typography>
                   )}
+                  <span
+                    className={`tracking-column-resize${resizingColumn === column ? " is-resizing" : ""}`}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={`Resize ${columnLabels[column]} column`}
+                    aria-valuemin={MIN_COLUMN_WIDTH}
+                    aria-valuenow={columnWidths[column]}
+                    tabIndex={0}
+                    draggable={false}
+                    onPointerDown={(
+                      event: ReactPointerEvent<HTMLSpanElement>,
+                    ) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      resizeState.current = {
+                        column,
+                        startX: event.clientX,
+                        startWidth: columnWidths[column],
+                      };
+                      setResizingColumn(column);
+                      event.currentTarget.setPointerCapture?.(event.pointerId);
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "ArrowLeft" ||
+                        event.key === "ArrowRight"
+                      ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        resizeColumnWithKeyboard(
+                          column,
+                          event.key === "ArrowLeft" ? -10 : 10,
+                        );
+                      }
+                    }}
+                  />
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {sorted.map((visit) => (
+            {sorted.map((visit, index) => (
               <ExampleVisitRow
                 key={visit.id}
                 visit={visit}
                 now={now}
                 columns={columns}
+                striped={index % 2 === 1}
               />
             ))}
           </TableBody>
