@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   ClinicOverview,
   ClinicWorkspaceContext,
+  EncounterNote,
+  NoteTemplate,
 } from "../src/api/contracts";
 import { loginDestination } from "../src/api/client";
 import {
@@ -17,7 +19,10 @@ import {
   appointmentDefaults,
   appointmentIntervalError,
   EncounterView,
+  hasSoapContent,
   ScheduleView,
+  SoapNoteForm,
+  templateWouldOverwrite,
 } from "../src/features/clinic/CareFlow";
 import {
   OverviewView,
@@ -75,6 +80,8 @@ const contextCapabilities = {
   inventory: true,
   appointments: true,
   encounters: true,
+  notes_read: true,
+  notes_write: true,
   documents: true,
   messages: true,
   billing: true,
@@ -324,7 +331,7 @@ describe("mapped read-only care flow", () => {
     expect(html).toContain('href="/clinic/patients/7/encounters/9"');
     expect(html).not.toContain("Start intake");
   });
-  it("shows recorded encounter context while keeping protected actions blocked", () => {
+  it("shows recorded encounter context while requiring the protected note workspace", () => {
     const html = renderToStaticMarkup(
       <EncounterView
         patient={{ id: 7, display_name: "Synthetic Person", reference: "P-7" }}
@@ -340,6 +347,7 @@ describe("mapped read-only care flow", () => {
           status: "open",
           participants: [],
           note_ids: [11],
+          notes: [],
           observation_count: 1,
           document_count: 0,
         }}
@@ -367,9 +375,103 @@ describe("mapped read-only care flow", () => {
     );
     expect(html).toContain("open/completed API status");
     expect(html).toContain("72 beats/min");
-    expect(html).toContain("Editor and signing unavailable");
+    expect(html).toContain("Editor unavailable");
     expect(html).not.toContain("<textarea");
     expect(html).not.toContain("<button");
+  });
+  it("treats template application as an explicit potentially destructive action", () => {
+    const template: NoteTemplate = {
+      id: "adult-physical-exam-detailed",
+      version: 1,
+      label: "Adult physical exam",
+      note_kind: "soap",
+      source_label: "Synthetic source",
+      source_url: "https://example.invalid/template",
+      caution: "Review every statement.",
+      sections: {
+        subjective: "",
+        objective: "Starter objective",
+        assessment: "",
+        plan: "",
+      },
+    };
+    expect(hasSoapContent(template.sections)).toBe(true);
+    expect(
+      templateWouldOverwrite(
+        { ...template.sections, subjective: "Existing history" },
+        template,
+      ),
+    ).toBe(true);
+    expect(templateWouldOverwrite(template.sections, template)).toBe(false);
+  });
+  it("renders a draft-only SOAP editor without auto-applying normal findings", () => {
+    const template: NoteTemplate = {
+      id: "adult-physical-exam-detailed",
+      version: 1,
+      label: "Adult physical exam (12+), detailed",
+      note_kind: "soap",
+      source_label: "Synthetic source",
+      source_url: "https://example.invalid/template",
+      caution: "Review every statement before saving.",
+      sections: {
+        subjective: "",
+        objective: "Starter normal finding must not appear before application",
+        assessment: "",
+        plan: "",
+      },
+    };
+    const html = renderToStaticMarkup(
+      <SoapNoteForm encounterId={9} templates={[template]} canWrite />,
+    );
+    for (const name of ["subjective", "objective", "assessment", "plan"])
+      expect(html).toContain(`name="${name}"`);
+    expect(html).toContain("Apply starter text");
+    expect(html).toContain("Save draft");
+    expect(html).toContain("Review every statement before saving.");
+    expect(html).not.toContain(
+      "Starter normal finding must not appear before application",
+    );
+    expect(html).not.toContain("Sign note");
+    expect(html).not.toContain("Prescription");
+  });
+  it("renders an acknowledged SOAP revision without a template overwrite control", () => {
+    const note: EncounterNote = {
+      id: 11,
+      patient_id: 7,
+      encounter_id: 9,
+      note_kind: "soap",
+      version: 0,
+      latest_revision: 2,
+      signed: false,
+      current_revision: {
+        id: 22,
+        revision_no: 2,
+        author_membership_id: 3,
+        payload_version: 1,
+        created_at: "2026-09-01T12:00:00Z",
+        signed: false,
+        body: {
+          schema: "soap-note-v1",
+          note_kind: "soap",
+          template_id: "adult-physical-exam-detailed",
+          template_version: 1,
+          sections: {
+            subjective: "Synthetic saved history",
+            objective: "Synthetic saved exam",
+            assessment: "Synthetic assessment",
+            plan: "Synthetic plan",
+          },
+        },
+      },
+      revisions: [],
+    };
+    const html = renderToStaticMarkup(
+      <SoapNoteForm encounterId={9} note={note} templates={[]} canWrite />,
+    );
+    expect(html).toContain("Draft revision 2");
+    expect(html).toContain("Synthetic saved history");
+    expect(html).toContain("Save new revision");
+    expect(html).not.toContain("Apply starter text");
   });
 });
 describe("viewport-height chart-tab navigation", () => {

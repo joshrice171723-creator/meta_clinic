@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"
+    get "note_templates", to: "care/note_templates#index"
     get "facilities", to: "facilities#index"
     resources :clinicians, controller: "clinicians", only: :index
     resources :role_versions, controller: "role_versions", only: :index
@@ -11,7 +12,7 @@ Rails.application.routes.draw do
     end
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       post :close, on: :member
-      resources :notes, controller: "care/encounter_notes", only: :create
+      resources :notes, controller: "care/encounter_notes", only: %i[index create]
     end
     resources :notes, controller: "care/encounter_notes", only: :show do
       post :revisions, on: :member, action: :revise

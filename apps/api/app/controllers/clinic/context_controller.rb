@@ -14,6 +14,8 @@ module Clinic
           inventory: allowed?("inventory.read"),
           appointments: allowed?("appointments.write"),
           encounters: allowed?("encounters.write"),
+          notes_read: allowed?("notes.read"),
+          notes_write: allowed?("notes.write"),
           documents: allowed?("documents.read"),
           messages: allowed?("messages.write"),
           billing: allowed?("billing.write"),

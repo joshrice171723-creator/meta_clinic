@@ -2,7 +2,9 @@ module Development
   # Wholly invented fixtures. Re-running preserves existing scenario edits and grants.
   class BackendSamples
     ROLES = {
-      "admin" => TestClinic::DEFAULT_PERMISSIONS,
+      # Keep the already-granted review role immutable; SOAP note reads use
+      # TestClinic/Omni fixtures until a versioned sample-role transition exists.
+      "admin" => TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ],
       "clinician" => %w[patients.read patients.write appointments.write encounters.write notes.write notes.sign observations.write documents.read],
       "staff" => %w[patients.read patients.write appointments.write inventory.read staff.read messages.write],
       "reader" => %w[patients.read documents.read inventory.read staff.read]

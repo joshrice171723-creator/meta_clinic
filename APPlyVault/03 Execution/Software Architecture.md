@@ -1,7 +1,7 @@
 ---
 type: architecture
 status: implemented-frontend-api-split
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # Software Architecture
 
@@ -92,6 +92,8 @@ D-036/T-41 subsequently added three clinic palettes and system/light/dark modes.
 The local-only Omni iteration fixture is a separate, guarded exception rather than a general preference or role editor. `Development::OmniAccess` owns six fixed view labels and the single active profile; `/api/settings` includes `development_access` only after verifying the reserved Omni identity, membership, administrator flag and exactly one recognized Omni grant. `PATCH`/`PUT /api/development_access` rechecks those conditions and the loopback development policy, then performs a revisioned grant transition and audit. While any Omni profile is selected, the central clinic ability grants the account every existing clinic permission and CanCan action in the local development/test database; the selected profile still toggles the administrator flag for UI/workflow rehearsal. Ordinary users cannot send user IDs or permission lists, and the endpoint and override are absent in production behavior even if the enable flag is set. The browser selector reflects server authority and reloads the workspace after a successful swap; it never grants access by hiding or showing navigation alone.
 
 D-041/T-44 place the Overview example-shift presentation in `TrackingBoardPage.tsx` with isolated, independently invented `trackingBoardData.ts` examples. These are frontend demonstration data, not API contracts or directory-derived visits. `Operations.tsx` consumes existing capability-filtered overview data at `/clinic/operations`. `ClinicFrame.tsx` owns transient navigation collapse/drawer focus behavior; `Appearance.tsx` imports the base theme, frame and board styles in that order. No browser persistence or backend workflow is introduced. Durable visit/triage/membership work needs its own reviewed producer/consumer contract under T-13.
+
+D-045's SOAP draft slice keeps template and note authority in Rails. `Clinic::Care::NoteTemplateCatalog` owns immutable template IDs, versions, source metadata and starter sections; the browser never supplies arbitrary template definitions. `Clinic::Care::SoapNotePayload` owns the versioned four-section shape, size/blank validation and template-transition rule. `Clinic::EncounterNote` remains the stable encounter-bound header, while encrypted `Clinic::EncounterNoteRevision` rows preserve append-only bodies and author/revision/digest provenance. The encounter API accepts plain named sections only across the authorized HTTPS boundary and returns decrypted structured content only from scoped SOAP detail reads; legacy bodies remain omitted. Separate `notes.read` and `notes.write` checks, expected-revision conflicts, response ownership and no automatic mutation replay remain required. Signing/prescribing are not browser capabilities in this increment, and the public starter source is not clinical or reuse approval.
 
 Existing launch JSON endpoints remain, with an authenticated paperwork text-receipt endpoint. Clinic JSON endpoints live under `/api/clinic`. `apps/web/src/api/contracts.ts` and `apps/api/test/architecture/routes_contract.json` define the browser response types and API route contract. Change producers/consumers and their tests together; do not import Ruby/backend code into the web app.
 

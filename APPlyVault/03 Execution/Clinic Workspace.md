@@ -1,7 +1,7 @@
 ---
 type: implementation
 status: synthetic-local-prototype
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # Clinic Workspace
 
@@ -37,6 +37,14 @@ The launch interface retains its existing styles. These local changes do not imp
 The current working tree (not yet committed or accepted) adds `@mui/material` with Emotion and scopes a derived MUI theme through `ClinicAppearanceScope`; the existing clinic CSS/tokens and account-owned theme settings remain in place. This is a presentation-layer change only and does not change browser authority, API tenancy, production denial or the synthetic-only boundary.
 
 The working tree also extends synthetic patient registration and detail responses with demographics, contacts, emergency contacts, communication preferences and social-history fields, plus an update path. `CareFlow.tsx` now presents MUI-based scheduling/appointment and encounter controls backed by current clinic APIs. These observations do not establish that the new fields are clinically complete, that encrypted fields are protected in the deployed sense, or that booking, triage, note signing or prescribing workflows are release-ready. The migration/model work remains uncommitted concurrent work; no migration was run during this review.
+
+## Basic SOAP-note draft scaffold — 2026-09-01
+
+D-045 adds a bounded provider-facing SOAP composer to the real encounter page. The API owns a versioned template catalog and a structured `soap-note-v1` payload with four named sections. The first catalog entry uses a paraphrased adult physical-exam starter in Objective only and records its public Time of Care source; providers must explicitly apply it. Subjective, Assessment and Plan begin blank, existing text is never silently overwritten, and the UI labels the starter as unverified reference content.
+
+Each encounter can have one SOAP note header with append-only encrypted revisions. Create/revise requests carry the template ID/version, expected revision when applicable and plaintext section fields over the authorized request boundary; Rails validates, encrypts and stores them. The browser holds unsaved content in memory, warns on navigation/reload, does not autosave or automatically retry an unknown outcome, and explains stale revision conflicts. `notes.read` and `notes.write` remain separate server capabilities. Legacy drafts retain their existing metadata-only behavior.
+
+This increment exposes no signature, prescription, encounter-closing or clinical decision-support action. Template wording, clinical completeness, reuse rights, signing/addendum policy, role transition and production/real-data readiness remain open. The implementation and verification result are recorded in [[Progress Log#2026-09-01 — Basic SOAP-note draft scaffold implemented]]; T-13 remains in progress rather than complete.
 
 ## Current PostgreSQL inventory implementation
 

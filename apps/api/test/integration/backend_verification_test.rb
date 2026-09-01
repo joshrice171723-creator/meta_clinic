@@ -142,6 +142,37 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "note templates and note bodies require explicit note-read authority" do
+    own = @tenants.first
+    get "/api/clinic/note_templates", headers: @headers
+    assert_response :success
+    assert_equal [ "adult-physical-exam-detailed" ], response.parsed_body.fetch("templates").pluck("id")
+
+    soap_body = Clinic::Care::SoapNotePayload.dump(
+      template_id: "adult-physical-exam-detailed", template_version: 1,
+      sections: { subjective: "Synthetic protected history", objective: "Synthetic finding", assessment: "", plan: "" }
+    )
+    soap = Clinic::Care::CreateEncounterNote.call(practice: own[:practice], actor: own[:user],
+      encounter: own[:encounter], note_kind: "soap", encrypted_body: soap_body)
+    reader = User.create!(email_address: "note-reader@example.invalid", password: @password)
+    reader_membership = own[:practice].memberships.create!(user: reader)
+    grant_permissions!(reader_membership, "patients.read")
+    grant_permissions!(reader_membership, "notes.read")
+    login(reader)
+    get "/api/clinic/notes/#{soap.id}", headers: @headers
+    assert_response :success
+    assert_equal "Synthetic protected history",
+      response.parsed_body.dig("note", "current_revision", "body", "sections", "subjective")
+
+    set_permission!(reader_membership, "notes.read", false)
+    get "/api/clinic/notes/#{soap.id}", headers: @headers
+    assert_response :forbidden
+    get "/api/clinic/note_templates", headers: @headers
+    assert_response :forbidden
+    get "/api/clinic/patients/#{own[:patient].id}", headers: @headers
+    assert_response :success
+  end
+
   test "timestamps without an explicit offset are rejected" do
     own = @tenants.first
     submit "/api/clinic/appointments", { appointment: { patient_id: own[:patient].id, starts_at: "2026-11-01T01:00:00", ends_at: "2026-11-01T01:30:00" } }
@@ -153,19 +184,29 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     submit "/api/clinic/patients/#{own[:patient].id}/encounters", { encounter: { started_at: "2026-09-01T09:00:00Z" } }
     assert_response :created
     encounter_id = response.parsed_body.dig("encounter", "id")
-    submit "/api/clinic/encounters/#{encounter_id}/notes", { encounter_note: { encrypted_body: "Synthetic API first draft" } }
+    first_note = {
+      note_kind: "soap", template_id: "adult-physical-exam-detailed", template_version: 1,
+      subjective: "Synthetic API first draft", objective: "Synthetic objective", assessment: "", plan: ""
+    }
+    submit "/api/clinic/encounters/#{encounter_id}/notes", { encounter_note: first_note }
     assert_response :created
     note_id = response.parsed_body.dig("note", "id")
-    submit "/api/clinic/notes/#{note_id}/revisions", { revision: { encrypted_body: "Synthetic API second draft", expected_revision: 1 } }
+    second_note = first_note.except(:note_kind).merge(subjective: "Synthetic API second draft", expected_revision: 1)
+    submit "/api/clinic/notes/#{note_id}/revisions", { revision: second_note }
     assert_response :created
-    submit "/api/clinic/notes/#{note_id}/revisions", { revision: { encrypted_body: "Synthetic stale", expected_revision: 1 } }
+    assert_equal "Synthetic API second draft", response.parsed_body.dig("note", "current_revision", "body", "sections", "subjective")
+    submit "/api/clinic/notes/#{note_id}/revisions", { revision: second_note.merge(subjective: "Synthetic stale") }
     assert_response :conflict
-    signature = { revision_no: 2, content_digest: Digest::SHA256.hexdigest("Synthetic API second draft"), attestation_version: "synthetic-only" }
+    saved_payload = Clinic::Care::SoapNotePayload.dump(
+      template_id: second_note[:template_id], template_version: second_note[:template_version],
+      sections: second_note.slice(:subjective, :objective, :assessment, :plan)
+    )
+    signature = { revision_no: 2, content_digest: Digest::SHA256.hexdigest(saved_payload), attestation_version: "synthetic-only" }
     submit "/api/clinic/notes/#{note_id}/signatures", { signature: signature.merge(signed_at: "1999-01-01T00:00:00Z") }
     assert_response :bad_request
     submit "/api/clinic/notes/#{note_id}/signatures", { signature: signature }
     assert_response :created
-    submit "/api/clinic/notes/#{note_id}/revisions", { revision: { encrypted_body: "Synthetic overwrite", expected_revision: 2 } }
+    submit "/api/clinic/notes/#{note_id}/revisions", { revision: second_note.merge(subjective: "Synthetic overwrite", expected_revision: 2) }
     assert_response :unprocessable_entity
     submit "/api/clinic/encounters/#{encounter_id}/close", { close: { ended_at: "2026-09-01T09:30:00Z" } }
     assert_response :success

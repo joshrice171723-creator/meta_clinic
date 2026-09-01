@@ -6,13 +6,16 @@ module Clinic
           id: note.id,
           patient_id: note.patient_id,
           encounter_id: note.encounter_id,
+          note_kind: note.note_kind,
           version: note.lock_version,
           latest_revision: note.revisions.maximum(:revision_no),
           signed: note.signatures.exists?
         }
         return payload unless detail
 
+        latest = note.revisions.order(revision_no: :desc).first
         payload.merge(
+          current_revision: current_revision(note, latest),
           revisions: note.revisions.chronological.includes(:signatures).map { |revision|
             {
               id: revision.id,
@@ -35,6 +38,22 @@ module Clinic
             }
           }
         )
+      end
+
+      def self.current_revision(note, revision)
+        return unless revision
+
+        payload = {
+          id: revision.id,
+          revision_no: revision.revision_no,
+          author_membership_id: revision.author_membership_id,
+          payload_version: revision.payload_version,
+          created_at: revision.created_at&.iso8601(6),
+          signed: revision.signatures.exists?
+        }
+        return payload unless note.note_kind == "soap"
+
+        payload.merge(body: SoapNotePayload.load!(revision.encrypted_body))
       end
     end
   end

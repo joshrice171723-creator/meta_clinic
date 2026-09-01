@@ -9,7 +9,9 @@ module Clinic
     has_many :revisions, class_name: "Clinic::EncounterNoteRevision", foreign_key: :note_id, dependent: :restrict_with_error
     has_many :signatures, class_name: "Clinic::EncounterNoteSignature", foreign_key: :note_id, dependent: :restrict_with_error
 
-    validates :patient_id, :encounter_id, presence: true
+    validates :patient_id, :encounter_id, :note_kind, presence: true
+    validates :note_kind, format: { with: /\A[a-z][a-z0-9_]*\z/ }
+    validates :note_kind, uniqueness: { scope: %i[practice_id encounter_id] }, if: -> { note_kind == "soap" }
     validate :encounter_belongs_to_patient
 
     private

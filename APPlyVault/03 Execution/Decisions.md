@@ -1,7 +1,7 @@
 ---
 type: decision-log
 status: active
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # Decisions
 
@@ -162,3 +162,9 @@ Production admin assignments among the three founding members referred to by the
 **D-044 — 2026-08-31 / founder's explicit scope change:** prepare the next backend implementation pass to replace the entire current backend structure with the recommended corrected ERDs, after minor founder amendments, using D-043's PaperTrail auditing requirements. [[ERD Implementation Prompt]] revision 5 is the full-replacement handoff; [[Target-State Clinic ERD]] is its baseline pending those amendments. This supersedes the earlier prompt's foundation-hardening-only scope, physical-structure preservation default and automatic deferral of pictured modules. Existing behavior, integrity and history must be mapped and preserved or explicitly transitioned; old implementation shape is not the destination contract.
 
 **Limits:** the minor changes have not yet been supplied; finalize and record them before structural implementation. This request prepares a prompt, not an executed rewrite. No permission to reset existing databases, discard records/audit history, rewrite shared applied migrations, remove non-ERD workflows without disposition, access real data, choose external services or deploy is inferred. API/frontend separation, one-clinic-per-login, supplier/fee deferrals and clinical/confidential/security/operational gates remain unless explicitly amended. No implementation task or release gate is marked complete by this planning decision.
+
+## Basic SOAP-note draft scaffold
+
+**D-045 — 2026-09-01 / founder's planning acceptance and implementation request:** implement the accepted basic SOAP-note scaffold on a feature branch. The initial template is a generic SOAP note whose Objective starter is adapted from the public Time of Care adult physical-exam template; the product should support multiple provider-selectable templates later. The bounded first implementation is an encounter-bound, structured Subjective/Objective/Assessment/Plan draft with explicit template application, immutable revisions, stale-write handling and separate read/write authority.
+
+**Limits:** the public template is reference material, not approved clinical content, medical advice or evidence of reuse rights. Only Objective receives starter text; no field is defaulted to “normal,” and applying a template over entered text requires explicit confirmation. Signing, prescribing, autosave, handoff/completion semantics, addenda/corrections, reviewed clinical content and real-data/production use remain separately gated. This decision authorizes the local synthetic implementation pass and its tests/documentation, not deployment or closure of T-13, L-05, E2/E3 or any professional review.

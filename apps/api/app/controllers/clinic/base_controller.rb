@@ -79,7 +79,7 @@ module Clinic
     def sensitive_read_action
       case [ controller_path, action_name ]
       when [ "clinic/care/patients", "index" ], [ "clinic/care/patients", "show" ] then "patients.read"
-      when [ "clinic/care/encounter_notes", "show" ] then "notes.read"
+      when [ "clinic/care/encounter_notes", "index" ], [ "clinic/care/encounter_notes", "show" ] then "notes.read"
       when [ "clinic/care/observations", "index" ] then "observations.read"
       when [ "clinic/care/patient_addresses", "index" ] then "patient_addresses.read"
       when [ "clinic/documents", "index" ], [ "clinic/documents", "show" ] then "documents.read"
