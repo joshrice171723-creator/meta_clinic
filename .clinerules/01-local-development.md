@@ -1,0 +1,1 @@
+For local development servers, use a detached/background process and write output to a temporary log file. Wait for the relevant local health endpoint before continuing. Do not leave foreground dev-server commands running when an equivalent detached startup is available.
