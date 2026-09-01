@@ -37,8 +37,25 @@ rescue Errno::EADDRINUSE
 end
 
 def run!(*command, chdir: nil)
-  output, status = Open3.capture2e(*command, chdir: chdir)
+  options = {}
+  options[:chdir] = chdir if chdir
+  output, status = Open3.capture2e(*command, **options)
   abort output unless status.success?
+end
+
+def managed_process?(path)
+  pid = Integer(File.read(path).strip, 10)
+  Process.kill(0, pid)
+  true
+rescue Errno::ENOENT, Errno::ESRCH, ArgumentError
+  false
+end
+
+def require_managed_or_available_port!(port, pid_path)
+  return unless port_in_use?(port)
+  return if managed_process?(pid_path)
+
+  abort "Port #{port} is already in use by a process not managed by this APPly checkout. Stop or relocate that process, then retry."
 end
 
 def http_ready?(url)
@@ -74,6 +91,9 @@ if !docker_ready && !no_docker_start
   docker_ready = wait_until(90) { system("docker", "info", out: File::NULL, err: File::NULL) }
 end
 abort "Docker is not running. Start Docker and retry (or use --no-docker-start for an immediate check)." unless docker_ready
+
+require_managed_or_available_port!(3001, File.join(pid_root, "api.pid"))
+require_managed_or_available_port!(3000, File.join(pid_root, "web.pid"))
 
 container_exists = system("docker", "container", "inspect", container, out: File::NULL, err: File::NULL)
 if !container_exists

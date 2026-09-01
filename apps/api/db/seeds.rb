@@ -1,5 +1,6 @@
 # Original, non-clinical examples. No accounts, patient data, or actual packet forms.
 # Tests create their own records, independent of whether db:prepare ran first.
+Staging::DemoClinic.seed_authorization! if Staging::DemoClinic.deployment?
 return if Rails.env.test? || !DemoContent.enabled?
 samples = [
   {

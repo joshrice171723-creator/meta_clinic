@@ -35,7 +35,7 @@ D-033 separates the browser application in `apps/web/` from the Rails JSON backe
 | Local development | Frontend at `127.0.0.1:3000`, Rails at `127.0.0.1:3001`, PostgreSQL helper at `127.0.0.1:54329`. Synthetic records only. |
 | CI | Six jobs in repository-root `.github/workflows/ci.yml`; exact checks below. Main run `33366127061` passed the preceding five-job configuration for `a710f635f4f0ca653cb6213200a6b4b3845a6914`; PR run `33469316602` passed all six jobs for the pre-rebase agent-workflow commit. |
 | Hosted baseline | Staging: PostgreSQL 18.6 plus separate API/web services verified 2026-08-31. Production: unchanged Rails/SQLite bootstrap; no fresh production row-count assertion. Independent storage/keys and ECR remain. |
-| Delivery | Staging OIDC role and fixed pair-aware SSM document installed; main-push CI drives staging. Production role, controls and cutover were deliberately not activated. |
+| Delivery | Staging OIDC role and fixed pair-aware SSM document installed; staging delivery requires a confirmed manual workflow run on `main`. Production role, controls and cutover were deliberately not activated. |
 
 Runtime references are `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. T-22/M0 owns CI/browser acceptance, T-20/M1 hosted operations, and T-38 the controlled PostgreSQL cutover. Do not install PostgreSQL source over the SQLite host without the [cutover runbook](../../ops/aws/ec2/postgres-cutover.md).
 
@@ -90,6 +90,10 @@ APP_DEVELOPMENT_LOGIN=1 bin/postgres exec bin/rails members:prepare_test_account
 Run the app with the same development flag, then select Test Client A, Test Client B, Test Admin, Test Disabled or the dedicated **OmniLogin**. The first four named identities retain their fixed progress and permissions; setup reruns do not reset them. Omni retains one local clinic, now populated in place with the rich patient, scheduling, vital-sign and SOAP scenarios, while Settings → Development view can switch its administrator flag/view label among administrator, clinician, clinic-staff, inventory-manager, read-only and client profiles. Every Omni profile retains unrestricted access to the existing clinic surface in the explicitly enabled local development database, so the selector is for UI/workflow rehearsal rather than permission restriction. No passwords are issued. See [[Client Access Workflow#Reusable local test accounts]] for collision handling and the 12-hour absolute session maximum. Preparation, Omni login and Omni view switching all refuse production mode and require the explicitly enabled loopback-development boundary; never run them against a hosted database or tunnel the local shortcut. Each developer uses their own checkout/database; staging is shared integration review, not an isolated personal sandbox. No production admin appointments are required for these synthetic personas.
 
 After setup, root `bin/dev` starts only Rails and Vite; it does not start PostgreSQL, install dependencies, apply migrations or reset databases. Start PostgreSQL first if stopped. Ctrl-C stops only the child processes it started, leaving persistent database storage intact. It refuses occupied ports 3000/3001; do not kill an unrelated server to free them. Frontend edits use Vite reload; restart the appropriate process after configuration/dependency changes.
+
+For the managed daily lifecycle, run `./dev_server_startup start` or `./dev_server_startup restart` from the repository root; use `stop` to preserve the database while stopping services and `status` for diagnostics. With no command, the root script performs `start`. On Windows, invoke it as `ruby .\dev_server_startup <command>`. This checked-in entry point requires no global launcher installation or PATH change and delegates to `bin/apply`.
+
+`start` and `restart` return success only after PostgreSQL, Rails and Vite are ready; startup errors propagate to the caller. They refuse an occupied port unless its recorded process belongs to this checkout, rather than treating an unrelated or legacy listener as a healthy APPly service. If startup fails, keep the reported error and `tmp/dev/logs` evidence, fix a consequential in-scope defect and retry the managed command; do not substitute an unrecorded manual server and claim the lifecycle works. A workaround is appropriate only when the defect has no consequence for the current task or is explicitly accepted as temporary under [[Working Agreement#Failure-first planning and review]].
 
 ### Request path and runtime ownership
 
@@ -213,7 +217,7 @@ git commit -m "Improve client onboarding"
 git push -u origin feature/client-onboarding
 ```
 
-`git add -p` reviews tracked changes interactively; add each intended new file explicitly by path. Do not use a blanket `git add .` in a checkout with unrelated work. Review staged content for secrets, database files and accidental changes. A commit records a code version; a push copies commits to GitHub. Feature-branch pushes do not deploy. A successful CI run for a main push now triggers staging; production still needs separate activation and explicit promotion.
+`git add -p` reviews tracked changes interactively; add each intended new file explicitly by path. Do not use a blanket `git add .` in a checkout with unrelated work. Review staged content for secrets, database files and accidental changes. A commit records a code version; a push copies commits to GitHub. Feature-branch and main pushes do not deploy. After successful main CI, staging requires a separate confirmed manual workflow run; production still needs separate activation and explicit promotion.
 
 Open a GitHub pull request targeting `main`. Describe the problem, behavior changed, checks performed, screenshots if useful, and any migration/deployment implications. The other developer reviews it while CI runs. A pull request is a proposed integration, not a deployment.
 
@@ -295,16 +299,17 @@ flowchart TD
     A[Each developer: own branch and local database] --> B[Pull request: CI and teammate review]
     B --> C[Merge into main]
     C --> D[CI for the merged commit]
-    D --> E[Build API and web images; verify both configurations]
-    E --> F[ECR immutable API and web tags/digests]
-    F --> G[Deploy staging and record verified pair]
-    G --> H[Review staging]
-    H --> I[Explicit production promotion]
-    I --> J[Check both digests, main ancestry and both fresh scans]
-    J --> K[Copy exact pair and deploy production]
+    D --> E[Manually dispatch Deploy staging on main]
+    E --> F[Build API and web images; verify both configurations]
+    F --> G[ECR immutable API and web tags/digests]
+    G --> H[Deploy staging and record verified pair]
+    H --> I[Review staging]
+    I --> J[Explicit production promotion]
+    J --> K[Check both digests, main ancestry and both fresh scans]
+    K --> L[Copy exact pair and deploy production]
 ```
 
-After activation, `deploy-staging.yml` runs only after successful `CI` for a main **push** from this repository; PR and manually dispatched CI runs do not trigger staging. It checks out that successful run's exact `head_sha`, builds Linux amd64 API/web images once with separate contexts, and verifies both staging and production configurations before obtaining AWS credentials and publishing. Tags share `sha-<commit>-<run>-<attempt>` with `-api`/`-web` suffixes. No vault, database, keys or schedule is included.
+`deploy-staging.yml` is manual-only. In **Actions → Deploy staging → Run workflow**, select `main` and enter `deploy-staging`. The workflow rejects any other ref or confirmation before checkout or AWS authentication. It checks out the selected main commit's exact SHA, builds Linux amd64 API/web images once with separate contexts, and verifies both staging and production configurations before obtaining AWS credentials and publishing. Tags share `sha-<commit>-<run>-<attempt>` with `-api`/`-web` suffixes. CI, PRs, pushes and schedules do not trigger staging, so ordinary integration does not incur image-build, ECR-push or host-deployment activity.
 
 Staging waits for both ECR scans to complete and records severity counts; **staging does not enforce the production zero-critical/high gate**. After host success, `release.py` writes a format-2 receipt to `/apply/releases/staging`: commit, common tag, `images.api`, `images.web`, SSM command, generation and verification time. The workflow summary shows both digests. A failed/unknown remote result does not publish a successful receipt.
 
@@ -355,7 +360,7 @@ The current `f8a0cae` candidate scans report API six critical/fifteen high and w
 
 **Protected owner review active, 2026-09-01 (T-20.3):** the [review-access runbook](../../ops/aws/ec2/review-access.md) records fixed staging URL `https://44.218.229.179`, an IP certificate, two allowlisted individual synthetic reviewers, authenticated edge and certificate renewal. The founder explicitly accepted the exact main `f8a0cae` / run `33521216835` counts above for this bounded synthetic preview. Private checks for both reviewers and the final outside TLS/auth/content/denial/logout path passed before completion was recorded. Public HTTP serves only certificate challenges; staging HTTPS requires both the edge credential and ordinary app login. Production and all clinic/development-login guards remain unchanged. This is not confidential, clinical or production release acceptance, and a later image pair needs fresh review.
 
-**D-047 staging demo clinic source, 2026-09-01 (T-20.4):** current source makes the static clinic shell available only through the separately authenticated staging-review server and allows Rails clinic routes only for the exact active `StagingDemoUser` assignment in `APP_DEPLOYMENT_ENV=staging`. Production/private edges retain `/clinic` 404, Rails independently denies every other hosted identity and the account remains a non-platform-admin. The isolated baseline has four synthetic patients/notes, three office items and two staff entries with full clinic permissions. Reset-on-logout is excluded because it would silently rewrite append-only history. This is source evidence; close public ingress before automatic delivery, then record the exact new pair/scans, provisioning and outside denials before reopening.
+**D-047 staging demo clinic source, 2026-09-01 (T-20.4):** current source makes the static clinic shell available only through the separately authenticated staging-review server and allows Rails clinic routes only for the exact active `StagingDemoUser` assignment in `APP_DEPLOYMENT_ENV=staging`. Production/private edges retain `/clinic` 404, Rails independently denies every other hosted identity and the account remains a non-platform-admin. The isolated baseline has four synthetic patients/notes, three office items and two staff entries with full clinic permissions. Reset-on-logout is excluded because it would silently rewrite append-only history. This is source evidence; close public ingress before a manually authorized delivery, then record the exact new pair/scans, provisioning and outside denials before reopening.
 
 Production disables sample content without deleting historical records; ordinary account provisioning adds no demonstration paperwork. Staging keeps sample portal material but never enables the local password-free login or clinic routes. Real signing and patient-system deployment remain gated. This establishes separate deployment environments, not the final clinical architecture or a highly available service.
 

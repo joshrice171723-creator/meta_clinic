@@ -19,4 +19,4 @@ $webOk = $false; try { $webOk = ((Invoke-WebRequest -UseBasicParsing http://127.
 $apiOk = $false; try { $apiOk = ((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3001/up -TimeoutSec 3).StatusCode -eq 200) } catch {}
 Check "Frontend" $webOk "http://127.0.0.1:3000/login"
 Check "API" $apiOk "http://127.0.0.1:3001/up"
-Write-Host "`nRecommended command: .\bin\start-dev.ps1"
+Write-Host "`nRecommended command: ruby .\dev_server_startup start"

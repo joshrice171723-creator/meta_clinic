@@ -16,6 +16,17 @@ $postgresContainer = if ($env:APPLY_POSTGRES_CONTAINER) { $env:APPLY_POSTGRES_CO
 
 function Fail([string]$Message) { Write-Error $Message; exit 1 }
 function Test-Port([int]$Port) { return [bool](Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue) }
+function Test-ManagedProcess([string]$PidPath) {
+  if (-not (Test-Path $PidPath)) { return $false }
+  $processId = 0
+  if (-not [int]::TryParse((Get-Content $PidPath -Raw).Trim(), [ref]$processId)) { return $false }
+  return [bool](Get-Process -Id $processId -ErrorAction SilentlyContinue)
+}
+function Require-ManagedOrAvailablePort([int]$Port, [string]$PidPath) {
+  if ((Test-Port $Port) -and -not (Test-ManagedProcess $PidPath)) {
+    Fail "Port $Port is already in use by a process not managed by this APPly checkout. Stop or relocate that process, then retry."
+  }
+}
 function Wait-Http([string]$Url, [int]$TimeoutSeconds) {
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
   do {
@@ -44,6 +55,9 @@ if (-not $dockerReady) {
   do { Start-Sleep -Seconds 2; try { docker info *> $null; $dockerReady = ($LASTEXITCODE -eq 0) } catch { $dockerReady = $false } } while (-not $dockerReady -and (Get-Date) -lt $deadline)
 }
 if (-not $dockerReady) { Fail "Docker Desktop did not become ready within 90 seconds." }
+
+Require-ManagedOrAvailablePort 3001 (Join-Path $pidRoot "api.pid")
+Require-ManagedOrAvailablePort 3000 (Join-Path $pidRoot "web.pid")
 
 $containerExists = $false
 try { docker container inspect $postgresContainer *> $null; $containerExists = ($LASTEXITCODE -eq 0) } catch { $containerExists = $false }

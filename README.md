@@ -51,36 +51,27 @@ cd ../..
 APP_DEVELOPMENT_LOGIN=1 bin/dev
 ```
 
-On Windows, the idempotent morning startup command is:
+From the repository root, use the checked-in lifecycle entry point; no installer or PATH change is required:
+
+```sh
+./dev_server_startup start
+./dev_server_startup restart
+./dev_server_startup stop
+./dev_server_startup status
+```
+
+With no command, `./dev_server_startup` performs `start`. On Windows, invoke the same file through Ruby:
 
 ```powershell
-.\bin\start-dev.ps1
+ruby .\dev_server_startup start
+ruby .\dev_server_startup restart
 ```
 
-For the shared lifecycle command, install this checkout's `apply` launcher once per computer:
+`start` and `restart` launch the local Docker/PostgreSQL dependency, Rails API, and Vite frontend in the background, but return success only after all three are ready. Startup failures propagate to the command, and occupied ports are accepted only when their recorded processes belong to this checkout. `stop` stops only APPly-owned development processes and the named local PostgreSQL container; it never deletes the persistent volume or database. The lower-level `bin/apply` implementation remains repository-owned, but developers do not need to install its optional global launcher.
 
-```sh
-ruby bin/install-apply
-```
+The platform-specific `bin/start-dev` and `bin/start-dev.ps1` files are implementation details used by the root command. Run them directly only when diagnosing that lifecycle layer; the ordinary developer interface remains `dev_server_startup`.
 
-Then, from any directory on macOS, Linux, or Windows, use:
-
-```text
-apply up
-apply down
-apply restart
-apply doctor
-```
-
-`apply up` starts the local Docker/PostgreSQL dependency, Rails API, and Vite frontend in the background. `apply down` stops only APPly-owned development processes and the named local PostgreSQL container; it never deletes the persistent volume or database. Open a new terminal after installation on Windows so the updated user PATH is loaded.
-
-On macOS or Linux, use the equivalent portable Ruby command:
-
-```sh
-bin/start-dev
-```
-
-Use `bin/start-dev --seed` only when synthetic seed data is intentionally needed, or `bin/start-dev --no-browser` when the browser should not open. Run `bin/doctor` for a concise environment diagnosis. The existing `bin/dev` remains available as the lower-level launcher after PostgreSQL has already been started.
+Pass `--seed` to `dev_server_startup start` or `restart` only when synthetic seed data is intentionally needed, or pass `--no-browser` when the browser should not open. Use `dev_server_startup status` for a concise environment diagnosis. The existing `bin/dev` remains available as the lower-level foreground launcher after PostgreSQL has already been started.
 
 The VS Code workspace tasks select the Windows PowerShell or macOS/Linux launcher automatically.
 
