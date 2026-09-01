@@ -1,9 +1,11 @@
 name: Deploy staging
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type deploy-staging to build, publish, and deploy the current main commit
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -11,16 +13,22 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
       contents: read
       id-token: write
     steps:
+      - name: Validate manual staging request
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          test "$SOURCE_REF" = "refs/heads/main" || { echo "Deploy staging must run from main." >&2; exit 1; }
+          test "$CONFIRM" = "deploy-staging" || { echo "Confirmation must be deploy-staging." >&2; exit 1; }
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
           sparse-checkout: |
             .github
@@ -52,7 +60,7 @@ jobs:
           role-session-name: apply-staging-${{ github.run_id }}
       - name: Publish and deploy immutable image
         env:
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           tag="sha-${SOURCE_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
