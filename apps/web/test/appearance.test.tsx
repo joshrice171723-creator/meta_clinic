@@ -192,7 +192,7 @@ describe("system appearance and UI scope", () => {
     expect(html).toContain("Swap view");
     expect(html).toContain('name="profile"');
     expect(html).toContain('value="clinician" selected=""');
-    expect(html).toContain("server-enforced permissions");
+    expect(html).toContain("unrestricted access");
   });
   it.each(CLINIC_PALETTES)(
     "scopes $label styles to the clinic and renders loading without protected content",
@@ -225,6 +225,7 @@ describe("system appearance and UI scope", () => {
   it("marks the active module including details without exposing restricted navigation", () => {
     const capabilities = {
       patients: true,
+      patients_write: true,
       staff: false,
       inventory: true,
       appointments: false,
@@ -250,6 +251,7 @@ describe("system appearance and UI scope", () => {
       <ClinicNavigation
         capabilities={{
           patients: false,
+          patients_write: false,
           staff: false,
           inventory: false,
           appointments: false,

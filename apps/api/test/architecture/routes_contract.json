@@ -332,6 +332,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/patients/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/pharmacy/:id(.:format)"
   ],
   [
@@ -403,6 +408,11 @@
     null,
     "POST",
     "/api/session(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/patients/:id(.:format)"
   ],
   [
     null,

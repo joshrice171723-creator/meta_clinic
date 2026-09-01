@@ -52,7 +52,59 @@ export type Item = {
   quantity: number;
   reorder_level: number;
 };
-export type Patient = { id: number; display_name: string; reference: string };
+export type Patient = {
+  id: number;
+  display_name: string;
+  reference: string;
+  primary_address_version_id?: number | null;
+  demographics?: {
+    date_of_birth: string | null;
+    sex: string;
+    primary_language: string;
+    interpreter_required: boolean;
+  } | null;
+  contacts?: {
+    id: number;
+    contact_type: string;
+    contact_value: string;
+    preferred: boolean;
+    effective_from: string;
+    effective_until: string | null;
+  }[];
+  emergency_contacts?: {
+    id: number;
+    name: string;
+    relationship: string;
+    phone: string;
+    permission_to_contact: boolean;
+    effective_from: string;
+    effective_until: string | null;
+  }[];
+  communication_preference?: {
+    preferred_contact_method: string;
+    appointment_reminders_consent: boolean;
+    general_communications_consent: boolean;
+  } | null;
+  social_histories?: {
+    id: number;
+    tobacco_use: string | null;
+    alcohol_use: string | null;
+    exercise_habits: string | null;
+    diet: string | null;
+    occupation: string | null;
+    living_situation: string | null;
+    relevant_social_factors: string | null;
+    effective_from: string;
+    effective_until: string | null;
+  }[];
+  vital_signs?: {
+    id: number;
+    code: string;
+    numeric_value: string;
+    unit_code: string;
+    observed_at: string;
+  }[];
+};
 export type Pagination = {
   page: number;
   per_page: number;
@@ -61,6 +113,7 @@ export type Pagination = {
 };
 export type ClinicCapabilities = {
   patients: boolean;
+  patients_write: boolean;
   staff: boolean;
   inventory: boolean;
   appointments: boolean;
@@ -95,6 +148,27 @@ export type Appointment = {
   ends_at: string;
   status: string;
   encounter_id: number | null;
+};
+export type FacilitySite = ClinicSite;
+export type FacilityRoom = { id: number; site_id: number; code: string };
+export type VisitType = { id: number; code: string; retired_at: string | null };
+export type Clinician = {
+  id: number;
+  membership_id: number;
+  assignments: {
+    id: number;
+    department_id: number | null;
+    site_id: number | null;
+    effective_from: string;
+    effective_until: string | null;
+  }[];
+  credentials: {
+    id: number;
+    credential_type: string;
+    jurisdiction: string;
+    review_status: string;
+    valid_until: string | null;
+  }[];
 };
 export type Encounter = {
   id: number;

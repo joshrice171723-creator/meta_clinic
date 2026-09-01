@@ -44,7 +44,7 @@ Rails.application.routes.draw do
     post "pharmacy_batches/:id/count", to: "inventory/pharmacy#count", as: :pharmacy_count
     post "inventory_counts/:id/approve", to: "inventory/pharmacy#approve_count", as: :inventory_count_approval
     post "inventory_configuration", to: "inventory/pharmacy#configure", as: :inventory_configuration
-    resources :patients, controller: "care/patients", only: %i[index show create] do
+    resources :patients, controller: "care/patients", only: %i[index show create update] do
       post :note, on: :member
       resources :encounters, controller: "scheduling/encounters", only: %i[index create]
       resources :observations, controller: "care/observations", only: %i[index create]

@@ -5,26 +5,26 @@ export const VISIT_STAGES = [
   {
     id: "waiting",
     label: "Awaiting intake",
-    action: "Start intake",
+    action: "Intake",
     waiting: true,
   },
-  { id: "intake", label: "In intake", action: "Finish intake", waiting: false },
+  { id: "intake", label: "In intake", action: "Triage", waiting: false },
   {
     id: "ready",
-    label: "Ready for clinician",
-    action: "Clinician review",
+    label: "Ready for Provider",
+    action: "Provider",
     waiting: true,
   },
   {
     id: "clinician",
-    label: "With clinician",
-    action: "Note & prescription review",
+    label: "With Provider",
+    action: "Provider",
     waiting: false,
   },
   {
     id: "checkout",
     label: "Awaiting checkout",
-    action: "Complete checkout",
+    action: "Checkout",
     waiting: true,
   },
 ] as const;
@@ -34,6 +34,9 @@ export type BoardVisit = {
   firstName: string;
   lastName: string;
   age: number | null;
+  gender: "F" | "M" | "X" | null;
+  appointmentType: "Scheduled" | "Unscheduled" | "Follow-up" | "Establish Care";
+  chiefComplaint: string;
   reason: string;
   visitType: string;
   membership: "member" | "nonmember" | "unknown";
@@ -47,6 +50,7 @@ export type BoardVisit = {
     recordedAt: string;
     recordedBy: string;
     vitals: string | null;
+    vitalsSummary: string | null;
     review: string;
   } | null;
 };
@@ -59,6 +63,7 @@ const assessed = (
   recordedAt: at(time),
   recordedBy: "Example staff A",
   vitals: "BP 124/78 mmHg · HR 72 bpm · RR 16/min · SpO₂ 98% · T 36.8°C",
+  vitalsSummary: "BP 124/78 · HR 72 · 72 kg",
   review: "Medication and allergy review recorded in this example",
 });
 export const EXAMPLE_VISITS: readonly BoardVisit[] = [
@@ -67,6 +72,9 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     firstName: "Mara",
     lastName: "Rivera",
     age: 46,
+    gender: "F",
+    appointmentType: "Follow-up",
+    chiefComplaint: "Migraine",
     reason: "Follow-up visit",
     visitType: "Scheduled · Follow-up",
     membership: "member",
@@ -82,6 +90,9 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     firstName: "Theo",
     lastName: "Bennett",
     age: 34,
+    gender: "M",
+    appointmentType: "Establish Care",
+    chiefComplaint: "New patient intake",
     reason: "Establish care",
     visitType: "Scheduled · New patient",
     membership: "nonmember",
@@ -95,6 +106,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
       recordedAt: at("10:12"),
       recordedBy: "Example staff A",
       vitals: null,
+      vitalsSummary: null,
       review: "Medication and allergy review not recorded",
     },
   },
@@ -103,36 +115,45 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     firstName: "Avery",
     lastName: "Chen",
     age: 61,
+    gender: "F",
+    appointmentType: "Scheduled",
+    chiefComplaint: "Flu Shot",
     reason: "Medication follow-up",
     visitType: "Scheduled · Follow-up",
     membership: "member",
     stage: "ready",
     room: "Room 1",
-    owner: "Example clinician A",
+    owner: "Example Provider A",
     arrivedAt: at("09:40"),
     stageStartedAt: at("10:03"),
-    triage: assessed("10:01", "Intake recorded · Ready for clinician review"),
+    triage: assessed("10:01", "Ready for Provider review"),
   },
   {
     id: "EX-004",
     firstName: "Jules",
     lastName: "Patel",
     age: 45,
+    gender: "X",
+    appointmentType: "Scheduled",
+    chiefComplaint: "Annual wellness",
     reason: "Annual visit",
     visitType: "Scheduled · Annual",
     membership: "member",
     stage: "clinician",
     room: "Room 3",
-    owner: "Example clinician B",
+    owner: "Example Provider B",
     arrivedAt: at("09:25"),
     stageStartedAt: at("09:55"),
-    triage: assessed("09:48", "Intake recorded · Questions for clinician"),
+    triage: assessed("09:48", "Questions for Provider"),
   },
   {
     id: "EX-005",
     firstName: "Lena",
     lastName: "Morris",
     age: 28,
+    gender: "F",
+    appointmentType: "Unscheduled",
+    chiefComplaint: "Migraine",
     reason: "Same-day concern",
     visitType: "Same-day · Return patient",
     membership: "unknown",
@@ -142,7 +163,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     arrivedAt: at("09:58"),
     stageStartedAt: at("10:11"),
     triage: {
-      ...assessed("10:09", "Staff requested clinician review"),
+      ...assessed("10:09", "Provider review requested"),
       vitals: null,
     },
   },
@@ -151,6 +172,9 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     firstName: "Eli",
     lastName: "Ross",
     age: 52,
+    gender: "M",
+    appointmentType: "Follow-up",
+    chiefComplaint: "Medication Refill",
     reason: "Follow-up visit",
     visitType: "Scheduled · Follow-up",
     membership: "member",
@@ -208,6 +232,7 @@ export function filterVisits(
           v.room ?? "",
           v.owner ?? "",
           v.reason,
+          v.chiefComplaint,
         ]
           .join(" ")
           .toLocaleLowerCase()

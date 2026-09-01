@@ -108,6 +108,77 @@
   color: var(--clinic-muted);
   margin: 0 0 12px;
 }
+.clinic-theme .tracking-table-container {
+  border-color: var(--clinic-border);
+  background: var(--clinic-surface);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.clinic-theme .tracking-table-container .MuiTable-root {
+  color: var(--clinic-text);
+}
+.clinic-theme .tracking-table-container .MuiTableCell-root {
+  border-color: var(--clinic-border);
+  color: var(--clinic-text);
+  vertical-align: top;
+  padding: 13px 14px;
+}
+.clinic-theme .tracking-table-container .MuiTableCell-head {
+  background: var(--clinic-soft);
+  color: var(--clinic-muted);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.clinic-theme .tracking-table-container .MuiTableRow-hover:hover {
+  background: color-mix(in srgb, var(--clinic-soft) 55%, transparent);
+}
+.clinic-theme .tracking-table-container .MuiChip-root {
+  font-family: inherit;
+  font-weight: 600;
+}
+.clinic-theme .tracking-vitals {
+  display: grid;
+  gap: 4px;
+}
+.clinic-theme .tracking-vital {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+  padding: 3px 6px;
+  border-left: 3px solid transparent;
+}
+.clinic-theme .tracking-vital-normal {
+  background: color-mix(in srgb, var(--clinic-soft) 82%, var(--clinic-accent));
+  border-left-color: var(--clinic-accent);
+}
+.clinic-theme .tracking-vital-alert {
+  background: color-mix(in srgb, var(--clinic-soft) 72%, var(--clinic-warning));
+  border-left-color: var(--clinic-warning);
+}
+.clinic-theme .tracking-vital-unassessed {
+  background: var(--clinic-soft);
+  border-left-color: var(--clinic-border);
+}
+.clinic-theme .tracking-context-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 3px 0;
+  background: transparent;
+  color: var(--clinic-accent);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
 .clinic-theme .tracking-list {
   list-style: none;
   padding: 0;

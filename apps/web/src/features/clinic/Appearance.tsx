@@ -2,9 +2,11 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { api } from "../../api/client";
 import type { UserSettings } from "../../api/contracts";
 import "./appearance.css";
@@ -14,6 +16,7 @@ import "./careFlow.css";
 import {
   CLINIC_MODES,
   CLINIC_PALETTES,
+  CLINIC_THEMES,
   DEFAULT_APPEARANCE,
   clinicThemeStyle,
   normalizeAppearance,
@@ -117,15 +120,43 @@ export function ClinicAppearanceScope({
   children: ReactNode;
 }) {
   const scheme = resolveColorScheme(preferences.mode, systemDark);
+  const tokens = CLINIC_THEMES[preferences.palette][scheme];
+  const muiTheme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: scheme,
+          primary: { main: tokens.accent, contrastText: tokens["on-accent"] },
+          background: { default: tokens.background, paper: tokens.surface },
+          text: { primary: tokens.text, secondary: tokens.muted },
+          divider: tokens.border,
+        },
+        shape: { borderRadius: 10 },
+        typography: { fontFamily: "inherit" },
+        components: {
+          MuiButton: {
+            defaultProps: { disableElevation: true },
+            styleOverrides: {
+              root: { minHeight: 44, textTransform: "none", fontWeight: 650 },
+            },
+          },
+          MuiLink: { defaultProps: { underline: "hover" } },
+          MuiCard: { styleOverrides: { root: { backgroundImage: "none" } } },
+        },
+      }),
+    [scheme, tokens],
+  );
   return (
-    <div
-      className="clinic-theme"
-      data-clinic-palette={preferences.palette}
-      data-clinic-mode={preferences.mode}
-      data-color-scheme={scheme}
-      style={clinicThemeStyle(preferences.palette, scheme)}
-    >
-      {children}
-    </div>
+    <ThemeProvider theme={muiTheme}>
+      <div
+        className="clinic-theme"
+        data-clinic-palette={preferences.palette}
+        data-clinic-mode={preferences.mode}
+        data-color-scheme={scheme}
+        style={clinicThemeStyle(preferences.palette, scheme)}
+      >
+        {children}
+      </div>
+    </ThemeProvider>
   );
 }
