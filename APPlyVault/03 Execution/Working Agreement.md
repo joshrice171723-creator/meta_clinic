@@ -1,7 +1,7 @@
 ---
 type: operating-guide
 status: proposed
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # Working Agreement
 
@@ -65,6 +65,8 @@ Before starting a substantive chunk, record in its canonical task or linked evid
 For each chunk, consider missing/wrong/stale input; wrong account/clinic or excess authority; concurrent/repeated actions; interrupted sessions and partial/out-of-order failures; unavailable people/services; and falsely reported completion. Cover applicable cases with tests; mark others not applicable with a reason. For business work also challenge scope, demand, cost, capacity, reuse rights and reliance on one person. Link existing R-/A-/L- items instead of creating duplicate registers.
 
 Testing must stay within authorized systems and wholly synthetic data. This method does not authorize live penetration testing, destructive failure injection, patient access, external messages, purchases or deployments. Start with local tests/mocks or a tabletop; hosted exercises need their own approved targets and recovery scope. Do not remove guards to make a test pass.
+
+When an observed defect materially affects the requested outcome, safety boundary or truth of the evidence, preserve the failure signal and fix the defect within the authorized scope before continuing. Do not silently bypass it and report the bypassed path as working. A workaround is acceptable only when the defect can be ignored without consequence to the current task, or when a temporary recovery path is explicitly authorized and recorded with its limitation and follow-up. If the root fix would require new authority, destructive recovery or incompatible concurrent edits, stop that affected path and ask rather than normalizing the workaround.
 
 Do not accept a chunk with unresolved unauthorized access, silent loss/alteration, duplicate external action, false completion, or missing required audit/recovery evidence. Stop only the affected path; keep independent safe work moving. Lesser residual risks require an explicit disposition, accountable owner and review trigger, not a silent waiver. Product acceptance, professional review and real-data release remain separate.
 

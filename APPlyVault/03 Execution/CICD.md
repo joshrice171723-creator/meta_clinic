@@ -91,6 +91,10 @@ Run the app with the same development flag, then select Test Client A, Test Clie
 
 After setup, root `bin/dev` starts only Rails and Vite; it does not start PostgreSQL, install dependencies, apply migrations or reset databases. Start PostgreSQL first if stopped. Ctrl-C stops only the child processes it started, leaving persistent database storage intact. It refuses occupied ports 3000/3001; do not kill an unrelated server to free them. Frontend edits use Vite reload; restart the appropriate process after configuration/dependency changes.
 
+For the managed daily lifecycle, run `./dev_server_startup start` or `./dev_server_startup restart` from the repository root; use `stop` to preserve the database while stopping services and `status` for diagnostics. With no command, the root script performs `start`. On Windows, invoke it as `ruby .\dev_server_startup <command>`. This checked-in entry point requires no global launcher installation or PATH change and delegates to `bin/apply`.
+
+`start` and `restart` return success only after PostgreSQL, Rails and Vite are ready; startup errors propagate to the caller. They refuse an occupied port unless its recorded process belongs to this checkout, rather than treating an unrelated or legacy listener as a healthy APPly service. If startup fails, keep the reported error and `tmp/dev/logs` evidence, fix a consequential in-scope defect and retry the managed command; do not substitute an unrecorded manual server and claim the lifecycle works. A workaround is appropriate only when the defect has no consequence for the current task or is explicitly accepted as temporary under [[Working Agreement#Failure-first planning and review]].
+
 ### Request path and runtime ownership
 
 | Surface | Local development | Prepared host after coordinated cutover |

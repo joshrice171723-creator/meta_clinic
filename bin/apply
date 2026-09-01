@@ -54,16 +54,16 @@ when "up"
     args << "-Seed" if ARGV.delete("--seed")
     args << "-NoBrowser" if ARGV.delete("--no-browser")
     fail_with("Unknown option: #{ARGV.first}") unless ARGV.empty?
-    Process.spawn("powershell", *args, chdir: root, creationflags: 0x00000008)
+    started = system("powershell", *args, chdir: root)
   else
     args = [File.join(root, "bin/start-dev"), "--daemon"]
     args << "--seed" if ARGV.delete("--seed")
     args << "--no-browser" if ARGV.delete("--no-browser")
     args << "--no-docker-start" if ARGV.delete("--no-docker-start")
     fail_with("Unknown option: #{ARGV.first}") unless ARGV.empty?
-    Process.spawn("ruby", *args, chdir: root, pgroup: true)
+    started = system("ruby", *args, chdir: root)
   end
-  puts "APPly startup requested. Run `apply doctor` to check readiness."
+  fail_with("Local startup failed. Review the reported error and tmp/dev/logs before retrying.") unless started
 when "down"
   pid_files(pid_root).each do |path|
     pid = Integer(File.read(path).strip, 10) rescue nil

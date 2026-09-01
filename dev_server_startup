@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+# Repository-local entry point for the APPly development lifecycle.
+require "rbconfig"
+
+root = File.expand_path(__dir__)
+lifecycle = File.join(root, "bin", "apply")
+requested = ARGV.shift || "start"
+
+commands = {
+  "start" => "up",
+  "up" => "up",
+  "restart" => "restart",
+  "stop" => "down",
+  "down" => "down",
+  "status" => "doctor",
+  "doctor" => "doctor"
+}.freeze
+
+if %w[help --help -h].include?(requested)
+  puts <<~USAGE
+    Usage: ./dev_server_startup [start|restart|stop|status] [--seed] [--no-browser]
+
+    With no command, starts the local development stack. The script runs the
+    repository's lifecycle implementation directly; no global installation or
+    PATH change is required.
+  USAGE
+  exit 0
+end
+
+command = commands[requested]
+unless command
+  warn "Unknown command: #{requested}"
+  warn "Run ./dev_server_startup --help for usage."
+  exit 1
+end
+
+exec(RbConfig.ruby, lifecycle, command, *ARGV, chdir: root)
