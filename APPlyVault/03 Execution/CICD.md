@@ -1,7 +1,7 @@
 ---
 type: operating-guide
 status: staging-active-production-activation-pending
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # CICD
 
@@ -351,9 +351,11 @@ The [environment runbook](../../ops/aws/ec2/environments.md) holds installed-res
 
 ### Current release limits
 
-The 2026-08-31 candidate scans reported API four critical/fourteen high and web seven high findings. Staging requires completed scans but no severity threshold; the unchanged production gate rejects this pair. Private bootstrap operation is not security acceptance or authorization for real data. Public HTTPS needs an exact domain or stable IP with certificate/proxy configuration; a domain purchase is not required. Backups/monitoring schedules, recovery objectives, MFA/account operations and complete browser/security acceptance remain open.
+The current `f8a0cae` candidate scans report API six critical/fifteen high and web one critical/nine high findings. Staging requires completed scans but no severity threshold; the unchanged production gate rejects this pair. Private bootstrap operation is not security acceptance or authorization for real data. Public HTTPS needs an exact domain or stable IP with certificate/proxy configuration; a domain purchase is not required. Backups/monitoring schedules, recovery objectives, MFA/account operations and complete browser/security acceptance remain open.
 
-**Owner-review preparation, 2026-08-31 (T-20.3):** the founder requested ordinary browser access and asked about using an IP. The [review-access runbook](../../ops/aws/ec2/review-access.md) records fixed staging IP `44.218.229.179`, an IP certificate, an individual synthetic reviewer, authenticated edge and certificate-renewal setup. **Public HTTPS ingress remains closed** pending an explicit disposition of the current image findings. Public HTTP serves only certificate challenges. Production and all clinic/development-login guards remain unchanged. The latest observed staging pair is main `a90ce54` / run `33406832067`, not the older activation candidate above; it has the same critical/high counts. This is not public, confidential or clinical release acceptance.
+**Protected owner review active, 2026-09-01 (T-20.3):** the [review-access runbook](../../ops/aws/ec2/review-access.md) records fixed staging URL `https://44.218.229.179`, an IP certificate, two allowlisted individual synthetic reviewers, authenticated edge and certificate renewal. The founder explicitly accepted the exact main `f8a0cae` / run `33521216835` counts above for this bounded synthetic preview. Private checks for both reviewers and the final outside TLS/auth/content/denial/logout path passed before completion was recorded. Public HTTP serves only certificate challenges; staging HTTPS requires both the edge credential and ordinary app login. Production and all clinic/development-login guards remain unchanged. This is not confidential, clinical or production release acceptance, and a later image pair needs fresh review.
+
+**D-047 staging demo clinic source, 2026-09-01 (T-20.4):** current source makes the static clinic shell available only through the separately authenticated staging-review server and allows Rails clinic routes only for the exact active `StagingDemoUser` assignment in `APP_DEPLOYMENT_ENV=staging`. Production/private edges retain `/clinic` 404, Rails independently denies every other hosted identity and the account remains a non-platform-admin. The isolated baseline has four synthetic patients/notes, three office items and two staff entries with full clinic permissions. Reset-on-logout is excluded because it would silently rewrite append-only history. This is source evidence; close public ingress before automatic delivery, then record the exact new pair/scans, provisioning and outside denials before reopening.
 
 Production disables sample content without deleting historical records; ordinary account provisioning adds no demonstration paperwork. Staging keeps sample portal material but never enables the local password-free login or clinic routes. Real signing and patient-system deployment remain gated. This establishes separate deployment environments, not the final clinical architecture or a highly available service.
 

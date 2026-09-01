@@ -4,6 +4,7 @@
 Run on the staging host. Credentials/cookies stay in memory and never print.
 Only the assigned synthetic reviewer is used; no other records are inspected.
 """
+import argparse
 import base64
 import http.client
 import json
@@ -14,6 +15,20 @@ import subprocess
 from urllib.parse import urlsplit
 
 
+PROFILES = {
+    "owner-review": {
+        "secret_id": "apply/staging/owner-review",
+        "username": "owner-review",
+        "email": "owner-review@example.test",
+    },
+    "StagingDemoUser": {
+        "secret_id": "apply/staging/StagingDemoUser",
+        "username": "StagingDemoUser",
+        "email": "staging-demo-user@example.test",
+    },
+}
+
+
 class LoopbackTLS(http.client.HTTPSConnection):
     def connect(self):
         raw = socket.create_connection(("127.0.0.1", 443), timeout=self.timeout)
@@ -21,16 +36,25 @@ class LoopbackTLS(http.client.HTTPSConnection):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", choices=tuple(PROFILES), default="owner-review")
+    args = parser.parse_args()
+    profile = PROFILES[args.profile]
     from pathlib import Path
     origin = Path("/etc/apply/review-origin").read_text().strip()
     host = urlsplit(origin).hostname
     result = subprocess.run([
         "aws", "secretsmanager", "get-secret-value", "--region", "us-east-1",
-        "--secret-id", "apply/staging/owner-review", "--output", "json",
+        "--secret-id", profile["secret_id"], "--output", "json",
     ], capture_output=True, text=True)
     if result.returncode:
         raise SystemExit("Credential unavailable; details suppressed")
     credential = json.loads(json.loads(result.stdout)["SecretString"])
+    if credential.get("username") != profile["username"] or credential.get("email") != profile["email"]:
+        raise SystemExit("Unexpected reviewer identity")
+    password = credential.get("password", "")
+    if len(password) != 32 or not password.isascii() or not password.isalnum():
+        raise SystemExit("Unexpected reviewer credential format")
     authorization = "Basic " + base64.b64encode((credential["username"] + ":" + credential["password"]).encode()).decode()
     cookies = SimpleCookie()
 
@@ -80,15 +104,31 @@ def main():
         for path in ("/portal", "/paperwork", "/training", "/api/paperworks", "/api/materials"):
             assert request("GET", path)[0] == 200, "Reviewer route unavailable"
         assert request("GET", "/api/inquiries")[0] == 403
-        for path in ("/clinic", "/api/clinic"):
-            assert request("GET", path)[0] == 404
+        assert request("GET", "/clinic")[0] == 200
         _, config = request("GET", "/api/csrf")
+        if args.profile == "StagingDemoUser":
+            assert config["clinic_available"] is True
+            status, context = request("GET", "/api/clinic/context")
+            assert status == 200
+            assert context["practice"]["name"] == "APPly Staging Demo Clinic [Synthetic]"
+            assert all(context["capabilities"].values())
+            for path, key, minimum in (
+                ("/api/clinic/patients", "patients", 4),
+                ("/api/clinic/inventory", "items", 3),
+                ("/api/clinic/staff", "staff", 2),
+            ):
+                status, collection = request("GET", path)
+                assert status == 200 and len(collection[key]) >= minimum
+        else:
+            assert config["clinic_available"] is False
+            for path in ("/api/clinic", "/api/clinic/context"):
+                assert request("GET", path)[0] == 404
         assert request("POST", "/api/development_session", {}, token=config["csrf_token"])[0] == 404
     finally:
         _, config = request("GET", "/api/csrf")
         assert request("DELETE", "/api/session", token=config["csrf_token"])[0] == 204
     assert request("GET", "/api/session", replay=replay)[0] == 401
-    print("PASS: public-name TLS, gateway denial, secure cookies, CSRF/foreign-origin denial, reviewer login/content, admin/clinic/demo denial, logout and replay rejection")
+    print("PASS: public-name TLS, gateway denial, secure cookies, CSRF/foreign-origin denial, profile-scoped reviewer content, logout and replay rejection")
 
 
 if __name__ == "__main__":

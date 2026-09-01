@@ -1,15 +1,16 @@
 # Staging owner review over HTTPS
 
-Prepared 2026-08-31 for one individual reviewer using wholly synthetic portal
-content. **Public TCP 443 remains closed pending disposition of the image
-findings below.** The intended address is `https://44.218.229.179`; it is not yet
-an internet-accessible application link. Production is untouched.
+Prepared 2026-08-31, extended and activated 2026-09-01 for two allowlisted
+individual reviewers using wholly synthetic portal content. The protected staging
+address is `https://44.218.229.179`. Public TCP 443 was opened only after the
+founder accepted the exact current image findings for this bounded review.
+Production is untouched.
 
 ## What is installed
 
 - `apply-staging-review` owns Elastic IP `44.218.229.179`, its association with
-  staging `i-011a8232817dc587f`, HTTP ACME ingress, a generated reviewer secret,
-  and exact-secret read access for staging's existing instance role. No other
+  staging `i-011a8232817dc587f`, HTTP ACME ingress, two generated reviewer
+  secrets, and exact-secret read access for staging's existing instance role. No other
   instance, volume, application key, or existing S3 resource is changed.
 - TCP 80 serves only `/.well-known/acme-challenge/`; other paths return 404.
   There is no HTTP application or login. SSH, app/container ports and PostgreSQL
@@ -42,30 +43,35 @@ chat, a recording, a Run Command body, the vault or Git:
 
 ```sh
 aws secretsmanager get-secret-value --region us-east-1 \
-  --secret-id apply/staging/owner-review --query SecretString --output text
+  --secret-id apply/staging/StagingDemoUser --query SecretString --output text
 ```
 
-The secret supplies the edge username, app email and generated password. The
+For the requested account, the values are username `StagingDemoUser`, app email
+`staging-demo-user@example.test`, and a generated password. The same command can
+use `apply/staging/owner-review` for the retained original reviewer. Each secret
+supplies the edge username, app email and generated password. The
 reviewer uses `username` in the browser's first authentication dialog, then
 `email` and the same password at `/login`. Deliver it privately to the intended
 individual; do not turn it into a shared team account. `prepare-reviewer.py`
-creates only that synthetic non-admin account and demo paperwork, refuses
-identity collisions, and issues no clinic membership, invitation or message.
+creates only the selected allowlisted synthetic non-admin account and demo
+paperwork, preserves the other managed gate identity, refuses unknown or
+colliding identities, and issues no clinic membership, invitation or message.
 Do not casually rerun provisioning with a different secret: password rotation
 and account/session revocation need coordinated operator handling.
 
 ## Remaining release risk
 
-The installed pair is main `a90ce54b6302420406244d50cc5ce93bc29b2365`, staging run
-`33406832067`, with API digest
-`sha256:a741215cccd70d85effad7758734021f5f07e005b53b6592d2c79442e7b855db`
+The installed pair is main `f8a0caef9bb864b29d022050630b724201b62988`, CI run
+`33520925099` and staging run `33521216835`, with API digest
+`sha256:4330974dc36eefe66aaa2bd9d8641909c0da3906465a1d611f0b050f2a0f13a9`
 and web digest
-`sha256:f20ff222d54e24ba409ca442751a903b4aafc480a030276f28e24a425e706879`.
-ECR's completed scans still report **API 4 critical/14 high; web 7 high**. The
+`sha256:7305f6d3fb44ef1b250f23fb2a8c34688276950ee0a309db58288058f87bac91`.
+ECR's completed scans report **API 6 critical/15 high; web 1 critical/9 high**. The
 production severity gate continues to reject this pair; no findings are hidden,
 suppressed or marked resolved by adding authentication.
 
-Bounded engineering review, 2026-08-31:
+The bounded engineering review below applied to the superseded `a90ce54` pair.
+It does not disposition the additional findings in the current pair:
 
 | Finding group | Observed constraint and remaining limitation |
 | --- | --- |
@@ -78,29 +84,29 @@ from its configured Amazon Linux repository. OpenSSL upstream has 3.5.8; no
 unreviewed replacement of system crypto libraries was attempted. App images were
 not rebuilt or silently moved to a different distribution to evade scan results.
 
-**Required next disposition:** either complete T-20.1 remediation and retesting,
-or obtain the founder's explicit acceptance of these residual risks for this
-limited, authenticated, synthetic owner review. That acceptance cannot authorize
-production promotion, confidential data, clinical access or removal of guards.
-Recheck the candidate and findings if a later automatic staging release changes
-the installed pair before opening access. Working Agreement's failure-first
-review requires an explicit disposition; ordinary setup authorization is not
-recorded as a risk waiver.
+**Recorded disposition, 2026-09-01:** the founder explicitly accepted the current
+`f8a0cae` staging scan risk and authorized TCP 443 for synthetic review. This
+acceptance is limited to the authenticated synthetic preview; it does not
+authorize production promotion, confidential data, clinical access, removal of
+guards or a scan-threshold bypass. T-20.1 remains open. Recheck the candidate and
+findings after any later automatic staging release rather than silently extending
+this acceptance to another pair.
 
 ## Activation and rollback
 
-After the disposition and successful private HTTPS/account/renewal checks,
-review the prepared CloudFormation change set: it must add only
+After an exact-candidate disposition and successful private
+HTTPS/account/renewal checks, review the CloudFormation change set: it must add only
 `ReviewHttpsIngress` (TCP 443). Recheck account, staging instance/security group,
 installed pair and source before executing. Then verify TLS and unauthenticated
 401 from outside AWS, and the authenticated portal path. Never open ports
 3000/3001/5432 or remove clinic/development-login guards.
 
-The reviewed, unexecuted change set is
-`arn:aws:cloudformation:us-east-1:433771117038:changeSet/awscli-cloudformation-package-deploy-1788193619/b10492c3-1b0f-4032-9ef6-7ace11962f6e`.
-It reports `CREATE_COMPLETE` / `AVAILABLE`, with only the one ingress addition.
-Current stack parameter `EnableHttps=false` and actual security-group ingress
-were independently checked; only TCP 80 is open.
+The executed change set was
+`arn:aws:cloudformation:us-east-1:433771117038:changeSet/enable-staging-review-https-f8a0cae/72a7f047-c92e-4efd-8b40-618fa31eea11`.
+Pre-execution inspection showed only `ReviewHttpsIngress`; the update completed
+successfully. Current stack parameter `EnableHttps=true` and actual staging
+security-group ingress are exactly public TCP 80 for ACME challenges and TCP 443
+for the authenticated review edge. Ports 3000/3001/5432 remain closed.
 
 To close outside review, update this separate stack with `EnableHttps=false`;
 inspect and execute only the removal of `ReviewHttpsIngress`. HTTP certificate
@@ -119,16 +125,22 @@ Run `python3 -B -m unittest discover -s ops/aws/ec2 -p 'test_*.py'` for offline
 contracts and `python3 -B ops/aws/ec2/verify-review-edge.py` for disposable nginx
 TLS/auth/proxy checks. The latter uses fictional upstreams, temporary credentials
 and loopback-only random ports, with no application database or AWS access.
-`verify-review-host.py` runs on staging and verifies its one synthetic reviewer
-through real public-name TLS over host loopback; credentials and cookies stay in
-memory and its verification session is signed out. Its result is not outside
-network or full browser/accessibility acceptance.
+`verify-review-host.py` runs on staging and verifies a selected allowlisted
+synthetic reviewer through real public-name TLS over host loopback; credentials
+and cookies stay in memory and its verification session is signed out. Its result
+is not outside network or full browser/accessibility acceptance.
 
 Actual host verification and ACME renewal dry-run with reload hook succeeded in
 SSM command `072ff439-f26d-4c78-b083-e44f643bb481` on 2026-08-31. The first
 configuration attempt rolled back after probing API health before startup was
 ready; a bounded readiness loop resolved that timing issue. No data rollback,
 password reset, image replacement or production change occurred.
+
+Final private preflight SSM command `06ccdc69-01a2-47ab-97ab-82f379e58f` and
+outside-AWS verification passed on 2026-09-01. The outside check covered trusted
+IP TLS, unauthenticated 401s, Basic and application authentication, secure cookie
+flags, CSRF/foreign-origin denial, permitted portal content, admin/clinic/demo
+denial, logout/session replay, wrong-Host denial and the HTTP challenge boundary.
 
 Sources reviewed 2026-08-31: [Let's Encrypt IP certificates](https://letsencrypt.org/2026/03/11/shorter-certs-certbot),
 [Debian glibc advisory](https://security-tracker.debian.org/tracker/CVE-2026-5450),
