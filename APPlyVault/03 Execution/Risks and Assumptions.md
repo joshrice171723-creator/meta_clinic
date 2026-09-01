@@ -1,7 +1,7 @@
 ---
 type: risk-register
 status: active
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # Risks and Assumptions
 
@@ -30,7 +30,7 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 
 **R-14 — High / open:** an internal medication room, prescriptive authority or “small/cash-pay/our patients only” description is mistaken for authority to dispense or sell drugs, leaving professional coverage, product safety and records inadequate. Mitigation: document the exact activity/site/operator/formulary; obtain scoped classification, supply/charging and staffing findings; validate storage, tracing, controlled/compounding and incident procedures before affected use. Use [[Pharmacy Provider and Counsel Questions]] under T-36 and L-02/L-04/L-05/L-06. No clinic exception or operating pathway has been approved; owner remains unassigned.
 
-**R-15 — High / open:** a named production container or green staging release is mistaken for security, clinical or operational readiness. The 2026-08-31 staging record reports API four critical/fourteen high and web seven high findings; this planning review did not rescan them. The production-promotion gate rejects that pair. Staging PostgreSQL cutover/SQL restore are verified; production remains SQLite. Resolve image advisories, appropriate TLS/audience controls, account/MFA and operations acceptance under [[Roadmap and Tasks#Step 1 — Engineering and release foundation]]. A same-host SQL restore is not independent operator, key-loss or snapshot recovery, and a single host is not high availability. T-20/T-22/T-25 remain open; owner unassigned.
+**R-15 — High / open:** a named production container or green staging release is mistaken for security, clinical or operational readiness. The 2026-09-01 completed scans for current staging pair `f8a0cae` report API six critical/fifteen high and web one critical/nine high findings. The founder explicitly accepted those findings only for the authenticated synthetic staging preview; they remain unresolved and the production-promotion gate rejects the pair. A later staged pair needs fresh disposition. Staging PostgreSQL cutover/SQL restore and the protected outside review path are verified; production remains SQLite. Resolve image advisories, broader browser acceptance, account/MFA and operations acceptance under [[Roadmap and Tasks#Step 1 — Engineering and release foundation]]. A same-host SQL restore is not independent operator, key-loss or snapshot recovery, and a single host is not high availability. T-20.1/T-20.2/T-22/T-25 remain open; owner unassigned.
 
 **R-16 — High / open:** a PostgreSQL code migration is deployed onto a SQLite host without preserving data, keys or recovery evidence, or a shared database is mistaken for complete tenant security. Mitigation: the explicit synthetic-only conversion/restore checks and maintenance procedure in [[PostgreSQL and Inventory Foundation]], runtime/owner separation and the still-open trusted identity/RLS/read-audit review. T-38 owns cutover; T-13/T-34 and L-05/E2/E3 retain broader gates.
 

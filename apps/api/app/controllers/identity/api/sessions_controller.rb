@@ -10,7 +10,9 @@ module Identity
         with: -> { render json: { error: "Too many sign-in attempts. Please try again in five minutes." }, status: :too_many_requests }
 
       def csrf
-        render json: { csrf_token: form_authenticity_token, development_login: DevelopmentAccess.allowed?(request), clinic_available: !Rails.env.production? }
+        render json: { csrf_token: form_authenticity_token,
+          development_login: DevelopmentAccess.allowed?(request),
+          clinic_available: !Rails.env.production? || Staging::DemoClinic.available_to?(current_user) }
       end
 
       def show

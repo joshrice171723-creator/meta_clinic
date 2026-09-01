@@ -40,7 +40,10 @@ module Clinic
     end
 
     def require_prototype
-      render_error("The clinic workspace is a local synthetic prototype and is not released.", :not_found) if Rails.env.production?
+      return unless Rails.env.production?
+      return if Staging::DemoClinic.available_to?(current_user)
+
+      render_error("The clinic workspace is a local synthetic prototype and is not released.", :not_found)
     end
 
     def clinic_membership

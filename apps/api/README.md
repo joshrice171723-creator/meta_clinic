@@ -48,7 +48,7 @@ The Linux amd64 container is verified with separate PostgreSQL 18 storage, a 500
 
 Migrate explicitly with the maintenance identity, then apply `db/runtime_privileges.sql`; server startup does not run migrations. The runtime role cannot create schema, truncate tables or rewrite protected history. The owner can still bypass controls, and actor attribution does not establish a trusted security identity. RLS, independent read audit, MFA, operational key management and the complete clinical isolation architecture remain unimplemented. Keep one application process until process-local rate limits are replaced and scaling is reviewed.
 
-The local demo shortcut is denied in production regardless of its flag. **All clinic routes are also denied in production regardless of account or flag.** This is a release boundary, not a compliance certification or sufficient real-data safeguard.
+The local demo shortcut is denied in production regardless of its flag. Clinic routes are denied in production and to ordinary hosted accounts. Current source has one explicit exception for the managed `StagingDemoUser` identity when `APP_DEPLOYMENT_ENV=staging`; it still requires an active exact clinic assignment and server-enforced permissions. This is a bounded synthetic review release, not a compliance certification or sufficient real-data safeguard.
 
 ## Release work remaining
 
@@ -56,7 +56,7 @@ Operator activation/recovery delivery, MFA, audit/monitoring, scoped confidentia
 
 ## Separate staging and production
 
-Both private EC2 environments are running; see the [environment runbook](../../ops/aws/ec2/environments.md). Production seeds no samples, assigns no demo paperwork, filters existing demo documents/sample guides from all portal access and rejects demo signing. Staging retains synthetic portal content but uses ordinary provisioned login. Neither deployed environment enables clinic routes or the local login shortcut. The root delivery workflows are prepared but await GitHub authentication/configuration and publication; no automatic deployment is active yet.
+Both EC2 environments are running; see the [environment runbook](../../ops/aws/ec2/environments.md). Production seeds no samples, assigns no demo paperwork, filters existing demo documents/sample guides from all portal access and rejects demo signing. Staging retains synthetic portal content and uses ordinary provisioned login behind the authenticated review edge. Current source prepares one isolated managed clinic for `StagingDemoUser`; hosted evidence is recorded separately after matched-pair delivery and exact-candidate review. Production and the local login shortcut remain denied. Main CI drives automatic staging delivery; production delivery remains separately inactive.
 
 ## Local PostgreSQL and conversion checks
 

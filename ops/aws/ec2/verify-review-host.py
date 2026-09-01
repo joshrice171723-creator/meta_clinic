@@ -4,6 +4,7 @@
 Run on the staging host. Credentials/cookies stay in memory and never print.
 Only the assigned synthetic reviewer is used; no other records are inspected.
 """
+import argparse
 import base64
 import http.client
 import json
@@ -14,6 +15,20 @@ import subprocess
 from urllib.parse import urlsplit
 
 
+PROFILES = {
+    "owner-review": {
+        "secret_id": "apply/staging/owner-review",
+        "username": "owner-review",
+        "email": "owner-review@example.test",
+    },
+    "StagingDemoUser": {
+        "secret_id": "apply/staging/StagingDemoUser",
+        "username": "StagingDemoUser",
+        "email": "staging-demo-user@example.test",
+    },
+}
+
+
 class LoopbackTLS(http.client.HTTPSConnection):
     def connect(self):
         raw = socket.create_connection(("127.0.0.1", 443), timeout=self.timeout)
@@ -21,16 +36,25 @@ class LoopbackTLS(http.client.HTTPSConnection):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", choices=tuple(PROFILES), default="owner-review")
+    args = parser.parse_args()
+    profile = PROFILES[args.profile]
     from pathlib import Path
     origin = Path("/etc/apply/review-origin").read_text().strip()
     host = urlsplit(origin).hostname
     result = subprocess.run([
         "aws", "secretsmanager", "get-secret-value", "--region", "us-east-1",
-        "--secret-id", "apply/staging/owner-review", "--output", "json",
+        "--secret-id", profile["secret_id"], "--output", "json",
     ], capture_output=True, text=True)
     if result.returncode:
         raise SystemExit("Credential unavailable; details suppressed")
     credential = json.loads(json.loads(result.stdout)["SecretString"])
+    if credential.get("username") != profile["username"] or credential.get("email") != profile["email"]:
+        raise SystemExit("Unexpected reviewer identity")
+    password = credential.get("password", "")
+    if len(password) != 32 or not password.isascii() or not password.isalnum():
+        raise SystemExit("Unexpected reviewer credential format")
     authorization = "Basic " + base64.b64encode((credential["username"] + ":" + credential["password"]).encode()).decode()
     cookies = SimpleCookie()
 

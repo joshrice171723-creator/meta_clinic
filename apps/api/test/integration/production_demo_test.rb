@@ -58,7 +58,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
     assert_equal 1, @user.paperworks.count
   end
 
-  test "staging retains sample content but never enables the development shortcut or clinic routes" do
+  test "staging retains samples but clinic routes remain denied to ordinary accounts" do
     sign_in
     deployed("staging") do
       get "/api/paperworks"
@@ -69,6 +69,79 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       assert_response :not_found
       get "/api/clinic"
       assert_response :not_found
+    end
+  end
+
+  test "only the managed staging demo identity receives the synthetic clinic workspace" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("staging") do
+      membership = Staging::DemoClinic.prepare!(demo)
+      assert_equal Staging::DemoClinic::PRACTICE_NAME, membership.practice.name
+      assert_equal 4, membership.practice.patients.count
+      assert_equal 3, membership.practice.items.count
+      assert_equal 2, membership.practice.staff_members.count
+      assert_not demo.admin?
+
+      post "/api/session", params: { email_address: demo.email_address, password: @password }, headers: csrf, as: :json
+      assert_response :success
+      get "/api/csrf"
+      assert_equal true, response.parsed_body.fetch("clinic_available")
+      get "/api/clinic/context"
+      assert_response :success
+      assert response.parsed_body.fetch("capabilities").values.all?
+      get "/api/inquiries"
+      assert_response :forbidden
+      assert_difference "Clinic::Care::Patient.count", 1 do
+        post "/api/clinic/patients", params: { clinic_patient: {
+          display_name: "Changed During Demo [Synthetic]", reference: "DEMO-NEW"
+        } }, headers: csrf, as: :json
+        assert_response :created
+      end
+
+      assert_no_difference [ "Clinic::Practice.count", "Clinic::Membership.count", "Clinic::Care::Patient.count" ] do
+        assert_equal membership, Staging::DemoClinic.prepare!(demo)
+      end
+    end
+  end
+
+  test "production and identity collisions refuse the managed staging demo" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("production") do
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
+      post "/api/session", params: { email_address: demo.email_address, password: @password }, headers: csrf, as: :json
+      get "/api/csrf"
+      assert_equal false, response.parsed_body.fetch("clinic_available")
+      get "/api/clinic"
+      assert_response :not_found
+    end
+
+    deployed("staging") do
+      other = Clinic::Practice.create!(name: "Unmanaged collision")
+      Clinic::Membership.create!(practice: other, user: demo)
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
+      get "/api/clinic"
+      assert_response :not_found
+    end
+  end
+
+  test "provisioning refuses revoked authority instead of repairing it" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("staging") do
+      membership = Staging::DemoClinic.prepare!(demo)
+      grant = membership.role_grants.sole
+      grant.update!(effective_until: 1.minute.ago)
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
+    end
+  end
+
+  test "provisioning refuses a preexisting expanded role" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("staging") do
+      role = RoleVersion.create!(role_code: Staging::DemoClinic::ROLE_CODE, version: 1)
+      extra = Permission.create!(action_code: "synthetic.unmanaged")
+      RoleVersionPermission.create!(role_version: role, permission: extra)
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
+      assert_nil demo.reload.clinic_membership
     end
   end
 end

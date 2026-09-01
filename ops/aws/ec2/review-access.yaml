@@ -64,6 +64,21 @@ Resources:
       Tags:
         - {Key: Project, Value: APPly}
         - {Key: Purpose, Value: staging-owner-review}
+  StagingDemoCredential:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: apply/staging/StagingDemoUser
+      Description: Individual synthetic staging demo login; retrieve only in a private operator terminal
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"StagingDemoUser","email":"staging-demo-user@example.test"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+      Tags:
+        - {Key: Project, Value: APPly}
+        - {Key: Purpose, Value: staging-demo-review}
   ReviewCredentialRead:
     Type: AWS::IAM::Policy
     Properties:
@@ -74,7 +89,9 @@ Resources:
         Statement:
           - Effect: Allow
             Action: secretsmanager:GetSecretValue
-            Resource: !Ref ReviewCredential
+            Resource:
+              - !Ref ReviewCredential
+              - !Ref StagingDemoCredential
 Outputs:
   ReviewIp:
     Value: !Ref ReviewAddress
@@ -82,3 +99,5 @@ Outputs:
     Value: !GetAtt ReviewAddress.AllocationId
   ReviewCredentialReference:
     Value: !Ref ReviewCredential
+  StagingDemoCredentialReference:
+    Value: !Ref StagingDemoCredential

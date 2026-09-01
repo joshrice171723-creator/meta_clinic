@@ -1,4 +1,5 @@
 """Review configuration boundaries without AWS, credentials or host changes."""
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,39 @@ import review_access
 ROOT = Path(__file__).resolve().parent
 
 
+spec = importlib.util.spec_from_file_location("prepare_reviewer", ROOT / "prepare-reviewer.py")
+prepare_reviewer = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(prepare_reviewer)
+
+
 class ReviewAccessTest(unittest.TestCase):
+    def test_only_authenticated_public_review_server_can_reach_clinic_shell(self):
+        private = (ROOT / "nginx.conf").read_text()
+        self.assertIn("location ~ ^/clinic(?:/|$) { return 404; }", private)
+        active = review_access.render("8.8.8.8", "active")
+        self.assertEqual(1, active.count("location ~ ^/clinic(?:/|$) { return 404; }"))
+        self.assertIn("server_name 8.8.8.8;", active)
+        self.assertIn("proxy_pass http://apply_web;", active)
+
+    def test_new_reviewer_preserves_existing_allowlisted_gate(self):
+        existing = "owner-review:$2y$10$ownerhash\n"
+        updated = prepare_reviewer.merged_htpasswd(
+            existing, "StagingDemoUser", "StagingDemoUser:$2y$10$demohash"
+        )
+        self.assertEqual(
+            "owner-review:$2y$10$ownerhash\nStagingDemoUser:$2y$10$demohash\n", updated
+        )
+
+    def test_reviewer_gate_rejects_unmanaged_or_duplicate_identities(self):
+        for contents in (
+            "other:$2y$10$hash\n",
+            "owner-review:$2y$10$one\nowner-review:$2y$10$two\n",
+            "owner-review:plaintext\n",
+            "malformed\n",
+        ):
+            with self.subTest(contents=contents), self.assertRaises(ValueError):
+                prepare_reviewer.parse_htpasswd(contents)
+
     def test_rejects_nonpublic_or_injected_addresses(self):
         for value in ("127.0.0.1", "10.0.0.1", "::1", "example.com", "8.8.8.8:443",
                       "8.8.8.8; return 200;", "8.8.8.8\ninclude bad;", "0.0.0.0"):
