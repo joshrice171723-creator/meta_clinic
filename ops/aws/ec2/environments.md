@@ -67,12 +67,12 @@ Staging-only mode creates no production role or environment settings. Without `-
 Release behavior:
 
 1. **CI** runs five jobs for PRs/main pushes and manual dispatch: Ruby security, Ruby lint, frontend tests/format/typecheck/build/audit, offline release/launcher contracts, and PostgreSQL-backed Rails plus frontend-to-API HTTP checks. It has no AWS permissions.
-2. **Deploy staging** responds only to successful CI for a trusted main push, not PR/manual CI. It checks out that exact commit, builds separate Linux amd64 API/web images, verifies both deployment configurations with disposable synthetic data, and publishes matching `sha-<commit>-<run>-<attempt>-api` / `-web` tags.
+2. **Deploy staging** runs only through a manual dispatch on `main` with the exact `deploy-staging` confirmation. CI, PRs, pushes and schedules do not trigger it. It checks out that exact main commit, builds separate Linux amd64 API/web images, verifies both deployment configurations with disposable synthetic data, and publishes matching `sha-<commit>-<run>-<attempt>-api` / `-web` tags.
 3. Staging waits for both scans to complete, but applies no critical/high severity threshold. After SSM success it writes a format-2 receipt with the commit and both digests to `/apply/releases/staging`. Review that exact pair and the workflow summary.
 4. Run **Promote production** on `main`, supplying `digest` (API), `web_digest` and `promote-production`. It requires the latest receipt to match both reviewed digests, the commit to belong to main's history, and both scans to be complete, at most 24 hours old and free of critical/high findings. Legacy single-image receipts are rejected. It copies the pair without rebuilding and verifies both destination digests. The tool reads existing scans; it does not start a fresh scan automatically.
 5. Each workflow serializes its own releases without active cancellation; staging and production have separate concurrency groups. The host lock rejects stale generations, checks free space, backs up PostgreSQL, retains both prior image references and checks API/frontend TLS health, runtime database identity and environment policy. Inspect the printed SSM command before retrying a disconnected/unknown run; failure requires deliberate recovery, not an automatic down-migration.
 
-No scheduled deployment exists. Independent required reviewers depend on the repository plan; manual promotion does not prove they are enforced. Only staging delivery/host credential permissions were added in this activation; production controls and developer/reviewer access settings were not changed.
+No scheduled or automatic deployment exists. Independent required reviewers depend on the repository plan; manual dispatch/promotion does not prove they are enforced. Only staging delivery/host credential permissions were added in this activation; production controls and developer/reviewer access settings were not changed.
 
 ## Current release limits
 
