@@ -116,6 +116,11 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       enter("omni")
       assert_response :created
       omni = User.find_by!(email_address: "test-omni@example.invalid")
+      practice = omni.clinic_membership.practice
+
+      assert_equal 30, practice.patients.where("reference LIKE ?", "SYN-OMNI-%").count
+      assert_equal 12, practice.encounter_notes.where(note_kind: "soap").count
+      assert_equal 84, practice.observations.where(value_kind: "numeric").count
 
       get "/api/settings", headers: @headers
       assert_response :success
@@ -149,6 +154,12 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert response.parsed_body.fetch("capabilities").values.all?
       get "/api/settings", headers: @headers
       assert_response :success
+      tables = ApplicationRecord.connection.tables - %w[schema_migrations ar_internal_metadata]
+      counts = -> { tables.to_h { |table| [ table, ApplicationRecord.connection.select_value("SELECT COUNT(*) FROM #{ApplicationRecord.connection.quote_table_name(table)}") ] } }
+      before = counts.call
+      Development::TestAccounts.prepare!
+      assert_equal before, counts.call
+      assert_equal "client", Development::OmniAccess.profile_for(omni.reload)
 
       patch "/api/development_access", params: { expected_user_id: omni.id, profile: "administrator" },
         headers: csrf, as: :json

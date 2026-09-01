@@ -42,6 +42,27 @@ module Development
       end
     end
 
+    def self.populate_practice!(practice:, actor:, label:)
+      raise "Synthetic backend samples are local only." unless Rails.env.development? || Rails.env.test?
+      raise ArgumentError, "The actor must belong to the selected practice." unless actor.clinic_membership&.practice_id == practice.id
+
+      ApplicationRecord.transaction do
+        ApplicationRecord.connection.execute(
+          "SELECT pg_advisory_xact_lock(hashtextextended('apply:backend-samples:practice:#{practice.id}', 0))"
+        )
+        PaperTrail.request(whodunnit: actor.id.to_s,
+          controller_info: { causal_id: "synthetic-backend-seed-v2-existing-practice" }) do
+          sites = seed_facilities(practice)
+          clinicians = seed_clinicians(practice, [ actor ], sites, label)
+          patients = seed_patients(practice, label, actor)
+          users = { "admin" => [ actor ], "clinician" => [ actor ], "staff" => [ actor, actor ] }
+          seed_chart_history(practice, patients, sites, clinicians, users)
+          seed_external_workflow_examples(practice, patients.first, actor, label)
+        end
+      end
+      practice
+    end
+
     def self.create_roles
       ROLE_PERMISSIONS.to_h do |name, actions|
         versions = {}

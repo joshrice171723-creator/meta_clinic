@@ -86,6 +86,9 @@
   font: inherit;
   z-index: 1;
 }
+.clinic-theme .clinic-shell[data-collapsed="false"] .clinic-chart-tab {
+  right: -20px;
+}
 .clinic-theme .clinic-chart-tab > span:first-child {
   font-size: 24px;
   line-height: 1;
@@ -103,7 +106,7 @@
   margin-left: 12px;
 }
 .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-main {
-  margin-left: 48px;
+  margin-left: 56px;
 }
 .clinic-theme .clinic-nav-backdrop {
   position: fixed;
@@ -131,6 +134,9 @@
   }
   .clinic-theme .clinic-main {
     margin-left: 48px;
+  }
+  .clinic-theme .clinic-shell[data-collapsed="false"] .clinic-chart-tab {
+    right: -44px;
   }
   .clinic-theme .clinic-topbar {
     padding-inline: 16px;

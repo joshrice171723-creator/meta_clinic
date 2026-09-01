@@ -66,6 +66,7 @@ module Development
       else
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
+      BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI")
       membership
     end
 

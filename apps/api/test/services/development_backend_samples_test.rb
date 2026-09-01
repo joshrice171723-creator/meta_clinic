@@ -54,4 +54,29 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     assert grant.reload.revoked_at.present?
     assert_not inactive_membership.reload.active?
   end
+
+  test "an existing practice receives rich scenarios without changing its identity or edited fixtures" do
+    user = User.create!(email_address: "existing-seed-owner@example.invalid", password: SecureRandom.hex(20))
+    membership = Development::TestClinic.create!(user)
+    practice = membership.practice
+
+    assert_no_difference [ "Clinic::Practice.count", "User.count", "Clinic::Membership.count" ] do
+      Development::BackendSamples.populate_practice!(practice: practice, actor: user, label: "EXISTING")
+    end
+
+    rich_patients = practice.patients.where("reference LIKE ?", "SYN-EXISTING-%")
+    assert_equal 30, rich_patients.count
+    assert_equal 12, practice.encounter_notes.where(note_kind: "soap").count
+    assert_equal 84, practice.observations.where(value_kind: "numeric").count
+
+    edited_patient = rich_patients.order(:reference).first
+    edited_patient.update!(display_name: "Locally edited synthetic patient")
+    counts = -> { ApplicationRecord.connection.tables.to_h { |table| [ table, ApplicationRecord.connection.select_value("SELECT COUNT(*) FROM #{ApplicationRecord.connection.quote_table_name(table)}") ] } }
+    before = counts.call
+    Development::BackendSamples.populate_practice!(practice: practice, actor: user, label: "EXISTING")
+
+    assert_equal before, counts.call
+    assert_equal "Locally edited synthetic patient", edited_patient.reload.display_name
+    assert_equal practice.id, user.reload.clinic_membership.practice_id
+  end
 end

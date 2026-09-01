@@ -123,13 +123,33 @@
   vertical-align: top;
   padding: 13px 14px;
 }
+.clinic-theme .tracking-table-container .MuiTableCell-root:not(:last-child) {
+  border-right: 1px solid var(--clinic-border);
+}
+.clinic-theme .tracking-visit-alt > .MuiTableCell-root {
+  background: color-mix(in srgb, var(--clinic-soft) 28%, var(--clinic-surface));
+}
+.clinic-theme .tracking-detail-row-alt > .MuiTableCell-root {
+  background: color-mix(in srgb, var(--clinic-soft) 16%, var(--clinic-surface));
+}
 .clinic-theme .tracking-table-container .MuiTableCell-head {
+  position: relative;
   background: var(--clinic-soft);
   color: var(--clinic-muted);
   font-size: 13px;
   font-weight: 650;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+.clinic-theme .tracking-table-container .MuiTableSortLabel-root {
+  min-height: 24px;
+  align-items: center;
+}
+.clinic-theme .tracking-table-container .MuiTableSortLabel-icon {
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  flex: 0 0 18px;
 }
 .clinic-theme .tracking-table-container .MuiTableRow-hover:hover {
   background: color-mix(in srgb, var(--clinic-soft) 55%, transparent);
@@ -140,16 +160,41 @@
 }
 .clinic-theme .tracking-vitals {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
+}
+.clinic-theme .tracking-vitals .tracking-vital:last-child {
+  grid-column: 1 / -1;
 }
 .clinic-theme .tracking-vital {
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   border-radius: 4px;
-  padding: 3px 6px;
+  padding: 3px 4px;
   border-left: 3px solid transparent;
+}
+.clinic-theme .tracking-vital > span:last-child {
+  white-space: nowrap;
+}
+.clinic-theme .tracking-column-resize {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.clinic-theme .tracking-column-resize::after {
+  content: "";
+  position: absolute;
+  inset: 9px 4px;
+  border-right: 1px solid transparent;
+}
+.clinic-theme .tracking-column-resize:hover::after,
+.clinic-theme .tracking-column-resize:focus-visible::after,
+.clinic-theme .tracking-column-resize.is-resizing::after {
+  border-right-color: var(--clinic-accent);
 }
 .clinic-theme .tracking-vital-normal {
   background: color-mix(in srgb, var(--clinic-soft) 82%, var(--clinic-accent));

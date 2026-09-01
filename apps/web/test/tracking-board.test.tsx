@@ -208,6 +208,14 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).not.toContain("Items at reorder");
     expect(html).not.toContain("Active directory");
   });
+  it("exposes resizable columns and alternating visit rows", () => {
+    const html = renderToStaticMarkup(<TrackingBoardView />);
+    expect(html).toContain('role="separator"');
+    expect(html).toContain('aria-label="Resize Patient column"');
+    expect(html).toContain('aria-label="Resize Wait column"');
+    expect(html).toContain("tracking-visit-alt");
+    expect(html).toContain("<colgroup>");
+  });
   it("does not present an empty preview as an empty actual clinic", () => {
     const html = renderToStaticMarkup(<TrackingBoardView visits={[]} />);
     expect(html).toContain("No example visits");
@@ -518,6 +526,18 @@ describe("viewport-height chart-tab navigation", () => {
     expect(css).toContain("overflow-y: auto");
     expect(css).toContain(".clinic-sidebar[hidden]");
     expect(css).toContain("width: 44px");
+    expect(css).toContain(
+      '.clinic-shell[data-collapsed="false"] .clinic-chart-tab',
+    );
+    expect(css).toContain("right: -20px");
+    expect(css).toContain("margin-left: 56px");
+    const boardCss = readFileSync(
+      "src/features/clinic/trackingBoard.css",
+      "utf8",
+    );
+    expect(boardCss).toContain(".MuiTableSortLabel-icon");
+    expect(boardCss).toContain("width: 18px");
+    expect(boardCss).toContain("height: 18px");
     const source = readFileSync("src/features/clinic/Appearance.tsx", "utf8");
     expect(source.indexOf('import "./appearance.css"')).toBeLessThan(
       source.indexOf('import "./clinicFrame.css"'),
