@@ -104,15 +104,31 @@ def main():
         for path in ("/portal", "/paperwork", "/training", "/api/paperworks", "/api/materials"):
             assert request("GET", path)[0] == 200, "Reviewer route unavailable"
         assert request("GET", "/api/inquiries")[0] == 403
-        for path in ("/clinic", "/api/clinic"):
-            assert request("GET", path)[0] == 404
+        assert request("GET", "/clinic")[0] == 200
         _, config = request("GET", "/api/csrf")
+        if args.profile == "StagingDemoUser":
+            assert config["clinic_available"] is True
+            status, context = request("GET", "/api/clinic/context")
+            assert status == 200
+            assert context["practice"]["name"] == "APPly Staging Demo Clinic [Synthetic]"
+            assert all(context["capabilities"].values())
+            for path, key, minimum in (
+                ("/api/clinic/patients", "patients", 4),
+                ("/api/clinic/inventory", "items", 3),
+                ("/api/clinic/staff", "staff", 2),
+            ):
+                status, collection = request("GET", path)
+                assert status == 200 and len(collection[key]) >= minimum
+        else:
+            assert config["clinic_available"] is False
+            for path in ("/api/clinic", "/api/clinic/context"):
+                assert request("GET", path)[0] == 404
         assert request("POST", "/api/development_session", {}, token=config["csrf_token"])[0] == 404
     finally:
         _, config = request("GET", "/api/csrf")
         assert request("DELETE", "/api/session", token=config["csrf_token"])[0] == 204
     assert request("GET", "/api/session", replay=replay)[0] == 401
-    print("PASS: public-name TLS, gateway denial, secure cookies, CSRF/foreign-origin denial, reviewer login/content, admin/clinic/demo denial, logout and replay rejection")
+    print("PASS: public-name TLS, gateway denial, secure cookies, CSRF/foreign-origin denial, profile-scoped reviewer content, logout and replay rejection")
 
 
 if __name__ == "__main__":
