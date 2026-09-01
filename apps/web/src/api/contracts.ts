@@ -61,6 +61,7 @@ export type Pagination = {
 };
 export type ClinicCapabilities = {
   patients: boolean;
+  patients_write: boolean;
   staff: boolean;
   inventory: boolean;
   appointments: boolean;

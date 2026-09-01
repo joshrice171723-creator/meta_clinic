@@ -9,6 +9,7 @@ module Clinic
         policy_version: "clinic-authorization-v1",
         capabilities: {
           patients: allowed?("patients.read"),
+          patients_write: allowed?("patients.write"),
           staff: allowed?("staff.read"),
           inventory: allowed?("inventory.read"),
           appointments: allowed?("appointments.write"),

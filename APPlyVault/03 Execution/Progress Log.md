@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-08-31 — Patient registration surfaced in the local clinic UI
+
+**Request and implementation:** on `feature/patient-registration`, exposed the existing scoped `POST /api/clinic/patients` contract through a small registration card in the Patients directory. The form accepts only the current synthetic `display_name` and clinic `reference` fields, redirects to the created patient, and clearly warns against real information. `/api/clinic/context` now distinguishes `patients_write` from patient read access; the card is rendered only when that server-projected capability is true. No demographic, membership, triage, appointment or clinical-intake workflow was invented.
+
+**Verification and limits:** the local Omni Test Clinic was switched to its clinic-staff view in the in-app browser. The Patients page showed the directory and enabled, labeled registration form; the existing authorization boundary remained server-side. Frontend tests, formatting, typecheck and build passed. RuboCop passed; the direct Rails test command was not rerun in this slice because the host PostgreSQL credential preflight requires the isolated helper setup. The change remains synthetic/local and is not production or clinical readiness evidence.
+
 ## 2026-08-31 — Omni development identity and view switching
 
 **Request and implementation:** on `feature/clinic-workflow-review`, added the reserved synthetic `test-omni@example.invalid` identity and a dedicated **OmniLogin** to reduce repeated logout/login during local frontend iteration. The reusable fixture owns one Omni Test Clinic with invented patients, schedule, encounters, observations, draft notes and inventory. Its Settings → Development view selector swaps among six explicit server-owned profiles: administrator, clinician, clinic staff, inventory manager, read-only and client/portal. The existing four fixed test personas and fresh demo-client flow remain unchanged.

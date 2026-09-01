@@ -1,6 +1,15 @@
 import type { Pagination, Patient } from "../../api/contracts";
-import { Card, LoadState, Pager, useResource } from "../../shared/ui";
+import {
+  Card,
+  createdPath,
+  Field,
+  Form,
+  LoadState,
+  Pager,
+  useResource,
+} from "../../shared/ui";
 import { PatientSupport } from "./CareFlow";
+import { useClinic } from "./Workspace";
 
 type LegacyNote = {
   id: number;
@@ -16,6 +25,7 @@ function currentPage() {
 }
 
 export function Patients({ id }: { id?: string }) {
+  const clinic = useClinic();
   const page = currentPage();
   const { data, error } = useResource<{
     patients?: Patient[];
@@ -81,12 +91,33 @@ export function Patients({ id }: { id?: string }) {
           />
         )}
       </Card>
-      <Card title="Registration boundary">
-        <p>
-          Patient registration is not exposed in this minimum pass because the
-          current context does not distinguish patient read from patient write.
-        </p>
-      </Card>
+      {clinic.capabilities.patients_write && (
+        <Card title="Register a patient">
+          <p>
+            Add a fictional patient to this clinic directory. Use a local
+            reference that staff can recognize; do not enter real patient
+            information in this development workspace.
+          </p>
+          <Form
+            endpoint="/api/clinic/patients"
+            submit="Register patient"
+            onSuccess={createdPath("/clinic/patients")}
+          >
+            <Field
+              name="clinic_patient[display_name]"
+              label="Patient display name"
+              maxLength={120}
+              autoComplete="name"
+            />
+            <Field
+              name="clinic_patient[reference]"
+              label="Clinic reference"
+              maxLength={32}
+              autoComplete="off"
+            />
+          </Form>
+        </Card>
+      )}
     </>
   );
 }

@@ -65,6 +65,7 @@ const clinic: ClinicOverview = {
 };
 const contextCapabilities = {
   patients: true,
+  patients_write: true,
   staff: true,
   inventory: true,
   appointments: true,
