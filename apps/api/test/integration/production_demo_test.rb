@@ -75,6 +75,13 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
   test "only the managed staging demo identity receives the synthetic clinic workspace" do
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("staging") do
+      assert_difference "RoleVersion.count", 1 do
+        assert_difference "RoleVersionPermission.count", Staging::DemoClinic::PERMISSIONS.length do
+          assert_no_difference [ "Clinic::Practice.count", "Clinic::Membership.count" ] do
+            load Rails.root.join("db/seeds.rb")
+          end
+        end
+      end
       membership = Staging::DemoClinic.prepare!(demo)
       assert_equal Staging::DemoClinic::PRACTICE_NAME, membership.practice.name
       assert_equal 4, membership.practice.patients.count
@@ -98,7 +105,8 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
         assert_response :created
       end
 
-      assert_no_difference [ "Clinic::Practice.count", "Clinic::Membership.count", "Clinic::Care::Patient.count" ] do
+      assert_no_difference [ "Clinic::Practice.count", "Clinic::Membership.count", "Clinic::Care::Patient.count",
+                             "RoleVersion.count", "Permission.count", "RoleVersionPermission.count" ] do
         assert_equal membership, Staging::DemoClinic.prepare!(demo)
       end
     end
@@ -107,6 +115,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
   test "production and identity collisions refuse the managed staging demo" do
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("production") do
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.seed_authorization! }
       assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
       post "/api/session", params: { email_address: demo.email_address, password: @password }, headers: csrf, as: :json
       get "/api/csrf"
@@ -116,6 +125,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
     end
 
     deployed("staging") do
+      Staging::DemoClinic.seed_authorization!
       other = Clinic::Practice.create!(name: "Unmanaged collision")
       Clinic::Membership.create!(practice: other, user: demo)
       assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
@@ -127,6 +137,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
   test "provisioning refuses revoked authority instead of repairing it" do
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("staging") do
+      Staging::DemoClinic.seed_authorization!
       membership = Staging::DemoClinic.prepare!(demo)
       grant = membership.role_grants.sole
       grant.update!(effective_until: 1.minute.ago)
@@ -140,6 +151,15 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       role = RoleVersion.create!(role_code: Staging::DemoClinic::ROLE_CODE, version: 1)
       extra = Permission.create!(action_code: "synthetic.unmanaged")
       RoleVersionPermission.create!(role_version: role, permission: extra)
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.seed_authorization! }
+      assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
+      assert_nil demo.reload.clinic_membership
+    end
+  end
+
+  test "runtime provisioning refuses a missing release-controlled administrator role" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("staging") do
       assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
       assert_nil demo.reload.clinic_membership
     end
