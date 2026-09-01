@@ -61,7 +61,18 @@ class Ability
   def initialize(user, practice: nil, at: Time.current)
     @practice = practice
     @membership = active_membership_for(user, practice)
+    @omni_override = false
     return unless @membership
+
+    # Omni is a deliberately unrestricted synthetic operator for the explicitly
+    # enabled local development database. Its selected profile still toggles
+    # the admin flag for UI/workflow rehearsal, but never limits clinic actions.
+    if Development::TestAccounts.omni?(user)
+      @omni_override = true
+      @permissions_by_scope = PERMISSION_RULES.transform_values { { practice: true, site_ids: [] } }
+      can :manage, :all
+      return
+    end
 
     permissions_by_scope = effective_permissions_by_scope(@membership, at)
     @permissions_by_scope = permissions_by_scope
@@ -87,6 +98,8 @@ class Ability
   def allowed_permission?(permission, site: nil)
     normalized = self.class.normalize_permission(permission)
     rule = self.class.rule_for(normalized)
+    return true if omni_override? && membership && rule
+
     scope = @permissions_by_scope&.[](normalized)
     return false unless membership && rule && scope
 
@@ -99,6 +112,10 @@ class Ability
   end
 
   private
+
+  def omni_override?
+    @omni_override
+  end
 
   def active_membership_for(user, practice)
     return unless user.is_a?(User) && user.active? && practice.present?

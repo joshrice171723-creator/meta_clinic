@@ -64,9 +64,9 @@ export function AppearanceSettings({
       {settings.development_access && (
         <Card title="Development view">
           <p>
-            Swap the OmniLogin account’s server-enforced permissions without
-            signing out. This control exists only on the loopback development
-            server.
+            Swap the OmniLogin account’s development view label without signing
+            out. All views retain unrestricted access to this local synthetic
+            clinic; this control exists only on the loopback development server.
           </p>
           <Form
             endpoint="/api/development_access"
@@ -93,7 +93,9 @@ export function AppearanceSettings({
               )?.description
             }{" "}
             The selected view is shared by OmniLogin sessions using this local
-            database. Reloaded requests continue through normal authorization.
+            database. Reloaded requests continue through the local Omni
+            development override and normal authorization for every other
+            account.
           </p>
         </Card>
       )}

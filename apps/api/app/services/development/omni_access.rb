@@ -5,13 +5,13 @@ module Development
     PROFILES = {
       "administrator" => {
         label: "Administrator",
-        description: "Full clinic workspace plus the APPly inquiry inbox.",
+        description: "Administrator UI label; unrestricted local clinic workspace plus the APPly inquiry inbox.",
         admin: true,
         permissions: TestClinic::DEFAULT_PERMISSIONS
       },
       "clinician" => {
         label: "Clinician",
-        description: "Patients, schedule, encounters, observations, documents and note workflows.",
+        description: "Clinician UI label for note and encounter rehearsal; local clinic access remains unrestricted.",
         admin: false,
         permissions: %w[
           patients.read patients.write appointments.write encounters.write
@@ -20,7 +20,7 @@ module Development
       },
       "staff" => {
         label: "Clinic staff",
-        description: "Patient flow, scheduling, staff directory, messages and inventory visibility.",
+        description: "Clinic staff UI label for intake and operations rehearsal; local clinic access remains unrestricted.",
         admin: false,
         permissions: %w[
           patients.read patients.write appointments.write inventory.read
@@ -29,7 +29,7 @@ module Development
       },
       "inventory" => {
         label: "Inventory manager",
-        description: "Pharmacy and office inventory reads, catalog, receiving, counts and configuration.",
+        description: "Inventory UI label for pharmacy and office workflows; local clinic access remains unrestricted.",
         admin: false,
         permissions: %w[
           inventory.read inventory.catalog inventory.receive inventory.adjust
@@ -38,13 +38,13 @@ module Development
       },
       "reader" => {
         label: "Read-only",
-        description: "Read-only patient, document, inventory and staff visibility.",
+        description: "Read-only UI label for access-state rehearsal; local clinic access remains unrestricted.",
         admin: false,
         permissions: %w[patients.read documents.read inventory.read staff.read]
       },
       "client" => {
         label: "Client / portal",
-        description: "Launch portal plus Settings, without clinic module privileges.",
+        description: "Client / portal UI label; local clinic access remains unrestricted for iteration.",
         admin: false,
         permissions: []
       }

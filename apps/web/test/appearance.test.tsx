@@ -192,7 +192,7 @@ describe("system appearance and UI scope", () => {
     expect(html).toContain("Swap view");
     expect(html).toContain('name="profile"');
     expect(html).toContain('value="clinician" selected=""');
-    expect(html).toContain("server-enforced permissions");
+    expect(html).toContain("unrestricted access");
   });
   it.each(CLINIC_PALETTES)(
     "scopes $label styles to the clinic and renders loading without protected content",

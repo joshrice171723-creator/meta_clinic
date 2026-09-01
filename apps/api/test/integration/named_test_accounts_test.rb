@@ -110,7 +110,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "OmniLogin switches explicit server-authorized views without replacing its session" do
+  test "OmniLogin switches UI profiles without limiting development access" do
     local_mode do
       Development::TestAccounts.prepare!
       enter("omni")
@@ -135,17 +135,18 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       get "/api/clinic/context", headers: @headers
       assert_response :success
       assert_equal true, response.parsed_body.dig("capabilities", "patients")
+      assert_equal true, response.parsed_body.dig("capabilities", "patients_write")
       assert_equal true, response.parsed_body.dig("capabilities", "encounters")
-      assert_equal false, response.parsed_body.dig("capabilities", "inventory")
-      assert_equal false, response.parsed_body.dig("capabilities", "roles")
+      assert_equal true, response.parsed_body.dig("capabilities", "inventory")
+      assert_equal true, response.parsed_body.dig("capabilities", "roles")
       get "/api/inquiries", headers: @headers
-      assert_response :forbidden
+      assert_response :success
 
       patch "/api/development_access", params: { expected_user_id: omni.id, profile: "client" },
         headers: csrf, as: :json
       assert_response :success
       get "/api/clinic/context", headers: @headers
-      assert response.parsed_body.fetch("capabilities").values.none?
+      assert response.parsed_body.fetch("capabilities").values.all?
       get "/api/settings", headers: @headers
       assert_response :success
 

@@ -14,6 +14,13 @@ module Development
       PROFILES.values.any? { |profile| profile[:email] == email }
     end
 
+    def self.omni?(user)
+      return false unless user.is_a?(User) &&
+        user.email_address == PROFILES.fetch("omni")[:email]
+
+      Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
+    end
+
     def self.matches?(user, profile)
       settings = PROFILES[profile]
       return false unless settings && user.email_address == settings[:email]
