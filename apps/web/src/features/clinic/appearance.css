@@ -46,11 +46,6 @@
 .clinic-theme .clinic-topbar a {
   font-size: 14px;
 }
-.clinic-theme .clinic-safety {
-  background: var(--clinic-warning-bg);
-  color: var(--clinic-warning);
-  font-size: 14px;
-}
 .clinic-theme .clinic-content h1 {
   font-family: inherit;
 }
@@ -305,9 +300,6 @@
   padding-block: 18px;
   font-size: 14px;
   letter-spacing: 0;
-}
-.clinic-theme .clinic-safety {
-  font-size: 14px;
 }
 .clinic-theme .eyebrow {
   font-size: 14px;

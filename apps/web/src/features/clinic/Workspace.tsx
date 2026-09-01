@@ -145,10 +145,6 @@ export function Workspace({
                 <span>CLINIC WORKSPACE</span>
                 <a href="/clinic/settings">My settings</a>
               </header>
-              <p className="clinic-safety">
-                SYNTHETIC ONLY · Not a released EHR. No real patient or employee
-                information. Production clinic access is disabled.
-              </p>
               <main id="main" className="clinic-content pharmacy-page">
                 {children}
               </main>

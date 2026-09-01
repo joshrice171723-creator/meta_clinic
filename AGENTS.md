@@ -63,6 +63,7 @@ Preserve reported facts, observations, sourced background, proposals and decisio
 
 - Work within the existing package, architecture, migration and lockfile boundaries described by the nearest instructions.
 - Keep changes independently reviewable. Do not overwrite, reformat or silently incorporate unrelated work.
+- Keep ordinary development screens focused on the task. Do not add persistent banners or repetitive UI copy that merely restates the synthetic/development or non-production status; record that context in repository documentation and agent guidance instead. This presentation rule never authorizes removing runtime access controls, real-data restrictions, release gates, or security checks.
 - Apply failure-first review proportionately:
   - For an ordinary local edit, identify the principal failure and test or inspect for it.
   - For authentication, authorization, tenancy, protected values, signing, billing, migrations, auditing, clinical workflows, infrastructure or release work, use the complete failure-first procedure in `Working Agreement.md` and the relevant playbook.

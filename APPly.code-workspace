@@ -1,0 +1,44 @@
+{
+  "folders": [
+    {
+      "name": "APPly",
+      "path": "."
+    }
+  ],
+  "settings": {},
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "APPly: Start development",
+        "type": "shell",
+        "windows": {
+          "command": "powershell",
+          "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\bin\\start-dev.ps1"]
+        },
+        "linux": { "command": "${workspaceFolder}/bin/start-dev" },
+        "osx": { "command": "${workspaceFolder}/bin/start-dev" },
+        "problemMatcher": []
+      },
+      {
+        "label": "APPly: Check environment",
+        "type": "shell",
+        "windows": {
+          "command": "powershell",
+          "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\bin\\doctor.ps1"]
+        },
+        "linux": { "command": "${workspaceFolder}/bin/doctor" },
+        "osx": { "command": "${workspaceFolder}/bin/doctor" },
+        "problemMatcher": []
+      },
+      {
+        "label": "APPly: Stop development",
+        "type": "shell",
+        "windows": { "command": "apply.cmd", "args": ["down"] },
+        "linux": { "command": "apply", "args": ["down"] },
+        "osx": { "command": "apply", "args": ["down"] },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

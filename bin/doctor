@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# Cross-platform local environment diagnostics. Synthetic development only.
+require "net/http"
+require "open3"
+require "socket"
+require "uri"
+
+container = ENV.fetch("APPLY_POSTGRES_CONTAINER", "apply-postgres-development")
+
+def version(command, *args)
+  output, status = Open3.capture2e(command, *args)
+  status.success? ? output.lines.first.to_s.strip : "not found"
+rescue Errno::ENOENT
+  "not found"
+end
+
+def check(name, ok, detail)
+  puts "[#{ok ? 'OK' : 'FAIL'}] #{name}: #{detail}"
+end
+
+[["Ruby", "ruby"], ["Bundler", "bundle"], ["Node", "node"], ["npm", "npm"]].each do |name, command|
+  detail = version(command, "--version")
+  check(name, detail != "not found", detail)
+end
+
+docker_ok = system("docker", "info", out: File::NULL, err: File::NULL)
+check("Docker engine", docker_ok, docker_ok ? version("docker", "info", "--format", "{{.ServerVersion}}") : "not running")
+container_running = docker_ok && `docker inspect --format '{{.State.Running}}' #{container} 2>/dev/null`.strip == "true"
+check("PostgreSQL container", container_running, container_running ? container : "not running")
+postgres_ok = container_running && system("docker", "exec", container, "pg_isready", "-U", "postgres", "-d", "postgres", out: File::NULL, err: File::NULL)
+check("PostgreSQL readiness", postgres_ok, postgres_ok ? "accepting connections" : "not ready")
+
+[3000, 3001].each do |port|
+  begin
+    socket = TCPServer.new("127.0.0.1", port)
+    socket.close
+    check("Port #{port}", false, "available")
+  rescue Errno::EADDRINUSE
+    check("Port #{port}", true, "in use")
+  end
+end
+
+[["Frontend", "http://127.0.0.1:3000/login"], ["API", "http://127.0.0.1:3001/up"]].each do |name, url|
+  uri = URI(url)
+  ok = begin
+    Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 3) { |http| http.get(uri.request_uri).code.to_i == 200 }
+  rescue StandardError
+    false
+  end
+  check(name, ok, url)
+end
+
+puts "\nRecommended command: bin/start-dev"

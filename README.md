@@ -51,6 +51,39 @@ cd ../..
 APP_DEVELOPMENT_LOGIN=1 bin/dev
 ```
 
+On Windows, the idempotent morning startup command is:
+
+```powershell
+.\bin\start-dev.ps1
+```
+
+For the shared lifecycle command, install this checkout's `apply` launcher once per computer:
+
+```sh
+ruby bin/install-apply
+```
+
+Then, from any directory on macOS, Linux, or Windows, use:
+
+```text
+apply up
+apply down
+apply restart
+apply doctor
+```
+
+`apply up` starts the local Docker/PostgreSQL dependency, Rails API, and Vite frontend in the background. `apply down` stops only APPly-owned development processes and the named local PostgreSQL container; it never deletes the persistent volume or database. Open a new terminal after installation on Windows so the updated user PATH is loaded.
+
+On macOS or Linux, use the equivalent portable Ruby command:
+
+```sh
+bin/start-dev
+```
+
+Use `bin/start-dev --seed` only when synthetic seed data is intentionally needed, or `bin/start-dev --no-browser` when the browser should not open. Run `bin/doctor` for a concise environment diagnosis. The existing `bin/dev` remains available as the lower-level launcher after PostgreSQL has already been started.
+
+The VS Code workspace tasks select the Windows PowerShell or macOS/Linux launcher automatically.
+
 Open [local login](http://127.0.0.1:3000/login). The optional flag enables only the loopback synthetic walkthrough. Frontend runs on 3000, API on 3001. No signup, patient data, live integrations or development tunnels. Omit the flag for ordinary provisioned accounts.
 
 - [Frontend ownership and commands](apps/web/README.md)

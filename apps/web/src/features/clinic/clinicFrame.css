@@ -116,11 +116,6 @@
 .clinic-theme .clinic-topbar {
   padding-block: 16px;
 }
-.clinic-theme .clinic-safety {
-  margin: 0;
-  padding-block: 8px;
-  font-size: 13px;
-}
 @media (max-width: 760px) {
   .clinic-theme .clinic-shell {
     display: block;
@@ -137,8 +132,7 @@
   .clinic-theme .clinic-main {
     margin-left: 48px;
   }
-  .clinic-theme .clinic-topbar,
-  .clinic-theme .clinic-safety {
+  .clinic-theme .clinic-topbar {
     padding-inline: 16px;
   }
   .clinic-theme .clinic-content {
