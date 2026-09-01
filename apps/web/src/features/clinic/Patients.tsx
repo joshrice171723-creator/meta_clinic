@@ -73,15 +73,37 @@ export function Patients({ id }: { id?: string }) {
         </a>
       </p>
       <Card title="Patient directory">
-        {data.patients?.length === 0 && <p>No fictional patients yet.</p>}
-        <ul>
-          {data.patients?.map((p) => (
-            <li key={p.id}>
-              <a href={"/clinic/patients/" + p.id}>{p.display_name}</a> ·{" "}
-              {p.reference}
-            </li>
-          ))}
-        </ul>
+        {data.patients?.length === 0 ? (
+          <p>No fictional patients are registered at this location yet.</p>
+        ) : (
+          <div className="clinic-table-wrap">
+            <table className="care-table">
+              <caption className="sr-only">
+                Patients registered at this location
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Patient</th>
+                  <th scope="col">Clinic reference</th>
+                  <th scope="col">Record</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.patients?.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>{p.display_name}</strong>
+                    </td>
+                    <td>{p.reference}</td>
+                    <td>
+                      <a href={`/clinic/patients/${p.id}`}>Open patient</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         {data.pagination && (
           <Pager
             page={data.pagination.page}
