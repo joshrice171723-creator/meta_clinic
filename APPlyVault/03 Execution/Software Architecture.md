@@ -81,6 +81,8 @@ These boundaries and tests are not complete tenant isolation. Trusted identity/R
 
 ## Shared workflows and presentation
 
+The current clinic working tree introduces Material UI and Emotion through `ClinicAppearanceScope`/`Appearance.tsx`, deriving palette, typography and control defaults from the existing account-owned clinic theme. Existing clinic CSS remains the compatibility layer for unconverted surfaces. This does not move authority into the browser, change API ownership or make the MUI dependency a release or accessibility acceptance claim; the package and lockfile edits remain uncommitted concurrent work.
+
 Browser URLs remain `/`, `/contact`, `/login`, `/portal`, `/paperwork`, `/training`, `/inquiries` and `/clinic/*`. Application-page rendering, native ERB controllers/views and CSS ownership moved out of Rails. The D-033 split preserved the existing green visual language and product copy; that split was not a redesign.
 
 D-036/T-41 subsequently added three clinic palettes and system/light/dark modes. D-039/T-43 move controls to `src/features/identity/Settings.tsx`, initially routed at `/clinic/settings`; `src/features/clinic/Appearance.tsx` owns account-bound loaded theme state, and `appearancePreferences.ts` owns tokens/system appearance. Clinic-scoped CSS preserves public shared CSS and launch styling. [[Clinic Workspace Design]] distinguishes these changes from proposed intake/clinician layouts.

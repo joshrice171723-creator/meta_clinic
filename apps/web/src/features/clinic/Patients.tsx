@@ -41,9 +41,15 @@ export function Patients({ id }: { id?: string }) {
         <h1>{data.patient.display_name}</h1>
         <p>Fictional reference: {data.patient.reference}</p>
         <p className="clinic-lead care-boundary">
-          Read-only patient context backed by the current clinic APIs. Protected
-          note entry, prescribing and external actions remain unavailable.
+          Synthetic registration details backed by the clinic API. Protected note
+          entry, prescribing and external actions remain unavailable.
         </p>
+        {clinic.capabilities.patients_write && (
+          <Card title="Edit registration details">
+            <PatientRegistrationForm patient={data.patient} />
+          </Card>
+        )}
+        <PatientDetails patient={data.patient} />
         <PatientSupport patientId={Number(id)} />
         <Card title="Legacy unsigned drafts">
           <p>
@@ -137,9 +143,43 @@ export function Patients({ id }: { id?: string }) {
               maxLength={32}
               autoComplete="off"
             />
+            <PatientFields />
           </Form>
         </Card>
       )}
     </>
   );
+}
+
+function PatientFields({ patient }: { patient?: Patient }) {
+  const d = patient?.demographics;
+  const c = patient?.contacts?.[0];
+  const e = patient?.emergency_contacts?.[0];
+  const p = patient?.communication_preference;
+  const s = patient?.social_histories?.[0];
+  return <>
+    <Field name="clinic_patient[date_of_birth]" label="Date of birth" type="date" required={false} value={d?.date_of_birth ?? undefined} />
+    <Field name="clinic_patient[sex]" label="Sex" required={false} value={d?.sex} options={[["not_recorded", "Not recorded"], ["female", "Female"], ["male", "Male"], ["intersex", "Intersex"], ["unknown", "Unknown"]]} />
+    <Field name="clinic_patient[primary_language]" label="Primary language" required={false} value={d?.primary_language} maxLength={80} />
+    <Field name="clinic_patient[interpreter_required]" label="Interpreter required" required={false} value={d?.interpreter_required ? "true" : "false"} options={[["false", "No"], ["true", "Yes"]]} />
+    <Field name="clinic_patient[contact_type]" label="Contact type" required={false} value={c?.contact_type} options={["phone", "email"]} />
+    <Field name="clinic_patient[contact_value]" label="Phone or email" required={false} value={c?.contact_value} maxLength={320} />
+    <Field name="clinic_patient[preferred_contact_method]" label="Preferred contact method" required={false} value={p?.preferred_contact_method} options={["portal", "text", "phone", "email"]} />
+    <Field name="clinic_patient[appointment_reminders_consent]" label="Appointment reminders consent" required={false} value={p?.appointment_reminders_consent ? "true" : "false"} options={[["false", "No"], ["true", "Yes"]]} />
+    <Field name="clinic_patient[general_communications_consent]" label="General communications consent" required={false} value={p?.general_communications_consent ? "true" : "false"} options={[["false", "No"], ["true", "Yes"]]} />
+    <Field name="clinic_patient[emergency_name]" label="Emergency contact name" required={false} value={e?.name} maxLength={320} />
+    <Field name="clinic_patient[emergency_relationship]" label="Emergency contact relationship" required={false} value={e?.relationship} maxLength={320} />
+    <Field name="clinic_patient[emergency_phone]" label="Emergency contact phone" required={false} value={e?.phone} maxLength={320} />
+    <Field name="clinic_patient[permission_to_contact]" label="Permission to contact" required={false} value={e?.permission_to_contact ? "true" : "false"} options={[["false", "No"], ["true", "Yes"]]} />
+    {(["tobacco_use", "alcohol_use", "exercise_habits", "diet", "occupation", "living_situation", "relevant_social_factors"] as const).map((name) => <Field key={name} name={`clinic_patient[${name}]`} label={name.replaceAll("_", " ")} type="textarea" required={false} value={s?.[name] ?? undefined} maxLength={2000} />)}
+  </>;
+}
+
+function PatientRegistrationForm({ patient }: { patient: Patient }) {
+  return <Form endpoint={`/api/clinic/patients/${patient.id}`} method="PATCH" submit="Save registration details" className="pharmacy-form-grid"><Field name="clinic_patient[display_name]" label="Patient display name" value={patient.display_name} maxLength={120} /><Field name="clinic_patient[reference]" label="Clinic reference" value={patient.reference} maxLength={32} /><PatientFields patient={patient} /></Form>;
+}
+
+function PatientDetails({ patient }: { patient: Patient }) {
+  const d = patient.demographics;
+  return <div className="care-grid"><Card title="Demographics"><dl className="care-observations"><div><dt>Date of birth</dt><dd>{d?.date_of_birth || "Not recorded"}</dd></div><div><dt>Sex</dt><dd>{d?.sex || "Not recorded"}</dd></div><div><dt>Language</dt><dd>{d?.primary_language || "Not recorded"}{d?.interpreter_required ? " · Interpreter required" : ""}</dd></div></dl></Card><Card title="Contacts"><p>{patient.contacts?.map((c) => `${c.contact_type}: ${c.contact_value}`).join(" · ") || "No contact recorded."}</p><p>{patient.emergency_contacts?.[0] ? `Emergency: ${patient.emergency_contacts[0].name} (${patient.emergency_contacts[0].relationship})` : "No emergency contact recorded."}</p></Card><Card title="Communication preferences"><p>{patient.communication_preference?.preferred_contact_method || "Not recorded"}</p><p>Reminders: {patient.communication_preference?.appointment_reminders_consent ? "Consented" : "Not consented"} · General: {patient.communication_preference?.general_communications_consent ? "Consented" : "Not consented"}</p></Card><Card title="Lifestyle and social history"><p>{patient.social_histories?.[0] ? "Current synthetic social history recorded." : "Not recorded."}</p></Card><Card title="Vital-sign history"><p>{patient.vital_signs?.length ? patient.vital_signs.map((v) => `${v.code}: ${v.numeric_value} ${v.unit_code}`).join(" · ") : "No vital-sign observations recorded."}</p></Card><Card title="Clinical modules"><p>Allergies, medications, and conditions are not yet modeled with clinical attributes in this prototype.</p></Card></div>;
 }

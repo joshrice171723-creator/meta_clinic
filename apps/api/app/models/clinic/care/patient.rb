@@ -13,6 +13,11 @@ module Clinic
       has_many :allergies, class_name: "Clinic::Care::Allergy", dependent: :restrict_with_error
       has_many :medication_statements, class_name: "Clinic::Care::MedicationStatement", dependent: :restrict_with_error
       has_many :address_versions, class_name: "Clinic::Care::PatientAddressVersion", dependent: :restrict_with_error
+      has_one :demographics, class_name: "Clinic::Care::PatientDemographics", dependent: :restrict_with_error
+      has_many :contacts, class_name: "Clinic::Care::PatientContact", dependent: :restrict_with_error
+      has_many :emergency_contacts, class_name: "Clinic::Care::PatientEmergencyContact", dependent: :restrict_with_error
+      has_one :communication_preference, class_name: "Clinic::Care::PatientCommunicationPreference", dependent: :restrict_with_error
+      has_many :social_histories, class_name: "Clinic::Care::PatientSocialHistory", dependent: :restrict_with_error
       belongs_to :primary_address_version, class_name: "Clinic::Care::PatientAddressVersion", optional: true
       has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
       has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error

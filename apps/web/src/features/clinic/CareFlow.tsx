@@ -1,19 +1,46 @@
 import type {
   Appointment,
+  Clinician,
   ClinicWorkspaceContext,
   Encounter,
   EncounterDetail,
+  FacilityRoom,
+  FacilitySite,
   Observation,
-  Pagination,
+  Pagination as PageInfo,
   Patient,
+  VisitType,
 } from "../../api/contracts";
+import { useState } from "react";
+import { api } from "../../api/client";
 import {
-  Card,
-  ErrorMessage,
-  LoadState,
-  Pager,
-  useResource,
-} from "../../shared/ui";
+  Alert,
+  Box,
+  Button,
+  Card as MuiCard,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Collapse,
+  Divider,
+  FormControl,
+  InputLabel,
+  Link,
+  MenuItem,
+  Pagination as MuiPagination,
+  Paper,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { Card, ErrorMessage, LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 
 function currentPage() {
@@ -48,130 +75,621 @@ function statusLabel(value: string) {
   return value.replaceAll("_", " ");
 }
 
+function localDateTimeValue(value: Date) {
+  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+export function appointmentDefaults(now = new Date()) {
+  const start = new Date(now);
+  start.setSeconds(0, 0);
+  start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
+  if (start <= now) start.setMinutes(start.getMinutes() + 15);
+  const end = new Date(start.getTime() + 30 * 60_000);
+  return {
+    startsAt: localDateTimeValue(start),
+    endsAt: localDateTimeValue(end),
+  };
+}
+
+export function appointmentIntervalError(startsAt: string, endsAt: string) {
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (
+    !startsAt ||
+    !endsAt ||
+    !Number.isFinite(start.valueOf()) ||
+    !Number.isFinite(end.valueOf())
+  )
+    return "Choose a valid start and end time.";
+  if (end <= start) return "End time must be after the start time.";
+  if (end.getTime() - start.getTime() > 24 * 60 * 60_000)
+    return "An appointment cannot be longer than 24 hours.";
+  return "";
+}
+
+function statusColor(
+  status: string,
+): "default" | "success" | "warning" | "error" | "info" {
+  if (status === "confirmed" || status === "completed") return "success";
+  if (status === "cancelled" || status === "no_show") return "error";
+  if (status === "scheduled") return "info";
+  return "default";
+}
+
+function BookingForm({
+  timezone,
+  onCreated,
+}: {
+  timezone: string;
+  onCreated?: (appointment: Appointment) => void;
+}) {
+  const defaults = appointmentDefaults();
+  const [patientId, setPatientId] = useState("");
+  const [startsAt, setStartsAt] = useState(defaults.startsAt);
+  const [endsAt, setEndsAt] = useState(defaults.endsAt);
+  const [siteId, setSiteId] = useState("");
+  const [roomId, setRoomId] = useState("");
+  const [clinicianId, setClinicianId] = useState("");
+  const [visitTypeId, setVisitTypeId] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [created, setCreated] = useState<Appointment>();
+  const patients = useResource<{ patients: Patient[] }>(
+    "/api/clinic/patients?per_page=100",
+  );
+  const facilities = useResource<{ sites: FacilitySite[] }>(
+    "/api/clinic/facilities?type=sites",
+  );
+  const rooms = useResource<{ rooms: FacilityRoom[] }>(
+    "/api/clinic/facilities?type=rooms&per_page=100",
+  );
+  const clinicians = useResource<{ clinicians: Clinician[] }>(
+    "/api/clinic/clinicians?per_page=100",
+  );
+  const visitTypes = useResource<{ visit_types: VisitType[] }>(
+    "/api/clinic/facilities?type=visit_types&per_page=100",
+  );
+  const resourceError =
+    patients.error ||
+    facilities.error ||
+    rooms.error ||
+    clinicians.error ||
+    visitTypes.error;
+  if (
+    !patients.data ||
+    !facilities.data ||
+    !rooms.data ||
+    !clinicians.data ||
+    !visitTypes.data
+  )
+    return <LoadState error={resourceError} />;
+  const availableRooms = siteId
+    ? rooms.data.rooms.filter((room) => room.site_id === Number(siteId))
+    : [];
+  const intervalError = appointmentIntervalError(startsAt, endsAt);
+  const setDuration = (minutes: number) => {
+    const start = new Date(startsAt);
+    if (Number.isFinite(start.valueOf()))
+      setEndsAt(
+        localDateTimeValue(new Date(start.getTime() + minutes * 60_000)),
+      );
+  };
+  const reset = () => {
+    const next = appointmentDefaults();
+    setPatientId("");
+    setStartsAt(next.startsAt);
+    setEndsAt(next.endsAt);
+    setSiteId("");
+    setRoomId("");
+    setClinicianId("");
+    setVisitTypeId("");
+    setShowDetails(false);
+  };
+  return (
+    <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
+      <CardContent
+        sx={{ p: { xs: 2, sm: 3 }, "&:last-child": { pb: { xs: 2, sm: 3 } } }}
+      >
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          sx={{ justifyContent: "space-between", gap: 1, mb: 3 }}
+        >
+          <Box>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+              Schedule an appointment
+            </Typography>
+            <Typography color="text.secondary">
+              Create a schedule record for an existing fictional patient.
+            </Typography>
+          </Box>
+          <Chip label="Schedule only" size="small" variant="outlined" />
+        </Stack>
+        {created && (
+          <Alert
+            severity="success"
+            sx={{ mb: 3 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setCreated(undefined)}
+              >
+                Dismiss
+              </Button>
+            }
+          >
+            Appointment #{created.id} scheduled for{" "}
+            {clinicDateTime(created.starts_at, timezone)}.
+          </Alert>
+        )}
+        <Box
+          component="form"
+          noValidate
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setSubmitError("");
+            if (!patientId)
+              return setSubmitError("Select a patient before scheduling.");
+            if (intervalError) return setSubmitError(intervalError);
+            setBusy(true);
+            try {
+              const result = await api<{ appointment: Appointment }>(
+                "/api/clinic/appointments",
+                {
+                  method: "POST",
+                  body: {
+                    appointment: {
+                      patient_id: patientId,
+                      starts_at: new Date(startsAt).toISOString(),
+                      ends_at: new Date(endsAt).toISOString(),
+                      site_id: siteId,
+                      room_id: roomId,
+                      booked_clinician_id: clinicianId,
+                      visit_type_id: visitTypeId,
+                    },
+                  },
+                },
+              );
+              setCreated(result.appointment);
+              reset();
+              onCreated?.(result.appointment);
+            } catch (reason) {
+              setSubmitError(
+                reason instanceof Error
+                  ? reason.message
+                  : "The appointment could not be scheduled.",
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Stack spacing={2.5}>
+            <TextField
+              label="Patient"
+              select
+              required
+              value={patientId}
+              onChange={(event) => setPatientId(event.target.value)}
+              fullWidth
+              helperText={
+                patients.data.patients.length
+                  ? "Choose the patient record for this visit."
+                  : "No patients are available to schedule."
+              }
+            >
+              <MenuItem value="" disabled>
+                Select a patient
+              </MenuItem>
+              {patients.data.patients.map((patient) => (
+                <MenuItem key={patient.id} value={patient.id.toString()}>
+                  {patient.display_name} · {patient.reference}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Starts"
+                type="datetime-local"
+                required
+                value={startsAt}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStartsAt(value);
+                  const start = new Date(value);
+                  if (Number.isFinite(start.valueOf()))
+                    setEndsAt(
+                      localDateTimeValue(
+                        new Date(start.getTime() + 30 * 60_000),
+                      ),
+                    );
+                }}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="Ends"
+                type="datetime-local"
+                required
+                value={endsAt}
+                error={Boolean(intervalError)}
+                helperText={
+                  intervalError || "End time must follow the start time."
+                }
+                onChange={(event) => setEndsAt(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Duration:
+              </Typography>
+              {[30, 45, 60].map((minutes) => (
+                <Button
+                  key={minutes}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setDuration(minutes)}
+                >
+                  {minutes} min
+                </Button>
+              ))}
+            </Stack>
+            <Alert severity="info" variant="outlined">
+              Times are entered in this device’s local timezone and shown on the
+              schedule in {timezone}.
+            </Alert>
+            <Button
+              variant="text"
+              onClick={() => setShowDetails((value) => !value)}
+              sx={{ alignSelf: "flex-start" }}
+              aria-expanded={showDetails}
+            >
+              {showDetails
+                ? "Hide optional details"
+                : "Add location, clinician, and visit type"}
+            </Button>
+            <Collapse in={showDetails} unmountOnExit>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: 2,
+                  pt: 0.5,
+                }}
+              >
+                <FormControl fullWidth>
+                  <InputLabel id="site-label">Site</InputLabel>
+                  <Select
+                    labelId="site-label"
+                    label="Site"
+                    value={siteId}
+                    onChange={(event) => {
+                      setSiteId(event.target.value);
+                      setRoomId("");
+                    }}
+                  >
+                    <MenuItem value="">Not assigned</MenuItem>
+                    {facilities.data.sites.map((site) => (
+                      <MenuItem key={site.id} value={site.id.toString()}>
+                        {site.code}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth disabled={!siteId}>
+                  <InputLabel id="room-label">Room</InputLabel>
+                  <Select
+                    labelId="room-label"
+                    label="Room"
+                    value={roomId}
+                    onChange={(event) => setRoomId(event.target.value)}
+                  >
+                    <MenuItem value="">Not assigned</MenuItem>
+                    {availableRooms.map((room) => (
+                      <MenuItem key={room.id} value={room.id.toString()}>
+                        {room.code}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="clinician-label">Booked clinician</InputLabel>
+                  <Select
+                    labelId="clinician-label"
+                    label="Booked clinician"
+                    value={clinicianId}
+                    onChange={(event) => setClinicianId(event.target.value)}
+                  >
+                    <MenuItem value="">Not assigned</MenuItem>
+                    {clinicians.data.clinicians.map((clinician) => (
+                      <MenuItem
+                        key={clinician.id}
+                        value={clinician.id.toString()}
+                      >
+                        Clinician profile #{clinician.id}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="visit-type-label">Visit type</InputLabel>
+                  <Select
+                    labelId="visit-type-label"
+                    label="Visit type"
+                    value={visitTypeId}
+                    onChange={(event) => setVisitTypeId(event.target.value)}
+                  >
+                    <MenuItem value="">Not specified</MenuItem>
+                    {visitTypes.data.visit_types
+                      .filter((type) => !type.retired_at)
+                      .map((type) => (
+                        <MenuItem key={type.id} value={type.id.toString()}>
+                          {type.code}
+                        </MenuItem>
+                      ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Collapse>
+            {submitError && (
+              <Alert severity="error" role="alert">
+                {submitError}
+              </Alert>
+            )}
+            <Divider />
+            <Stack
+              direction={{ xs: "column-reverse", sm: "row" }}
+              spacing={1.5}
+              sx={{ justifyContent: "flex-end" }}
+            >
+              <Button
+                type="button"
+                color="inherit"
+                onClick={reset}
+                disabled={busy}
+              >
+                Clear
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={busy || !patients.data.patients.length}
+                startIcon={
+                  busy ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : undefined
+                }
+              >
+                {busy ? "Scheduling…" : "Schedule appointment"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </CardContent>
+    </MuiCard>
+  );
+}
+
 export function ScheduleView({
   context,
   appointments,
   pagination,
+  onAppointmentCreated,
 }: {
   context: ClinicWorkspaceContext;
   appointments: Appointment[];
-  pagination: Pagination;
+  pagination: PageInfo;
+  onAppointmentCreated?: (appointment: Appointment) => void;
 }) {
   return (
-    <>
-      <div className="care-heading">
-        <div>
-          <p className="eyebrow">PATIENT FLOW · SCHEDULED</p>
-          <h1>Schedule</h1>
-        </div>
-        <a className="text-link" href="/clinic">
-          Tracking-board example ↗
-        </a>
-      </div>
-      <p className="clinic-lead care-boundary">
+    <Stack spacing={3}>
+      <Box>
+        <Typography color="text.secondary" variant="overline">
+          PATIENT FLOW · SCHEDULED
+        </Typography>
+        <Stack
+          direction="row"
+          sx={{
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Typography component="h1" variant="h3">
+            Schedule
+          </Typography>
+          <Link href="/clinic">Tracking-board example ↗</Link>
+        </Stack>
+      </Box>
+      <Alert severity="info">
         Read-only scheduled visits from the clinic API. A scheduled time is not
         an arrival or a place in the tracking-board queue.
-      </p>
-      <Card title="Scheduled visits">
-        {appointments.length === 0 ? (
-          <div className="care-empty">
-            <strong>No scheduled visits were returned.</strong>
-            <span>
-              This is not evidence that the clinic has no active visits.
-            </span>
-          </div>
-        ) : (
-          <div className="clinic-table-wrap">
-            <table className="care-table">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Patient</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                  <th>Record</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.map((appointment) => (
-                  <tr key={appointment.id}>
-                    <td>
-                      <strong>
-                        {clinicDateTime(
-                          appointment.starts_at,
-                          context.practice.timezone,
-                        )}
-                      </strong>
-                      <small>
-                        Ends{" "}
-                        {clinicDateTime(
-                          appointment.ends_at,
-                          context.practice.timezone,
-                        )}
-                      </small>
-                    </td>
-                    <td>
-                      <a href={`/clinic/patients/${appointment.patient_id}`}>
-                        Patient record #{appointment.patient_id}
-                      </a>
-                    </td>
-                    <td>
-                      {siteLabel(context, appointment.site_id)}
-                      <small>
-                        {appointment.room_id === null
-                          ? "Room not assigned"
-                          : `Room record #${appointment.room_id}`}
-                      </small>
-                    </td>
-                    <td>
-                      <span className="care-status">
-                        {statusLabel(appointment.status)}
-                      </span>
-                    </td>
-                    <td>
-                      {appointment.encounter_id === null ? (
-                        <span className="care-muted">No encounter yet</span>
-                      ) : (
-                        <a
-                          href={`/clinic/patients/${appointment.patient_id}/encounters/${appointment.encounter_id}`}
-                        >
-                          Open encounter →
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <Pager
-          page={pagination.page}
-          total={pagination.total}
-          size={pagination.per_page}
-          path="/clinic/schedule"
+      </Alert>
+      {context.capabilities.appointments && (
+        <BookingForm
+          timezone={context.practice.timezone}
+          onCreated={onAppointmentCreated}
         />
-      </Card>
-    </>
+      )}
+      <MuiCard variant="outlined">
+        <CardContent>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            sx={{ justifyContent: "space-between", gap: 1, mb: 2 }}
+          >
+            <Box>
+              <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+                Scheduled visits
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ordered by start time · {context.practice.timezone}
+              </Typography>
+            </Box>
+            <Chip
+              label={`${pagination.total} ${pagination.total === 1 ? "visit" : "visits"}`}
+              variant="outlined"
+            />
+          </Stack>
+          {appointments.length === 0 ? (
+            <Alert severity="info">
+              <strong>No scheduled visits were returned.</strong> This is not
+              evidence that the clinic has no active visits.
+            </Alert>
+          ) : (
+            <TableContainer
+              component={Paper}
+              variant="outlined"
+              sx={{ maxWidth: "100%" }}
+            >
+              <Table aria-label="Scheduled visits" sx={{ minWidth: 760 }}>
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      "& th": {
+                        fontWeight: 700,
+                        bgcolor: "background.default",
+                      },
+                    }}
+                  >
+                    <TableCell>When</TableCell>
+                    <TableCell>Patient</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Record</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {appointments.map((appointment) => (
+                    <TableRow key={appointment.id}>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {clinicDateTime(
+                            appointment.starts_at,
+                            context.practice.timezone,
+                          )}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Ends{" "}
+                          {clinicDateTime(
+                            appointment.ends_at,
+                            context.practice.timezone,
+                          )}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/clinic/patients/${appointment.patient_id}`}
+                        >
+                          Patient record #{appointment.patient_id}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Typography>
+                          {siteLabel(context, appointment.site_id)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {appointment.room_id === null
+                            ? "Room not assigned"
+                            : `Room record #${appointment.room_id}`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={statusLabel(appointment.status)}
+                          color={statusColor(appointment.status)}
+                          variant="outlined"
+                          sx={{ textTransform: "capitalize" }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {appointment.encounter_id === null ? (
+                          <Typography color="text.secondary">
+                            No encounter yet
+                          </Typography>
+                        ) : (
+                          <Link
+                            href={`/clinic/patients/${appointment.patient_id}/encounters/${appointment.encounter_id}`}
+                          >
+                            Open encounter →
+                          </Link>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {pagination.total_pages > 1 && (
+            <MuiPagination
+              sx={{ mt: 2, display: "flex", justifyContent: "center" }}
+              count={pagination.total_pages}
+              page={pagination.page}
+              onChange={(_, page) =>
+                window.location.assign(`/clinic/schedule?page=${page}`)
+              }
+              color="primary"
+              aria-label="Scheduled visits pages"
+            />
+          )}
+        </CardContent>
+      </MuiCard>
+    </Stack>
   );
 }
 
 export function Schedule() {
   const context = useClinic();
   const page = currentPage();
+  const [createdAppointment, setCreatedAppointment] = useState<Appointment>();
   const { data, error } = useResource<{
     appointments: Appointment[];
-    pagination: Pagination;
+    pagination: PageInfo;
   }>(`/api/clinic/appointments?page=${page}`);
   if (!data) return <LoadState error={error} />;
-  return <ScheduleView context={context} {...data} />;
+  const includesCreated = data.appointments.some(
+    (appointment) => appointment.id === createdAppointment?.id,
+  );
+  const appointments =
+    createdAppointment && !includesCreated
+      ? [...data.appointments, createdAppointment].sort((left, right) =>
+          left.starts_at.localeCompare(right.starts_at),
+        )
+      : data.appointments;
+  return (
+    <ScheduleView
+      context={context}
+      appointments={appointments}
+      pagination={{
+        ...data.pagination,
+        total:
+          data.pagination.total +
+          (createdAppointment && !includesCreated ? 1 : 0),
+      }}
+      onAppointmentCreated={setCreatedAppointment}
+    />
+  );
 }
 
 function EncounterHistory({ patientId }: { patientId: number }) {
   const timezone = useClinic().practice.timezone;
   const { data, error } = useResource<{
     encounters: Encounter[];
-    pagination: Pagination;
+    pagination: PageInfo;
   }>(`/api/clinic/patients/${patientId}/encounters`);
   if (!data) return <LoadState error={error} />;
   return (
@@ -337,7 +855,7 @@ export function EncounterPage({
   );
   const observations = useResource<{
     observations: Observation[];
-    pagination: Pagination;
+    pagination: PageInfo;
   }>(
     `/api/clinic/patients/${patientId}/observations?encounter_id=${encounterId}`,
   );

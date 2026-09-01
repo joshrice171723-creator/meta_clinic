@@ -64,6 +64,10 @@ module Clinic
       @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
 
+    def boolean_or_default(value, field:, default: false)
+      value.nil? ? default : boolean_param(value, field: field)
+    end
+
     def record_sensitive_read
       action_code = sensitive_read_action
       return unless action_code && response.successful?

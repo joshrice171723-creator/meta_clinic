@@ -13,7 +13,12 @@ import {
 } from "../src/features/clinic/ClinicFrame";
 import { ClinicNavigation } from "../src/features/clinic/Workspace";
 import { OperationsView } from "../src/features/clinic/Operations";
-import { EncounterView, ScheduleView } from "../src/features/clinic/CareFlow";
+import {
+  appointmentDefaults,
+  appointmentIntervalError,
+  EncounterView,
+  ScheduleView,
+} from "../src/features/clinic/CareFlow";
 import {
   OverviewView,
   TrackingBoardView,
@@ -100,10 +105,10 @@ describe("tracking-board identities and waiting times", () => {
       { ...EXAMPLE_VISITS[0], id: "EX-099", firstName: "Milo" },
     ];
     const html = renderToStaticMarkup(<TrackingBoardView visits={visits} />);
-    expect(html).toContain("EX-001");
-    expect(html).toContain("EX-099");
+    expect(html).not.toContain("EX-001");
+    expect(html).not.toContain("EX-099");
     expect(html).not.toContain("Mara");
-    expect(html).not.toContain("Rivera");
+    expect(html).toContain("Rivera, M.");
   });
   it("distinguishes current-stage wait, total elapsed time and time in care", () => {
     const ready = EXAMPLE_VISITS[2];
@@ -174,23 +179,25 @@ describe("tracking-board identities and waiting times", () => {
   });
 });
 describe("board and Operations presentation boundaries", () => {
-  it("labels examples, unknowns, visit stages and expandable identity controls", () => {
+  it("renders the patient table with explicit unknowns and expandable rows", () => {
     const html = renderToStaticMarkup(<OverviewView patientAccess />);
     for (const text of [
-      "Not live",
-      "not connected yet",
       "Not verified",
       "Not recorded",
       "Non-member",
-      "Current wait",
-      "Next action / owner",
-      "Owner unassigned",
+      "Wait",
+      "Vitals",
+      "Provider",
+      "Waiting for",
     ])
       expect(html).toContain(text);
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('for="board-stage"');
+    expect(html).toContain("Clinic patient tracking board");
+    expect(html).not.toContain("Example shift");
+    expect(html).not.toContain("board-sort");
     expect(html).not.toContain("Items at reorder");
     expect(html).not.toContain("Active directory");
   });
@@ -205,7 +212,7 @@ describe("board and Operations presentation boundaries", () => {
     const html = renderToStaticMarkup(<OverviewView patientAccess={false} />);
     expect(html).toContain("assigned patient-workspace users");
     expect(html).not.toContain("EX-001");
-    expect(html).not.toContain("tracking-list");
+    expect(html).not.toContain("tracking-table-container");
   });
   it("escapes example content and keeps unknown age explicit", () => {
     const html = renderToStaticMarkup(
@@ -214,7 +221,8 @@ describe("board and Operations presentation boundaries", () => {
           {
             ...EXAMPLE_VISITS[0],
             age: null,
-            reason: "<script>example</script>",
+            reason: "Same-day concern",
+            chiefComplaint: "<script>example</script>",
           },
         ]}
       />,
@@ -270,6 +278,26 @@ describe("board and Operations presentation boundaries", () => {
   });
 });
 describe("mapped read-only care flow", () => {
+  it("defaults to the next quarter-hour and a 30-minute visit", () => {
+    const defaults = appointmentDefaults(new Date(2026, 7, 31, 10, 7, 31));
+    const start = new Date(defaults.startsAt);
+    const end = new Date(defaults.endsAt);
+    expect(start.getHours()).toBe(10);
+    expect(start.getMinutes()).toBe(15);
+    expect(end.getTime() - start.getTime()).toBe(30 * 60_000);
+  });
+  it("rejects invalid, reversed, and overlong appointment intervals", () => {
+    expect(appointmentIntervalError("", "")).toContain("valid");
+    expect(
+      appointmentIntervalError("2026-08-31T10:30", "2026-08-31T10:00"),
+    ).toContain("after");
+    expect(
+      appointmentIntervalError("2026-08-31T10:00", "2026-09-01T10:01"),
+    ).toContain("24 hours");
+    expect(
+      appointmentIntervalError("2026-08-31T10:00", "2026-08-31T10:30"),
+    ).toBe("");
+  });
   it("presents scheduled records without calling them arrivals or board rows", () => {
     const html = renderToStaticMarkup(
       <ScheduleView

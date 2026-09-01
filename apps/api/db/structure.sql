@@ -491,7 +491,7 @@ CREATE TABLE public.clinic_audit_events (
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY (ARRAY[('attempted'::character varying)::text, ('denied'::character varying)::text, ('prepared'::character varying)::text, ('committed'::character varying)::text, ('released'::character varying)::text, ('failed'::character varying)::text])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
+    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY ((ARRAY['attempted'::character varying, 'denied'::character varying, 'prepared'::character varying, 'committed'::character varying, 'released'::character varying, 'failed'::character varying])::text[])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
 );
 
 
@@ -843,7 +843,7 @@ CREATE TABLE public.clinic_documents (
     scan_state character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('quarantined'::character varying)::text, ('clean'::character varying)::text, ('rejected'::character varying)::text]))),
+    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY ((ARRAY['pending'::character varying, 'quarantined'::character varying, 'clean'::character varying, 'rejected'::character varying])::text[]))),
     CONSTRAINT clinic_documents_values CHECK (((byte_size >= 0) AND (length(TRIM(BOTH FROM object_key)) > 0) AND (length(TRIM(BOTH FROM object_version)) > 0) AND (length(TRIM(BOTH FROM checksum)) > 0) AND (length(TRIM(BOTH FROM media_type)) > 0)))
 );
 
@@ -1894,7 +1894,7 @@ CREATE TABLE public.clinic_model_versions (
     changed_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY (ARRAY[('create'::character varying)::text, ('update'::character varying)::text, ('destroy'::character varying)::text, ('touch'::character varying)::text])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
+    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY ((ARRAY['create'::character varying, 'update'::character varying, 'destroy'::character varying, 'touch'::character varying])::text[])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
 );
 
 
@@ -2012,7 +2012,7 @@ CREATE TABLE public.clinic_observations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_observations_finite_numeric CHECK (((numeric_value IS NULL) OR (numeric_value <> 'NaN'::numeric))),
-    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY (ARRAY[('numeric'::character varying)::text, ('text'::character varying)::text, ('coded'::character varying)::text, ('missing'::character varying)::text, ('group'::character varying)::text]))),
+    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY ((ARRAY['numeric'::character varying, 'text'::character varying, 'coded'::character varying, 'missing'::character varying, 'group'::character varying])::text[]))),
     CONSTRAINT clinic_observations_value_shape CHECK (((((value_kind)::text = 'numeric'::text) AND (numeric_value IS NOT NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NOT NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'text'::text) AND (numeric_value IS NULL) AND (text_value IS NOT NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'coded'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NOT NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'missing'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NOT NULL)) OR (((value_kind)::text = 'group'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))))
 );
 
@@ -2069,6 +2069,199 @@ CREATE SEQUENCE public.clinic_patient_address_versions_id_seq
 --
 
 ALTER SEQUENCE public.clinic_patient_address_versions_id_seq OWNED BY public.clinic_patient_address_versions.id;
+
+
+--
+-- Name: clinic_patient_communication_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_communication_preferences (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    preferred_contact_method character varying CONSTRAINT clinic_patient_communication__preferred_contact_method_not_null NOT NULL,
+    appointment_reminders_consent boolean DEFAULT false CONSTRAINT clinic_patient_communicatio_appointment_reminders_cons_not_null NOT NULL,
+    general_communications_consent boolean DEFAULT false CONSTRAINT clinic_patient_communicatio_general_communications_con_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_communication_preferences_method CHECK (((preferred_contact_method)::text = ANY ((ARRAY['text'::character varying, 'phone'::character varying, 'email'::character varying, 'portal'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_patient_communication_preferences_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_communication_preferences_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_communication_preferences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_communication_preferences_id_seq OWNED BY public.clinic_patient_communication_preferences.id;
+
+
+--
+-- Name: clinic_patient_contacts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_contacts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    contact_type character varying NOT NULL,
+    contact_value text NOT NULL,
+    preferred boolean DEFAULT false NOT NULL,
+    effective_from timestamp(6) with time zone NOT NULL,
+    effective_until timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_contacts_type CHECK (((contact_type)::text = ANY ((ARRAY['phone'::character varying, 'email'::character varying])::text[]))),
+    CONSTRAINT clinic_patient_contacts_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_patient_contacts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_contacts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_contacts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_contacts_id_seq OWNED BY public.clinic_patient_contacts.id;
+
+
+--
+-- Name: clinic_patient_demographics; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_demographics (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    date_of_birth date,
+    sex character varying NOT NULL,
+    primary_language character varying NOT NULL,
+    interpreter_required boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_demographics_language_present CHECK ((length(TRIM(BOTH FROM primary_language)) > 0))
+);
+
+
+--
+-- Name: clinic_patient_demographics_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_demographics_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_demographics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_demographics_id_seq OWNED BY public.clinic_patient_demographics.id;
+
+
+--
+-- Name: clinic_patient_emergency_contacts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_emergency_contacts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    name text NOT NULL,
+    relationship character varying NOT NULL,
+    phone text NOT NULL,
+    permission_to_contact boolean DEFAULT false CONSTRAINT clinic_patient_emergency_contact_permission_to_contact_not_null NOT NULL,
+    effective_from timestamp(6) with time zone NOT NULL,
+    effective_until timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_emergency_contacts_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_patient_emergency_contacts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_emergency_contacts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_emergency_contacts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_emergency_contacts_id_seq OWNED BY public.clinic_patient_emergency_contacts.id;
+
+
+--
+-- Name: clinic_patient_social_histories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_social_histories (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    tobacco_use text,
+    alcohol_use text,
+    exercise_habits text,
+    diet text,
+    occupation text,
+    living_situation text,
+    relevant_social_factors text,
+    effective_from timestamp(6) with time zone NOT NULL,
+    effective_until timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_social_histories_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_patient_social_histories_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_social_histories_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_social_histories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_social_histories_id_seq OWNED BY public.clinic_patient_social_histories.id;
 
 
 --
@@ -2782,8 +2975,8 @@ CREATE TABLE public.identity_preferences (
     revision integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
-    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY (ARRAY[('sage'::character varying)::text, ('blue'::character varying)::text, ('graphite'::character varying)::text]))),
+    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY ((ARRAY['system'::character varying, 'light'::character varying, 'dark'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['sage'::character varying, 'blue'::character varying, 'graphite'::character varying])::text[]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
 
@@ -3480,6 +3673,41 @@ ALTER TABLE ONLY public.clinic_patient_address_versions ALTER COLUMN id SET DEFA
 
 
 --
+-- Name: clinic_patient_communication_preferences id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_communication_preferences ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_communication_preferences_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_contacts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_contacts ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_contacts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_demographics id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_demographics ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_demographics_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_emergency_contacts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_emergency_contacts ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_emergency_contacts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_social_histories id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_social_histories ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_social_histories_id_seq'::regclass);
+
+
+--
 -- Name: clinic_patients id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3710,7 +3938,7 @@ ALTER TABLE ONLY public.clinic_allergies
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
+    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[]))));
 
 
 --
@@ -3718,7 +3946,7 @@ ALTER TABLE ONLY public.clinic_appointments
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
+    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[]))));
 
 
 --
@@ -4079,6 +4307,46 @@ ALTER TABLE ONLY public.clinic_observations
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT clinic_patient_address_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_communication_preferences clinic_patient_communication_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_communication_preferences
+    ADD CONSTRAINT clinic_patient_communication_preferences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_contacts clinic_patient_contacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_contacts
+    ADD CONSTRAINT clinic_patient_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_demographics clinic_patient_demographics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_demographics
+    ADD CONSTRAINT clinic_patient_demographics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_emergency_contacts clinic_patient_emergency_contacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_emergency_contacts
+    ADD CONSTRAINT clinic_patient_emergency_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_social_histories clinic_patient_social_histories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_social_histories
+    ADD CONSTRAINT clinic_patient_social_histories_pkey PRIMARY KEY (id);
 
 
 --
@@ -4775,6 +5043,90 @@ CREATE UNIQUE INDEX clinic_patient_addresses_owner_id ON public.clinic_patient_a
 --
 
 CREATE UNIQUE INDEX clinic_patient_addresses_version ON public.clinic_patient_address_versions USING btree (practice_id, patient_id, version);
+
+
+--
+-- Name: clinic_patient_communication_preferences_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_communication_preferences_identity ON public.clinic_patient_communication_preferences USING btree (practice_id, patient_id);
+
+
+--
+-- Name: clinic_patient_communication_preferences_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_communication_preferences_patient_time ON public.clinic_patient_communication_preferences USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_patient_communication_preferences_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_communication_preferences_practice_id ON public.clinic_patient_communication_preferences USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_contacts_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_contacts_patient_time ON public.clinic_patient_contacts USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_patient_contacts_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_contacts_practice_id ON public.clinic_patient_contacts USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_demographics_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_demographics_identity ON public.clinic_patient_demographics USING btree (practice_id, patient_id);
+
+
+--
+-- Name: clinic_patient_demographics_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_demographics_patient_time ON public.clinic_patient_demographics USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_patient_demographics_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_demographics_practice_id ON public.clinic_patient_demographics USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_emergency_contacts_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_emergency_contacts_patient_time ON public.clinic_patient_emergency_contacts USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_patient_emergency_contacts_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_emergency_contacts_practice_id ON public.clinic_patient_emergency_contacts USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_social_histories_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_social_histories_patient_time ON public.clinic_patient_social_histories USING btree (practice_id, patient_id, created_at);
+
+
+--
+-- Name: clinic_patient_social_histories_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_social_histories_practice_id ON public.clinic_patient_social_histories USING btree (practice_id, id);
 
 
 --
@@ -6010,6 +6362,27 @@ CREATE TRIGGER clinic_patient_address_versions_immutable BEFORE DELETE OR UPDATE
 
 
 --
+-- Name: clinic_patient_contacts clinic_patient_contacts_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_contacts_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_contacts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_emergency_contacts clinic_patient_emergency_contacts_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_emergency_contacts_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_emergency_contacts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_social_histories clinic_patient_social_histories_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_social_histories_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_social_histories FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_patients clinic_patients_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6717,6 +7090,86 @@ ALTER TABLE ONLY public.clinic_observations
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT fk_clinic_patient_address_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_communication_preferences fk_clinic_patient_communication_preferences_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_communication_preferences
+    ADD CONSTRAINT fk_clinic_patient_communication_preferences_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_communication_preferences fk_clinic_patient_communication_preferences_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_communication_preferences
+    ADD CONSTRAINT fk_clinic_patient_communication_preferences_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_contacts fk_clinic_patient_contacts_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_contacts
+    ADD CONSTRAINT fk_clinic_patient_contacts_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_contacts fk_clinic_patient_contacts_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_contacts
+    ADD CONSTRAINT fk_clinic_patient_contacts_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_demographics fk_clinic_patient_demographics_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_demographics
+    ADD CONSTRAINT fk_clinic_patient_demographics_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_demographics fk_clinic_patient_demographics_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_demographics
+    ADD CONSTRAINT fk_clinic_patient_demographics_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_emergency_contacts fk_clinic_patient_emergency_contacts_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_emergency_contacts
+    ADD CONSTRAINT fk_clinic_patient_emergency_contacts_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_emergency_contacts fk_clinic_patient_emergency_contacts_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_emergency_contacts
+    ADD CONSTRAINT fk_clinic_patient_emergency_contacts_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_social_histories fk_clinic_patient_social_histories_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_social_histories
+    ADD CONSTRAINT fk_clinic_patient_social_histories_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_social_histories fk_clinic_patient_social_histories_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_social_histories
+    ADD CONSTRAINT fk_clinic_patient_social_histories_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -7830,6 +8283,8 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260831001000'),
+('20260831000900'),
 ('20260831000800'),
 ('20260831000700'),
 ('20260831000400'),

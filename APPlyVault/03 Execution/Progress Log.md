@@ -9,6 +9,60 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-08-31 — Action icons made larger and tooltip-driven
+
+SOAP and previous-visit actions now use larger Material icons with hover/focus tooltips (“Open SOAP Note” and “Previous Visit”). The previous-visit action is icon-only beside a stacked Reason cell (`Appointment type:` then `Chief complaint`), while accessible labels remain on the controls and touch targets remain at least 44px.
+
+## 2026-08-31 — MUI contextual icons added to the tracking board
+
+Added `@mui/icons-material` and used `ContentPasteSearchIcon` for Previous chart / Intake information and `NoteAltIcon` for the SOAP action. Labels remain visible so the icons reinforce, rather than replace, accessible text.
+
+## 2026-08-31 — Concise appointment context and SOAP affordance
+
+Overview reasons now use appointment type plus chief complaint (for example, `Scheduled: Flu shot`, `Unscheduled: Migraine`, and `Follow-up: Migraine`) with contextual Previous chart and Intake information buttons. The patient-row affordance now opens a SOAP-note placeholder panel instead of the former triage readout; no note is created or signed because the synthetic board has no connected SOAP workflow.
+
+## 2026-08-31 — Wait actions reduced to concise destinations
+
+The Wait timeline now uses only concise next-step labels: Intake, Triage, Provider, and Checkout. It no longer differentiates “start/finish/complete/review” wording; the stage and current wait provide the surrounding context.
+
+## 2026-08-31 — Stacked vitals and reference-range indicators
+
+The Overview Vitals cell now stacks BP, HR and weight as individual, readable items. BP is marked normal only when systolic is below 120 and diastolic below 80; resting HR is marked normal from 60–100 bpm, based on the [American Heart Association blood-pressure categories](https://www.heart.org/en/health-topics/high-blood-pressure/blood-pressure-explained) and [resting heart-rate guidance](https://www.heart.org/en/healthy-living/exercise-and-physical-activity/fitness-basics/target-heart-rates). Normal readings use the clinic accent treatment; out-of-range readings use a theme-aware warning fill/border rather than red-on-green. Weight is shown as unassessed because weight alone has no meaningful normal range without height, age and context. These indicators are synthetic display cues, not diagnosis or triage decisions.
+
+## 2026-08-31 — Board location and vitals columns simplified
+
+Renamed “Stage / location” to “Location” and replaced the board’s triage summary column with a concise synthetic vitals display: BP, HR and weight. Detailed triage text remains available only in the expanded row.
+
+## 2026-08-31 — Wait column condensed into a patient-flow timeline
+
+The Overview table now uses one Wait column containing the current “Waiting for” stage, current-stage duration, next action, and total elapsed time. Separate Next action and Time in clinic columns were removed, and provider/owner assignment remains absent from the display.
+
+## 2026-08-31 — Board action and wait ordering refined
+
+The Overview table now presents current wait, next action, and total time in clinic as separate adjacent columns. Provider/owner assignment is removed from the display so the next step does not imply blame or responsibility; expandable detail uses “Next step” language. Synthetic identity and workflow boundaries remain unchanged.
+
+## 2026-08-31 — Tracking table density and identity labels refined
+
+Overview headers now show the drag affordance only on the active sort column; other headers remain visually quiet while retaining sortable/drag-accessible behavior. Patient cells use `Last name, F.` plus age and abbreviated gender, with synthetic visit IDs retained only for search and internal row identity. Redundant visit-type and triage sublabels were removed, and clinician-facing stage/owner language now uses “Provider.”
+
+## 2026-08-31 — Tracking table sorting and column arrangement
+
+**Request and implementation:** added clickable MUI sort controls to each Overview table heading and client-side sorting for patient, stage, reason, triage, membership, wait and owner values. Headers are draggable to rearrange columns; focused headers also support Left/Right Arrow movement and expose the interaction through accessible labels. Filtering and search remain unchanged.
+
+**Verification and limits:** all frontend tests (**75**) and the Vite production build pass. This remains a presentation-only interaction over synthetic example visits; column order is transient and is not saved to the account or sent to the API. Browser drag/keyboard and assistive-technology acceptance remain open under T-22.2.
+
+## 2026-08-31 — Overview tracking board converted to a Material UI table
+
+**Request and implementation:** removed the Overview “Example Shift” disclosure and sort selector while retaining stage filters and search. Replaced the dense card/grid rows with an accessible Material UI table for the synthetic patient examples. Columns are patient abbreviation/reference, stage/location, reason, triage, membership, current wait, and next action; each row retains an expandable triage/handoff detail. The table uses a contained horizontal scroll region for smaller screens and keeps the existing fixed-clock/synthetic-data disclosure in the explanatory caption.
+
+**Verification and limits:** all frontend tests (**75**) and the Vite production build pass; `git diff --check` passes. No backend/API contract, database, permissions, patient records or workflow semantics changed. The table remains a presentation prototype, not a live patient queue or clinical prioritization tool; full browser/device, keyboard, screen-reader and zoom acceptance remain open under T-22.2.
+
+## 2026-08-31 — Material UI review and local environment restart
+
+**Request and outcome:** restarted the local Vite frontend and Rails API on loopback ports 3000 and 3001 for a fresh development reload. Reviewed the concurrent Material UI/Emotion integration, expanded synthetic patient registration/detail models and serializers, and the MUI-based scheduling/encounter additions in `CareFlow.tsx`. The frontend review confirmed the clinic theme remains scoped through the existing appearance provider while legacy clinic CSS still supports unconverted surfaces. Documentation was updated in [[Clinic Workspace]], [[Clinic Workspace Design]], [[Clinic Frontend Backend Mapping]] and [[Software Architecture]] to distinguish these working-tree observations from accepted workflow or release behavior.
+
+**Verification and limits:** Vite production build passed; frontend tests passed (**75 tests**), RuboCop passed (**248 files**) and `zeitwerk:check` passed. Prettier check reports only the concurrently edited `Patients.tsx` as unformatted; it was not auto-formatted. The Rails test command was not used as acceptance because the normal local PostgreSQL credential preflight requires the isolated helper setup. No migration was run, no database was reset, no user/account state was changed, and no commit, push or deployment was performed. The working-tree application and schema edits remain owned by the concurrent change.
+
 ## 2026-08-31 — Patient registration surfaced in the local clinic UI
 
 **Request and implementation:** on `feature/patient-registration`, exposed the existing scoped `POST /api/clinic/patients` contract through a small registration card in the Patients directory. The form accepts only the current synthetic `display_name` and clinic `reference` fields, redirects to the created patient, and clearly warns against real information. `/api/clinic/context` now distinguishes `patients_write` from patient read access; the card is rendered only when that server-projected capability is true. No demographic, membership, triage, appointment or clinical-intake workflow was invented.
