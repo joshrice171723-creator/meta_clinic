@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""List or run verification commands selected from changed repository paths."""
+
+from __future__ import annotations
+
+import argparse
+import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+@dataclass(frozen=True)
+class Check:
+    name: str
+    command: tuple[str, ...]
+    cwd: Path = ROOT
+
+
+def git_lines(*args: str) -> set[str]:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return {line for line in result.stdout.splitlines() if line}
+
+
+def changed_paths(base: str) -> set[str]:
+    tracked = git_lines("diff", "--name-only", base, "--")
+    untracked = git_lines("ls-files", "--others", "--exclude-standard")
+    return tracked | untracked
+
+
+def implementation_change(paths: set[str], prefix: str) -> bool:
+    return any(
+        path.startswith(f"{prefix}/")
+        and not path.endswith("/AGENTS.md")
+        and not path.endswith("/README.md")
+        for path in paths
+    )
+
+
+def checks_for(paths: set[str]) -> list[Check]:
+    checks: list[Check] = []
+    docs_changed = any(
+        path == "AGENTS.md"
+        or path.endswith("/AGENTS.md")
+        or path == "README.md"
+        or path.startswith("APPlyVault/")
+        or path.startswith("agent-workflows/")
+        or path.startswith(".clinerules/")
+        or path in {"bin/agent-check", "bin/agent-preflight", "bin/verify-vault"}
+        for path in paths
+    )
+    if docs_changed:
+        checks.append(Check("vault and agent documents", ("python3", "-B", "bin/verify-vault")))
+
+    api_changed = implementation_change(paths, "apps/api")
+    web_changed = implementation_change(paths, "apps/web")
+    ops_changed = implementation_change(paths, "ops/aws")
+
+    if api_changed:
+        checks.extend(
+            [
+                Check(
+                    "prepare Rails test database",
+                    ("bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "db:prepare"),
+                    ROOT / "apps/api",
+                ),
+                Check(
+                    "Rails tests",
+                    ("bin/postgres", "exec", "bin/rails", "test"),
+                    ROOT / "apps/api",
+                ),
+                Check(
+                    "Rails eager loading",
+                    ("bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "zeitwerk:check"),
+                    ROOT / "apps/api",
+                ),
+                Check("RuboCop", ("bin/rubocop",), ROOT / "apps/api"),
+                Check(
+                    "Brakeman",
+                    ("bin/brakeman", "--quiet", "--no-pager", "--exit-on-warn", "--exit-on-error"),
+                    ROOT / "apps/api",
+                ),
+                Check(
+                    "Bundler Audit",
+                    ("bin/bundler-audit", "check", "--update"),
+                    ROOT / "apps/api",
+                ),
+            ]
+        )
+        migration_change = any(
+            path.startswith("apps/api/db/") or path.startswith("apps/api/app/models/")
+            for path in paths
+        )
+        if migration_change:
+            checks.extend(
+                [
+                    Check("backend invariants", ("bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"),
+                    Check("PostgreSQL transition/restore", ("bin/postgres", "exec", "bin/verify-postgres"), ROOT / "apps/api"),
+                ]
+            )
+
+    if web_changed:
+        checks.extend(
+            [
+                Check("frontend tests", ("npm", "test"), ROOT / "apps/web"),
+                Check("frontend formatting", ("npm", "run", "format:check"), ROOT / "apps/web"),
+                Check("frontend build", ("npm", "run", "build"), ROOT / "apps/web"),
+                Check("frontend dependency audit", ("npm", "audit", "--audit-level=high"), ROOT / "apps/web"),
+            ]
+        )
+
+    cross_boundary = (
+        api_changed and web_changed
+    ) or any(
+        path in {
+            "apps/web/src/api/contracts.ts",
+            "apps/api/test/architecture/routes_contract.json",
+            "apps/api/config/routes.rb",
+        }
+        for path in paths
+    )
+    if cross_boundary:
+        checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
+
+    if ops_changed:
+        checks.append(
+            Check(
+                "offline AWS contracts",
+                ("python3", "-B", "-m", "unittest", "discover", "-s", "ops/aws/ec2", "-p", "test_*.py"),
+            )
+        )
+        checks.append(
+            Check(
+                "AWS shell syntax",
+                (
+                    "bash",
+                    "-c",
+                    'for script in ops/aws/ec2/*.sh; do bash -n "$script" || exit; done',
+                ),
+            )
+        )
+
+    return checks
+
+
+def display(check: Check) -> str:
+    command = shlex.join(check.command)
+    if check.cwd == ROOT:
+        return command
+    return f"(cd {shlex.quote(str(check.cwd.relative_to(ROOT)))} && {command})"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base", default="HEAD", help="Git base for tracked changes; default: HEAD")
+    parser.add_argument("--run", action="store_true", help="Run selected checks instead of only listing them.")
+    args = parser.parse_args()
+
+    try:
+        paths = changed_paths(args.base)
+    except subprocess.CalledProcessError as error:
+        print(error.stderr, file=sys.stderr)
+        return error.returncode or 2
+
+    if not paths:
+        print("No tracked or untracked changes detected.")
+        return 0
+
+    print("Changed paths:")
+    for path in sorted(paths):
+        print(f"  - {path}")
+
+    checks = checks_for(paths)
+    if not checks:
+        print("\nNo automated check mapping exists for these paths; inspect the diff manually.")
+        return 0
+
+    print("\nSelected checks:")
+    for check in checks:
+        print(f"  - {check.name}: {display(check)}")
+
+    if not args.run:
+        print("\nRun with --run to execute this set.")
+        return 0
+
+    for check in checks:
+        print(f"\n==> {check.name}", flush=True)
+        result = subprocess.run(check.command, cwd=check.cwd)
+        if result.returncode:
+            print(f"check failed: {check.name}", file=sys.stderr)
+            return result.returncode
+    print("\nAll selected checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

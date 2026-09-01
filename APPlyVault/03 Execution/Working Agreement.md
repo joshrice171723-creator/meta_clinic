@@ -25,10 +25,11 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 - [[Progress Log]]: dated changes, outcomes, and links; not a second backlog.
 - [[CICD]]: the first developer handoff, prominently linked from Home and the repository README; local frontend/API setup, two-developer Git/PR instructions, verified CI/staging delivery and pending production activation. Scope and dates of actual acceptance remain explicit.
 - [[Software Architecture]]: repository responsibilities and module/dependency rules; independent frontend/Rails API with domain ownership, not a second task or decision register.
+- Root and nested `AGENTS.md`: stable repository and path-specific boundaries. `agent-workflows/` owns on-demand procedures; `bin/agent-preflight`, `bin/agent-check` and `bin/verify-vault` provide deterministic routing and document checks. The vault remains the current state/evidence source rather than copying dated facts into instructions.
 
 ## Working session protocol
 
-1. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. Root `AGENTS.md` defines this scoped review; a full-vault read is no longer required.
+1. Read root and nearest nested `AGENTS.md`; use the relevant `agent-workflows/` playbook. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. A full-vault read is no longer required.
 2. Separate reported facts, observed evidence, sourced background, proposals, and decisions.
 3. Challenge the next increment using [[Working Agreement#Failure-first planning and review]], then capture actual evidence with a source/date and scope using [[Evidence Note Template]].
 4. Update affected current-state notes and the task register; link an explicit decision if one was made.
@@ -50,6 +51,8 @@ No reminder, automation, background monitoring, or automatic synchronization has
 ## Failure-first planning and review
 
 D-037 makes **“How is this going to fail?”** a required planning question, not a claim that a failure has occurred. Apply it to software, source ingestion, service delivery and business assumptions. Challenge the mechanism and evidence, not the person. Do not reopen settled direction without material contrary evidence or force deferred commercial decisions before they are needed.
+
+Scale the record to the risk. An ordinary bounded local edit must name and check its principal failure. A substantive chunk—and every authentication, authorization, tenancy, protected-value, signing, billing, migration, auditing, clinical-workflow, infrastructure or release change—uses the complete record below in its canonical task/evidence note. This proportionality does not waive D-037 or any release/professional gate.
 
 Before starting a substantive chunk, record in its canonical task or linked evidence note:
 
