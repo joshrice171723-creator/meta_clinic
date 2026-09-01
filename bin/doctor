@@ -50,4 +50,4 @@ end
   check(name, ok, url)
 end
 
-puts "\nRecommended command: bin/start-dev"
+puts "\nRecommended command: ./dev_server_startup start"

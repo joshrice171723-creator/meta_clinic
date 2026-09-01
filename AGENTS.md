@@ -61,6 +61,13 @@ Preserve reported facts, observations, sourced background, proposals and decisio
 
 ## Change discipline
 
+### Local development lifecycle
+
+- From the repository root, use `./dev_server_startup start` to start PostgreSQL, Rails and Vite, or `./dev_server_startup restart` to stop and start the managed stack. On Windows, run the same file as `ruby .\dev_server_startup start` or `ruby .\dev_server_startup restart`.
+- `./dev_server_startup stop` preserves the persistent PostgreSQL volume; `./dev_server_startup status` runs the local readiness diagnosis. With no command, the script performs `start`. Pass `--seed` only when synthetic seed data is intentionally required and `--no-browser` when no browser should open.
+- This repository-local entry point is the default agent/developer interface. Do not require installation of the global `apply` launcher or a PATH change. The script delegates to `bin/apply`; keep lifecycle fixes in the owned implementation instead of duplicating them in the wrapper.
+- A successful start/restart must mean PostgreSQL, Rails and Vite passed readiness. Preserve and fix consequential startup failures; do not replace the managed path with an unrecorded manual process and report success.
+
 - Work within the existing package, architecture, migration and lockfile boundaries described by the nearest instructions.
 - Keep changes independently reviewable. Do not overwrite, reformat or silently incorporate unrelated work.
 - Keep ordinary development screens focused on the task. Do not add persistent banners or repetitive UI copy that merely restates the synthetic/development or non-production status; record that context in repository documentation and agent guidance instead. This presentation rule never authorizes removing runtime access controls, real-data restrictions, release gates, or security checks.

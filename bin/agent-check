@@ -63,6 +63,31 @@ def checks_for(paths: set[str]) -> list[Check]:
     if docs_changed:
         checks.append(Check("vault and agent documents", ("python3", "-B", "bin/verify-vault")))
 
+    lifecycle_paths = {
+        "dev_server_startup",
+        "bin/apply",
+        "bin/start-dev",
+        "bin/start-dev.ps1",
+        "bin/doctor",
+        "bin/doctor.ps1",
+    }
+    if paths & lifecycle_paths:
+        checks.append(
+            Check(
+                "local lifecycle Ruby syntax",
+                (
+                    "ruby",
+                    "-e",
+                    "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }",
+                    "dev_server_startup",
+                    "bin/apply",
+                    "bin/start-dev",
+                    "bin/doctor",
+                ),
+            )
+        )
+        checks.append(Check("local lifecycle help", ("ruby", "dev_server_startup", "--help")))
+
     api_changed = implementation_change(paths, "apps/api")
     web_changed = implementation_change(paths, "apps/web")
     ops_changed = implementation_change(paths, "ops/aws")
