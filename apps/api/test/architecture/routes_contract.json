@@ -46,7 +46,7 @@
   ],
   [
     "api_clinic_encounter_notes",
-    "POST",
+    "GET",
     "/api/clinic/encounters/:encounter_id/notes(.:format)"
   ],
   [
@@ -88,6 +88,11 @@
     "api_clinic_note",
     "GET",
     "/api/clinic/notes/:id(.:format)"
+  ],
+  [
+    "api_clinic_note_templates",
+    "GET",
+    "/api/clinic/note_templates(.:format)"
   ],
   [
     "api_clinic_patient",
@@ -348,6 +353,11 @@
     null,
     "POST",
     "/api/clinic/appointments(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/encounters/:encounter_id/notes(.:format)"
   ],
   [
     null,
