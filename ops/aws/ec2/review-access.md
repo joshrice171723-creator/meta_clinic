@@ -54,8 +54,12 @@ reviewer uses `username` in the browser's first authentication dialog, then
 `email` and the same password at `/login`. Deliver it privately to the intended
 individual; do not turn it into a shared team account. `prepare-reviewer.py`
 creates only the selected allowlisted synthetic non-admin account and demo
-paperwork, preserves the other managed gate identity, refuses unknown or
-colliding identities, and issues no clinic membership, invitation or message.
+paperwork, preserves the other managed gate identity, and refuses unknown or
+colliding identities. For `StagingDemoUser` only, it also verifies the
+release-seeded immutable clinic administrator role, creates the managed clinic
+membership, and idempotently prepares the wholly synthetic clinic dataset. It
+does not issue invitations or messages, and the ordinary owner reviewer receives
+no clinic API access.
 Do not casually rerun provisioning with a different secret: password rotation
 and account/session revocation need coordinated operator handling.
 

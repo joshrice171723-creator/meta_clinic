@@ -9,6 +9,14 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-01 — First demo-clinic candidate stayed private; role seeding corrected
+
+**Private release evidence:** before merging the clinic change, reviewed CloudFormation change set `close-https-c13bd8e` removed only `ReviewHttpsIngress`. Stack `apply-staging-review` completed with `EnableHttps=false`; staging retained only public TCP 80 for ACME challenge files, outside HTTPS returned no connection, and production ingress remained empty. PR #9 and main CI passed, then staging deployment `33555104205` installed main `812f731dc9fc2ce197832e810517026f4e5f81d9`. The receipt records API `sha256:4a650c9c06b2265d1fa74079088befc6f2614beece32cc0404709a9f07169d8d` and web `sha256:9bd268fe3901cc2a2297c33e72d24c644df91e70e37a2384cedbb5d4d9eb1773`; completed ECR scans report API 6 critical/15 high and web 1 critical/9 high. No new risk disposition was inferred from the earlier `f8a0cae` acceptance, so HTTPS stayed closed.
+
+**Failed-closed provisioning evidence:** SSM command `63243d8c-9ca2-4729-ba28-4a0cb9250cf2` refused demo provisioning without resetting the existing account or gate. Bounded diagnostic `bd2f0faa-a7ec-4a87-8e8d-627a2e2e5bd1` confirmed the exact active non-platform-admin identity had no clinic assignment or managed-role/name collision. The failure was the intended runtime database role's denied insert on immutable `role_versions`; weakening that role was rejected.
+
+**Correction and next gate:** staging seeds now create and verify only the fixed role/permission definition during the existing owner-only migration phase. Runtime reviewer preparation requires that exact release-controlled definition, refuses missing or altered definitions, and creates only the membership, grant and synthetic dataset. Seven focused tests/90 assertions, RuboCop, Brakeman zero warnings and offline AWS checks pass. A new CI/deploy candidate and private account verification are still required; any later public reopening needs the exact new digests/scans and founder disposition. Logout reset remains deferred under D-047.
+
 ## 2026-09-01 — Staging demo clinic source and release boundary verified
 
 **Request and boundary:** the founder requested clinic-EHR administrator access and a manipulable test dataset for `StagingDemoUser`, with reset-on-logout as a bonus. D-047 selects one exact non-platform-admin identity, one managed synthetic staging clinic and the existing full clinic permission catalog. Production, owner-review, anonymous/ordinary staging accounts, local test personas and real/confidential data remain denied. Logout reset is excluded because silently removing append-only notes, ledger movements or audit evidence would violate the current history model.
