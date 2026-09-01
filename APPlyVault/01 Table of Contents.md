@@ -7,7 +7,7 @@ updated: 2026-08-31
 
 Home: [[00 Home]] · **Developers: [[CICD|start with CI/CD]]** · Code ownership: [[Software Architecture]] · Status: [[Roadmap and Tasks#Current task register]]
 
-Use this index to select the relevant notes and sections for a task; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, tasks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines the review and information-handling rules.
+Use this index to select the relevant notes and sections for a task; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, tasks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and [on-demand playbooks](../agent-workflows/README.md) provide scoped procedure.
 
 This is navigation, not a second backlog. Current status lives in [[Roadmap and Tasks]], explicit choices in [[Decisions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
 
@@ -29,13 +29,13 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | MD materials, applicant packet or research | [[MD Pilot]], [[Clinic Launch Packet]], [[Source Register]] | [[Customer Discovery]], relevant [[Texas Diligence]] issues and source permissions |
 | Pharmacy professional review | [[Pharmacy Provider and Counsel Questions]], [[Texas Diligence]] | Relevant [[Pharmacy Inventory Data Requirements]] sections and dated sources; actual clinic facts remain required |
 | SharePoint, clinical architecture or data safeguards | [[SharePoint and EMR]], relevant [[Data Modeling]] sections | L-05 and applicable E1–E3 gates; [[Entity and Product Boundary]]; qualified review remains separate |
-| Vault documentation or workflow rules | [[Working Agreement]], this index | Relevant current-state notes, decisions/tasks and progress entries; configuration only if the task concerns it |
+| Vault documentation or workflow rules | [[Working Agreement]], this index, [vault agent instructions](AGENTS.md) | Relevant current-state notes, decisions/tasks and progress entries; [agent workflow playbooks](../agent-workflows/README.md); configuration only if the task concerns it |
 
 ## Developer and execution notes — 03 Execution
 
 | Note | What it owns / how to use it |
 | --- | --- |
-| **[[CICD]]** | First developer handoff: local commands, two-developer branches/PRs, five CI jobs, active staging delivery and pending production activation |
+| **[[CICD]]** | First developer handoff: local commands, two-developer branches/PRs, six CI jobs, active staging delivery and pending production activation |
 | [[Software Architecture]] | Current frontend/API ownership, planned backend-replacement boundary, PaperTrail coverage and transport rules |
 | [[PostgreSQL and Inventory Foundation]] | Implemented database/inventory controls, verified staging cutover/recovery and pending production cutover |
 | [[Website MVP]] | Current selling-site scope and source-versus-hosted distinction |

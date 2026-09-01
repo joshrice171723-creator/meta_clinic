@@ -16,7 +16,7 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 | Current source — reviewed 2026-08-31 | Hosted state — staging verified 2026-08-31 |
 | --- | --- |
 | `apps/web`: React/TypeScript/Vite; `apps/api`: Rails JSON + PostgreSQL. Local frontend/API split complete. | Staging runs the separate API/frontend with PostgreSQL; production retains the older Rails/SQLite bootstrap (last verified 2026-08-30). |
-| Five CI jobs and matched API/web image delivery are defined in source. | Staging cutover/recovery and scoped GitHub OIDC are verified. Production cutover and activation remain separately pending. |
+| Six CI jobs—including vault/agent-document validation—and matched API/web image delivery are defined in source. | Staging cutover/recovery and scoped GitHub OIDC are verified. Production cutover and activation remain separately pending. |
 
 The retired `reference/` folder was removed by the founder after its useful behavior was mapped into the app. Use Rails migrations and `apps/api/db/structure.sql`, not the old reference SQL. Shared `.gitignore` rules now protect local artifacts; the vault and source remain tracked. All development stays synthetic; no clinical/confidential release is implied.
 

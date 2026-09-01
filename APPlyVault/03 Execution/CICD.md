@@ -14,7 +14,7 @@ This is the first handoff for either developer. Use the sections in this order:
 1. [[CICD#Rails can run locally|Set up the frontend, API and PostgreSQL locally]].
 2. [[CICD#Separate developers and worktrees|Keep each developer's ports, credentials and databases separate]].
 3. [[CICD#Daily workflow for two developers|Work on a branch, run checks and open a reviewed PR]].
-4. [[CICD#What CI does now|Understand the five CI jobs]].
+4. [[CICD#What CI does now|Understand the six CI jobs]].
 5. [[CICD#Finish activation|Read the remaining host-cutover and delivery-activation requirements before any release]].
 
 [[Software Architecture]] owns code placement. [[Roadmap and Tasks#Current task register]] owns status. Old paths and test counts in [[Progress Log]] are dated history, not setup instructions. No `reference/`, `apps/apply/` or `site/backend/` application is needed.
@@ -25,7 +25,7 @@ For remaining work, use [[Roadmap and Tasks#Step 1 — Engineering and release f
 
 D-033 separates the browser application in `apps/web/` from the Rails JSON backend in `apps/api/`. [[Software Architecture]] owns the module/dependency rules; this guide owns local commands, team workflow, CI and release procedures. The apps build independently but the prepared delivery pipeline releases a **matched API/web pair from one commit**.
 
-**Staging verification: 2026-08-31. Production's last hosted verification remains 2026-08-30.** The founder authorized staging configuration and its backed-up PostgreSQL cutover, leaving production untouched. Staging now runs the separate API/static frontend and PostgreSQL with original encryption keys and synthetic records preserved. Main CI passed all five jobs. See [[Progress Log#2026-08-31 — Staging delivery activated and PostgreSQL cutover verified]] for exact release and recovery evidence. Source fixes use `feat/staging-delivery-activation` and a PR, not a direct main push.
+**Staging verification: 2026-08-31. Production's last hosted verification remains 2026-08-30.** The founder authorized staging configuration and its backed-up PostgreSQL cutover, leaving production untouched. Staging now runs the separate API/static frontend and PostgreSQL with original encryption keys and synthetic records preserved. Main CI passed all five jobs configured at that event. Pull-request run `33469316602` later passed the six-job source including `agent_docs`; that CI result is not new hosted-release evidence. See [[Progress Log#2026-08-31 — Staging delivery activated and PostgreSQL cutover verified]] for exact release and recovery evidence. Source fixes use `feat/staging-delivery-activation` and a PR, not a direct main push.
 
 | Area | Verified source or recorded state |
 | --- | --- |
@@ -33,7 +33,7 @@ D-033 separates the browser application in `apps/web/` from the Rails JSON backe
 | API | Rails 8.1.3.1 / Ruby 3.4.10 / Bundler 4.0.15; JSON, sessions/CSRF, permissions, domain workflows and PostgreSQL. |
 | Frontend | React/TypeScript/Vite with Node 24 and its own npm lockfile; screens, navigation, forms and styles, with no database credentials. |
 | Local development | Frontend at `127.0.0.1:3000`, Rails at `127.0.0.1:3001`, PostgreSQL helper at `127.0.0.1:54329`. Synthetic records only. |
-| CI | Five jobs in repository-root `.github/workflows/ci.yml`; exact checks below. Main run `33366127061` passed for `a710f635f4f0ca653cb6213200a6b4b3845a6914`. |
+| CI | Six jobs in repository-root `.github/workflows/ci.yml`; exact checks below. Main run `33366127061` passed the preceding five-job configuration for `a710f635f4f0ca653cb6213200a6b4b3845a6914`; PR run `33469316602` passed all six jobs for the pre-rebase agent-workflow commit. |
 | Hosted baseline | Staging: PostgreSQL 18.6 plus separate API/web services verified 2026-08-31. Production: unchanged Rails/SQLite bootstrap; no fresh production row-count assertion. Independent storage/keys and ECR remain. |
 | Delivery | Staging OIDC role and fixed pair-aware SSM document installed; main-push CI drives staging. Production role, controls and cutover were deliberately not activated. |
 
@@ -236,10 +236,11 @@ After merging, each developer updates their own clean `main` with `git pull --ff
 
 ## What CI does now
 
-**Continuous integration (CI)** checks whether changes work together in a fresh environment. The [workflow](../../.github/workflows/ci.yml) configures five GitHub-hosted Ubuntu 24.04 jobs:
+**Continuous integration (CI)** checks whether changes work together in a fresh environment. The [workflow](../../.github/workflows/ci.yml) configures six GitHub-hosted Ubuntu 24.04 jobs:
 
 | Job | Checks |
 | --- | --- |
+| `agent_docs` | Check out repository documentation with read-only permissions; validate vault frontmatter, links/headings, Home reachability, layered instructions/playbooks and preflight discovery. No application dependency install or external service. |
 | `scan_ruby` | Brakeman static security analysis and Bundler Audit with refreshed vulnerability data. |
 | `lint` | RuboCop code-style checks. |
 | `frontend` | Install the npm lockfile, run Vitest, Prettier format check, TypeScript/Vite build and npm audit; no app secrets. |
@@ -250,9 +251,9 @@ Triggers are pull requests targeting `main`, pushes to `main` (including merges)
 
 The old `site/backend/.github/workflows/ci.yml` was not discoverable as the parent repository's workflow. GitHub requires repository-root `.github/workflows/`. After D-033, Rails jobs use `apps/api`, frontend uses `apps/web`, and release-contract checks use the repository root. Ruby-action/cache paths match the API location, Node setup uses the frontend version file, and Bundler retains a frozen lockfile. [Workflow syntax; S-23](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax), [Ruby action; S-53](https://github.com/ruby/setup-ruby#working-directory).
 
-CI uses read-only repository permissions, does not persist checkout credentials, and uses sparse checkout for the application/workflow paths. It does not check out the vault directory into its working tree, upload logs/database artifacts, receive AWS or production secrets, or run on the EC2 server. Dependencies and public vulnerability metadata are downloaded. Tests remain wholly synthetic. No path filters are used, so documentation-only pull requests also receive the same checks rather than leaving a future required check pending.
+CI uses read-only repository permissions and does not persist checkout credentials. Application/release jobs use sparse checkout; `agent_docs` checks out the tracked vault and instruction documents solely for local structural/link validation. CI does not upload vault content, logs or database artifacts, receive AWS or production secrets, or run on the EC2 server. Dependencies and public vulnerability metadata are downloaded by the application jobs. Tests remain wholly synthetic. No path filters are used, so documentation-only pull requests also receive the same checks rather than leaving a future required check pending.
 
-After publishing reviewed changes through the team workflow, open the pull request's **Checks** tab or repository **Actions → CI**. Inspect the exact commit and all five results; a successful local check is not an observed GitHub run. If Actions or the referenced actions are restricted by repository policy, resolve that with the repository owner. Runner availability/minutes depend on the account plan; no plan or billing setting was changed. T-22/M0 stays open until its remaining remote-CI/browser criteria have evidence.
+After publishing reviewed changes through the team workflow, open the pull request's **Checks** tab or repository **Actions → CI**. Inspect the exact commit and all six results; a successful local check is not an observed GitHub run. If Actions or the referenced actions are restricted by repository policy, resolve that with the repository owner. Runner availability/minutes depend on the account plan; no plan or billing setting was changed. T-22/M0 stays open until its remaining remote-CI/browser criteria have evidence.
 
 ## Image, container, server and database
 
@@ -323,7 +324,7 @@ Challenge the release before executing it: wrong target, incompatible schema, mi
 2. Complete the [PostgreSQL cutover](../../ops/aws/ec2/postgres-cutover.md) for each existing SQLite environment, preserving old data, matching keys, scripts and recovery evidence. Install the revised launcher/installer, both application services, PostgreSQL service and trusted edge together; accept the actual host path before declaring it ready.
 3. Review the fixed SSM document's `image`, `webImage` and `generation` contract against the installed pair-aware installer. Legacy single-image receipts are not promotable. Existing delivery resources need a separately reviewed update; the additions-only helper cannot silently modify them.
 4. Confirm individual GitHub/AWS access, repository plan/policy support, exact OIDC subjects, production-main restriction and team review controls. Check `targets.json` against intended resources; its role names are not proof that roles exist.
-5. Publish only reviewed changes through the team workflow, observe all five CI jobs, the staged exact pair, synthetic staging acceptance and explicit production promotion. Capture actual commit/digests/SSM results, not just green local checks.
+5. Publish only reviewed changes through the team workflow, observe all six CI jobs, the staged exact pair, synthetic staging acceptance and explicit production promotion. Capture actual commit/digests/SSM results, not just green local checks.
 
 When an authorized operator is ready, GitHub sign-in and read-only configuration preflight are:
 

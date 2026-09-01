@@ -6,6 +6,8 @@ One repository, two applications: a React/TypeScript frontend and a Rails JSON A
 
 Use the [vault table of contents](APPlyVault/01%20Table%20of%20Contents.md) to choose relevant notes/sections; agent work no longer requires reading the entire vault.
 
+For agent work, read the root [agent contract](AGENTS.md), then run `bin/agent-preflight --path <target>` and read the nearest nested `AGENTS.md`. Reusable procedures live in [agent workflow playbooks](agent-workflows/README.md); `bin/agent-check` selects verification from changed paths and `bin/verify-vault` validates vault/instruction documents. Cline receives thin path-conditional adapters from `.clinerules/`; nested `AGENTS.md` files remain the canonical cross-agent source.
+
 Read the [CI/CD and two-developer guide](APPlyVault/03%20Execution/CICD.md) first: local setup, separate branches/databases, checks, pull requests and the release sequence. [Software Architecture](APPlyVault/03%20Execution/Software%20Architecture.md) explains where code belongs; [canonical tasks](APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md) holds remaining work.
 
 Current source is React/Vite + Rails API + PostgreSQL. The last recorded EC2 verification (2026-08-30) used the older Rails/SQLite bootstrap. Hosted PostgreSQL cutover and delivery activation are still pending in the record; this checkout is not proof of deployed state.
@@ -15,9 +17,11 @@ Current source is React/Vite + Rails API + PostgreSQL. The last recorded EC2 ver
 ```text
 apps/web/           Screens, navigation, forms, styles; independent npm build
 apps/api/           Sessions, authorization, domain workflows, PostgreSQL; Rails
-bin/                Local two-process startup and synthetic HTTP verification
+bin/                Local startup, verification and agent workflow helpers
 ops/aws/            Infrastructure, paired releases and recovery procedures
 APPlyVault/         Canonical requirements, research, decisions and tasks
+agent-workflows/    On-demand implementation, data, research and release procedures
+.clinerules/        Thin Cline adapters to canonical nested instructions
 .github/workflows/  API/frontend CI and prepared delivery workflows
 site/               Historical Sites metadata/assets only
 ```

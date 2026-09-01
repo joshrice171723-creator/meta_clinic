@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Report worktree state, instruction layers and vault routes for target paths."""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def git(*args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return result.stdout.rstrip()
+
+
+def target_directory(raw_path: str) -> tuple[Path, str]:
+    candidate = Path(raw_path)
+    if not candidate.is_absolute():
+        candidate = ROOT / candidate
+    candidate = candidate.resolve(strict=False)
+    try:
+        relative = candidate.relative_to(ROOT)
+    except ValueError as error:
+        raise ValueError(f"target is outside the repository: {raw_path}") from error
+
+    if candidate.exists():
+        directory = candidate if candidate.is_dir() else candidate.parent
+    elif candidate.suffix:
+        directory = candidate.parent
+    else:
+        directory = candidate
+    return directory, relative.as_posix() or "."
+
+
+def instruction_chain(directory: Path) -> list[Path]:
+    try:
+        relative = directory.relative_to(ROOT)
+    except ValueError as error:
+        raise ValueError(f"directory is outside the repository: {directory}") from error
+
+    directories = [ROOT]
+    current = ROOT
+    for part in relative.parts:
+        current /= part
+        directories.append(current)
+
+    instructions: list[Path] = []
+    for candidate_directory in directories:
+        override = candidate_directory / "AGENTS.override.md"
+        standard = candidate_directory / "AGENTS.md"
+        if override.is_file():
+            instructions.append(override)
+        elif standard.is_file():
+            instructions.append(standard)
+    return instructions
+
+
+def route_for(relative_path: str) -> list[str]:
+    if relative_path == ".":
+        return [
+            "APPlyVault/00 Home.md",
+            "APPlyVault/01 Table of Contents.md",
+            "agent-workflows/README.md",
+        ]
+    if relative_path.startswith("APPlyVault/") or relative_path == "APPlyVault":
+        return [
+            "APPlyVault/00 Home.md",
+            "APPlyVault/01 Table of Contents.md",
+            "APPlyVault/03 Execution/Working Agreement.md",
+            "agent-workflows/vault-change.md",
+        ]
+    if relative_path.startswith("apps/api/") or relative_path == "apps/api":
+        return [
+            "APPlyVault/03 Execution/CICD.md",
+            "APPlyVault/03 Execution/Software Architecture.md",
+            "agent-workflows/code-change.md",
+            "agent-workflows/database-change.md (for schema/data work)",
+        ]
+    if relative_path.startswith("apps/web/") or relative_path == "apps/web":
+        return [
+            "APPlyVault/03 Execution/CICD.md",
+            "APPlyVault/03 Execution/Software Architecture.md",
+            "agent-workflows/code-change.md",
+        ]
+    if relative_path.startswith("ops/aws/") or relative_path == "ops/aws":
+        return [
+            "APPlyVault/03 Execution/CICD.md",
+            "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
+            "agent-workflows/release.md",
+        ]
+    if relative_path.startswith("site/") or relative_path == "site":
+        return ["site/AGENTS.md", "agent-workflows/release.md (only for authorized hosting changes)"]
+    return [
+        "APPlyVault/00 Home.md",
+        "APPlyVault/01 Table of Contents.md",
+        "agent-workflows/code-change.md",
+    ]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--path",
+        action="append",
+        default=[],
+        help="Repository-relative target path; repeat for multiple areas.",
+    )
+    args = parser.parse_args()
+    paths = args.path or ["."]
+
+    print(f"Repository: {ROOT}")
+    print(f"Branch: {git('branch', '--show-current') or '(detached HEAD)'}")
+    print(f"HEAD: {git('rev-parse', '--short=12', 'HEAD')}")
+    status = git("status", "--short")
+    print("Worktree:")
+    print(status if status else "  clean")
+
+    for raw_path in paths:
+        try:
+            directory, relative = target_directory(raw_path)
+            instructions = instruction_chain(directory)
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+
+        print(f"\nTarget: {relative}")
+        print("Instruction chain:")
+        for instruction in instructions:
+            print(f"  - {instruction.relative_to(ROOT)}")
+        print("Context route:")
+        for route in route_for(relative):
+            print(f"  - {route}")
+
+    print("\nBefore writing, state the reviewed scope, material gaps/conflicts and intended changes.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
