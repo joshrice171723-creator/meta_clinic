@@ -18,6 +18,7 @@ class Ability
     "inventory.configure" => { action: :configure, subjects: [ Clinic::Inventory::Profile ], scope: :practice },
     "appointments.write" => { action: :create, subjects: [ Clinic::Appointment ], actions: %i[create update], scope: :site_or_practice },
     "encounters.write" => { action: :create, subjects: [ Clinic::Encounter ], actions: %i[create update], scope: :site_or_practice },
+    "notes.read" => { action: :read, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], scope: :site_or_practice },
     "notes.write" => { action: :create, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], actions: %i[create update], scope: :site_or_practice },
     "notes.sign" => { action: :sign, subjects: [ Clinic::EncounterNoteSignature, Clinic::EncounterNote ], scope: :site_or_practice },
     "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :practice },

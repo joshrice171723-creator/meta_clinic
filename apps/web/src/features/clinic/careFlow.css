@@ -143,6 +143,18 @@
   padding: 12px 0;
   border-top: 1px solid var(--clinic-border);
 }
+.clinic-theme .soap-workspace,
+.clinic-theme .soap-template-panel {
+  display: grid;
+  gap: 16px;
+}
+.clinic-theme .soap-template-panel {
+  padding: 16px;
+}
+.clinic-theme .soap-sections textarea {
+  font-family: inherit;
+  line-height: 1.5;
+}
 @media (max-width: 900px) {
   .clinic-theme .care-grid,
   .clinic-theme .care-summary {

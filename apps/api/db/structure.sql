@@ -491,7 +491,7 @@ CREATE TABLE public.clinic_audit_events (
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY ((ARRAY['attempted'::character varying, 'denied'::character varying, 'prepared'::character varying, 'committed'::character varying, 'released'::character varying, 'failed'::character varying])::text[])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
+    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY (ARRAY[('attempted'::character varying)::text, ('denied'::character varying)::text, ('prepared'::character varying)::text, ('committed'::character varying)::text, ('released'::character varying)::text, ('failed'::character varying)::text])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
 );
 
 
@@ -843,7 +843,7 @@ CREATE TABLE public.clinic_documents (
     scan_state character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY ((ARRAY['pending'::character varying, 'quarantined'::character varying, 'clean'::character varying, 'rejected'::character varying])::text[]))),
+    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('quarantined'::character varying)::text, ('clean'::character varying)::text, ('rejected'::character varying)::text]))),
     CONSTRAINT clinic_documents_values CHECK (((byte_size >= 0) AND (length(TRIM(BOTH FROM object_key)) > 0) AND (length(TRIM(BOTH FROM object_version)) > 0) AND (length(TRIM(BOTH FROM checksum)) > 0) AND (length(TRIM(BOTH FROM media_type)) > 0)))
 );
 
@@ -955,6 +955,8 @@ CREATE TABLE public.clinic_encounter_notes (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    note_kind character varying DEFAULT 'legacy'::character varying NOT NULL,
+    CONSTRAINT clinic_encounter_notes_kind CHECK (((length(TRIM(BOTH FROM note_kind)) > 0) AND ((note_kind)::text ~ '^[a-z][a-z0-9_]*$'::text))),
     CONSTRAINT clinic_encounter_notes_lock_version CHECK ((lock_version >= 0))
 );
 
@@ -1894,7 +1896,7 @@ CREATE TABLE public.clinic_model_versions (
     changed_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY ((ARRAY['create'::character varying, 'update'::character varying, 'destroy'::character varying, 'touch'::character varying])::text[])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
+    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY (ARRAY[('create'::character varying)::text, ('update'::character varying)::text, ('destroy'::character varying)::text, ('touch'::character varying)::text])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
 );
 
 
@@ -2012,7 +2014,7 @@ CREATE TABLE public.clinic_observations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_observations_finite_numeric CHECK (((numeric_value IS NULL) OR (numeric_value <> 'NaN'::numeric))),
-    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY ((ARRAY['numeric'::character varying, 'text'::character varying, 'coded'::character varying, 'missing'::character varying, 'group'::character varying])::text[]))),
+    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY (ARRAY[('numeric'::character varying)::text, ('text'::character varying)::text, ('coded'::character varying)::text, ('missing'::character varying)::text, ('group'::character varying)::text]))),
     CONSTRAINT clinic_observations_value_shape CHECK (((((value_kind)::text = 'numeric'::text) AND (numeric_value IS NOT NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NOT NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'text'::text) AND (numeric_value IS NULL) AND (text_value IS NOT NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'coded'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NOT NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'missing'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NOT NULL)) OR (((value_kind)::text = 'group'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))))
 );
 
@@ -2084,7 +2086,7 @@ CREATE TABLE public.clinic_patient_communication_preferences (
     general_communications_consent boolean DEFAULT false CONSTRAINT clinic_patient_communicatio_general_communications_con_not_null NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_communication_preferences_method CHECK (((preferred_contact_method)::text = ANY ((ARRAY['text'::character varying, 'phone'::character varying, 'email'::character varying, 'portal'::character varying])::text[])))
+    CONSTRAINT clinic_patient_communication_preferences_method CHECK (((preferred_contact_method)::text = ANY (ARRAY[('text'::character varying)::text, ('phone'::character varying)::text, ('email'::character varying)::text, ('portal'::character varying)::text])))
 );
 
 
@@ -2122,7 +2124,7 @@ CREATE TABLE public.clinic_patient_contacts (
     effective_until timestamp(6) with time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_contacts_type CHECK (((contact_type)::text = ANY ((ARRAY['phone'::character varying, 'email'::character varying])::text[]))),
+    CONSTRAINT clinic_patient_contacts_type CHECK (((contact_type)::text = ANY (ARRAY[('phone'::character varying)::text, ('email'::character varying)::text]))),
     CONSTRAINT clinic_patient_contacts_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
 );
 
@@ -2975,8 +2977,8 @@ CREATE TABLE public.identity_preferences (
     revision integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY ((ARRAY['system'::character varying, 'light'::character varying, 'dark'::character varying])::text[]))),
-    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['sage'::character varying, 'blue'::character varying, 'graphite'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY (ARRAY[('sage'::character varying)::text, ('blue'::character varying)::text, ('graphite'::character varying)::text]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
 
@@ -3938,7 +3940,7 @@ ALTER TABLE ONLY public.clinic_allergies
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[]))));
+    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -3946,7 +3948,7 @@ ALTER TABLE ONLY public.clinic_appointments
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[]))));
+    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -4798,6 +4800,13 @@ CREATE UNIQUE INDEX clinic_encounter_note_revisions_practice_id ON public.clinic
 --
 
 CREATE UNIQUE INDEX clinic_encounter_note_signatures_practice_id ON public.clinic_encounter_note_signatures USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_notes_one_soap; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_notes_one_soap ON public.clinic_encounter_notes USING btree (practice_id, encounter_id, note_kind) WHERE ((note_kind)::text = 'soap'::text);
 
 
 --
@@ -6253,7 +6262,7 @@ CREATE TRIGGER clinic_encounter_note_signatures_immutable BEFORE DELETE OR UPDAT
 -- Name: clinic_encounter_notes clinic_encounter_notes_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER clinic_encounter_notes_preserve_identity BEFORE UPDATE ON public.clinic_encounter_notes FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id');
+CREATE TRIGGER clinic_encounter_notes_preserve_identity BEFORE UPDATE ON public.clinic_encounter_notes FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'note_kind');
 
 
 --
@@ -8283,6 +8292,7 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260831001100'),
 ('20260831001000'),
 ('20260831000900'),
 ('20260831000800'),

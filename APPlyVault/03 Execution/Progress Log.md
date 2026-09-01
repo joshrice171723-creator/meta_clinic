@@ -1,13 +1,21 @@
 ---
 type: progress-log
 status: active
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 # Progress Log
 
 Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
+
+## 2026-09-01 — Basic SOAP-note draft scaffold implemented
+
+**Request and implementation:** on `feature/basic-soap-note`, added one server-owned, versioned generic SOAP template with a paraphrased adult physical-exam starter in Objective only; Subjective, Assessment and Plan remain blank. An authorized provider can explicitly apply that starter, edit all four named sections and save or revise one unsigned SOAP draft per encounter. Rails validates the structured `soap-note-v1` payload, binds template provenance and note kind server-side, encrypts revision bodies at rest, preserves append-only revisions and rejects stale expected revisions. Read and write capabilities are projected separately. The browser never submits a field named `encrypted_body`, does not autosave or automatically replay an uncertain write, warns before abandoning dirty text, and exposes no signing or prescribing control.
+
+**Failure and compatibility work:** the migration preserves existing note/revision identities while encrypting existing revision payloads in place and rebuilding the immutable-identity trigger. Legacy drafts remain readable only as metadata. The generic starter is explicitly labeled unverified; its public reference does not establish clinical approval or reuse rights. A full-suite check also exposed an inherited local Omni-login inconsistency after administrator-view switching; the loopback/development-only admin guard now consistently honors the existing Omni override without changing production behavior.
+
+**Verification and limits:** 150 Rails tests / 3,029 assertions, 78 frontend tests, TypeScript, Vite build, RuboCop, Zeitwerk, Brakeman, Bundler Audit, npm audit, backend verification, PostgreSQL fresh/upgrade/concurrency/backup-restore verification and the root web verifier pass. A local browser check confirmed explicit template application, disabled/enabled save behavior, no signing action, responsive 390px/834px layouts and no browser warnings/errors; it did not persist a draft through the UI. The full frontend format check still reports only the pre-existing parent-branch formatting of `Patients.tsx`; all files changed for this SOAP increment pass Prettier. This remains a synthetic/local unsigned-draft scaffold, not approved clinical content, signature/prescribing functionality, production release or permission to use patient data.
 
 ## 2026-08-31 — Action icons made larger and tooltip-driven
 

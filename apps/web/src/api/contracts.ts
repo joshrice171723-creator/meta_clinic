@@ -118,6 +118,8 @@ export type ClinicCapabilities = {
   inventory: boolean;
   appointments: boolean;
   encounters: boolean;
+  notes_read: boolean;
+  notes_write: boolean;
   documents: boolean;
   messages: boolean;
   billing: boolean;
@@ -189,8 +191,61 @@ export type EncounterDetail = Encounter & {
     effective_until: string | null;
   }[];
   note_ids: number[];
+  notes: EncounterNoteSummary[];
   observation_count: number;
   document_count: number;
+};
+export type SoapNoteSections = {
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+};
+export type SoapNoteBody = {
+  schema: "soap-note-v1";
+  note_kind: "soap";
+  template_id: string;
+  template_version: number;
+  sections: SoapNoteSections;
+};
+export type EncounterNoteSummary = {
+  id: number;
+  patient_id: number;
+  encounter_id: number;
+  note_kind: string;
+  version: number;
+  latest_revision: number | null;
+  signed: boolean;
+};
+export type EncounterNote = EncounterNoteSummary & {
+  current_revision: {
+    id: number;
+    revision_no: number;
+    author_membership_id: number;
+    payload_version: number;
+    created_at: string;
+    signed: boolean;
+    body?: SoapNoteBody;
+  } | null;
+  revisions: {
+    id: number;
+    revision_no: number;
+    prior_revision_id: number | null;
+    author_membership_id: number;
+    payload_version: number;
+    created_at: string;
+    signed: boolean;
+  }[];
+};
+export type NoteTemplate = {
+  id: string;
+  version: number;
+  label: string;
+  note_kind: "soap";
+  source_label: string;
+  source_url: string;
+  caution: string;
+  sections: SoapNoteSections;
 };
 export type Observation = {
   id: number;

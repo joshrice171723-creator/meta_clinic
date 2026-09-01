@@ -10,6 +10,8 @@ module Clinic
     has_many :subsequent_revisions, class_name: "Clinic::EncounterNoteRevision", foreign_key: :prior_revision_id, dependent: :restrict_with_error
     has_many :signatures, class_name: "Clinic::EncounterNoteSignature", foreign_key: :revision_id, dependent: :restrict_with_error
 
+    encrypts :encrypted_body
+
     validates :revision_no, :payload_version, numericality: { only_integer: true, greater_than: 0 }
     validates :encrypted_body, presence: true
     validate :predecessor_is_same_note

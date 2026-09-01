@@ -4,15 +4,18 @@ import type {
   ClinicWorkspaceContext,
   Encounter,
   EncounterDetail,
+  EncounterNote,
   FacilityRoom,
   FacilitySite,
+  NoteTemplate,
   Observation,
   Pagination as PageInfo,
   Patient,
+  SoapNoteSections,
   VisitType,
 } from "../../api/contracts";
-import { useState } from "react";
-import { api } from "../../api/client";
+import { useEffect, useState, type ReactNode } from "react";
+import { api, ApiError } from "../../api/client";
 import {
   Alert,
   Box,
@@ -743,16 +746,372 @@ function observationValue(observation: Observation) {
   }
 }
 
+const EMPTY_SOAP_SECTIONS: SoapNoteSections = {
+  subjective: "",
+  objective: "",
+  assessment: "",
+  plan: "",
+};
+const SOAP_SECTION_LABELS: [keyof SoapNoteSections, string][] = [
+  ["subjective", "Subjective"],
+  ["objective", "Objective"],
+  ["assessment", "Assessment"],
+  ["plan", "Plan"],
+];
+
+export function hasSoapContent(sections: SoapNoteSections) {
+  return Object.values(sections).some((value) => value.trim().length > 0);
+}
+
+export function templateWouldOverwrite(
+  sections: SoapNoteSections,
+  template: NoteTemplate,
+) {
+  return (
+    hasSoapContent(sections) &&
+    SOAP_SECTION_LABELS.some(
+      ([key]) => sections[key] !== template.sections[key],
+    )
+  );
+}
+
+export function SoapNoteForm({
+  encounterId,
+  note,
+  templates,
+  canWrite,
+  onCreated,
+  onRefresh,
+}: {
+  encounterId: number;
+  note?: EncounterNote;
+  templates: NoteTemplate[];
+  canWrite: boolean;
+  onCreated?: (note: EncounterNote) => void;
+  onRefresh?: () => void;
+}) {
+  const savedBody = note?.current_revision?.body;
+  const initialSections = savedBody?.sections ?? EMPTY_SOAP_SECTIONS;
+  const [sections, setSections] = useState<SoapNoteSections>(initialSections);
+  const [selectedTemplate, setSelectedTemplate] = useState(
+    savedBody?.template_id ?? templates[0]?.id ?? "",
+  );
+  const [appliedTemplate, setAppliedTemplate] = useState<{
+    id: string;
+    version: number;
+  } | null>(
+    savedBody
+      ? { id: savedBody.template_id, version: savedBody.template_version }
+      : null,
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [conflict, setConflict] = useState(false);
+  const dirty = SOAP_SECTION_LABELS.some(
+    ([key]) => sections[key] !== initialSections[key],
+  );
+  const signed = note?.signed || note?.current_revision?.signed || false;
+
+  useEffect(() => {
+    setSections(initialSections);
+    if (savedBody) {
+      setSelectedTemplate(savedBody.template_id);
+      setAppliedTemplate({
+        id: savedBody.template_id,
+        version: savedBody.template_version,
+      });
+    }
+    setConflict(false);
+  }, [
+    savedBody?.template_id,
+    savedBody?.template_version,
+    note?.current_revision?.revision_no,
+  ]);
+
+  useEffect(() => {
+    if (!dirty || typeof window === "undefined") return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const applyTemplate = () => {
+    const template = templates.find(
+      (candidate) => candidate.id === selectedTemplate,
+    );
+    if (!template) return;
+    if (
+      templateWouldOverwrite(sections, template) &&
+      !window.confirm(
+        "Replace the current SOAP sections with this template's starter text?",
+      )
+    )
+      return;
+    setSections({ ...template.sections });
+    setAppliedTemplate({ id: template.id, version: template.version });
+    setNotice("");
+    setError("");
+  };
+
+  const save = async () => {
+    if (!appliedTemplate || busy || signed || !canWrite || !dirty) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    setConflict(false);
+    const fields = {
+      template_id: appliedTemplate.id,
+      template_version: appliedTemplate.version,
+      ...sections,
+    };
+    try {
+      if (note?.current_revision) {
+        await api<{ note: EncounterNote }>(
+          `/api/clinic/notes/${note.id}/revisions`,
+          {
+            method: "POST",
+            body: {
+              revision: {
+                ...fields,
+                expected_revision: note.current_revision.revision_no,
+              },
+            },
+          },
+        );
+        setNotice("Draft saved. Reloaded the acknowledged revision.");
+        onRefresh?.();
+      } else {
+        const result = await api<{ note: EncounterNote }>(
+          `/api/clinic/encounters/${encounterId}/notes`,
+          {
+            method: "POST",
+            body: { encounter_note: { note_kind: "soap", ...fields } },
+          },
+        );
+        setNotice("Draft created.");
+        onCreated?.(result.note);
+      }
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        window.location.replace("/login");
+        return;
+      }
+      if (caught instanceof ApiError && caught.status === 409) {
+        setConflict(true);
+        setError(
+          "The saved note changed or creation could not be confirmed. Reload before trying again.",
+        );
+      } else if (caught instanceof ApiError) setError(caught.message);
+      else
+        setError(
+          "Save outcome not confirmed. Reload before trying again; this draft was not automatically replayed.",
+        );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const template = templates.find(
+    (candidate) => candidate.id === selectedTemplate,
+  );
+  return (
+    <Box className="soap-workspace">
+      {!note && (
+        <Paper variant="outlined" className="soap-template-panel">
+          <Typography variant="subtitle2">Start from a template</Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel id="soap-template-label">Template</InputLabel>
+            <Select
+              labelId="soap-template-label"
+              label="Template"
+              value={selectedTemplate}
+              onChange={(event) => setSelectedTemplate(event.target.value)}
+            >
+              {templates.map((option) => (
+                <MenuItem
+                  key={`${option.id}-${option.version}`}
+                  value={option.id}
+                >
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {template && (
+            <>
+              <Alert severity="warning">{template.caution}</Alert>
+              <Typography variant="caption" color="text.secondary">
+                Source: {template.source_label}. Prototype attribution only;
+                this does not establish clinical approval or reuse rights for
+                release.{" "}
+                <Link
+                  href={template.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Review source
+                </Link>
+              </Typography>
+            </>
+          )}
+          <Button
+            variant="outlined"
+            onClick={applyTemplate}
+            disabled={!template}
+          >
+            Apply starter text
+          </Button>
+        </Paper>
+      )}
+      {note && savedBody && (
+        <Alert severity={signed ? "info" : "warning"}>
+          {signed
+            ? "This exact revision is signed and read-only. Signing is not available from this editor."
+            : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
+        </Alert>
+      )}
+      <Stack spacing={2} className="soap-sections">
+        {SOAP_SECTION_LABELS.map(([key, label]) => (
+          <TextField
+            key={key}
+            name={key}
+            label={`${label} (${label.charAt(0)})`}
+            value={sections[key]}
+            onChange={(event) =>
+              setSections((current) => ({
+                ...current,
+                [key]: event.target.value,
+              }))
+            }
+            multiline
+            minRows={key === "objective" ? 10 : 4}
+            slotProps={{ htmlInput: { maxLength: 50_000 } }}
+            disabled={busy || signed || !canWrite}
+            helperText={
+              key === "objective" && appliedTemplate
+                ? "Template text is editable and remains unverified until the author reviews it."
+                : undefined
+            }
+          />
+        ))}
+      </Stack>
+      {!canWrite && !signed && (
+        <Alert severity="info">
+          You have read access but cannot change this note.
+        </Alert>
+      )}
+      {error && <ErrorMessage message={error} />}
+      {notice && <p role="status">{notice}</p>}
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <Button
+          variant="contained"
+          onClick={save}
+          disabled={
+            busy ||
+            signed ||
+            !canWrite ||
+            !dirty ||
+            !appliedTemplate ||
+            !hasSoapContent(sections)
+          }
+        >
+          {busy ? "Saving…" : note ? "Save new revision" : "Save draft"}
+        </Button>
+        {conflict && (
+          <Button variant="outlined" onClick={() => window.location.reload()}>
+            Reload saved note
+          </Button>
+        )}
+      </Stack>
+      <Typography variant="caption" color="text.secondary">
+        Draft saving does not sign the note, close the encounter, transmit a
+        prescription, or complete follow-up work.
+      </Typography>
+    </Box>
+  );
+}
+
+function ExistingSoapNote({
+  encounterId,
+  noteId,
+  templates,
+  canWrite,
+}: {
+  encounterId: number;
+  noteId: number;
+  templates: NoteTemplate[];
+  canWrite: boolean;
+}) {
+  const resource = useResource<{ note: EncounterNote }>(
+    `/api/clinic/notes/${noteId}`,
+  );
+  if (!resource.data) return <LoadState error={resource.error} />;
+  if (!resource.data.note.current_revision?.body)
+    return (
+      <ErrorMessage message="This SOAP note does not contain a supported draft payload." />
+    );
+  return (
+    <SoapNoteForm
+      encounterId={encounterId}
+      note={resource.data.note}
+      templates={templates}
+      canWrite={canWrite}
+      onRefresh={resource.refresh}
+    />
+  );
+}
+
+function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
+  const context = useClinic();
+  const [created, setCreated] = useState<EncounterNote | null>(null);
+  const templates = useResource<{ templates: NoteTemplate[] }>(
+    "/api/clinic/note_templates",
+  );
+  if (!context.capabilities.notes_read)
+    return (
+      <div className="care-blocked">
+        <strong>Note access restricted</strong>
+        <span>Your current clinic permissions do not allow note review.</span>
+      </div>
+    );
+  if (!templates.data) return <LoadState error={templates.error} />;
+  const existing = encounter.notes.find((note) => note.note_kind === "soap");
+  const noteId = created?.id ?? existing?.id;
+  return noteId ? (
+    <ExistingSoapNote
+      encounterId={encounter.id}
+      noteId={noteId}
+      templates={templates.data.templates}
+      canWrite={context.capabilities.notes_write}
+    />
+  ) : context.capabilities.notes_write ? (
+    <SoapNoteForm
+      encounterId={encounter.id}
+      templates={templates.data.templates}
+      canWrite
+      onCreated={setCreated}
+    />
+  ) : (
+    <div className="care-blocked">
+      <strong>No SOAP note recorded</strong>
+      <span>You can review existing notes but cannot create a draft.</span>
+    </div>
+  );
+}
+
 export function EncounterView({
   patient,
   encounter,
   observations,
   timezone,
+  noteWorkspace,
 }: {
   patient: Patient;
   encounter: EncounterDetail;
   observations: Observation[];
   timezone: string;
+  noteWorkspace?: ReactNode;
 }) {
   return (
     <>
@@ -817,22 +1176,12 @@ export function EncounterView({
           </p>
         </Card>
         <Card title="Clinical note">
-          <p>
-            {encounter.note_ids.length === 0
-              ? "No encounter-note metadata is recorded."
-              : `${encounter.note_ids.length} encounter-note record${encounter.note_ids.length === 1 ? " is" : "s are"} present.`}
-          </p>
-          <div className="care-blocked">
-            <strong>Editor and signing unavailable</strong>
-            <span>
-              The current read contract does not return the protected note body
-              required for exact-revision review.
-            </span>
-          </div>
-          <p className="clinic-fine-print">
-            Prescriptions are a separate unsupported workflow; closing or
-            signing a note must never imply transmission.
-          </p>
+          {noteWorkspace ?? (
+            <div className="care-blocked">
+              <strong>Editor unavailable</strong>
+              <span>The protected note workspace was not loaded.</span>
+            </div>
+          )}
         </Card>
       </div>
     </>
@@ -872,6 +1221,7 @@ export function EncounterPage({
       encounter={encounter.data.encounter}
       observations={observations.data.observations}
       timezone={context.practice.timezone}
+      noteWorkspace={<SoapNoteWorkspace encounter={encounter.data.encounter} />}
     />
   );
 }

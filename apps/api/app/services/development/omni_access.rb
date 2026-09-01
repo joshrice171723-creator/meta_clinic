@@ -7,7 +7,9 @@ module Development
         label: "Administrator",
         description: "Administrator UI label; unrestricted local clinic workspace plus the APPly inquiry inbox.",
         admin: true,
-        permissions: TestClinic::DEFAULT_PERMISSIONS
+        # Omni authorization is deliberately overridden in Ability. Keep the
+        # original immutable role definition stable when new permissions are added.
+        permissions: TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ]
       },
       "clinician" => {
         label: "Clinician",

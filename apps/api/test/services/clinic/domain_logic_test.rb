@@ -15,7 +15,7 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     )
     grant_permissions!(@membership, "patients.read", "patients.write", "staff.read", "staff.write", "inventory.read",
       "inventory.catalog", "inventory.receive", "inventory.adjust", "inventory.hold", "inventory.release", "inventory.count",
-      "inventory.configure", "appointments.write", "encounters.write", "notes.write", "notes.sign", "observations.write",
+      "inventory.configure", "appointments.write", "encounters.write", "notes.read", "notes.write", "notes.sign", "observations.write",
       "messages.write", "documents.read", "billing.write", "roles.manage")
     @patient = Clinic::Care::Patient.create!(practice: @practice, display_name: "Synthetic Patient", reference: "SYN-001")
   end
@@ -139,6 +139,38 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     end
     assert_raises(ArgumentError) do
       Clinic::Care::SignEncounterNote.call(note: note, actor: @actor, revision_no: 2, content_digest: "wrong", attestation_version: "v1")
+    end
+  end
+
+  test "SOAP note revisions retain template provenance and encrypt stored content" do
+    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
+    first_body = Clinic::Care::SoapNotePayload.dump(
+      template_id: "adult-physical-exam-detailed",
+      template_version: 1,
+      sections: { subjective: "Synthetic concern", objective: "Synthetic finding", assessment: "", plan: "" }
+    )
+    note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor,
+      encounter: encounter, note_kind: "soap", encrypted_body: first_body)
+    raw = ApplicationRecord.connection.select_value(<<~SQL.squish)
+      SELECT encrypted_body FROM clinic_encounter_note_revisions WHERE id = #{note.revisions.sole.id}
+    SQL
+    assert_not_equal first_body, raw
+    assert_not_includes raw, "Synthetic concern"
+    assert_equal first_body, note.revisions.sole.encrypted_body
+
+    replacement = Clinic::Care::SoapNotePayload.dump(
+      template_id: "adult-physical-exam-detailed",
+      template_version: 1,
+      sections: { subjective: "Synthetic concern revised", objective: "Synthetic finding", assessment: "", plan: "" }
+    )
+    revision = Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor,
+      encrypted_body: replacement, expected_revision: 1)
+    assert_equal "Synthetic concern revised",
+      Clinic::Care::SoapNotePayload.load!(revision.encrypted_body).dig(:sections, :subjective)
+
+    assert_raises(ActiveRecord::RecordInvalid) do
+      Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor,
+        encounter: encounter, note_kind: "soap", encrypted_body: first_body)
     end
   end
 

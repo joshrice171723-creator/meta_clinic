@@ -1,38 +1,55 @@
 module Clinic
   module Care
     class EncounterNotesController < Clinic::ApiController
-      before_action -> { require_capability("patients.read") }, only: :show
-      # Mutation services authorize the actual site and action.
+      # Reads and mutation services authorize the actual encounter site and action.
+
+      def index
+        encounter = current_practice.encounters.find(requested_id!(params[:encounter_id], :encounter_id))
+        authorize_note_read!(encounter)
+        render json: {
+          notes: encounter.notes.order(:id).map { |note| EncounterNoteSerializer.call(note) }
+        }
+      end
 
       def show
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
+        authorize_note_read!(note.encounter)
         render json: { note: EncounterNoteSerializer.call(note, detail: true) }
       end
 
       def create
-        input = parameter_hash!(:encounter_note, %i[encrypted_body payload_version])
+        input = parameter_hash!(:encounter_note,
+          %i[note_kind template_id template_version subjective objective assessment plan])
         encounter = current_practice.encounters.find(requested_id!(params[:encounter_id], :encounter_id))
+        note_kind = enum_param!(input[:note_kind].presence || "soap", field: :note_kind, allowed: %w[soap])
         note = Clinic::Care::CreateEncounterNote.call(
           practice: current_practice,
           actor: current_user,
           encounter: encounter,
-          encrypted_body: required_string!(input[:encrypted_body], field: :encrypted_body, maximum: 100_000),
-          payload_version: input[:payload_version].present? ? bounded_integer!(input[:payload_version], field: :payload_version, min: 1, max: 1_000_000) : 1
+          note_kind: note_kind,
+          encrypted_body: soap_payload(input),
+          payload_version: SoapNotePayload::VERSION
         )
         render json: { note: EncounterNoteSerializer.call(note, detail: true) }, status: :created
       end
 
       def revise
-        input = parameter_hash!(:revision, %i[encrypted_body expected_revision payload_version])
+        input = parameter_hash!(:revision,
+          %i[template_id template_version subjective objective assessment plan expected_revision])
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
+        raise ArgumentError, "Only SOAP drafts can be revised from this endpoint." unless note.note_kind == "soap"
+
         revision = Clinic::Care::ReviseEncounterNote.call(
           note: note,
           actor: current_user,
-          encrypted_body: required_string!(input[:encrypted_body], field: :encrypted_body, maximum: 100_000),
+          encrypted_body: soap_payload(input),
           expected_revision: bounded_integer!(input[:expected_revision], field: :expected_revision, min: 1, max: 2_147_483_647),
-          payload_version: input[:payload_version].present? ? bounded_integer!(input[:payload_version], field: :payload_version, min: 1, max: 1_000_000) : 1
+          payload_version: SoapNotePayload::VERSION
         )
-        render json: { revision: revision_json(revision) }, status: :created
+        render json: {
+          revision: revision_json(revision),
+          note: EncounterNoteSerializer.call(note.reload, detail: true)
+        }, status: :created
       end
 
       def sign
@@ -50,6 +67,21 @@ module Clinic
       end
 
       private
+
+      def authorize_note_read!(encounter)
+        Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+          action: "notes.read", site: encounter.site)
+      end
+
+      def soap_payload(input)
+        SoapNotePayload.dump(
+          template_id: required_string!(input[:template_id], field: :template_id, maximum: 100),
+          template_version: bounded_integer!(input[:template_version], field: :template_version, min: 1, max: 1_000_000),
+          sections: %i[subjective objective assessment plan].to_h do |field|
+            [ field, optional_string(input[field], field: field, maximum: SoapNotePayload::MAX_SECTION_LENGTH) || "" ]
+          end
+        )
+      end
 
       def revision_json(revision)
         {
