@@ -119,6 +119,9 @@
   margin: 0;
   padding: 10px 12px 24px;
 }
+.clinic-theme .clinic-content.inventory-page {
+  padding-bottom: 16px;
+}
 @media (max-width: 760px) {
   .clinic-theme .clinic-shell {
     display: block;

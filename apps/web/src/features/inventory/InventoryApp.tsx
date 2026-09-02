@@ -390,7 +390,6 @@ export function InventoryApp({ path }: { path: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  const [mobileNav, setMobileNav] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -489,57 +488,13 @@ export function InventoryApp({ path }: { path: string }) {
   );
   const held = data.balances.reduce((sum, item) => sum + item.held_units, 0);
   const invariants = invariantRows(data);
-  const passed = invariants.filter((item) => item[2]).length;
   const activeUser =
     data.users.find((item) => item.id === data.current_user_id) ??
     data.users[0];
-  const navigate = (href: string) => {
-    window.location.assign(href);
-  };
 
   return (
     <div className="inventory-app">
-      <div className="inventory-mobile-bar">
-        <button type="button" onClick={() => setMobileNav((value) => !value)}>
-          ☰ Inventory menu
-        </button>
-        <span>{activeUser?.name}</span>
-      </div>
-      <div className={`inventory-layout ${mobileNav ? "mobile-open" : ""}`}>
-        <aside className="inventory-rail">
-          <div className="inventory-brand">
-            <span className="inventory-brand-mark">✦</span>
-            <div>
-              <strong>North Star</strong>
-              <small>Inventory control</small>
-            </div>
-          </div>
-          <nav aria-label="Inventory management navigation">
-            {links.map((link) => (
-              <a
-                key={link.screen}
-                href={link.href}
-                aria-current={screen === link.screen ? "page" : undefined}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-          <button
-            className="inventory-invariant"
-            type="button"
-            onClick={() => navigate("/clinic/inventory/activity")}
-          >
-            <span>Invariant runner</span>
-            <Badge tone={passed === invariants.length ? "success" : "danger"}>
-              {passed}/{invariants.length}
-            </Badge>
-            <div className="inventory-progress">
-              <i style={{ width: `${(passed / invariants.length) * 100}%` }} />
-            </div>
-            <small>Server snapshot · v{data.data_version}</small>
-          </button>
-        </aside>
+      <div className="inventory-layout">
         <div className="inventory-main">
           <header className="inventory-header">
             <div>
