@@ -35,11 +35,20 @@
   display: grid;
   gap: 4px;
 }
-.clinic-theme .clinic-sidebar nav a {
+.clinic-theme .clinic-sidebar nav :is(a, button) {
   min-height: 44px;
   display: flex;
   align-items: center;
   padding: 10px 12px;
+}
+.clinic-theme .clinic-sidebar nav button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .clinic-theme .clinic-sidebar-bottom {
   display: grid;

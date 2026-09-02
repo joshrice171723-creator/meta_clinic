@@ -268,10 +268,13 @@ describe("system appearance and UI scope", () => {
         path="/clinic"
       />,
     );
-    expect(restricted.match(/<a /g)).toHaveLength(3);
+    expect(restricted.match(/<a /g)).toHaveLength(2);
+    expect(restricted.match(/<button /g)).toHaveLength(1);
     expect(restricted).toContain("/clinic/operations");
     expect(restricted).toContain("/clinic/settings");
-    expect(restricted).toContain('href="/clinic" aria-current="page"');
+    expect(restricted).toContain(
+      'type="button" aria-current="page">Tracking Board</button>',
+    );
   });
 });
 

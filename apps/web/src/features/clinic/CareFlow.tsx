@@ -47,12 +47,7 @@ import {
 import { Card, ErrorMessage, LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { CareIndicators, type CareSummaryLoadState } from "./CareIndicators";
-
-function currentPage() {
-  if (typeof window === "undefined") return 1;
-  const page = Number(new URLSearchParams(window.location.search).get("page"));
-  return Number.isSafeInteger(page) && page > 0 ? page : 1;
-}
+import { useClinicNavigation } from "./clinicNavigation";
 
 export function encounterDetailPath(
   patientId: string | number,
@@ -639,11 +634,13 @@ export function ScheduleView({
   appointments,
   pagination,
   onAppointmentCreated,
+  onPageChange,
 }: {
   context: ClinicWorkspaceContext;
   appointments: Appointment[];
   pagination: PageInfo;
   onAppointmentCreated?: (appointment: Appointment) => void;
+  onPageChange?: (page: number) => void;
 }) {
   return (
     <Stack spacing={3}>
@@ -663,7 +660,9 @@ export function ScheduleView({
           <Typography component="h1" variant="h3">
             Schedule
           </Typography>
-          <Link href="/clinic">Tracking-board example ↗</Link>
+          <Link href="/clinic" data-clinic-view="tracking">
+            Tracking board ↗
+          </Link>
         </Stack>
       </Box>
       <Alert severity="info">
@@ -791,9 +790,7 @@ export function ScheduleView({
               sx={{ mt: 2, display: "flex", justifyContent: "center" }}
               count={pagination.total_pages}
               page={pagination.page}
-              onChange={(_, page) =>
-                window.location.assign(`/clinic/schedule?page=${page}`)
-              }
+              onChange={(_, page) => onPageChange?.(page)}
               color="primary"
               aria-label="Scheduled visits pages"
             />
@@ -806,7 +803,7 @@ export function ScheduleView({
 
 export function Schedule() {
   const context = useClinic();
-  const page = currentPage();
+  const [page, setPage] = useState(1);
   const [createdAppointment, setCreatedAppointment] = useState<Appointment>();
   const { data, error } = useResource<{
     appointments: Appointment[];
@@ -833,6 +830,7 @@ export function Schedule() {
           (createdAppointment && !includesCreated ? 1 : 0),
       }}
       onAppointmentCreated={setCreatedAppointment}
+      onPageChange={setPage}
     />
   );
 }
@@ -994,6 +992,7 @@ export function SoapNoteForm({
   onCreated?: (note: EncounterNote) => void;
   onRefresh?: () => void;
 }) {
+  const { registerBlocker } = useClinicNavigation();
   const savedBody = note?.current_revision?.body;
   const initialSections = savedBody?.sections ?? EMPTY_SOAP_SECTIONS;
   const [sections, setSections] = useState<SoapNoteSections>(initialSections);
@@ -1041,6 +1040,17 @@ export function SoapNoteForm({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+
+  useEffect(
+    () =>
+      registerBlocker(
+        dirty
+          ? () =>
+              "This SOAP draft has unsaved changes. Leave the chart and discard them?"
+          : null,
+      ),
+    [dirty, registerBlocker],
+  );
 
   const applyTemplate = () => {
     const template = templates.find(
@@ -1599,7 +1609,14 @@ export function ProviderEncounterWorkflow({
                 started {clinicDateTime(encounter.started_at, timezone)}
               </Typography>
             </Box>
-            <Chip label={statusLabel(encounter.status)} variant="outlined" />
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Chip label={statusLabel(encounter.status)} variant="outlined" />
+              {chartConfirmed && (
+                <Button href="/clinic" variant="text" size="small">
+                  Close chart
+                </Button>
+              )}
+            </Stack>
           </Stack>
           {!chartConfirmed && (
             <Alert severity="warning">

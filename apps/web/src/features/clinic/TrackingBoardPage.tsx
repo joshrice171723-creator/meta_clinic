@@ -60,7 +60,7 @@ import { trackingBoardVisitToBoardVisit } from "./trackingBoardApi";
 
 const EMPTY_BOARD_VISITS: BoardVisit[] = [];
 
-function useTrackingBoard() {
+function useTrackingBoard(active = true) {
   const [state, setState] = useState<{
     data?: ClinicTrackingBoard;
     error?: string;
@@ -68,7 +68,8 @@ function useTrackingBoard() {
   }>({ stale: false });
 
   useEffect(() => {
-    let active = true;
+    if (!active) return;
+    let mounted = true;
     let controller: AbortController | undefined;
     const refresh = () => {
       controller?.abort();
@@ -83,11 +84,11 @@ function useTrackingBoard() {
         signal: requestController.signal,
       })
         .then((data) => {
-          if (!active) return;
+          if (!mounted) return;
           setState({ data, stale: false });
         })
         .catch((error: unknown) => {
-          if (!active || requestController.signal.aborted) return;
+          if (!mounted || requestController.signal.aborted) return;
           if (error instanceof ApiError && error.status === 401) {
             window.location.replace("/login");
             return;
@@ -105,11 +106,11 @@ function useTrackingBoard() {
     refresh();
     window.addEventListener("focus", refresh);
     return () => {
-      active = false;
+      mounted = false;
       controller?.abort();
       window.removeEventListener("focus", refresh);
     };
-  }, []);
+  }, [active]);
 
   return state;
 }
@@ -964,18 +965,18 @@ export function OverviewView({
     );
   return <TrackingBoardView timezone={timezone} />;
 }
-export function Overview() {
+export function Overview({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
   if (!clinic.capabilities.patients)
     return (
       <OverviewView patientAccess={false} timezone={clinic.practice.timezone} />
     );
-  return <TrackingBoardPage />;
+  return <TrackingBoardPage active={active} />;
 }
 
-export function TrackingBoardPage() {
+export function TrackingBoardPage({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
-  const { data, error, stale } = useTrackingBoard();
+  const { data, error, stale } = useTrackingBoard(active);
   const visits = useMemo(
     () => data?.visits.map(trackingBoardVisitToBoardVisit) ?? [],
     [data?.visits],

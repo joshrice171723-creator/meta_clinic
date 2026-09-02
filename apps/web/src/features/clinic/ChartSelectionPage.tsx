@@ -7,6 +7,7 @@ import type {
 import { api } from "../../api/client";
 import { Card, ErrorMessage, LoadState } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { useClinicNavigation } from "./clinicNavigation";
 
 type ChartSelectionPageProps = {
   mode: "current" | "previous";
@@ -60,6 +61,7 @@ export function ChartSelectionPage({
   boardVisitId,
 }: ChartSelectionPageProps) {
   const timezone = useClinic().practice.timezone;
+  const { navigate } = useClinicNavigation();
   const [state, setState] = useState<
     | { status: "synthetic" }
     | { status: "loading" }
@@ -103,11 +105,12 @@ export function ChartSelectionPage({
           const signedChart = (secondResponse as PreviousSignedSoapResponse)
             .chart;
           if (signedChart) {
-            window.location.replace(
+            navigate(
               encounterHref(
                 patientResponse.patient.id,
                 signedChart.encounter_id,
               ),
+              { replace: true },
             );
             return;
           }
@@ -145,7 +148,7 @@ export function ChartSelectionPage({
         });
       });
     return () => abort.abort();
-  }, [encounterId, mode, patientId]);
+  }, [encounterId, mode, navigate, patientId]);
 
   if (state.status === "loading") return <LoadState />;
   if (state.status === "error") return <ErrorMessage message={state.message} />;

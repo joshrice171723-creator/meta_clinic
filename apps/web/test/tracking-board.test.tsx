@@ -396,7 +396,8 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).toContain('href="/clinic/operations" aria-current="page"');
-    expect(html).toContain('href="/clinic">Tracking Board</a>');
+    expect(html).toContain('type="button">Tracking Board</button>');
+    expect(html).toContain('type="button">Schedule</button>');
     expect(html).not.toContain("EHR");
     expect(loginDestination("/clinic/operations")).toBe("/clinic/operations");
     expect(loginDestination("/clinic/operations?next=//bad.invalid")).toBe(
@@ -405,6 +406,20 @@ describe("board and Operations presentation boundaries", () => {
     expect(loginDestination("/clinic/schedule")).toBe("/clinic/schedule");
     expect(loginDestination("/clinic/patients/7/encounters/9")).toBe(
       "/clinic/patients/7/encounters/9",
+    );
+
+    const schedule = renderToStaticMarkup(
+      <ClinicNavigation
+        capabilities={contextCapabilities}
+        path="/clinic"
+        homeView="schedule"
+      />,
+    );
+    expect(schedule).toContain(
+      'type="button" aria-current="page">Schedule</button>',
+    );
+    expect(schedule).not.toContain(
+      'aria-current="page">Tracking Board</button>',
     );
   });
 });

@@ -1,4 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { User } from "./api/contracts";
 import { api, ApiError, csrf, loginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
@@ -24,6 +31,15 @@ import { Office } from "./features/inventory/Office";
 import { Catalog } from "./features/inventory/Catalog";
 import { NewProduct } from "./features/inventory/NewProduct";
 import { Product } from "./features/inventory/Product";
+import {
+  ClinicNavigationProvider,
+  clinicRoute,
+  clinicRouteHref,
+  clinicTarget,
+  type ClinicHomeView,
+  type ClinicNavigateOptions,
+  type ClinicRoute,
+} from "./features/clinic/clinicNavigation";
 
 function LaunchLayout({
   user,
@@ -105,6 +121,228 @@ function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
     </main>
   );
 }
+
+function ClinicHome({
+  view,
+  active,
+}: {
+  view: ClinicHomeView;
+  active: boolean;
+}) {
+  const [visited, setVisited] = useState<Set<ClinicHomeView>>(
+    () => new Set([view]),
+  );
+  const trackingPanel = useRef<HTMLDivElement>(null);
+  const schedulePanel = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setVisited((current) =>
+      current.has(view) ? current : new Set([...current, view]),
+    );
+    if (active)
+      (view === "tracking" ? trackingPanel : schedulePanel).current?.focus();
+  }, [active, view]);
+
+  return (
+    <>
+      {(visited.has("tracking") || view === "tracking") && (
+        <div
+          ref={trackingPanel}
+          hidden={view !== "tracking"}
+          tabIndex={-1}
+          aria-label="Tracking Board"
+        >
+          <Overview active={active && view === "tracking"} />
+        </div>
+      )}
+      {(visited.has("schedule") || view === "schedule") && (
+        <div
+          ref={schedulePanel}
+          hidden={view !== "schedule"}
+          tabIndex={-1}
+          aria-label="Schedule"
+        >
+          <Schedule />
+        </div>
+      )}
+    </>
+  );
+}
+
+function ClinicPage({ route }: { route: ClinicRoute }) {
+  const { path, search } = route;
+  const pharmacy = /^\/clinic\/pharmacy\/(\d+)$/.exec(path),
+    encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
+    patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
+  return path === "/clinic/operations" ? (
+    <Operations />
+  ) : path === "/clinic/chart-selection" ? (
+    <ChartSelectionPage {...chartSelectionProps(search)} />
+  ) : path === "/clinic/pharmacy" ? (
+    <Catalog />
+  ) : path === "/clinic/pharmacy/new" ? (
+    <NewProduct />
+  ) : pharmacy ? (
+    <Product id={pharmacy[1]} />
+  ) : path === "/clinic/patients" ? (
+    <Patients />
+  ) : encounter ? (
+    <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
+  ) : patient ? (
+    <Patients id={patient[1]} />
+  ) : path === "/clinic/inventory" ? (
+    <Office />
+  ) : path === "/clinic/staff" ? (
+    <Staff />
+  ) : (
+    <h1>Page not found.</h1>
+  );
+}
+
+function ClinicApplication({ user }: { user: User }) {
+  const [route, setRoute] = useState(() =>
+    clinicRoute(
+      window.location.pathname,
+      window.location.search,
+      window.history.state?.clinicView,
+    ),
+  );
+  const routeRef = useRef(route);
+  const blockerRef = useRef<(() => string | null) | null>(null);
+  const historyIndexRef = useRef(
+    Number.isSafeInteger(window.history.state?.clinicIndex)
+      ? window.history.state.clinicIndex
+      : 0,
+  );
+  const restoringHistoryRef = useRef(false);
+  routeRef.current = route;
+
+  const registerBlocker = useCallback(
+    (blocker: (() => string | null) | null) => {
+      blockerRef.current = blocker;
+      return () => {
+        if (blockerRef.current === blocker) blockerRef.current = null;
+      };
+    },
+    [],
+  );
+  const confirmNavigation = useCallback(() => {
+    const message = blockerRef.current?.();
+    return !message || window.confirm(message);
+  }, []);
+  const navigate = useCallback(
+    (href: string, options: ClinicNavigateOptions = {}) => {
+      const target = clinicTarget(href, window.location.origin);
+      if (!target || !confirmNavigation()) return false;
+      const next = clinicRoute(
+        target.pathname,
+        target.search,
+        options.homeView,
+      );
+      if (options.homeView) next.homeView = options.homeView;
+      const sameHome =
+        routeRef.current.path === "/clinic" && next.path === "/clinic";
+      const method = options.replace || sameHome ? "replaceState" : "pushState";
+      const historyIndex =
+        method === "pushState"
+          ? historyIndexRef.current + 1
+          : historyIndexRef.current;
+      window.history[method](
+        { clinicView: next.homeView, clinicIndex: historyIndex },
+        "",
+        clinicRouteHref(next),
+      );
+      historyIndexRef.current = historyIndex;
+      routeRef.current = next;
+      setRoute(next);
+      return true;
+    },
+    [confirmNavigation],
+  );
+
+  useEffect(() => {
+    const initial = routeRef.current;
+    window.history.replaceState(
+      {
+        ...window.history.state,
+        clinicView: initial.homeView,
+        clinicIndex: historyIndexRef.current,
+      },
+      "",
+      clinicRouteHref(initial),
+    );
+    const restore = (event: PopStateEvent) => {
+      if (restoringHistoryRef.current) {
+        restoringHistoryRef.current = false;
+        return;
+      }
+      const next = clinicRoute(
+        window.location.pathname,
+        window.location.search,
+        event.state?.clinicView,
+      );
+      if (!confirmNavigation()) {
+        const current = routeRef.current;
+        const nextIndex = event.state?.clinicIndex;
+        const delta = Number.isSafeInteger(nextIndex)
+          ? historyIndexRef.current - nextIndex
+          : 0;
+        if (delta !== 0) {
+          restoringHistoryRef.current = true;
+          window.history.go(delta);
+        } else {
+          window.history.pushState(
+            {
+              clinicView: current.homeView,
+              clinicIndex: historyIndexRef.current,
+            },
+            "",
+            clinicRouteHref(current),
+          );
+        }
+        return;
+      }
+      if (Number.isSafeInteger(event.state?.clinicIndex))
+        historyIndexRef.current = event.state.clinicIndex;
+      routeRef.current = next;
+      setRoute(next);
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [confirmNavigation]);
+
+  const navigation = useMemo(
+    () => ({ navigate, registerBlocker }),
+    [navigate, registerBlocker],
+  );
+  const home = route.path === "/clinic";
+  const page =
+    route.path === "/clinic/settings" ? (
+      <Settings user={user} />
+    ) : (
+      <ClinicPage route={route} />
+    );
+
+  return (
+    <ClinicNavigationProvider value={navigation}>
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <Workspace
+        key={user.id}
+        user={user}
+        path={route.path}
+        homeView={route.homeView}
+      >
+        <div hidden={!home}>
+          <ClinicHome view={route.homeView} active={home} />
+        </div>
+        {!home && page}
+      </Workspace>
+    </ClinicNavigationProvider>
+  );
+}
+
 export function App() {
   const [configuration, setConfiguration] = useState({
     development_login: false,
@@ -161,49 +399,7 @@ export function App() {
   const user = session.user || null;
   let page: ReactNode;
   if (path.startsWith("/clinic") && user) {
-    const pharmacy = /^\/clinic\/pharmacy\/(\d+)$/.exec(path),
-      encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
-      patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
-    page =
-      path === "/clinic" ? (
-        <Overview />
-      ) : path === "/clinic/operations" ? (
-        <Operations />
-      ) : path === "/clinic/settings" ? (
-        <Settings user={user} />
-      ) : path === "/clinic/schedule" ? (
-        <Schedule />
-      ) : path === "/clinic/chart-selection" ? (
-        <ChartSelectionPage {...chartSelectionProps(window.location.search)} />
-      ) : path === "/clinic/pharmacy" ? (
-        <Catalog />
-      ) : path === "/clinic/pharmacy/new" ? (
-        <NewProduct />
-      ) : pharmacy ? (
-        <Product id={pharmacy[1]} />
-      ) : path === "/clinic/patients" ? (
-        <Patients />
-      ) : encounter ? (
-        <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
-      ) : patient ? (
-        <Patients id={patient[1]} />
-      ) : path === "/clinic/inventory" ? (
-        <Office />
-      ) : path === "/clinic/staff" ? (
-        <Staff />
-      ) : (
-        <h1>Page not found.</h1>
-      );
-    return (
-      <>
-        <a className="skip-link" href="#main">
-          Skip to content
-        </a>
-        <Workspace key={user.id} user={user}>
-          {page}
-        </Workspace>
-      </>
-    );
+    return <ClinicApplication user={user} />;
   }
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
     guide = /^\/(?:training|materials)\/(\d+)$/.exec(path);

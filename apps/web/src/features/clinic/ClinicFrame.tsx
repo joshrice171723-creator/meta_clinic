@@ -65,6 +65,15 @@ export function ClinicFrame({
         role={drawer ? "dialog" : undefined}
         aria-modal={drawer || undefined}
         aria-label={drawer ? "Clinic menu" : undefined}
+        onClick={(event) => {
+          if (
+            drawer &&
+            (event.target as Element).closest(
+              "nav a, nav button, .clinic-sidebar-bottom a",
+            )
+          )
+            close();
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape" && !collapsed) {
             event.preventDefault();

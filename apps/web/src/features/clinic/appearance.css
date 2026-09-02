@@ -19,11 +19,11 @@
   color: var(--clinic-muted);
   font-size: 14px;
 }
-.clinic-theme .clinic-sidebar nav a {
+.clinic-theme .clinic-sidebar nav :is(a, button) {
   font-size: 14px;
 }
-.clinic-theme .clinic-sidebar nav a:hover,
-.clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+.clinic-theme .clinic-sidebar nav :is(a, button):hover,
+.clinic-theme .clinic-sidebar nav :is(a, button)[aria-current="page"] {
   background: var(--clinic-soft);
   color: var(--clinic-accent);
 }
@@ -246,7 +246,7 @@
   }
 }
 @media (max-width: 760px) {
-  .clinic-theme .clinic-sidebar nav a {
+  .clinic-theme .clinic-sidebar nav :is(a, button) {
     font-size: 14px;
   }
 }
@@ -275,10 +275,10 @@
 .clinic-theme .clinic-sidebar {
   border-right: 1px solid var(--clinic-border);
 }
-.clinic-theme .clinic-sidebar nav a {
+.clinic-theme .clinic-sidebar nav :is(a, button) {
   min-height: 44px;
 }
-.clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+.clinic-theme .clinic-sidebar nav :is(a, button)[aria-current="page"] {
   box-shadow: inset 3px 0 var(--clinic-accent);
   font-weight: 600;
 }
@@ -562,7 +562,7 @@
   }
 }
 @media (forced-colors: active) {
-  .clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+  .clinic-theme .clinic-sidebar nav :is(a, button)[aria-current="page"] {
     outline: 2px solid CanvasText;
     outline-offset: -2px;
   }

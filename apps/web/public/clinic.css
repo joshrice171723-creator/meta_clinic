@@ -6,8 +6,9 @@
 .practice-label strong,.practice-label span { display:block; }
 .practice-label span { color:#b8c9bc; font-size:10px; }
 .clinic-sidebar nav { display:grid; gap:8px; }
-.clinic-sidebar nav a { padding:14px 12px; font-size:13px; border-radius:5px; }
-.clinic-sidebar nav a:hover,.clinic-sidebar nav a[aria-current=page] { background:#345848; color:#f1f8da; }
+.clinic-sidebar nav :is(a,button) { padding:14px 12px; font-size:13px; border-radius:5px; }
+.clinic-sidebar nav button { width:100%; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.clinic-sidebar nav :is(a,button):hover,.clinic-sidebar nav :is(a,button)[aria-current=page] { background:#345848; color:#f1f8da; }
 .clinic-sidebar-bottom { margin-top:auto; padding-top:55px; display:grid; gap:22px; font-size:11px; }
 .clinic-sidebar-bottom .button { background:none; color:#e9eee9; width:100%; border-color:#718b79; }
 .clinic-main { min-width:0; }
@@ -120,4 +121,4 @@
 @media(max-width:1150px) { .pharmacy-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .pharmacy-heading { align-items:start; flex-direction:column; } }
 @media(max-width:760px) { .ehr-tabs { padding:0 20px; } .pharmacy-stats,.pharmacy-form-grid { grid-template-columns:1fr; } .pharmacy-section-heading,.ndc-result { align-items:start; flex-direction:column; } .pharmacy-heading .primary-link { white-space:normal; } .pharmacy-empty form { margin:15px 0; } }
 @media(max-width:1150px) { .clinic-shell { grid-template-columns:195px minmax(0,1fr); } .clinic-sidebar { padding:27px 18px; } .clinic-content { padding:22px 25px 60px; } .clinic-grid { grid-template-columns:1fr; gap:0; } .clinic-stats { gap:10px; } .clinic-stat { padding:18px; } }
-@media(max-width:760px) { .clinic-shell { display:block; } .clinic-sidebar { padding:20px; } .clinic-sidebar .wordmark { font-size:28px; } .workspace-label { margin:0; } .practice-label { margin:7px 0; padding:12px 0; } .clinic-sidebar nav { display:flex; flex-wrap:wrap; gap:5px; } .clinic-sidebar nav a { font-size:12px; padding:12px 10px; } .clinic-sidebar-bottom { margin:15px 0 0; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; } .clinic-topbar,.clinic-safety { padding:15px 20px; } .clinic-content { padding:18px 20px 45px; } .clinic-stats { grid-template-columns:1fr; } .clinic-stat { display:grid; grid-template-columns:1fr auto; align-items:center; } .clinic-stat strong { grid-column:2; grid-row:1/3; margin:0; } .clinic-stat small { margin-top:12px; } .clinic-card { padding:22px; } .clinic-record-heading { align-items:start; flex-direction:column; } }
+@media(max-width:760px) { .clinic-shell { display:block; } .clinic-sidebar { padding:20px; } .clinic-sidebar .wordmark { font-size:28px; } .workspace-label { margin:0; } .practice-label { margin:7px 0; padding:12px 0; } .clinic-sidebar nav { display:flex; flex-wrap:wrap; gap:5px; } .clinic-sidebar nav :is(a,button) { font-size:12px; padding:12px 10px; } .clinic-sidebar-bottom { margin:15px 0 0; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; } .clinic-topbar,.clinic-safety { padding:15px 20px; } .clinic-content { padding:18px 20px 45px; } .clinic-stats { grid-template-columns:1fr; } .clinic-stat { display:grid; grid-template-columns:1fr auto; align-items:center; } .clinic-stat strong { grid-column:2; grid-row:1/3; margin:0; } .clinic-stat small { margin-top:12px; } .clinic-card { padding:22px; } .clinic-record-heading { align-items:start; flex-direction:column; } }
