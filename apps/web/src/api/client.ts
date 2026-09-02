@@ -109,6 +109,8 @@ export function loginDestination(value: string | null): string {
     "/clinic/operations",
     "/clinic/inventory",
     "/clinic/staff",
+    "/clinic/front-desk",
+    "/clinic/billing",
     "/clinic/settings",
   ]);
   return exact.has(value) ||

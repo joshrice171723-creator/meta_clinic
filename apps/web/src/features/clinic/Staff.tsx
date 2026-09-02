@@ -1,7 +1,10 @@
 import type { StaffMember } from "../../api/contracts";
 import { Card, Field, Form, LoadState, useResource } from "../../shared/ui";
+import { useClinic } from "./Workspace";
 
 export function Staff() {
+  const { capabilities } = useClinic();
+  const canWrite = capabilities.staff_write === true;
   const { data, error, refresh } = useResource<{ staff: StaffMember[] }>(
     "/api/clinic/staff",
   );
@@ -10,10 +13,6 @@ export function Staff() {
     <>
       <p className="eyebrow">YOUR TEAM</p>
       <h1>Employees.</h1>
-      <p>
-        A synthetic directory. Employment records, payroll, schedules,
-        invitations, and account permissions are not managed here.
-      </p>
       <Card title="Staff directory">
         <div className="clinic-table-wrap">
           <table>
@@ -32,13 +31,17 @@ export function Staff() {
                   <td>{p.job_title}</td>
                   <td>{p.active ? "Active" : "Inactive"}</td>
                   <td>
-                    <Form
-                      endpoint={"/api/clinic/staff/" + p.id}
-                      method="PATCH"
-                      values={{ active: !p.active }}
-                      submit={p.active ? "Mark inactive" : "Mark active"}
-                      onSuccess={refresh}
-                    />
+                    {canWrite ? (
+                      <Form
+                        endpoint={"/api/clinic/staff/" + p.id}
+                        method="PATCH"
+                        values={{ active: !p.active }}
+                        submit={p.active ? "Mark inactive" : "Mark active"}
+                        onSuccess={refresh}
+                      />
+                    ) : (
+                      <span>Directory view</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -47,28 +50,30 @@ export function Staff() {
         </div>
         {data.staff.length === 0 && <p>No staff entries yet.</p>}
       </Card>
-      <Card title="Add a fictional employee">
-        <Form
-          endpoint="/api/clinic/staff"
-          submit="Add staff entry"
-          onSuccess={refresh}
-        >
-          <Field
-            name="clinic_staff_member[display_name]"
-            label="Fictional name"
-            maxLength={120}
-          />
-          <Field
-            name="clinic_staff_member[job_title]"
-            label="Job title"
-            maxLength={120}
-          />
-        </Form>
-        <p>
-          No login, clinical authority, or access grant is created or revoked by
-          these controls.
-        </p>
-      </Card>
+      {canWrite && (
+        <Card title="Add employee">
+          <Form
+            endpoint="/api/clinic/staff"
+            submit="Add staff entry"
+            onSuccess={refresh}
+          >
+            <Field
+              name="clinic_staff_member[display_name]"
+              label="Name"
+              maxLength={120}
+            />
+            <Field
+              name="clinic_staff_member[job_title]"
+              label="Job title"
+              maxLength={120}
+            />
+          </Form>
+          <p>
+            No login, clinical authority, or access grant is created or revoked
+            by these controls.
+          </p>
+        </Card>
+      )}
     </>
   );
 }

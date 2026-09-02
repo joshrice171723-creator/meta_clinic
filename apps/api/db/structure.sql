@@ -668,7 +668,8 @@ CREATE TABLE public.clinic_clinician_profiles (
     practice_id bigint NOT NULL,
     membership_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    display_name text
 );
 
 
@@ -2497,6 +2498,45 @@ ALTER SEQUENCE public.clinic_patient_history_reviews_id_seq OWNED BY public.clin
 
 
 --
+-- Name: clinic_patient_memberships; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_memberships (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    recorded_by_membership_id bigint NOT NULL,
+    status character varying NOT NULL,
+    version integer NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    effective_until timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_memberships_status CHECK (((status)::text = ANY (ARRAY[('member'::character varying)::text, ('nonmember'::character varying)::text]))),
+    CONSTRAINT clinic_patient_memberships_window CHECK (((version > 0) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
+);
+
+
+--
+-- Name: clinic_patient_memberships_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_memberships_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_memberships_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_memberships_id_seq OWNED BY public.clinic_patient_memberships.id;
+
+
+--
 -- Name: clinic_patient_social_histories; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4003,6 +4043,13 @@ ALTER TABLE ONLY public.clinic_patient_history_reviews ALTER COLUMN id SET DEFAU
 
 
 --
+-- Name: clinic_patient_memberships id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_memberships ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_memberships_id_seq'::regclass);
+
+
+--
 -- Name: clinic_patient_social_histories id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -4673,6 +4720,14 @@ ALTER TABLE ONLY public.clinic_patient_emergency_contacts
 
 ALTER TABLE ONLY public.clinic_patient_history_reviews
     ADD CONSTRAINT clinic_patient_history_reviews_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_memberships clinic_patient_memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_memberships
+    ADD CONSTRAINT clinic_patient_memberships_pkey PRIMARY KEY (id);
 
 
 --
@@ -5499,6 +5554,20 @@ CREATE UNIQUE INDEX clinic_operation_receipts_practice_id ON public.clinic_opera
 
 
 --
+-- Name: clinic_participants_encounter_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_participants_encounter_lookup ON public.clinic_encounter_participants USING btree (practice_id, encounter_id);
+
+
+--
+-- Name: clinic_participants_one_current_queue_provider; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_participants_one_current_queue_provider ON public.clinic_encounter_participants USING btree (practice_id, encounter_id) WHERE (((participation_role)::text = 'queue_provider'::text) AND (effective_until IS NULL));
+
+
+--
 -- Name: clinic_patient_address_versions_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5622,6 +5691,27 @@ CREATE UNIQUE INDEX clinic_patient_history_reviews_practice_id ON public.clinic_
 --
 
 CREATE INDEX clinic_patient_history_reviews_reviewer_membership_id_fk ON public.clinic_patient_history_reviews USING btree (practice_id, reviewer_membership_id);
+
+
+--
+-- Name: clinic_patient_memberships_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_memberships_identity ON public.clinic_patient_memberships USING btree (practice_id, patient_id, version);
+
+
+--
+-- Name: clinic_patient_memberships_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_memberships_patient_id ON public.clinic_patient_memberships USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_memberships_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_memberships_practice_id ON public.clinic_patient_memberships USING btree (practice_id, id);
 
 
 --
@@ -6927,6 +7017,13 @@ CREATE TRIGGER clinic_patient_history_reviews_immutable BEFORE DELETE OR UPDATE 
 
 
 --
+-- Name: clinic_patient_memberships clinic_patient_memberships_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_memberships_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_memberships FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_patient_social_histories clinic_patient_social_histories_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7820,6 +7917,14 @@ ALTER TABLE ONLY public.clinic_patient_history_reviews
 
 
 --
+-- Name: clinic_patient_memberships fk_clinic_patient_memberships_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_memberships
+    ADD CONSTRAINT fk_clinic_patient_memberships_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_patient_social_histories fk_clinic_patient_social_histories_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8281,6 +8386,22 @@ ALTER TABLE ONLY public.clinic_encounter_participants
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT fk_patient_addresses_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_memberships fk_patient_memberships_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_memberships
+    ADD CONSTRAINT fk_patient_memberships_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_memberships fk_patient_memberships_recorded_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_memberships
+    ADD CONSTRAINT fk_patient_memberships_recorded_by FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -9006,7 +9127,10 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260902009902'),
 ('20260902009901'),
 ('20260902009900'),
+('20260902000700'),
+('20260902000600'),
 ('20260902000500'),
+('20260902000400'),
 ('20260902000300'),
 ('20260902000200'),
 ('20260902000100'),

@@ -1,12 +1,14 @@
 module Clinic
   module Billing
     class InvoicesController < Clinic::ApiController
-      before_action -> { require_capability("patients.read") }, only: %i[index show]
-      before_action -> { require_capability("billing.write") }, only: %i[create post allocate_payment]
+      before_action -> { require_capability_with_legacy("billing.read", "patients.read") }, only: %i[index show]
+      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: :create
+      before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: :post
+      before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: :allocate_payment
 
       def index
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
-        invoices = patient.invoices
+        invoices = patient.invoices.includes(:lines, :payment_allocations, :credit_notes)
         invoices = invoices.where(status: enum_param!(params[:status], field: :status, allowed: %w[draft posted void])) if params[:status].present?
         paginate(invoices, key: :invoices, serializer: ->(invoice) { InvoiceSerializer.call(invoice) }, order: { created_at: :desc, id: :desc })
       end

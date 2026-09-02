@@ -1,0 +1,6730 @@
+{
+  "tool": "comp-spec",
+  "version": 1,
+  "createdAt": "2026-09-02T21:16:33.498Z",
+  "comp": ".impeccable/mocks/tracking-board-a-continuous-ledger.png",
+  "warnings": [
+    "region app-chrome: \"codeDrawn\": true set in the regions file (the painted-material refusal is overridden: code draws this region)",
+    "region app-chrome: \"container\": true set in the regions file (the region-size refusal is overridden: one undivided element)",
+    "region navigation-rail: \"codeDrawn\": true set in the regions file (the painted-material refusal is overridden: code draws this region)",
+    "region navigation-rail: \"container\": true set in the regions file (the region-size refusal is overridden: one undivided element)",
+    "region top-utility-bar: \"codeDrawn\": true set in the regions file (the painted-material refusal is overridden: code draws this region)",
+    "region board-surface: \"codeDrawn\": true set in the regions file (the painted-material refusal is overridden: code draws this region)",
+    "region board-surface: \"container\": true set in the regions file (the region-size refusal is overridden: one undivided element)"
+  ],
+  "uncoveredInkCells": [],
+  "compSize": {
+    "width": 1586,
+    "height": 992
+  },
+  "aspect": 1.5988,
+  "orientation": "landscape",
+  "palette": [
+    {
+      "hex": "#f7f7f7",
+      "coverage": 0.8433
+    },
+    {
+      "hex": "#163937",
+      "coverage": 0.1332
+    },
+    {
+      "hex": "#949a9d",
+      "coverage": 0.0088
+    },
+    {
+      "hex": "#6a7078",
+      "coverage": 0.0086
+    },
+    {
+      "hex": "#bec5c5",
+      "coverage": 0.0061
+    }
+  ],
+  "bands": [
+    {
+      "y": 0.0375,
+      "strength": 0.2208
+    },
+    {
+      "y": 0.1,
+      "strength": 0.2015
+    },
+    {
+      "y": 0.125,
+      "strength": 0.2556
+    },
+    {
+      "y": 0.15,
+      "strength": 0.2669
+    },
+    {
+      "y": 0.2,
+      "strength": 0.5041
+    },
+    {
+      "y": 0.25,
+      "strength": 0.2885
+    },
+    {
+      "y": 0.3375,
+      "strength": 0.3468
+    }
+  ],
+  "regions": [
+    {
+      "id": "app-chrome",
+      "kind": "chrome",
+      "note": "Full clinic application shell container",
+      "grid": "A0:J9",
+      "codeDrawn": true,
+      "container": true,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "px": {
+        "x": 0,
+        "y": 0,
+        "w": 1586,
+        "h": 992
+      },
+      "aspect": 1.5988,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8433
+        },
+        {
+          "hex": "#163937",
+          "coverage": 0.1332
+        },
+        {
+          "hex": "#949a9d",
+          "coverage": 0.0088
+        },
+        {
+          "hex": "#6a7078",
+          "coverage": 0.0086
+        },
+        {
+          "hex": "#bec5c5",
+          "coverage": 0.0061
+        }
+      ],
+      "detail": {
+        "energy": 19.737
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "navigation-rail",
+      "kind": "chrome",
+      "note": "Deep-sage desktop navigation rail container",
+      "grid": "A0:B9",
+      "codeDrawn": true,
+      "container": true,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 0.2,
+        "h": 1
+      },
+      "px": {
+        "x": 0,
+        "y": 0,
+        "w": 317,
+        "h": 992
+      },
+      "aspect": 0.3196,
+      "palette": [
+        {
+          "hex": "#163937",
+          "coverage": 0.665
+        },
+        {
+          "hex": "#f3f6f4",
+          "coverage": 0.306
+        },
+        {
+          "hex": "#8d9a9c",
+          "coverage": 0.0135
+        },
+        {
+          "hex": "#4b6765",
+          "coverage": 0.008
+        },
+        {
+          "hex": "#b6c4c1",
+          "coverage": 0.0075
+        }
+      ],
+      "detail": {
+        "energy": 19.8266
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "top-utility-bar",
+      "kind": "chrome",
+      "note": "Compact white clinic and utility bar",
+      "grid": "B0:J0",
+      "codeDrawn": true,
+      "box": {
+        "x": 0.1,
+        "y": 0,
+        "w": 0.9,
+        "h": 0.1
+      },
+      "px": {
+        "x": 159,
+        "y": 0,
+        "w": 1427,
+        "h": 99
+      },
+      "aspect": 14.4141,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9383
+        },
+        {
+          "hex": "#173937",
+          "coverage": 0.0481
+        },
+        {
+          "hex": "#c1c1bd",
+          "coverage": 0.0067
+        },
+        {
+          "hex": "#626262",
+          "coverage": 0.0039
+        },
+        {
+          "hex": "#8f9292",
+          "coverage": 0.0029
+        }
+      ],
+      "detail": {
+        "energy": 10.2826
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "board-surface",
+      "kind": "chrome",
+      "note": "Single bordered tracking-board ledger container",
+      "grid": "B3:J9",
+      "codeDrawn": true,
+      "container": true,
+      "box": {
+        "x": 0.1,
+        "y": 0.3,
+        "w": 0.9,
+        "h": 0.7
+      },
+      "px": {
+        "x": 159,
+        "y": 298,
+        "w": 1427,
+        "h": 694
+      },
+      "aspect": 2.0562,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9189
+        },
+        {
+          "hex": "#173938",
+          "coverage": 0.0533
+        },
+        {
+          "hex": "#616670",
+          "coverage": 0.0102
+        },
+        {
+          "hex": "#bcc2c6",
+          "coverage": 0.0097
+        },
+        {
+          "hex": "#91969d",
+          "coverage": 0.008
+        }
+      ],
+      "detail": {
+        "energy": 18.1413
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "brand",
+      "kind": "text",
+      "note": "Northfield Clinic wordmark",
+      "grid": "A0:B0",
+      "coverBox": {
+        "x": 0,
+        "y": 0,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 0.1551,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 0,
+        "y": 0,
+        "w": 246,
+        "h": 99
+      },
+      "aspect": 2.4848,
+      "palette": [
+        {
+          "hex": "#173937",
+          "coverage": 0.8429
+        },
+        {
+          "hex": "#f5f7f6",
+          "coverage": 0.0672
+        },
+        {
+          "hex": "#d4d9cc",
+          "coverage": 0.0522
+        },
+        {
+          "hex": "#879f9a",
+          "coverage": 0.0299
+        },
+        {
+          "hex": "#496964",
+          "coverage": 0.0078
+        }
+      ],
+      "detail": {
+        "energy": 18.5565
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 18,
+          "capHeightPx": 13.8,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.6502,
+          "advTall": 0.4696,
+          "advX": 0.6502,
+          "gap": 0.0903,
+          "xRatio": 0.7028,
+          "stemW": 0.1831,
+          "contrast": 1.1194,
+          "serif": 0.555,
+          "densTall": 0.5785,
+          "densX": 0.5921,
+          "weight": 0.5785
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "nav-overview",
+      "kind": "text",
+      "note": "Overview navigation label",
+      "grid": "A1:A1",
+      "box": {
+        "x": 0,
+        "y": 0.1,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 99,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#163a36",
+          "coverage": 0.4912
+        },
+        {
+          "hex": "#e3f4e9",
+          "coverage": 0.4602
+        },
+        {
+          "hex": "#a6b9b3",
+          "coverage": 0.0246
+        },
+        {
+          "hex": "#728484",
+          "coverage": 0.0135
+        },
+        {
+          "hex": "#445f57",
+          "coverage": 0.0105
+        }
+      ],
+      "detail": {
+        "energy": 22.9488
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": null,
+        "measuredAt": "2026-09-02T21:16:33.726Z",
+        "note": "no separable lettering in the crop; size by the region box"
+      }
+    },
+    {
+      "id": "nav-patient-flow",
+      "kind": "text",
+      "note": "Selected Patient flow navigation label",
+      "grid": "A1:B1",
+      "coverBox": {
+        "x": 0,
+        "y": 0.1,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0,
+        "y": 0.0998,
+        "w": 0.1551,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 0,
+        "y": 99,
+        "w": 246,
+        "h": 99
+      },
+      "aspect": 2.4848,
+      "palette": [
+        {
+          "hex": "#163a37",
+          "coverage": 0.4864
+        },
+        {
+          "hex": "#e6f5ea",
+          "coverage": 0.4717
+        },
+        {
+          "hex": "#8d9f9c",
+          "coverage": 0.023
+        },
+        {
+          "hex": "#b1c2bc",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#668076",
+          "coverage": 0.0079
+        }
+      ],
+      "detail": {
+        "energy": 24.1718
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": null,
+        "measuredAt": "2026-09-02T21:16:33.822Z",
+        "note": "no separable lettering in the crop; size by the region box"
+      }
+    },
+    {
+      "id": "nav-schedule",
+      "kind": "text",
+      "note": "Schedule navigation label",
+      "grid": "A2:A2",
+      "box": {
+        "x": 0,
+        "y": 0.2,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 198,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#163936",
+          "coverage": 0.9218
+        },
+        {
+          "hex": "#e4ede4",
+          "coverage": 0.0425
+        },
+        {
+          "hex": "#57766c",
+          "coverage": 0.0167
+        },
+        {
+          "hex": "#8ba29d",
+          "coverage": 0.0138
+        },
+        {
+          "hex": "#2c5848",
+          "coverage": 0.0052
+        }
+      ],
+      "detail": {
+        "energy": 16.7981
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 17,
+          "capHeightPx": 16.7,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.4337,
+          "advTall": 1.1853,
+          "advX": 0.4337,
+          "gap": 0.0624,
+          "xRatio": 0.5225,
+          "stemW": 0.1276,
+          "contrast": 0.9721,
+          "serif": 0.9965,
+          "densTall": 0.4425,
+          "densX": 0.5984,
+          "weight": 0.4425
+        },
+        "widthClass": "condensed",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "nav-patients",
+      "kind": "text",
+      "note": "Patients navigation label",
+      "grid": "A2:A2",
+      "box": {
+        "x": 0,
+        "y": 0.2,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 198,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#163936",
+          "coverage": 0.9218
+        },
+        {
+          "hex": "#e4ede4",
+          "coverage": 0.0425
+        },
+        {
+          "hex": "#57766c",
+          "coverage": 0.0167
+        },
+        {
+          "hex": "#8ba29d",
+          "coverage": 0.0138
+        },
+        {
+          "hex": "#2c5848",
+          "coverage": 0.0052
+        }
+      ],
+      "detail": {
+        "energy": 16.7981
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 17,
+          "capHeightPx": 16.7,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.4337,
+          "advTall": 1.1853,
+          "advX": 0.4337,
+          "gap": 0.0624,
+          "xRatio": 0.5225,
+          "stemW": 0.1276,
+          "contrast": 0.9721,
+          "serif": 0.9965,
+          "densTall": 0.4425,
+          "densX": 0.5984,
+          "weight": 0.4425
+        },
+        "widthClass": "condensed",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "nav-encounters",
+      "kind": "text",
+      "note": "Encounters navigation label",
+      "grid": "A3:A3",
+      "box": {
+        "x": 0,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 298,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#163937",
+          "coverage": 0.9026
+        },
+        {
+          "hex": "#e8efe8",
+          "coverage": 0.047
+        },
+        {
+          "hex": "#9fb4b0",
+          "coverage": 0.0206
+        },
+        {
+          "hex": "#3b5e57",
+          "coverage": 0.016
+        },
+        {
+          "hex": "#67867d",
+          "coverage": 0.0138
+        }
+      ],
+      "detail": {
+        "energy": 16.7526
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 22,
+          "capHeightPx": 16.9,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.42,
+          "advTall": 0.14,
+          "advX": 0.4295,
+          "gap": 0.056,
+          "xRatio": 0.5018,
+          "stemW": 0.1296,
+          "contrast": 1.0978,
+          "serif": 0.9864,
+          "densTall": 0.8481,
+          "densX": 0.602,
+          "weight": 0.8481
+        },
+        "widthClass": "condensed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "nav-care-team",
+      "kind": "text",
+      "note": "Care team navigation label",
+      "grid": "A3:A4",
+      "box": {
+        "x": 0,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.2
+      },
+      "px": {
+        "x": 0,
+        "y": 298,
+        "w": 159,
+        "h": 198
+      },
+      "aspect": 0.803,
+      "palette": [
+        {
+          "hex": "#163937",
+          "coverage": 0.9266
+        },
+        {
+          "hex": "#e6ede4",
+          "coverage": 0.0383
+        },
+        {
+          "hex": "#63807a",
+          "coverage": 0.0176
+        },
+        {
+          "hex": "#aebcbc",
+          "coverage": 0.0092
+        },
+        {
+          "hex": "#325a4a",
+          "coverage": 0.0083
+        }
+      ],
+      "detail": {
+        "energy": 13.0395
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 5,
+          "glyphs": 10,
+          "capHeightPx": 2.6,
+          "inkIsDark": false,
+          "allCaps": true,
+          "advance": 2.7586,
+          "advTall": 2.7586,
+          "advX": null,
+          "gap": 0,
+          "xRatio": null,
+          "stemW": null,
+          "contrast": null,
+          "serif": null,
+          "densTall": 0.8748,
+          "densX": null,
+          "weight": 0.8748
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "nav-tasks",
+      "kind": "text",
+      "note": "Tasks navigation label",
+      "grid": "A4:A4",
+      "box": {
+        "x": 0,
+        "y": 0.4,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 397,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#173837",
+          "coverage": 0.9337
+        },
+        {
+          "hex": "#e4ebe0",
+          "coverage": 0.0292
+        },
+        {
+          "hex": "#65817b",
+          "coverage": 0.016
+        },
+        {
+          "hex": "#275648",
+          "coverage": 0.0126
+        },
+        {
+          "hex": "#bac8c6",
+          "coverage": 0.0086
+        }
+      ],
+      "detail": {
+        "energy": 8.5955
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 2,
+          "capHeightPx": 3.3,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 2.6,
+          "advTall": 2.6,
+          "advX": null,
+          "gap": 0,
+          "xRatio": 0.6772,
+          "stemW": null,
+          "contrast": null,
+          "serif": null,
+          "densTall": 0.7618,
+          "densX": null,
+          "weight": 0.7618
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "nav-messages",
+      "kind": "text",
+      "note": "Messages navigation label",
+      "grid": "A5:A5",
+      "box": {
+        "x": 0,
+        "y": 0.5,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 496,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#163937",
+          "coverage": 0.9074
+        },
+        {
+          "hex": "#e4ede5",
+          "coverage": 0.0469
+        },
+        {
+          "hex": "#b1c5bf",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#819a96",
+          "coverage": 0.016
+        },
+        {
+          "hex": "#46665e",
+          "coverage": 0.0097
+        }
+      ],
+      "detail": {
+        "energy": 15.946
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 20,
+          "capHeightPx": 12.3,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.6252,
+          "advTall": 0.8905,
+          "advX": 0.6094,
+          "gap": 0.0781,
+          "xRatio": 0.6809,
+          "stemW": 0.1796,
+          "contrast": 1.0741,
+          "serif": 0.9854,
+          "densTall": 0.6015,
+          "densX": 0.6171,
+          "weight": 0.6015
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "nav-reports",
+      "kind": "text",
+      "note": "Reports navigation label",
+      "grid": "A5:A6",
+      "box": {
+        "x": 0,
+        "y": 0.5,
+        "w": 0.1,
+        "h": 0.2
+      },
+      "px": {
+        "x": 0,
+        "y": 496,
+        "w": 159,
+        "h": 198
+      },
+      "aspect": 0.803,
+      "palette": [
+        {
+          "hex": "#173937",
+          "coverage": 0.9321
+        },
+        {
+          "hex": "#e2ebe2",
+          "coverage": 0.042
+        },
+        {
+          "hex": "#a9bcb8",
+          "coverage": 0.0115
+        },
+        {
+          "hex": "#587670",
+          "coverage": 0.0089
+        },
+        {
+          "hex": "#839f98",
+          "coverage": 0.0055
+        }
+      ],
+      "detail": {
+        "energy": 12.6822
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 3,
+          "glyphs": 28,
+          "capHeightPx": 12.7,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.6254,
+          "advTall": 0.8908,
+          "advX": 0.5768,
+          "gap": 0.0782,
+          "xRatio": 0.6604,
+          "stemW": 0.1748,
+          "contrast": 1.0587,
+          "serif": 1.0054,
+          "densTall": 0.598,
+          "densX": 0.6129,
+          "weight": 0.598
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "nav-settings",
+      "kind": "text",
+      "note": "Settings navigation label",
+      "grid": "A6:A6",
+      "box": {
+        "x": 0,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 595,
+        "w": 159,
+        "h": 99
+      },
+      "aspect": 1.6061,
+      "palette": [
+        {
+          "hex": "#173838",
+          "coverage": 0.9468
+        },
+        {
+          "hex": "#e4ebe0",
+          "coverage": 0.0326
+        },
+        {
+          "hex": "#52736b",
+          "coverage": 0.0103
+        },
+        {
+          "hex": "#9cb4ae",
+          "coverage": 0.0063
+        },
+        {
+          "hex": "#1d4d3d",
+          "coverage": 0.004
+        }
+      ],
+      "detail": {
+        "energy": 9.6676
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 13.4,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.5787,
+          "advTall": null,
+          "advX": 0.56,
+          "gap": 0.0747,
+          "xRatio": 0.5925,
+          "stemW": 0.1565,
+          "contrast": 0.969,
+          "serif": 1.5579,
+          "densTall": null,
+          "densX": 0.617,
+          "weight": 0.617
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "nav-whats-new",
+      "kind": "text",
+      "note": "What's new navigation label",
+      "grid": "A7:B7",
+      "coverBox": {
+        "x": 0,
+        "y": 0.7,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0,
+        "y": 0.6996,
+        "w": 0.1513,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 0,
+        "y": 694,
+        "w": 240,
+        "h": 99
+      },
+      "aspect": 2.4242,
+      "palette": [
+        {
+          "hex": "#163837",
+          "coverage": 0.9358
+        },
+        {
+          "hex": "#e8efea",
+          "coverage": 0.0477
+        },
+        {
+          "hex": "#618078",
+          "coverage": 0.0065
+        },
+        {
+          "hex": "#255646",
+          "coverage": 0.0053
+        },
+        {
+          "hex": "#b9cfc9",
+          "coverage": 0.0046
+        }
+      ],
+      "detail": {
+        "energy": 12.3655
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 6,
+          "capHeightPx": 3.3,
+          "inkIsDark": false,
+          "allCaps": true,
+          "advance": 1.8678,
+          "advTall": 1.8678,
+          "advX": null,
+          "gap": 0,
+          "xRatio": null,
+          "stemW": 0.4279,
+          "contrast": 2.0544,
+          "serif": null,
+          "densTall": 0.8885,
+          "densX": null,
+          "weight": 0.8885
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "nav-help",
+      "kind": "text",
+      "note": "Help navigation label",
+      "grid": "A8:B8",
+      "coverBox": {
+        "x": 0,
+        "y": 0.8,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0,
+        "y": 0.8004,
+        "w": 0.1513,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 0,
+        "y": 794,
+        "w": 240,
+        "h": 99
+      },
+      "aspect": 2.4242,
+      "palette": [
+        {
+          "hex": "#163837",
+          "coverage": 0.9036
+        },
+        {
+          "hex": "#eaefec",
+          "coverage": 0.0545
+        },
+        {
+          "hex": "#587671",
+          "coverage": 0.0335
+        },
+        {
+          "hex": "#abbdbd",
+          "coverage": 0.0057
+        },
+        {
+          "hex": "#1f4f3f",
+          "coverage": 0.0027
+        }
+      ],
+      "detail": {
+        "energy": 13.3501
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 16,
+          "capHeightPx": 8.3,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.5606,
+          "advTall": 0.7576,
+          "advX": 0.7273,
+          "gap": 0.1818,
+          "xRatio": 0.482,
+          "stemW": 0.2127,
+          "contrast": 1.0789,
+          "serif": 0.9654,
+          "densTall": 0.8006,
+          "densX": 0.6076,
+          "weight": 0.8006
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "nav-user",
+      "kind": "text",
+      "note": "Signed-in user and clinic context",
+      "grid": "A8:B9",
+      "box": {
+        "x": 0.041,
+        "y": 0.853,
+        "w": 0.095,
+        "h": 0.077
+      },
+      "px": {
+        "x": 65,
+        "y": 846,
+        "w": 151,
+        "h": 76
+      },
+      "aspect": 1.9868,
+      "palette": [
+        {
+          "hex": "#173936",
+          "coverage": 0.9118
+        },
+        {
+          "hex": "#46675f",
+          "coverage": 0.0287
+        },
+        {
+          "hex": "#b4c9c2",
+          "coverage": 0.0219
+        },
+        {
+          "hex": "#ebf2ef",
+          "coverage": 0.0196
+        },
+        {
+          "hex": "#7b988f",
+          "coverage": 0.0181
+        }
+      ],
+      "detail": {
+        "energy": 18.9436
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 24,
+          "capHeightPx": 10.9,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.6293,
+          "advTall": 0.5124,
+          "advX": 0.6448,
+          "gap": 0.0992,
+          "xRatio": 0.7244,
+          "stemW": 0.1882,
+          "contrast": 1.0771,
+          "serif": 0.4861,
+          "densTall": 0.6358,
+          "densX": 0.5954,
+          "weight": 0.6358
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "clinic-switcher",
+      "kind": "text",
+      "note": "Northfield Clinic context switcher",
+      "grid": "C0:D0",
+      "coverBox": {
+        "x": 0.2,
+        "y": 0,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.1999,
+        "y": 0.0181,
+        "w": 0.0794,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 317,
+        "y": 18,
+        "w": 126,
+        "h": 30
+      },
+      "aspect": 4.2,
+      "palette": [
+        {
+          "hex": "#f6f6f6",
+          "coverage": 0.8524
+        },
+        {
+          "hex": "#abacac",
+          "coverage": 0.069
+        },
+        {
+          "hex": "#6b6c6b",
+          "coverage": 0.0452
+        },
+        {
+          "hex": "#3b3b3e",
+          "coverage": 0.0333
+        }
+      ],
+      "detail": {
+        "energy": 30.3473
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 15,
+          "capHeightPx": 12.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6205,
+          "advTall": 0.3723,
+          "advX": 0.6412,
+          "gap": 0.0827,
+          "xRatio": 0.7193,
+          "stemW": 0.1891,
+          "contrast": 1.0863,
+          "serif": null,
+          "densTall": 0.565,
+          "densX": 0.5838,
+          "weight": 0.565
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "utility-search",
+      "kind": "text",
+      "note": "Search utility label",
+      "grid": "H0:H0",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.7453,
+        "y": 0.0121,
+        "w": 0.0549,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1182,
+        "y": 12,
+        "w": 87,
+        "h": 36
+      },
+      "aspect": 2.4167,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.908
+        },
+        {
+          "hex": "#9d9d9d",
+          "coverage": 0.0374
+        },
+        {
+          "hex": "#c2c1c4",
+          "coverage": 0.0316
+        },
+        {
+          "hex": "#6e6e6e",
+          "coverage": 0.023
+        }
+      ],
+      "detail": {
+        "energy": 12.1812
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 14.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5554,
+          "advTall": null,
+          "advX": 0.5554,
+          "gap": 0.0347,
+          "xRatio": 0.5793,
+          "stemW": 0.1685,
+          "contrast": 1.0761,
+          "serif": 1.4519,
+          "densTall": null,
+          "densX": 0.6622,
+          "weight": 0.6622
+        },
+        "widthClass": "condensed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "utility-notifications",
+      "kind": "text",
+      "note": "Notifications utility label",
+      "grid": "I0:I0",
+      "coverBox": {
+        "x": 0.8,
+        "y": 0,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.819,
+        "y": 0.0121,
+        "w": 0.0813,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1299,
+        "y": 12,
+        "w": 129,
+        "h": 36
+      },
+      "aspect": 3.5833,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8953
+        },
+        {
+          "hex": "#999999",
+          "coverage": 0.0426
+        },
+        {
+          "hex": "#646467",
+          "coverage": 0.0329
+        },
+        {
+          "hex": "#c6c5c6",
+          "coverage": 0.0291
+        }
+      ],
+      "detail": {
+        "energy": 18.9478
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 13,
+          "capHeightPx": 13.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.4879,
+          "advTall": 0.1876,
+          "advX": 0.5629,
+          "gap": 0.0751,
+          "xRatio": 0.6562,
+          "stemW": 0.1705,
+          "contrast": 1.0261,
+          "serif": 0.7537,
+          "densTall": 0.6902,
+          "densX": 0.6314,
+          "weight": 0.6902
+        },
+        "widthClass": "condensed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "utility-help",
+      "kind": "text",
+      "note": "Help utility label",
+      "grid": "J0:J0",
+      "coverBox": {
+        "x": 0.9,
+        "y": 0,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.9224,
+        "y": 0.0121,
+        "w": 0.0492,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1463,
+        "y": 12,
+        "w": 78,
+        "h": 36
+      },
+      "aspect": 2.1667,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.891
+        },
+        {
+          "hex": "#858687",
+          "coverage": 0.0577
+        },
+        {
+          "hex": "#bbbbbc",
+          "coverage": 0.0353
+        },
+        {
+          "hex": "#555858",
+          "coverage": 0.016
+        }
+      ],
+      "detail": {
+        "energy": 11.6206
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 12.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6869,
+          "advTall": 0.4647,
+          "advX": 0.6869,
+          "gap": 0.101,
+          "xRatio": 0.6761,
+          "stemW": 0.1813,
+          "contrast": 0.9738,
+          "serif": 1.01,
+          "densTall": 0.7307,
+          "densX": 0.6606,
+          "weight": 0.7307
+        },
+        "widthClass": "normal",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "page-title",
+      "kind": "text",
+      "note": "Today's patient flow headline",
+      "grid": "B1:D1",
+      "box": {
+        "x": 0.163,
+        "y": 0.091,
+        "w": 0.33,
+        "h": 0.043
+      },
+      "px": {
+        "x": 259,
+        "y": 90,
+        "w": 523,
+        "h": 43
+      },
+      "aspect": 12.1628,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8545
+        },
+        {
+          "hex": "#0c1412",
+          "coverage": 0.0816
+        },
+        {
+          "hex": "#79837f",
+          "coverage": 0.0281
+        },
+        {
+          "hex": "#b5bebc",
+          "coverage": 0.0204
+        },
+        {
+          "hex": "#3c4745",
+          "coverage": 0.0154
+        }
+      ],
+      "detail": {
+        "energy": 69.2065
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 18,
+          "capHeightPx": 24.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6508,
+          "advTall": 0.4474,
+          "advX": 0.6915,
+          "gap": 0.0813,
+          "xRatio": 0.7321,
+          "stemW": 0.1873,
+          "contrast": 1.1923,
+          "serif": null,
+          "densTall": 0.5405,
+          "densX": 0.582,
+          "weight": 0.5405
+        },
+        "widthClass": "normal",
+        "weightClass": "medium",
+        "chosen": {
+          "family": "Asta Sans",
+          "weight": 700,
+          "fontSizePx": 35,
+          "source": "catalog",
+          "estimatedSize": true,
+          "stamp": "43a48b843cb5"
+        }
+      }
+    },
+    {
+      "id": "page-subtitle",
+      "kind": "text",
+      "note": "Plain-language board purpose",
+      "grid": "B1:F1",
+      "box": {
+        "x": 0.163,
+        "y": 0.133,
+        "w": 0.42,
+        "h": 0.036
+      },
+      "px": {
+        "x": 259,
+        "y": 132,
+        "w": 666,
+        "h": 36
+      },
+      "aspect": 18.5,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9002
+        },
+        {
+          "hex": "#808081",
+          "coverage": 0.0726
+        },
+        {
+          "hex": "#b5b5b6",
+          "coverage": 0.0261
+        },
+        {
+          "hex": "#585858",
+          "coverage": 0.0011
+        }
+      ],
+      "detail": {
+        "energy": 20.4184
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 48,
+          "capHeightPx": 12.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6068,
+          "advTall": 0.6068,
+          "advX": 0.6344,
+          "gap": 0.0827,
+          "xRatio": 0.7355,
+          "stemW": 0.1818,
+          "contrast": 1.0828,
+          "serif": 0.4905,
+          "densTall": 0.5252,
+          "densX": 0.5963,
+          "weight": 0.5252
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "data-boundary",
+      "kind": "text",
+      "note": "Partial synthetic schedule and encounter projection disclosure",
+      "grid": "B1:F2",
+      "box": {
+        "x": 0.163,
+        "y": 0.179,
+        "w": 0.42,
+        "h": 0.035
+      },
+      "px": {
+        "x": 259,
+        "y": 178,
+        "w": 666,
+        "h": 35
+      },
+      "aspect": 19.0286,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9223
+        },
+        {
+          "hex": "#4d4f51",
+          "coverage": 0.0264
+        },
+        {
+          "hex": "#85868b",
+          "coverage": 0.023
+        },
+        {
+          "hex": "#b6b8ba",
+          "coverage": 0.0207
+        },
+        {
+          "hex": "#2c2e38",
+          "coverage": 0.0075
+        }
+      ],
+      "detail": {
+        "energy": 32.7336
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 43,
+          "capHeightPx": 12.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6048,
+          "advTall": 0.447,
+          "advX": 0.6048,
+          "gap": 0.0789,
+          "xRatio": 0.7266,
+          "stemW": 0.1753,
+          "contrast": 1.0796,
+          "serif": null,
+          "densTall": 0.5209,
+          "densX": 0.6008,
+          "weight": 0.5209
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "snapshot-time",
+      "kind": "text",
+      "note": "Updated time and refresh context",
+      "grid": "I1:J1",
+      "coverBox": {
+        "x": 0.8,
+        "y": 0.1,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.8682,
+        "y": 0.1058,
+        "w": 0.0908,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1377,
+        "y": 105,
+        "w": 144,
+        "h": 36
+      },
+      "aspect": 4,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8524
+        },
+        {
+          "hex": "#535457",
+          "coverage": 0.0747
+        },
+        {
+          "hex": "#bcbdbd",
+          "coverage": 0.0365
+        },
+        {
+          "hex": "#858687",
+          "coverage": 0.0278
+        },
+        {
+          "hex": "#282e2e",
+          "coverage": 0.0087
+        }
+      ],
+      "detail": {
+        "energy": 24.8203
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 13,
+          "capHeightPx": 12.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6726,
+          "advTall": 0.6726,
+          "advX": 0.5919,
+          "gap": 0.1076,
+          "xRatio": 0.7217,
+          "stemW": 0.1753,
+          "contrast": 1.0759,
+          "serif": null,
+          "densTall": 0.4717,
+          "densX": 0.6187,
+          "weight": 0.4717
+        },
+        "widthClass": "normal",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "filter-all",
+      "kind": "text",
+      "note": "All visits filter and count",
+      "grid": "B2:C2",
+      "box": {
+        "x": 0.188,
+        "y": 0.231,
+        "w": 0.078,
+        "h": 0.042
+      },
+      "px": {
+        "x": 298,
+        "y": 229,
+        "w": 124,
+        "h": 42
+      },
+      "aspect": 2.9524,
+      "palette": [
+        {
+          "hex": "#ecf7f7",
+          "coverage": 0.9021
+        },
+        {
+          "hex": "#91b3b0",
+          "coverage": 0.0361
+        },
+        {
+          "hex": "#174542",
+          "coverage": 0.0241
+        },
+        {
+          "hex": "#1c5848",
+          "coverage": 0.0206
+        },
+        {
+          "hex": "#507d76",
+          "coverage": 0.0172
+        }
+      ],
+      "detail": {
+        "energy": 21.843
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 12,
+          "capHeightPx": 14.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.3429,
+          "advTall": null,
+          "advX": 0.2057,
+          "gap": 0.0686,
+          "xRatio": 0.8409,
+          "stemW": 0.1717,
+          "contrast": 1.1004,
+          "serif": 0.4648,
+          "densTall": null,
+          "densX": 0.6919,
+          "weight": 0.6919
+        },
+        "widthClass": "compressed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "filter-expected",
+      "kind": "text",
+      "note": "Expected filter and count",
+      "grid": "C2:D2",
+      "coverBox": {
+        "x": 0.2,
+        "y": 0.2,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.2982,
+        "y": 0.2419,
+        "w": 0.0757,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 473,
+        "y": 240,
+        "w": 120,
+        "h": 36
+      },
+      "aspect": 3.3333,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8697
+        },
+        {
+          "hex": "#8f9091",
+          "coverage": 0.0546
+        },
+        {
+          "hex": "#3b3c3c",
+          "coverage": 0.0399
+        },
+        {
+          "hex": "#616366",
+          "coverage": 0.0189
+        },
+        {
+          "hex": "#c0c2c2",
+          "coverage": 0.0168
+        }
+      ],
+      "detail": {
+        "energy": 23.9833
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 16.7,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.4798,
+          "advTall": 1.1795,
+          "advX": null,
+          "gap": 0.04,
+          "xRatio": null,
+          "stemW": 0.1351,
+          "contrast": 1.0999,
+          "serif": 0.9455,
+          "densTall": 0.4273,
+          "densX": null,
+          "weight": 0.4273
+        },
+        "widthClass": "wide",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "filter-waiting",
+      "kind": "text",
+      "note": "Waiting room filter and count",
+      "grid": "E2:F2",
+      "coverBox": {
+        "x": 0.4,
+        "y": 0.2,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.43,
+        "y": 0.2419,
+        "w": 0.0908,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 682,
+        "y": 240,
+        "w": 144,
+        "h": 36
+      },
+      "aspect": 4,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8767
+        },
+        {
+          "hex": "#606161",
+          "coverage": 0.0382
+        },
+        {
+          "hex": "#1f2020",
+          "coverage": 0.0347
+        },
+        {
+          "hex": "#9a9b9b",
+          "coverage": 0.0313
+        },
+        {
+          "hex": "#c1c2c4",
+          "coverage": 0.0191
+        }
+      ],
+      "detail": {
+        "energy": 27.4902
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 11,
+          "capHeightPx": 16.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5128,
+          "advTall": 0.9049,
+          "advX": 0.5278,
+          "gap": 0.0603,
+          "xRatio": 0.5293,
+          "stemW": 0.1316,
+          "contrast": 0.9537,
+          "serif": 0.435,
+          "densTall": 0.4668,
+          "densX": 0.5554,
+          "weight": 0.4668
+        },
+        "widthClass": "condensed",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "filter-intake",
+      "kind": "text",
+      "note": "Intake filter and count",
+      "grid": "F2:G2",
+      "coverBox": {
+        "x": 0.5,
+        "y": 0.2,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.5719,
+        "y": 0.2419,
+        "w": 0.0567,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 907,
+        "y": 240,
+        "w": 90,
+        "h": 36
+      },
+      "aspect": 2.5,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8417
+        },
+        {
+          "hex": "#1f2220",
+          "coverage": 0.0639
+        },
+        {
+          "hex": "#acaeaf",
+          "coverage": 0.0472
+        },
+        {
+          "hex": "#767676",
+          "coverage": 0.025
+        },
+        {
+          "hex": "#444444",
+          "coverage": 0.0222
+        }
+      ],
+      "detail": {
+        "energy": 21.3135
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 11.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5932,
+          "advTall": 0.4237,
+          "advX": 0.6356,
+          "gap": 0.1059,
+          "xRatio": 0.7059,
+          "stemW": 0.2011,
+          "contrast": 1.1069,
+          "serif": 0.7936,
+          "densTall": 0.5622,
+          "densX": 0.6489,
+          "weight": 0.5622
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "filter-provider",
+      "kind": "text",
+      "note": "With provider filter and count",
+      "grid": "G2:H2",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.2,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.6835,
+        "y": 0.2419,
+        "w": 0.1059,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1084,
+        "y": 240,
+        "w": 168,
+        "h": 36
+      },
+      "aspect": 4.6667,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8763
+        },
+        {
+          "hex": "#4f4f50",
+          "coverage": 0.0462
+        },
+        {
+          "hex": "#959596",
+          "coverage": 0.0373
+        },
+        {
+          "hex": "#1f2526",
+          "coverage": 0.0209
+        },
+        {
+          "hex": "#bfc1c2",
+          "coverage": 0.0194
+        }
+      ],
+      "detail": {
+        "energy": 28.27
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 13,
+          "capHeightPx": 16.5,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.4247,
+          "advTall": null,
+          "advX": 0.3943,
+          "gap": 0.0607,
+          "xRatio": 0.5328,
+          "stemW": 0.1382,
+          "contrast": 1.013,
+          "serif": 0.4577,
+          "densTall": null,
+          "densX": 0.529,
+          "weight": 0.529
+        },
+        "widthClass": "compressed",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "filter-complete",
+      "kind": "text",
+      "note": "Complete filter and count",
+      "grid": "I2:J2",
+      "coverBox": {
+        "x": 0.8,
+        "y": 0.2,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.8115,
+        "y": 0.2419,
+        "w": 0.0719,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1287,
+        "y": 240,
+        "w": 114,
+        "h": 36
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.8706
+        },
+        {
+          "hex": "#2f3030",
+          "coverage": 0.0504
+        },
+        {
+          "hex": "#6f7072",
+          "coverage": 0.0373
+        },
+        {
+          "hex": "#cac9cb",
+          "coverage": 0.0307
+        },
+        {
+          "hex": "#989598",
+          "coverage": 0.011
+        }
+      ],
+      "detail": {
+        "energy": 24.3855
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 10,
+          "capHeightPx": 12.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7412,
+          "advTall": 0.5071,
+          "advX": 0.6632,
+          "gap": 0.078,
+          "xRatio": 0.6478,
+          "stemW": 0.1808,
+          "contrast": 1.019,
+          "serif": 1.1329,
+          "densTall": 0.6182,
+          "densX": 0.5744,
+          "weight": 0.6182
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "table-headings",
+      "kind": "text",
+      "note": "Patient through Action column labels",
+      "grid": "B3:J3",
+      "box": {
+        "x": 0.164,
+        "y": 0.299,
+        "w": 0.79,
+        "h": 0.047
+      },
+      "px": {
+        "x": 260,
+        "y": 297,
+        "w": 1253,
+        "h": 47
+      },
+      "aspect": 26.6596,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9555
+        },
+        {
+          "hex": "#b0b1b2",
+          "coverage": 0.0141
+        },
+        {
+          "hex": "#43464c",
+          "coverage": 0.0104
+        },
+        {
+          "hex": "#717579",
+          "coverage": 0.0101
+        },
+        {
+          "hex": "#1a1d23",
+          "coverage": 0.0099
+        }
+      ],
+      "detail": {
+        "energy": 24.5248
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 48,
+          "capHeightPx": 12.9,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6198,
+          "advTall": 0.5423,
+          "advX": 0.6198,
+          "gap": 0.0775,
+          "xRatio": 0.6472,
+          "stemW": 0.1992,
+          "contrast": 1.1539,
+          "serif": 0.5274,
+          "densTall": 0.6066,
+          "densX": 0.664,
+          "weight": 0.6066
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r1-patient",
+      "kind": "text",
+      "note": "First visit patient identity",
+      "grid": "B3:C4",
+      "box": {
+        "x": 0.171,
+        "y": 0.352,
+        "w": 0.098,
+        "h": 0.069
+      },
+      "px": {
+        "x": 271,
+        "y": 349,
+        "w": 155,
+        "h": 68
+      },
+      "aspect": 2.2794,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9041
+        },
+        {
+          "hex": "#777e88",
+          "coverage": 0.0463
+        },
+        {
+          "hex": "#bdc3c5",
+          "coverage": 0.0202
+        },
+        {
+          "hex": "#a6a8b4",
+          "coverage": 0.0177
+        },
+        {
+          "hex": "#262f3f",
+          "coverage": 0.0118
+        }
+      ],
+      "detail": {
+        "energy": 21.6049
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 24,
+          "capHeightPx": 11.6,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6498,
+          "advTall": 0.6498,
+          "advX": null,
+          "gap": 0.1018,
+          "xRatio": null,
+          "stemW": 0.2125,
+          "contrast": 1.1849,
+          "serif": 0.567,
+          "densTall": 0.5179,
+          "densX": null,
+          "weight": 0.5179
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r1-status",
+      "kind": "text",
+      "note": "First visit operational status",
+      "grid": "C3:D4",
+      "box": {
+        "x": 0.286,
+        "y": 0.352,
+        "w": 0.094,
+        "h": 0.069
+      },
+      "px": {
+        "x": 454,
+        "y": 349,
+        "w": 149,
+        "h": 68
+      },
+      "aspect": 2.1912,
+      "palette": [
+        {
+          "hex": "#f6f8f8",
+          "coverage": 0.9372
+        },
+        {
+          "hex": "#94b1d1",
+          "coverage": 0.0192
+        },
+        {
+          "hex": "#5985bc",
+          "coverage": 0.0183
+        },
+        {
+          "hex": "#c9daed",
+          "coverage": 0.0174
+        },
+        {
+          "hex": "#2f5fa3",
+          "coverage": 0.0078
+        }
+      ],
+      "detail": {
+        "energy": 10.5953
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 7,
+          "capHeightPx": 15.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7653,
+          "advTall": 1.2116,
+          "advX": 0.7653,
+          "gap": 0.0213,
+          "xRatio": 0.5633,
+          "stemW": 0.1544,
+          "contrast": 1.1899,
+          "serif": 1.0631,
+          "densTall": 0.4732,
+          "densX": 0.6591,
+          "weight": 0.4732
+        },
+        "widthClass": "wide",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "r1-timing",
+      "kind": "text",
+      "note": "First visit schedule timing",
+      "grid": "D3:E4",
+      "box": {
+        "x": 0.397,
+        "y": 0.352,
+        "w": 0.068,
+        "h": 0.069
+      },
+      "px": {
+        "x": 630,
+        "y": 349,
+        "w": 108,
+        "h": 68
+      },
+      "aspect": 1.5882,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9179
+        },
+        {
+          "hex": "#b4babf",
+          "coverage": 0.0278
+        },
+        {
+          "hex": "#848c92",
+          "coverage": 0.0242
+        },
+        {
+          "hex": "#555562",
+          "coverage": 0.0169
+        },
+        {
+          "hex": "#374445",
+          "coverage": 0.0133
+        }
+      ],
+      "detail": {
+        "energy": 13.4155
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 14,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.5888,
+          "advTall": 0.6299,
+          "advX": null,
+          "gap": 0.1624,
+          "xRatio": null,
+          "stemW": 0.1708,
+          "contrast": 0.9753,
+          "serif": 0.3259,
+          "densTall": 0.606,
+          "densX": null,
+          "weight": 0.606
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r1-room",
+      "kind": "text",
+      "note": "First visit room state",
+      "grid": "E3:F4",
+      "box": {
+        "x": 0.48,
+        "y": 0.352,
+        "w": 0.052,
+        "h": 0.069
+      },
+      "px": {
+        "x": 761,
+        "y": 349,
+        "w": 82,
+        "h": 68
+      },
+      "aspect": 1.2059,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 1.3838
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": null,
+        "measuredAt": "2026-09-02T21:16:36.907Z",
+        "note": "no separable lettering in the crop; size by the region box"
+      }
+    },
+    {
+      "id": "r1-provider",
+      "kind": "text",
+      "note": "First visit provider state",
+      "grid": "F3:G4",
+      "box": {
+        "x": 0.548,
+        "y": 0.352,
+        "w": 0.075,
+        "h": 0.069
+      },
+      "px": {
+        "x": 869,
+        "y": 349,
+        "w": 119,
+        "h": 68
+      },
+      "aspect": 1.75,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9652
+        },
+        {
+          "hex": "#aeb1b8",
+          "coverage": 0.012
+        },
+        {
+          "hex": "#636675",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#737d7f",
+          "coverage": 0.0098
+        },
+        {
+          "hex": "#304048",
+          "coverage": 0.0022
+        }
+      ],
+      "detail": {
+        "energy": 7.8713
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 12.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6058,
+          "advTall": 0.6058,
+          "advX": 0.413,
+          "gap": 0.0964,
+          "xRatio": 0.6798,
+          "stemW": 0.1746,
+          "contrast": 1.0209,
+          "serif": 0.2244,
+          "densTall": 0.6132,
+          "densX": 0.5348,
+          "weight": 0.6132
+        },
+        "widthClass": "compressed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r1-reason",
+      "kind": "text",
+      "note": "First visit reason",
+      "grid": "G3:H4",
+      "box": {
+        "x": 0.638,
+        "y": 0.352,
+        "w": 0.068,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1012,
+        "y": 349,
+        "w": 108,
+        "h": 68
+      },
+      "aspect": 1.5882,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9541
+        },
+        {
+          "hex": "#5c626b",
+          "coverage": 0.0193
+        },
+        {
+          "hex": "#8a8d97",
+          "coverage": 0.0157
+        },
+        {
+          "hex": "#bac1c4",
+          "coverage": 0.0109
+        }
+      ],
+      "detail": {
+        "energy": 7.2489
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 12.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5922,
+          "advTall": 0.1653,
+          "advX": 0.6472,
+          "gap": 0.0826,
+          "xRatio": 0.6808,
+          "stemW": 0.177,
+          "contrast": 1.0546,
+          "serif": 0.2231,
+          "densTall": 0.8031,
+          "densX": 0.6027,
+          "weight": 0.8031
+        },
+        "widthClass": "normal",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r1-care",
+      "kind": "text",
+      "note": "First visit recorded care state",
+      "grid": "H3:H4",
+      "box": {
+        "x": 0.72,
+        "y": 0.352,
+        "w": 0.06,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1142,
+        "y": 349,
+        "w": 95,
+        "h": 68
+      },
+      "aspect": 1.3971,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9701
+        },
+        {
+          "hex": "#636974",
+          "coverage": 0.0163
+        },
+        {
+          "hex": "#92989b",
+          "coverage": 0.0068
+        },
+        {
+          "hex": "#c0c4d0",
+          "coverage": 0.0054
+        },
+        {
+          "hex": "#484858",
+          "coverage": 0.0014
+        }
+      ],
+      "detail": {
+        "energy": 4.4856
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 4,
+          "capHeightPx": 12,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6639,
+          "advTall": 0.8299,
+          "advX": 0.6639,
+          "gap": 0.083,
+          "xRatio": 0.6827,
+          "stemW": 0.1823,
+          "contrast": 1.0787,
+          "serif": null,
+          "densTall": 0.5854,
+          "densX": 0.5978,
+          "weight": 0.5854
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r1-vitals",
+      "kind": "text",
+      "note": "First visit recorded vitals state",
+      "grid": "I3:I4",
+      "box": {
+        "x": 0.796,
+        "y": 0.352,
+        "w": 0.069,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1262,
+        "y": 349,
+        "w": 109,
+        "h": 68
+      },
+      "aspect": 1.6029,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9589
+        },
+        {
+          "hex": "#b7bdc0",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#82888d",
+          "coverage": 0.0118
+        },
+        {
+          "hex": "#535865",
+          "coverage": 0.0071
+        },
+        {
+          "hex": "#404848",
+          "coverage": 0.0024
+        }
+      ],
+      "detail": {
+        "energy": 6.7617
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 7,
+          "capHeightPx": 11.9,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6149,
+          "advTall": 0.9783,
+          "advX": 0.6149,
+          "gap": 0.0559,
+          "xRatio": 0.6921,
+          "stemW": 0.1862,
+          "contrast": 1.0932,
+          "serif": null,
+          "densTall": 0.5264,
+          "densX": 0.5397,
+          "weight": 0.5264
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r1-actions",
+      "kind": "text",
+      "note": "First visit action labels",
+      "grid": "J3:J4",
+      "box": {
+        "x": 0.879,
+        "y": 0.352,
+        "w": 0.07,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1394,
+        "y": 349,
+        "w": 111,
+        "h": 68
+      },
+      "aspect": 1.6324,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.8757
+        },
+        {
+          "hex": "#5d8b88",
+          "coverage": 0.0454
+        },
+        {
+          "hex": "#15534e",
+          "coverage": 0.037
+        },
+        {
+          "hex": "#b4cfcb",
+          "coverage": 0.0263
+        },
+        {
+          "hex": "#2e6f5f",
+          "coverage": 0.0155
+        }
+      ],
+      "detail": {
+        "energy": 15.4064
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 13,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6141,
+          "advTall": 0.6141,
+          "advX": 0.6141,
+          "gap": 0.0801,
+          "xRatio": 0.6998,
+          "stemW": 0.1973,
+          "contrast": 1.1391,
+          "serif": 0.3776,
+          "densTall": 0.5244,
+          "densX": 0.6233,
+          "weight": 0.5244
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r2-patient",
+      "kind": "text",
+      "note": "Second visit patient identity",
+      "grid": "B4:C5",
+      "box": {
+        "x": 0.171,
+        "y": 0.438,
+        "w": 0.098,
+        "h": 0.07
+      },
+      "px": {
+        "x": 271,
+        "y": 434,
+        "w": 155,
+        "h": 69
+      },
+      "aspect": 2.2464,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9231
+        },
+        {
+          "hex": "#b1b4bb",
+          "coverage": 0.0293
+        },
+        {
+          "hex": "#80868e",
+          "coverage": 0.0293
+        },
+        {
+          "hex": "#2b2e3c",
+          "coverage": 0.0142
+        },
+        {
+          "hex": "#485555",
+          "coverage": 0.0042
+        }
+      ],
+      "detail": {
+        "energy": 18.836
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 22,
+          "capHeightPx": 10.5,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6647,
+          "advTall": 0.637,
+          "advX": null,
+          "gap": 0.1852,
+          "xRatio": null,
+          "stemW": 0.2139,
+          "contrast": 1.1453,
+          "serif": 1.0496,
+          "densTall": 0.5517,
+          "densX": null,
+          "weight": 0.5517
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r2-status",
+      "kind": "text",
+      "note": "Second visit operational status",
+      "grid": "C4:D5",
+      "box": {
+        "x": 0.286,
+        "y": 0.438,
+        "w": 0.094,
+        "h": 0.07
+      },
+      "px": {
+        "x": 454,
+        "y": 434,
+        "w": 149,
+        "h": 69
+      },
+      "aspect": 2.1594,
+      "palette": [
+        {
+          "hex": "#f8f8f6",
+          "coverage": 0.9067
+        },
+        {
+          "hex": "#b2631e",
+          "coverage": 0.029
+        },
+        {
+          "hex": "#ecd3b2",
+          "coverage": 0.029
+        },
+        {
+          "hex": "#cd965d",
+          "coverage": 0.0238
+        },
+        {
+          "hex": "#dcae8a",
+          "coverage": 0.0114
+        }
+      ],
+      "detail": {
+        "energy": 15.1789
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 21,
+          "capHeightPx": 13.9,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5804,
+          "advTall": 0.4146,
+          "advX": 0.5804,
+          "gap": 0.0829,
+          "xRatio": 0.6026,
+          "stemW": 0.1637,
+          "contrast": 1.1092,
+          "serif": 1.0805,
+          "densTall": 0.5062,
+          "densX": 0.6106,
+          "weight": 0.5062
+        },
+        "widthClass": "condensed",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r2-timing",
+      "kind": "text",
+      "note": "Second visit schedule timing",
+      "grid": "D4:E5",
+      "box": {
+        "x": 0.397,
+        "y": 0.438,
+        "w": 0.068,
+        "h": 0.07
+      },
+      "px": {
+        "x": 630,
+        "y": 434,
+        "w": 108,
+        "h": 69
+      },
+      "aspect": 1.5652,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9336
+        },
+        {
+          "hex": "#acafb1",
+          "coverage": 0.0188
+        },
+        {
+          "hex": "#b96d28",
+          "coverage": 0.0175
+        },
+        {
+          "hex": "#6d7373",
+          "coverage": 0.015
+        },
+        {
+          "hex": "#2b2f2f",
+          "coverage": 0.015
+        }
+      ],
+      "detail": {
+        "energy": 13.3745
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 15,
+          "capHeightPx": 12.5,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.615,
+          "advTall": 0.615,
+          "advX": null,
+          "gap": 0.123,
+          "xRatio": null,
+          "stemW": 0.1736,
+          "contrast": 1.058,
+          "serif": 0.4861,
+          "densTall": 0.5548,
+          "densX": null,
+          "weight": 0.5548
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r2-room",
+      "kind": "text",
+      "note": "Second visit room state",
+      "grid": "E4:F5",
+      "box": {
+        "x": 0.48,
+        "y": 0.438,
+        "w": 0.052,
+        "h": 0.07
+      },
+      "px": {
+        "x": 761,
+        "y": 434,
+        "w": 82,
+        "h": 69
+      },
+      "aspect": 1.1884,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9938
+        },
+        {
+          "hex": "#6c747c",
+          "coverage": 0.0062
+        }
+      ],
+      "detail": {
+        "energy": 1.0886
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": null,
+        "measuredAt": "2026-09-02T21:16:37.831Z",
+        "note": "no separable lettering in the crop; size by the region box"
+      }
+    },
+    {
+      "id": "r2-provider",
+      "kind": "text",
+      "note": "Second visit provider state",
+      "grid": "F4:G5",
+      "box": {
+        "x": 0.548,
+        "y": 0.438,
+        "w": 0.075,
+        "h": 0.07
+      },
+      "px": {
+        "x": 869,
+        "y": 434,
+        "w": 119,
+        "h": 69
+      },
+      "aspect": 1.7246,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9521
+        },
+        {
+          "hex": "#535661",
+          "coverage": 0.0229
+        },
+        {
+          "hex": "#9597a0",
+          "coverage": 0.0152
+        },
+        {
+          "hex": "#bec4ca",
+          "coverage": 0.0087
+        },
+        {
+          "hex": "#181828",
+          "coverage": 0.0011
+        }
+      ],
+      "detail": {
+        "energy": 8.6944
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6866,
+          "advTall": 0.8296,
+          "advX": 0.615,
+          "gap": 0.0858,
+          "xRatio": 0.705,
+          "stemW": 0.1787,
+          "contrast": 1.0295,
+          "serif": 0.3394,
+          "densTall": 0.5771,
+          "densX": 0.5797,
+          "weight": 0.5771
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r2-reason",
+      "kind": "text",
+      "note": "Second visit reason",
+      "grid": "G4:H5",
+      "box": {
+        "x": 0.638,
+        "y": 0.438,
+        "w": 0.068,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1012,
+        "y": 434,
+        "w": 108,
+        "h": 69
+      },
+      "aspect": 1.5652,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9469
+        },
+        {
+          "hex": "#b7b9bf",
+          "coverage": 0.0193
+        },
+        {
+          "hex": "#585e68",
+          "coverage": 0.0181
+        },
+        {
+          "hex": "#84888d",
+          "coverage": 0.0157
+        }
+      ],
+      "detail": {
+        "energy": 7.5867
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 7,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7106,
+          "advTall": 0.5258,
+          "advX": 1.0517,
+          "gap": 0.0568,
+          "xRatio": 0.7025,
+          "stemW": 0.1831,
+          "contrast": 1.042,
+          "serif": 0.3302,
+          "densTall": 0.5184,
+          "densX": 0.5929,
+          "weight": 0.5184
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r2-care",
+      "kind": "text",
+      "note": "Second visit recorded care state",
+      "grid": "H4:H5",
+      "box": {
+        "x": 0.72,
+        "y": 0.438,
+        "w": 0.06,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1142,
+        "y": 434,
+        "w": 95,
+        "h": 69
+      },
+      "aspect": 1.3768,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9674
+        },
+        {
+          "hex": "#5e666f",
+          "coverage": 0.0204
+        },
+        {
+          "hex": "#bdbdc3",
+          "coverage": 0.0082
+        },
+        {
+          "hex": "#888890",
+          "coverage": 0.0027
+        },
+        {
+          "hex": "#383848",
+          "coverage": 0.0014
+        }
+      ],
+      "detail": {
+        "energy": 4.1923
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 4,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6716,
+          "advTall": 0.8288,
+          "advX": 0.6573,
+          "gap": 0.0572,
+          "xRatio": 0.7051,
+          "stemW": 0.1909,
+          "contrast": 1.0436,
+          "serif": 0.4043,
+          "densTall": 0.5986,
+          "densX": 0.6258,
+          "weight": 0.5986
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r2-vitals",
+      "kind": "text",
+      "note": "Second visit recorded vitals state",
+      "grid": "I4:I5",
+      "box": {
+        "x": 0.796,
+        "y": 0.438,
+        "w": 0.069,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1262,
+        "y": 434,
+        "w": 109,
+        "h": 69
+      },
+      "aspect": 1.5797,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.96
+        },
+        {
+          "hex": "#727a81",
+          "coverage": 0.0188
+        },
+        {
+          "hex": "#c3c8c9",
+          "coverage": 0.0141
+        },
+        {
+          "hex": "#a4a4b0",
+          "coverage": 0.0047
+        },
+        {
+          "hex": "#505858",
+          "coverage": 0.0024
+        }
+      ],
+      "detail": {
+        "energy": 6.5739
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 11.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7139,
+          "advTall": 0.641,
+          "advX": 0.7139,
+          "gap": 0.0583,
+          "xRatio": 0.7199,
+          "stemW": 0.1944,
+          "contrast": 1.0785,
+          "serif": 0.385,
+          "densTall": 0.5668,
+          "densX": 0.5866,
+          "weight": 0.5668
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r2-actions",
+      "kind": "text",
+      "note": "Second visit action labels",
+      "grid": "J4:J5",
+      "box": {
+        "x": 0.879,
+        "y": 0.438,
+        "w": 0.07,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1394,
+        "y": 434,
+        "w": 111,
+        "h": 69
+      },
+      "aspect": 1.6087,
+      "palette": [
+        {
+          "hex": "#f7f8f8",
+          "coverage": 0.9186
+        },
+        {
+          "hex": "#37706b",
+          "coverage": 0.0377
+        },
+        {
+          "hex": "#8baca9",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#125548",
+          "coverage": 0.0177
+        },
+        {
+          "hex": "#aed2c8",
+          "coverage": 0.0059
+        }
+      ],
+      "detail": {
+        "energy": 13.4273
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 16,
+          "capHeightPx": 10.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6553,
+          "advTall": 0.3515,
+          "advX": 0.7733,
+          "gap": 0.1055,
+          "xRatio": 0.6621,
+          "stemW": 0.24,
+          "contrast": 1.2618,
+          "serif": 0.9191,
+          "densTall": 0.692,
+          "densX": 0.6831,
+          "weight": 0.692
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r3-patient",
+      "kind": "text",
+      "note": "Third visit patient identity",
+      "grid": "B5:C6",
+      "box": {
+        "x": 0.171,
+        "y": 0.525,
+        "w": 0.098,
+        "h": 0.069
+      },
+      "px": {
+        "x": 271,
+        "y": 521,
+        "w": 155,
+        "h": 68
+      },
+      "aspect": 2.2794,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9005
+        },
+        {
+          "hex": "#797e88",
+          "coverage": 0.0393
+        },
+        {
+          "hex": "#b8bdc1",
+          "coverage": 0.0351
+        },
+        {
+          "hex": "#485158",
+          "coverage": 0.0142
+        },
+        {
+          "hex": "#1f2733",
+          "coverage": 0.0109
+        }
+      ],
+      "detail": {
+        "energy": 21.5661
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 25,
+          "capHeightPx": 11.1,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.5798,
+          "advTall": 0.4601,
+          "advX": null,
+          "gap": 0.1643,
+          "xRatio": null,
+          "stemW": 0.2051,
+          "contrast": 1.1047,
+          "serif": 0.9713,
+          "densTall": 0.5562,
+          "densX": null,
+          "weight": 0.5562
+        },
+        "widthClass": "condensed",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r3-status",
+      "kind": "text",
+      "note": "Third visit operational status",
+      "grid": "C5:D6",
+      "box": {
+        "x": 0.286,
+        "y": 0.525,
+        "w": 0.094,
+        "h": 0.069
+      },
+      "px": {
+        "x": 454,
+        "y": 521,
+        "w": 149,
+        "h": 68
+      },
+      "aspect": 2.1912,
+      "palette": [
+        {
+          "hex": "#f8f7f6",
+          "coverage": 0.8959
+        },
+        {
+          "hex": "#eed6b6",
+          "coverage": 0.035
+        },
+        {
+          "hex": "#b26326",
+          "coverage": 0.0297
+        },
+        {
+          "hex": "#c7915b",
+          "coverage": 0.0201
+        },
+        {
+          "hex": "#ddb18c",
+          "coverage": 0.0192
+        }
+      ],
+      "detail": {
+        "energy": 16.2678
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 24,
+          "capHeightPx": 13.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.4901,
+          "advTall": 0.3196,
+          "advX": 0.5114,
+          "gap": 0.0872,
+          "xRatio": 0.5967,
+          "stemW": 0.1667,
+          "contrast": 1.1128,
+          "serif": 0.6906,
+          "densTall": 0.5029,
+          "densX": 0.6734,
+          "weight": 0.5029
+        },
+        "widthClass": "condensed",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r3-timing",
+      "kind": "text",
+      "note": "Third visit schedule timing",
+      "grid": "D5:E6",
+      "box": {
+        "x": 0.397,
+        "y": 0.525,
+        "w": 0.068,
+        "h": 0.069
+      },
+      "px": {
+        "x": 630,
+        "y": 521,
+        "w": 108,
+        "h": 68
+      },
+      "aspect": 1.5882,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.922
+        },
+        {
+          "hex": "#b16524",
+          "coverage": 0.0223
+        },
+        {
+          "hex": "#444647",
+          "coverage": 0.0198
+        },
+        {
+          "hex": "#c68f5c",
+          "coverage": 0.0198
+        },
+        {
+          "hex": "#e7cdac",
+          "coverage": 0.0161
+        }
+      ],
+      "detail": {
+        "energy": 13.6221
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 15,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6357,
+          "advTall": 0.6468,
+          "advX": null,
+          "gap": 0.1358,
+          "xRatio": null,
+          "stemW": 0.1671,
+          "contrast": 1.1351,
+          "serif": 0.3264,
+          "densTall": 0.5271,
+          "densX": null,
+          "weight": 0.5271
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r3-room",
+      "kind": "text",
+      "note": "Third visit room state",
+      "grid": "E5:F6",
+      "box": {
+        "x": 0.48,
+        "y": 0.525,
+        "w": 0.052,
+        "h": 0.069
+      },
+      "px": {
+        "x": 761,
+        "y": 521,
+        "w": 82,
+        "h": 68
+      },
+      "aspect": 1.2059,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9938
+        },
+        {
+          "hex": "#90989c",
+          "coverage": 0.0062
+        }
+      ],
+      "detail": {
+        "energy": 1.0559
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": null,
+        "measuredAt": "2026-09-02T21:16:38.763Z",
+        "note": "no separable lettering in the crop; size by the region box"
+      }
+    },
+    {
+      "id": "r3-provider",
+      "kind": "text",
+      "note": "Third visit provider state",
+      "grid": "F5:G6",
+      "box": {
+        "x": 0.548,
+        "y": 0.525,
+        "w": 0.075,
+        "h": 0.069
+      },
+      "px": {
+        "x": 869,
+        "y": 521,
+        "w": 119,
+        "h": 68
+      },
+      "aspect": 1.75,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9456
+        },
+        {
+          "hex": "#525662",
+          "coverage": 0.0305
+        },
+        {
+          "hex": "#9fa1a8",
+          "coverage": 0.0131
+        },
+        {
+          "hex": "#cdd0d3",
+          "coverage": 0.0065
+        },
+        {
+          "hex": "#7c8888",
+          "coverage": 0.0044
+        }
+      ],
+      "detail": {
+        "energy": 7.8385
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 11.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6229,
+          "advTall": 0.6229,
+          "advX": null,
+          "gap": 0.0849,
+          "xRatio": 0.7043,
+          "stemW": 0.1802,
+          "contrast": 1.0739,
+          "serif": 0.5355,
+          "densTall": 0.6245,
+          "densX": null,
+          "weight": 0.6245
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r3-reason",
+      "kind": "text",
+      "note": "Third visit reason",
+      "grid": "G5:H6",
+      "box": {
+        "x": 0.638,
+        "y": 0.525,
+        "w": 0.068,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1012,
+        "y": 521,
+        "w": 108,
+        "h": 68
+      },
+      "aspect": 1.5882,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9444
+        },
+        {
+          "hex": "#7a8089",
+          "coverage": 0.0326
+        },
+        {
+          "hex": "#505260",
+          "coverage": 0.0169
+        },
+        {
+          "hex": "#c2c5c8",
+          "coverage": 0.006
+        }
+      ],
+      "detail": {
+        "energy": 7.6258
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6271,
+          "advTall": 0.6271,
+          "advX": 0.6128,
+          "gap": 0.057,
+          "xRatio": 0.7053,
+          "stemW": 0.1833,
+          "contrast": 1.051,
+          "serif": 0.5052,
+          "densTall": 0.5282,
+          "densX": 0.6161,
+          "weight": 0.5282
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r3-care",
+      "kind": "text",
+      "note": "Third visit recorded care state",
+      "grid": "H5:H6",
+      "box": {
+        "x": 0.72,
+        "y": 0.525,
+        "w": 0.06,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1142,
+        "y": 521,
+        "w": 95,
+        "h": 68
+      },
+      "aspect": 1.3971,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9524
+        },
+        {
+          "hex": "#6e6f7e",
+          "coverage": 0.0272
+        },
+        {
+          "hex": "#919698",
+          "coverage": 0.0095
+        },
+        {
+          "hex": "#cdd5d8",
+          "coverage": 0.0082
+        },
+        {
+          "hex": "#304050",
+          "coverage": 0.0027
+        }
+      ],
+      "detail": {
+        "energy": 4.7806
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6274,
+          "advTall": 0.1996,
+          "advX": null,
+          "gap": 0.057,
+          "xRatio": null,
+          "stemW": 0.1847,
+          "contrast": 1.0253,
+          "serif": 0.4937,
+          "densTall": 0.8759,
+          "densX": null,
+          "weight": 0.8759
+        },
+        "widthClass": "compressed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r3-vitals",
+      "kind": "text",
+      "note": "Third visit recorded vitals state",
+      "grid": "I5:I6",
+      "box": {
+        "x": 0.796,
+        "y": 0.525,
+        "w": 0.069,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1262,
+        "y": 521,
+        "w": 109,
+        "h": 68
+      },
+      "aspect": 1.6029,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9577
+        },
+        {
+          "hex": "#5d626c",
+          "coverage": 0.0259
+        },
+        {
+          "hex": "#abb0b3",
+          "coverage": 0.0141
+        },
+        {
+          "hex": "#181828",
+          "coverage": 0.0012
+        },
+        {
+          "hex": "#383848",
+          "coverage": 0.0012
+        }
+      ],
+      "detail": {
+        "energy": 6.5911
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 11.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7718,
+          "advTall": 1.0047,
+          "advX": 0.6844,
+          "gap": 0.0582,
+          "xRatio": 0.7185,
+          "stemW": 0.192,
+          "contrast": 1.0772,
+          "serif": 0.4765,
+          "densTall": 0.5407,
+          "densX": 0.5788,
+          "weight": 0.5407
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r3-actions",
+      "kind": "text",
+      "note": "Third visit action labels",
+      "grid": "J5:J6",
+      "box": {
+        "x": 0.879,
+        "y": 0.525,
+        "w": 0.07,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1394,
+        "y": 521,
+        "w": 111,
+        "h": 68
+      },
+      "aspect": 1.6324,
+      "palette": [
+        {
+          "hex": "#f7f8f8",
+          "coverage": 0.8965
+        },
+        {
+          "hex": "#98bbb8",
+          "coverage": 0.0471
+        },
+        {
+          "hex": "#1d5d56",
+          "coverage": 0.0353
+        },
+        {
+          "hex": "#498478",
+          "coverage": 0.0176
+        },
+        {
+          "hex": "#d3f3e8",
+          "coverage": 0.0035
+        }
+      ],
+      "detail": {
+        "energy": 12.8638
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 16,
+          "capHeightPx": 10.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.7116,
+          "advTall": 0.3645,
+          "advX": 0.802,
+          "gap": 0.0911,
+          "xRatio": 0.6489,
+          "stemW": 0.247,
+          "contrast": 1.2298,
+          "serif": 0.5148,
+          "densTall": 0.7046,
+          "densX": 0.6626,
+          "weight": 0.7046
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r4-patient",
+      "kind": "text",
+      "note": "Fourth visit patient identity",
+      "grid": "B6:C6",
+      "box": {
+        "x": 0.171,
+        "y": 0.611,
+        "w": 0.098,
+        "h": 0.069
+      },
+      "px": {
+        "x": 271,
+        "y": 606,
+        "w": 155,
+        "h": 68
+      },
+      "aspect": 2.2794,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9011
+        },
+        {
+          "hex": "#b2b6ba",
+          "coverage": 0.0436
+        },
+        {
+          "hex": "#7d838d",
+          "coverage": 0.0369
+        },
+        {
+          "hex": "#4a545e",
+          "coverage": 0.0134
+        },
+        {
+          "hex": "#203033",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 21.7436
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 28,
+          "capHeightPx": 11.1,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.5482,
+          "advTall": 0.442,
+          "advX": null,
+          "gap": 0.1105,
+          "xRatio": null,
+          "stemW": 0.2005,
+          "contrast": 1.0891,
+          "serif": 0.8532,
+          "densTall": 0.5706,
+          "densX": null,
+          "weight": 0.5706
+        },
+        "widthClass": "compressed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r4-status",
+      "kind": "text",
+      "note": "Fourth visit operational status",
+      "grid": "C6:D6",
+      "box": {
+        "x": 0.286,
+        "y": 0.611,
+        "w": 0.094,
+        "h": 0.069
+      },
+      "px": {
+        "x": 454,
+        "y": 606,
+        "w": 149,
+        "h": 68
+      },
+      "aspect": 2.1912,
+      "palette": [
+        {
+          "hex": "#f6f8f8",
+          "coverage": 0.9354
+        },
+        {
+          "hex": "#2b5ea3",
+          "coverage": 0.0297
+        },
+        {
+          "hex": "#4f7eb4",
+          "coverage": 0.0183
+        },
+        {
+          "hex": "#bed4e5",
+          "coverage": 0.0096
+        },
+        {
+          "hex": "#90b2d6",
+          "coverage": 0.007
+        }
+      ],
+      "detail": {
+        "energy": 11.6389
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 10,
+          "capHeightPx": 16,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.4858,
+          "advTall": 0.8776,
+          "advX": 0.5329,
+          "gap": 0.0627,
+          "xRatio": 0.5426,
+          "stemW": 0.1566,
+          "contrast": 1.0246,
+          "serif": null,
+          "densTall": 0.4765,
+          "densX": 0.6772,
+          "weight": 0.4765
+        },
+        "widthClass": "condensed",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "r4-timing",
+      "kind": "text",
+      "note": "Fourth visit schedule timing",
+      "grid": "D6:E6",
+      "box": {
+        "x": 0.397,
+        "y": 0.611,
+        "w": 0.068,
+        "h": 0.069
+      },
+      "px": {
+        "x": 630,
+        "y": 606,
+        "w": 108,
+        "h": 68
+      },
+      "aspect": 1.5882,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9312
+        },
+        {
+          "hex": "#7b8188",
+          "coverage": 0.029
+        },
+        {
+          "hex": "#464f52",
+          "coverage": 0.0217
+        },
+        {
+          "hex": "#afb2ba",
+          "coverage": 0.0181
+        }
+      ],
+      "detail": {
+        "energy": 11.682
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 13,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6476,
+          "advTall": 0.6563,
+          "advX": null,
+          "gap": 0.1349,
+          "xRatio": null,
+          "stemW": 0.1646,
+          "contrast": 0.9973,
+          "serif": null,
+          "densTall": 0.5099,
+          "densX": null,
+          "weight": 0.5099
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r4-room",
+      "kind": "text",
+      "note": "Fourth visit room state",
+      "grid": "E6:F6",
+      "box": {
+        "x": 0.48,
+        "y": 0.611,
+        "w": 0.052,
+        "h": 0.069
+      },
+      "px": {
+        "x": 761,
+        "y": 606,
+        "w": 82,
+        "h": 68
+      },
+      "aspect": 1.2059,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9689
+        },
+        {
+          "hex": "#52545e",
+          "coverage": 0.0171
+        },
+        {
+          "hex": "#9ca0a6",
+          "coverage": 0.0124
+        },
+        {
+          "hex": "#c8c8c8",
+          "coverage": 0.0016
+        }
+      ],
+      "detail": {
+        "energy": 4.9542
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 4,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.5539,
+          "advTall": 0.5539,
+          "advX": null,
+          "gap": 0.1891,
+          "xRatio": null,
+          "stemW": 0.1911,
+          "contrast": 1.0585,
+          "serif": 0.2737,
+          "densTall": 0.5458,
+          "densX": null,
+          "weight": 0.5458
+        },
+        "widthClass": "condensed",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r4-provider",
+      "kind": "text",
+      "note": "Fourth visit provider state",
+      "grid": "F6:G6",
+      "box": {
+        "x": 0.548,
+        "y": 0.611,
+        "w": 0.075,
+        "h": 0.069
+      },
+      "px": {
+        "x": 869,
+        "y": 606,
+        "w": 119,
+        "h": 68
+      },
+      "aspect": 1.75,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9641
+        },
+        {
+          "hex": "#797988",
+          "coverage": 0.013
+        },
+        {
+          "hex": "#abaeb2",
+          "coverage": 0.012
+        },
+        {
+          "hex": "#526262",
+          "coverage": 0.0054
+        },
+        {
+          "hex": "#454555",
+          "coverage": 0.0054
+        }
+      ],
+      "detail": {
+        "energy": 7.2646
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 7,
+          "capHeightPx": 12.2,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.655,
+          "advTall": 0.7096,
+          "advX": 0.6141,
+          "gap": 0.0273,
+          "xRatio": 0.7049,
+          "stemW": 0.1818,
+          "contrast": 1.0654,
+          "serif": 1.0527,
+          "densTall": 0.5237,
+          "densX": 0.6772,
+          "weight": 0.5237
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r4-reason",
+      "kind": "text",
+      "note": "Fourth visit reason",
+      "grid": "G6:H6",
+      "box": {
+        "x": 0.638,
+        "y": 0.611,
+        "w": 0.068,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1012,
+        "y": 606,
+        "w": 108,
+        "h": 68
+      },
+      "aspect": 1.5882,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9577
+        },
+        {
+          "hex": "#7e8789",
+          "coverage": 0.0157
+        },
+        {
+          "hex": "#b2b8be",
+          "coverage": 0.0133
+        },
+        {
+          "hex": "#626271",
+          "coverage": 0.0133
+        }
+      ],
+      "detail": {
+        "energy": 7.9685
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 3,
+          "capHeightPx": 12.2,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 1.1898,
+          "advTall": 1.1898,
+          "advX": null,
+          "gap": 0.1641,
+          "xRatio": 0.6884,
+          "stemW": 0.2029,
+          "contrast": 1.089,
+          "serif": 0.5074,
+          "densTall": 0.5018,
+          "densX": null,
+          "weight": 0.5018
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r4-care",
+      "kind": "text",
+      "note": "Fourth visit recorded care state",
+      "grid": "H6:H6",
+      "box": {
+        "x": 0.72,
+        "y": 0.611,
+        "w": 0.06,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1142,
+        "y": 606,
+        "w": 95,
+        "h": 68
+      },
+      "aspect": 1.3971,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.947
+        },
+        {
+          "hex": "#7f828a",
+          "coverage": 0.0299
+        },
+        {
+          "hex": "#afb6b8",
+          "coverage": 0.0122
+        },
+        {
+          "hex": "#5a5e6c",
+          "coverage": 0.0109
+        }
+      ],
+      "detail": {
+        "energy": 6.8901
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 11.5,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.1745,
+          "advTall": 0.1745,
+          "advX": null,
+          "gap": 0.0873,
+          "xRatio": 0.6651,
+          "stemW": 0.1924,
+          "contrast": 1.0603,
+          "serif": 0.8771,
+          "densTall": 0.9326,
+          "densX": null,
+          "weight": 0.9326
+        },
+        "widthClass": "compressed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r4-vitals",
+      "kind": "text",
+      "note": "Fourth visit recorded vitals state",
+      "grid": "I6:I6",
+      "box": {
+        "x": 0.796,
+        "y": 0.611,
+        "w": 0.069,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1262,
+        "y": 606,
+        "w": 109,
+        "h": 68
+      },
+      "aspect": 1.6029,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9223
+        },
+        {
+          "hex": "#616373",
+          "coverage": 0.0283
+        },
+        {
+          "hex": "#647070",
+          "coverage": 0.0212
+        },
+        {
+          "hex": "#9c9ea4",
+          "coverage": 0.0212
+        },
+        {
+          "hex": "#c0c5cb",
+          "coverage": 0.0071
+        }
+      ],
+      "detail": {
+        "energy": 12.8329
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 13,
+          "capHeightPx": 12.2,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6421,
+          "advTall": 0.6421,
+          "advX": null,
+          "gap": 0.1504,
+          "xRatio": 0.7315,
+          "stemW": 0.1773,
+          "contrast": 1.0335,
+          "serif": 0.3141,
+          "densTall": 0.5316,
+          "densX": null,
+          "weight": 0.5316
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r4-actions",
+      "kind": "text",
+      "note": "Fourth visit action labels",
+      "grid": "J6:J6",
+      "box": {
+        "x": 0.879,
+        "y": 0.611,
+        "w": 0.07,
+        "h": 0.069
+      },
+      "px": {
+        "x": 1394,
+        "y": 606,
+        "w": 111,
+        "h": 68
+      },
+      "aspect": 1.6324,
+      "palette": [
+        {
+          "hex": "#f7f8f8",
+          "coverage": 0.8942
+        },
+        {
+          "hex": "#4f827c",
+          "coverage": 0.0388
+        },
+        {
+          "hex": "#1b5a53",
+          "coverage": 0.0329
+        },
+        {
+          "hex": "#89b1ad",
+          "coverage": 0.0282
+        },
+        {
+          "hex": "#beded5",
+          "coverage": 0.0059
+        }
+      ],
+      "detail": {
+        "energy": 13.5717
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 16,
+          "capHeightPx": 11.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6655,
+          "advTall": 0.3955,
+          "advX": 0.8074,
+          "gap": 0.091,
+          "xRatio": 0.6536,
+          "stemW": 0.2295,
+          "contrast": 1.2253,
+          "serif": 0.8432,
+          "densTall": 0.6202,
+          "densX": 0.6436,
+          "weight": 0.6202
+        },
+        "widthClass": "wide",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r5-patient",
+      "kind": "text",
+      "note": "Fifth visit patient identity",
+      "grid": "B7:C7",
+      "box": {
+        "x": 0.171,
+        "y": 0.697,
+        "w": 0.098,
+        "h": 0.07
+      },
+      "px": {
+        "x": 271,
+        "y": 691,
+        "w": 155,
+        "h": 69
+      },
+      "aspect": 2.2464,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8801
+        },
+        {
+          "hex": "#babdc4",
+          "coverage": 0.0469
+        },
+        {
+          "hex": "#6e737f",
+          "coverage": 0.0386
+        },
+        {
+          "hex": "#444b57",
+          "coverage": 0.0184
+        },
+        {
+          "hex": "#8a9597",
+          "coverage": 0.0159
+        }
+      ],
+      "detail": {
+        "energy": 24.5404
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 26,
+          "capHeightPx": 11.4,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6728,
+          "advTall": 0.6728,
+          "advX": null,
+          "gap": 0.102,
+          "xRatio": null,
+          "stemW": 0.2132,
+          "contrast": 1.1334,
+          "serif": 0.5018,
+          "densTall": 0.5496,
+          "densX": null,
+          "weight": 0.5496
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r5-status",
+      "kind": "text",
+      "note": "Fifth visit operational status",
+      "grid": "C7:D7",
+      "box": {
+        "x": 0.286,
+        "y": 0.697,
+        "w": 0.094,
+        "h": 0.07
+      },
+      "px": {
+        "x": 454,
+        "y": 691,
+        "w": 149,
+        "h": 69
+      },
+      "aspect": 2.1594,
+      "palette": [
+        {
+          "hex": "#f6f8f8",
+          "coverage": 0.9486
+        },
+        {
+          "hex": "#2f63a7",
+          "coverage": 0.0192
+        },
+        {
+          "hex": "#5f8abe",
+          "coverage": 0.0113
+        },
+        {
+          "hex": "#cbd7eb",
+          "coverage": 0.0105
+        },
+        {
+          "hex": "#a4bfdf",
+          "coverage": 0.0105
+        }
+      ],
+      "detail": {
+        "energy": 11.1954
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 15.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5452,
+          "advTall": null,
+          "advX": 0.5933,
+          "gap": 0.0641,
+          "xRatio": 0.5106,
+          "stemW": 0.1602,
+          "contrast": 1.0844,
+          "serif": 0.6127,
+          "densTall": null,
+          "densX": 0.7362,
+          "weight": 0.7362
+        },
+        "widthClass": "normal",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r5-timing",
+      "kind": "text",
+      "note": "Fifth visit schedule timing",
+      "grid": "D7:E7",
+      "box": {
+        "x": 0.397,
+        "y": 0.697,
+        "w": 0.068,
+        "h": 0.07
+      },
+      "px": {
+        "x": 630,
+        "y": 691,
+        "w": 108,
+        "h": 69
+      },
+      "aspect": 1.5652,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9382
+        },
+        {
+          "hex": "#6c717b",
+          "coverage": 0.023
+        },
+        {
+          "hex": "#40494b",
+          "coverage": 0.017
+        },
+        {
+          "hex": "#c1c1cc",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#939c9d",
+          "coverage": 0.0109
+        }
+      ],
+      "detail": {
+        "energy": 11.2708
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 12,
+          "capHeightPx": 12.5,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6197,
+          "advTall": 0.625,
+          "advX": null,
+          "gap": 0.1434,
+          "xRatio": null,
+          "stemW": 0.1737,
+          "contrast": 1.0214,
+          "serif": 0.5919,
+          "densTall": 0.5336,
+          "densX": null,
+          "weight": 0.5336
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r5-room",
+      "kind": "text",
+      "note": "Fifth visit room state",
+      "grid": "E7:F7",
+      "box": {
+        "x": 0.48,
+        "y": 0.697,
+        "w": 0.052,
+        "h": 0.07
+      },
+      "px": {
+        "x": 761,
+        "y": 691,
+        "w": 82,
+        "h": 69
+      },
+      "aspect": 1.1884,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.972
+        },
+        {
+          "hex": "#5d5d6d",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#90989b",
+          "coverage": 0.0093
+        },
+        {
+          "hex": "#cdc8cd",
+          "coverage": 0.0047
+        },
+        {
+          "hex": "#384848",
+          "coverage": 0.0031
+        }
+      ],
+      "detail": {
+        "energy": 4.3066
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 3,
+          "capHeightPx": 12.2,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6539,
+          "advTall": 0.6539,
+          "advX": null,
+          "gap": 0.3065,
+          "xRatio": 0.7635,
+          "stemW": 0.1799,
+          "contrast": 0.9891,
+          "serif": null,
+          "densTall": 0.5103,
+          "densX": null,
+          "weight": 0.5103
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r5-provider",
+      "kind": "text",
+      "note": "Fifth visit provider state",
+      "grid": "F7:G7",
+      "box": {
+        "x": 0.548,
+        "y": 0.697,
+        "w": 0.075,
+        "h": 0.07
+      },
+      "px": {
+        "x": 869,
+        "y": 691,
+        "w": 119,
+        "h": 69
+      },
+      "aspect": 1.7246,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9446
+        },
+        {
+          "hex": "#b4b6bb",
+          "coverage": 0.0207
+        },
+        {
+          "hex": "#4c535c",
+          "coverage": 0.0174
+        },
+        {
+          "hex": "#82878e",
+          "coverage": 0.0141
+        },
+        {
+          "hex": "#232d3d",
+          "coverage": 0.0033
+        }
+      ],
+      "detail": {
+        "energy": 9.0078
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5942,
+          "advTall": 0.6213,
+          "advX": 0.5942,
+          "gap": 0.081,
+          "xRatio": 0.6888,
+          "stemW": 0.1702,
+          "contrast": 1.0226,
+          "serif": null,
+          "densTall": 0.5463,
+          "densX": 0.6104,
+          "weight": 0.5463
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r5-reason",
+      "kind": "text",
+      "note": "Fifth visit reason",
+      "grid": "G7:H7",
+      "box": {
+        "x": 0.638,
+        "y": 0.697,
+        "w": 0.068,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1012,
+        "y": 691,
+        "w": 108,
+        "h": 69
+      },
+      "aspect": 1.5652,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9432
+        },
+        {
+          "hex": "#5c616a",
+          "coverage": 0.0314
+        },
+        {
+          "hex": "#a9adb1",
+          "coverage": 0.0157
+        },
+        {
+          "hex": "#8b909b",
+          "coverage": 0.0073
+        },
+        {
+          "hex": "#384050",
+          "coverage": 0.0024
+        }
+      ],
+      "detail": {
+        "energy": 7.8493
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6215,
+          "advTall": 0.4053,
+          "advX": 1.0809,
+          "gap": 0.054,
+          "xRatio": 0.688,
+          "stemW": 0.1802,
+          "contrast": 1.0589,
+          "serif": null,
+          "densTall": 0.6226,
+          "densX": 0.6262,
+          "weight": 0.6226
+        },
+        "widthClass": "wide",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r5-care",
+      "kind": "text",
+      "note": "Fifth visit recorded care state",
+      "grid": "H7:H7",
+      "box": {
+        "x": 0.72,
+        "y": 0.697,
+        "w": 0.06,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1142,
+        "y": 691,
+        "w": 95,
+        "h": 69
+      },
+      "aspect": 1.3768,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9416
+        },
+        {
+          "hex": "#899091",
+          "coverage": 0.0285
+        },
+        {
+          "hex": "#5f5f6e",
+          "coverage": 0.0149
+        },
+        {
+          "hex": "#455050",
+          "coverage": 0.0082
+        },
+        {
+          "hex": "#cbcbd2",
+          "coverage": 0.0068
+        }
+      ],
+      "detail": {
+        "energy": 6.4456
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 12,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 1.1372,
+          "advTall": 1.1372,
+          "advX": 1.4978,
+          "gap": 0.0832,
+          "xRatio": 0.7049,
+          "stemW": 0.1843,
+          "contrast": 1.1291,
+          "serif": null,
+          "densTall": 0.5537,
+          "densX": 0.581,
+          "weight": 0.5537
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r5-vitals",
+      "kind": "text",
+      "note": "Fifth visit recorded vitals state",
+      "grid": "I7:I7",
+      "box": {
+        "x": 0.796,
+        "y": 0.697,
+        "w": 0.069,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1262,
+        "y": 691,
+        "w": 109,
+        "h": 69
+      },
+      "aspect": 1.5797,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.906
+        },
+        {
+          "hex": "#bec1c7",
+          "coverage": 0.0341
+        },
+        {
+          "hex": "#7b8186",
+          "coverage": 0.0329
+        },
+        {
+          "hex": "#515361",
+          "coverage": 0.0259
+        },
+        {
+          "hex": "#283838",
+          "coverage": 0.0012
+        }
+      ],
+      "detail": {
+        "energy": 14.1615
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 12,
+          "capHeightPx": 12,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6505,
+          "advTall": 0.6505,
+          "advX": null,
+          "gap": 0.1797,
+          "xRatio": null,
+          "stemW": 0.1815,
+          "contrast": 1.1021,
+          "serif": null,
+          "densTall": 0.5632,
+          "densX": null,
+          "weight": 0.5632
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r5-actions",
+      "kind": "text",
+      "note": "Fifth visit action labels",
+      "grid": "J7:J7",
+      "box": {
+        "x": 0.879,
+        "y": 0.697,
+        "w": 0.07,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1394,
+        "y": 691,
+        "w": 111,
+        "h": 69
+      },
+      "aspect": 1.6087,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.8911
+        },
+        {
+          "hex": "#51847f",
+          "coverage": 0.0462
+        },
+        {
+          "hex": "#1d5b54",
+          "coverage": 0.0284
+        },
+        {
+          "hex": "#9fbfbc",
+          "coverage": 0.0284
+        },
+        {
+          "hex": "#0b4242",
+          "coverage": 0.0059
+        }
+      ],
+      "detail": {
+        "energy": 14.5233
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 15,
+          "capHeightPx": 11.9,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6435,
+          "advTall": 0.5466,
+          "advX": 0.6995,
+          "gap": 0.0562,
+          "xRatio": 0.6939,
+          "stemW": 0.2059,
+          "contrast": 1.1754,
+          "serif": 0.9772,
+          "densTall": 0.5567,
+          "densX": 0.6837,
+          "weight": 0.5567
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r6-patient",
+      "kind": "text",
+      "note": "Sixth visit patient identity",
+      "grid": "B8:C8",
+      "box": {
+        "x": 0.171,
+        "y": 0.784,
+        "w": 0.098,
+        "h": 0.07
+      },
+      "px": {
+        "x": 271,
+        "y": 778,
+        "w": 155,
+        "h": 69
+      },
+      "aspect": 2.2464,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9035
+        },
+        {
+          "hex": "#7f838d",
+          "coverage": 0.047
+        },
+        {
+          "hex": "#b3b6bc",
+          "coverage": 0.0277
+        },
+        {
+          "hex": "#4f5767",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#2a2e3d",
+          "coverage": 0.0109
+        }
+      ],
+      "detail": {
+        "energy": 21.9191
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 24,
+          "capHeightPx": 11.9,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6076,
+          "advTall": 0.5983,
+          "advX": null,
+          "gap": 0.114,
+          "xRatio": null,
+          "stemW": 0.1967,
+          "contrast": 1.177,
+          "serif": null,
+          "densTall": 0.5987,
+          "densX": null,
+          "weight": 0.5987
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r6-status",
+      "kind": "text",
+      "note": "Sixth visit operational status",
+      "grid": "C8:D8",
+      "box": {
+        "x": 0.286,
+        "y": 0.784,
+        "w": 0.094,
+        "h": 0.07
+      },
+      "px": {
+        "x": 454,
+        "y": 778,
+        "w": 149,
+        "h": 69
+      },
+      "aspect": 2.1594,
+      "palette": [
+        {
+          "hex": "#f7f5f8",
+          "coverage": 0.9513
+        },
+        {
+          "hex": "#d1c8e3",
+          "coverage": 0.0191
+        },
+        {
+          "hex": "#8479b0",
+          "coverage": 0.0165
+        },
+        {
+          "hex": "#5b4e8e",
+          "coverage": 0.0122
+        },
+        {
+          "hex": "#b8a8d8",
+          "coverage": 0.0009
+        }
+      ],
+      "detail": {
+        "energy": 9.0463
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 15.5,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.3229,
+          "advTall": 0.1614,
+          "advX": 0.4843,
+          "gap": 0.0969,
+          "xRatio": 0.5374,
+          "stemW": 0.1474,
+          "contrast": 1.1958,
+          "serif": 1.0786,
+          "densTall": 0.743,
+          "densX": 0.6495,
+          "weight": 0.743
+        },
+        "widthClass": "condensed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r6-timing",
+      "kind": "text",
+      "note": "Sixth visit schedule timing",
+      "grid": "D8:E8",
+      "box": {
+        "x": 0.397,
+        "y": 0.784,
+        "w": 0.068,
+        "h": 0.07
+      },
+      "px": {
+        "x": 630,
+        "y": 778,
+        "w": 108,
+        "h": 69
+      },
+      "aspect": 1.5652,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9358
+        },
+        {
+          "hex": "#5f636b",
+          "coverage": 0.0206
+        },
+        {
+          "hex": "#999fa7",
+          "coverage": 0.0194
+        },
+        {
+          "hex": "#3f424c",
+          "coverage": 0.0194
+        },
+        {
+          "hex": "#c0c4c4",
+          "coverage": 0.0048
+        }
+      ],
+      "detail": {
+        "energy": 12.3594
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 14,
+          "capHeightPx": 12.2,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.2279,
+          "advTall": 0.6247,
+          "advX": null,
+          "gap": 0.1658,
+          "xRatio": null,
+          "stemW": 0.1571,
+          "contrast": 0.9932,
+          "serif": 0.4222,
+          "densTall": 0.4978,
+          "densX": null,
+          "weight": 0.4978
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r6-room",
+      "kind": "text",
+      "note": "Sixth visit room state",
+      "grid": "E8:F8",
+      "box": {
+        "x": 0.48,
+        "y": 0.784,
+        "w": 0.052,
+        "h": 0.07
+      },
+      "px": {
+        "x": 761,
+        "y": 778,
+        "w": 82,
+        "h": 69
+      },
+      "aspect": 1.1884,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9814
+        },
+        {
+          "hex": "#3d404d",
+          "coverage": 0.0093
+        },
+        {
+          "hex": "#909094",
+          "coverage": 0.0062
+        },
+        {
+          "hex": "#b8b8c0",
+          "coverage": 0.0031
+        }
+      ],
+      "detail": {
+        "energy": 5.0071
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 12.1,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.1656,
+          "advTall": 0.1656,
+          "advX": null,
+          "gap": 0.207,
+          "xRatio": null,
+          "stemW": 0.1441,
+          "contrast": 0.9063,
+          "serif": 0.4372,
+          "densTall": 0.7632,
+          "densX": null,
+          "weight": 0.7632
+        },
+        "widthClass": "compressed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r6-provider",
+      "kind": "text",
+      "note": "Sixth visit provider state",
+      "grid": "F8:G8",
+      "box": {
+        "x": 0.548,
+        "y": 0.784,
+        "w": 0.075,
+        "h": 0.07
+      },
+      "px": {
+        "x": 869,
+        "y": 778,
+        "w": 119,
+        "h": 69
+      },
+      "aspect": 1.7246,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9597
+        },
+        {
+          "hex": "#6f777d",
+          "coverage": 0.0185
+        },
+        {
+          "hex": "#4a4c5a",
+          "coverage": 0.0098
+        },
+        {
+          "hex": "#b8c1c3",
+          "coverage": 0.0098
+        },
+        {
+          "hex": "#9898a0",
+          "coverage": 0.0022
+        }
+      ],
+      "detail": {
+        "energy": 8.703
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 7,
+          "capHeightPx": 11.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6776,
+          "advTall": 0.7341,
+          "advX": 0.6352,
+          "gap": 0.0282,
+          "xRatio": 0.725,
+          "stemW": 0.1688,
+          "contrast": 1.1299,
+          "serif": 0.6209,
+          "densTall": 0.4991,
+          "densX": 0.6346,
+          "weight": 0.4991
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r6-reason",
+      "kind": "text",
+      "note": "Sixth visit reason",
+      "grid": "G8:H8",
+      "box": {
+        "x": 0.638,
+        "y": 0.784,
+        "w": 0.068,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1012,
+        "y": 778,
+        "w": 108,
+        "h": 69
+      },
+      "aspect": 1.5652,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9589
+        },
+        {
+          "hex": "#80828f",
+          "coverage": 0.0205
+        },
+        {
+          "hex": "#4c545a",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#b4babe",
+          "coverage": 0.0097
+        }
+      ],
+      "detail": {
+        "energy": 8.3437
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 7,
+          "capHeightPx": 11.8,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5795,
+          "advTall": 0.5654,
+          "advX": 0.5936,
+          "gap": 0.0707,
+          "xRatio": 0.6967,
+          "stemW": 0.1735,
+          "contrast": 1.1273,
+          "serif": 0.3499,
+          "densTall": 0.6224,
+          "densX": 0.5707,
+          "weight": 0.6224
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r6-care",
+      "kind": "text",
+      "note": "Sixth visit recorded care state",
+      "grid": "H8:H8",
+      "box": {
+        "x": 0.72,
+        "y": 0.784,
+        "w": 0.06,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1142,
+        "y": 778,
+        "w": 95,
+        "h": 69
+      },
+      "aspect": 1.3768,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9416
+        },
+        {
+          "hex": "#676975",
+          "coverage": 0.0272
+        },
+        {
+          "hex": "#c5c5cc",
+          "coverage": 0.0149
+        },
+        {
+          "hex": "#8b9297",
+          "coverage": 0.0149
+        },
+        {
+          "hex": "#484848",
+          "coverage": 0.0014
+        }
+      ],
+      "detail": {
+        "energy": 7.2304
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 11.4,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6441,
+          "advTall": 0.1757,
+          "advX": null,
+          "gap": 0.1171,
+          "xRatio": 0.6698,
+          "stemW": 0.1741,
+          "contrast": 1.0722,
+          "serif": 0.4161,
+          "densTall": 0.8545,
+          "densX": null,
+          "weight": 0.8545
+        },
+        "widthClass": "compressed",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "r6-vitals",
+      "kind": "text",
+      "note": "Sixth visit recorded vitals state",
+      "grid": "I8:I8",
+      "box": {
+        "x": 0.796,
+        "y": 0.784,
+        "w": 0.069,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1262,
+        "y": 778,
+        "w": 109,
+        "h": 69
+      },
+      "aspect": 1.5797,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9577
+        },
+        {
+          "hex": "#8b9399",
+          "coverage": 0.0165
+        },
+        {
+          "hex": "#4a4c58",
+          "coverage": 0.0106
+        },
+        {
+          "hex": "#c8c8cd",
+          "coverage": 0.0106
+        },
+        {
+          "hex": "#707078",
+          "coverage": 0.0047
+        }
+      ],
+      "detail": {
+        "energy": 9.0994
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 3,
+          "glyphs": 8,
+          "capHeightPx": 8.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.8333,
+          "advTall": 0.6061,
+          "advX": null,
+          "gap": 0.185,
+          "xRatio": 0.473,
+          "stemW": 0.2607,
+          "contrast": 1.2932,
+          "serif": null,
+          "densTall": 0.6513,
+          "densX": null,
+          "weight": 0.6513
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r6-actions",
+      "kind": "text",
+      "note": "Sixth visit action labels",
+      "grid": "J8:J8",
+      "box": {
+        "x": 0.879,
+        "y": 0.784,
+        "w": 0.07,
+        "h": 0.07
+      },
+      "px": {
+        "x": 1394,
+        "y": 778,
+        "w": 111,
+        "h": 69
+      },
+      "aspect": 1.6087,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.8729
+        },
+        {
+          "hex": "#a5c3c1",
+          "coverage": 0.0494
+        },
+        {
+          "hex": "#1a544f",
+          "coverage": 0.0482
+        },
+        {
+          "hex": "#6e9c94",
+          "coverage": 0.0212
+        },
+        {
+          "hex": "#3f7a71",
+          "coverage": 0.0082
+        }
+      ],
+      "detail": {
+        "energy": 16.7778
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 15,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6117,
+          "advTall": 0.5299,
+          "advX": 0.6552,
+          "gap": 0.0819,
+          "xRatio": 0.6839,
+          "stemW": 0.1953,
+          "contrast": 1.1401,
+          "serif": 0.3853,
+          "densTall": 0.5575,
+          "densX": 0.6623,
+          "weight": 0.5575
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r7-patient",
+      "kind": "text",
+      "note": "Seventh visit patient identity",
+      "grid": "B9:C9",
+      "box": {
+        "x": 0.171,
+        "y": 0.871,
+        "w": 0.098,
+        "h": 0.052
+      },
+      "px": {
+        "x": 271,
+        "y": 864,
+        "w": 155,
+        "h": 52
+      },
+      "aspect": 2.9808,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.8791
+        },
+        {
+          "hex": "#91979c",
+          "coverage": 0.037
+        },
+        {
+          "hex": "#404a4e",
+          "coverage": 0.0316
+        },
+        {
+          "hex": "#676c77",
+          "coverage": 0.0305
+        },
+        {
+          "hex": "#c2c6cb",
+          "coverage": 0.0218
+        }
+      ],
+      "detail": {
+        "energy": 22.1186
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 13,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6856,
+          "advTall": 0.657,
+          "advX": 0.6856,
+          "gap": 0.0857,
+          "xRatio": 0.7055,
+          "stemW": 0.2101,
+          "contrast": 1.0715,
+          "serif": 0.2059,
+          "densTall": 0.5897,
+          "densX": 0.6552,
+          "weight": 0.5897
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r7-status",
+      "kind": "text",
+      "note": "Seventh visit operational status",
+      "grid": "C9:D9",
+      "box": {
+        "x": 0.286,
+        "y": 0.871,
+        "w": 0.094,
+        "h": 0.052
+      },
+      "px": {
+        "x": 454,
+        "y": 864,
+        "w": 149,
+        "h": 52
+      },
+      "aspect": 2.8654,
+      "palette": [
+        {
+          "hex": "#f1f8f7",
+          "coverage": 0.9022
+        },
+        {
+          "hex": "#427e77",
+          "coverage": 0.0444
+        },
+        {
+          "hex": "#b5d4d0",
+          "coverage": 0.0244
+        },
+        {
+          "hex": "#86aba8",
+          "coverage": 0.0211
+        },
+        {
+          "hex": "#185f53",
+          "coverage": 0.0078
+        }
+      ],
+      "detail": {
+        "energy": 14.54
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 13,
+          "capHeightPx": 15.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.4798,
+          "advTall": null,
+          "advX": 0.4964,
+          "gap": 0.0662,
+          "xRatio": 0.5494,
+          "stemW": 0.1674,
+          "contrast": 1.0785,
+          "serif": 0.5094,
+          "densTall": null,
+          "densX": 0.654,
+          "weight": 0.654
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r7-timing",
+      "kind": "text",
+      "note": "Seventh visit schedule timing",
+      "grid": "D9:E9",
+      "box": {
+        "x": 0.397,
+        "y": 0.871,
+        "w": 0.068,
+        "h": 0.052
+      },
+      "px": {
+        "x": 630,
+        "y": 864,
+        "w": 108,
+        "h": 52
+      },
+      "aspect": 2.0769,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9275
+        },
+        {
+          "hex": "#43494e",
+          "coverage": 0.0247
+        },
+        {
+          "hex": "#747a82",
+          "coverage": 0.0231
+        },
+        {
+          "hex": "#a5a7b2",
+          "coverage": 0.017
+        },
+        {
+          "hex": "#cbced5",
+          "coverage": 0.0077
+        }
+      ],
+      "detail": {
+        "energy": 10.6069
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 12.5,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6588,
+          "advTall": 0.6787,
+          "advX": null,
+          "gap": 0.1198,
+          "xRatio": null,
+          "stemW": 0.1788,
+          "contrast": 0.9995,
+          "serif": null,
+          "densTall": 0.521,
+          "densX": null,
+          "weight": 0.521
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r7-room",
+      "kind": "text",
+      "note": "Seventh visit room state",
+      "grid": "E9:F9",
+      "box": {
+        "x": 0.48,
+        "y": 0.871,
+        "w": 0.052,
+        "h": 0.052
+      },
+      "px": {
+        "x": 761,
+        "y": 864,
+        "w": 82,
+        "h": 52
+      },
+      "aspect": 1.5769,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9483
+        },
+        {
+          "hex": "#474952",
+          "coverage": 0.0258
+        },
+        {
+          "hex": "#a6a3af",
+          "coverage": 0.0139
+        },
+        {
+          "hex": "#757578",
+          "coverage": 0.0099
+        },
+        {
+          "hex": "#181828",
+          "coverage": 0.002
+        }
+      ],
+      "detail": {
+        "energy": 9.4505
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 12.2,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.7217,
+          "advTall": 0.7217,
+          "advX": null,
+          "gap": 0.0545,
+          "xRatio": null,
+          "stemW": 0.1723,
+          "contrast": 1.0158,
+          "serif": 0.5294,
+          "densTall": 0.492,
+          "densX": null,
+          "weight": 0.492
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "r7-provider",
+      "kind": "text",
+      "note": "Seventh visit provider state",
+      "grid": "F9:G9",
+      "box": {
+        "x": 0.548,
+        "y": 0.871,
+        "w": 0.075,
+        "h": 0.052
+      },
+      "px": {
+        "x": 869,
+        "y": 864,
+        "w": 119,
+        "h": 52
+      },
+      "aspect": 2.2885,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.9486
+        },
+        {
+          "hex": "#acafb1",
+          "coverage": 0.0236
+        },
+        {
+          "hex": "#424d56",
+          "coverage": 0.0181
+        },
+        {
+          "hex": "#7a7a86",
+          "coverage": 0.0097
+        }
+      ],
+      "detail": {
+        "energy": 10.6605
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 12.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.5986,
+          "advTall": 0.5986,
+          "advX": 0.5442,
+          "gap": 0.0952,
+          "xRatio": 0.7003,
+          "stemW": 0.1726,
+          "contrast": 1.0438,
+          "serif": 0.5535,
+          "densTall": 0.5882,
+          "densX": 0.5652,
+          "weight": 0.5882
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r7-reason",
+      "kind": "text",
+      "note": "Seventh visit reason",
+      "grid": "G9:H9",
+      "box": {
+        "x": 0.638,
+        "y": 0.871,
+        "w": 0.068,
+        "h": 0.052
+      },
+      "px": {
+        "x": 1012,
+        "y": 864,
+        "w": 108,
+        "h": 52
+      },
+      "aspect": 2.0769,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9213
+        },
+        {
+          "hex": "#c6c8cc",
+          "coverage": 0.0278
+        },
+        {
+          "hex": "#5c636b",
+          "coverage": 0.0278
+        },
+        {
+          "hex": "#92999e",
+          "coverage": 0.0216
+        },
+        {
+          "hex": "#383848",
+          "coverage": 0.0015
+        }
+      ],
+      "detail": {
+        "energy": 10.3937
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 11.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6347,
+          "advTall": 0.4904,
+          "advX": 0.6347,
+          "gap": 0.0577,
+          "xRatio": 0.6718,
+          "stemW": 0.1909,
+          "contrast": 1.0886,
+          "serif": 0.5898,
+          "densTall": 0.618,
+          "densX": 0.6257,
+          "weight": 0.618
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r7-care",
+      "kind": "text",
+      "note": "Seventh visit recorded care state",
+      "grid": "H9:H9",
+      "box": {
+        "x": 0.72,
+        "y": 0.871,
+        "w": 0.06,
+        "h": 0.052
+      },
+      "px": {
+        "x": 1142,
+        "y": 864,
+        "w": 95,
+        "h": 52
+      },
+      "aspect": 1.8269,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9339
+        },
+        {
+          "hex": "#73787f",
+          "coverage": 0.0417
+        },
+        {
+          "hex": "#bdc0c3",
+          "coverage": 0.0174
+        },
+        {
+          "hex": "#485058",
+          "coverage": 0.0035
+        },
+        {
+          "hex": "#a0a0b0",
+          "coverage": 0.0035
+        }
+      ],
+      "detail": {
+        "energy": 7.4545
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.4263,
+          "advTall": 0.4405,
+          "advX": null,
+          "gap": 0.0568,
+          "xRatio": 0.6534,
+          "stemW": 0.1873,
+          "contrast": 1.0701,
+          "serif": 0.5671,
+          "densTall": 0.619,
+          "densX": null,
+          "weight": 0.619
+        },
+        "widthClass": "compressed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r7-vitals",
+      "kind": "text",
+      "note": "Seventh visit recorded vitals state",
+      "grid": "I9:I9",
+      "box": {
+        "x": 0.796,
+        "y": 0.871,
+        "w": 0.069,
+        "h": 0.052
+      },
+      "px": {
+        "x": 1262,
+        "y": 864,
+        "w": 109,
+        "h": 52
+      },
+      "aspect": 2.0962,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9384
+        },
+        {
+          "hex": "#c4c5ca",
+          "coverage": 0.027
+        },
+        {
+          "hex": "#868891",
+          "coverage": 0.021
+        },
+        {
+          "hex": "#515a61",
+          "coverage": 0.0135
+        }
+      ],
+      "detail": {
+        "energy": 7.7858
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 5,
+          "capHeightPx": 11.7,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.6704,
+          "advTall": 0.6704,
+          "advX": null,
+          "gap": 0.1287,
+          "xRatio": null,
+          "stemW": 0.1914,
+          "contrast": 1.1561,
+          "serif": 0.4653,
+          "densTall": 0.6031,
+          "densX": null,
+          "weight": 0.6031
+        },
+        "widthClass": "normal",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "r7-actions",
+      "kind": "text",
+      "note": "Seventh visit action labels",
+      "grid": "J9:J9",
+      "box": {
+        "x": 0.879,
+        "y": 0.871,
+        "w": 0.07,
+        "h": 0.052
+      },
+      "px": {
+        "x": 1394,
+        "y": 864,
+        "w": 111,
+        "h": 52
+      },
+      "aspect": 2.1346,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9275
+        },
+        {
+          "hex": "#14574c",
+          "coverage": 0.0272
+        },
+        {
+          "hex": "#588c84",
+          "coverage": 0.0196
+        },
+        {
+          "hex": "#336565",
+          "coverage": 0.0181
+        },
+        {
+          "hex": "#9bbbbb",
+          "coverage": 0.0076
+        }
+      ],
+      "detail": {
+        "energy": 11.5826
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 1,
+          "capHeightPx": 2.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 30.9798,
+          "advTall": null,
+          "advX": 30.9798,
+          "gap": 0,
+          "xRatio": 0.7539,
+          "stemW": null,
+          "contrast": null,
+          "serif": null,
+          "densTall": null,
+          "densX": 0.7434,
+          "weight": 0.7434
+        },
+        "widthClass": "wide",
+        "weightClass": "black"
+      }
+    },
+    {
+      "id": "menu-control",
+      "kind": "control",
+      "note": "Navigation menu control",
+      "grid": "B0:B0",
+      "coverBox": {
+        "x": 0.1,
+        "y": 0,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.1003,
+        "y": 0,
+        "w": 0.053,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 159,
+        "y": 0,
+        "w": 84,
+        "h": 99
+      },
+      "aspect": 0.8485,
+      "palette": [
+        {
+          "hex": "#173937",
+          "coverage": 0.8232
+        },
+        {
+          "hex": "#f5f7f6",
+          "coverage": 0.0868
+        },
+        {
+          "hex": "#889f9b",
+          "coverage": 0.0499
+        },
+        {
+          "hex": "#d0d4c7",
+          "coverage": 0.0369
+        },
+        {
+          "hex": "#4d6d6d",
+          "coverage": 0.0033
+        }
+      ],
+      "detail": {
+        "energy": 7.5888
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "refresh-control",
+      "kind": "control",
+      "note": "Snapshot refresh control",
+      "grid": "J1:J1",
+      "coverBox": {
+        "x": 0.9,
+        "y": 0.1,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.8997,
+        "y": 0.1058,
+        "w": 0.0605,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 1427,
+        "y": 105,
+        "w": 96,
+        "h": 30
+      },
+      "aspect": 3.2,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.8265
+        },
+        {
+          "hex": "#464748",
+          "coverage": 0.0631
+        },
+        {
+          "hex": "#9e9e9f",
+          "coverage": 0.0631
+        },
+        {
+          "hex": "#caccce",
+          "coverage": 0.0252
+        },
+        {
+          "hex": "#78767d",
+          "coverage": 0.0221
+        }
+      ],
+      "detail": {
+        "energy": 20.6844
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "filter-controls",
+      "kind": "control",
+      "note": "Stage filter button group",
+      "grid": "B2:J2",
+      "coverBox": {
+        "x": 0.1,
+        "y": 0.2,
+        "w": 0.9,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.1003,
+        "y": 0.1996,
+        "w": 0.053,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 159,
+        "y": 198,
+        "w": 84,
+        "h": 99
+      },
+      "aspect": 0.8485,
+      "palette": [
+        {
+          "hex": "#153837",
+          "coverage": 0.8929
+        },
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.0714
+        },
+        {
+          "hex": "#839f99",
+          "coverage": 0.0206
+        },
+        {
+          "hex": "#b3c5c2",
+          "coverage": 0.0152
+        }
+      ],
+      "detail": {
+        "energy": 2.1924
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-actions",
+      "kind": "control",
+      "note": "View patient and Open chart actions",
+      "grid": "J3:J9",
+      "coverBox": {
+        "x": 0.9,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.7
+      },
+      "box": {
+        "x": 0.9035,
+        "y": 0.7117,
+        "w": 0.0681,
+        "h": 0.0665
+      },
+      "px": {
+        "x": 1433,
+        "y": 706,
+        "w": 108,
+        "h": 66
+      },
+      "aspect": 1.6364,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.8189
+        },
+        {
+          "hex": "#76a19d",
+          "coverage": 0.0932
+        },
+        {
+          "hex": "#326868",
+          "coverage": 0.0394
+        },
+        {
+          "hex": "#4b8677",
+          "coverage": 0.0249
+        },
+        {
+          "hex": "#155548",
+          "coverage": 0.0236
+        }
+      ],
+      "detail": {
+        "energy": 22.9486
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    }
+  ]
+}

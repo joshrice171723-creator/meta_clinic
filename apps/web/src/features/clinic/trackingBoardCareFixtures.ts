@@ -24,7 +24,7 @@ const allergy = (id: number, allergen: string, reaction: string): Allergy => ({
 const medication = (id: number, name: string): Medication => ({
   id,
   medication: name,
-  dose: "Synthetic dose",
+  dose: "10 mg",
   route: "By mouth",
   frequency: "Daily",
   purpose: null,
@@ -66,7 +66,7 @@ const precaution = (id: number): Precaution => ({
   type: "droplet",
   evidence_status: "suspected",
   status: "active",
-  instructions: "Follow the charted synthetic precaution",
+  instructions: "Use the current droplet precautions",
   recorded_at: recordedAt,
   last_reassessed_at: recordedAt,
   lock_version: 0,
@@ -179,18 +179,18 @@ export const EXAMPLE_CARE_SUMMARIES: Readonly<
     reviewNeededTopics: ["allergies", "medications", "care_needs"],
   }),
   "EX-003": summary({
-    allergies: [allergy(1, "Synthetic antibiotic", "Synthetic rash")],
-    medications: [medication(2, "Synthetic daily medication")],
+    allergies: [allergy(1, "Amoxicillin", "Localized rash")],
+    medications: [medication(2, "Lisinopril")],
     interpreter: true,
   }),
   "EX-004": summary(),
   "EX-005": summary({
-    allergies: [allergy(3, "Synthetic adhesive", "Synthetic irritation")],
+    allergies: [allergy(3, "Medical adhesive", "Skin irritation")],
     precautions: [precaution(4)],
   }),
   "EX-006": summary({
-    medications: [medication(5, "Synthetic refill medication")],
+    medications: [medication(5, "Metformin")],
     careNeeds: [careNeed(6, "Wheelchair access requested")],
-    conditions: [condition(7, "Synthetic current-care condition")],
+    conditions: [condition(7, "Hypertension")],
   }),
 };

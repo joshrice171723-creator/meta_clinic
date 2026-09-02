@@ -22,6 +22,8 @@ Keep a short in-session record of selected paths/sections and material gaps. Mis
 
 ## Where changes belong
 
+- Durable product definitions and the portal/clinic separation: root `PRODUCT.md`.
+- Canonical clinic visual system: `03 Execution/Design.md`; implementation history and workflow boundaries remain in `03 Execution/Clinic Workspace Design.md`.
 - Current coherent state: the relevant foundation, research or implementation note.
 - Status: `03 Execution/Roadmap and Tasks.md` only.
 - Explicit founder/team decision: `03 Execution/Decisions.md` only.

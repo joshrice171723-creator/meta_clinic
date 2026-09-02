@@ -1,4 +1,15 @@
 import { createContext, useContext, type ReactNode } from "react";
+import { useEffect } from "react";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
+import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import PersonSearchIcon from "@mui/icons-material/PersonSearch";
+import SettingsIcon from "@mui/icons-material/Settings";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import DeskIcon from "@mui/icons-material/RoomService";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import type {
   ClinicCapabilities,
   ClinicOverview,
@@ -40,52 +51,84 @@ export function ClinicNavigation({
   homeView?: ClinicHomeView;
 }) {
   const { navigate } = useClinicNavigation();
+  const frontDesk = [
+    capabilities.patient_identity_read,
+    capabilities.appointments_read,
+    capabilities.appointments_book,
+    capabilities.billing_read,
+  ].some((value) => value === true);
   const links = [
+    {
+      href: "/clinic/front-desk",
+      label: "Front desk",
+      Icon: DeskIcon,
+      allowed: frontDesk,
+    },
     {
       href: "/clinic",
       label: "Tracking Board",
-      allowed: true,
+      Icon: DashboardIcon,
+      allowed: capabilities.patients === true,
       view: "tracking" as const,
     },
     {
       href: "/clinic/patients",
       label: "Patients",
+      Icon: PersonSearchIcon,
       allowed: capabilities.patients,
     },
     {
       href: "/clinic",
       label: "Schedule",
-      allowed: capabilities.patients,
+      Icon: CalendarMonthIcon,
+      allowed:
+        capabilities.appointments_read === true ||
+        capabilities.patients === true,
       view: "schedule" as const,
     },
     {
       href: "/clinic/pharmacy",
       label: "Pharmacy",
+      Icon: LocalPharmacyIcon,
       allowed: capabilities.inventory,
     },
     {
       href: "/clinic/operations",
       label: "Operations",
+      Icon: StorefrontIcon,
       allowed: true,
     },
     {
       href: "/clinic/inventory",
       label: "Office inventory",
+      Icon: Inventory2Icon,
       allowed: capabilities.inventory,
     },
     {
       href: "/clinic/staff",
       label: "Employees",
+      Icon: PeopleAltIcon,
       allowed: capabilities.staff,
     },
-    { href: "/clinic/settings", label: "Settings", allowed: true },
+    {
+      href: "/clinic/billing",
+      label: "Billing",
+      Icon: ReceiptLongIcon,
+      allowed: capabilities.billing_read === true,
+    },
+    {
+      href: "/clinic/settings",
+      label: "Settings",
+      Icon: SettingsIcon,
+      allowed: true,
+    },
   ];
   const currentPath = path.replace(/\/+$/, "") || "/";
   return (
     <nav aria-label="Clinic navigation">
       {links
         .filter((link) => link.allowed)
-        .map(({ href, label, view }) => {
+        .map(({ href, label, Icon, view }) => {
           const current = view
             ? currentPath === "/clinic" && homeView === view
             : currentPath === href ||
@@ -97,6 +140,7 @@ export function ClinicNavigation({
               aria-current={current ? "page" : undefined}
               onClick={() => navigate(href, { homeView: view })}
             >
+              <Icon aria-hidden="true" fontSize="small" />
               {label}
             </button>
           ) : (
@@ -105,6 +149,7 @@ export function ClinicNavigation({
               href={href}
               aria-current={current ? "page" : undefined}
             >
+              <Icon aria-hidden="true" fontSize="small" />
               {label}
             </a>
           );
@@ -112,6 +157,27 @@ export function ClinicNavigation({
     </nav>
   );
 }
+
+export function clinicLandingDestination(
+  capabilities: ClinicCapabilities,
+  path: string,
+  homeView: ClinicHomeView,
+) {
+  if (
+    path.replace(/\/+$/, "") !== "/clinic" ||
+    homeView !== "tracking" ||
+    capabilities.patients === true
+  )
+    return null;
+  const administrative = [
+    capabilities.patient_identity_read,
+    capabilities.appointments_read,
+    capabilities.appointments_book,
+    capabilities.billing_read,
+  ].some((value) => value === true);
+  return administrative ? "/clinic/front-desk" : "/clinic/operations";
+}
+
 export function Workspace({
   children,
   user,
@@ -129,6 +195,12 @@ export function Workspace({
   );
   const overview = useResource<ClinicOverview>("/api/clinic");
   const appearance = useClinicAppearance(user.id);
+  const landingDestination = data
+    ? clinicLandingDestination(data.capabilities, path, homeView)
+    : null;
+  useEffect(() => {
+    if (landingDestination) navigate(landingDestination, { replace: true });
+  }, [landingDestination, navigate]);
   const trackingBoard =
     path.replace(/\/+$/, "") === "/clinic" && homeView === "tracking";
   if (!data || !overview.data)
@@ -151,6 +223,14 @@ export function Workspace({
         <main id="main" className="wrap inner-page">
           <LoadState error="Unable to verify this clinic workspace. Reload and check your signed-in account." />
           <a href="/portal">Return to My launch</a>
+        </main>
+      </ClinicAppearanceScope>
+    );
+  if (landingDestination)
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <main id="main" className="wrap inner-page">
+          <LoadState />
         </main>
       </ClinicAppearanceScope>
     );
@@ -207,15 +287,20 @@ export function Workspace({
                   />
                 }
               >
-                <header className="clinic-topbar">
-                  <span>
+                <header className="clinic-topbar" aria-label="Clinic context">
+                  <span className="clinic-topbar-context">
                     Currently logged in as:{" "}
                     <strong>{user.email_address}</strong>
                     {data.credentials.length > 0 && (
                       <>, {data.credentials.join(", ")}</>
                     )}
                   </span>
-                  <a href="/clinic/settings">My settings</a>
+                  <span className="clinic-topbar-actions">
+                    <span className="clinic-topbar-location">
+                      {data.practice.name}
+                    </span>
+                    <a href="/clinic/settings">My settings</a>
+                  </span>
                 </header>
                 <main
                   id="main"

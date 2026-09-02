@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil)
-        Authorization.authorize!(actor: actor, practice: practice, action: "appointments.write", site: site)
+        Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "appointments.book", legacy_action: "appointments.write", site: site)
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
 
         appointment = practice.appointments.new(

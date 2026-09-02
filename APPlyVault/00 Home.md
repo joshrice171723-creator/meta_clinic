@@ -1,11 +1,11 @@
 ---
 type: dashboard
 status: active
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 # APPly — Home
 
-**[[01 Table of Contents|Vault table of contents]] · [[CICD|Developer CI/CD guide]]**
+**[[01 Table of Contents|Vault table of contents]] · [Product definition](../PRODUCT.md) · [[Design|Clinic design system]] · [[CICD|Developer CI/CD guide]]**
 
 Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs and PAs in Sherman and North Texas**, focused on cash-pay primary-care / concierge-adjacent clinics. The consultancy is formed; the EHR and inventory-management entity is not yet formed and will have different ownership. **APPly remains a working name until the consultancy's legal/brand name is confirmed.**
 
@@ -37,7 +37,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 - **Pharmacy scope:** D-028 sets broad configurability: clinics should be able to choose and combine pharmacy setups. [[Pharmacy Inventory Data Requirements]] covers the shared inventory foundation and proposed capability extensions; individual clinic activation and real-data release still need their own evidence.
 - **Demand:** substantial local demand is founder-reported; founder is currently unsure how many first applicants are available. No pipeline count or paid commitment is assumed.
 - **Timing:** no deadline pressure was expressed. Budget and actual team capacity are still unknown; no 90-day deadline is imposed.
-- **Near-term objective:** build both experiences through a separate frontend and Rails API: [[Website MVP]] / [[Client Portal]] for selling, Contact, paperwork and training; [[Clinic Workspace]] for synthetic clinic operations. Separate layouts/navigation and clinic permissions, not a separate-domain requirement. No real patient data or released EHR; public release and actual packet/content remain pending. Business-decision interviews stay deferred.
+- **Product boundary and near-term objective:** the mentoring/guidance portal and clinic software are unrelated products that currently share a frontend/API repository. [[Website MVP]] / [[Client Portal]] own responsive mentoring, knowledge and training; [[Clinic Workspace]] owns the separately offered synthetic clinic package. [[Design]] makes the tracking board the clinic's first visual authority and prioritizes desktop/tablet use. Shared infrastructure does not require shared product identity. No real patient data or released EHR; public release and actual packet/content remain pending. Business-decision interviews stay deferred.
 
 ## Start here
 
@@ -53,7 +53,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 | Delivery | [[Clinic Launch Packet]], [[Knowledge Bank and Mentorship]] |
 | Learning | [[MD Pilot]], [[Customer Discovery]], [[Texas Diligence]], [[SharePoint and EMR]], [[Source Register]] |
 | Developer handoff | [[CICD]], [[Software Architecture]], [[PostgreSQL and Inventory Foundation]] |
-| Execution | [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[Data Modeling]], [[Roadmap and Tasks]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
+| Execution | [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[Design]], [[Data Modeling]], [[Roadmap and Tasks]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
 | Reusable notes | [[Evidence Note Template]], [[Weekly Review Template]] |
 
 ## Next three moves

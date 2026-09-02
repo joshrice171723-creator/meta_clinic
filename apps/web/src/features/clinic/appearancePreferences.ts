@@ -63,6 +63,66 @@ type ThemeTokens = {
   border: string;
   control: string;
 };
+export type ClinicSidebarTokens = {
+  ground: string;
+  on: string;
+  muted: string;
+  selected: string;
+  "selected-on": string;
+};
+export const CLINIC_SIDEBAR_THEMES: Record<
+  ClinicPalette,
+  Record<ColorScheme, ClinicSidebarTokens>
+> = {
+  sage: {
+    light: {
+      ground: "#163937",
+      on: "#f3f6f4",
+      muted: "#b6c4c1",
+      selected: "#f3f6f4",
+      "selected-on": "#163937",
+    },
+    dark: {
+      ground: "#101b18",
+      on: "#e5eee8",
+      muted: "#aabdb2",
+      selected: "#2b4034",
+      "selected-on": "#e5eee8",
+    },
+  },
+  blue: {
+    light: {
+      ground: "#193b52",
+      on: "#f2f7fb",
+      muted: "#b5c9d7",
+      selected: "#f2f7fb",
+      "selected-on": "#193b52",
+    },
+    dark: {
+      ground: "#101b25",
+      on: "#e2edf5",
+      muted: "#aebfcd",
+      selected: "#2a4051",
+      "selected-on": "#e2edf5",
+    },
+  },
+  graphite: {
+    light: {
+      ground: "#29302f",
+      on: "#f7f7f3",
+      muted: "#c0c7c0",
+      selected: "#f7f7f3",
+      "selected-on": "#29302f",
+    },
+    dark: {
+      ground: "#191a18",
+      on: "#eeeee6",
+      muted: "#b9bcb1",
+      selected: "#3b4037",
+      "selected-on": "#eeeee6",
+    },
+  },
+};
 export const CLINIC_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ThemeTokens>

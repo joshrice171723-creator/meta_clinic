@@ -5,6 +5,11 @@ module Clinic
         {
           id: appointment.id,
           patient_id: appointment.patient_id,
+          patient: {
+            id: appointment.patient.id,
+            display_name: appointment.patient.display_name,
+            reference: appointment.patient.reference
+          },
           site_id: appointment.site_id,
           room_id: appointment.room_id,
           booked_clinician_id: appointment.booked_clinician_id,

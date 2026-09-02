@@ -2,7 +2,7 @@ module Clinic
   module Billing
     class DraftInvoice
       def self.call(practice:, actor:, patient:, currency:, lines:)
-        Authorization.authorize!(actor: actor, practice: practice, action: "billing.write")
+        Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.invoice_draft", legacy_action: "billing.write")
         patient = practice.patients.find(patient.id)
         currency = currency.to_s
         raise ArgumentError, "Currency must be a three-letter uppercase code." unless currency.match?(/\A[A-Z]{3}\z/)

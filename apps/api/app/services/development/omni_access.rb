@@ -2,6 +2,7 @@ module Development
   class OmniAccess
     DEFAULT_PROFILE = "administrator".freeze
     ROLE_PREFIX = "development-omni-".freeze
+    ROLE_VERSION = 2
     PROFILES = {
       "administrator" => {
         label: "Administrator",
@@ -61,8 +62,8 @@ module Development
       if active.empty?
         switch_locked!(user, membership, DEFAULT_PROFILE)
         seed_workflow!(membership)
-      elsif active.one? && profile_for(user)
-        membership
+      elsif active.one? && (profile = profile_for(user))
+        switch_locked!(user, membership, profile)
       else
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
@@ -83,8 +84,10 @@ module Development
         locked_user = User.lock.find(user.id)
         membership = Clinic::Membership.lock.find_by!(user: locked_user)
         ensure_roles!
-        unexpected = membership.role_grants.active.where.not(role_version: roles_by_profile.values)
-        if unexpected.exists?
+        unexpected = membership.role_grants.active.includes(:role_version).reject do |grant|
+          grant.role_version.role_code.start_with?(ROLE_PREFIX)
+        end
+        if unexpected.any?
           raise TestAccounts::Unavailable, "The Omni test identity has an unexpected active grant. No access was changed."
         end
         switch_locked!(locked_user, membership, profile)
@@ -118,7 +121,9 @@ module Development
 
     def self.switch_locked!(user, membership, profile)
       current = profile_for(user)
-      return membership if current == profile
+      role = roles_by_profile.fetch(profile)
+      active = active_omni_grants(membership)
+      return membership if current == profile && active.one? && active.first.role_version_id == role.id
 
       now = Time.current
       PaperTrail.request(whodunnit: user.id.to_s,
@@ -128,7 +133,6 @@ module Development
           grant.events.create!(practice: membership.practice, grantor_membership: membership,
             grant_revision: grant.revision, event_kind: "development_view_revoked")
         end
-        role = roles_by_profile.fetch(profile)
         grant = membership.role_grants.find_or_initialize_by(practice: membership.practice,
           role_version: role, scope_kind: "practice")
         grant.assign_attributes(effective_from: now - 1.minute, effective_until: nil, revoked_at: nil,
@@ -147,7 +151,7 @@ module Development
 
     def self.ensure_roles!
       PROFILES.each do |profile, settings|
-        role = RoleVersion.find_or_create_by!(role_code: "#{ROLE_PREFIX}#{profile}", version: 1)
+        role = RoleVersion.find_or_create_by!(role_code: "#{ROLE_PREFIX}#{profile}", version: ROLE_VERSION)
         settings[:permissions].each do |action_code|
           permission = Permission.find_or_create_by!(action_code: action_code)
           RoleVersionPermission.find_or_create_by!(role_version: role, permission: permission)
@@ -157,7 +161,7 @@ module Development
     private_class_method :ensure_roles!
 
     def self.roles_by_profile
-      RoleVersion.where(role_code: PROFILES.keys.map { |profile| "#{ROLE_PREFIX}#{profile}" }, version: 1)
+      RoleVersion.where(role_code: PROFILES.keys.map { |profile| "#{ROLE_PREFIX}#{profile}" }, version: ROLE_VERSION)
         .index_by { |role| role.role_code.delete_prefix(ROLE_PREFIX) }
     end
     private_class_method :roles_by_profile

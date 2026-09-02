@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import CloseIcon from "@mui/icons-material/Close";
+import LaunchIcon from "@mui/icons-material/Launch";
+import MenuIcon from "@mui/icons-material/Menu";
+import PublicIcon from "@mui/icons-material/Public";
 import { Form } from "../../shared/ui";
 
-export const COMPACT_NAV_QUERY = "(max-width: 760px)";
+export const COMPACT_NAV_QUERY = "(max-width: 900px)";
 export function compactNavigation() {
   return (
     typeof window !== "undefined" &&
@@ -35,7 +39,7 @@ export function ClinicFrame({
         if (panel.current?.contains(document.activeElement))
           tab.current?.focus();
         setCollapsed(true);
-      }
+      } else setCollapsed(false);
     };
     media.addEventListener("change", change);
     return () => media.removeEventListener("change", change);
@@ -99,14 +103,18 @@ export function ClinicFrame({
         <button
           type="button"
           ref={tab}
-          className="clinic-chart-tab"
+          className="clinic-menu-toggle"
           aria-controls="clinic-sidebar"
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Open clinic menu" : "Collapse clinic menu"}
           onClick={() => setCollapsed(!collapsed)}
         >
-          <span aria-hidden="true">{collapsed ? "›" : "‹"}</span>
-          <span>Menu</span>
+          {collapsed ? (
+            <MenuIcon fontSize="small" aria-hidden="true" />
+          ) : (
+            <CloseIcon fontSize="small" aria-hidden="true" />
+          )}
+          <span className="clinic-menu-toggle-label">Menu</span>
         </button>
         <aside
           id="clinic-sidebar"
@@ -120,12 +128,17 @@ export function ClinicFrame({
           </a>
           <div className="practice-label">
             <strong>{practiceName}</strong>
-            <span>Local synthetic prototype</span>
           </div>
           {navigation}
           <div className="clinic-sidebar-bottom">
-            <a href="/portal">← Launch &amp; onboarding</a>
-            <a href="/">APPly selling site</a>
+            <a href="/portal">
+              <LaunchIcon aria-hidden="true" fontSize="small" />
+              <span>Launch &amp; onboarding</span>
+            </a>
+            <a href="/">
+              <PublicIcon aria-hidden="true" fontSize="small" />
+              <span>APPly selling site</span>
+            </a>
             <Form
               className="clinic-sign-out"
               endpoint="/api/session"

@@ -13,6 +13,13 @@ These instructions apply to `apps/web/` and extend the repository root contract.
 
 Read the applicable `Software Architecture.md` domain/transport sections, the relevant product note and `CICD.md` before changing behavior.
 
+## Design routing
+
+- Read root `PRODUCT.md` before product or interface work. The mentoring/guidance portal and clinic software are separate products; do not force a shared visual identity or carry clinic styles into Launch/Portal surfaces without an explicit request.
+- Before changing clinic presentation, read `APPlyVault/03 Execution/Design.md` for the canonical visual system and `Clinic Workspace Design.md` for implementation history and clinical-data boundaries. Honor any recorded composition or implementation gate before editing source; a documented direction does not override workflow, accessibility or data-state safeguards.
+- Treat the tracking board as the clinic's first design-defining surface. Visual emphasis may communicate operational state, freshness or required review; it must not imply clinical acuity, priority or authority that the backend contract does not provide.
+- Clinic acceptance prioritizes 1280/1440px desktops and 768/834/1024px tablets. Maintain a safe phone fallback, but do not let mobile-phone layout drive clinic density or table structure. Launch/Portal surfaces remain fully mobile responsive.
+
 ## Contracts and dependencies
 
 - `src/api/contracts.ts` and the Rails route/serializer contracts change together. Preserve exact decimal strings and explicit error states.

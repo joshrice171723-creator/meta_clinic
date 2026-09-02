@@ -6,11 +6,14 @@ module Development
   class BackendSamples
     ROLE_PERMISSIONS = {
       "admin" => TestClinic::DEFAULT_PERMISSIONS,
-      "clinician" => %w[patients.read patients.write appointments.write encounters.write notes.read notes.write notes.sign observations.write documents.read],
-      "staff" => %w[patients.read patients.write appointments.write encounters.write notes.read observations.write inventory.read staff.read messages.write],
+      "clinician" => %w[patients.read patients.write appointments.write encounters.write encounters.assign_provider notes.read notes.write notes.sign observations.write documents.read],
+      "staff" => %w[patients.read patients.write appointments.write encounters.write encounters.assign_provider notes.read observations.write inventory.read staff.read messages.write],
       "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure],
       "billing" => %w[patients.read billing.write documents.read],
-      "reader" => %w[patients.read notes.read documents.read inventory.read staff.read]
+      "reader" => %w[patients.read notes.read documents.read inventory.read staff.read],
+      "front_desk" => %w[patients.identity.read appointments.read appointments.book appointments.status_transition],
+      "scheduler" => %w[patients.identity.read appointments.read appointments.book appointments.status_transition],
+      "billing_operator" => %w[patients.identity.read billing.read billing.invoice_draft billing.invoice_post billing.payment_record]
     }.transform_values(&:freeze).freeze
     LEGACY_ROLE_PERMISSIONS = {
       "admin" => TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ],
@@ -32,6 +35,7 @@ module Development
     UPCOMING_PATIENT_COUNT = 4
     SCENARIO_START = Time.utc(2026, 1, 12, 15)
     BOARD_SCENARIO_ELAPSED_MINUTES = [ 300, 250, 200, 150, 100, 50 ].freeze
+    BOARD_REPLACEMENT_SPACING_MINUTES = 35
     BOARD_SCENARIOS = [
       { stage: "waiting", reason: "Annual wellness", visit_type_code: "SYN-BOARD-ANNUAL",
         site_code: "MAIN", room_code: "WAITING", vitals: false },
@@ -68,9 +72,11 @@ module Development
         PaperTrail.request(whodunnit: actor.id.to_s,
           controller_info: { causal_id: "synthetic-backend-seed-v2-existing-practice" }) do
           sites = seed_facilities(practice)
-          clinicians = seed_clinicians(practice, [ actor ], sites, label)
+          clinician_users = seed_population_clinicians(practice, actor, label)
+          clinicians = seed_clinicians(practice, clinician_users, sites, label)
           patients = seed_patients(practice, label, actor)
-          users = { "admin" => [ actor ], "clinician" => [ actor ], "staff" => [ actor, actor ] }
+          seed_patient_memberships(practice, patients, actor)
+          users = { "admin" => [ actor ], "clinician" => clinician_users, "staff" => [ actor, actor ] }
           seed_chart_history(practice, patients, sites, clinicians, users)
           seed_tracking_board_scenarios(practice, patients, sites, clinicians, users)
           seed_external_workflow_examples(practice, patients.first, actor, label)
@@ -109,8 +115,14 @@ module Development
 
       PaperTrail.request(whodunnit: actor.id.to_s, controller_info: { causal_id: "synthetic-backend-seed-v2" }) do
         sites = seed_facilities(practice)
-        clinicians = seed_clinicians(practice, users.fetch("clinician").first(ACTIVE_USERS_PER_ROLE), sites, label)
+        clinician_users = seed_population_clinicians(
+          practice, actor, label,
+          candidates: users.fetch("clinician").select { |user| user.clinic_membership.active? }
+        )
+        clinicians = seed_clinicians(practice, clinician_users, sites, label)
         patients = seed_patients(practice, label, actor)
+        seed_patient_memberships(practice, patients, actor)
+        users = users.merge("clinician" => clinician_users)
         seed_chart_history(practice, patients, sites, clinicians, users)
         seed_tracking_board_scenarios(practice, patients, sites, clinicians, users)
         seed_external_workflow_examples(practice, patients.first, actor, label)
@@ -119,6 +131,23 @@ module Development
       practice
     end
     private_class_method :create_practice
+
+    def self.seed_population_clinicians(practice, actor, label, candidates: [])
+      users = [ actor, *candidates ].uniq.first(3)
+      while users.length < 3
+        position = users.length + 1
+        email = "synthetic-review-#{label.downcase}-provider-profile-#{position}@example.invalid"
+        user = User.find_or_create_by!(email_address: email) { |row| row.password = SecureRandom.hex(32) }
+        membership = Clinic::Membership.find_or_create_by!(user: user) do |row|
+          row.practice = practice
+          row.active = true
+        end
+        raise "Synthetic seed identity collision; existing assignment preserved." unless membership.practice_id == practice.id
+        users << user
+      end
+      users
+    end
+    private_class_method :seed_population_clinicians
 
     def self.create_users(practice, label, roles)
       ROLE_PERMISSIONS.keys.to_h do |name|
@@ -163,6 +192,7 @@ module Development
       department = practice.departments.find_or_create_by!(code: "PRIMARY-CARE")
       users.map.with_index do |user, index|
         profile = practice.clinician_profiles.find_or_create_by!(membership: user.clinic_membership)
+        profile.update!(display_name: [ "Alex Rowan, NP", "Morgan Ellis, MD", "Riley Chen, DO" ].fetch(index)) if profile.display_name.blank?
         sites.each do |site|
           profile.assignments.find_or_create_by!(practice: practice, site: site, department: department,
             effective_from: Time.utc(2026, 1, 1))
@@ -192,6 +222,24 @@ module Development
     end
     private_class_method :seed_patients
 
+    def self.seed_patient_memberships(practice, patients, actor)
+      statuses = [ "member", "nonmember", nil, "member", "nonmember", nil ]
+      patients.each_with_index do |patient, index|
+        status = statuses.fetch(index % statuses.length)
+        next unless status
+
+        membership = patient.patient_memberships.find_or_create_by!(version: 1) do |row|
+          row.practice = practice
+          row.recorded_by_membership = actor.clinic_membership
+          row.status = status
+          row.version = 1
+          row.effective_from = Time.utc(2026, 1, 1) + index.days
+        end
+        raise "Synthetic patient membership crossed practice boundary." unless membership.practice_id == practice.id
+      end
+    end
+    private_class_method :seed_patient_memberships
+
     def self.seed_registration(patient, actor, label, index)
       practice = patient.practice
       effective_from = Time.utc(2025, 12, 1) + index.days
@@ -209,7 +257,7 @@ module Development
       end
       unless patient.emergency_contacts.exists?
         patient.emergency_contacts.create!(practice: practice,
-          name: "Emergency Contact #{index + 1} [Synthetic]", relationship: %w[spouse sibling friend parent][index % 4],
+          name: "Emergency Contact #{index + 1}", relationship: %w[spouse sibling friend parent][index % 4],
           phone: "+1-202-555-#{format('%04d', 5000 + index)}", permission_to_contact: index % 4 != 0,
           effective_from: effective_from)
       end
@@ -220,17 +268,17 @@ module Development
       seed_patient_care_records(patient, actor, index)
       unless patient.social_histories.exists?
         patient.social_histories.create!(practice: practice, effective_from: effective_from,
-          tobacco_use: index % 5 == 0 ? "Synthetic scenario: former use reported" : "Synthetic scenario: no use reported",
-          alcohol_use: index % 4 == 0 ? "Synthetic scenario: occasional use reported" : "Synthetic scenario: no use reported",
-          exercise_habits: "Synthetic scenario: walks #{2 + (index % 4)} days per week",
-          diet: "Synthetic scenario: mixed home-prepared diet", occupation: "Synthetic occupation #{(index % 8) + 1}",
-          living_situation: index % 3 == 0 ? "Synthetic scenario: lives with family" : "Synthetic scenario: lives independently",
-          relevant_social_factors: index % 6 == 0 ? "Synthetic scenario: transportation planning requested" : "Synthetic scenario: none recorded")
+          tobacco_use: index % 5 == 0 ? "Former use reported" : "No use reported",
+          alcohol_use: index % 4 == 0 ? "Occasional use reported" : "No use reported",
+          exercise_habits: "Walks #{2 + (index % 4)} days per week",
+          diet: "Mixed home-prepared diet", occupation: "Occupation #{(index % 8) + 1}",
+          living_situation: index % 3 == 0 ? "Lives with family" : "Lives independently",
+          relevant_social_factors: index % 6 == 0 ? "Transportation planning requested" : "None recorded")
       end
       return if patient.address_versions.exists?
 
       Clinic::Care::AddPatientAddress.call(practice: practice, actor: actor, patient: patient,
-        encrypted_address: "#{100 + index} Example Avenue, Sample City, TX 750#{format('%02d', index)} (synthetic; not deliverable)",
+        encrypted_address: "#{100 + index} Example Avenue, Sample City, TX 750#{format('%02d', index)}",
         make_primary: true)
     end
     private_class_method :seed_registration
@@ -243,8 +291,8 @@ module Development
         patient.allergies.find_or_create_by!(recorded_at: recorded_at) do |allergy|
           allergy.practice = patient.practice
           allergy.data_status = "recorded"
-          allergy.allergen_name = "Synthetic allergen alpha"
-          allergy.reaction = "Synthetic scenario: localized rash"
+          allergy.allergen_name = "Environmental allergen alpha"
+          allergy.reaction = "Localized rash"
           allergy.category = "medication"
           allergy.clinical_status = "active"
           allergy.verification_status = "confirmed"
@@ -257,11 +305,11 @@ module Development
         patient.medication_statements.find_or_create_by!(recorded_at: recorded_at) do |medication|
           medication.practice = patient.practice
           medication.data_status = "recorded"
-          medication.medication_name = "Synthetic medication alpha"
-          medication.dose_text = "10 synthetic units"
+          medication.medication_name = "Daily medication alpha"
+          medication.dose_text = "10 units"
           medication.route_text = "By mouth"
           medication.frequency_text = "Once daily"
-          medication.purpose = "Synthetic medication-history example"
+          medication.purpose = "Medication history review"
           medication.status = "active"
           medication.information_source = "patient"
           medication.effective_from = recorded_at - 30.days
@@ -273,14 +321,14 @@ module Development
         seed_care_need(patient, membership, recorded_at,
           category: "communication", code: "spoken_language_interpreter",
           description: "Spanish interpreter requested",
-          instructions: "Synthetic scenario: arrange a qualified spoken-language interpreter.")
+          instructions: "Arrange a qualified spoken-language interpreter.")
         seed_condition_alert(patient, membership, recorded_at)
       when 1
         patient.medication_statements.find_or_create_by!(recorded_at: recorded_at) do |medication|
           medication.practice = patient.practice
           medication.data_status = "recorded"
-          medication.medication_name = "Synthetic medication beta"
-          medication.dose_text = "One synthetic tablet"
+          medication.medication_name = "Maintenance medication beta"
+          medication.dose_text = "One tablet"
           medication.route_text = "By mouth"
           medication.frequency_text = "Twice daily"
           medication.status = "active"
@@ -291,13 +339,13 @@ module Development
         seed_care_need(patient, membership, recorded_at,
           category: "mobility", code: "transfer_assistance",
           description: "Transfer assistance requested",
-          instructions: "Synthetic scenario: use the accessible exam room and ask before assisting.")
+          instructions: "Use the accessible exam room and ask before assisting.")
       when 2
         patient.allergies.find_or_create_by!(recorded_at: recorded_at) do |allergy|
           allergy.practice = patient.practice
           allergy.data_status = "recorded"
-          allergy.allergen_name = "Synthetic environmental allergen"
-          allergy.reaction = "Synthetic scenario: swelling"
+          allergy.allergen_name = "Environmental allergen"
+          allergy.reaction = "Swelling"
           allergy.category = "environment"
           allergy.clinical_status = "active"
           allergy.verification_status = "presumed"
@@ -308,12 +356,12 @@ module Development
         seed_care_need(patient, membership, recorded_at,
           category: "equipment", code: "supplemental_oxygen",
           description: "Supplemental oxygen equipment noted",
-          instructions: "Synthetic scenario: verify the current device settings with clinical staff.")
+          instructions: "Verify the current device settings with clinical staff.")
       when 3
         seed_care_need(patient, membership, recorded_at,
           category: "communication", code: "hearing_assistance",
           description: "Hearing assistance requested",
-          instructions: "Synthetic scenario: face the patient and use the requested communication aid.")
+          instructions: "Face the patient and use the requested communication aid.")
       when 4
         seed_condition_alert(patient, membership, recorded_at)
       end
@@ -337,11 +385,11 @@ module Development
       patient.conditions.find_or_create_by!(recorded_at: recorded_at) do |condition|
         condition.practice = patient.practice
         condition.data_status = "recorded"
-        condition.condition_name = "Synthetic condition affecting today's care"
+        condition.condition_name = "Condition affecting today's care"
         condition.clinical_status = "active"
         condition.verification_status = "confirmed"
         condition.affects_current_care = true
-        condition.care_instruction = "Synthetic scenario: review the current care instruction before treatment."
+        condition.care_instruction = "Review the current care instruction before treatment."
         condition.recorded_by_membership = membership
       end
     end
@@ -402,6 +450,11 @@ module Development
           index: index
         )
         seed_board_participants(encounter, staff_membership, clinician_membership, scenario.fetch(:stage))
+        provider = clinicians[index % clinicians.length]
+        unless encounter.participants.queue_providers.current.exists?
+          encounter.participants.create!(practice: practice, patient: patient, membership: provider.membership,
+            participation_role: "queue_provider", effective_from: encounter.started_at)
+        end
         seed_encounter_care_summary(patient, encounter, staff_membership, encounter.started_at, index)
         seed_vitals(practice, patient, encounter, users.fetch("staff")[1], encounter.started_at, index) if scenario.fetch(:vitals)
       end
@@ -418,7 +471,9 @@ module Development
       end
 
       generation = patient.appointments.where(visit_type: visit_type).count
-      starts_at = Time.current - BOARD_SCENARIO_ELAPSED_MINUTES.fetch(index).minutes - generation.days
+      elapsed_minutes = BOARD_SCENARIO_ELAPSED_MINUTES.fetch(index) +
+        (generation * BOARD_REPLACEMENT_SPACING_MINUTES)
+      starts_at = Time.current - elapsed_minutes.minutes
       room = site.rooms.find_by!(code: scenario.fetch(:room_code))
       appointment = Clinic::Scheduling::BookAppointment.call(
         practice: practice,
@@ -552,7 +607,7 @@ module Development
         evidence_status: "suspected",
         status: "active"
       ).where("recorded_at > ?", now).detect do |precaution|
-        precaution.instructions == "Synthetic scenario: follow the clinic's reviewed droplet-precaution procedure."
+        precaution.instructions == "Follow the clinic's reviewed droplet-precaution procedure."
       end
       return unless original
 
@@ -593,7 +648,7 @@ module Development
 
       visit_type_code = encounter.appointment&.visit_type&.code
       index = BOARD_SCENARIOS.index { |scenario| scenario.fetch(:visit_type_code) == visit_type_code }
-      return unless index && encounter.patient.reference.match?(/\ASYN-[A-Z]+-#{format('%03d', index + 1)}\z/)
+      return unless index && encounter.patient.reference.match?(/\ASYN-[A-Z0-9-]+-#{format('%03d', index + 1)}\z/)
 
       BOARD_SCENARIOS.fetch(index).slice(:stage, :reason)
     end
@@ -620,7 +675,7 @@ module Development
           review.information_source = "patient"
           review.reviewer_membership = reviewer
           review.reviewed_at = started_at + 5.minutes
-          review.notes = outcome == "follow_up_needed" ? "Synthetic scenario: follow-up is still needed." : nil
+          review.notes = outcome == "follow_up_needed" ? "Follow-up is still needed." : nil
         end
       end
       return unless index.zero?
@@ -630,7 +685,7 @@ module Development
         precaution.patient = patient
         precaution.evidence_status = "suspected"
         precaution.status = "active"
-        precaution.instructions = "Synthetic scenario: follow the clinic's reviewed droplet-precaution procedure."
+        precaution.instructions = "Follow the clinic's reviewed droplet-precaution procedure."
         precaution.recorded_by_membership = reviewer
       end
     end
@@ -706,16 +761,16 @@ module Development
     def self.soap_payload(index, revision:)
       Clinic::Care::SoapNotePayload.dump(template_id: "adult-physical-exam-detailed", template_version: 1,
         sections: {
-          subjective: "SYNTHETIC ONLY: visit scenario #{index + 1}; invented history for workflow testing.",
-          objective: "SYNTHETIC ONLY: vital-sign observations recorded separately; no examination is asserted.",
-          assessment: revision == 1 ? "SYNTHETIC ONLY: draft assessment pending review." : "SYNTHETIC ONLY: revised assessment for history testing.",
-          plan: revision == 1 ? "SYNTHETIC ONLY: draft plan pending review." : "SYNTHETIC ONLY: revised plan; not medical advice."
+          subjective: "Visit scenario #{index + 1}; reported history reviewed.",
+          objective: "Vital-sign observations recorded separately; examination details are not recorded.",
+          assessment: revision == 1 ? "Draft assessment pending review." : "Revised assessment for history review.",
+          plan: revision == 1 ? "Draft plan pending review." : "Revised plan for follow-up."
         })
     end
     private_class_method :soap_payload
 
     def self.seed_external_workflow_examples(practice, patient, actor, label)
-      category = Clinic::DocumentCategory.find_or_create_by!(practice: practice, code: "SYNTHETIC") { |row| row.name = "Synthetic metadata only" }
+      category = Clinic::DocumentCategory.find_or_create_by!(practice: practice, code: "SYNTHETIC") { |row| row.name = "Administrative metadata" }
       %w[pending clean quarantined rejected].each do |state|
         practice.documents.find_or_create_by!(object_key: "synthetic-review/#{label}/#{state}", object_version: "1") do |document|
           document.assign_attributes(patient: patient, category: category,
@@ -728,26 +783,26 @@ module Development
         next if practice.message_intents.exists?(request_key: key)
         message = Clinic::Messaging::CreateIntent.call(practice: practice, actor: actor, patient: patient, request_key: key,
           purpose_code: "synthetic-demo", encrypted_recipient_snapshot: "nobody@example.invalid",
-          encrypted_content: "SYNTHETIC ONLY; never transmitted")
+          encrypted_content: "Please review the delivery details before sending.")
         Clinic::Messaging::RecordDelivery.call(intent: message, actor: actor,
           provider_event_reference: "synthetic-#{state}", outcome: state) unless state == "pending"
       end
       return if patient.invoices.exists?
 
       Clinic::Billing::DraftInvoice.call(practice: practice, actor: actor, patient: patient, currency: "USD",
-        lines: [ { quantity: "2", unit_amount: "1.25", description_snapshot: "Synthetic arithmetic example; not selected pricing" } ])
+        lines: [ { quantity: "2", unit_amount: "1.25", description_snapshot: "Administrative service fee" } ])
     end
     private_class_method :seed_external_workflow_examples
 
     def self.seed_staff_and_inventory(practice, actor, label)
       %w[active inactive].each do |state|
-        practice.staff_members.find_or_create_by!(job_title: "Synthetic #{state} coordinator") do |row|
-          row.display_name = "Synthetic Staff #{label}"
+        practice.staff_members.find_or_create_by!(job_title: "#{state.capitalize} coordinator") do |row|
+          row.display_name = "Operations staff #{label}"
           row.active = state == "active"
         end
       end
-      item = practice.items.find_or_create_by!(sku: "SYN-OFFICE") { |row| row.name = "Synthetic paper"; row.reorder_level = 5 }
-      item.adjust!(delta: 12, actor: actor, reason: "Synthetic sample opening", request_key: SecureRandom.uuid) unless item.entries.exists?
+      item = practice.items.find_or_create_by!(sku: "SYN-OFFICE") { |row| row.name = "Copy paper"; row.reorder_level = 5 }
+      item.adjust!(delta: 12, actor: actor, reason: "Opening stock", request_key: SecureRandom.uuid) unless item.entries.exists?
     end
     private_class_method :seed_staff_and_inventory
   end

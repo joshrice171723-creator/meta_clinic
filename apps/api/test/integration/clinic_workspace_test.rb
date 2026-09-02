@@ -139,7 +139,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   test "staff directory cannot grant access and status changes stay in clinic" do
-    assert_no_difference "User.count" do
+    assert_no_difference [ "User.count", "Clinic::Membership.count", "Clinic::RoleGrant.count",
+      "Clinic::ClinicianProfile.count", "Clinic::ClinicianCredential.count" ] do
       submit "/api/clinic/staff", { clinic_staff_member: { display_name: "Morgan Example", job_title: "Coordinator", user_id: @other_user.id, admin: true, practice_id: @other.id } }
       assert_response :bad_request
       submit "/api/clinic/staff", { clinic_staff_member: { display_name: "Morgan Example", job_title: "Coordinator" } }

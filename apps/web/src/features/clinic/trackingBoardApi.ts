@@ -1,5 +1,36 @@
 import type { ClinicTrackingBoardVisit } from "../../api/contracts";
 import type { BoardVisit } from "./trackingBoardData";
+import { api } from "../../api/client";
+
+export function providerAssignmentRequestKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `provider-${Date.now()}-${Math.random()}`
+  );
+}
+
+export function assignBoardProvider(
+  encounterId: number,
+  patientId: number,
+  clinicianProfileId: number | null,
+  expectedToken: string | null,
+  requestKey = providerAssignmentRequestKey(),
+) {
+  return api<{
+    assignment: { participant_id: number | null; token: string | null };
+  }>(`/api/clinic/encounters/${encounterId}/provider_assignment`, {
+    method: "POST",
+    body: {
+      assignment: {
+        patient_id: patientId,
+        clinician_profile_id: clinicianProfileId,
+        request_key: requestKey,
+        expected_token: expectedToken,
+        unassign: clinicianProfileId === null,
+      },
+    },
+  });
+}
 
 function appointmentType(code: string | null) {
   const normalized = code?.trim().toLocaleLowerCase() ?? "";
@@ -9,17 +40,46 @@ function appointmentType(code: string | null) {
   return "Recorded visit" as const;
 }
 
+function displaySex(value: string | null | undefined) {
+  const normalized = value?.trim().toLocaleLowerCase();
+  if (!normalized || normalized === "unknown" || normalized === "not_recorded")
+    return null;
+  if (normalized === "female") return "F" as const;
+  if (normalized === "male") return "M" as const;
+  return "X" as const;
+}
+
+export function formatRecordedDecimal(value: string | null | undefined) {
+  if (value == null || value.trim() === "") return null;
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value.trim());
+  if (!match) return null;
+  const integer = match[2].replace(/^0+(?=\d)/, "");
+  const fraction = match[3]?.replace(/0+$/, "") ?? "";
+  const magnitude = fraction ? `${integer}.${fraction}` : integer;
+  return /^0(?:\.0*)?$/.test(magnitude) ? "0" : `${match[1]}${magnitude}`;
+}
+
 export function trackingBoardVisitToBoardVisit(
   visit: ClinicTrackingBoardVisit,
 ): BoardVisit {
   const visitType = visit.appointment?.visit_type_code?.trim() || null;
   const scenario = visit.synthetic_scenario;
+  const encounter = visit.encounter;
+  const locationRecord = encounter ?? visit.appointment;
   const location = [
-    visit.encounter.site_code,
-    visit.encounter.room_code,
+    locationRecord?.site_code,
+    locationRecord?.room_code,
   ].filter(Boolean);
+  const bp = visit.vitals?.blood_pressure;
+  const systolic = formatRecordedDecimal(bp?.systolic);
+  const diastolic = formatRecordedDecimal(bp?.diastolic);
+  const hr = formatRecordedDecimal(visit.vitals?.heart_rate?.value);
+  const weight = formatRecordedDecimal(visit.vitals?.weight?.value);
+  const hasVitals = systolic || diastolic || hr || weight;
+  const membership = visit.patient.membership;
+  const provider = visit.provider;
   return {
-    id: `encounter-${visit.encounter_id}`,
+    id: `${visit.row_type}-${visit.id}`,
     patientId: visit.patient_id,
     encounterId: visit.encounter_id,
     patientDisplayName: visit.patient.display_name,
@@ -27,22 +87,74 @@ export function trackingBoardVisitToBoardVisit(
     isSynthetic: false,
     firstName: "",
     lastName: "",
-    age: null,
-    gender: null,
+    age: visit.patient.demographics?.age ?? null,
+    gender: displaySex(visit.patient.demographics?.sex),
     appointmentType: appointmentType(visitType),
     chiefComplaint: scenario?.reason || "Reason not recorded",
     reason: scenario?.reason || visitType || "Reason not recorded",
     visitType: visitType || "Visit type not recorded",
-    membership: "unknown",
-    stage: scenario?.stage ?? "unrecorded",
-    locationId: visit.encounter.site_id
-      ? `api-site-${visit.encounter.site_id}`
+    membership:
+      membership === "member"
+        ? "member"
+        : membership === "nonmember"
+          ? "nonmember"
+          : "unknown",
+    stage:
+      scenario?.stage ??
+      (["upcoming", "on_time", "late"].includes(visit.operational_state)
+        ? "scheduled"
+        : visit.operational_state === "waiting_room"
+          ? "waiting"
+          : "unrecorded"),
+    locationId: locationRecord?.site_id
+      ? `api-site-${locationRecord.site_id}`
       : "unassigned",
     room: location.length ? location.join(" · ") : null,
-    assignedClinicianId: null,
+    assignedClinicianId: provider
+      ? `api-provider-${provider.clinician_profile_id}`
+      : null,
+    assignedProviderName: provider?.display_name ?? null,
+    providerAssignmentToken: provider?.token ?? null,
+    providerAssignmentAvailable:
+      visit.row_type === "encounter" &&
+      visit.provider_assignment_available === true,
     owner: null,
-    arrivedAt: null,
-    stageStartedAt: null,
-    triage: null,
+    arrivedAt: encounter?.started_at ?? null,
+    stageStartedAt: encounter?.started_at ?? null,
+    triage: hasVitals
+      ? {
+          summary: "Vitals recorded",
+          recordedAt: visit.encounter?.started_at ?? "",
+          recordedBy: "",
+          vitals: null,
+          vitalsSummary: "Vitals recorded",
+          readings: {
+            bp:
+              systolic || diastolic
+                ? {
+                    value: `${systolic ?? "—"}/${diastolic ?? "—"}`,
+                    unit: bp?.unit ?? null,
+                  }
+                : null,
+            hr: hr
+              ? {
+                  value: hr,
+                  unit: visit.vitals?.heart_rate?.unit ?? null,
+                }
+              : null,
+            weight: weight
+              ? {
+                  value: weight,
+                  unit: visit.vitals?.weight?.unit ?? null,
+                }
+              : null,
+          },
+          vitalStatuses: null,
+          review: "",
+        }
+      : null,
+    appointmentStartsAt: visit.appointment?.starts_at ?? null,
+    appointmentEndsAt: visit.appointment?.ends_at ?? null,
+    operationalState: visit.operational_state,
   };
 }

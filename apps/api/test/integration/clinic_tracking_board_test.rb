@@ -11,7 +11,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "tracking-board@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Synthetic Tracking Board Practice", organization: organization)
     @membership = @practice.memberships.create!(user: @user)
-    grant_permissions!(@membership, "patients.read", "encounters.write", "notes.read", "notes.write", "notes.sign")
+    grant_permissions!(@membership, "patients.read", "encounters.write", "observations.write", "notes.read", "notes.write", "notes.sign")
     @patient = @practice.patients.create!(display_name: "SYN_Board, Avery", reference: "SYN-BOARD-001")
     @other_patient = @practice.patients.create!(display_name: "SYN_Board, Briar", reference: "SYN-BOARD-002")
     @current = @practice.encounters.create!(patient: @patient, started_at: Time.utc(2026, 9, 2, 14), status: "open")
@@ -25,19 +25,170 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     payload = response.parsed_body
-    assert_equal "tracking-board-v1", payload.fetch("schema_version")
+    assert_equal "tracking-board-v2", payload.fetch("schema_version")
     assert_equal [ @other_current.id, @current.id ], payload.fetch("visits").map { |visit| visit.fetch("encounter_id") }
     visit = payload.fetch("visits").find { |row| row.fetch("encounter_id") == @current.id }
     assert_equal @patient.id, visit.fetch("patient_id")
     assert_equal [ @patient.display_name, @patient.reference ], visit.fetch("patient").values_at("display_name", "reference")
-    assert_equal [ "display_name", "id", "reference" ], visit.fetch("patient").keys.sort
+    assert_equal [ "demographics", "display_name", "id", "membership", "reference" ], visit.fetch("patient").keys.sort
+    assert_equal({ "age" => nil, "sex" => "not_recorded" }, visit.dig("patient", "demographics"))
+    assert_equal "not_verified", visit.dig("patient", "membership")
     assert_includes response.body, @patient.display_name
     assert_nil visit.fetch("appointment")
     assert_equal "open", visit.dig("encounter", "status")
+    assert_equal "encounter", visit.fetch("row_type")
+    assert_equal "unrecorded", visit.fetch("operational_state")
     assert_equal "patient-care-summary-v1", visit.dig("care_summary", "schema_version")
     assert_equal [ @patient.id, @current.id ], visit.fetch("care_summary").values_at("patient_id", "encounter_id")
     assert_not visit.key?("stage")
     assert @practice.audit_events.where(action_code: "patients.read", outcome: "released").exists?
+  end
+
+  test "tracking board projects effective patient commercial membership for encounter and appointment rows" do
+    now = Time.current
+    Clinic::Care::PatientMembership.create!(
+      practice: @practice, patient: @patient, recorded_by_membership: @membership,
+      status: :member, version: 1, effective_from: now - 1.hour
+    )
+    Clinic::Care::PatientMembership.create!(
+      practice: @practice, patient: @patient, recorded_by_membership: @membership,
+      status: :nonmember, version: 2, effective_from: now - 30.minutes
+    )
+    appointment = @practice.appointments.create!(
+      patient: @other_patient, starts_at: now + 1.hour, ends_at: now + 90.minutes, status: "scheduled"
+    )
+    Clinic::Care::PatientMembership.create!(
+      practice: @practice, patient: @other_patient, recorded_by_membership: @membership,
+      status: :member, version: 1, effective_from: now - 2.hours
+    )
+    Clinic::Care::PatientMembership.create!(
+      practice: @practice, patient: @other_patient, recorded_by_membership: @membership,
+      status: :nonmember, version: 2, effective_from: now - 1.hour, effective_until: now - 30.minutes
+    )
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    rows = response.parsed_body.fetch("visits").index_by { |row| row.fetch("patient_id") }
+    assert_equal "nonmember", rows.fetch(@patient.id).dig("patient", "membership")
+    assert_equal "not_verified", rows.fetch(@other_patient.id).dig("patient", "membership")
+    assert_equal "not_verified", rows.fetch(appointment.patient_id).dig("patient", "membership")
+  end
+
+  test "tracking board projects recorded numeric vitals without classifications" do
+    %w[vital-systolic-bp vital-diastolic-bp vital-heart-rate vital-weight].zip([ 120, 78, 72, 82.5 ], [ "mm[Hg]", "mm[Hg]", "beats/min", "kg" ]).each do |code, value, unit|
+      Clinic::Care::RecordObservation.call(
+        practice: @practice, actor: @user, patient: @patient,
+        attributes: {
+          encounter_id: @current.id, code: code, code_system: "synthetic-vitals", code_version: "1",
+          value_kind: "numeric", numeric_value: value, unit_code: unit,
+          observed_at: @current.started_at, recorded_at: @current.started_at
+        }, request_key: "board-vital-#{code}"
+      )
+    end
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    vitals = response.parsed_body.fetch("visits").find { |row| row.fetch("encounter_id") == @current.id }.fetch("vitals")
+    assert_equal({ "systolic" => "120.0", "diastolic" => "78.0", "unit" => "mm[Hg]" }, vitals.fetch("blood_pressure"))
+    assert_equal({ "value" => "72.0", "unit" => "beats/min" }, vitals.fetch("heart_rate"))
+    assert_equal({ "value" => "82.5", "unit" => "kg" }, vitals.fetch("weight"))
+    assert_not vitals.key?("status")
+  end
+
+  test "tracking board limits provider editing and roster sites to the actor grant" do
+    allowed_site = @practice.sites.create!(code: "ALLOWED")
+    denied_site = @practice.sites.create!(code: "DENIED")
+    @current.update!(site: allowed_site)
+    @other_current.update!(site: denied_site)
+    department = @practice.departments.create!(code: "PRIMARY")
+    provider_user = User.create!(email_address: "board-provider@example.invalid", password: SecureRandom.hex(18))
+    provider_membership = @practice.memberships.create!(user: provider_user)
+    provider = @practice.clinician_profiles.create!(membership: provider_membership, display_name: "Avery Rowan, NP")
+    [ allowed_site, denied_site ].each do |site|
+      provider.assignments.create!(practice: @practice, site: site, department: department,
+        effective_from: 1.hour.ago)
+    end
+    denied_user = User.create!(email_address: "denied-board-provider@example.invalid", password: SecureRandom.hex(18))
+    denied_membership = @practice.memberships.create!(user: denied_user)
+    denied_provider = @practice.clinician_profiles.create!(membership: denied_membership, display_name: "Jordan Ellis, MD")
+    denied_provider.assignments.create!(practice: @practice, site: denied_site, department: department,
+      effective_from: 1.hour.ago)
+    grant_permissions!(@membership, "encounters.assign_provider", scope_kind: "site", site: allowed_site)
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    visits = response.parsed_body.fetch("visits").index_by { |visit| visit.fetch("encounter_id") }
+    assert_equal true, visits.fetch(@current.id).fetch("provider_assignment_available")
+    assert_equal false, visits.fetch(@other_current.id).fetch("provider_assignment_available")
+    roster = response.parsed_body.fetch("eligible_providers")
+    assert_equal [ provider.id ], roster.pluck("clinician_profile_id")
+    assert_equal [ allowed_site.id ], roster.sole.fetch("site_ids")
+  end
+
+  test "tracking board projects local birthday age and recorded sex without date of birth" do
+    travel_to Time.current + 1.hour do
+      login
+      board_date = Time.current.in_time_zone(@practice.timezone).to_date
+      Clinic::Care::PatientDemographics.create!(
+        practice: @practice, patient: @patient, date_of_birth: board_date - 26.years,
+        sex: :female, primary_language: "English", interpreter_required: false
+      )
+      Clinic::Care::PatientDemographics.create!(
+        practice: @practice, patient: @other_patient, date_of_birth: board_date - 25.years + 1.day,
+        sex: :unknown, primary_language: "English", interpreter_required: false
+      )
+
+      get "/api/clinic/tracking_board", headers: @headers
+
+      assert_response :success
+      patients = response.parsed_body.fetch("visits").index_by { |visit| visit.fetch("patient_id") }
+      assert_equal({ "age" => 26, "sex" => "female" }, patients.fetch(@patient.id).dig("patient", "demographics"))
+      assert_equal({ "age" => 24, "sex" => "unknown" }, patients.fetch(@other_patient.id).dig("patient", "demographics"))
+      assert_not response.body.include?("date_of_birth")
+    end
+  end
+
+  test "tracking board includes scheduled appointments until an open encounter exists" do
+    travel_to Time.current.tomorrow.beginning_of_day + 12.hours do
+      login
+      upcoming = @practice.appointments.create!(
+        patient: @patient, starts_at: 1.hour.from_now, ends_at: 90.minutes.from_now, status: "scheduled"
+      )
+      on_time = @practice.appointments.create!(
+        patient: @patient, starts_at: 15.minutes.ago, ends_at: 15.minutes.from_now, status: "confirmed"
+      )
+      late = @practice.appointments.create!(
+        patient: @other_patient, starts_at: 1.hour.ago, ends_at: 30.minutes.ago, status: "confirmed"
+      )
+      tomorrow = @practice.appointments.create!(
+        patient: @other_patient, starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes, status: "confirmed"
+      )
+
+      get "/api/clinic/tracking_board", headers: @headers
+
+      assert_response :success
+      appointments = response.parsed_body.fetch("visits")
+        .select { |visit| visit.fetch("row_type") == "appointment" }.index_by { |visit| visit.fetch("id") }
+      assert_equal "upcoming", appointments.fetch(upcoming.id).fetch("operational_state")
+      assert_nil appointments.fetch(upcoming.id).fetch("encounter_id")
+      assert_nil appointments.fetch(upcoming.id).fetch("encounter")
+      assert_nil appointments.fetch(upcoming.id).fetch("care_summary")
+      assert_equal "on_time", appointments.fetch(on_time.id).fetch("operational_state")
+      assert_equal "late", appointments.fetch(late.id).fetch("operational_state")
+      refute appointments.key?(tomorrow.id)
+
+      opened = @practice.encounters.create!(patient: @patient, appointment: upcoming,
+        started_at: Time.current, status: "open")
+      get "/api/clinic/tracking_board", headers: @headers
+      rows = response.parsed_body.fetch("visits")
+      appointments = rows.select { |visit| visit.fetch("row_type") == "appointment" }
+      encounter = rows.find { |visit| visit.fetch("encounter_id") == opened.id }
+      assert_equal "unrecorded", encounter.fetch("operational_state")
+      assert_not appointments.any? { |visit| visit.fetch("id") == upcoming.id }
+    end
   end
 
   test "tracking board includes care summaries under one board-level read audit" do
@@ -152,7 +303,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
   end
 
   test "tracking board exposes explicit development scenario metadata only for a recognized fixture" do
-    patient = @practice.patients.create!(display_name: "SYN_Scenario, Casey", reference: "SYN-TEST-001")
+    patient = @practice.patients.create!(display_name: "SYN_Scenario, Casey", reference: "SYN-TEST-LABEL-001")
     site = @practice.sites.create!(code: "MAIN")
     room = site.rooms.create!(practice: @practice, code: "WAITING")
     visit_type = @practice.visit_types.create!(code: "SYN-BOARD-ANNUAL")
@@ -179,6 +330,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     assert_response :success
     visit = response.parsed_body.fetch("visits").find { |row| row.fetch("encounter_id") == encounter.id }
     assert_equal({ "stage" => "waiting", "reason" => "Annual wellness" }, visit.fetch("synthetic_scenario"))
+    assert_equal "waiting_room", visit.fetch("operational_state")
     assert_not response.parsed_body.fetch("visits")
       .find { |row| row.fetch("encounter_id") == @current.id }.key?("synthetic_scenario")
   end

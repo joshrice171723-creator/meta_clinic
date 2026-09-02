@@ -51,6 +51,7 @@ class ClinicErdModelsTest < ActiveSupport::TestCase
     Clinic::CreditNote,
     Clinic::RefundEvent,
     Clinic::CoverageVersion,
+    Clinic::Care::PatientMembership,
     Clinic::InsuranceClaim,
     Clinic::ModelVersion
   ].freeze
@@ -82,6 +83,15 @@ class ClinicErdModelsTest < ActiveSupport::TestCase
     assert_equal "group", Clinic::Care::Observation.value_kinds[:group]
     assert_equal "site", Clinic::RoleGrant.scope_kinds[:site]
     assert_equal "released", Clinic::AuditEvent.outcomes[:released]
+  end
+
+  test "patient commercial membership is append-only and tenant-bound" do
+    assert_equal Clinic::Care::PatientMembership, Clinic::Care::Patient.reflect_on_association(:patient_memberships).klass
+    assert_equal Clinic::Membership, Clinic::Care::PatientMembership.reflect_on_association(:recorded_by_membership).klass
+    assert_equal %w[member nonmember], Clinic::Care::PatientMembership.statuses.keys
+    assert_equal "clinic_patient_memberships", Clinic::Care::PatientMembership.table_name
+    assert Clinic::Care::PatientMembership < Clinic::AppendOnly
+    assert_respond_to Clinic::Care::PatientMembership, :latest_as_of
   end
 
   test "observation validation requires exactly one typed representation" do

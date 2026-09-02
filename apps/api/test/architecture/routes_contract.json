@@ -280,6 +280,11 @@
     "/api/clinic/pharmacy/import(.:format)"
   ],
   [
+    "lookup_api_clinic_patients",
+    "GET",
+    "/api/clinic/patients/lookup(.:format)"
+  ],
+  [
     "lookup_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/lookup(.:format)"
@@ -303,6 +308,11 @@
     "previous_signed_soap_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/previous_signed_soap(.:format)"
+  ],
+  [
+    "provider_assignment_api_clinic_encounter",
+    "POST",
+    "/api/clinic/encounters/:id/provider_assignment(.:format)"
   ],
   [
     "rails_health_check",

@@ -14,6 +14,7 @@ Rails.application.routes.draw do
     get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       post :close, on: :member
+      post :provider_assignment, on: :member, to: "scheduling/provider_assignments#create"
       resources :notes, controller: "care/encounter_notes", only: %i[index create]
     end
     resources :notes, controller: "care/encounter_notes", only: :show do
@@ -48,6 +49,7 @@ Rails.application.routes.draw do
     post "inventory_counts/:id/approve", to: "inventory/pharmacy#approve_count", as: :inventory_count_approval
     post "inventory_configuration", to: "inventory/pharmacy#configure", as: :inventory_configuration
     resources :patients, controller: "care/patients", only: %i[index show create update] do
+      get :lookup, on: :collection, to: "care/patients#lookup"
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"
       resource :care_summary, controller: "care/patient_care_summaries", only: :show

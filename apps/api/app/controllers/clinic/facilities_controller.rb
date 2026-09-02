@@ -1,6 +1,6 @@
 module Clinic
   class FacilitiesController < ApiController
-    before_action -> { require_capability("appointments.write") }
+    before_action -> { require_capability_with_legacy("appointments.book", "appointments.write") }
 
     def index
       type = enum_param!(params[:type].presence || "sites", field: :type, allowed: %w[sites rooms departments visit_types])

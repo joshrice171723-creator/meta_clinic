@@ -4,6 +4,7 @@ module Clinic
     belongs_to :organization, optional: true
     has_many :memberships, class_name: "Clinic::Membership", dependent: :restrict_with_error
     has_many :patients, class_name: "Clinic::Care::Patient", dependent: :restrict_with_error
+    has_many :patient_memberships, class_name: "Clinic::Care::PatientMembership", dependent: :restrict_with_error
     has_many :pharmacy_products, class_name: "Clinic::Inventory::PharmacyProduct", dependent: :restrict_with_error
     has_many :items, class_name: "Clinic::Inventory::Item", dependent: :restrict_with_error
     has_many :staff_members, class_name: "Clinic::Staff::Member", dependent: :restrict_with_error

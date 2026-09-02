@@ -1,0 +1,3512 @@
+{
+  "tool": "comp-diff",
+  "version": 1,
+  "createdAt": "2026-09-02T21:40:51.801Z",
+  "label": "hero",
+  "comp": ".impeccable/mocks/tracking-board-a-continuous-ledger.png",
+  "build": ".impeccable/review/hero-repro.png",
+  "spec": ".impeccable/build/spec.json",
+  "compSize": "1586x992",
+  "buildSize": "1586x992",
+  "align": "top",
+  "overall": 0.7299,
+  "verdict": "drift",
+  "scores": {
+    "overall": 0.7299,
+    "structure": 0.5776,
+    "color": 0.9665,
+    "colorIntersection": 0.9316,
+    "paletteMatch": 0.9853,
+    "detail": 0.6366,
+    "detailRaw": 0.6679,
+    "detailAdded": 0.0625,
+    "bands": 0.8462
+  },
+  "palette": {
+    "comp": [
+      {
+        "hex": "#f7f7f7",
+        "coverage": 0.8401
+      },
+      {
+        "hex": "#163937",
+        "coverage": 0.1327
+      },
+      {
+        "hex": "#949a9d",
+        "coverage": 0.0087
+      },
+      {
+        "hex": "#6a7078",
+        "coverage": 0.0085
+      },
+      {
+        "hex": "#bec5c5",
+        "coverage": 0.0061
+      },
+      {
+        "hex": "#46494f",
+        "coverage": 0.0038
+      }
+    ],
+    "build": [
+      {
+        "hex": "#f7f7f7",
+        "coverage": 0.8121
+      },
+      {
+        "hex": "#193838",
+        "coverage": 0.1289
+      },
+      {
+        "hex": "#c1c6c4",
+        "coverage": 0.0289
+      },
+      {
+        "hex": "#8b9694",
+        "coverage": 0.0175
+      },
+      {
+        "hex": "#1b5646",
+        "coverage": 0.0065
+      },
+      {
+        "hex": "#5c6d6b",
+        "coverage": 0.0061
+      }
+    ]
+  },
+  "regions": [
+    {
+      "id": "app-chrome",
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.7299,
+        "structure": 0.5776,
+        "color": 0.9665,
+        "colorIntersection": 0.9316,
+        "paletteMatch": 0.9853,
+        "detail": 0.6366,
+        "detailRaw": 0.6679,
+        "detailAdded": 0.0625,
+        "bands": 0.8462
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 1553,
+          "h": 992
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 1574,
+          "h": 992
+        }
+      }
+    },
+    {
+      "id": "navigation-rail",
+      "x": 0,
+      "y": 0,
+      "w": 0.2,
+      "h": 1,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.698,
+        "structure": 0.6331,
+        "color": 0.9127,
+        "colorIntersection": 0.8448,
+        "paletteMatch": 0.9493,
+        "detail": 0.5288,
+        "detailRaw": 0.5601,
+        "detailAdded": 0.0625,
+        "bands": 0.7733
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 317,
+          "h": 992
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 317,
+          "h": 992
+        }
+      }
+    },
+    {
+      "id": "top-utility-bar",
+      "x": 0.1,
+      "y": 0,
+      "w": 0.9,
+      "h": 0.1,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.6477,
+        "structure": 0.9165,
+        "color": 0.975,
+        "colorIntersection": 0.9536,
+        "paletteMatch": 0.9865,
+        "detail": 0.3329,
+        "detailRaw": 0.411,
+        "detailAdded": 0.1563,
+        "bands": 0
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 1375,
+          "h": 99
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 1407,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "board-surface",
+      "x": 0.1,
+      "y": 0.3,
+      "w": 0.9,
+      "h": 0.7,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.6102,
+        "structure": 0.5737,
+        "color": 0.9709,
+        "colorIntersection": 0.9376,
+        "paletteMatch": 0.9889,
+        "detail": 0.5646,
+        "detailRaw": 0.6063,
+        "detailAdded": 0.0833,
+        "bands": 0.17
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 1427,
+          "h": 694
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 1415,
+          "h": 694
+        }
+      }
+    },
+    {
+      "id": "brand",
+      "x": 0,
+      "y": 0,
+      "w": 0.1551,
+      "h": 0.0998,
+      "kind": "text",
+      "score": {
+        "overall": 0.6239,
+        "structure": 0.6662,
+        "color": 0.9089,
+        "colorIntersection": 0.8296,
+        "paletteMatch": 0.9516,
+        "detail": 0.135,
+        "detailRaw": 0.2392,
+        "detailAdded": 0.2083,
+        "bands": 0.4333
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 246,
+          "h": 99
+        },
+        "build": {
+          "x": 16,
+          "y": 0,
+          "w": 230,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "nav-overview",
+      "x": 0,
+      "y": 0.1,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.4631,
+        "structure": 0.4241,
+        "color": 0.6577,
+        "colorIntersection": 0.4345,
+        "paletteMatch": 0.778,
+        "detail": 0.2256,
+        "detailRaw": 0.3662,
+        "detailAdded": 0.2813,
+        "bands": 0.5273
+      },
+      "verdict": "contradicted",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 159,
+          "h": 99
+        },
+        "build": {
+          "x": 17,
+          "y": 0,
+          "w": 142,
+          "h": 84
+        }
+      }
+    },
+    {
+      "id": "nav-patient-flow",
+      "x": 0,
+      "y": 0.0998,
+      "w": 0.1551,
+      "h": 0.0998,
+      "kind": "text",
+      "score": {
+        "overall": 0.4805,
+        "structure": 0.3911,
+        "color": 0.6864,
+        "colorIntersection": 0.4724,
+        "paletteMatch": 0.8017,
+        "detail": 0.3227,
+        "detailRaw": 0.4477,
+        "detailAdded": 0.25,
+        "bands": 0.65
+      },
+      "verdict": "contradicted",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 246,
+          "h": 99
+        },
+        "build": {
+          "x": 16,
+          "y": 0,
+          "w": 230,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "nav-schedule",
+      "x": 0,
+      "y": 0.2,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.5509,
+        "structure": 0.6344,
+        "color": 0.8549,
+        "colorIntersection": 0.75,
+        "paletteMatch": 0.9113,
+        "detail": 0,
+        "detailRaw": 0.0844,
+        "detailAdded": 0.2396,
+        "bands": 0.2
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 132,
+          "h": 100
+        },
+        "build": {
+          "x": 29,
+          "y": 5,
+          "w": 96,
+          "h": 95
+        }
+      }
+    },
+    {
+      "id": "nav-patients",
+      "x": 0,
+      "y": 0.2,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.5509,
+        "structure": 0.6344,
+        "color": 0.8549,
+        "colorIntersection": 0.75,
+        "paletteMatch": 0.9113,
+        "detail": 0,
+        "detailRaw": 0.0844,
+        "detailAdded": 0.2396,
+        "bands": 0.2
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 132,
+          "h": 100
+        },
+        "build": {
+          "x": 29,
+          "y": 5,
+          "w": 96,
+          "h": 95
+        }
+      }
+    },
+    {
+      "id": "nav-encounters",
+      "x": 0,
+      "y": 0.3,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.5922,
+        "structure": 0.717,
+        "color": 0.8686,
+        "colorIntersection": 0.7702,
+        "paletteMatch": 0.9215,
+        "detail": 0,
+        "detailRaw": 0.0714,
+        "detailAdded": 0.2292,
+        "bands": 0.1657
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 146,
+          "h": 99
+        },
+        "build": {
+          "x": 29,
+          "y": 0,
+          "w": 109,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "nav-care-team",
+      "x": 0,
+      "y": 0.3,
+      "w": 0.1,
+      "h": 0.2,
+      "kind": "text",
+      "score": {
+        "overall": 0.6472,
+        "structure": 0.7395,
+        "color": 0.8949,
+        "colorIntersection": 0.8139,
+        "paletteMatch": 0.9385,
+        "detail": 0.0176,
+        "detailRaw": 0.1843,
+        "detailAdded": 0.3333,
+        "bands": 0.5111
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 146,
+          "h": 198
+        },
+        "build": {
+          "x": 28,
+          "y": 0,
+          "w": 131,
+          "h": 198
+        }
+      }
+    },
+    {
+      "id": "nav-tasks",
+      "x": 0,
+      "y": 0.4,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.7404,
+        "structure": 0.8088,
+        "color": 0.9085,
+        "colorIntersection": 0.8393,
+        "paletteMatch": 0.9458,
+        "detail": 0.2993,
+        "detailRaw": 0.393,
+        "detailAdded": 0.1875,
+        "bands": 0.64
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 122,
+          "h": 99
+        },
+        "build": {
+          "x": 28,
+          "y": 0,
+          "w": 131,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "nav-messages",
+      "x": 0,
+      "y": 0.5,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.699,
+        "structure": 0.8181,
+        "color": 0.8684,
+        "colorIntersection": 0.768,
+        "paletteMatch": 0.9224,
+        "detail": 0.1299,
+        "detailRaw": 0.1299,
+        "detailAdded": 0,
+        "bands": 0.5333
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 137,
+          "h": 99
+        },
+        "build": {
+          "x": 30,
+          "y": 0,
+          "w": 81,
+          "h": 9
+        }
+      }
+    },
+    {
+      "id": "nav-reports",
+      "x": 0,
+      "y": 0.5,
+      "w": 0.1,
+      "h": 0.2,
+      "kind": "text",
+      "score": {
+        "overall": 0.7248,
+        "structure": 0.8584,
+        "color": 0.893,
+        "colorIntersection": 0.8112,
+        "paletteMatch": 0.9371,
+        "detail": 0.0821,
+        "detailRaw": 0.0821,
+        "detailAdded": 0,
+        "bands": 0.6
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 137,
+          "h": 198
+        },
+        "build": {
+          "x": 30,
+          "y": 0,
+          "w": 81,
+          "h": 9
+        }
+      }
+    },
+    {
+      "id": "nav-settings",
+      "x": 0,
+      "y": 0.6,
+      "w": 0.1,
+      "h": 0.1,
+      "kind": "text",
+      "score": {
+        "overall": 0.7128,
+        "structure": 0.8961,
+        "color": 0.8991,
+        "colorIntersection": 0.8562,
+        "paletteMatch": 0.9221,
+        "detail": 0.0001,
+        "detailRaw": 0.0001,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 125,
+          "h": 99
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "nav-whats-new",
+      "x": 0,
+      "y": 0.6996,
+      "w": 0.1513,
+      "h": 0.0998,
+      "kind": "text",
+      "score": {
+        "overall": 0.7098,
+        "structure": 0.8612,
+        "color": 0.8851,
+        "colorIntersection": 0.8043,
+        "paletteMatch": 0.9286,
+        "detail": 0.1195,
+        "detailRaw": 0.1195,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 240,
+          "h": 99
+        },
+        "build": {
+          "x": 231,
+          "y": 0,
+          "w": 9,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "nav-help",
+      "x": 0,
+      "y": 0.8004,
+      "w": 0.1513,
+      "h": 0.0998,
+      "kind": "text",
+      "score": {
+        "overall": 0.7174,
+        "structure": 0.7514,
+        "color": 0.9042,
+        "colorIntersection": 0.8295,
+        "paletteMatch": 0.9444,
+        "detail": 0.3709,
+        "detailRaw": 0.4543,
+        "detailAdded": 0.1667,
+        "bands": 0.6
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 240,
+          "h": 99
+        },
+        "build": {
+          "x": 27,
+          "y": 0,
+          "w": 213,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "nav-user",
+      "x": 0.041,
+      "y": 0.853,
+      "w": 0.095,
+      "h": 0.077,
+      "kind": "text",
+      "score": {
+        "overall": 0.6155,
+        "structure": 0.6737,
+        "color": 0.829,
+        "colorIntersection": 0.7318,
+        "paletteMatch": 0.8813,
+        "detail": 0.1259,
+        "detailRaw": 0.1728,
+        "detailAdded": 0.0938,
+        "bands": 0.525
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 11,
+          "w": 151,
+          "h": 63
+        },
+        "build": {
+          "x": 0,
+          "y": 33,
+          "w": 100,
+          "h": 14
+        }
+      }
+    },
+    {
+      "id": "clinic-switcher",
+      "x": 0.1999,
+      "y": 0.0181,
+      "w": 0.0794,
+      "h": 0.0302,
+      "kind": "text",
+      "score": {
+        "overall": 0.6791,
+        "structure": 0.6876,
+        "color": 0.9321,
+        "colorIntersection": 0.8538,
+        "paletteMatch": 0.9742,
+        "detail": 0.3772,
+        "detailRaw": 0.4189,
+        "detailAdded": 0.0833,
+        "bands": 0.4571
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 4,
+          "y": 15,
+          "w": 115,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 11,
+          "w": 126,
+          "h": 14
+        }
+      }
+    },
+    {
+      "id": "utility-search",
+      "x": 0.7453,
+      "y": 0.0121,
+      "w": 0.0549,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6586,
+        "structure": 0.7776,
+        "color": 0.9192,
+        "colorIntersection": 0.893,
+        "paletteMatch": 0.9333,
+        "detail": 0,
+        "detailRaw": 0,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 6,
+          "y": 16,
+          "w": 79,
+          "h": 17
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "utility-notifications",
+      "x": 0.819,
+      "y": 0.0121,
+      "w": 0.0813,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6278,
+        "structure": 0.714,
+        "color": 0.9372,
+        "colorIntersection": 0.9128,
+        "paletteMatch": 0.9503,
+        "detail": 0.0433,
+        "detailRaw": 0.1318,
+        "detailAdded": 0.1771,
+        "bands": 0.3
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 14,
+          "w": 119,
+          "h": 20
+        },
+        "build": {
+          "x": 77,
+          "y": 14,
+          "w": 52,
+          "h": 10
+        }
+      }
+    },
+    {
+      "id": "utility-help",
+      "x": 0.9224,
+      "y": 0.0121,
+      "w": 0.0492,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6197,
+        "structure": 0.7048,
+        "color": 0.9472,
+        "colorIntersection": 0.906,
+        "paletteMatch": 0.9693,
+        "detail": 0.203,
+        "detailRaw": 0.2759,
+        "detailAdded": 0.1458,
+        "bands": 0
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 7,
+          "y": 15,
+          "w": 64,
+          "h": 20
+        },
+        "build": {
+          "x": 0,
+          "y": 15,
+          "w": 78,
+          "h": 13
+        }
+      }
+    },
+    {
+      "id": "page-title",
+      "x": 0.163,
+      "y": 0.091,
+      "w": 0.33,
+      "h": 0.043,
+      "kind": "text",
+      "score": {
+        "overall": 0.8156,
+        "structure": 0.8621,
+        "color": 0.8883,
+        "colorIntersection": 0.8295,
+        "paletteMatch": 0.9199,
+        "detail": 0.6832,
+        "detailRaw": 0.7197,
+        "detailAdded": 0.0729,
+        "bands": 0.6
+      },
+      "verdict": "match",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 10,
+          "w": 314,
+          "h": 33
+        },
+        "build": {
+          "x": 0,
+          "y": 10,
+          "w": 306,
+          "h": 33
+        }
+      }
+    },
+    {
+      "id": "page-subtitle",
+      "x": 0.163,
+      "y": 0.133,
+      "w": 0.42,
+      "h": 0.036,
+      "kind": "text",
+      "score": {
+        "overall": 0.8425,
+        "structure": 0.9588,
+        "color": 0.9334,
+        "colorIntersection": 0.9197,
+        "paletteMatch": 0.9408,
+        "detail": 0.5984,
+        "detailRaw": 0.64,
+        "detailAdded": 0.0833,
+        "bands": 0.4
+      },
+      "verdict": "match",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 0,
+          "w": 482,
+          "h": 32
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 469,
+          "h": 30
+        }
+      }
+    },
+    {
+      "id": "data-boundary",
+      "x": 0.163,
+      "y": 0.179,
+      "w": 0.42,
+      "h": 0.035,
+      "kind": "text",
+      "score": {
+        "overall": 0.6798,
+        "structure": 0.8008,
+        "color": 0.9181,
+        "colorIntersection": 0.8619,
+        "paletteMatch": 0.9484,
+        "detail": 0.1327,
+        "detailRaw": 0.2681,
+        "detailAdded": 0.2708,
+        "bands": 0.3
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 22,
+          "w": 382,
+          "h": 17
+        },
+        "build": {
+          "x": 0,
+          "y": 31,
+          "w": 581,
+          "h": 15
+        }
+      }
+    },
+    {
+      "id": "snapshot-time",
+      "x": 0.8682,
+      "y": 0.1058,
+      "w": 0.0908,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.5748,
+        "structure": 0.7028,
+        "color": 0.8935,
+        "colorIntersection": 0.8831,
+        "paletteMatch": 0.8991,
+        "detail": 0,
+        "detailRaw": 0,
+        "detailAdded": 0.0625,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 9,
+          "y": 16,
+          "w": 126,
+          "h": 17
+        },
+        "build": {
+          "x": 75,
+          "y": 45,
+          "w": 66,
+          "h": 3
+        }
+      }
+    },
+    {
+      "id": "filter-all",
+      "x": 0.188,
+      "y": 0.231,
+      "w": 0.078,
+      "h": 0.042,
+      "kind": "text",
+      "score": {
+        "overall": 0.5358,
+        "structure": 0.5509,
+        "color": 0.6595,
+        "colorIntersection": 0.2991,
+        "paletteMatch": 0.8536,
+        "detail": 0.2302,
+        "detailRaw": 0.3031,
+        "detailAdded": 0.1458,
+        "bands": 0.6095
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 7,
+          "w": 124,
+          "h": 35
+        },
+        "build": {
+          "x": 0,
+          "y": 10,
+          "w": 124,
+          "h": 38
+        }
+      }
+    },
+    {
+      "id": "filter-expected",
+      "x": 0.2982,
+      "y": 0.2419,
+      "w": 0.0757,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6036,
+        "structure": 0.6229,
+        "color": 0.8989,
+        "colorIntersection": 0.8292,
+        "paletteMatch": 0.9364,
+        "detail": 0.2588,
+        "detailRaw": 0.3109,
+        "detailAdded": 0.1042,
+        "bands": 0.2857
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 13,
+          "w": 99,
+          "h": 21
+        },
+        "build": {
+          "x": 0,
+          "y": 17,
+          "w": 120,
+          "h": 13
+        }
+      }
+    },
+    {
+      "id": "filter-waiting",
+      "x": 0.43,
+      "y": 0.2419,
+      "w": 0.0908,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6713,
+        "structure": 0.6667,
+        "color": 0.8966,
+        "colorIntersection": 0.8275,
+        "paletteMatch": 0.9338,
+        "detail": 0.2519,
+        "detailRaw": 0.3196,
+        "detailAdded": 0.1354,
+        "bands": 0.76
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 13,
+          "w": 126,
+          "h": 22
+        },
+        "build": {
+          "x": 17,
+          "y": 17,
+          "w": 127,
+          "h": 12
+        }
+      }
+    },
+    {
+      "id": "filter-intake",
+      "x": 0.5719,
+      "y": 0.2419,
+      "w": 0.0567,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6093,
+        "structure": 0.6443,
+        "color": 0.8903,
+        "colorIntersection": 0.8426,
+        "paletteMatch": 0.916,
+        "detail": 0.164,
+        "detailRaw": 0.2108,
+        "detailAdded": 0.0938,
+        "bands": 0.4
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 13,
+          "w": 76,
+          "h": 22
+        },
+        "build": {
+          "x": 0,
+          "y": 17,
+          "w": 88,
+          "h": 12
+        }
+      }
+    },
+    {
+      "id": "filter-provider",
+      "x": 0.6835,
+      "y": 0.2419,
+      "w": 0.1059,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.6632,
+        "structure": 0.6527,
+        "color": 0.9152,
+        "colorIntersection": 0.8358,
+        "paletteMatch": 0.9579,
+        "detail": 0.3886,
+        "detailRaw": 0.472,
+        "detailAdded": 0.1667,
+        "bands": 0.4971
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 7,
+          "y": 13,
+          "w": 154,
+          "h": 21
+        },
+        "build": {
+          "x": 27,
+          "y": 17,
+          "w": 133,
+          "h": 14
+        }
+      }
+    },
+    {
+      "id": "filter-complete",
+      "x": 0.8115,
+      "y": 0.2419,
+      "w": 0.0719,
+      "h": 0.0363,
+      "kind": "text",
+      "score": {
+        "overall": 0.7024,
+        "structure": 0.6966,
+        "color": 0.8922,
+        "colorIntersection": 0.8282,
+        "paletteMatch": 0.9266,
+        "detail": 0.4069,
+        "detailRaw": 0.433,
+        "detailAdded": 0.0521,
+        "bands": 0.7
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 13,
+          "w": 100,
+          "h": 22
+        },
+        "build": {
+          "x": 1,
+          "y": 17,
+          "w": 113,
+          "h": 14
+        }
+      }
+    },
+    {
+      "id": "table-headings",
+      "x": 0.164,
+      "y": 0.299,
+      "w": 0.79,
+      "h": 0.047,
+      "kind": "text",
+      "score": {
+        "overall": 0.7707,
+        "structure": 0.9629,
+        "color": 0.9479,
+        "colorIntersection": 0.9459,
+        "paletteMatch": 0.9489,
+        "detail": 0.0816,
+        "detailRaw": 0.1025,
+        "detailAdded": 0.0417,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 23,
+          "y": 23,
+          "w": 1204,
+          "h": 19
+        },
+        "build": {
+          "x": 1226,
+          "y": 8,
+          "w": 27,
+          "h": 23
+        }
+      }
+    },
+    {
+      "id": "r1-patient",
+      "x": 0.171,
+      "y": 0.352,
+      "w": 0.098,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6012,
+        "structure": 0.5819,
+        "color": 0.9374,
+        "colorIntersection": 0.8971,
+        "paletteMatch": 0.9592,
+        "detail": 0.2586,
+        "detailRaw": 0.3316,
+        "detailAdded": 0.1458,
+        "bands": 0.3714
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 27,
+          "w": 121,
+          "h": 41
+        },
+        "build": {
+          "x": 1,
+          "y": 6,
+          "w": 154,
+          "h": 63
+        }
+      }
+    },
+    {
+      "id": "r1-status",
+      "x": 0.286,
+      "y": 0.352,
+      "w": 0.094,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5701,
+        "structure": 0.6524,
+        "color": 0.9013,
+        "colorIntersection": 0.8457,
+        "paletteMatch": 0.9313,
+        "detail": 0,
+        "detailRaw": 0.0966,
+        "detailAdded": 0.2292,
+        "bands": 0.1857
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 36,
+          "w": 92,
+          "h": 20
+        },
+        "build": {
+          "x": 18,
+          "y": 5,
+          "w": 111,
+          "h": 64
+        }
+      }
+    },
+    {
+      "id": "r1-timing",
+      "x": 0.397,
+      "y": 0.352,
+      "w": 0.068,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5618,
+        "structure": 0.597,
+        "color": 0.9218,
+        "colorIntersection": 0.8407,
+        "paletteMatch": 0.9654,
+        "detail": 0.0994,
+        "detailRaw": 0.2192,
+        "detailAdded": 0.2396,
+        "bands": 0.18
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 28,
+          "w": 67,
+          "h": 38
+        },
+        "build": {
+          "x": 5,
+          "y": 5,
+          "w": 97,
+          "h": 64
+        }
+      }
+    },
+    {
+      "id": "r1-room",
+      "x": 0.48,
+      "y": 0.352,
+      "w": 0.052,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6864,
+        "structure": 0.836,
+        "color": 0.9606,
+        "colorIntersection": 0.898,
+        "paletteMatch": 0.9944,
+        "detail": 0.1883,
+        "detailRaw": 0.2821,
+        "detailAdded": 0.1875,
+        "bands": 0
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 24,
+          "y": 46,
+          "w": 15,
+          "h": 2
+        },
+        "build": {
+          "x": 0,
+          "y": 5,
+          "w": 80,
+          "h": 61
+        }
+      }
+    },
+    {
+      "id": "r1-provider",
+      "x": 0.548,
+      "y": 0.352,
+      "w": 0.075,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5817,
+        "structure": 0.6865,
+        "color": 0.9513,
+        "colorIntersection": 0.8948,
+        "paletteMatch": 0.9818,
+        "detail": 0.0045,
+        "detailRaw": 0.1087,
+        "detailAdded": 0.2083,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 32,
+          "y": 40,
+          "w": 73,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 6,
+          "w": 119,
+          "h": 60
+        }
+      }
+    },
+    {
+      "id": "r1-reason",
+      "x": 0.638,
+      "y": 0.352,
+      "w": 0.068,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6129,
+        "structure": 0.7454,
+        "color": 0.9607,
+        "colorIntersection": 0.9354,
+        "paletteMatch": 0.9743,
+        "detail": 0,
+        "detailRaw": 0.0548,
+        "detailAdded": 0.2292,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 40,
+          "w": 67,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 5,
+          "w": 69,
+          "h": 61
+        }
+      }
+    },
+    {
+      "id": "r1-care",
+      "x": 0.72,
+      "y": 0.352,
+      "w": 0.06,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.7133,
+        "structure": 0.8528,
+        "color": 0.967,
+        "colorIntersection": 0.9429,
+        "paletteMatch": 0.98,
+        "detail": 0.0343,
+        "detailRaw": 0.0708,
+        "detailAdded": 0.0729,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 40,
+          "y": 40,
+          "w": 36,
+          "h": 12
+        },
+        "build": {
+          "x": 0,
+          "y": 9,
+          "w": 95,
+          "h": 60
+        }
+      }
+    },
+    {
+      "id": "r1-vitals",
+      "x": 0.796,
+      "y": 0.352,
+      "w": 0.069,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6166,
+        "structure": 0.7433,
+        "color": 0.9673,
+        "colorIntersection": 0.9413,
+        "paletteMatch": 0.9812,
+        "detail": 0.0207,
+        "detailRaw": 0.0884,
+        "detailAdded": 0.1354,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 44,
+          "y": 40,
+          "w": 66,
+          "h": 12
+        },
+        "build": {
+          "x": 1,
+          "y": 5,
+          "w": 91,
+          "h": 58
+        }
+      }
+    },
+    {
+      "id": "r1-actions",
+      "x": 0.879,
+      "y": 0.352,
+      "w": 0.07,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5775,
+        "structure": 0.6684,
+        "color": 0.921,
+        "colorIntersection": 0.8929,
+        "paletteMatch": 0.9362,
+        "detail": 0.0871,
+        "detailRaw": 0.1236,
+        "detailAdded": 0.0729,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 21,
+          "w": 111,
+          "h": 48
+        },
+        "build": {
+          "x": 27,
+          "y": 5,
+          "w": 84,
+          "h": 64
+        }
+      }
+    },
+    {
+      "id": "r2-patient",
+      "x": 0.171,
+      "y": 0.438,
+      "w": 0.098,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6622,
+        "structure": 0.7494,
+        "color": 0.9419,
+        "colorIntersection": 0.9059,
+        "paletteMatch": 0.9613,
+        "detail": 0,
+        "detailRaw": 0.0131,
+        "detailAdded": 0.0729,
+        "bands": 0.52
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 30,
+          "w": 121,
+          "h": 40
+        },
+        "build": {
+          "x": 2,
+          "y": 0,
+          "w": 78,
+          "h": 7
+        }
+      }
+    },
+    {
+      "id": "r2-status",
+      "x": 0.286,
+      "y": 0.438,
+      "w": 0.094,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6308,
+        "structure": 0.7466,
+        "color": 0.8493,
+        "colorIntersection": 0.7996,
+        "paletteMatch": 0.8761,
+        "detail": 0.0346,
+        "detailRaw": 0.0346,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 20,
+          "y": 28,
+          "w": 128,
+          "h": 39
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r2-timing",
+      "x": 0.397,
+      "y": 0.438,
+      "w": 0.068,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6126,
+        "structure": 0.7605,
+        "color": 0.9296,
+        "colorIntersection": 0.9005,
+        "paletteMatch": 0.9453,
+        "detail": 0,
+        "detailRaw": 0.0155,
+        "detailAdded": 0.0938,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 31,
+          "w": 78,
+          "h": 39
+        },
+        "build": {
+          "x": 6,
+          "y": 0,
+          "w": 73,
+          "h": 7
+        }
+      }
+    },
+    {
+      "id": "r2-room",
+      "x": 0.48,
+      "y": 0.438,
+      "w": 0.052,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7665,
+        "structure": 0.9633,
+        "color": 0.9796,
+        "colorIntersection": 0.9707,
+        "paletteMatch": 0.9844,
+        "detail": 0,
+        "detailRaw": 0.002,
+        "detailAdded": 0.0208,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 25,
+          "y": 51,
+          "w": 14,
+          "h": 2
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r2-provider",
+      "x": 0.548,
+      "y": 0.438,
+      "w": 0.075,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6985,
+        "structure": 0.8404,
+        "color": 0.9475,
+        "colorIntersection": 0.9405,
+        "paletteMatch": 0.9513,
+        "detail": 0.0096,
+        "detailRaw": 0.0148,
+        "detailAdded": 0.0104,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 33,
+          "y": 45,
+          "w": 81,
+          "h": 15
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r2-reason",
+      "x": 0.638,
+      "y": 0.438,
+      "w": 0.068,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7091,
+        "structure": 0.863,
+        "color": 0.9436,
+        "colorIntersection": 0.9429,
+        "paletteMatch": 0.944,
+        "detail": 0.0113,
+        "detailRaw": 0.0113,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 44,
+          "w": 74,
+          "h": 13
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r2-care",
+      "x": 0.72,
+      "y": 0.438,
+      "w": 0.06,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6332,
+        "structure": 0.7985,
+        "color": 0.931,
+        "colorIntersection": 0.872,
+        "paletteMatch": 0.9627,
+        "detail": 0.0079,
+        "detailRaw": 0.0757,
+        "detailAdded": 0.1354,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 40,
+          "y": 45,
+          "w": 36,
+          "h": 12
+        },
+        "build": {
+          "x": 0,
+          "y": 25,
+          "w": 60,
+          "h": 18
+        }
+      }
+    },
+    {
+      "id": "r2-vitals",
+      "x": 0.796,
+      "y": 0.438,
+      "w": 0.069,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7163,
+        "structure": 0.8735,
+        "color": 0.9538,
+        "colorIntersection": 0.947,
+        "paletteMatch": 0.9575,
+        "detail": 0.0076,
+        "detailRaw": 0.0076,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 44,
+          "y": 45,
+          "w": 66,
+          "h": 12
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r2-actions",
+      "x": 0.879,
+      "y": 0.438,
+      "w": 0.07,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6664,
+        "structure": 0.8029,
+        "color": 0.8888,
+        "colorIntersection": 0.874,
+        "paletteMatch": 0.8969,
+        "detail": 0.0182,
+        "detailRaw": 0.0182,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 25,
+          "w": 111,
+          "h": 45
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r3-patient",
+      "x": 0.171,
+      "y": 0.525,
+      "w": 0.098,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5097,
+        "structure": 0.5135,
+        "color": 0.9184,
+        "colorIntersection": 0.8688,
+        "paletteMatch": 0.9452,
+        "detail": 0,
+        "detailRaw": 0.115,
+        "detailAdded": 0.2708,
+        "bands": 0.2333
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 28,
+          "w": 130,
+          "h": 40
+        },
+        "build": {
+          "x": 1,
+          "y": 0,
+          "w": 143,
+          "h": 36
+        }
+      }
+    },
+    {
+      "id": "r3-status",
+      "x": 0.286,
+      "y": 0.525,
+      "w": 0.094,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5537,
+        "structure": 0.6879,
+        "color": 0.8389,
+        "colorIntersection": 0.7827,
+        "paletteMatch": 0.8691,
+        "detail": 0,
+        "detailRaw": 0.0365,
+        "detailAdded": 0.125,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 20,
+          "y": 29,
+          "w": 128,
+          "h": 37
+        },
+        "build": {
+          "x": 70,
+          "y": 0,
+          "w": 58,
+          "h": 10
+        }
+      }
+    },
+    {
+      "id": "r3-timing",
+      "x": 0.397,
+      "y": 0.525,
+      "w": 0.068,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5574,
+        "structure": 0.656,
+        "color": 0.9057,
+        "colorIntersection": 0.8791,
+        "paletteMatch": 0.9201,
+        "detail": 0.0195,
+        "detailRaw": 0.0977,
+        "detailAdded": 0.1563,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 29,
+          "w": 80,
+          "h": 39
+        },
+        "build": {
+          "x": 5,
+          "y": 2,
+          "w": 45,
+          "h": 36
+        }
+      }
+    },
+    {
+      "id": "r3-room",
+      "x": 0.48,
+      "y": 0.525,
+      "w": 0.052,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.7151,
+        "structure": 0.8585,
+        "color": 0.9408,
+        "colorIntersection": 0.8655,
+        "paletteMatch": 0.9814,
+        "detail": 0.0705,
+        "detailRaw": 0.1747,
+        "detailAdded": 0.2083,
+        "bands": 0.4
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 25,
+          "y": 50,
+          "w": 14,
+          "h": 2
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 38,
+          "h": 29
+        }
+      }
+    },
+    {
+      "id": "r3-provider",
+      "x": 0.548,
+      "y": 0.525,
+      "w": 0.075,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6868,
+        "structure": 0.8105,
+        "color": 0.9476,
+        "colorIntersection": 0.9436,
+        "paletteMatch": 0.9497,
+        "detail": 0.0307,
+        "detailRaw": 0.062,
+        "detailAdded": 0.0625,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 33,
+          "y": 43,
+          "w": 73,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 119,
+          "h": 10
+        }
+      }
+    },
+    {
+      "id": "r3-reason",
+      "x": 0.638,
+      "y": 0.525,
+      "w": 0.068,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6137,
+        "structure": 0.7604,
+        "color": 0.9339,
+        "colorIntersection": 0.8883,
+        "paletteMatch": 0.9585,
+        "detail": 0,
+        "detailRaw": 0.0544,
+        "detailAdded": 0.1771,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 33,
+          "y": 43,
+          "w": 75,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 74,
+          "h": 10
+        }
+      }
+    },
+    {
+      "id": "r3-care",
+      "x": 0.72,
+      "y": 0.525,
+      "w": 0.06,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6607,
+        "structure": 0.7875,
+        "color": 0.9078,
+        "colorIntersection": 0.8431,
+        "paletteMatch": 0.9426,
+        "detail": 0,
+        "detailRaw": 0.0502,
+        "detailAdded": 0.1354,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 43,
+          "w": 75,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 8,
+          "w": 95,
+          "h": 17
+        }
+      }
+    },
+    {
+      "id": "r3-vitals",
+      "x": 0.796,
+      "y": 0.525,
+      "w": 0.069,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.71,
+        "structure": 0.8504,
+        "color": 0.9543,
+        "colorIntersection": 0.9513,
+        "paletteMatch": 0.9558,
+        "detail": 0.0416,
+        "detailRaw": 0.0521,
+        "detailAdded": 0.0208,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 44,
+          "y": 44,
+          "w": 66,
+          "h": 12
+        },
+        "build": {
+          "x": 52,
+          "y": 5,
+          "w": 12,
+          "h": 2
+        }
+      }
+    },
+    {
+      "id": "r3-actions",
+      "x": 0.879,
+      "y": 0.525,
+      "w": 0.07,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6311,
+        "structure": 0.7105,
+        "color": 0.9435,
+        "colorIntersection": 0.9065,
+        "paletteMatch": 0.9635,
+        "detail": 0,
+        "detailRaw": 0.0299,
+        "detailAdded": 0.0938,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 24,
+          "w": 111,
+          "h": 44
+        },
+        "build": {
+          "x": 87,
+          "y": 5,
+          "w": 18,
+          "h": 21
+        }
+      }
+    },
+    {
+      "id": "r4-patient",
+      "x": 0.171,
+      "y": 0.611,
+      "w": 0.098,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6406,
+        "structure": 0.6024,
+        "color": 0.9371,
+        "colorIntersection": 0.9022,
+        "paletteMatch": 0.9558,
+        "detail": 0.248,
+        "detailRaw": 0.3157,
+        "detailAdded": 0.1354,
+        "bands": 0.68
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 28,
+          "w": 127,
+          "h": 41
+        },
+        "build": {
+          "x": 1,
+          "y": 0,
+          "w": 134,
+          "h": 69
+        }
+      }
+    },
+    {
+      "id": "r4-status",
+      "x": 0.286,
+      "y": 0.611,
+      "w": 0.094,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.566,
+        "structure": 0.6359,
+        "color": 0.8991,
+        "colorIntersection": 0.848,
+        "paletteMatch": 0.9266,
+        "detail": 0.002,
+        "detailRaw": 0.1114,
+        "detailAdded": 0.2188,
+        "bands": 0.23
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 37,
+          "w": 116,
+          "h": 20
+        },
+        "build": {
+          "x": 70,
+          "y": 4,
+          "w": 59,
+          "h": 65
+        }
+      }
+    },
+    {
+      "id": "r4-timing",
+      "x": 0.397,
+      "y": 0.611,
+      "w": 0.068,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5865,
+        "structure": 0.6961,
+        "color": 0.9472,
+        "colorIntersection": 0.9206,
+        "paletteMatch": 0.9615,
+        "detail": 0.0111,
+        "detailRaw": 0.084,
+        "detailAdded": 0.1458,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 29,
+          "w": 60,
+          "h": 39
+        },
+        "build": {
+          "x": 5,
+          "y": 10,
+          "w": 46,
+          "h": 59
+        }
+      }
+    },
+    {
+      "id": "r4-room",
+      "x": 0.48,
+      "y": 0.611,
+      "w": 0.052,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6012,
+        "structure": 0.7351,
+        "color": 0.9345,
+        "colorIntersection": 0.8667,
+        "paletteMatch": 0.971,
+        "detail": 0,
+        "detailRaw": 0.0526,
+        "detailAdded": 0.25,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 24,
+          "y": 41,
+          "w": 37,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 4,
+          "w": 49,
+          "h": 62
+        }
+      }
+    },
+    {
+      "id": "r4-provider",
+      "x": 0.548,
+      "y": 0.611,
+      "w": 0.075,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6524,
+        "structure": 0.8112,
+        "color": 0.9572,
+        "colorIntersection": 0.9419,
+        "paletteMatch": 0.9655,
+        "detail": 0.0495,
+        "detailRaw": 0.0807,
+        "detailAdded": 0.0625,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 41,
+          "w": 64,
+          "h": 15
+        },
+        "build": {
+          "x": 0,
+          "y": 55,
+          "w": 119,
+          "h": 11
+        }
+      }
+    },
+    {
+      "id": "r4-reason",
+      "x": 0.638,
+      "y": 0.611,
+      "w": 0.068,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6423,
+        "structure": 0.7964,
+        "color": 0.958,
+        "colorIntersection": 0.9349,
+        "paletteMatch": 0.9704,
+        "detail": 0.031,
+        "detailRaw": 0.083,
+        "detailAdded": 0.1042,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 33,
+          "y": 41,
+          "w": 75,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 55,
+          "w": 47,
+          "h": 11
+        }
+      }
+    },
+    {
+      "id": "r4-care",
+      "x": 0.72,
+      "y": 0.611,
+      "w": 0.06,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6868,
+        "structure": 0.8177,
+        "color": 0.9465,
+        "colorIntersection": 0.9387,
+        "paletteMatch": 0.9507,
+        "detail": 0.009,
+        "detailRaw": 0.0351,
+        "detailAdded": 0.0521,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 41,
+          "w": 95,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 13,
+          "h": 69
+        }
+      }
+    },
+    {
+      "id": "r4-vitals",
+      "x": 0.796,
+      "y": 0.611,
+      "w": 0.069,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.5935,
+        "structure": 0.7226,
+        "color": 0.9086,
+        "colorIntersection": 0.9013,
+        "paletteMatch": 0.9125,
+        "detail": 0.0336,
+        "detailRaw": 0.0388,
+        "detailAdded": 0.0104,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 19,
+          "w": 110,
+          "h": 50
+        },
+        "build": {
+          "x": 52,
+          "y": 61,
+          "w": 12,
+          "h": 2
+        }
+      }
+    },
+    {
+      "id": "r4-actions",
+      "x": 0.879,
+      "y": 0.611,
+      "w": 0.07,
+      "h": 0.069,
+      "kind": "text",
+      "score": {
+        "overall": 0.6738,
+        "structure": 0.749,
+        "color": 0.9447,
+        "colorIntersection": 0.8867,
+        "paletteMatch": 0.9759,
+        "detail": 0.054,
+        "detailRaw": 0.0852,
+        "detailAdded": 0.0625,
+        "bands": 0.55
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 46,
+          "y": 24,
+          "w": 65,
+          "h": 45
+        },
+        "build": {
+          "x": 87,
+          "y": 0,
+          "w": 18,
+          "h": 69
+        }
+      }
+    },
+    {
+      "id": "r5-patient",
+      "x": 0.171,
+      "y": 0.697,
+      "w": 0.098,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.5951,
+        "structure": 0.6469,
+        "color": 0.918,
+        "colorIntersection": 0.8505,
+        "paletteMatch": 0.9543,
+        "detail": 0.1251,
+        "detailRaw": 0.1616,
+        "detailAdded": 0.0729,
+        "bands": 0.2333
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 26,
+          "w": 143,
+          "h": 43
+        },
+        "build": {
+          "x": 1,
+          "y": 0,
+          "w": 155,
+          "h": 70
+        }
+      }
+    },
+    {
+      "id": "r5-status",
+      "x": 0.286,
+      "y": 0.697,
+      "w": 0.094,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6326,
+        "structure": 0.7304,
+        "color": 0.9032,
+        "colorIntersection": 0.84,
+        "paletteMatch": 0.9373,
+        "detail": 0.011,
+        "detailRaw": 0.0787,
+        "detailAdded": 0.1354,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 20,
+          "y": 35,
+          "w": 117,
+          "h": 20
+        },
+        "build": {
+          "x": 70,
+          "y": 0,
+          "w": 72,
+          "h": 70
+        }
+      }
+    },
+    {
+      "id": "r5-timing",
+      "x": 0.397,
+      "y": 0.697,
+      "w": 0.068,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6274,
+        "structure": 0.6706,
+        "color": 0.9417,
+        "colorIntersection": 0.8989,
+        "paletteMatch": 0.9647,
+        "detail": 0,
+        "detailRaw": 0.0433,
+        "detailAdded": 0.1875,
+        "bands": 0.5667
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 28,
+          "w": 59,
+          "h": 38
+        },
+        "build": {
+          "x": 5,
+          "y": 0,
+          "w": 61,
+          "h": 27
+        }
+      }
+    },
+    {
+      "id": "r5-room",
+      "x": 0.48,
+      "y": 0.697,
+      "w": 0.052,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6666,
+        "structure": 0.8541,
+        "color": 0.958,
+        "colorIntersection": 0.9231,
+        "paletteMatch": 0.9768,
+        "detail": 0,
+        "detailRaw": 0.0685,
+        "detailAdded": 0.1563,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 24,
+          "y": 41,
+          "w": 35,
+          "h": 12
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 62,
+          "h": 70
+        }
+      }
+    },
+    {
+      "id": "r5-provider",
+      "x": 0.548,
+      "y": 0.697,
+      "w": 0.075,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6984,
+        "structure": 0.8252,
+        "color": 0.9566,
+        "colorIntersection": 0.9329,
+        "paletteMatch": 0.9694,
+        "detail": 0.0442,
+        "detailRaw": 0.065,
+        "detailAdded": 0.0417,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 33,
+          "y": 41,
+          "w": 83,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 62,
+          "w": 119,
+          "h": 8
+        }
+      }
+    },
+    {
+      "id": "r5-reason",
+      "x": 0.638,
+      "y": 0.697,
+      "w": 0.068,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6941,
+        "structure": 0.8338,
+        "color": 0.9615,
+        "colorIntersection": 0.9381,
+        "paletteMatch": 0.974,
+        "detail": 0.0124,
+        "detailRaw": 0.0645,
+        "detailAdded": 0.1042,
+        "bands": 0.35
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 41,
+          "w": 74,
+          "h": 16
+        },
+        "build": {
+          "x": 0,
+          "y": 62,
+          "w": 83,
+          "h": 8
+        }
+      }
+    },
+    {
+      "id": "r5-care",
+      "x": 0.72,
+      "y": 0.697,
+      "w": 0.06,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7622,
+        "structure": 0.8795,
+        "color": 0.9313,
+        "colorIntersection": 0.9149,
+        "paletteMatch": 0.9401,
+        "detail": 0.0642,
+        "detailRaw": 0.0642,
+        "detailAdded": 0,
+        "bands": 0.8
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 41,
+          "w": 95,
+          "h": 12
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r5-vitals",
+      "x": 0.796,
+      "y": 0.697,
+      "w": 0.069,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6389,
+        "structure": 0.7319,
+        "color": 0.903,
+        "colorIntersection": 0.8623,
+        "paletteMatch": 0.9249,
+        "detail": 0.0477,
+        "detailRaw": 0.0477,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 18,
+          "w": 110,
+          "h": 52
+        },
+        "build": {
+          "x": 52,
+          "y": 68,
+          "w": 11,
+          "h": 2
+        }
+      }
+    },
+    {
+      "id": "r5-actions",
+      "x": 0.879,
+      "y": 0.697,
+      "w": 0.07,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6445,
+        "structure": 0.7561,
+        "color": 0.8925,
+        "colorIntersection": 0.8556,
+        "paletteMatch": 0.9124,
+        "detail": 0.0223,
+        "detailRaw": 0.0223,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 46,
+          "y": 23,
+          "w": 65,
+          "h": 47
+        },
+        "build": {
+          "x": 94,
+          "y": 69,
+          "w": 4,
+          "h": 1
+        }
+      }
+    },
+    {
+      "id": "r6-patient",
+      "x": 0.171,
+      "y": 0.784,
+      "w": 0.098,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.584,
+        "structure": 0.6534,
+        "color": 0.9148,
+        "colorIntersection": 0.8648,
+        "paletteMatch": 0.9417,
+        "detail": 0,
+        "detailRaw": 0.0374,
+        "detailAdded": 0.1042,
+        "bands": 0.2857
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 24,
+          "w": 107,
+          "h": 41
+        },
+        "build": {
+          "x": 1,
+          "y": 0,
+          "w": 79,
+          "h": 12
+        }
+      }
+    },
+    {
+      "id": "r6-status",
+      "x": 0.286,
+      "y": 0.784,
+      "w": 0.094,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.5944,
+        "structure": 0.7254,
+        "color": 0.8254,
+        "colorIntersection": 0.7303,
+        "paletteMatch": 0.8766,
+        "detail": 0,
+        "detailRaw": 0.0519,
+        "detailAdded": 0.1458,
+        "bands": 0.2533
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 33,
+          "w": 68,
+          "h": 20
+        },
+        "build": {
+          "x": 70,
+          "y": 0,
+          "w": 62,
+          "h": 26
+        }
+      }
+    },
+    {
+      "id": "r6-timing",
+      "x": 0.397,
+      "y": 0.784,
+      "w": 0.068,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6102,
+        "structure": 0.6543,
+        "color": 0.9541,
+        "colorIntersection": 0.9265,
+        "paletteMatch": 0.969,
+        "detail": 0.1433,
+        "detailRaw": 0.237,
+        "detailAdded": 0.1875,
+        "bands": 0.23
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 25,
+          "w": 60,
+          "h": 38
+        },
+        "build": {
+          "x": 5,
+          "y": 2,
+          "w": 57,
+          "h": 49
+        }
+      }
+    },
+    {
+      "id": "r6-room",
+      "x": 0.48,
+      "y": 0.784,
+      "w": 0.052,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7494,
+        "structure": 0.8565,
+        "color": 0.9768,
+        "colorIntersection": 0.9558,
+        "paletteMatch": 0.9882,
+        "detail": 0.18,
+        "detailRaw": 0.1852,
+        "detailAdded": 0.0104,
+        "bands": 0.5
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 25,
+          "y": 37,
+          "w": 35,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 50,
+          "h": 7
+        }
+      }
+    },
+    {
+      "id": "r6-provider",
+      "x": 0.548,
+      "y": 0.784,
+      "w": 0.075,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7087,
+        "structure": 0.857,
+        "color": 0.9495,
+        "colorIntersection": 0.9386,
+        "paletteMatch": 0.9554,
+        "detail": 0.0188,
+        "detailRaw": 0.0188,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 37,
+          "w": 64,
+          "h": 15
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r6-reason",
+      "x": 0.638,
+      "y": 0.784,
+      "w": 0.068,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7022,
+        "structure": 0.8517,
+        "color": 0.9384,
+        "colorIntersection": 0.9132,
+        "paletteMatch": 0.952,
+        "detail": 0.0116,
+        "detailRaw": 0.0116,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 37,
+          "w": 62,
+          "h": 16
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r6-care",
+      "x": 0.72,
+      "y": 0.784,
+      "w": 0.06,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.7205,
+        "structure": 0.8925,
+        "color": 0.9361,
+        "colorIntersection": 0.9196,
+        "paletteMatch": 0.945,
+        "detail": 0.0013,
+        "detailRaw": 0.0013,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 39,
+          "y": 38,
+          "w": 56,
+          "h": 15
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r6-vitals",
+      "x": 0.796,
+      "y": 0.784,
+      "w": 0.069,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.6985,
+        "structure": 0.8404,
+        "color": 0.9391,
+        "colorIntersection": 0.9049,
+        "paletteMatch": 0.9574,
+        "detail": 0.0232,
+        "detailRaw": 0.0232,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 42,
+          "y": 15,
+          "w": 56,
+          "h": 54
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "r6-actions",
+      "x": 0.879,
+      "y": 0.784,
+      "w": 0.07,
+      "h": 0.07,
+      "kind": "text",
+      "score": {
+        "overall": 0.5911,
+        "structure": 0.7153,
+        "color": 0.9117,
+        "colorIntersection": 0.8352,
+        "paletteMatch": 0.9529,
+        "detail": 0.0372,
+        "detailRaw": 0.0372,
+        "detailAdded": 0,
+        "bands": 0
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 46,
+          "y": 20,
+          "w": 65,
+          "h": 49
+        },
+        "build": {
+          "x": 87,
+          "y": 0,
+          "w": 18,
+          "h": 2
+        }
+      }
+    },
+    {
+      "id": "r7-patient",
+      "x": 0.171,
+      "y": 0.871,
+      "w": 0.098,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.528,
+        "structure": 0.583,
+        "color": 0.8446,
+        "colorIntersection": 0.7446,
+        "paletteMatch": 0.8985,
+        "detail": 0,
+        "detailRaw": 0.1835,
+        "detailAdded": 0.3854,
+        "bands": 0.2533
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 20,
+          "w": 146,
+          "h": 32
+        },
+        "build": {
+          "x": 0,
+          "y": 12,
+          "w": 156,
+          "h": 40
+        }
+      }
+    },
+    {
+      "id": "r7-status",
+      "x": 0.286,
+      "y": 0.871,
+      "w": 0.094,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.503,
+        "structure": 0.5536,
+        "color": 0.7629,
+        "colorIntersection": 0.5708,
+        "paletteMatch": 0.8664,
+        "detail": 0,
+        "detailRaw": 0.1327,
+        "detailAdded": 0.375,
+        "bands": 0.3543
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 20,
+          "y": 31,
+          "w": 121,
+          "h": 19
+        },
+        "build": {
+          "x": 0,
+          "y": 13,
+          "w": 149,
+          "h": 39
+        }
+      }
+    },
+    {
+      "id": "r7-timing",
+      "x": 0.397,
+      "y": 0.871,
+      "w": 0.068,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.5718,
+        "structure": 0.6165,
+        "color": 0.8559,
+        "colorIntersection": 0.7251,
+        "paletteMatch": 0.9263,
+        "detail": 0.0416,
+        "detailRaw": 0.2187,
+        "detailAdded": 0.3542,
+        "bands": 0.4333
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 21,
+          "y": 22,
+          "w": 60,
+          "h": 30
+        },
+        "build": {
+          "x": 0,
+          "y": 13,
+          "w": 107,
+          "h": 39
+        }
+      }
+    },
+    {
+      "id": "r7-room",
+      "x": 0.48,
+      "y": 0.871,
+      "w": 0.052,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.573,
+        "structure": 0.6138,
+        "color": 0.8535,
+        "colorIntersection": 0.7115,
+        "paletteMatch": 0.9299,
+        "detail": 0.0627,
+        "detailRaw": 0.219,
+        "detailAdded": 0.3125,
+        "bands": 0.4333
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 25,
+          "y": 35,
+          "w": 57,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 12,
+          "w": 83,
+          "h": 40
+        }
+      }
+    },
+    {
+      "id": "r7-provider",
+      "x": 0.548,
+      "y": 0.871,
+      "w": 0.075,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.5828,
+        "structure": 0.632,
+        "color": 0.862,
+        "colorIntersection": 0.7179,
+        "paletteMatch": 0.9395,
+        "detail": 0.1018,
+        "detailRaw": 0.2737,
+        "detailAdded": 0.3438,
+        "bands": 0.36
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 32,
+          "y": 35,
+          "w": 77,
+          "h": 17
+        },
+        "build": {
+          "x": 0,
+          "y": 12,
+          "w": 119,
+          "h": 40
+        }
+      }
+    },
+    {
+      "id": "r7-reason",
+      "x": 0.638,
+      "y": 0.871,
+      "w": 0.068,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.6087,
+        "structure": 0.6807,
+        "color": 0.8691,
+        "colorIntersection": 0.7607,
+        "paletteMatch": 0.9275,
+        "detail": 0.1183,
+        "detailRaw": 0.2485,
+        "detailAdded": 0.2604,
+        "bands": 0.3333
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 34,
+          "y": 36,
+          "w": 74,
+          "h": 15
+        },
+        "build": {
+          "x": 0,
+          "y": 12,
+          "w": 104,
+          "h": 40
+        }
+      }
+    },
+    {
+      "id": "r7-care",
+      "x": 0.72,
+      "y": 0.871,
+      "w": 0.06,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.7529,
+        "structure": 0.8425,
+        "color": 0.9306,
+        "colorIntersection": 0.8758,
+        "paletteMatch": 0.9601,
+        "detail": 0.1936,
+        "detailRaw": 0.2301,
+        "detailAdded": 0.0729,
+        "bands": 0.7
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 39,
+          "y": 35,
+          "w": 55,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 44,
+          "w": 91,
+          "h": 8
+        }
+      }
+    },
+    {
+      "id": "r7-vitals",
+      "x": 0.796,
+      "y": 0.871,
+      "w": 0.069,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.7057,
+        "structure": 0.8184,
+        "color": 0.9389,
+        "colorIntersection": 0.9245,
+        "paletteMatch": 0.9466,
+        "detail": 0.0116,
+        "detailRaw": 0.0533,
+        "detailAdded": 0.0833,
+        "bands": 0.6
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 12,
+          "w": 82,
+          "h": 36
+        },
+        "build": {
+          "x": 0,
+          "y": 45,
+          "w": 58,
+          "h": 7
+        }
+      }
+    },
+    {
+      "id": "r7-actions",
+      "x": 0.879,
+      "y": 0.871,
+      "w": 0.07,
+      "h": 0.052,
+      "kind": "text",
+      "score": {
+        "overall": 0.6637,
+        "structure": 0.7961,
+        "color": 0.9025,
+        "colorIntersection": 0.8832,
+        "paletteMatch": 0.9128,
+        "detail": 0,
+        "detailRaw": 0,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 46,
+          "y": 17,
+          "w": 65,
+          "h": 35
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "menu-control",
+      "x": 0.1003,
+      "y": 0,
+      "w": 0.053,
+      "h": 0.0998,
+      "kind": "control",
+      "score": {
+        "overall": 0.7595,
+        "structure": 0.8761,
+        "color": 0.9074,
+        "colorIntersection": 0.8414,
+        "paletteMatch": 0.943,
+        "detail": 0.2384,
+        "detailRaw": 0.254,
+        "detailAdded": 0.0313,
+        "bands": 0.7
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 84,
+          "h": 99
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 84,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "refresh-control",
+      "x": 0.8997,
+      "y": 0.1058,
+      "w": 0.0605,
+      "h": 0.0302,
+      "kind": "control",
+      "score": {
+        "overall": 0.6585,
+        "structure": 0.7701,
+        "color": 0.8912,
+        "colorIntersection": 0.8941,
+        "paletteMatch": 0.8897,
+        "detail": 0,
+        "detailRaw": 0,
+        "detailAdded": 0,
+        "bands": 0.4
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 19,
+          "w": 85,
+          "h": 13
+        },
+        "build": null
+      }
+    },
+    {
+      "id": "filter-controls",
+      "x": 0.1003,
+      "y": 0.1996,
+      "w": 0.053,
+      "h": 0.0998,
+      "kind": "control",
+      "score": {
+        "overall": 0.9158,
+        "structure": 0.9596,
+        "color": 0.912,
+        "colorIntersection": 0.84,
+        "paletteMatch": 0.9507,
+        "detail": 0.8237,
+        "detailRaw": 0.8237,
+        "detailAdded": 0,
+        "bands": 1
+      },
+      "verdict": "match",
+      "inkBox": {
+        "comp": {
+          "x": 75,
+          "y": 0,
+          "w": 9,
+          "h": 99
+        },
+        "build": {
+          "x": 72,
+          "y": 0,
+          "w": 12,
+          "h": 99
+        }
+      }
+    },
+    {
+      "id": "row-actions",
+      "x": 0.9035,
+      "y": 0.7117,
+      "w": 0.0681,
+      "h": 0.0665,
+      "kind": "control",
+      "score": {
+        "overall": 0.5471,
+        "structure": 0.5129,
+        "color": 0.8849,
+        "colorIntersection": 0.8086,
+        "paletteMatch": 0.9259,
+        "detail": 0.0329,
+        "detailRaw": 0.0642,
+        "detailAdded": 0.0625,
+        "bands": 0.3
+      },
+      "verdict": "missing",
+      "inkBox": {
+        "comp": {
+          "x": 7,
+          "y": 8,
+          "w": 90,
+          "h": 51
+        },
+        "build": {
+          "x": 48,
+          "y": 54,
+          "w": 56,
+          "h": 12
+        }
+      }
+    }
+  ],
+  "files": {
+    "sideBySide": ".impeccable/review/diff/hero/side-by-side.png",
+    "heatmap": ".impeccable/review/diff/hero/heatmap.png",
+    "regionFiles": [
+      ".impeccable/review/diff/hero/regions/app-chrome.png",
+      ".impeccable/review/diff/hero/regions/navigation-rail.png",
+      ".impeccable/review/diff/hero/regions/top-utility-bar.png",
+      ".impeccable/review/diff/hero/regions/board-surface.png",
+      ".impeccable/review/diff/hero/regions/brand.png",
+      ".impeccable/review/diff/hero/regions/nav-overview.png",
+      ".impeccable/review/diff/hero/regions/nav-patient-flow.png",
+      ".impeccable/review/diff/hero/regions/nav-schedule.png",
+      ".impeccable/review/diff/hero/regions/nav-patients.png",
+      ".impeccable/review/diff/hero/regions/nav-encounters.png",
+      ".impeccable/review/diff/hero/regions/nav-care-team.png",
+      ".impeccable/review/diff/hero/regions/nav-tasks.png",
+      ".impeccable/review/diff/hero/regions/nav-messages.png",
+      ".impeccable/review/diff/hero/regions/nav-reports.png",
+      ".impeccable/review/diff/hero/regions/nav-settings.png",
+      ".impeccable/review/diff/hero/regions/nav-whats-new.png",
+      ".impeccable/review/diff/hero/regions/nav-help.png",
+      ".impeccable/review/diff/hero/regions/nav-user.png",
+      ".impeccable/review/diff/hero/regions/clinic-switcher.png",
+      ".impeccable/review/diff/hero/regions/utility-search.png",
+      ".impeccable/review/diff/hero/regions/utility-notifications.png",
+      ".impeccable/review/diff/hero/regions/utility-help.png",
+      ".impeccable/review/diff/hero/regions/page-title.png",
+      ".impeccable/review/diff/hero/regions/page-subtitle.png",
+      ".impeccable/review/diff/hero/regions/data-boundary.png",
+      ".impeccable/review/diff/hero/regions/snapshot-time.png",
+      ".impeccable/review/diff/hero/regions/filter-all.png",
+      ".impeccable/review/diff/hero/regions/filter-expected.png",
+      ".impeccable/review/diff/hero/regions/filter-waiting.png",
+      ".impeccable/review/diff/hero/regions/filter-intake.png",
+      ".impeccable/review/diff/hero/regions/filter-provider.png",
+      ".impeccable/review/diff/hero/regions/filter-complete.png",
+      ".impeccable/review/diff/hero/regions/table-headings.png",
+      ".impeccable/review/diff/hero/regions/r1-patient.png",
+      ".impeccable/review/diff/hero/regions/r1-status.png",
+      ".impeccable/review/diff/hero/regions/r1-timing.png",
+      ".impeccable/review/diff/hero/regions/r1-room.png",
+      ".impeccable/review/diff/hero/regions/r1-provider.png",
+      ".impeccable/review/diff/hero/regions/r1-reason.png",
+      ".impeccable/review/diff/hero/regions/r1-care.png",
+      ".impeccable/review/diff/hero/regions/r1-vitals.png",
+      ".impeccable/review/diff/hero/regions/r1-actions.png",
+      ".impeccable/review/diff/hero/regions/r2-patient.png",
+      ".impeccable/review/diff/hero/regions/r2-status.png",
+      ".impeccable/review/diff/hero/regions/r2-timing.png",
+      ".impeccable/review/diff/hero/regions/r2-room.png",
+      ".impeccable/review/diff/hero/regions/r2-provider.png",
+      ".impeccable/review/diff/hero/regions/r2-reason.png",
+      ".impeccable/review/diff/hero/regions/r2-care.png",
+      ".impeccable/review/diff/hero/regions/r2-vitals.png",
+      ".impeccable/review/diff/hero/regions/r2-actions.png",
+      ".impeccable/review/diff/hero/regions/r3-patient.png",
+      ".impeccable/review/diff/hero/regions/r3-status.png",
+      ".impeccable/review/diff/hero/regions/r3-timing.png",
+      ".impeccable/review/diff/hero/regions/r3-room.png",
+      ".impeccable/review/diff/hero/regions/r3-provider.png",
+      ".impeccable/review/diff/hero/regions/r3-reason.png",
+      ".impeccable/review/diff/hero/regions/r3-care.png",
+      ".impeccable/review/diff/hero/regions/r3-vitals.png",
+      ".impeccable/review/diff/hero/regions/r3-actions.png",
+      ".impeccable/review/diff/hero/regions/r4-patient.png",
+      ".impeccable/review/diff/hero/regions/r4-status.png",
+      ".impeccable/review/diff/hero/regions/r4-timing.png",
+      ".impeccable/review/diff/hero/regions/r4-room.png",
+      ".impeccable/review/diff/hero/regions/r4-provider.png",
+      ".impeccable/review/diff/hero/regions/r4-reason.png",
+      ".impeccable/review/diff/hero/regions/r4-care.png",
+      ".impeccable/review/diff/hero/regions/r4-vitals.png",
+      ".impeccable/review/diff/hero/regions/r4-actions.png",
+      ".impeccable/review/diff/hero/regions/r5-patient.png",
+      ".impeccable/review/diff/hero/regions/r5-status.png",
+      ".impeccable/review/diff/hero/regions/r5-timing.png",
+      ".impeccable/review/diff/hero/regions/r5-room.png",
+      ".impeccable/review/diff/hero/regions/r5-provider.png",
+      ".impeccable/review/diff/hero/regions/r5-reason.png",
+      ".impeccable/review/diff/hero/regions/r5-care.png",
+      ".impeccable/review/diff/hero/regions/r5-vitals.png",
+      ".impeccable/review/diff/hero/regions/r5-actions.png",
+      ".impeccable/review/diff/hero/regions/r6-patient.png",
+      ".impeccable/review/diff/hero/regions/r6-status.png",
+      ".impeccable/review/diff/hero/regions/r6-timing.png",
+      ".impeccable/review/diff/hero/regions/r6-room.png",
+      ".impeccable/review/diff/hero/regions/r6-provider.png",
+      ".impeccable/review/diff/hero/regions/r6-reason.png",
+      ".impeccable/review/diff/hero/regions/r6-care.png",
+      ".impeccable/review/diff/hero/regions/r6-vitals.png",
+      ".impeccable/review/diff/hero/regions/r6-actions.png",
+      ".impeccable/review/diff/hero/regions/r7-patient.png",
+      ".impeccable/review/diff/hero/regions/r7-status.png",
+      ".impeccable/review/diff/hero/regions/r7-timing.png",
+      ".impeccable/review/diff/hero/regions/r7-room.png",
+      ".impeccable/review/diff/hero/regions/r7-provider.png",
+      ".impeccable/review/diff/hero/regions/r7-reason.png",
+      ".impeccable/review/diff/hero/regions/r7-care.png",
+      ".impeccable/review/diff/hero/regions/r7-vitals.png",
+      ".impeccable/review/diff/hero/regions/r7-actions.png",
+      ".impeccable/review/diff/hero/regions/menu-control.png",
+      ".impeccable/review/diff/hero/regions/refresh-control.png",
+      ".impeccable/review/diff/hero/regions/filter-controls.png",
+      ".impeccable/review/diff/hero/regions/row-actions.png"
+    ]
+  }
+}

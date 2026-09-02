@@ -39,11 +39,7 @@ export function Patients({ id }: { id?: string }) {
       <>
         <a href="/clinic/patients">← Patients</a>
         <h1>{data.patient.display_name}</h1>
-        <p>Fictional reference: {data.patient.reference}</p>
-        <p className="clinic-lead care-boundary">
-          Synthetic registration details backed by the clinic API. Protected
-          note entry, prescribing and external actions remain unavailable.
-        </p>
+        <p>Reference: {data.patient.reference}</p>
         {clinic.capabilities.patients_write && (
           <Card title="Edit registration details">
             <PatientRegistrationForm patient={data.patient} />
@@ -52,10 +48,7 @@ export function Patients({ id }: { id?: string }) {
         <PatientDetails patient={data.patient} />
         <PatientSupport patientId={Number(id)} />
         <Card title="Legacy unsigned drafts">
-          <p>
-            Preserved synthetic entries from the earlier patient-note mapping.
-            They are not encounter notes and cannot be signed here.
-          </p>
+          <p>These drafts are not encounter notes and cannot be signed.</p>
           {data.notes?.map((n) => (
             <article className="care-legacy-note" key={n.id}>
               <p className="preserve-lines">{n.body}</p>
@@ -72,15 +65,12 @@ export function Patients({ id }: { id?: string }) {
     <>
       <p className="eyebrow">PATIENTS</p>
       <h1>Patient directory</h1>
-      <p className="clinic-lead">
-        Fictional records, separate from active visits.{" "}
-        <a className="text-link" href="/clinic">
-          Return to tracking board →
-        </a>
-      </p>
+      <a className="text-link" href="/clinic">
+        Return to tracking board →
+      </a>
       <Card title="Patient directory">
         {data.patients?.length === 0 ? (
-          <p>No fictional patients are registered at this location yet.</p>
+          <p>No patients are registered at this location yet.</p>
         ) : (
           <div className="clinic-table-wrap">
             <table className="care-table">
@@ -121,11 +111,6 @@ export function Patients({ id }: { id?: string }) {
       </Card>
       {clinic.capabilities.patients_write && (
         <Card title="Register a patient">
-          <p>
-            Add a fictional patient to this clinic directory. Use a local
-            reference that staff can recognize; do not enter real patient
-            information in this development workspace.
-          </p>
           <Form
             endpoint="/api/clinic/patients"
             submit="Register patient"
@@ -372,7 +357,7 @@ function PatientDetails({ patient }: { patient: Patient }) {
       <Card title="Lifestyle and social history">
         <p>
           {patient.social_histories?.[0]
-            ? "Current synthetic social history recorded."
+            ? "Current social history recorded."
             : "Not recorded."}
         </p>
       </Card>

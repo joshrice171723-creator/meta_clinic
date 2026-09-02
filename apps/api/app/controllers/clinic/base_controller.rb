@@ -82,6 +82,11 @@ module Clinic
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: permission, any_site: any_site)
     end
 
+    def require_capability_with_legacy(capability, legacy_capability, site: nil, any_site: false)
+      Clinic::Authorization.authorize_with_legacy!(actor: current_user, practice: current_practice,
+        action: capability, legacy_action: legacy_capability, site: site, any_site: any_site)
+    end
+
     def current_ability
       @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
@@ -101,6 +106,7 @@ module Clinic
     def sensitive_read_action
       case [ controller_path, action_name ]
       when [ "clinic/care/patients", "index" ], [ "clinic/care/patients", "show" ] then "patients.read"
+      when [ "clinic/care/patients", "lookup" ] then "patients.identity.read"
       when [ "clinic/care/patient_care_summaries", "show" ] then "patients.read"
       when [ "clinic/care/patient_chart_history", "show" ], [ "clinic/scheduling/tracking_board", "show" ] then "patients.read"
       when [ "clinic/care/encounter_notes", "index" ], [ "clinic/care/encounter_notes", "show" ] then "notes.read"

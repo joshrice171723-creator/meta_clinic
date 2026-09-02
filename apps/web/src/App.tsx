@@ -22,6 +22,8 @@ import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
+import { FrontDesk } from "./features/clinic/FrontDesk";
+import { Billing } from "./features/clinic/Billing";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import {
   ChartSelectionPage,
@@ -148,6 +150,7 @@ function ClinicHome({
       {(visited.has("tracking") || view === "tracking") && (
         <div
           ref={trackingPanel}
+          className="clinic-route-panel"
           hidden={view !== "tracking"}
           tabIndex={-1}
           aria-label="Tracking Board"
@@ -158,6 +161,7 @@ function ClinicHome({
       {(visited.has("schedule") || view === "schedule") && (
         <div
           ref={schedulePanel}
+          className="clinic-route-panel"
           hidden={view !== "schedule"}
           tabIndex={-1}
           aria-label="Schedule"
@@ -194,6 +198,10 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <Office />
   ) : path === "/clinic/staff" ? (
     <Staff />
+  ) : path === "/clinic/front-desk" ? (
+    <FrontDesk />
+  ) : path === "/clinic/billing" ? (
+    <Billing />
   ) : (
     <h1>Page not found.</h1>
   );
