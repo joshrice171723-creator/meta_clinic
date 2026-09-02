@@ -120,7 +120,9 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
 
       assert_equal 30, practice.patients.where("reference LIKE ?", "SYN-OMNI-%").count
       assert_equal 12, practice.encounter_notes.where(note_kind: "soap").count
-      assert_equal 84, practice.observations.where(value_kind: "numeric").count
+      assert_equal 105, practice.observations.where(value_kind: "numeric").count
+      assert_equal 6, practice.encounters.open.count
+      assert_equal 6, practice.encounters.open.joins(:room).distinct.count("clinic_rooms.code")
 
       get "/api/settings", headers: @headers
       assert_response :success

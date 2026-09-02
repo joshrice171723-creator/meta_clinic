@@ -37,6 +37,21 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal true, response.parsed_body.dig("capabilities", "patients_access")
   end
 
+  test "clinic context identifies only the current membership credentials" do
+    profile = @practice.clinician_profiles.create!(membership: @membership)
+    profile.credentials.create!(practice: @practice, credential_type: "SYNTHETIC-NP", jurisdiction: "Synthetic",
+      issuer_reference: "CURRENT", review_status: "unverified")
+    foreign_profile = @other.clinician_profiles.create!(membership: @other_user.clinic_membership)
+    foreign_profile.credentials.create!(practice: @other, credential_type: "FOREIGN", jurisdiction: "Synthetic",
+      issuer_reference: "FOREIGN", review_status: "unverified")
+
+    get "/api/clinic/context", headers: @headers
+
+    assert_response :success
+    assert_equal [ "SYNTHETIC-NP" ], response.parsed_body.fetch("credentials")
+    assert_not_includes response.body, "FOREIGN"
+  end
+
   test "login never selects creates or changes the assigned clinic" do
     submit "/api/session", {}, method: :delete
     get "/api/clinic", headers: @headers

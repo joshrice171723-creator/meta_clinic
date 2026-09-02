@@ -96,8 +96,10 @@ class BackendIntegrityTest < ActiveSupport::TestCase
 
   test "current note revision must be signed and note body is immutable" do
     encounter = @practice.encounters.create!(patient: @patient, started_at: Time.current, status: "open")
-    note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @user, encounter: encounter, encrypted_body: "synthetic-one")
-    Clinic::Care::ReviseEncounterNote.call(note: note, actor: @user, encrypted_body: "synthetic-two", expected_revision: 1)
+    note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @user, encounter: encounter,
+      encrypted_body: "synthetic-one", request_key: "integrity-note-create")
+    Clinic::Care::ReviseEncounterNote.call(note: note, actor: @user, encrypted_body: "synthetic-two", expected_revision: 1,
+      request_key: "integrity-note-revise")
     assert_raises(ArgumentError) do
       Clinic::Care::SignEncounterNote.call(note: note, actor: @user, revision_no: 1, content_digest: Digest::SHA256.hexdigest("synthetic-one"), attestation_version: "synthetic")
     end
@@ -117,7 +119,7 @@ class BackendIntegrityTest < ActiveSupport::TestCase
 
   test "sensitive schema fields are filtered without removing useful status diagnostics" do
     filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
-    values = %w[password authorization encrypted_body encrypted_address encrypted_content encrypted_recipient_snapshot encrypted_coverage_evidence text_value coded_value numeric_value description_snapshot].to_h { |field| [ field, "synthetic-private" ] }
+    values = %w[password authorization encrypted_body encrypted_address encrypted_content encrypted_recipient_snapshot encrypted_coverage_evidence encrypted_value text_value coded_value numeric_value unit_code missing_reason description_snapshot allergen_name reaction medication_name dose_text condition_name care_instruction description instructions notes].to_h { |field| [ field, "synthetic-private" ] }
     assert filter.filter(values).values.all? { |value| value == "[FILTERED]" }
     assert_equal "open", filter.filter({ "status" => "open" })["status"]
   end

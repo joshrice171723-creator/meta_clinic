@@ -12,6 +12,10 @@ module Clinic
       render_error("Your account does not have permission for this clinic action.", :forbidden)
     end
 
+    rescue_from Clinic::AuditRecorder::Unavailable do
+      render_audit_unavailable
+    end
+
     rescue_from ActiveRecord::InvalidForeignKey do
       render_error("The related records do not belong to the selected context.", :unprocessable_entity)
     end
@@ -33,10 +37,25 @@ module Clinic
         yield
         record_sensitive_read
       end
+    rescue Clinic::AuditRecorder::Unavailable
+      # The action has rendered, but the response must not release protected data
+      # when its required evidence cannot be persisted.
+      render_audit_unavailable
     end
 
     def render_error(message, status)
       render json: { error: message }, status: status
+    end
+
+    def render_audit_unavailable
+      payload = { error: "The clinic audit service is unavailable. Try again later.", code: "audit_unavailable" }
+      if performed?
+        self.status = :service_unavailable
+        self.content_type = "application/json"
+        self.response_body = [ payload.to_json ]
+      else
+        render json: payload, status: :service_unavailable
+      end
     end
 
     def require_prototype
@@ -58,9 +77,9 @@ module Clinic
       render_error("No active clinic assignment. Ask your developer to provision access.", :forbidden) unless clinic_membership
     end
 
-    def require_capability(capability)
+    def require_capability(capability, any_site: false)
       permission = Ability.normalize_permission(capability)
-      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: permission)
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: permission, any_site: any_site)
     end
 
     def current_ability
@@ -75,13 +94,15 @@ module Clinic
       action_code = sensitive_read_action
       return unless action_code && response.successful?
 
-      Clinic::AuditRecorder.record(practice: current_practice, actor: current_user,
+      Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
         action_code: action_code, outcome: :released)
     end
 
     def sensitive_read_action
       case [ controller_path, action_name ]
       when [ "clinic/care/patients", "index" ], [ "clinic/care/patients", "show" ] then "patients.read"
+      when [ "clinic/care/patient_care_summaries", "show" ] then "patients.read"
+      when [ "clinic/care/patient_chart_history", "show" ], [ "clinic/scheduling/tracking_board", "show" ] then "patients.read"
       when [ "clinic/care/encounter_notes", "index" ], [ "clinic/care/encounter_notes", "show" ] then "notes.read"
       when [ "clinic/care/observations", "index" ] then "observations.read"
       when [ "clinic/care/patient_addresses", "index" ] then "patient_addresses.read"
@@ -96,6 +117,7 @@ module Clinic
       when [ "clinic/inventory/items", "index" ] then "inventory.read"
       when [ "clinic/inventory/pharmacy", "index" ], [ "clinic/inventory/pharmacy", "show" ] then "inventory.read"
       when [ "clinic/role_versions", "index" ], [ "clinic/authorization/role_grants", "index" ] then "roles.read"
+      when [ "clinic/operation_receipts", "show" ] then "audit.receipts.read"
       end
     end
   end

@@ -20,6 +20,9 @@ module Clinic
     has_many :encounter_notes, class_name: "Clinic::EncounterNote", dependent: :restrict_with_error
     has_many :observations, class_name: "Clinic::Care::Observation", dependent: :restrict_with_error
     has_many :observation_sources, class_name: "Clinic::Care::ObservationSource", dependent: :restrict_with_error
+    has_many :patient_care_needs, class_name: "Clinic::Care::PatientCareNeed", dependent: :restrict_with_error
+    has_many :encounter_precautions, class_name: "Clinic::Care::EncounterPrecaution", dependent: :restrict_with_error
+    has_many :patient_history_reviews, class_name: "Clinic::Care::PatientHistoryReview", dependent: :restrict_with_error
     has_many :inventory_profiles, class_name: "Clinic::Inventory::Profile", dependent: :restrict_with_error
     has_many :inventory_suppliers, class_name: "Clinic::Inventory::Supplier", dependent: :restrict_with_error
     has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error

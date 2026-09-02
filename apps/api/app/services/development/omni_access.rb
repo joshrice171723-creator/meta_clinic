@@ -67,6 +67,7 @@ module Development
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
       BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI")
+      retire_legacy_workflow!(membership)
       membership
     end
 
@@ -136,7 +137,7 @@ module Development
         grant.events.create!(practice: membership.practice, grantor_membership: membership,
           grant_revision: grant.revision, event_kind: "development_view_granted")
         user.update!(admin: PROFILES.fetch(profile)[:admin])
-        Clinic::AuditRecorder.record(practice: membership.practice, actor: user,
+        Clinic::AuditRecorder.record!(practice: membership.practice, actor: user,
           action_code: "development.omni.swap", outcome: :committed,
           resource_version_ref: "omni-view:#{profile}:grant:#{grant.id}")
       end
@@ -169,13 +170,9 @@ module Development
 
     def self.seed_workflow!(membership)
       practice = membership.practice
-      return if practice.appointments.exists?
-
       user = membership.user
       site = practice.sites.find_or_create_by!(code: "MAIN")
-      room = site.rooms.find_or_create_by!(practice: practice, code: "ROOM-1")
       department = practice.departments.find_or_create_by!(code: "PRIMARY")
-      visit_type = practice.visit_types.find_or_create_by!(code: "SYNTHETIC-REVIEW")
       clinician = practice.clinician_profiles.find_or_create_by!(membership: membership)
       clinician.assignments.find_or_create_by!(practice: practice, site: site,
         department: department, effective_from: Time.utc(2026, 1, 1))
@@ -184,27 +181,34 @@ module Development
         item&.adjust!(delta: quantity, reason: "Synthetic Omni opening stock",
           actor: user, request_key: SecureRandom.uuid) unless item&.entries&.exists?
       end
-      practice.patients.order(:id).limit(2).each_with_index do |patient, index|
-        starts_at = Time.utc(2030, 1, 7, 15 + index)
-        appointment = Clinic::Scheduling::BookAppointment.call(practice: practice, actor: user,
-          patient: patient, site: site, room: room, booked_clinician: clinician,
-          visit_type: visit_type, starts_at: starts_at, ends_at: starts_at + 30.minutes)
-        Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: user,
-          to: "confirmed") if index.zero?
-        encounter = Clinic::Scheduling::CreateEncounter.call(practice: practice, actor: user,
-          patient: patient, appointment: appointment, site: site, room: room,
-          started_at: starts_at)
-        Clinic::Care::RecordObservation.call(practice: practice, actor: user,
-          patient: patient, attributes: {
-            encounter: encounter, code: "SYNTHETIC-TEXT", code_system: "synthetic",
-            code_version: "1", value_kind: "text", text_value: "Wholly invented workflow value",
-            observed_at: starts_at, recorded_at: starts_at
-          })
-        Clinic::Care::CreateEncounterNote.call(practice: practice, actor: user,
-          encounter: encounter, encrypted_body: "SYNTHETIC ONLY: development workflow draft.")
-      end
     end
     private_class_method :seed_workflow!
+
+    def self.retire_legacy_workflow!(membership)
+      practice = membership.practice
+      legacy_visit_type = practice.visit_types.find_by(code: "SYNTHETIC-REVIEW")
+      return unless legacy_visit_type
+
+      practice.encounters.joins(:appointment)
+        .where(clinic_appointments: { visit_type_id: legacy_visit_type.id }).find_each do |encounter|
+        appointment = encounter.appointment
+        if encounter.status == "open"
+          Clinic::Scheduling::CloseEncounter.call(
+            encounter: encounter,
+            actor: membership.user,
+            ended_at: encounter.started_at + 30.minutes,
+            request_key: "synthetic-legacy-close-#{encounter.id}"
+          )
+        end
+        if appointment.status == "scheduled"
+          Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: membership.user, to: "confirmed")
+        end
+        if appointment.status == "confirmed"
+          Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: membership.user, to: "completed")
+        end
+      end
+    end
+    private_class_method :retire_legacy_workflow!
 
     def self.ensure_local!
       return if Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")

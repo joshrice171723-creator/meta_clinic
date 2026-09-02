@@ -1,7 +1,7 @@
 module Clinic
   module Care
     class NoteTemplatesController < Clinic::ApiController
-      before_action -> { require_capability("notes.read") }
+      before_action -> { require_capability("notes.read", any_site: true) }
 
       def index
         render json: {

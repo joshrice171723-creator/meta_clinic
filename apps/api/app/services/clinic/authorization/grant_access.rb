@@ -27,7 +27,7 @@ module Clinic
             grant_revision: grant.revision,
             event_kind: "granted"
           )
-          AuditRecorder.record(practice: practice, actor: grantor, action_code: "roles.grant", outcome: :committed,
+          AuditRecorder.record!(practice: practice, actor: grantor, action_code: "roles.grant", outcome: :committed,
             resource_version_ref: "role-grant:#{grant.id}:#{grant.revision}")
           grant
         end

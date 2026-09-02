@@ -18,7 +18,7 @@ module Clinic
               grant_revision: grant.revision,
               event_kind: "revoked"
             )
-            AuditRecorder.record(practice: grant.practice, actor: grantor, action_code: "roles.revoke", outcome: :committed,
+            AuditRecorder.record!(practice: grant.practice, actor: grantor, action_code: "roles.revoke", outcome: :committed,
               resource_version_ref: "role-grant:#{grant.id}:#{grant.revision}")
           end
         end

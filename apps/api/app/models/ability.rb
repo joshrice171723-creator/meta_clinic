@@ -1,6 +1,18 @@
 class Ability
   include CanCan::Ability
 
+  # Catalog-only action names for the future clinical workflow. They are not
+  # rules, grants, or browser capabilities; until a reviewed subject contract
+  # exists, Authorization deliberately denies them.
+  FUTURE_CLINICAL_ACTIONS = %w[
+    intake.read intake.write
+    triage.read triage.write
+    handoffs.read handoffs.request handoffs.accept handoffs.reject handoffs.correction_request
+    exam.read exam.write
+    diagnosis.read diagnosis.write
+    discharge.read discharge.write
+  ].freeze
+
   # Permission catalogs are global definitions. They become effective only
   # through an active grant on the user's practice membership.
   PERMISSION_RULES = {
@@ -21,7 +33,7 @@ class Ability
     "notes.read" => { action: :read, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], scope: :site_or_practice },
     "notes.write" => { action: :create, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], actions: %i[create update], scope: :site_or_practice },
     "notes.sign" => { action: :sign, subjects: [ Clinic::EncounterNoteSignature, Clinic::EncounterNote ], scope: :site_or_practice },
-    "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :practice },
+    "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :site_or_practice },
     "messages.write" => { action: :create, subjects: [ Clinic::MessageIntent, Clinic::MessageOutbox ], actions: %i[create update], scope: :practice },
     "documents.read" => { action: :read, subjects: [ Clinic::Document ], scope: :practice },
     "billing.write" => { action: :create, subjects: [ Clinic::Invoice, Clinic::PaymentAllocation ], actions: %i[create update], scope: :practice },
@@ -49,6 +61,10 @@ class Ability
 
   def self.rule_for(permission)
     PERMISSION_RULES[normalize_permission(permission)]
+  end
+
+  def self.future_clinical_action?(permission)
+    FUTURE_CLINICAL_ACTIONS.include?(normalize_permission(permission))
   end
 
   def self.action_for(permission)
@@ -96,7 +112,7 @@ class Ability
     end
   end
 
-  def allowed_permission?(permission, site: nil)
+  def allowed_permission?(permission, site: nil, any_site: false)
     normalized = self.class.normalize_permission(permission)
     rule = self.class.rule_for(normalized)
     return true if omni_override? && membership && rule
@@ -106,7 +122,8 @@ class Ability
 
     if rule[:scope] == :site_or_practice
       site_id = site.respond_to?(:id) ? site.id : site
-      return false unless scope[:practice] || (site_id.present? && scope[:site_ids].include?(site_id))
+      site_allowed = scope[:practice] || (any_site ? scope[:site_ids].any? : site_id.present? && scope[:site_ids].include?(site_id))
+      return false unless site_allowed
     end
 
     can?(self.class.action_for(normalized), self.class.subjects_for(normalized).first)
@@ -162,6 +179,8 @@ class Ability
       conditions[:note] = { encounter: { site_id: site_ids } }
     elsif subject == Clinic::EncounterNoteSignature
       conditions[:note] = { encounter: { site_id: site_ids } }
+    elsif subject == Clinic::Care::Observation
+      conditions[:encounter] = { site_id: site_ids }
     else
       return nil
     end

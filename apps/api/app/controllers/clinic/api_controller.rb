@@ -1,5 +1,20 @@
 module Clinic
   class ApiController < BaseController
+    rescue_from Clinic::Idempotency::Conflict do
+      render json: { error: "That request key was already used for different operation data.", code: "idempotency_conflict" }, status: :conflict
+    end
+
+    rescue_from Clinic::Idempotency::InvalidRequest do |error|
+      render json: { error: error.message, code: "invalid_request" }, status: :bad_request
+    end
+
+    rescue_from Clinic::Idempotency::OutcomeUnconfirmed do
+      render json: {
+        error: "The operation outcome is unconfirmed. Look up the protected receipt before retrying.",
+        code: "outcome_unconfirmed"
+      }, status: :conflict
+    end
+
     rescue_from ActiveRecord::StaleObjectError do
       render json: { error: "This record changed. Reload before trying again.", code: "stale_record" }, status: :conflict
     end

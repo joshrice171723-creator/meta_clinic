@@ -14,8 +14,8 @@ module Clinic
       end
 
       def show
-        encounter = current_practice.encounters.find(requested_id!(params[:id], :id))
-        verify_patient_scope!(encounter) if params[:patient_id].present?
+        patient_id = requested_id!(params[:patient_id], :patient_id)
+        encounter = current_practice.encounters.where(patient_id: patient_id).find(requested_id!(params[:id], :id))
         render json: { encounter: EncounterSerializer.call(encounter, detail: true) }
       end
 
@@ -39,12 +39,14 @@ module Clinic
       end
 
       def close
-        encounter = current_practice.encounters.find(requested_id!(params[:id], :id))
-        input = parameter_hash!(:close, %i[ended_at])
+        input = parameter_hash!(:close, %i[patient_id ended_at request_key])
+        patient_id = requested_id!(input[:patient_id], :patient_id)
+        encounter = current_practice.encounters.where(patient_id: patient_id).find(requested_id!(params[:id], :id))
         updated = Clinic::Scheduling::CloseEncounter.call(
           encounter: encounter,
           actor: current_user,
-          ended_at: input[:ended_at].present? ? time_param!(input[:ended_at], field: :ended_at) : Time.current
+          ended_at: input[:ended_at].present? ? time_param!(input[:ended_at], field: :ended_at) : nil,
+          request_key: input[:request_key]
         )
         render json: { encounter: EncounterSerializer.call(updated, detail: true) }
       end
@@ -53,11 +55,6 @@ module Clinic
 
       def find_optional(scope, value, field)
         value.present? ? scope.find(requested_id!(value, field)) : nil
-      end
-
-      def verify_patient_scope!(encounter)
-        expected = requested_id!(params[:patient_id], :patient_id)
-        raise ActiveRecord::RecordNotFound unless encounter.patient_id == expected
       end
     end
   end

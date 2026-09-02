@@ -112,18 +112,29 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
 
     encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
     assert_nil encounter.appointment_id
-    closed = Clinic::Scheduling::CloseEncounter.call(encounter: encounter, actor: @actor, ended_at: encounter.started_at + 20.minutes)
+    assert_raises(ArgumentError) do
+      Clinic::Scheduling::CloseEncounter.call(encounter: encounter, actor: @actor,
+        ended_at: encounter.started_at + 20.minutes)
+    end
+    assert_equal "open", encounter.reload.status
+    closed = Clinic::Scheduling::CloseEncounter.call(encounter: encounter, actor: @actor,
+      ended_at: encounter.started_at + 20.minutes, request_key: "domain-encounter-close")
     assert_equal "completed", closed.status
-    assert_raises(ArgumentError) { Clinic::Scheduling::CloseEncounter.call(encounter: closed, actor: @actor) }
+    assert_raises(ArgumentError) do
+      Clinic::Scheduling::CloseEncounter.call(encounter: closed, actor: @actor, request_key: "domain-encounter-close-again")
+    end
   end
 
   test "note workflow serializes revisions, detects stale writers, and signs an exact revision" do
     encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
-    note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor, encounter: encounter, encrypted_body: "synthetic-v1")
-    revision = Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "synthetic-v2", expected_revision: 1)
+    note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor, encounter: encounter,
+      encrypted_body: "synthetic-v1", request_key: "domain-note-create-1")
+    revision = Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "synthetic-v2",
+      expected_revision: 1, request_key: "domain-note-revise-1")
     assert_equal 2, revision.revision_no
     assert_raises(ActiveRecord::StaleObjectError) do
-      Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "stale", expected_revision: 1)
+      Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "stale", expected_revision: 1,
+        request_key: "domain-note-revise-stale")
     end
 
     signature = Clinic::Care::SignEncounterNote.call(
@@ -135,7 +146,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     )
     assert_equal revision.id, signature.revision_id
     assert_raises(ArgumentError) do
-      Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "overwrite", expected_revision: 2)
+      Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "overwrite", expected_revision: 2,
+        request_key: "domain-note-revise-signed")
     end
     assert_raises(ArgumentError) do
       Clinic::Care::SignEncounterNote.call(note: note, actor: @actor, revision_no: 2, content_digest: "wrong", attestation_version: "v1")
@@ -150,7 +162,7 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       sections: { subjective: "Synthetic concern", objective: "Synthetic finding", assessment: "", plan: "" }
     )
     note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor,
-      encounter: encounter, note_kind: "soap", encrypted_body: first_body)
+      encounter: encounter, note_kind: "soap", encrypted_body: first_body, request_key: "domain-soap-create")
     raw = ApplicationRecord.connection.select_value(<<~SQL.squish)
       SELECT encrypted_body FROM clinic_encounter_note_revisions WHERE id = #{note.revisions.sole.id}
     SQL
@@ -164,13 +176,13 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       sections: { subjective: "Synthetic concern revised", objective: "Synthetic finding", assessment: "", plan: "" }
     )
     revision = Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor,
-      encrypted_body: replacement, expected_revision: 1)
+      encrypted_body: replacement, expected_revision: 1, request_key: "domain-soap-revise")
     assert_equal "Synthetic concern revised",
       Clinic::Care::SoapNotePayload.load!(revision.encrypted_body).dig(:sections, :subjective)
 
     assert_raises(ActiveRecord::RecordInvalid) do
       Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor,
-        encounter: encounter, note_kind: "soap", encrypted_body: first_body)
+        encounter: encounter, note_kind: "soap", encrypted_body: first_body, request_key: "domain-soap-duplicate")
     end
   end
 
@@ -188,7 +200,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
         unit_code: "cm",
         observed_at: Time.current,
         recorded_at: Time.current
-      }
+      },
+      request_key: "domain-observation-create"
     )
     assert_equal "numeric", observation.value_kind
     first = Clinic::Care::AddPatientAddress.call(practice: @practice, actor: @actor, patient: @patient, encrypted_address: "synthetic-address-1", make_primary: true)
