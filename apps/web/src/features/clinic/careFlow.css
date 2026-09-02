@@ -15,7 +15,7 @@
 .clinic-theme .care-boundary {
   max-width: 900px;
   padding-left: 12px;
-  border-left: 3px solid var(--clinic-accent);
+  border-left: 1px solid var(--clinic-accent);
 }
 .clinic-theme .care-grid {
   display: grid;
@@ -147,6 +147,26 @@
 .clinic-theme .soap-template-panel {
   display: grid;
   gap: 16px;
+}
+.clinic-theme .care-encounter-workspace {
+  width: min(100%, 1040px);
+  margin-top: 18px;
+}
+.clinic-theme .provider-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.clinic-theme .provider-vitals-grid > div {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 6px;
+  background: var(--clinic-soft);
+}
+.clinic-theme .provider-encounter-workflow h2[tabindex="-1"]:focus {
+  outline: none;
 }
 .clinic-theme .soap-template-panel {
   padding: 16px;

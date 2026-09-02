@@ -95,6 +95,11 @@
     "/api/clinic/note_templates(.:format)"
   ],
   [
+    "api_clinic_operation_receipt",
+    "GET",
+    "/api/clinic/operation_receipts/:request_key(.:format)"
+  ],
+  [
     "api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id(.:format)"
@@ -103,6 +108,11 @@
     "api_clinic_patient_address_versions",
     "GET",
     "/api/clinic/patients/:patient_id/address_versions(.:format)"
+  ],
+  [
+    "api_clinic_patient_care_summary",
+    "GET",
+    "/api/clinic/patients/:patient_id/care_summary(.:format)"
   ],
   [
     "api_clinic_patient_documents",
@@ -183,6 +193,11 @@
     "api_clinic_staff_index",
     "GET",
     "/api/clinic/staff(.:format)"
+  ],
+  [
+    "api_clinic_tracking_board",
+    "GET",
+    "/api/clinic/tracking_board(.:format)"
   ],
   [
     "api_contact_messages",
@@ -283,6 +298,11 @@
     "post_api_clinic_invoice",
     "POST",
     "/api/clinic/invoices/:id/post(.:format)"
+  ],
+  [
+    "previous_signed_soap_api_clinic_patient",
+    "GET",
+    "/api/clinic/patients/:id/previous_signed_soap(.:format)"
   ],
   [
     "rails_health_check",

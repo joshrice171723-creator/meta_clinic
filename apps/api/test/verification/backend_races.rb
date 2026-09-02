@@ -61,11 +61,13 @@ raise "Overlapping reservations raced" unless results.sort == [ :accepted, :deni
 puts "PASS: simultaneous active room reservations exclude overlap"
 
 encounter = practice.encounters.first
-note = Clinic::Care::CreateEncounterNote.call(practice: practice, actor: actor, encounter: encounter, encrypted_body: "Synthetic start")
+note = Clinic::Care::CreateEncounterNote.call(practice: practice, actor: actor, encounter: encounter,
+  encrypted_body: "Synthetic start", request_key: "backend-race-note-create")
 results = race do |index|
   begin
     Clinic::Care::ReviseEncounterNote.call(note: Clinic::EncounterNote.find(note.id), actor: actor,
-      encrypted_body: "Synthetic revision #{index}", expected_revision: 1)
+    encrypted_body: "Synthetic revision #{index}", expected_revision: 1,
+    request_key: "backend-race-note-revise-#{index}")
     :accepted
   rescue ActiveRecord::StaleObjectError
     :stale

@@ -10,11 +10,12 @@ import type {
   NoteTemplate,
   Observation,
   Pagination as PageInfo,
+  PatientCareSummary,
   Patient,
   SoapNoteSections,
   VisitType,
 } from "../../api/contracts";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../../api/client";
 import {
   Alert,
@@ -45,12 +46,160 @@ import {
 } from "@mui/material";
 import { Card, ErrorMessage, LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { CareIndicators, type CareSummaryLoadState } from "./CareIndicators";
 
 function currentPage() {
   if (typeof window === "undefined") return 1;
   const page = Number(new URLSearchParams(window.location.search).get("page"));
   return Number.isSafeInteger(page) && page > 0 ? page : 1;
 }
+
+export function encounterDetailPath(
+  patientId: string | number,
+  encounterId: string | number,
+) {
+  return `/api/clinic/encounters/${encodeURIComponent(String(encounterId))}?patient_id=${encodeURIComponent(String(patientId))}`;
+}
+
+export function operationReceiptPath(requestKey: string) {
+  return `/api/clinic/operation_receipts/${encodeURIComponent(requestKey)}`;
+}
+
+export function closeRequestKey(
+  current: string | null,
+  create: () => string = () => crypto.randomUUID(),
+) {
+  return current ?? create();
+}
+
+export const noteSaveRequestKey = closeRequestKey;
+
+export function noteSaveRequestBody(
+  operationCode: "notes.create" | "notes.revise",
+  fields: Record<string, unknown>,
+  requestKey: string,
+  expectedRevision?: number,
+) {
+  return operationCode === "notes.create"
+    ? {
+        encounter_note: {
+          note_kind: "soap",
+          ...fields,
+          request_key: requestKey,
+        },
+      }
+    : {
+        revision: {
+          ...fields,
+          expected_revision: expectedRevision,
+          request_key: requestKey,
+        },
+      };
+}
+
+export function closeRequestBody(patientId: number, requestKey: string) {
+  return { close: { patient_id: patientId, request_key: requestKey } };
+}
+
+export function closeFailureState(
+  status?: number,
+  message = "",
+  code?: string,
+) {
+  return status === undefined ||
+    status >= 500 ||
+    code === "outcome_unconfirmed" ||
+    (status === 409 && /outcome is unconfirmed/i.test(message))
+    ? "outcome_unconfirmed"
+    : "rejected";
+}
+
+export function receiptResolution(
+  status: number,
+  outcome?: string,
+): "committed" | "outcome_unconfirmed" | "not_found" {
+  if (status === 404) return "not_found";
+  return outcome === "committed" ? "committed" : "outcome_unconfirmed";
+}
+
+export function encounterCloseMatches(
+  value: EncounterDetail,
+  patientId: number,
+  encounterId: number,
+) {
+  return (
+    value.id === encounterId &&
+    value.patient_id === patientId &&
+    value.status === "completed"
+  );
+}
+
+export function noteSaveMatches(
+  value: EncounterNote,
+  patientId: number,
+  encounterId: number,
+  noteId: number,
+  expectedRevision: number,
+) {
+  return (
+    value.id === noteId &&
+    value.patient_id === patientId &&
+    value.encounter_id === encounterId &&
+    value.note_kind === "soap" &&
+    value.current_revision?.revision_no === expectedRevision
+  );
+}
+
+export function encounterNoteRefreshMatches(
+  value: EncounterDetail,
+  patientId: number,
+  encounterId: number,
+  noteId: number,
+) {
+  return (
+    value.id === encounterId &&
+    value.patient_id === patientId &&
+    value.note_ids.includes(noteId)
+  );
+}
+
+export function encounterHasSignedSoapNote(encounter: EncounterDetail) {
+  return encounter.notes.some(
+    (note) => note.note_kind === "soap" && note.signed,
+  );
+}
+
+export function noteReceiptMatches(
+  receipt: OperationReceipt,
+  operationCode: "notes.create" | "notes.revise",
+  resourceId: number,
+) {
+  return (
+    receipt.operation_code === operationCode &&
+    receipt.resource_id === resourceId
+  );
+}
+
+export function noteReconciliationMatches(
+  value: EncounterNote,
+  patientId: number,
+  encounterId: number,
+  noteId: number,
+  expectedRevision: number,
+) {
+  return (
+    noteSaveMatches(value, patientId, encounterId, noteId, expectedRevision) &&
+    !value.signed &&
+    !value.current_revision?.signed &&
+    Boolean(value.current_revision?.body)
+  );
+}
+
+type OperationReceipt = {
+  operation_code: string;
+  outcome: "committed" | "outcome_unconfirmed";
+  resource_id: number | null;
+};
 
 export function clinicDateTime(value: string | null, timezone: string) {
   if (!value) return "Not recorded";
@@ -746,6 +895,15 @@ function observationValue(observation: Observation) {
   }
 }
 
+function observationLabel(code: string) {
+  return code
+    .replace(/^vital[-_]/i, "")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 const EMPTY_SOAP_SECTIONS: SoapNoteSections = {
   subjective: "",
   objective: "",
@@ -759,24 +917,69 @@ const SOAP_SECTION_LABELS: [keyof SoapNoteSections, string][] = [
   ["plan", "Plan"],
 ];
 
+export function voidChartValidation(reason: string, acknowledged: boolean) {
+  if (!reason.trim() || !acknowledged)
+    return "Enter a reason and acknowledge the displayed patient and visit before voiding this chart.";
+  return "";
+}
+
 export function hasSoapContent(sections: SoapNoteSections) {
   return Object.values(sections).some((value) => value.trim().length > 0);
+}
+
+type NoteSaveState =
+  | "idle"
+  | "saving"
+  | "reconciling"
+  | "outcome_unconfirmed"
+  | "not_found"
+  | "rejected";
+
+export function noteSaveAllowsMutation(state: NoteSaveState) {
+  return state === "idle";
+}
+
+export function noteSaveFailureState(status?: number, message = "") {
+  return status === undefined ||
+    status >= 500 ||
+    (status === 409 && /outcome is unconfirmed/i.test(message))
+    ? "outcome_unconfirmed"
+    : "rejected";
+}
+
+type NoteSaveAttempt = {
+  requestKey: string;
+  operationCode: "notes.create" | "notes.revise";
+  noteId: number | null;
+  expectedRevision: number;
+};
+
+class NoteReconciliationError extends Error {}
+
+function isUnknownNoteSaveError(caught: unknown) {
+  return (
+    caught instanceof NoteReconciliationError ||
+    !(caught instanceof ApiError) ||
+    noteSaveFailureState(caught.status, caught.message) ===
+      "outcome_unconfirmed"
+  );
 }
 
 export function templateWouldOverwrite(
   sections: SoapNoteSections,
   template: NoteTemplate,
 ) {
-  return (
-    hasSoapContent(sections) &&
-    SOAP_SECTION_LABELS.some(
-      ([key]) => sections[key] !== template.sections[key],
-    )
+  return SOAP_SECTION_LABELS.some(
+    ([key]) =>
+      Boolean(sections[key].trim()) &&
+      Boolean(template.sections[key].trim()) &&
+      sections[key] !== template.sections[key],
   );
 }
 
 export function SoapNoteForm({
   encounterId,
+  patientId,
   note,
   templates,
   canWrite,
@@ -784,6 +987,7 @@ export function SoapNoteForm({
   onRefresh,
 }: {
   encounterId: number;
+  patientId?: number;
   note?: EncounterNote;
   templates: NoteTemplate[];
   canWrite: boolean;
@@ -807,13 +1011,16 @@ export function SoapNoteForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [conflict, setConflict] = useState(false);
+  const [saveState, setSaveState] = useState<NoteSaveState>("idle");
+  const [requestKey, setRequestKey] = useState<string | null>(null);
+  const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const dirty = SOAP_SECTION_LABELS.some(
     ([key]) => sections[key] !== initialSections[key],
   );
   const signed = note?.signed || note?.current_revision?.signed || false;
 
   useEffect(() => {
+    if (saveAttemptRef.current) return;
     setSections(initialSections);
     if (savedBody) {
       setSelectedTemplate(savedBody.template_id);
@@ -822,7 +1029,6 @@ export function SoapNoteForm({
         version: savedBody.template_version,
       });
     }
-    setConflict(false);
   }, [
     savedBody?.template_id,
     savedBody?.template_version,
@@ -848,68 +1054,285 @@ export function SoapNoteForm({
       )
     )
       return;
-    setSections({ ...template.sections });
+    setSections(
+      (current) =>
+        Object.fromEntries(
+          SOAP_SECTION_LABELS.map(([key]) => [
+            key,
+            template.sections[key].trim()
+              ? template.sections[key]
+              : current[key],
+          ]),
+        ) as SoapNoteSections,
+    );
     setAppliedTemplate({ id: template.id, version: template.version });
     setNotice("");
     setError("");
   };
 
   const save = async () => {
-    if (!appliedTemplate || busy || signed || !canWrite || !dirty) return;
+    if (
+      !appliedTemplate ||
+      busy ||
+      !noteSaveAllowsMutation(saveState) ||
+      signed ||
+      !canWrite ||
+      !dirty
+    )
+      return;
+    const operationCode = note?.current_revision
+      ? "notes.revise"
+      : "notes.create";
+    const attempt: NoteSaveAttempt = {
+      requestKey: noteSaveRequestKey(
+        saveAttemptRef.current?.requestKey ?? null,
+      ),
+      operationCode,
+      noteId: note?.id ?? null,
+      expectedRevision: note?.current_revision
+        ? note.current_revision.revision_no + 1
+        : 1,
+    };
+    saveAttemptRef.current = attempt;
+    setRequestKey(attempt.requestKey);
     setBusy(true);
     setError("");
     setNotice("");
-    setConflict(false);
+    setSaveState("saving");
     const fields = {
       template_id: appliedTemplate.id,
       template_version: appliedTemplate.version,
       ...sections,
     };
     try {
-      if (note?.current_revision) {
-        await api<{ note: EncounterNote }>(
+      if (attempt.operationCode === "notes.revise" && note?.current_revision) {
+        await api<{ revision: { revision_no: number } }>(
           `/api/clinic/notes/${note.id}/revisions`,
           {
             method: "POST",
-            body: {
-              revision: {
-                ...fields,
-                expected_revision: note.current_revision.revision_no,
-              },
-            },
+            body: noteSaveRequestBody(
+              attempt.operationCode,
+              fields,
+              attempt.requestKey,
+              note.current_revision.revision_no,
+            ),
           },
         );
-        setNotice("Draft saved. Reloaded the acknowledged revision.");
-        onRefresh?.();
       } else {
         const result = await api<{ note: EncounterNote }>(
           `/api/clinic/encounters/${encounterId}/notes`,
           {
             method: "POST",
-            body: { encounter_note: { note_kind: "soap", ...fields } },
+            body: noteSaveRequestBody(
+              attempt.operationCode,
+              fields,
+              attempt.requestKey,
+            ),
           },
         );
-        setNotice("Draft created.");
-        onCreated?.(result.note);
+        attempt.noteId = result.note.id;
       }
+      const reconciled = await reconcileNoteSave(attempt);
+      completeNoteSave(attempt, reconciled);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         window.location.replace("/login");
         return;
       }
-      if (caught instanceof ApiError && caught.status === 409) {
-        setConflict(true);
+      if (isUnknownNoteSaveError(caught)) {
+        setSaveState("outcome_unconfirmed");
         setError(
-          "The saved note changed or creation could not be confirmed. Reload before trying again.",
+          "Save outcome not confirmed. No automatic retry was made; check the retained save status explicitly.",
         );
-      } else if (caught instanceof ApiError) setError(caught.message);
-      else
+      } else {
+        setSaveState("rejected");
         setError(
-          "Save outcome not confirmed. Reload before trying again; this draft was not automatically replayed.",
+          caught instanceof Error ? caught.message : "The draft was rejected.",
         );
+      }
     } finally {
       setBusy(false);
     }
+  };
+
+  const reconcileNoteSave = async (
+    attempt: NoteSaveAttempt,
+  ): Promise<EncounterNote> => {
+    setSaveState("reconciling");
+    const exactPatientId = patientId ?? note?.patient_id;
+    if (exactPatientId === undefined) {
+      throw new NoteReconciliationError(
+        "The saved draft cannot be reconciled without the selected patient.",
+      );
+    }
+    try {
+      let exactEncounter: EncounterDetail | undefined;
+      let exactNoteId = attempt.noteId;
+      if (exactNoteId === null) {
+        const encounterResult = await api<{ encounter: EncounterDetail }>(
+          encounterDetailPath(exactPatientId, encounterId),
+        );
+        exactEncounter = encounterResult.encounter;
+        if (
+          exactEncounter.id !== encounterId ||
+          exactEncounter.patient_id !== exactPatientId
+        )
+          throw new NoteReconciliationError(
+            "The refreshed encounter did not match the selected patient and encounter.",
+          );
+        const candidates = exactEncounter.notes.filter(
+          (candidate) =>
+            candidate.note_kind === "soap" &&
+            candidate.latest_revision === attempt.expectedRevision,
+        );
+        if (candidates.length !== 1)
+          throw new NoteReconciliationError(
+            "The committed draft could not be matched to exactly one SOAP note.",
+          );
+        exactNoteId = candidates[0].id;
+      }
+      const noteResult = await api<{ note: EncounterNote }>(
+        `/api/clinic/notes/${exactNoteId}`,
+      );
+      if (
+        !noteReconciliationMatches(
+          noteResult.note,
+          exactPatientId,
+          encounterId,
+          exactNoteId,
+          attempt.expectedRevision,
+        )
+      )
+        throw new NoteReconciliationError(
+          "The refreshed note did not match the selected patient, encounter, unsigned SOAP note, or expected revision.",
+        );
+      if (!exactEncounter) {
+        const encounterResult = await api<{ encounter: EncounterDetail }>(
+          encounterDetailPath(exactPatientId, encounterId),
+        );
+        exactEncounter = encounterResult.encounter;
+      }
+      if (
+        !encounterNoteRefreshMatches(
+          exactEncounter,
+          exactPatientId,
+          encounterId,
+          exactNoteId,
+        )
+      )
+        throw new NoteReconciliationError(
+          "The refreshed encounter did not contain the expected SOAP note.",
+        );
+      attempt.noteId = exactNoteId;
+      return noteResult.note;
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) throw caught;
+      if (caught instanceof NoteReconciliationError) throw caught;
+      throw new NoteReconciliationError(
+        "The committed draft could not be refreshed and verified. The outcome remains unconfirmed.",
+      );
+    }
+  };
+
+  const completeNoteSave = (
+    attempt: NoteSaveAttempt,
+    reconciled: EncounterNote,
+  ) => {
+    const body = reconciled.current_revision?.body;
+    if (body) {
+      setSections(body.sections);
+      setSelectedTemplate(body.template_id);
+      setAppliedTemplate({
+        id: body.template_id,
+        version: body.template_version,
+      });
+    }
+    setSaveState("idle");
+    setNotice(
+      `Unsigned draft ${attempt.operationCode === "notes.create" ? "created" : `revision ${attempt.expectedRevision} saved`} after note and encounter verification.`,
+    );
+    saveAttemptRef.current = null;
+    setRequestKey(null);
+    if (attempt.operationCode === "notes.create") onCreated?.(reconciled);
+    else onRefresh?.();
+  };
+
+  const checkSaveStatus = async () => {
+    const attempt = saveAttemptRef.current;
+    if (busy || !attempt) return;
+    setBusy(true);
+    setError("");
+    setSaveState("reconciling");
+    try {
+      const expectedResourceId =
+        attempt.operationCode === "notes.create" ? encounterId : attempt.noteId;
+      if (expectedResourceId === null)
+        throw new NoteReconciliationError(
+          "The retained save attempt has no note identity to reconcile.",
+        );
+      const result = await api<{ receipt: OperationReceipt }>(
+        operationReceiptPath(attempt.requestKey),
+      );
+      if (
+        !noteReceiptMatches(
+          result.receipt,
+          attempt.operationCode,
+          expectedResourceId,
+        )
+      )
+        throw new NoteReconciliationError(
+          "The protected receipt did not match this note save attempt.",
+        );
+      if (result.receipt.outcome !== "committed") {
+        setSaveState("outcome_unconfirmed");
+        setError(
+          "The protected receipt says the save outcome is unconfirmed. The draft remains blocked; no automatic retry was made.",
+        );
+        return;
+      }
+      const reconciled = await reconcileNoteSave(attempt);
+      completeNoteSave(attempt, reconciled);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        window.location.replace("/login");
+        return;
+      }
+      if (caught instanceof ApiError && caught.status === 404) {
+        setSaveState("not_found");
+        setError(
+          "No protected save receipt was found. The outcome remains unconfirmed; choose a deliberate reset before retrying.",
+        );
+      } else if (isUnknownNoteSaveError(caught)) {
+        setSaveState("outcome_unconfirmed");
+        setError(
+          "The save outcome remains unconfirmed. No automatic retry was made; check the retained save status again.",
+        );
+      } else {
+        setSaveState("rejected");
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "The save status request was rejected.",
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetSaveAttempt = () => {
+    if (
+      busy ||
+      !saveAttemptRef.current ||
+      !window.confirm(
+        "Forget this local save request key without sending another request? Confirm the note status independently before retrying.",
+      )
+    )
+      return;
+    saveAttemptRef.current = null;
+    setRequestKey(null);
+    setSaveState("idle");
+    setError("");
   };
 
   const template = templates.find(
@@ -926,6 +1349,7 @@ export function SoapNoteForm({
               labelId="soap-template-label"
               label="Template"
               value={selectedTemplate}
+              disabled={busy || !noteSaveAllowsMutation(saveState)}
               onChange={(event) => setSelectedTemplate(event.target.value)}
             >
               {templates.map((option) => (
@@ -958,7 +1382,7 @@ export function SoapNoteForm({
           <Button
             variant="outlined"
             onClick={applyTemplate}
-            disabled={!template}
+            disabled={!template || !noteSaveAllowsMutation(saveState)}
           >
             Apply starter text
           </Button>
@@ -987,9 +1411,11 @@ export function SoapNoteForm({
             multiline
             minRows={key === "objective" ? 10 : 4}
             slotProps={{ htmlInput: { maxLength: 50_000 } }}
-            disabled={busy || signed || !canWrite}
+            disabled={
+              busy || !noteSaveAllowsMutation(saveState) || signed || !canWrite
+            }
             helperText={
-              key === "objective" && appliedTemplate
+              key === "objective" && appliedTemplate && !signed
                 ? "Template text is editable and remains unverified until the author reviews it."
                 : undefined
             }
@@ -1002,42 +1428,64 @@ export function SoapNoteForm({
         </Alert>
       )}
       {error && <ErrorMessage message={error} />}
-      {notice && <p role="status">{notice}</p>}
+      <Box role="status" aria-live="polite" aria-atomic="true">
+        {saveState === "saving"
+          ? "Saving unsigned draft…"
+          : saveState === "reconciling"
+            ? "Verifying the protected receipt, note, and encounter…"
+            : notice}
+      </Box>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button
-          variant="contained"
-          onClick={save}
-          disabled={
-            busy ||
-            signed ||
-            !canWrite ||
-            !dirty ||
-            !appliedTemplate ||
-            !hasSoapContent(sections)
-          }
-        >
-          {busy ? "Saving…" : note ? "Save new revision" : "Save draft"}
-        </Button>
-        {conflict && (
-          <Button variant="outlined" onClick={() => window.location.reload()}>
-            Reload saved note
+        {!signed && (
+          <Button
+            variant="contained"
+            onClick={() => void save()}
+            disabled={
+              busy ||
+              !canWrite ||
+              !dirty ||
+              !noteSaveAllowsMutation(saveState) ||
+              !appliedTemplate ||
+              !hasSoapContent(sections)
+            }
+          >
+            {busy ? "Saving…" : note ? "Save new revision" : "Save draft"}
+          </Button>
+        )}
+        {requestKey && (
+          <Button
+            variant="outlined"
+            onClick={() => void checkSaveStatus()}
+            disabled={busy}
+          >
+            {busy && saveState !== "saving"
+              ? "Checking save status…"
+              : "Check save status"}
+          </Button>
+        )}
+        {requestKey && !busy && (
+          <Button variant="text" onClick={resetSaveAttempt}>
+            Reset save attempt
           </Button>
         )}
       </Stack>
       <Typography variant="caption" color="text.secondary">
-        Draft saving does not sign the note, close the encounter, transmit a
-        prescription, or complete follow-up work.
+        {signed
+          ? "This signed SOAP chart is read-only. Signing, treatment, discharge, encounter close, and checkout remain separate."
+          : "This is an unsigned draft only—not an exam occurrence, diagnosis, signature, treatment, discharge, encounter close, or checkout."}
       </Typography>
     </Box>
   );
 }
 
 function ExistingSoapNote({
+  patientId,
   encounterId,
   noteId,
   templates,
   canWrite,
 }: {
+  patientId: number;
   encounterId: number;
   noteId: number;
   templates: NoteTemplate[];
@@ -1053,6 +1501,7 @@ function ExistingSoapNote({
     );
   return (
     <SoapNoteForm
+      patientId={patientId}
       encounterId={encounterId}
       note={resource.data.note}
       templates={templates}
@@ -1080,6 +1529,7 @@ function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
   const noteId = created?.id ?? existing?.id;
   return noteId ? (
     <ExistingSoapNote
+      patientId={encounter.patient_id}
       encounterId={encounter.id}
       noteId={noteId}
       templates={templates.data.templates}
@@ -1088,6 +1538,7 @@ function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
   ) : context.capabilities.notes_write ? (
     <SoapNoteForm
       encounterId={encounter.id}
+      patientId={encounter.patient_id}
       templates={templates.data.templates}
       canWrite
       onCreated={setCreated}
@@ -1097,6 +1548,406 @@ function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
       <strong>No SOAP note recorded</strong>
       <span>You can review existing notes but cannot create a draft.</span>
     </div>
+  );
+}
+
+export function ProviderEncounterWorkflow({
+  patient,
+  encounter,
+  observations,
+  timezone,
+  noteWorkspace,
+  careSummaryState = { status: "unlinked" },
+  onEncounterRefresh,
+}: {
+  patient: Patient;
+  encounter: EncounterDetail;
+  observations: Observation[];
+  timezone: string;
+  noteWorkspace: ReactNode;
+  careSummaryState?: CareSummaryLoadState;
+  onEncounterRefresh?: () => void;
+}) {
+  const [chartConfirmed, setChartConfirmed] = useState(false);
+  const signedChart = encounterHasSignedSoapNote(encounter);
+  const workspaceHeading = useRef<HTMLHeadingElement | null>(null);
+  const observationTimes = new Set(
+    observations.map((observation) => observation.recorded_at),
+  );
+  const sharedObservationTime =
+    observationTimes.size === 1
+      ? clinicDateTime(observations[0]?.recorded_at ?? null, timezone)
+      : null;
+
+  useEffect(() => {
+    if (chartConfirmed) workspaceHeading.current?.focus();
+  }, [chartConfirmed]);
+
+  return (
+    <Stack spacing={2} className="provider-encounter-workflow">
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            sx={{ justifyContent: "space-between", gap: 1 }}
+          >
+            <Box>
+              <Typography variant="subtitle2">Patient and visit</Typography>
+              <Typography variant="h6">{patient.display_name}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Reference {patient.reference} · Encounter #{encounter.id} ·
+                started {clinicDateTime(encounter.started_at, timezone)}
+              </Typography>
+            </Box>
+            <Chip label={statusLabel(encounter.status)} variant="outlined" />
+          </Stack>
+          {!chartConfirmed && (
+            <Alert severity="warning">
+              {signedChart
+                ? "Confirm this patient reference and encounter before viewing the signed chart. Viewing the chart does not accept a handoff or assign a provider."
+                : "Confirm this patient reference and encounter before opening the chart. Opening the chart does not accept a handoff or assign a provider."}
+            </Alert>
+          )}
+          {!chartConfirmed && (
+            <Button
+              variant="contained"
+              onClick={() => setChartConfirmed(true)}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              {signedChart
+                ? "Confirm and view signed chart"
+                : "Confirm and begin charting"}
+            </Button>
+          )}
+        </Stack>
+      </Paper>
+
+      {chartConfirmed && (
+        <>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              <Typography
+                ref={workspaceHeading}
+                tabIndex={-1}
+                variant="subtitle2"
+                component="h2"
+              >
+                Encounter context
+              </Typography>
+              <Box>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  Recorded care details
+                </Typography>
+                {careSummaryState.status === "loading" ? (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    role="status"
+                  >
+                    Loading recorded care details…
+                  </Typography>
+                ) : careSummaryState.status === "error" ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Recorded care details could not be loaded.
+                  </Typography>
+                ) : (
+                  <CareIndicators
+                    state={careSummaryState}
+                    patientLabel={patient.display_name}
+                    timezone={timezone}
+                  />
+                )}
+              </Box>
+              <Divider />
+              <Box>
+                <Typography variant="subtitle2">Vital signs</Typography>
+                {observations.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No recorded observations are available for this encounter.
+                  </Typography>
+                ) : (
+                  <>
+                    {sharedObservationTime && (
+                      <Typography variant="caption" color="text.secondary">
+                        Recorded {sharedObservationTime}
+                      </Typography>
+                    )}
+                    <Box className="provider-vitals-grid">
+                      {observations.map((observation) => (
+                        <Box key={observation.id}>
+                          <Typography variant="caption" color="text.secondary">
+                            {observationLabel(observation.code)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {observationValue(observation)}
+                          </Typography>
+                          {!sharedObservationTime && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {clinicDateTime(
+                                observation.recorded_at,
+                                timezone,
+                              )}
+                            </Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </>
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Values are displayed as recorded. No review status is inferred
+                or stored here.
+              </Typography>
+            </Stack>
+          </Paper>
+          {noteWorkspace}
+          <VisitWrapUp
+            patient={patient}
+            encounter={encounter}
+            timezone={timezone}
+            onEncounterRefresh={onEncounterRefresh}
+          />
+        </>
+      )}
+    </Stack>
+  );
+}
+
+type CloseState =
+  | "idle"
+  | "closing"
+  | "reconciling"
+  | "outcome_unconfirmed"
+  | "not_found"
+  | "rejected"
+  | "committed";
+
+function VisitWrapUp({
+  patient,
+  encounter,
+  timezone,
+  onEncounterRefresh,
+}: {
+  patient: Patient;
+  encounter: EncounterDetail;
+  timezone: string;
+  onEncounterRefresh?: () => void;
+}) {
+  const context = useClinic();
+  const [completed, setCompleted] = useState<EncounterDetail | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [closeState, setCloseState] = useState<CloseState>("idle");
+  const [requestKey, setRequestKey] = useState<string | null>(null);
+  const requestKeyRef = useRef<string | null>(null);
+  const current = completed ?? encounter;
+
+  const redirectIfUnauthorized = (caught: unknown) => {
+    if (caught instanceof ApiError && caught.status === 401) {
+      window.location.replace("/login");
+      return true;
+    }
+    return false;
+  };
+
+  const reconcileCommittedClose = async () => {
+    setCloseState("reconciling");
+    const result = await api<{ encounter: EncounterDetail }>(
+      encounterDetailPath(patient.id, encounter.id),
+    );
+    if (!encounterCloseMatches(result.encounter, patient.id, encounter.id)) {
+      throw new Error(
+        "The refreshed encounter did not match this patient, encounter, and completed status.",
+      );
+    }
+    setCompleted(result.encounter);
+    setCloseState("committed");
+    requestKeyRef.current = null;
+    setRequestKey(null);
+    onEncounterRefresh?.();
+  };
+
+  const endVisit = async () => {
+    if (
+      busy ||
+      closeState !== "idle" ||
+      !window.confirm(
+        "Close this encounter now? This records only that the encounter ended. Save any note changes first. It is not discharge, checkout, treatment, signing, or handoff acceptance.",
+      )
+    )
+      return;
+    const key = closeRequestKey(requestKeyRef.current);
+    requestKeyRef.current = key;
+    setRequestKey(key);
+    setBusy(true);
+    setError("");
+    setCloseState("closing");
+    try {
+      await api<{ encounter: EncounterDetail }>(
+        `/api/clinic/encounters/${encounter.id}/close`,
+        {
+          method: "POST",
+          body: closeRequestBody(patient.id, key),
+        },
+      );
+      await reconcileCommittedClose();
+    } catch (caught) {
+      if (redirectIfUnauthorized(caught)) return;
+      if (
+        closeFailureState(
+          caught instanceof ApiError ? caught.status : undefined,
+          caught instanceof ApiError ? caught.message : "",
+          caught instanceof ApiError ? caught.code : undefined,
+        ) === "rejected"
+      ) {
+        setCloseState("rejected");
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "The close request was rejected.",
+        );
+      } else {
+        setCloseState("outcome_unconfirmed");
+        setError(
+          "The encounter close outcome is unconfirmed. No automatic retry was made. Check the retained close status explicitly.",
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkCloseStatus = async () => {
+    const key = requestKeyRef.current;
+    if (busy || !key) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ receipt: OperationReceipt }>(
+        operationReceiptPath(key),
+      );
+      if (
+        result.receipt.operation_code !== "encounters.close" ||
+        result.receipt.resource_id !== encounter.id
+      ) {
+        throw new Error(
+          "The close receipt did not match this encounter. The outcome remains unconfirmed.",
+        );
+      }
+      if (receiptResolution(200, result.receipt.outcome) === "committed") {
+        await reconcileCommittedClose();
+      } else {
+        setCloseState("outcome_unconfirmed");
+        setError(
+          "The retained receipt says the encounter close outcome is unconfirmed. No automatic retry was made.",
+        );
+      }
+    } catch (caught) {
+      if (redirectIfUnauthorized(caught)) return;
+      if (caught instanceof ApiError && caught.status === 404) {
+        setCloseState("not_found");
+        setError(
+          "No close receipt was found. The encounter close outcome remains unconfirmed; no automatic retry was made.",
+        );
+      } else if (
+        closeFailureState(
+          caught instanceof ApiError ? caught.status : undefined,
+          caught instanceof ApiError ? caught.message : "",
+          caught instanceof ApiError ? caught.code : undefined,
+        ) === "rejected"
+      ) {
+        setCloseState("rejected");
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "The close status request was rejected.",
+        );
+      } else if (caught instanceof Error) {
+        setCloseState("outcome_unconfirmed");
+        setError(caught.message);
+      } else {
+        setCloseState("outcome_unconfirmed");
+        setError("The close outcome remains unconfirmed.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetCloseAttempt = () => {
+    if (
+      busy ||
+      !requestKeyRef.current ||
+      !window.confirm(
+        "Forget this local close request key without sending another request? Confirm the encounter status independently before starting a new close attempt.",
+      )
+    )
+      return;
+    requestKeyRef.current = null;
+    setRequestKey(null);
+    setCloseState("idle");
+    setError("");
+  };
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.25}>
+        <Typography variant="subtitle2">Visit wrap-up</Typography>
+        {current.status === "completed" ? (
+          <Alert severity="success" role="status" aria-live="polite">
+            Encounter ended {clinicDateTime(current.ended_at, timezone)}. Note
+            signing, discharge, checkout, treatment, and handoff acceptance
+            remain separate.
+          </Alert>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Close the encounter after documentation is saved. Closing is not
+            discharge, checkout, treatment, signing, or handoff acceptance.
+          </Typography>
+        )}
+        {error && <ErrorMessage message={error} />}
+        {closeState === "reconciling" && (
+          <Box role="status" aria-live="polite" aria-atomic="true">
+            Verifying the committed close against this patient and encounter…
+          </Box>
+        )}
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          {current.status === "open" && context.capabilities.encounters && (
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={() => void endVisit()}
+              disabled={busy || closeState !== "idle"}
+            >
+              {busy ? "Closing encounter…" : "Close encounter"}
+            </Button>
+          )}
+          {requestKey && closeState !== "committed" && (
+            <Button
+              variant="outlined"
+              onClick={() => void checkCloseStatus()}
+              disabled={busy}
+            >
+              {busy && closeState !== "closing"
+                ? "Checking close status…"
+                : "Check close status"}
+            </Button>
+          )}
+          {requestKey && closeState !== "committed" && !busy && (
+            <Button variant="text" onClick={resetCloseAttempt}>
+              Reset close attempt
+            </Button>
+          )}
+          <Button href="/clinic" variant="outlined">
+            Return to tracking board
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -1116,74 +1967,78 @@ export function EncounterView({
   return (
     <>
       <a href={`/clinic/patients/${patient.id}`}>← {patient.display_name}</a>
-      <div className="care-heading">
-        <div>
-          <p className="eyebrow">ENCOUNTER #{encounter.id}</p>
-          <h1>{patient.display_name}</h1>
-          <p className="clinic-lead">
-            Fictional reference: {patient.reference}
-          </p>
-        </div>
-        <span className="care-status care-status-large">
-          {statusLabel(encounter.status)}
-        </span>
-      </div>
-      <p className="care-boundary">
-        This is the encounter’s open/completed API status—not an intake, handoff
-        or tracking-board stage.
-      </p>
-      <div className="care-summary">
-        <div>
-          <span>Started</span>
-          <strong>{clinicDateTime(encounter.started_at, timezone)}</strong>
-        </div>
-        <div>
-          <span>Ended</span>
-          <strong>{clinicDateTime(encounter.ended_at, timezone)}</strong>
-        </div>
-        <div>
-          <span>Participants</span>
-          <strong>{encounter.participants.length}</strong>
-        </div>
-        <div>
-          <span>Documents</span>
-          <strong>{encounter.document_count}</strong>
-        </div>
-      </div>
-      <div className="care-grid">
-        <Card title="Recorded observations">
-          {observations.length === 0 ? (
-            <p>No observations are associated with this encounter.</p>
-          ) : (
-            <dl className="care-observations">
-              {observations.map((observation) => (
-                <div key={observation.id}>
-                  <dt>{observation.code}</dt>
-                  <dd>
-                    <strong>{observationValue(observation)}</strong>
-                    <span>
-                      {clinicDateTime(observation.observed_at, timezone)} ·{" "}
-                      {observation.code_system}
-                    </span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          <p className="clinic-fine-print">
-            Values are displayed as recorded. This interface does not infer
-            normal ranges, readiness or clinical priority.
-          </p>
-        </Card>
-        <Card title="Clinical note">
-          {noteWorkspace ?? (
-            <div className="care-blocked">
-              <strong>Editor unavailable</strong>
-              <span>The protected note workspace was not loaded.</span>
+      {noteWorkspace ? (
+        <div className="care-encounter-workspace">{noteWorkspace}</div>
+      ) : (
+        <>
+          <div className="care-heading">
+            <div>
+              <p className="eyebrow">ENCOUNTER #{encounter.id}</p>
+              <h1>{patient.display_name}</h1>
+              <p className="clinic-lead">
+                Fictional reference: {patient.reference}
+              </p>
             </div>
-          )}
-        </Card>
-      </div>
+            <span className="care-status care-status-large">
+              {statusLabel(encounter.status)}
+            </span>
+          </div>
+          <p className="care-boundary">
+            This is the encounter’s open/completed API status—not an intake,
+            handoff or tracking-board stage.
+          </p>
+          <div className="care-summary">
+            <div>
+              <span>Started</span>
+              <strong>{clinicDateTime(encounter.started_at, timezone)}</strong>
+            </div>
+            <div>
+              <span>Ended</span>
+              <strong>{clinicDateTime(encounter.ended_at, timezone)}</strong>
+            </div>
+            <div>
+              <span>Participants</span>
+              <strong>{encounter.participants.length}</strong>
+            </div>
+            <div>
+              <span>Documents</span>
+              <strong>{encounter.document_count}</strong>
+            </div>
+          </div>
+          <div className="care-grid">
+            <Card title="Recorded observations">
+              {observations.length === 0 ? (
+                <p>No observations are associated with this encounter.</p>
+              ) : (
+                <dl className="care-observations">
+                  {observations.map((observation) => (
+                    <div key={observation.id}>
+                      <dt>{observation.code}</dt>
+                      <dd>
+                        <strong>{observationValue(observation)}</strong>
+                        <span>
+                          {clinicDateTime(observation.observed_at, timezone)} ·{" "}
+                          {observation.code_system}
+                        </span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <p className="clinic-fine-print">
+                Values are displayed as recorded. This interface does not infer
+                normal ranges, readiness or clinical priority.
+              </p>
+            </Card>
+            <Card title="Clinical note">
+              <div className="care-blocked">
+                <strong>Editor unavailable</strong>
+                <span>The protected note workspace was not loaded.</span>
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
     </>
   );
 }
@@ -1200,13 +2055,16 @@ export function EncounterPage({
     `/api/clinic/patients/${patientId}`,
   );
   const encounter = useResource<{ encounter: EncounterDetail }>(
-    `/api/clinic/encounters/${encounterId}`,
+    encounterDetailPath(patientId, encounterId),
   );
   const observations = useResource<{
     observations: Observation[];
     pagination: PageInfo;
   }>(
     `/api/clinic/patients/${patientId}/observations?encounter_id=${encounterId}`,
+  );
+  const careSummary = useResource<PatientCareSummary>(
+    `/api/clinic/patients/${patientId}/care_summary?encounter_id=${encounterId}`,
   );
   const error = patient.error || encounter.error || observations.error;
   if (!patient.data || !encounter.data || !observations.data)
@@ -1221,7 +2079,25 @@ export function EncounterPage({
       encounter={encounter.data.encounter}
       observations={observations.data.observations}
       timezone={context.practice.timezone}
-      noteWorkspace={<SoapNoteWorkspace encounter={encounter.data.encounter} />}
+      noteWorkspace={
+        <ProviderEncounterWorkflow
+          patient={patient.data.patient}
+          encounter={encounter.data.encounter}
+          observations={observations.data.observations}
+          timezone={context.practice.timezone}
+          careSummaryState={
+            careSummary.data
+              ? { status: "ready", summary: careSummary.data }
+              : careSummary.error
+                ? { status: "error" }
+                : { status: "loading" }
+          }
+          onEncounterRefresh={encounter.refresh}
+          noteWorkspace={
+            <SoapNoteWorkspace encounter={encounter.data.encounter} />
+          }
+        />
+      }
     />
   );
 }

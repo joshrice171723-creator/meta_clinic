@@ -26,6 +26,22 @@ def run(command, env=environment, data=None):
         raise RuntimeError("Verification step failed: " + command[0] + " " + command[1])
     return result.stdout
 
+def assert_receipt_digest_schema():
+    schema = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT is_nullable, COALESCE(column_default, '') FROM information_schema.columns "
+        "WHERE table_name='clinic_operation_receipts' AND column_name='digest_algorithm'"
+    ]).strip()
+    if schema != "NO|":
+        raise RuntimeError("Receipt digest schema is not non-null and default-free")
+    key_schema = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT is_nullable, COALESCE(column_default, '') FROM information_schema.columns "
+        "WHERE table_name='clinic_operation_receipts' AND column_name='digest_key_id'"
+    ]).strip()
+    if key_schema != "YES|":
+        raise RuntimeError("Receipt digest key identity schema is not nullable and default-free")
+
 with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
     environment["SCHEMA"] = str(pathlib.Path(temporary) / "structure.sql")
     created = []
@@ -59,7 +75,9 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         retry = subprocess.run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)], cwd=root, env=environment, capture_output=True)
         assert retry.returncode != 0
         run(["bin/rails", "db:migrate"])
+        assert_receipt_digest_schema()
         run(["bin/rails", "runner", "Identity::Preference.save_for!(User.find(41), palette: 'graphite', mode: 'dark', version: 0)"])
+        run(["bin/rails", "runner", "Clinic::Idempotency.execute(practice: Clinic::Practice.find(51), actor: User.find(41), operation_code: 'synthetic.restore', request_key: 'restore-receipt', payload: {status: 'yes'}) { :committed }"])
         checks = """
           raise unless Clinic::Inventory::Item.find(71).quantity == 9
           raise unless Clinic::Inventory::StockMovement.where(item_id: 71).sum(:quantity) == 9
@@ -71,6 +89,12 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
           raise unless Clinic::Membership.find(61).inventory_receive?
           raise unless ApplicationRecord.connection.select_value('SELECT message FROM contact_messages WHERE id=121') == 'synthetic-encrypted-marker'
           raise unless Identity::Preference.for_user(User.find(41)).appearance == {palette: 'graphite', mode: 'dark', version: 1}
+          receipt = Clinic::OperationReceipt.find_by!(practice_id: 51, request_key: 'restore-receipt')
+          raise unless receipt.digest_algorithm == Clinic::Idempotency::DIGEST_ALGORITHM
+          raise unless receipt.digest_key_id == Clinic::Idempotency::DEFAULT_DIGEST_KEY_ID
+          raise if receipt.payload_digest == Digest::SHA256.hexdigest(JSON.generate({status: 'yes'}))
+          replay = Clinic::Idempotency.execute(practice: Clinic::Practice.find(51), actor: User.find(41), operation_code: 'synthetic.restore', request_key: 'restore-receipt', payload: {status: 'yes'}) { raise 'restored receipt replayed the mutation' }
+          raise unless replay.replayed && replay.receipt.id == receipt.id
         """
         run(["bin/rails", "runner", checks])
         print("PASS: legacy IDs, values, encrypted bytes, history, opening balances and holds survive upgrade", flush=True)
@@ -132,10 +156,12 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         run(["pg_dump", "--format=custom", "--no-owner", "--no-acl", "--file", dump, databases[0]])
         run(["pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl", "--dbname", databases[1], dump])
         environment.update(PGDATABASE=databases[1], APPLY_DEVELOPMENT_DATABASE=databases[1])
+        assert_receipt_digest_schema()
         run(["bin/rails", "runner", checks])
         print("PASS: PostgreSQL backup restores into a separate database with history and constraints", flush=True)
         environment.update(PGDATABASE=databases[2], APPLY_DEVELOPMENT_DATABASE=databases[2])
         run(["bin/rails", "db:migrate"])
+        assert_receipt_digest_schema()
         run(["bin/rails", "runner", "raise unless ApplicationRecord.connection.adapter_name=='PostgreSQL' && Clinic::Inventory::Entry.count.zero?; Clinic::Practice.create!(name:'Fresh synthetic clinic')"])
         print("PASS: all migrations initialize a fresh PostgreSQL database", flush=True)
     finally:

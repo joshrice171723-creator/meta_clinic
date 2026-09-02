@@ -105,6 +105,121 @@ export type Patient = {
     observed_at: string;
   }[];
 };
+export type PatientCareSummaryState =
+  "known" | "none_reported" | "not_recorded" | "none_active" | "not_applicable";
+export type PatientCareSummaryReviewState =
+  | "not_reviewed"
+  | "current_list_confirmed"
+  | "none_reported"
+  | "follow_up_needed"
+  | "unable_to_obtain";
+export type PatientCareSummary = {
+  schema_version: "patient-care-summary-v1";
+  patient_id: number;
+  encounter_id: number | null;
+  as_of: string;
+  allergies: {
+    state: PatientCareSummaryState;
+    active_count: number;
+    items: {
+      id: number;
+      allergen: string;
+      reaction: string | null;
+      category: string | null;
+      criticality: string | null;
+      severity: string | null;
+      clinical_status: string;
+      verification_status: string;
+      onset_at: string | null;
+      recorded_at: string | null;
+      last_reviewed_at: string | null;
+      lock_version: number;
+    }[];
+  };
+  medications: {
+    state: PatientCareSummaryState;
+    active_count: number;
+    items: {
+      id: number;
+      medication: string;
+      dose: string | null;
+      route: string | null;
+      frequency: string | null;
+      purpose: string | null;
+      status: string;
+      information_source: string | null;
+      effective_from: string | null;
+      effective_until: string | null;
+      asserted_at: string | null;
+      recorded_at: string | null;
+      last_reconciled_at: string | null;
+      lock_version: number;
+    }[];
+  };
+  communication: {
+    state: PatientCareSummaryState;
+    primary_language: string | null;
+    interpreter_required: boolean | null;
+    needs: PatientCareNeedSummary[];
+  };
+  care_needs: {
+    state: PatientCareSummaryState;
+    active_count: number;
+    items: PatientCareNeedSummary[];
+  };
+  current_care_conditions: {
+    state: PatientCareSummaryState;
+    active_count: number;
+    items: {
+      id: number;
+      condition: string;
+      clinical_status: string;
+      verification_status: string;
+      instruction: string | null;
+      onset_at: string | null;
+      recorded_at: string | null;
+      last_reviewed_at: string | null;
+      lock_version: number;
+    }[];
+  };
+  precautions: {
+    state: PatientCareSummaryState;
+    active_count: number;
+    items: {
+      id: number;
+      type: string;
+      evidence_status: string;
+      status: string;
+      instructions: string | null;
+      recorded_at: string | null;
+      last_reassessed_at: string | null;
+      lock_version: number;
+    }[];
+  };
+  reviews: Record<
+    "allergies" | "medications" | "care_needs",
+    {
+      state: PatientCareSummaryReviewState;
+      information_source?: string | null;
+      reviewed_at?: string | null;
+    }
+  >;
+  review_needed: boolean | null;
+  review_needed_topics: string[] | null;
+};
+export type PatientCareNeedSummary = {
+  id: number;
+  category: string;
+  code: string;
+  description: string;
+  instructions: string | null;
+  status: string;
+  effective_from: string | null;
+  effective_until: string | null;
+  recorded_at: string | null;
+  last_reviewed_at: string | null;
+  lock_version: number;
+};
 export type Pagination = {
   page: number;
   per_page: number;
@@ -135,6 +250,7 @@ export type ClinicWorkspaceContext = {
   user_id: number;
   practice: { id: number; name: string; timezone: string };
   membership_id: number;
+  credentials: string[];
   policy_version: "clinic-authorization-v1";
   capabilities: ClinicCapabilities;
   sites: ClinicSite[];
@@ -236,6 +352,52 @@ export type EncounterNote = EncounterNoteSummary & {
     created_at: string;
     signed: boolean;
   }[];
+};
+export type ClinicTrackingBoardVisit = {
+  id: number;
+  patient_id: number;
+  encounter_id: number;
+  patient: Pick<Patient, "id" | "display_name" | "reference">;
+  encounter: {
+    id: number;
+    status: "open" | "completed";
+    started_at: string;
+    ended_at: string | null;
+    site_id: number | null;
+    site_code: string | null;
+    room_id: number | null;
+    room_code: string | null;
+  };
+  appointment: {
+    id: number;
+    status: string;
+    starts_at: string;
+    ends_at: string;
+    visit_type_code: string | null;
+  } | null;
+  care_summary: PatientCareSummary;
+  synthetic_scenario?: {
+    stage:
+      "waiting" | "intake" | "ready" | "clinician" | "checkout" | "unrecorded";
+    reason: string;
+  };
+};
+export type ClinicTrackingBoard = {
+  schema_version: "tracking-board-v1";
+  as_of: string;
+  truncated: boolean;
+  visits: ClinicTrackingBoardVisit[];
+};
+export type PreviousSignedSoapResponse = {
+  schema_version: "previous-signed-soap-v1";
+  patient_id: number;
+  excluded_encounter_id: number | null;
+  chart: {
+    encounter_id: number;
+    note_id: number;
+    signed_at: string;
+    encounter_started_at: string;
+  } | null;
 };
 export type NoteTemplate = {
   id: string;

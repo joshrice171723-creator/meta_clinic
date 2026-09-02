@@ -10,10 +10,6 @@
 .clinic-theme .clinic-sidebar .wordmark {
   color: var(--clinic-text);
 }
-.clinic-theme .workspace-label {
-  color: var(--clinic-muted);
-  font-size: 14px;
-}
 .clinic-theme .practice-label {
   border-top: 1px solid var(--clinic-border);
   border-bottom: 1px solid var(--clinic-border);

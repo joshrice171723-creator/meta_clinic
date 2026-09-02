@@ -10,6 +10,8 @@ Rails.application.routes.draw do
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create] do
       post :transition, on: :member
     end
+    get "tracking_board", to: "scheduling/tracking_board#show"
+    get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       post :close, on: :member
       resources :notes, controller: "care/encounter_notes", only: %i[index create]
@@ -47,6 +49,8 @@ Rails.application.routes.draw do
     post "inventory_configuration", to: "inventory/pharmacy#configure", as: :inventory_configuration
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       post :note, on: :member
+      get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"
+      resource :care_summary, controller: "care/patient_care_summaries", only: :show
       resources :encounters, controller: "scheduling/encounters", only: %i[index create]
       resources :observations, controller: "care/observations", only: %i[index create]
       resources :address_versions, controller: "care/patient_addresses", only: %i[index create]

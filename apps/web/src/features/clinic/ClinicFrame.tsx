@@ -109,7 +109,6 @@ export function ClinicFrame({
             APPly
             <span className="brand-dot" />
           </a>
-          <p className="workspace-label">CLINIC WORKSPACE</p>
           <div className="practice-label">
             <strong>{practiceName}</strong>
             <span>Local synthetic prototype</span>

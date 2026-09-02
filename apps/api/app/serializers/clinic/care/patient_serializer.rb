@@ -18,7 +18,15 @@ module Clinic
           emergency_contacts: patient.emergency_contacts.order(created_at: :desc).map { |c| c.as_json(only: %i[id name relationship phone permission_to_contact effective_from effective_until]) },
           communication_preference: patient.communication_preference&.as_json(only: %i[preferred_contact_method appointment_reminders_consent general_communications_consent]),
           social_histories: patient.social_histories.order(created_at: :desc).map { |s| s.as_json(only: %i[id tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors effective_from effective_until]) },
-          vital_signs: patient.observations.where(value_kind: :numeric).order(observed_at: :desc, id: :desc).limit(50).map { |o| o.as_json(only: %i[id code numeric_value unit_code observed_at]) }
+          vital_signs: patient.observations.where(value_kind: :numeric).order(observed_at: :desc, id: :desc).limit(50).map do |o|
+            {
+              id: o.id,
+              code: o.code,
+              numeric_value: o.numeric_value&.to_d&.to_s("F"),
+              unit_code: o.unit_code,
+              observed_at: o.observed_at
+            }
+          end
         )
       end
     end

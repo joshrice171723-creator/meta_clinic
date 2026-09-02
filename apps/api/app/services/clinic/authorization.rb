@@ -2,7 +2,7 @@ module Clinic
   module Authorization
     class Denied < StandardError; end
 
-    def self.authorize!(actor:, practice:, action:, site: nil, subject: nil, at: Time.current)
+    def self.authorize!(actor:, practice:, action:, site: nil, subject: nil, any_site: false, at: Time.current)
       normalized_action = Ability.normalize_permission(action)
       rule = Ability.rule_for(normalized_action)
       ability = Ability.new(actor, practice: practice, at: at)
@@ -12,10 +12,10 @@ module Clinic
       allowed = if subject
         rule && target && can_action && ability.can?(can_action, subject)
       else
-        ability.allowed_permission?(normalized_action, site: site)
+        ability.allowed_permission?(normalized_action, site: site, any_site: any_site)
       end
       unless allowed
-        AuditRecorder.record(practice: practice, actor: actor, action_code: normalized_action, outcome: :denied)
+        AuditRecorder.record!(practice: practice, actor: actor, action_code: normalized_action, outcome: :denied)
         raise Denied, "Your account does not have permission for this clinic action."
       end
 

@@ -3,6 +3,13 @@ module Clinic
     class EncounterNotesController < Clinic::ApiController
       # Reads and mutation services authorize the actual encounter site and action.
 
+      rescue_from Clinic::Idempotency::OutcomeUnconfirmed do
+        render json: {
+          error: "The note operation outcome is unconfirmed. Look up the protected receipt before retrying.",
+          code: "outcome_unconfirmed"
+        }, status: :conflict
+      end
+
       def index
         encounter = current_practice.encounters.find(requested_id!(params[:encounter_id], :encounter_id))
         authorize_note_read!(encounter)
@@ -19,7 +26,7 @@ module Clinic
 
       def create
         input = parameter_hash!(:encounter_note,
-          %i[note_kind template_id template_version subjective objective assessment plan])
+          %i[note_kind template_id template_version subjective objective assessment plan request_key])
         encounter = current_practice.encounters.find(requested_id!(params[:encounter_id], :encounter_id))
         note_kind = enum_param!(input[:note_kind].presence || "soap", field: :note_kind, allowed: %w[soap])
         note = Clinic::Care::CreateEncounterNote.call(
@@ -28,14 +35,15 @@ module Clinic
           encounter: encounter,
           note_kind: note_kind,
           encrypted_body: soap_payload(input),
-          payload_version: SoapNotePayload::VERSION
+          payload_version: SoapNotePayload::VERSION,
+          request_key: request_key!(input[:request_key])
         )
         render json: { note: EncounterNoteSerializer.call(note, detail: true) }, status: :created
       end
 
       def revise
         input = parameter_hash!(:revision,
-          %i[template_id template_version subjective objective assessment plan expected_revision])
+          %i[template_id template_version subjective objective assessment plan expected_revision request_key])
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
         raise ArgumentError, "Only SOAP drafts can be revised from this endpoint." unless note.note_kind == "soap"
 
@@ -44,7 +52,8 @@ module Clinic
           actor: current_user,
           encrypted_body: soap_payload(input),
           expected_revision: bounded_integer!(input[:expected_revision], field: :expected_revision, min: 1, max: 2_147_483_647),
-          payload_version: SoapNotePayload::VERSION
+          payload_version: SoapNotePayload::VERSION,
+          request_key: request_key!(input[:request_key])
         )
         render json: {
           revision: revision_json(revision),
@@ -81,6 +90,13 @@ module Clinic
             [ field, optional_string(input[field], field: field, maximum: SoapNotePayload::MAX_SECTION_LENGTH) || "" ]
           end
         )
+      end
+
+      def request_key!(value)
+        key = required_string!(value, field: :request_key, maximum: 160)
+        return key if key.match?(Clinic::Idempotency::KEY_PATTERN)
+
+        raise Invalid.new("request_key must match the clinic idempotency key format.", field: :request_key)
       end
 
       def revision_json(revision)

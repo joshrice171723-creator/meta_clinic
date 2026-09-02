@@ -39,6 +39,10 @@ D-033 separates the browser application in `apps/web/` from the Rails JSON backe
 
 Runtime references are `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. T-22/M0 owns CI/browser acceptance, T-20/M1 hosted operations, and T-38 the controlled PostgreSQL cutover. Do not install PostgreSQL source over the SQLite host without the [cutover runbook](../../ops/aws/ec2/postgres-cutover.md).
 
+### Operation-receipt HMAC key rotation
+
+Local development remains backward compatible through the `secret_key_base` key identity. Before rotating that secret in any environment that contains `hmac-sha256-v1` operation receipts, retain the old secret under its receipt key ID in Rails credentials at `clinic.idempotency.hmac_keys` or in the JSON object supplied through `APP_CLINIC_IDEMPOTENCY_HMAC_KEYS`; select new writes with `clinic.idempotency.active_key_id` or `APP_CLINIC_IDEMPOTENCY_HMAC_ACTIVE_KEY_ID`. Never put key values in source, notes, command output or logs. A missing historical key intentionally blocks receipt reconciliation rather than treating the same payload as different. Keep old keys with the matching backup until an approved retention/reconciliation decision permits retirement. This describes the source contract; it does not authorize a hosted secret change or key retirement.
+
 ### Host release contract
 
 The API launcher starts `apply-api`; the static frontend starts `apply-web`. Names match service cleanup/stop targets. API and frontend retain separate internal networks; frontend receives no credentials. Docker on EC2 does not publish internal-only container ports. Each service's `ExecStartPost` refreshes a validated private container IP in root-only nginx upstream configuration and reloads the trusted edge. PostgreSQL stays unpublished; the host's loopback TLS listener is accessed through SSM.

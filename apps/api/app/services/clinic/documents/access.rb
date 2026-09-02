@@ -5,7 +5,7 @@ module Clinic
         Authorization.authorize!(actor: actor, practice: document.practice, action: "documents.read", site: document.encounter&.site)
         raise ArgumentError, "This document is not available for download." unless document.scan_state == "clean"
 
-        AuditRecorder.record(
+        AuditRecorder.record!(
           practice: document.practice,
           actor: actor,
           action_code: "documents.download",

@@ -15,7 +15,8 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       patient = practice.patients.create!(display_name: "Synthetic Patient #{label}", reference: "VERIFY-#{label}")
       site = practice.sites.create!(code: "MAIN")
       encounter = practice.encounters.create!(patient: patient, site: site, started_at: 1.hour.ago, status: "open")
-      note = Clinic::Care::CreateEncounterNote.call(practice: practice, actor: user, encounter: encounter, encrypted_body: "synthetic-secret-body")
+      note = Clinic::Care::CreateEncounterNote.call(practice: practice, actor: user, encounter: encounter,
+        encrypted_body: "synthetic-secret-body", request_key: "verification-#{label.downcase}-legacy-note")
       category = Clinic::DocumentCategory.create!(practice: practice, code: "SYN", name: "Synthetic")
       document = practice.documents.create!(patient: patient, category: category, object_key: "private/synthetic-#{label}", object_version: "1", checksum: "synthetic", byte_size: 1, media_type: "text/plain", scan_state: "pending")
       invoice = Clinic::Billing::DraftInvoice.call(practice: practice, actor: user, patient: patient, currency: "USD", lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic service" } ])
@@ -30,10 +31,12 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       foreign = (@tenants - [ own ]).first
       login(own[:user])
       { patient: "patients", encounter: "encounters", note: "notes", document: "documents", invoice: "invoices", message: "message_intents" }.each do |key, path|
-        get "/api/clinic/#{path}/#{own[key].id}", headers: @headers
+        own_params = key == :encounter ? { patient_id: own[:patient].id } : {}
+        foreign_params = key == :encounter ? { patient_id: foreign[:patient].id } : {}
+        get "/api/clinic/#{path}/#{own[key].id}", params: own_params, headers: @headers
         assert_response :success
         assert_equal "no-store", response.headers["Cache-Control"]
-        get "/api/clinic/#{path}/#{foreign[key].id}", headers: @headers
+        get "/api/clinic/#{path}/#{foreign[key].id}", params: foreign_params, headers: @headers
         assert_response :not_found
         assert_equal({ "error" => "Not found." }, response.parsed_body)
       end
@@ -120,7 +123,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     end
     submit "/api/clinic/role_grants", { grant: { membership_id: own[:membership].id, role_version_id: own[:membership].role_grants.first.role_version_id, scope_kind: "practice" } }
     assert_response :forbidden
-    submit "/api/clinic/patients/#{own[:patient].id}/observations", { observation: { encounter_id: foreign[:encounter].id, code: "SYN", code_system: "synthetic", code_version: "1", value_kind: "numeric", numeric_value: "10", unit_code: "cm", observed_at: "2026-09-01T09:00:00Z" } }
+    submit "/api/clinic/patients/#{own[:patient].id}/observations", { observation: { request_key: "verification-wrong-encounter", encounter_id: foreign[:encounter].id, code: "SYN", code_system: "synthetic", code_version: "1", value_kind: "numeric", numeric_value: "10", unit_code: "cm", observed_at: "2026-09-01T09:00:00Z" } }
     assert_includes [ 404, 422 ], response.status
   end
 
@@ -153,7 +156,8 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       sections: { subjective: "Synthetic protected history", objective: "Synthetic finding", assessment: "", plan: "" }
     )
     soap = Clinic::Care::CreateEncounterNote.call(practice: own[:practice], actor: own[:user],
-      encounter: own[:encounter], note_kind: "soap", encrypted_body: soap_body)
+      encounter: own[:encounter], note_kind: "soap", encrypted_body: soap_body,
+      request_key: "verification-#{own[:patient].reference.downcase}-soap-note")
     reader = User.create!(email_address: "note-reader@example.invalid", password: @password)
     reader_membership = own[:practice].memberships.create!(user: reader)
     grant_permissions!(reader_membership, "patients.read")
@@ -186,12 +190,14 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     encounter_id = response.parsed_body.dig("encounter", "id")
     first_note = {
       note_kind: "soap", template_id: "adult-physical-exam-detailed", template_version: 1,
-      subjective: "Synthetic API first draft", objective: "Synthetic objective", assessment: "", plan: ""
+      subjective: "Synthetic API first draft", objective: "Synthetic objective", assessment: "", plan: "",
+      request_key: "backend-verification-api-create"
     }
     submit "/api/clinic/encounters/#{encounter_id}/notes", { encounter_note: first_note }
     assert_response :created
     note_id = response.parsed_body.dig("note", "id")
-    second_note = first_note.except(:note_kind).merge(subjective: "Synthetic API second draft", expected_revision: 1)
+    second_note = first_note.except(:note_kind).merge(subjective: "Synthetic API second draft", expected_revision: 1,
+      request_key: "backend-verification-api-revise")
     submit "/api/clinic/notes/#{note_id}/revisions", { revision: second_note }
     assert_response :created
     assert_equal "Synthetic API second draft", response.parsed_body.dig("note", "current_revision", "body", "sections", "subjective")
@@ -206,12 +212,17 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     assert_response :bad_request
     submit "/api/clinic/notes/#{note_id}/signatures", { signature: signature }
     assert_response :created
-    submit "/api/clinic/notes/#{note_id}/revisions", { revision: second_note.merge(subjective: "Synthetic overwrite", expected_revision: 2) }
+    submit "/api/clinic/notes/#{note_id}/revisions", { revision: second_note.merge(
+      subjective: "Synthetic overwrite", expected_revision: 2, request_key: "backend-verification-api-signed-revise") }
     assert_response :unprocessable_entity
-    submit "/api/clinic/encounters/#{encounter_id}/close", { close: { ended_at: "2026-09-01T09:30:00Z" } }
+    submit "/api/clinic/encounters/#{encounter_id}/close",
+      { close: { patient_id: own[:patient].id, ended_at: "2026-09-01T09:30:00Z", request_key: "backend-close-#{encounter_id}" } }
     assert_response :success
     assert_equal "completed", response.parsed_body.dig("encounter", "status")
     submit "/api/clinic/patients/#{own[:patient].id}/observations", { observation: { encounter_id: encounter_id,
+      code: "SYNTHETIC-MISSING-KEY", code_system: "synthetic", code_version: "1", value_kind: "text", text_value: "Synthetic value", observed_at: "2026-09-01T09:10:00Z" } }
+    assert_response :bad_request
+    submit "/api/clinic/patients/#{own[:patient].id}/observations", { observation: { request_key: "backend-verification-observation", encounter_id: encounter_id,
       code: "SYNTHETIC", code_system: "synthetic", code_version: "1", value_kind: "text", text_value: "Synthetic value", observed_at: "2026-09-01T09:10:00Z" } }
     assert_response :created
     get "/api/clinic/patients/#{own[:patient].id}/observations", params: { code: "SYNTHETIC", value_kind: "text" }, headers: @headers

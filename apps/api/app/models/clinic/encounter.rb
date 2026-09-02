@@ -12,6 +12,8 @@ module Clinic
     has_many :notes, class_name: "Clinic::EncounterNote", dependent: :restrict_with_error
     has_many :observations, class_name: "Clinic::Care::Observation", dependent: :restrict_with_error
     has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
+    has_many :precautions, class_name: "Clinic::Care::EncounterPrecaution", dependent: :restrict_with_error
+    has_many :history_reviews, class_name: "Clinic::Care::PatientHistoryReview", dependent: :restrict_with_error
 
     scope :open, -> { where(ended_at: nil) }
     scope :recent, -> { order(started_at: :desc) }

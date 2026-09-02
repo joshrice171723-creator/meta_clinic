@@ -27,21 +27,70 @@ export const VISIT_STAGES = [
     action: "Checkout",
     waiting: true,
   },
+  {
+    id: "unrecorded",
+    label: "Visit stage not recorded",
+    action: "Review encounter record",
+    waiting: false,
+  },
 ] as const;
 export type VisitStage = (typeof VISIT_STAGES)[number]["id"];
+export type ExampleVitalStatus = "above" | "within" | "below" | "unassessed";
+export type ExampleClinician = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  credentials: string;
+  locationIds: readonly string[];
+};
+export const EXAMPLE_CLINICIANS: readonly ExampleClinician[] = [
+  {
+    id: "example-clinician-am",
+    firstName: "Alex",
+    lastName: "Morgan",
+    credentials: "NP",
+    locationIds: ["example-main"],
+  },
+  {
+    id: "example-clinician-jl",
+    firstName: "Jordan",
+    lastName: "Lee",
+    credentials: "PA-C",
+    locationIds: ["example-main"],
+  },
+  {
+    id: "example-clinician-rs",
+    firstName: "Riley",
+    lastName: "Singh",
+    credentials: "NP",
+    locationIds: ["example-north"],
+  },
+];
 export type BoardVisit = {
   id: string;
+  patientId?: number | null;
+  encounterId?: number | null;
+  patientDisplayName?: string | null;
+  patientReference?: string | null;
+  isSynthetic?: boolean;
   firstName: string;
   lastName: string;
   age: number | null;
   gender: "F" | "M" | "X" | null;
-  appointmentType: "Scheduled" | "Unscheduled" | "Follow-up" | "Establish Care";
+  appointmentType:
+    | "Scheduled"
+    | "Unscheduled"
+    | "Follow-up"
+    | "Establish Care"
+    | "Recorded visit";
   chiefComplaint: string;
   reason: string;
   visitType: string;
   membership: "member" | "nonmember" | "unknown";
   stage: VisitStage;
+  locationId: string;
   room: string | null;
+  assignedClinicianId: string | null;
   owner: string | null;
   arrivedAt: string | null;
   stageStartedAt: string | null;
@@ -51,6 +100,11 @@ export type BoardVisit = {
     recordedBy: string;
     vitals: string | null;
     vitalsSummary: string | null;
+    vitalStatuses: {
+      bp: ExampleVitalStatus;
+      hr: ExampleVitalStatus;
+      weight: ExampleVitalStatus;
+    } | null;
     review: string;
   } | null;
 };
@@ -58,12 +112,24 @@ const at = (time: string) => `2026-08-31T${time}:00-05:00`;
 const assessed = (
   time: string,
   summary: string,
+  readings: {
+    bp: string;
+    hr: number;
+    weight: number;
+    bpStatus: ExampleVitalStatus;
+    hrStatus: ExampleVitalStatus;
+  },
 ): NonNullable<BoardVisit["triage"]> => ({
   summary,
   recordedAt: at(time),
   recordedBy: "Example staff A",
-  vitals: "BP 124/78 mmHg · HR 72 bpm · RR 16/min · SpO₂ 98% · T 36.8°C",
-  vitalsSummary: "BP 124/78 · HR 72 · 72 kg",
+  vitals: `BP ${readings.bp} mmHg · HR ${readings.hr} bpm · ${readings.weight} kg`,
+  vitalsSummary: `BP ${readings.bp} · HR ${readings.hr} · ${readings.weight} kg`,
+  vitalStatuses: {
+    bp: readings.bpStatus,
+    hr: readings.hrStatus,
+    weight: "unassessed",
+  },
   review: "Medication and allergy review recorded in this example",
 });
 export const EXAMPLE_VISITS: readonly BoardVisit[] = [
@@ -79,7 +145,9 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     visitType: "Scheduled · Follow-up",
     membership: "member",
     stage: "waiting",
+    locationId: "example-main",
     room: "Waiting room",
+    assignedClinicianId: null,
     owner: null,
     arrivedAt: at("09:59"),
     stageStartedAt: at("09:59"),
@@ -97,7 +165,9 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     visitType: "Scheduled · New patient",
     membership: "nonmember",
     stage: "intake",
+    locationId: "example-main",
     room: "Room 2",
+    assignedClinicianId: null,
     owner: "Example staff A",
     arrivedAt: at("09:50"),
     stageStartedAt: at("10:10"),
@@ -107,6 +177,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
       recordedBy: "Example staff A",
       vitals: null,
       vitalsSummary: null,
+      vitalStatuses: null,
       review: "Medication and allergy review not recorded",
     },
   },
@@ -122,11 +193,19 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     visitType: "Scheduled · Follow-up",
     membership: "member",
     stage: "ready",
+    locationId: "example-main",
     room: "Room 1",
+    assignedClinicianId: "example-clinician-am",
     owner: "Example Provider A",
     arrivedAt: at("09:40"),
     stageStartedAt: at("10:03"),
-    triage: assessed("10:01", "Ready for Provider review"),
+    triage: assessed("10:01", "Ready for Provider review", {
+      bp: "118/76",
+      hr: 72,
+      weight: 72,
+      bpStatus: "within",
+      hrStatus: "within",
+    }),
   },
   {
     id: "EX-004",
@@ -140,11 +219,19 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     visitType: "Scheduled · Annual",
     membership: "member",
     stage: "clinician",
+    locationId: "example-main",
     room: "Room 3",
+    assignedClinicianId: "example-clinician-jl",
     owner: "Example Provider B",
     arrivedAt: at("09:25"),
     stageStartedAt: at("09:55"),
-    triage: assessed("09:48", "Questions for Provider"),
+    triage: assessed("09:48", "Questions for Provider", {
+      bp: "88/56",
+      hr: 52,
+      weight: 64,
+      bpStatus: "below",
+      hrStatus: "below",
+    }),
   },
   {
     id: "EX-005",
@@ -158,14 +245,19 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     visitType: "Same-day · Return patient",
     membership: "unknown",
     stage: "ready",
+    locationId: "example-main",
     room: "Room 4",
+    assignedClinicianId: null,
     owner: null,
     arrivedAt: at("09:58"),
     stageStartedAt: at("10:11"),
-    triage: {
-      ...assessed("10:09", "Provider review requested"),
-      vitals: null,
-    },
+    triage: assessed("10:09", "Provider review requested", {
+      bp: "148/94",
+      hr: 54,
+      weight: 77,
+      bpStatus: "above",
+      hrStatus: "below",
+    }),
   },
   {
     id: "EX-006",
@@ -179,13 +271,37 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
     visitType: "Scheduled · Follow-up",
     membership: "member",
     stage: "checkout",
+    locationId: "example-main",
     room: "Checkout",
+    assignedClinicianId: "example-clinician-am",
     owner: "Example front desk",
     arrivedAt: at("09:15"),
     stageStartedAt: at("10:15"),
-    triage: assessed("09:30", "Intake recorded"),
+    triage: assessed("09:30", "Intake recorded", {
+      bp: "152/96",
+      hr: 108,
+      weight: 86,
+      bpStatus: "above",
+      hrStatus: "above",
+    }),
   },
 ];
+export function cliniciansForLocation(
+  locationId: string,
+  clinicians: readonly ExampleClinician[] = EXAMPLE_CLINICIANS,
+) {
+  return clinicians.filter((clinician) =>
+    clinician.locationIds.includes(locationId),
+  );
+}
+export function clinicianInitials(clinician: ExampleClinician) {
+  const first = Array.from(clinician.firstName.trim().normalize("NFC"))[0];
+  const last = Array.from(clinician.lastName.trim().normalize("NFC"))[0];
+  return `${first ?? "—"}${last ?? "—"}`;
+}
+export function clinicianLabel(clinician: ExampleClinician) {
+  return `${clinician.firstName} ${clinician.lastName}, ${clinician.credentials}`;
+}
 export function patientLabel(first: string, last: string) {
   const characters = (value: string) =>
     Array.from(value.trim().normalize("NFC"));
@@ -227,6 +343,8 @@ export function filterVisits(
       (v) =>
         (stage === "all" || v.stage === stage) &&
         [
+          v.patientDisplayName ?? "",
+          v.patientReference ?? "",
           patientLabel(v.firstName, v.lastName),
           v.id,
           v.room ?? "",

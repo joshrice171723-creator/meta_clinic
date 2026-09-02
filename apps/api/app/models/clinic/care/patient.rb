@@ -12,6 +12,9 @@ module Clinic
       has_many :conditions, class_name: "Clinic::Care::Condition", dependent: :restrict_with_error
       has_many :allergies, class_name: "Clinic::Care::Allergy", dependent: :restrict_with_error
       has_many :medication_statements, class_name: "Clinic::Care::MedicationStatement", dependent: :restrict_with_error
+      has_many :care_needs, class_name: "Clinic::Care::PatientCareNeed", dependent: :restrict_with_error
+      has_many :history_reviews, class_name: "Clinic::Care::PatientHistoryReview", dependent: :restrict_with_error
+      has_many :encounter_precautions, class_name: "Clinic::Care::EncounterPrecaution", dependent: :restrict_with_error
       has_many :address_versions, class_name: "Clinic::Care::PatientAddressVersion", dependent: :restrict_with_error
       has_one :demographics, class_name: "Clinic::Care::PatientDemographics", dependent: :restrict_with_error
       has_many :contacts, class_name: "Clinic::Care::PatientContact", dependent: :restrict_with_error

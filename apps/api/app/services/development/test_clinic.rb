@@ -1,5 +1,19 @@
 module Development
   class TestClinic
+    MANAGED_PATIENTS = [
+      {
+        display_name: "SYN_Mercer, Alex",
+        reference: "SYN-BASE-001",
+        legacy_display_names: [ "Sample Patient A", "Sample Patient Aa" ],
+        legacy_reference: "DEMO-001"
+      },
+      {
+        display_name: "SYN_Vale, Briar",
+        reference: "SYN-BASE-002",
+        legacy_display_names: [ "Sample Patient B" ],
+        legacy_reference: "DEMO-002"
+      }
+    ].freeze
     DEFAULT_PERMISSIONS = %w[
       patients.read patients.write staff.read staff.write inventory.read
       inventory.catalog inventory.receive inventory.adjust inventory.hold
@@ -14,12 +28,16 @@ module Development
       User.transaction do
         user.lock!
         existing = Clinic::Membership.find_by(user: user)
-        return grant_access!(existing, permissions) if existing
+        if existing
+          normalize_managed_patients!(existing.practice)
+          return grant_access!(existing, permissions)
+        end
         practice = Clinic::Practice.create!(name: "Test Clinic")
         membership = Clinic::Membership.create!(practice: practice, user: user)
         grant_access!(membership, permissions)
-        practice.patients.create!(display_name: "Sample Patient A", reference: "DEMO-001")
-        practice.patients.create!(display_name: "Sample Patient B", reference: "DEMO-002")
+        MANAGED_PATIENTS.each do |fixture|
+          practice.patients.create!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
+        end
         paper = practice.items.create!(name: "Printer paper", sku: "OFFICE-001", reorder_level: 5)
         folders = practice.items.create!(name: "File folders", sku: "OFFICE-002", reorder_level: 10)
         if permissions.include?("inventory.adjust")
@@ -50,5 +68,16 @@ module Development
       membership
     end
     private_class_method :grant_access!
+
+    def self.normalize_managed_patients!(practice)
+      MANAGED_PATIENTS.each do |fixture|
+        legacy = practice.patients.find_by(reference: fixture.fetch(:legacy_reference))
+        next unless legacy && fixture.fetch(:legacy_display_names).include?(legacy.display_name)
+        next if practice.patients.where.not(id: legacy.id).exists?(reference: fixture.fetch(:reference))
+
+        legacy.update!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
+      end
+    end
+    private_class_method :normalize_managed_patients!
   end
 end

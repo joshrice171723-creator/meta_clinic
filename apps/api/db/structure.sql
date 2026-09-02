@@ -38,6 +38,19 @@ $$;
 
 
 --
+-- Name: clinic_operation_receipts_immutable(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_operation_receipts_immutable() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'clinic operation receipts are append-only';
+END;
+$$;
+
+
+--
 -- Name: erd_freeze_granted_role(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -377,7 +390,30 @@ CREATE TABLE public.clinic_allergies (
     practice_id bigint NOT NULL,
     patient_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    data_status character varying DEFAULT 'incomplete'::character varying NOT NULL,
+    recorded_by_membership_id bigint,
+    reviewed_by_membership_id bigint,
+    recorded_at timestamp(6) with time zone,
+    last_reviewed_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    allergen_name text,
+    reaction text,
+    category character varying DEFAULT 'unknown'::character varying NOT NULL,
+    clinical_status character varying DEFAULT 'unknown'::character varying NOT NULL,
+    verification_status character varying DEFAULT 'unconfirmed'::character varying NOT NULL,
+    criticality character varying DEFAULT 'unable_to_assess'::character varying NOT NULL,
+    severity character varying DEFAULT 'unknown'::character varying NOT NULL,
+    onset_at timestamp(6) with time zone,
+    CONSTRAINT clinic_allergies_category CHECK (((category)::text = ANY (ARRAY[('food'::character varying)::text, ('medication'::character varying)::text, ('environment'::character varying)::text, ('biologic'::character varying)::text, ('other'::character varying)::text, ('unknown'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_clinical_status CHECK (((clinical_status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text, ('resolved'::character varying)::text, ('unknown'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_criticality CHECK (((criticality)::text = ANY (ARRAY[('low'::character varying)::text, ('high'::character varying)::text, ('unable_to_assess'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_data_status CHECK (((data_status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('recorded'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT clinic_allergies_recorded_shape CHECK ((((data_status)::text = 'incomplete'::text) OR ((allergen_name IS NOT NULL) AND (recorded_by_membership_id IS NOT NULL) AND (recorded_at IS NOT NULL)))),
+    CONSTRAINT clinic_allergies_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_allergies_severity CHECK (((severity)::text = ANY (ARRAY[('mild'::character varying)::text, ('moderate'::character varying)::text, ('severe'::character varying)::text, ('unknown'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_verification CHECK (((verification_status)::text = ANY (ARRAY[('unconfirmed'::character varying)::text, ('presumed'::character varying)::text, ('confirmed'::character varying)::text, ('refuted'::character varying)::text, ('entered_in_error'::character varying)::text])))
 );
 
 
@@ -664,7 +700,27 @@ CREATE TABLE public.clinic_conditions (
     practice_id bigint NOT NULL,
     patient_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    data_status character varying DEFAULT 'incomplete'::character varying NOT NULL,
+    recorded_by_membership_id bigint,
+    reviewed_by_membership_id bigint,
+    recorded_at timestamp(6) with time zone,
+    last_reviewed_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    condition_name text,
+    clinical_status character varying DEFAULT 'unknown'::character varying NOT NULL,
+    verification_status character varying DEFAULT 'unconfirmed'::character varying NOT NULL,
+    affects_current_care boolean DEFAULT false NOT NULL,
+    care_instruction text,
+    onset_at timestamp(6) with time zone,
+    resolved_at timestamp(6) with time zone,
+    CONSTRAINT clinic_conditions_clinical_status CHECK (((clinical_status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text, ('resolved'::character varying)::text, ('unknown'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_conditions_data_status CHECK (((data_status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('recorded'::character varying)::text]))),
+    CONSTRAINT clinic_conditions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT clinic_conditions_recorded_shape CHECK ((((data_status)::text = 'incomplete'::text) OR ((condition_name IS NOT NULL) AND (recorded_by_membership_id IS NOT NULL) AND (recorded_at IS NOT NULL)))),
+    CONSTRAINT clinic_conditions_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_conditions_valid_window CHECK (((resolved_at IS NULL) OR (onset_at IS NULL) OR (resolved_at >= onset_at))),
+    CONSTRAINT clinic_conditions_verification CHECK (((verification_status)::text = ANY (ARRAY[('unconfirmed'::character varying)::text, ('provisional'::character varying)::text, ('confirmed'::character varying)::text, ('refuted'::character varying)::text, ('entered_in_error'::character varying)::text])))
 );
 
 
@@ -1017,6 +1073,56 @@ CREATE SEQUENCE public.clinic_encounter_participants_id_seq
 --
 
 ALTER SEQUENCE public.clinic_encounter_participants_id_seq OWNED BY public.clinic_encounter_participants.id;
+
+
+--
+-- Name: clinic_encounter_precautions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_precautions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    precaution_type character varying NOT NULL,
+    evidence_status character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    instructions text,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    reassessed_by_membership_id bigint,
+    last_reassessed_at timestamp(6) with time zone,
+    ended_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_precautions_discontinued_at CHECK ((((status)::text <> 'discontinued'::text) OR (ended_at IS NOT NULL))),
+    CONSTRAINT clinic_precautions_evidence CHECK (((evidence_status)::text = ANY (ARRAY[('suspected'::character varying)::text, ('confirmed'::character varying)::text]))),
+    CONSTRAINT clinic_precautions_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT clinic_precautions_reassessment_pair CHECK ((((last_reassessed_at IS NULL) AND (reassessed_by_membership_id IS NULL)) OR ((last_reassessed_at IS NOT NULL) AND (reassessed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_precautions_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('discontinued'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_precautions_type CHECK (((precaution_type)::text = ANY (ARRAY[('contact'::character varying)::text, ('droplet'::character varying)::text, ('airborne'::character varying)::text, ('protective'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT clinic_precautions_valid_window CHECK (((ended_at IS NULL) OR (ended_at >= recorded_at)))
+);
+
+
+--
+-- Name: clinic_encounter_precautions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_precautions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_precautions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_precautions_id_seq OWNED BY public.clinic_encounter_precautions.id;
 
 
 --
@@ -1671,7 +1777,30 @@ CREATE TABLE public.clinic_medication_statements (
     practice_id bigint NOT NULL,
     patient_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    data_status character varying DEFAULT 'incomplete'::character varying NOT NULL,
+    recorded_by_membership_id bigint,
+    reviewed_by_membership_id bigint,
+    recorded_at timestamp(6) with time zone,
+    last_reviewed_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    medication_name text,
+    dose_text text,
+    route_text text,
+    frequency_text text,
+    purpose text,
+    status character varying DEFAULT 'unknown'::character varying NOT NULL,
+    information_source character varying DEFAULT 'unknown'::character varying NOT NULL,
+    effective_from timestamp(6) with time zone,
+    effective_until timestamp(6) with time zone,
+    asserted_at timestamp(6) with time zone,
+    CONSTRAINT clinic_medication_recorded_shape CHECK ((((data_status)::text = 'incomplete'::text) OR ((medication_name IS NOT NULL) AND (recorded_by_membership_id IS NOT NULL) AND (recorded_at IS NOT NULL)))),
+    CONSTRAINT clinic_medication_statements_data_status CHECK (((data_status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('recorded'::character varying)::text]))),
+    CONSTRAINT clinic_medication_statements_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT clinic_medication_statements_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_medication_statements_source CHECK (((information_source)::text = ANY (ARRAY[('patient'::character varying)::text, ('caregiver'::character varying)::text, ('clinician'::character varying)::text, ('external_record'::character varying)::text, ('other'::character varying)::text, ('unknown'::character varying)::text]))),
+    CONSTRAINT clinic_medication_statements_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('completed'::character varying)::text, ('on_hold'::character varying)::text, ('stopped'::character varying)::text, ('not_taken'::character varying)::text, ('unknown'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_medication_valid_window CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until >= effective_from)))
 );
 
 
@@ -2013,9 +2142,13 @@ CREATE TABLE public.clinic_observations (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    encrypted_value text,
+    value_binding_id character varying NOT NULL,
+    CONSTRAINT clinic_observations_encrypted_value_shape CHECK (((((value_kind)::text = 'group'::text) AND (encrypted_value IS NULL)) OR (((value_kind)::text <> 'group'::text) AND (encrypted_value IS NOT NULL) AND (length(TRIM(BOTH FROM encrypted_value)) > 0)))),
     CONSTRAINT clinic_observations_finite_numeric CHECK (((numeric_value IS NULL) OR (numeric_value <> 'NaN'::numeric))),
-    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY (ARRAY[('numeric'::character varying)::text, ('text'::character varying)::text, ('coded'::character varying)::text, ('missing'::character varying)::text, ('group'::character varying)::text]))),
-    CONSTRAINT clinic_observations_value_shape CHECK (((((value_kind)::text = 'numeric'::text) AND (numeric_value IS NOT NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NOT NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'text'::text) AND (numeric_value IS NULL) AND (text_value IS NOT NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'coded'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NOT NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL)) OR (((value_kind)::text = 'missing'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NOT NULL)) OR (((value_kind)::text = 'group'::text) AND (numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))))
+    CONSTRAINT clinic_observations_legacy_values_empty CHECK (((numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))),
+    CONSTRAINT clinic_observations_value_binding_format CHECK (((value_binding_id)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text)),
+    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY (ARRAY[('numeric'::character varying)::text, ('text'::character varying)::text, ('coded'::character varying)::text, ('missing'::character varying)::text, ('group'::character varying)::text])))
 );
 
 
@@ -2036,6 +2169,51 @@ CREATE SEQUENCE public.clinic_observations_id_seq
 --
 
 ALTER SEQUENCE public.clinic_observations_id_seq OWNED BY public.clinic_observations.id;
+
+
+--
+-- Name: clinic_operation_receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_operation_receipts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    actor_membership_id bigint NOT NULL,
+    operation_code character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    outcome character varying NOT NULL,
+    resource_type character varying,
+    resource_id bigint,
+    resource_version character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    digest_algorithm character varying NOT NULL,
+    digest_key_id character varying,
+    CONSTRAINT clinic_operation_receipts_digest_algorithm CHECK (((digest_algorithm)::text = ANY (ARRAY[('sha256-v0'::character varying)::text, ('hmac-sha256-v1'::character varying)::text]))),
+    CONSTRAINT clinic_operation_receipts_digest_key CHECK (((((digest_algorithm)::text = 'sha256-v0'::text) AND (digest_key_id IS NULL)) OR (((digest_algorithm)::text = 'hmac-sha256-v1'::text) AND (digest_key_id IS NOT NULL) AND (length(TRIM(BOTH FROM digest_key_id)) > 0)))),
+    CONSTRAINT clinic_operation_receipts_resource_pair CHECK ((((resource_type IS NULL) AND (resource_id IS NULL)) OR ((resource_type IS NOT NULL) AND (resource_id IS NOT NULL)))),
+    CONSTRAINT clinic_operation_receipts_values CHECK (((length(TRIM(BOTH FROM operation_code)) > 0) AND (length(TRIM(BOTH FROM request_key)) > 0) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((outcome)::text = ANY (ARRAY[('committed'::character varying)::text, ('outcome_unconfirmed'::character varying)::text])) AND ((resource_id IS NULL) OR (resource_id > 0))))
+);
+
+
+--
+-- Name: clinic_operation_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_operation_receipts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_operation_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_operation_receipts_id_seq OWNED BY public.clinic_operation_receipts.id;
 
 
 --
@@ -2071,6 +2249,56 @@ CREATE SEQUENCE public.clinic_patient_address_versions_id_seq
 --
 
 ALTER SEQUENCE public.clinic_patient_address_versions_id_seq OWNED BY public.clinic_patient_address_versions.id;
+
+
+--
+-- Name: clinic_patient_care_needs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_care_needs (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    category character varying NOT NULL,
+    need_code character varying NOT NULL,
+    description text NOT NULL,
+    instructions text,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    effective_from timestamp(6) with time zone NOT NULL,
+    effective_until timestamp(6) with time zone,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    reviewed_by_membership_id bigint,
+    last_reviewed_at timestamp(6) with time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_care_needs_category CHECK (((category)::text = ANY (ARRAY[('communication'::character varying)::text, ('accessibility'::character varying)::text, ('mobility'::character varying)::text, ('equipment'::character varying)::text, ('decision_support'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT clinic_care_needs_code CHECK (((need_code)::text = ANY (ARRAY[('spoken_language_interpreter'::character varying)::text, ('sign_language_interpreter'::character varying)::text, ('hearing_assistance'::character varying)::text, ('vision_assistance'::character varying)::text, ('communication_device'::character varying)::text, ('wheelchair_access'::character varying)::text, ('transfer_assistance'::character varying)::text, ('mobility_assistance'::character varying)::text, ('service_animal'::character varying)::text, ('support_person'::character varying)::text, ('cognitive_support'::character varying)::text, ('supplemental_oxygen'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT clinic_care_needs_lock_version CHECK ((lock_version >= 0)),
+    CONSTRAINT clinic_care_needs_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_care_needs_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_care_needs_valid_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_patient_care_needs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_care_needs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_care_needs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_care_needs_id_seq OWNED BY public.clinic_patient_care_needs.id;
 
 
 --
@@ -2222,6 +2450,50 @@ CREATE SEQUENCE public.clinic_patient_emergency_contacts_id_seq
 --
 
 ALTER SEQUENCE public.clinic_patient_emergency_contacts_id_seq OWNED BY public.clinic_patient_emergency_contacts.id;
+
+
+--
+-- Name: clinic_patient_history_reviews; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_history_reviews (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    topic character varying NOT NULL,
+    outcome character varying NOT NULL,
+    information_source character varying NOT NULL,
+    notes text,
+    reviewer_membership_id bigint NOT NULL,
+    reviewed_at timestamp(6) with time zone NOT NULL,
+    request_key character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_history_reviews_outcome CHECK (((outcome)::text = ANY (ARRAY[('current_list_confirmed'::character varying)::text, ('none_reported'::character varying)::text, ('follow_up_needed'::character varying)::text, ('unable_to_obtain'::character varying)::text]))),
+    CONSTRAINT clinic_history_reviews_request_present CHECK ((length(TRIM(BOTH FROM request_key)) > 0)),
+    CONSTRAINT clinic_history_reviews_source CHECK (((information_source)::text = ANY (ARRAY[('patient'::character varying)::text, ('caregiver'::character varying)::text, ('clinician'::character varying)::text, ('external_record'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT clinic_history_reviews_topic CHECK (((topic)::text = ANY (ARRAY[('allergies'::character varying)::text, ('medications'::character varying)::text, ('care_needs'::character varying)::text])))
+);
+
+
+--
+-- Name: clinic_patient_history_reviews_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_history_reviews_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_history_reviews_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_history_reviews_id_seq OWNED BY public.clinic_patient_history_reviews.id;
 
 
 --
@@ -3479,6 +3751,13 @@ ALTER TABLE ONLY public.clinic_encounter_participants ALTER COLUMN id SET DEFAUL
 
 
 --
+-- Name: clinic_encounter_precautions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_precautions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_encounters id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3668,10 +3947,24 @@ ALTER TABLE ONLY public.clinic_observations ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: clinic_operation_receipts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_operation_receipts ALTER COLUMN id SET DEFAULT nextval('public.clinic_operation_receipts_id_seq'::regclass);
+
+
+--
 -- Name: clinic_patient_address_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_patient_address_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_address_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_care_needs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_needs ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_care_needs_id_seq'::regclass);
 
 
 --
@@ -3700,6 +3993,13 @@ ALTER TABLE ONLY public.clinic_patient_demographics ALTER COLUMN id SET DEFAULT 
 --
 
 ALTER TABLE ONLY public.clinic_patient_emergency_contacts ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_emergency_contacts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_history_reviews id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_history_reviews ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_history_reviews_id_seq'::regclass);
 
 
 --
@@ -4088,6 +4388,14 @@ ALTER TABLE ONLY public.clinic_encounter_participants
 
 
 --
+-- Name: clinic_encounter_precautions clinic_encounter_precautions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions
+    ADD CONSTRAINT clinic_encounter_precautions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_encounters clinic_encounters_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4304,11 +4612,27 @@ ALTER TABLE ONLY public.clinic_observations
 
 
 --
+-- Name: clinic_operation_receipts clinic_operation_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_operation_receipts
+    ADD CONSTRAINT clinic_operation_receipts_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_patient_address_versions clinic_patient_address_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT clinic_patient_address_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_care_needs clinic_patient_care_needs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_needs
+    ADD CONSTRAINT clinic_patient_care_needs_pkey PRIMARY KEY (id);
 
 
 --
@@ -4341,6 +4665,14 @@ ALTER TABLE ONLY public.clinic_patient_demographics
 
 ALTER TABLE ONLY public.clinic_patient_emergency_contacts
     ADD CONSTRAINT clinic_patient_emergency_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_history_reviews clinic_patient_history_reviews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_history_reviews
+    ADD CONSTRAINT clinic_patient_history_reviews_pkey PRIMARY KEY (id);
 
 
 --
@@ -4600,6 +4932,13 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: clinic_allergies_patient_data_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_allergies_patient_data_status ON public.clinic_allergies USING btree (practice_id, patient_id, data_status);
+
+
+--
 -- Name: clinic_allergies_patient_time; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4611,6 +4950,20 @@ CREATE INDEX clinic_allergies_patient_time ON public.clinic_allergies USING btre
 --
 
 CREATE UNIQUE INDEX clinic_allergies_practice_id ON public.clinic_allergies USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_allergies_recorded_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_allergies_recorded_by_membership_id_fk ON public.clinic_allergies USING btree (practice_id, recorded_by_membership_id);
+
+
+--
+-- Name: clinic_allergies_reviewed_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_allergies_reviewed_by_membership_id_fk ON public.clinic_allergies USING btree (practice_id, reviewed_by_membership_id);
 
 
 --
@@ -4677,6 +5030,13 @@ CREATE UNIQUE INDEX clinic_audit_resource_manifests_practice_id ON public.clinic
 
 
 --
+-- Name: clinic_care_needs_active_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_care_needs_active_lookup ON public.clinic_patient_care_needs USING btree (practice_id, patient_id, status, category);
+
+
+--
 -- Name: clinic_clinician_assignments_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4698,6 +5058,13 @@ CREATE UNIQUE INDEX clinic_clinician_profiles_practice_id ON public.clinic_clini
 
 
 --
+-- Name: clinic_conditions_patient_data_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_conditions_patient_data_status ON public.clinic_conditions USING btree (practice_id, patient_id, data_status);
+
+
+--
 -- Name: clinic_conditions_patient_time; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4709,6 +5076,20 @@ CREATE INDEX clinic_conditions_patient_time ON public.clinic_conditions USING bt
 --
 
 CREATE UNIQUE INDEX clinic_conditions_practice_id ON public.clinic_conditions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_conditions_recorded_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_conditions_recorded_by_membership_id_fk ON public.clinic_conditions USING btree (practice_id, recorded_by_membership_id);
+
+
+--
+-- Name: clinic_conditions_reviewed_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_conditions_reviewed_by_membership_id_fk ON public.clinic_conditions USING btree (practice_id, reviewed_by_membership_id);
 
 
 --
@@ -4824,6 +5205,27 @@ CREATE UNIQUE INDEX clinic_encounter_participants_practice_id ON public.clinic_e
 
 
 --
+-- Name: clinic_encounter_precautions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_precautions_practice_id ON public.clinic_encounter_precautions USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_precautions_reassessed_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_encounter_precautions_reassessed_by_membership_id_fk ON public.clinic_encounter_precautions USING btree (practice_id, reassessed_by_membership_id);
+
+
+--
+-- Name: clinic_encounter_precautions_recorded_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_encounter_precautions_recorded_by_membership_id_fk ON public.clinic_encounter_precautions USING btree (practice_id, recorded_by_membership_id);
+
+
+--
 -- Name: clinic_encounters_one_per_appointment; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4842,6 +5244,20 @@ CREATE UNIQUE INDEX clinic_encounters_practice_id ON public.clinic_encounters US
 --
 
 CREATE UNIQUE INDEX clinic_encounters_practice_patient_id ON public.clinic_encounters USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_history_reviews_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_history_reviews_latest ON public.clinic_patient_history_reviews USING btree (practice_id, patient_id, encounter_id, topic, reviewed_at);
+
+
+--
+-- Name: clinic_history_reviews_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_history_reviews_request_key ON public.clinic_patient_history_reviews USING btree (practice_id, request_key);
 
 
 --
@@ -4873,6 +5289,13 @@ CREATE UNIQUE INDEX clinic_invoices_practice_id ON public.clinic_invoices USING 
 
 
 --
+-- Name: clinic_medication_statements_patient_data_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_medication_statements_patient_data_status ON public.clinic_medication_statements USING btree (practice_id, patient_id, data_status);
+
+
+--
 -- Name: clinic_medication_statements_patient_time; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4884,6 +5307,20 @@ CREATE INDEX clinic_medication_statements_patient_time ON public.clinic_medicati
 --
 
 CREATE UNIQUE INDEX clinic_medication_statements_practice_id ON public.clinic_medication_statements USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_medication_statements_recorded_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_medication_statements_recorded_by_membership_id_fk ON public.clinic_medication_statements USING btree (practice_id, recorded_by_membership_id);
+
+
+--
+-- Name: clinic_medication_statements_reviewed_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_medication_statements_reviewed_by_membership_id_fk ON public.clinic_medication_statements USING btree (practice_id, reviewed_by_membership_id);
 
 
 --
@@ -5034,6 +5471,34 @@ CREATE UNIQUE INDEX clinic_observations_practice_id ON public.clinic_observation
 
 
 --
+-- Name: clinic_observations_value_binding; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_observations_value_binding ON public.clinic_observations USING btree (practice_id, value_binding_id);
+
+
+--
+-- Name: clinic_operation_receipts_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_operation_receipts_identity ON public.clinic_operation_receipts USING btree (practice_id, actor_membership_id, request_key);
+
+
+--
+-- Name: clinic_operation_receipts_operation_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_operation_receipts_operation_time ON public.clinic_operation_receipts USING btree (practice_id, operation_code, created_at);
+
+
+--
+-- Name: clinic_operation_receipts_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_operation_receipts_practice_id ON public.clinic_operation_receipts USING btree (practice_id, id);
+
+
+--
 -- Name: clinic_patient_address_versions_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5052,6 +5517,27 @@ CREATE UNIQUE INDEX clinic_patient_addresses_owner_id ON public.clinic_patient_a
 --
 
 CREATE UNIQUE INDEX clinic_patient_addresses_version ON public.clinic_patient_address_versions USING btree (practice_id, patient_id, version);
+
+
+--
+-- Name: clinic_patient_care_needs_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_care_needs_practice_id ON public.clinic_patient_care_needs USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_care_needs_recorded_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_care_needs_recorded_by_membership_id_fk ON public.clinic_patient_care_needs USING btree (practice_id, recorded_by_membership_id);
+
+
+--
+-- Name: clinic_patient_care_needs_reviewed_by_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_care_needs_reviewed_by_membership_id_fk ON public.clinic_patient_care_needs USING btree (practice_id, reviewed_by_membership_id);
 
 
 --
@@ -5125,6 +5611,20 @@ CREATE UNIQUE INDEX clinic_patient_emergency_contacts_practice_id ON public.clin
 
 
 --
+-- Name: clinic_patient_history_reviews_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_history_reviews_practice_id ON public.clinic_patient_history_reviews USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_history_reviews_reviewer_membership_id_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_history_reviews_reviewer_membership_id_fk ON public.clinic_patient_history_reviews USING btree (practice_id, reviewer_membership_id);
+
+
+--
 -- Name: clinic_patient_social_histories_patient_time; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5164,6 +5664,20 @@ CREATE UNIQUE INDEX clinic_payment_events_patient_id ON public.clinic_payment_ev
 --
 
 CREATE UNIQUE INDEX clinic_payment_events_practice_id ON public.clinic_payment_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_precautions_encounter_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_precautions_encounter_status ON public.clinic_encounter_precautions USING btree (practice_id, encounter_id, status, recorded_at);
+
+
+--
+-- Name: clinic_precautions_patient_encounter_fk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_precautions_patient_encounter_fk ON public.clinic_encounter_precautions USING btree (practice_id, patient_id, encounter_id);
 
 
 --
@@ -6273,6 +6787,13 @@ CREATE TRIGGER clinic_encounter_participants_preserve_identity BEFORE UPDATE ON 
 
 
 --
+-- Name: clinic_encounter_precautions clinic_encounter_precautions_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_precautions_preserve_identity BEFORE UPDATE ON public.clinic_encounter_precautions FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'recorded_by_membership_id', 'recorded_at');
+
+
+--
 -- Name: clinic_encounters clinic_encounters_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6360,7 +6881,14 @@ CREATE TRIGGER clinic_observation_sources_immutable BEFORE DELETE OR UPDATE ON p
 -- Name: clinic_observations clinic_observations_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER clinic_observations_preserve_identity BEFORE UPDATE ON public.clinic_observations FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'author_membership_id', 'parent_observation_id');
+CREATE TRIGGER clinic_observations_preserve_identity BEFORE UPDATE ON public.clinic_observations FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'author_membership_id', 'parent_observation_id', 'value_binding_id');
+
+
+--
+-- Name: clinic_operation_receipts clinic_operation_receipts_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_operation_receipts_immutable BEFORE DELETE OR UPDATE ON public.clinic_operation_receipts FOR EACH ROW EXECUTE FUNCTION public.clinic_operation_receipts_immutable();
 
 
 --
@@ -6368,6 +6896,13 @@ CREATE TRIGGER clinic_observations_preserve_identity BEFORE UPDATE ON public.cli
 --
 
 CREATE TRIGGER clinic_patient_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_care_needs clinic_patient_care_needs_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_care_needs_preserve_identity BEFORE UPDATE ON public.clinic_patient_care_needs FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'recorded_by_membership_id', 'recorded_at', 'effective_from');
 
 
 --
@@ -6382,6 +6917,13 @@ CREATE TRIGGER clinic_patient_contacts_immutable BEFORE DELETE OR UPDATE ON publ
 --
 
 CREATE TRIGGER clinic_patient_emergency_contacts_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_emergency_contacts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_history_reviews clinic_patient_history_reviews_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_history_reviews_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_history_reviews FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -6822,6 +7364,22 @@ ALTER TABLE ONLY public.clinic_audit_delivery_receipts
 
 
 --
+-- Name: clinic_patient_care_needs fk_care_needs_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_needs
+    ADD CONSTRAINT fk_care_needs_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_patient_care_needs fk_care_needs_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_needs
+    ADD CONSTRAINT fk_care_needs_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_allergies fk_clinic_allergies_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6835,6 +7393,22 @@ ALTER TABLE ONLY public.clinic_allergies
 
 ALTER TABLE ONLY public.clinic_allergies
     ADD CONSTRAINT fk_clinic_allergies_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_allergies fk_clinic_allergies_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_allergies
+    ADD CONSTRAINT fk_clinic_allergies_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_allergies fk_clinic_allergies_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_allergies
+    ADD CONSTRAINT fk_clinic_allergies_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -6910,6 +7484,22 @@ ALTER TABLE ONLY public.clinic_conditions
 
 
 --
+-- Name: clinic_conditions fk_clinic_conditions_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_conditions
+    ADD CONSTRAINT fk_clinic_conditions_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_conditions fk_clinic_conditions_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_conditions
+    ADD CONSTRAINT fk_clinic_conditions_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_coverage_versions fk_clinic_coverage_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6982,6 +7572,22 @@ ALTER TABLE ONLY public.clinic_encounter_participants
 
 
 --
+-- Name: clinic_encounter_precautions fk_clinic_encounter_precautions_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions
+    ADD CONSTRAINT fk_clinic_encounter_precautions_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_precautions fk_clinic_encounter_precautions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions
+    ADD CONSTRAINT fk_clinic_encounter_precautions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_encounters fk_clinic_encounters_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7027,6 +7633,22 @@ ALTER TABLE ONLY public.clinic_medication_statements
 
 ALTER TABLE ONLY public.clinic_medication_statements
     ADD CONSTRAINT fk_clinic_medication_statements_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_medication_statements fk_clinic_medication_statements_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_statements
+    ADD CONSTRAINT fk_clinic_medication_statements_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_medication_statements fk_clinic_medication_statements_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_statements
+    ADD CONSTRAINT fk_clinic_medication_statements_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -7102,6 +7724,22 @@ ALTER TABLE ONLY public.clinic_patient_address_versions
 
 
 --
+-- Name: clinic_patient_care_needs fk_clinic_patient_care_needs_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_needs
+    ADD CONSTRAINT fk_clinic_patient_care_needs_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_care_needs fk_clinic_patient_care_needs_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_needs
+    ADD CONSTRAINT fk_clinic_patient_care_needs_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_patient_communication_preferences fk_clinic_patient_communication_preferences_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7163,6 +7801,22 @@ ALTER TABLE ONLY public.clinic_patient_emergency_contacts
 
 ALTER TABLE ONLY public.clinic_patient_emergency_contacts
     ADD CONSTRAINT fk_clinic_patient_emergency_contacts_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_history_reviews fk_clinic_patient_history_reviews_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_history_reviews
+    ADD CONSTRAINT fk_clinic_patient_history_reviews_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_history_reviews fk_clinic_patient_history_reviews_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_history_reviews
+    ADD CONSTRAINT fk_clinic_patient_history_reviews_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -7334,6 +7988,14 @@ ALTER TABLE ONLY public.clinic_encounter_notes
 
 
 --
+-- Name: clinic_encounter_precautions fk_encounter_precautions_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions
+    ADD CONSTRAINT fk_encounter_precautions_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
 -- Name: clinic_encounters fk_encounters_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7363,6 +8025,22 @@ ALTER TABLE ONLY public.clinic_encounters
 
 ALTER TABLE ONLY public.clinic_encounters
     ADD CONSTRAINT fk_encounters_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_patient_history_reviews fk_history_reviews_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_history_reviews
+    ADD CONSTRAINT fk_history_reviews_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_history_reviews fk_history_reviews_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_history_reviews
+    ADD CONSTRAINT fk_history_reviews_reviewer FOREIGN KEY (practice_id, reviewer_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -7558,6 +8236,22 @@ ALTER TABLE ONLY public.clinic_observations
 
 
 --
+-- Name: clinic_operation_receipts fk_operation_receipts_actor_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_operation_receipts
+    ADD CONSTRAINT fk_operation_receipts_actor_membership FOREIGN KEY (practice_id, actor_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_operation_receipts fk_operation_receipts_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_operation_receipts
+    ADD CONSTRAINT fk_operation_receipts_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_encounter_participants fk_participants_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7635,6 +8329,22 @@ ALTER TABLE ONLY public.clinic_payment_events
 
 ALTER TABLE ONLY public.clinic_practices
     ADD CONSTRAINT fk_practices_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: clinic_encounter_precautions fk_precautions_reassessor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions
+    ADD CONSTRAINT fk_precautions_reassessor FOREIGN KEY (practice_id, reassessed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_precautions fk_precautions_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_precautions
+    ADD CONSTRAINT fk_precautions_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -8292,6 +9002,15 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260902009903'),
+('20260902009902'),
+('20260902009901'),
+('20260902009900'),
+('20260902000500'),
+('20260902000300'),
+('20260902000200'),
+('20260902000100'),
+('20260901000100'),
 ('20260831001100'),
 ('20260831001000'),
 ('20260831000900'),
