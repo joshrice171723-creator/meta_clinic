@@ -98,6 +98,7 @@ export function Workspace({
   const path =
     typeof window === "undefined" ? "/clinic" : window.location.pathname;
   const trackingBoard = path.replace(/\/+$/, "") === "/clinic";
+  const inventoryPage = path.startsWith("/clinic/inventory");
   if (!data || !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -146,7 +147,7 @@ export function Workspace({
               </header>
               <main
                 id="main"
-                className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}`}
+                className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
               >
                 {children}
               </main>
