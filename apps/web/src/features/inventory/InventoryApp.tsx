@@ -3,6 +3,7 @@ import {
   useMemo,
   useState,
   type FormEvent,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import { api, ApiError } from "../../api/client";
@@ -384,12 +385,45 @@ function PermissionNote({
 }
 
 export function InventoryApp({ path }: { path: string }) {
-  const screen = screenForPath(path);
+  const [activePath, setActivePath] = useState(path);
+  const screen = screenForPath(activePath);
   const [data, setData] = useState<InventoryData>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+
+  useEffect(() => {
+    const onPopState = () => setActivePath(window.location.pathname);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const handleInventoryNavigation = (event: MouseEvent<HTMLDivElement>) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const anchor = target.closest<HTMLAnchorElement>("a[href]");
+    if (!anchor || (anchor.target && anchor.target !== "_self")) return;
+    const url = new URL(anchor.href, window.location.href);
+    if (
+      url.origin !== window.location.origin ||
+      !url.pathname.startsWith("/clinic/inventory")
+    )
+      return;
+    event.preventDefault();
+    window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    setActivePath(url.pathname);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
 
   const load = async () => {
     setLoading(true);
@@ -493,7 +527,7 @@ export function InventoryApp({ path }: { path: string }) {
     data.users[0];
 
   return (
-    <div className="inventory-app">
+    <div className="inventory-app" onClick={handleInventoryNavigation}>
       <div className="inventory-layout">
         <div className="inventory-main">
           <header className="inventory-header">

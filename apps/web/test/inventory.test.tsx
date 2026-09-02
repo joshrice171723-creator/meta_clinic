@@ -33,6 +33,8 @@ describe("inventory integration", () => {
     }
     expect(source).toContain('"/api/clinic/inventory/bootstrap"');
     expect(source).toContain('"/api/clinic/inventory/demo"');
+    expect(source).toContain("history.pushState");
+    expect(source).toContain('"popstate"');
   });
 
   it("represents operational states and does not use browser persistence", () => {
