@@ -2,6 +2,7 @@ require "test_helper"
 
 class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
   setup do
+    Rails.cache.clear
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
     @password = SecureRandom.hex(18)
