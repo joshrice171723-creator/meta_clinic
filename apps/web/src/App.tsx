@@ -20,10 +20,10 @@ import {
   ChartSelectionPage,
   chartSelectionProps,
 } from "./features/clinic/ChartSelectionPage";
-import { Office } from "./features/inventory/Office";
 import { Catalog } from "./features/inventory/Catalog";
 import { NewProduct } from "./features/inventory/NewProduct";
 import { Product } from "./features/inventory/Product";
+import { InventoryApp } from "./features/inventory/InventoryApp";
 
 function LaunchLayout({
   user,
@@ -175,6 +175,8 @@ export function App() {
         <Schedule />
       ) : path === "/clinic/chart-selection" ? (
         <ChartSelectionPage {...chartSelectionProps(window.location.search)} />
+      ) : path.startsWith("/clinic/inventory") ? (
+        <InventoryApp path={path} />
       ) : path === "/clinic/pharmacy" ? (
         <Catalog />
       ) : path === "/clinic/pharmacy/new" ? (
@@ -187,8 +189,6 @@ export function App() {
         <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
       ) : patient ? (
         <Patients id={patient[1]} />
-      ) : path === "/clinic/inventory" ? (
-        <Office />
       ) : path === "/clinic/staff" ? (
         <Staff />
       ) : (

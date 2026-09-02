@@ -45,19 +45,14 @@ export function ClinicNavigation({
       allowed: capabilities.patients,
     },
     {
-      href: "/clinic/pharmacy",
-      label: "Pharmacy",
+      href: "/clinic/inventory",
+      label: "Inventory",
       allowed: capabilities.inventory,
     },
     {
       href: "/clinic/operations",
       label: "Operations",
       allowed: true,
-    },
-    {
-      href: "/clinic/inventory",
-      label: "Office inventory",
-      allowed: capabilities.inventory,
     },
     {
       href: "/clinic/staff",

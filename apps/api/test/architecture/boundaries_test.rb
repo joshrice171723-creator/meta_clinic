@@ -34,7 +34,11 @@ class BoundariesTest < ActiveSupport::TestCase
       Clinic::Inventory::HoldRelease => "clinic_inventory_hold_releases", Clinic::Inventory::Location => "clinic_inventory_locations",
       Clinic::Inventory::Lot => "clinic_inventory_lots", Clinic::Inventory::Profile => "clinic_inventory_profiles",
       Clinic::Inventory::Receipt => "clinic_inventory_receipts", Clinic::Inventory::ReceiptLine => "clinic_inventory_receipt_lines",
-      Clinic::Inventory::Supplier => "clinic_inventory_suppliers"
+      Clinic::Inventory::Supplier => "clinic_inventory_suppliers", Clinic::Inventory::PurchaseOrder => "clinic_inventory_purchase_orders",
+      Clinic::Inventory::PurchaseOrderLine => "clinic_inventory_purchase_order_lines", Clinic::Inventory::PurchaseOrderEvent => "clinic_inventory_purchase_order_events",
+      Clinic::Inventory::Shipment => "clinic_inventory_shipments", Clinic::Inventory::Transfer => "clinic_inventory_transfers",
+      Clinic::Inventory::Recall => "clinic_inventory_recalls", Clinic::Inventory::RecallLot => "clinic_inventory_recall_lots",
+      Clinic::Inventory::RecallDisposition => "clinic_inventory_recall_dispositions", Clinic::Inventory::ControlReview => "clinic_inventory_control_reviews"
     }
     mappings.each do |model, table|
       assert_equal table, model.table_name, model.name

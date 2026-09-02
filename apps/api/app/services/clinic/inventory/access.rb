@@ -1,7 +1,7 @@
 module Clinic
   module Inventory
     module Access
-      ACTIONS = %w[catalog receive adjust hold release count configure].freeze
+      ACTIONS = %w[catalog receive adjust hold release count configure transfer].freeze
 
       def self.with(practice_id, actor, action)
         raise ArgumentError, "Unsupported inventory action." unless ACTIONS.include?(action)

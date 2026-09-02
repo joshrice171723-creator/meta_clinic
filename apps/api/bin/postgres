@@ -25,7 +25,16 @@ when "start"
 when "exec"
   abort "Start PostgreSQL first" unless File.file?(path)
   abort "Supply a command" unless ARGV.length > 1
-  exec({ "PGHOST" => "127.0.0.1", "PGPORT" => ENV.fetch("PGPORT", "54329"), "PGUSER" => "postgres", "PGPASSWORD" => File.read(path) }, *ARGV.drop(1))
+  command = ARGV.drop(1)
+  database_clients = %w[createdb dropdb psql pg_dump pg_restore]
+  if database_clients.include?(command.first) && (Gem.win_platform? || !system("where", command.first, out: File::NULL, err: File::NULL))
+    docker_args = [ "exec", "-i", name ]
+    %w[PGDATABASE PGOPTIONS].each do |key|
+      docker_args.push("-e", "#{key}=#{ENV[key]}") if ENV[key]
+    end
+    exec("docker", *docker_args, command.first, "-U", "postgres", *command.drop(1))
+  end
+  exec({ "PGHOST" => "127.0.0.1", "PGPORT" => ENV.fetch("PGPORT", "54329"), "PGUSER" => "postgres", "PGPASSWORD" => File.read(path) }, *command)
 when "stop"
   system("docker", "stop", name, exception: true, out: File::NULL)
 else
