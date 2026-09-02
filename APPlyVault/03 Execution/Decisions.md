@@ -1,7 +1,7 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-01
+updated: 2026-09-02
 ---
 # Decisions
 
@@ -188,3 +188,9 @@ Production admin assignments among the three founding members referred to by the
 ## Manual staging delivery
 
 **D-048 — 2026-09-01 / founder's deployment-cost request:** stop automatically building and deploying to AWS after each merged change. The founder allowed either manual delivery or an approximately 5 a.m. Central schedule; select manual-only staging delivery because it incurs no build/publish/deploy run unless an operator deliberately requests one. The workflow requires `main` plus exact `deploy-staging` confirmation before checkout or AWS authentication. CI remains automatic for integration evidence. Production remains a separate manual promotion with its existing digest, ancestry, scan and authorization gates. This cost-control choice does not cancel an in-progress release, change existing AWS resources/storage charges, authorize a staging run, or establish a budget/price estimate.
+
+## Provider-flow UX and synthetic identity convention
+
+**D-049 — 2026-09-02 / founder's provider-flow review and implementation request:** make the tracking board and SOAP workspace usable as one provider journey from an already-authenticated session through deliberate encounter completion, while removing redundant controls, overlapping text and disruptive fixture ambiguity. Managed local-development patients use the visibly synthetic `SYN_Lastname, Firstname` convention and stable `SYN-*` clinic references. Repair only exact seed-owned legacy identities; preserve manually edited or unrelated records and all identifiers/relationships. On the board, chart navigation and care-detail disclosure are separate deliberate actions. The provider workspace uses one patient-and-visit confirmation before charting, keeps recorded context beside the note, removes unsupported quick-entry/macros, and may expose a patient-bound encounter-completion command.
+
+**Limits:** the local command records only the existing encounter `open` to `completed` transition after an explicit confirmation. It does not sign a note, prescribe or transmit, prove departure, perform checkout, accept or create a handoff, complete follow-up, or establish an approved clinical workflow. The synthetic naming convention is development-fixture policy, not a patient-identity data model. This decision authorizes bounded local source, synthetic seed repair, tests and project-record updates; it does not authorize deployment, real/confidential data, production mutation, or closure of T-13, T-44, L-05, E1-E3 or any clinical/release gate.

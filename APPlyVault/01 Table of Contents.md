@@ -43,6 +43,8 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
 | [[Clinic Workspace Design]] | Workload-board example, Operations and chart-tab navigation; account-owned themes, workflow proposals and verified versus unimplemented boundaries |
+| [[Clinic Intake Handoff Walkthrough]] | T-13.1 synthetic staff-intake-to-clinician-handoff script, evidence distinctions, scope, failure matrix and T-13.2/T-13.3 blockers; no approved clinical workflow |
+| [[Clinic Encounter Workflow Contract]] | Proposed synthetic route/stage contract for identity, intake, triage, handoff, unsigned provider exam, diagnosis boundary and discharge; explicit security, migration, audit and acceptance gates |
 | [[Clinic Frontend Backend Mapping]] | Current frontend-to-implemented-backend readiness map, five user-flow diagrams, minimum read-only context/schedule/patient/encounter implementation, full target-entity coverage, remaining contracts and phased acceptance |
 | [[Data Modeling]] | Broader proposed clinical/security model, illustrative SQL and acceptance scenarios; not the executable schema |
 | [[Multi-Clinic ERD Adversarial Review]] | Original image findings, revision-2 integrity recommendations and adverse-path cases; D-044 supersedes its former hardening-only scope, not its safety invariants |
