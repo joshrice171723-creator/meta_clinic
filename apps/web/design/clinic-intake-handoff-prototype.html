@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clinic intake and handoff — example prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --canvas: #f5f7f4;
+        --surface: #ffffff;
+        --ink: #20352f;
+        --muted: #52655e;
+        --accent: #1f5c4d;
+        --accent-soft: #e6efe8;
+        --border: #bdcbc3;
+        --warning: #6d4c00;
+        --warning-soft: #fff6d9;
+        --danger: #8a1c1c;
+        --danger-soft: #fff0f0;
+        --success: #155d37;
+        --success-soft: #eaf7ef;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      button {
+        min-height: 44px;
+        border: 2px solid var(--accent);
+        border-radius: 8px;
+        padding: 0.55rem 0.9rem;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        background: var(--surface);
+        color: var(--accent);
+      }
+
+      button.warning {
+        border-color: var(--warning);
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+
+      button.danger {
+        border-color: var(--danger);
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      button:focus-visible,
+      a:focus-visible {
+        outline: 4px solid #f0a500;
+        outline-offset: 3px;
+      }
+
+      .skip-link {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform: translateY(-130%);
+        padding: 0.65rem 1rem;
+        background: var(--ink);
+        color: #fff;
+        z-index: 2;
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .prototype-header,
+      main {
+        width: min(1120px, calc(100% - 2rem));
+        margin: 0 auto;
+      }
+
+      .prototype-header {
+        padding: 1.5rem 0 0.75rem;
+      }
+
+      .prototype-header p,
+      .page-heading p {
+        max-width: 75ch;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+
+      h1 {
+        margin: 0.25rem 0 0.5rem;
+        font-size: clamp(1.7rem, 3vw, 2.4rem);
+      }
+
+      h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.25rem;
+      }
+
+      h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.05rem;
+      }
+
+      .example-banner,
+      .notice,
+      .failure {
+        border: 1px solid var(--border);
+        border-left: 6px solid var(--accent);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+      }
+
+      .example-banner {
+        margin: 0.75rem 0 1.5rem;
+        background: var(--accent-soft);
+      }
+
+      .notice {
+        background: var(--warning-soft);
+        border-left-color: var(--warning);
+        color: var(--warning);
+      }
+
+      .failure {
+        margin-top: 1rem;
+        background: var(--danger-soft);
+        border-left-color: var(--danger);
+        color: var(--danger);
+      }
+
+      .page-heading {
+        margin-bottom: 1.25rem;
+      }
+
+      .card {
+        margin: 1rem 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: clamp(1rem, 2vw, 1.5rem);
+        background: var(--surface);
+        box-shadow: 0 2px 8px rgb(32 53 47 / 8%);
+      }
+
+      .identity-grid,
+      .metadata-grid,
+      .state-grid,
+      .workflow-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .identity-grid,
+      .metadata-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .state-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .workflow-grid {
+        grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+        align-items: start;
+      }
+
+      .route-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0 0 1rem;
+        padding: 0;
+        list-style: none;
+      }
+
+      .route-nav button {
+        background: var(--surface);
+        color: var(--accent);
+        font-size: 0.92rem;
+      }
+
+      .route-nav button[aria-current="step"] {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .field {
+        display: grid;
+        gap: 0.35rem;
+        margin: 0.8rem 0;
+      }
+
+      .field label {
+        font-weight: 700;
+      }
+
+      .field select,
+      .field textarea {
+        width: 100%;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        background: var(--surface);
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .field textarea {
+        min-height: 7rem;
+        resize: vertical;
+      }
+
+      .field select:focus-visible,
+      .field textarea:focus-visible {
+        outline: 4px solid #f0a500;
+        outline-offset: 2px;
+      }
+
+      .progress-note {
+        border-top: 1px solid var(--border);
+        margin-top: 1rem;
+        padding-top: 0.8rem;
+        color: var(--muted);
+      }
+
+      .identity-item,
+      .metadata-item,
+      .state-card {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.8rem;
+      }
+
+      .identity-item dt,
+      .metadata-item dt,
+      .state-label {
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 700;
+      }
+
+      .identity-item dd,
+      .metadata-item dd {
+        margin: 0.15rem 0 0;
+        overflow-wrap: anywhere;
+        font-weight: 700;
+      }
+
+      .state-card strong {
+        display: block;
+        margin: 0.3rem 0;
+      }
+
+      .state-card p,
+      .metadata-item p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .state-unknown {
+        background: #f3f0ff;
+        border-color: #7667aa;
+      }
+
+      .state-missing {
+        background: #f8f8f8;
+      }
+
+      .state-known {
+        background: var(--success-soft);
+        border-color: #76a98a;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-top: 1rem;
+      }
+
+      .handoff-status {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.8rem;
+        margin: 0 0 0.8rem;
+      }
+
+      .status-chip {
+        border-radius: 999px;
+        padding: 0.2rem 0.65rem;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 800;
+      }
+
+      .status-chip.accepted {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+
+      .status-chip.declined,
+      .status-chip.correction {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .soap-preview {
+        border-left: 6px solid var(--accent);
+      }
+
+      .soap-preview .preview-body {
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 0.9rem;
+        background: #fbfcfb;
+      }
+
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      footer {
+        width: min(1120px, calc(100% - 2rem));
+        margin: 2rem auto;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 900px) {
+        .identity-grid,
+        .metadata-grid,
+        .state-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .workflow-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .prototype-header,
+        main,
+        footer {
+          width: min(100% - 1rem, 1120px);
+        }
+
+        .prototype-header {
+          padding-top: 1rem;
+        }
+
+        .identity-grid,
+        .metadata-grid,
+        .state-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .actions,
+        .actions button {
+          width: 100%;
+        }
+
+        .card {
+          padding: 1rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="prototype-header">
+      <p class="eyebrow">Clinic workflow exploration</p>
+      <h1>Encounter route: intake to discharge</h1>
+      <p>
+        A small, keyboard-friendly example of the proposed staff-to-clinician
+        path through provider exam, diagnosis draft, and discharge. It uses
+        fictional identities and in-memory interaction only.
+      </p>
+      <p class="example-banner" role="status">
+        <strong>Example only — not saved.</strong> Every transition on this page
+        is simulated and resets when the page reloads. No records, credentials,
+        tokens, or protected values are stored or sent.
+      </p>
+    </header>
+
+    <main id="main">
+      <section class="card" aria-labelledby="identity-heading">
+        <h2 id="identity-heading">Confirm patient and visit</h2>
+        <p>
+          Confirm the two identifiers before opening intake. A matching label is
+          not enough to establish identity in a real system.
+        </p>
+        <div class="identity-grid">
+          <dl class="identity-item">
+            <dt>Patient</dt>
+            <dd>SYN_Rivera, Mara</dd>
+          </dl>
+          <dl class="identity-item">
+            <dt>Clinic reference</dt>
+            <dd>SYN-BOARD-001</dd>
+          </dl>
+          <dl class="identity-item">
+            <dt>Visit</dt>
+            <dd>Encounter SYN-ENCOUNTER-42</dd>
+          </dl>
+        </div>
+        <p class="notice">
+          Opening this example does not accept a handoff, assign a clinician,
+          sign a note, complete checkout, or prove departure.
+        </p>
+        <div class="actions">
+          <button id="confirmButton" type="button">
+            Confirm patient and visit
+          </button>
+        </div>
+      </section>
+
+      <section id="workArea" hidden aria-labelledby="work-heading">
+        <h2 id="work-heading" tabindex="-1">Encounter work area</h2>
+        <p
+          id="announcement"
+          class="example-banner"
+          role="status"
+          aria-live="polite"
+        >
+          Example only — not saved. Patient and visit confirmed in this example.
+        </p>
+
+        <section class="card" aria-labelledby="route-heading">
+          <h3 id="route-heading">Example route</h3>
+          <p>
+            Select a step to review it. Locked steps show the prerequisite that
+            is still missing; selecting a step never performs a transition.
+          </p>
+          <nav aria-label="Example encounter route">
+            <ol class="route-nav">
+              <li>
+                <button
+                  class="route-step"
+                  data-route="intake"
+                  type="button"
+                  aria-current="step"
+                >
+                  1. Intake
+                </button>
+              </li>
+              <li>
+                <button class="route-step" data-route="triage" type="button">
+                  2. Triage
+                </button>
+              </li>
+              <li>
+                <button class="route-step" data-route="handoff" type="button">
+                  3. Handoff
+                </button>
+              </li>
+              <li>
+                <button class="route-step" data-route="exam" type="button">
+                  4. Provider exam
+                </button>
+              </li>
+              <li>
+                <button class="route-step" data-route="diagnosis" type="button">
+                  5. Diagnosis
+                </button>
+              </li>
+              <li>
+                <button class="route-step" data-route="discharge" type="button">
+                  6. Discharge
+                </button>
+              </li>
+            </ol>
+          </nav>
+          <div class="field">
+            <label for="roleSelect">Example role</label>
+            <select id="roleSelect">
+              <option value="staff">Example staff A</option>
+              <option value="clinician">Example clinician B</option>
+              <option value="discharge">
+                Example discharge operator (unapproved placeholder)
+              </option>
+            </select>
+            <span id="roleState" class="progress-note"
+              >Staff can record the example intake and triage; clinician
+              decisions remain explicit.</span
+            >
+          </div>
+        </section>
+
+        <div class="workflow-grid">
+          <section class="card" aria-labelledby="context-heading">
+            <h3 id="context-heading">Recorded context review</h3>
+            <p>
+              These labels and values are invented placeholders for state
+              handling, not an approved intake form or clinical guidance.
+            </p>
+            <div class="state-grid">
+              <article class="state-card state-missing">
+                <span class="state-label">Allergy review</span>
+                <strong>Not recorded</strong>
+                <p>No entry is available in this example.</p>
+              </article>
+              <article class="state-card state-unknown">
+                <span class="state-label">Identity detail</span>
+                <strong>Unknown</strong>
+                <p>
+                  An additional identity detail is unavailable in this example.
+                  Unknown does not mean confirmed.
+                </p>
+              </article>
+              <article class="state-card state-known">
+                <span class="state-label">Communication support</span>
+                <strong>Recorded</strong>
+                <p>
+                  Example preference recorded by staff; review remains explicit.
+                </p>
+              </article>
+            </div>
+            <p class="notice">
+              Missing, unknown, and unreviewed items remain visible. Requesting
+              clinician review does not make the intake complete or safe by
+              itself.
+            </p>
+          </section>
+
+          <section class="card" aria-labelledby="metadata-heading">
+            <h3 id="metadata-heading">Ownership and saved state</h3>
+            <div class="metadata-grid">
+              <dl class="metadata-item">
+                <dt>Author</dt>
+                <dd id="author">Example staff A</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Owner</dt>
+                <dd id="owner">Example staff A</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Intake version</dt>
+                <dd id="version">v3</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Saved state</dt>
+                <dd id="savedState">Example draft in memory — not saved</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Handoff state</dt>
+                <dd id="handoffState">Not requested</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Source</dt>
+                <dd>Example session only</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Triage state</dt>
+                <dd id="triageState">Not recorded</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Exam draft</dt>
+                <dd id="examState">Blocked until handoff</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Diagnosis draft</dt>
+                <dd id="diagnosisState">Not started</dd>
+              </dl>
+              <dl class="metadata-item">
+                <dt>Discharge</dt>
+                <dd id="dischargeState">Not started</dd>
+              </dl>
+            </div>
+            <div class="actions">
+              <button id="saveButton" class="secondary" type="button">
+                Simulate save intake
+              </button>
+              <button id="requestButton" type="button" disabled>
+                Request clinician review
+              </button>
+            </div>
+            <p id="handoffHelp">
+              This request is a simulated transition. It does not assign a
+              clinician and does not complete care.
+            </p>
+          </section>
+        </div>
+
+        <section class="card" aria-labelledby="triage-heading">
+          <h3 id="triage-heading">Triage record</h3>
+          <p>
+            This example records only an explicit state. It does not calculate
+            thresholds, urgency, acuity, or a clinical score.
+          </p>
+          <div class="field">
+            <label for="triageSelect">Example triage state</label>
+            <select id="triageSelect">
+              <option value="not_recorded">Not recorded</option>
+              <option value="unknown">Unknown</option>
+              <option value="unreviewed">Recorded — not reviewed</option>
+              <option value="recorded">Recorded — review pending</option>
+            </select>
+            <span class="progress-note"
+              >No vital thresholds or readiness decision is derived here.</span
+            >
+          </div>
+          <div class="actions">
+            <button id="saveTriageButton" class="secondary" type="button">
+              Simulate save triage state
+            </button>
+          </div>
+          <p id="triageHelp" role="status">
+            Triage is an example state and is not a clinical determination.
+          </p>
+        </section>
+
+        <section class="card route-locked" aria-labelledby="exam-heading">
+          <h3 id="exam-heading">Provider exam draft</h3>
+          <p id="examLock">
+            Locked until a clinician explicitly accepts the exact intake
+            version. A draft is not a signed or completed exam.
+          </p>
+          <div class="field">
+            <label for="examDraft">Provider exam draft (example text)</label>
+            <textarea
+              id="examDraft"
+              maxlength="500"
+              placeholder="Enter fictional provider observations after acceptance."
+              disabled
+            ></textarea>
+          </div>
+          <div class="actions">
+            <button
+              id="saveExamButton"
+              class="secondary"
+              type="button"
+              disabled
+            >
+              Simulate save exam draft
+            </button>
+          </div>
+          <p id="examHelp" role="status">
+            No provider exam draft has been saved.
+          </p>
+        </section>
+
+        <section class="card route-locked" aria-labelledby="diagnosis-heading">
+          <h3 id="diagnosis-heading">Diagnosis draft</h3>
+          <p id="diagnosisLock">
+            Locked until the provider exam draft is saved. This example never
+            infers or confirms a diagnosis from intake, triage, or exam text.
+          </p>
+          <div class="field">
+            <label for="diagnosisSelect">Example diagnosis state</label>
+            <select id="diagnosisSelect" disabled>
+              <option value="">Not selected</option>
+              <option value="draft">
+                Synthetic diagnosis draft — not confirmed
+              </option>
+            </select>
+          </div>
+          <div class="actions">
+            <button
+              id="saveDiagnosisButton"
+              class="secondary"
+              type="button"
+              disabled
+            >
+              Simulate save diagnosis draft
+            </button>
+          </div>
+          <p id="diagnosisHelp" role="status">
+            No diagnosis draft has been saved.
+          </p>
+        </section>
+
+        <section class="card route-locked" aria-labelledby="discharge-heading">
+          <h3 id="discharge-heading">Discharge disposition</h3>
+          <p id="dischargeLock">
+            Locked until the example diagnosis draft is saved. Discharge is a
+            separate explicit transition and is not the same as closing an
+            encounter, checkout, departure, or documentation completion.
+          </p>
+          <div class="state-grid compact">
+            <article class="state-card state-missing">
+              <span class="state-label">Current encounter API status</span>
+              <strong>Open</strong>
+              <p>Example only; this page cannot close the encounter.</p>
+            </article>
+            <article class="state-card state-unknown">
+              <span class="state-label">Discharge state</span>
+              <strong id="dischargeCardState">Not started</strong>
+              <p id="dischargeCardHelp">
+                No discharge transition has been simulated.
+              </p>
+            </article>
+          </div>
+          <div class="actions">
+            <button
+              id="dischargeButton"
+              class="secondary"
+              type="button"
+              disabled
+            >
+              Simulate discharge disposition
+            </button>
+          </div>
+          <p class="notice">
+            This prototype has no checkout, departure, notification, or external
+            handoff.
+          </p>
+        </section>
+
+        <section class="card" aria-labelledby="decision-heading">
+          <h3 id="decision-heading">Clinician review decision</h3>
+          <div class="handoff-status">
+            <span id="handoffChip" class="status-chip">Not requested</span>
+            <strong id="handoffDetail"
+              >No clinician has accepted this handoff.</strong
+            >
+          </div>
+          <p id="decisionCopy">
+            Clinician actions appear after the simulated request. Opening the
+            SOAP preview is never an acceptance.
+          </p>
+          <div id="decisionActions" class="actions" hidden>
+            <button id="acceptButton" type="button">Accept handoff</button>
+            <button id="returnButton" class="warning" type="button">
+              Return for correction
+            </button>
+            <button id="declineButton" class="danger" type="button">
+              Decline handoff
+            </button>
+          </div>
+          <div class="actions">
+            <button id="soapButton" class="secondary" type="button">
+              Open existing SOAP workspace preview
+            </button>
+          </div>
+          <section
+            id="soapPreview"
+            class="soap-preview card"
+            hidden
+            aria-labelledby="soap-heading"
+          >
+            <h3 id="soap-heading" tabindex="-1">
+              Existing SOAP workspace preview
+            </h3>
+            <p class="notice">
+              Opening this preview does not accept a handoff, assign a provider,
+              sign a note, close an encounter, or complete checkout.
+            </p>
+            <div class="preview-body">
+              <strong>Read-only preview</strong>
+              <p>
+                Patient: SYN_Rivera, Mara · Visit: SYN-ENCOUNTER-42 · Intake
+                version: <span id="previewVersion">v3</span>
+              </p>
+              <p>
+                Staff context stays attributed to Example staff A. A clinician
+                must review the exact intake version before any future clinical
+                authoring action. Exam and diagnosis remain example drafts.
+              </p>
+            </div>
+            <div class="actions">
+              <button id="closeSoapButton" class="secondary" type="button">
+                Close SOAP preview
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="card" aria-labelledby="failure-heading">
+          <h3 id="failure-heading">Failure and recovery examples</h3>
+          <p>
+            These controls exercise safe interruption copy. They do not call a
+            server and do not alter a record.
+          </p>
+          <div class="actions">
+            <button
+              class="secondary failureButton"
+              data-failure="wrong_patient"
+              type="button"
+            >
+              Simulate wrong-patient checkpoint
+            </button>
+          </div>
+          <div class="actions">
+            <button
+              class="secondary failureButton"
+              data-failure="stale"
+              type="button"
+            >
+              Simulate stale intake conflict
+            </button>
+            <button
+              class="secondary failureButton"
+              data-failure="session"
+              type="button"
+            >
+              Simulate expired session
+            </button>
+            <button
+              class="secondary failureButton"
+              data-failure="unknown"
+              type="button"
+            >
+              Simulate unknown save outcome
+            </button>
+          </div>
+          <div
+            id="failurePanel"
+            class="failure"
+            hidden
+            role="alert"
+            aria-live="assertive"
+          >
+            <strong id="failureTitle"></strong>
+            <p id="failureCopy"></p>
+            <button id="recoverButton" class="secondary" type="button">
+              Reset isolated example
+            </button>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      Example design artifact only. It is not imported by Vite, served as a
+      product route, connected to Rails, or a clinical/security/legal approval.
+    </footer>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const phrase = "Example only — not saved";
+        const confirmButton = document.querySelector("#confirmButton");
+        const workArea = document.querySelector("#workArea");
+        const workHeading = document.querySelector("#work-heading");
+        const announcement = document.querySelector("#announcement");
+        const saveButton = document.querySelector("#saveButton");
+        const roleSelect = document.querySelector("#roleSelect");
+        const roleState = document.querySelector("#roleState");
+        const routeSteps = [...document.querySelectorAll(".route-step")];
+        const triageSelect = document.querySelector("#triageSelect");
+        const saveTriageButton = document.querySelector("#saveTriageButton");
+        const triageState = document.querySelector("#triageState");
+        const triageHelp = document.querySelector("#triageHelp");
+        const examDraft = document.querySelector("#examDraft");
+        const saveExamButton = document.querySelector("#saveExamButton");
+        const examState = document.querySelector("#examState");
+        const examHelp = document.querySelector("#examHelp");
+        const diagnosisSelect = document.querySelector("#diagnosisSelect");
+        const saveDiagnosisButton = document.querySelector(
+          "#saveDiagnosisButton",
+        );
+        const diagnosisState = document.querySelector("#diagnosisState");
+        const diagnosisHelp = document.querySelector("#diagnosisHelp");
+        const dischargeButton = document.querySelector("#dischargeButton");
+        const dischargeState = document.querySelector("#dischargeState");
+        const dischargeCardState = document.querySelector(
+          "#dischargeCardState",
+        );
+        const dischargeCardHelp = document.querySelector("#dischargeCardHelp");
+        const requestButton = document.querySelector("#requestButton");
+        const decisionActions = document.querySelector("#decisionActions");
+        const acceptButton = document.querySelector("#acceptButton");
+        const returnButton = document.querySelector("#returnButton");
+        const declineButton = document.querySelector("#declineButton");
+        const soapButton = document.querySelector("#soapButton");
+        const soapPreview = document.querySelector("#soapPreview");
+        const closeSoapButton = document.querySelector("#closeSoapButton");
+        const failurePanel = document.querySelector("#failurePanel");
+        const failureTitle = document.querySelector("#failureTitle");
+        const failureCopy = document.querySelector("#failureCopy");
+        const recoverButton = document.querySelector("#recoverButton");
+        const owner = document.querySelector("#owner");
+        const savedState = document.querySelector("#savedState");
+        const handoffState = document.querySelector("#handoffState");
+        const handoffChip = document.querySelector("#handoffChip");
+        const handoffDetail = document.querySelector("#handoffDetail");
+        const decisionCopy = document.querySelector("#decisionCopy");
+        const version = document.querySelector("#version");
+        const previewVersion = document.querySelector("#previewVersion");
+        const failureButtons = [...document.querySelectorAll(".failureButton")];
+
+        let handoff = "not_requested";
+        let failure = "";
+        let intakeVersion = 3;
+        let intakeSaved = false;
+        let role = "staff";
+        let examSaved = false;
+        let diagnosisSaved = false;
+        let discharged = false;
+        let currentRoute = "intake";
+
+        function announce(message) {
+          announcement.textContent = `${phrase}. ${message}`;
+        }
+
+        function setDisabled(disabled) {
+          for (const control of [
+            saveButton,
+            roleSelect,
+            ...routeSteps,
+            triageSelect,
+            saveTriageButton,
+            examDraft,
+            saveExamButton,
+            diagnosisSelect,
+            saveDiagnosisButton,
+            dischargeButton,
+            requestButton,
+            acceptButton,
+            returnButton,
+            declineButton,
+            soapButton,
+            ...failureButtons,
+          ])
+            control.disabled = disabled;
+        }
+
+        function updateHandoff(next, message) {
+          handoff = next;
+          const labels = {
+            not_requested: "Not requested",
+            pending: "Review requested",
+            accepted: "Accepted in example",
+            correction: "Returned for correction",
+            declined: "Declined in example",
+          };
+          handoffState.textContent = labels[next];
+          handoffChip.textContent = labels[next];
+          handoffChip.className = `status-chip ${next}`;
+          decisionActions.hidden = next !== "pending";
+          requestButton.disabled =
+            next !== "not_requested" ||
+            role !== "staff" ||
+            !intakeSaved ||
+            Boolean(failure);
+          saveButton.disabled =
+            ["pending", "accepted", "declined"].includes(next) ||
+            role !== "staff" ||
+            Boolean(failure);
+          acceptButton.disabled =
+            next !== "pending" || role !== "clinician" || Boolean(failure);
+          returnButton.disabled =
+            next !== "pending" || role !== "clinician" || Boolean(failure);
+          declineButton.disabled =
+            next !== "pending" || role !== "clinician" || Boolean(failure);
+          triageSelect.disabled = role !== "staff" || Boolean(failure);
+          saveTriageButton.disabled = role !== "staff" || Boolean(failure);
+          if (next === "pending")
+            owner.textContent = "Example staff A (handoff pending)";
+          if (next === "accepted") owner.textContent = "Example clinician B";
+          if (next === "correction") owner.textContent = "Example staff A";
+          if (next === "declined")
+            owner.textContent = "Example staff A (follow-up needed)";
+          handoffDetail.textContent = message;
+          decisionCopy.textContent =
+            next === "accepted"
+              ? "Acceptance changes responsibility in this example only. It does not sign, close, check out, or prove departure."
+              : role === "clinician"
+                ? "Review the exact intake version before accepting. Opening the SOAP preview is never an acceptance."
+                : role === "discharge"
+                  ? "The discharge role is an unapproved placeholder and has no intake or handoff action in this example."
+                  : "Staff can request review; only the example clinician role can accept. Opening the SOAP preview is never an acceptance.";
+          roleState.textContent =
+            role === "clinician"
+              ? "Clinician can accept the exact intake version and work on example drafts; no clinical authority is inferred."
+              : role === "discharge"
+                ? "Discharge operator is an unapproved placeholder; this example does not establish who has discharge authority."
+                : "Staff can record the example intake and triage; clinician decisions remain explicit.";
+          updateDownstreamAvailability();
+        }
+
+        function updateDownstreamAvailability() {
+          const accepted = handoff === "accepted";
+          const examReady = accepted && role === "clinician" && !failure;
+          const diagnosisReady = examSaved && examReady && !failure;
+          const dischargeReady =
+            diagnosisSaved && accepted && role === "discharge" && !failure;
+          examDraft.disabled = !examReady;
+          saveExamButton.disabled = !examReady || !examDraft.value.trim();
+          diagnosisSelect.disabled = !diagnosisReady;
+          saveDiagnosisButton.disabled =
+            !diagnosisReady || diagnosisSelect.value !== "draft";
+          dischargeButton.disabled = !dischargeReady || discharged;
+          examState.textContent = examSaved
+            ? "Saved example draft v1"
+            : examReady
+              ? "Ready for example draft"
+              : "Blocked until clinician acceptance";
+          diagnosisState.textContent = diagnosisSaved
+            ? "Saved example draft — not confirmed"
+            : diagnosisReady
+              ? "Ready for example draft"
+              : "Blocked until exam draft";
+          dischargeState.textContent = discharged
+            ? "Disposition simulated — encounter still open"
+            : dischargeReady
+              ? "Ready for explicit example transition"
+              : diagnosisSaved
+                ? "Blocked until the placeholder discharge role is selected"
+                : "Blocked until diagnosis draft";
+          examHelp.textContent = examSaved
+            ? "Example provider exam draft saved in memory; it is not signed or complete."
+            : examReady
+              ? "Enter fictional text, then explicitly save the provider exam draft."
+              : "No provider exam draft is available.";
+          diagnosisHelp.textContent = diagnosisSaved
+            ? "Example diagnosis draft saved; it was not inferred or confirmed."
+            : diagnosisReady
+              ? "Choose the synthetic draft state to continue."
+              : "No diagnosis draft is available.";
+          dischargeCardState.textContent = discharged
+            ? "Disposition simulated — not encounter completion"
+            : dischargeReady
+              ? "Ready"
+              : "Not started";
+          dischargeCardHelp.textContent = discharged
+            ? "This in-memory example does not close the encounter or prove checkout or departure."
+            : "No discharge transition has been simulated.";
+          for (const step of routeSteps) step.disabled = Boolean(failure);
+        }
+
+        const routeTargets = {
+          intake: "work-heading",
+          triage: "triage-heading",
+          handoff: "decision-heading",
+          exam: "exam-heading",
+          diagnosis: "diagnosis-heading",
+          discharge: "discharge-heading",
+        };
+        function selectRoute(route) {
+          currentRoute = route;
+          for (const step of routeSteps)
+            step.setAttribute(
+              "aria-current",
+              step.dataset.route === route ? "step" : "false",
+            );
+          document
+            .querySelector(`#${routeTargets[route]}`)
+            ?.scrollIntoView({ block: "start" });
+          announce(
+            `${route.charAt(0).toUpperCase() + route.slice(1)} step selected in this example.`,
+          );
+        }
+
+        function showFailure(kind) {
+          failure = kind;
+          setDisabled(true);
+          const failures = {
+            wrong_patient: [
+              "Simulated wrong-patient checkpoint.",
+              "The displayed patient and visit do not match the attempted action. Stop and return to selection; a real implementation must not reveal or attach the other record.",
+            ],
+            stale: [
+              "Simulated stale intake conflict.",
+              "This static artifact cannot load a current server version. Resetting clears only this isolated example. A real implementation must reload and review the exact server version before continuing.",
+            ],
+            session: [
+              "Simulated session expiry.",
+              "This static artifact has no sign-in flow. Resetting clears only this isolated example. A real implementation must reauthenticate and reauthorize before review; no change may be replayed automatically.",
+            ],
+            unknown: [
+              "Simulated outcome not confirmed.",
+              "This static artifact cannot reconcile a server outcome. Do not retry. A real implementation must use a protected receipt or status lookup; resetting clears only this isolated example.",
+            ],
+          };
+          failureTitle.textContent = `${phrase}. ${failures[kind][0]}`;
+          failureCopy.textContent = failures[kind][1];
+          failurePanel.hidden = false;
+          announce(failures[kind][0]);
+        }
+
+        function recover() {
+          window.location.reload();
+        }
+
+        confirmButton.addEventListener("click", () => {
+          confirmButton.disabled = true;
+          confirmButton.textContent = "Patient and visit confirmed";
+          workArea.hidden = false;
+          announce("Patient and visit confirmed in this example.");
+          workHeading.focus();
+          updateDownstreamAvailability();
+        });
+
+        roleSelect.addEventListener("change", () => {
+          role = roleSelect.value;
+          updateHandoff(handoff, handoffDetail.textContent);
+          announce(
+            role === "clinician"
+              ? "Example clinician role selected."
+              : role === "discharge"
+                ? "Unapproved placeholder discharge role selected."
+                : "Example staff role selected.",
+          );
+        });
+
+        for (const step of routeSteps)
+          step.addEventListener("click", () => selectRoute(step.dataset.route));
+
+        saveButton.addEventListener("click", () => {
+          if (handoff === "correction") {
+            intakeVersion += 1;
+            version.textContent = `v${intakeVersion}`;
+            previewVersion.textContent = `v${intakeVersion}`;
+            updateHandoff(
+              "not_requested",
+              `Corrected intake version v${intakeVersion} is ready for a new simulated request. The prior result remains part of the example history.`,
+            );
+          }
+          savedState.textContent = `Example snapshot v${intakeVersion} in memory — not persisted`;
+          intakeSaved = true;
+          updateHandoff(handoff, handoffDetail.textContent);
+          announce(
+            `Simulated intake version v${intakeVersion} is ready for review.`,
+          );
+          updateDownstreamAvailability();
+        });
+
+        saveTriageButton.addEventListener("click", () => {
+          triageState.textContent =
+            triageSelect.options[triageSelect.selectedIndex].textContent;
+          triageHelp.textContent =
+            "Example triage state saved in memory; no threshold or readiness decision was made.";
+          announce(
+            "Simulated triage state saved; no clinical score was calculated.",
+          );
+        });
+
+        requestButton.addEventListener("click", () => {
+          updateHandoff("pending", "No clinician has accepted this handoff.");
+          announce(
+            `Simulated request sent for intake version v${intakeVersion}.`,
+          );
+        });
+
+        acceptButton.addEventListener("click", () => {
+          updateHandoff(
+            "accepted",
+            `Example clinician B accepted intake version v${intakeVersion}.`,
+          );
+          announce("Simulated handoff acceptance recorded.");
+          updateDownstreamAvailability();
+        });
+
+        saveExamButton.addEventListener("click", () => {
+          examSaved = true;
+          updateDownstreamAvailability();
+          announce("Simulated provider exam draft saved.");
+        });
+
+        examDraft.addEventListener("input", updateDownstreamAvailability);
+
+        saveDiagnosisButton.addEventListener("click", () => {
+          diagnosisSaved = true;
+          updateDownstreamAvailability();
+          announce("Simulated diagnosis draft saved; it was not confirmed.");
+        });
+
+        dischargeButton.addEventListener("click", () => {
+          discharged = true;
+          updateDownstreamAvailability();
+          announce(
+            "Simulated discharge disposition recorded; encounter close and departure remain separate.",
+          );
+        });
+
+        returnButton.addEventListener("click", () => {
+          intakeSaved = false;
+          updateHandoff(
+            "correction",
+            "Returned to Example staff A with an example correction request.",
+          );
+          announce(
+            "Simulated handoff returned for correction. No history was removed.",
+          );
+        });
+
+        declineButton.addEventListener("click", () => {
+          updateHandoff("declined", "No clinician accepted this handoff.");
+          announce("Simulated handoff declined. No history was removed.");
+        });
+
+        soapButton.addEventListener("click", () => {
+          soapPreview.hidden = false;
+          announce(
+            "SOAP workspace preview opened; handoff state did not change.",
+          );
+          document.querySelector("#soap-heading").focus();
+        });
+
+        closeSoapButton.addEventListener("click", () => {
+          soapPreview.hidden = true;
+          soapButton.focus();
+          announce(
+            "SOAP workspace preview closed; handoff state did not change.",
+          );
+        });
+
+        for (const control of failureButtons)
+          control.addEventListener("click", () =>
+            showFailure(control.dataset.failure),
+          );
+        recoverButton.addEventListener("click", recover);
+      })();
+    </script>
+  </body>
+</html>

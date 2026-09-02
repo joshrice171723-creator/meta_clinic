@@ -2,6 +2,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
   ) {
     super(message);
   }
@@ -77,12 +78,16 @@ export async function api<T>(
     if (path === "/api/session") clearCsrf();
     return undefined as T;
   }
-  const data = (await response.json().catch(() => ({}))) as { error?: string };
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    code?: string;
+  };
   if (!response.ok) {
     if (response.status === 401 || response.status === 422) clearCsrf();
     throw new ApiError(
       response.status,
       data.error || "The request could not be completed.",
+      data.code,
     );
   }
   // Session rotation invalidates the old CSRF token. Never replay mutations.
@@ -96,6 +101,7 @@ export function loginDestination(value: string | null): string {
   if (!value) return "/portal";
   const exact = new Set([
     "/clinic",
+    "/clinic/chart-selection",
     "/clinic/schedule",
     "/clinic/patients",
     "/clinic/pharmacy",

@@ -34,8 +34,12 @@ import {
 } from "../src/features/clinic/appearancePreferences";
 import {
   EXAMPLE_CLOCK,
+  EXAMPLE_CLINICIANS,
   EXAMPLE_VISITS,
   VISIT_STAGES,
+  clinicianInitials,
+  clinicianLabel,
+  cliniciansForLocation,
   durationLabel,
   elapsedMinutes,
   filterVisits,
@@ -92,6 +96,7 @@ const context: ClinicWorkspaceContext = {
   user_id: 1,
   practice: clinic.practice,
   membership_id: 1,
+  credentials: ["SYNTHETIC-NP"],
   policy_version: "clinic-authorization-v1",
   capabilities: contextCapabilities,
   sites: [{ id: 1, code: "MAIN", timezone_override: null }],
@@ -112,8 +117,8 @@ describe("tracking-board identities and waiting times", () => {
       { ...EXAMPLE_VISITS[0], id: "EX-099", firstName: "Milo" },
     ];
     const html = renderToStaticMarkup(<TrackingBoardView visits={visits} />);
-    expect(html).not.toContain("EX-001");
-    expect(html).not.toContain("EX-099");
+    expect(html).toContain("board_visit_id=EX-001");
+    expect(html).toContain("board_visit_id=EX-099");
     expect(html).not.toContain("Mara");
     expect(html).toContain("Rivera, M.");
   });
@@ -169,6 +174,16 @@ describe("tracking-board identities and waiting times", () => {
     ).toHaveLength(0);
     expect(EXAMPLE_VISITS.map((v) => v.id)).toEqual(before);
   });
+  it("keeps every stage filter available with a zero count", () => {
+    const html = renderToStaticMarkup(
+      <TrackingBoardView visits={[EXAMPLE_VISITS[0]]} synthetic={false} />,
+    );
+    for (const { label } of VISIT_STAGES) expect(html).toContain(label);
+    expect(html).toContain("<span>In intake</span><strong>0</strong>");
+    expect(
+      filterVisits([EXAMPLE_VISITS[0]], "intake", "", "patient", EXAMPLE_CLOCK),
+    ).toEqual([]);
+  });
   it("sorts by waiting time, not membership or clinical acuity", () => {
     const ids = (visits: typeof EXAMPLE_VISITS) =>
       filterVisits(visits, "all", "", "wait", EXAMPLE_CLOCK).map((v) => v.id);
@@ -184,25 +199,77 @@ describe("tracking-board identities and waiting times", () => {
       ids(EXAMPLE_VISITS.map((v) => ({ ...v, membership: "nonmember" }))),
     ).toEqual(ids(EXAMPLE_VISITS));
   });
+  it("limits the synthetic clinician roster to the visit location", () => {
+    const available = cliniciansForLocation("example-main");
+    expect(available.map((clinician) => clinician.id)).toEqual([
+      "example-clinician-am",
+      "example-clinician-jl",
+    ]);
+    expect(available).not.toContain(EXAMPLE_CLINICIANS[2]);
+    expect(clinicianInitials(available[0])).toBe("AM");
+    expect(clinicianLabel(available[0])).toBe("Alex Morgan, NP");
+  });
+  it("includes varied explicit vital statuses without deriving thresholds", () => {
+    const recorded = EXAMPLE_VISITS.filter(
+      (visit) => visit.triage?.vitalsSummary,
+    );
+    const statuses = new Set(
+      recorded.flatMap((visit) =>
+        Object.values(visit.triage?.vitalStatuses ?? {}),
+      ),
+    );
+    expect(statuses).toEqual(
+      new Set(["above", "within", "below", "unassessed"]),
+    );
+    expect(
+      new Set(recorded.map((visit) => visit.triage?.vitalsSummary)).size,
+    ).toBe(recorded.length);
+    const source = readFileSync(
+      "src/features/clinic/TrackingBoardPage.tsx",
+      "utf8",
+    );
+    expect(source).not.toContain("systolic <");
+    expect(source).not.toContain("heartRate >=");
+  });
 });
 describe("board and Operations presentation boundaries", () => {
-  it("renders the patient table with explicit unknowns and expandable rows", () => {
+  it("renders a compact patient table without redundant workflow text", () => {
     const html = renderToStaticMarkup(<OverviewView patientAccess />);
-    for (const text of [
-      "Not verified",
-      "Not recorded",
-      "Non-member",
-      "Wait",
-      "Vitals",
-      "Provider",
-      "Waiting for",
-    ])
+    for (const text of ["Non-member", "Wait", "Vitals"])
       expect(html).toContain(text);
+    expect(html).not.toContain("Not verified");
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
-    expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('for="board-stage"');
     expect(html).toContain("Clinic patient tracking board");
+    expect(html).toContain("Select chart for M. Riv before opening SOAP note");
+    for (const status of [
+      "Above normal limits",
+      "Within normal limits",
+      "Below normal limits",
+    ])
+      expect(html).toContain(status);
+    expect(html).toContain(
+      "Synthetic display classifications — not clinical guidance",
+    );
+    expect(html).toContain(">Provider<");
+    expect(html).toContain(">Care<");
+    expect(html).toContain("Allergies: 1. Show details for A. Che");
+    expect(html).toContain("Review needed: 3. Show details for T. Ben");
+    expect(html).not.toContain("Care summary unavailable");
+    expect(html).toContain("Assigned clinician: Alex Morgan, NP");
+    expect(html).toContain(">Assign</button>");
+    expect(html).not.toContain("Example only — not saved");
+    for (const flowStage of ["Intake", "Triage", "Provider", "Checkout"])
+      expect(html).toContain(`>${flowStage}</span>`);
+    expect(html).toContain('class="tracking-reason"');
+    expect(html).not.toContain("SOAP note workspace");
+    expect(html).not.toContain("Waiting for");
+    expect(html).not.toContain("total");
+    expect(html).not.toContain("Find on board");
+    expect(html).not.toContain(">Membership<");
+    expect(html).not.toContain("OVERVIEW · PATIENT FLOW");
+    expect(html).not.toContain("Patient directory");
     expect(html).not.toContain("Example shift");
     expect(html).not.toContain("board-sort");
     expect(html).not.toContain("Items at reorder");
@@ -210,11 +277,35 @@ describe("board and Operations presentation boundaries", () => {
   });
   it("exposes resizable columns and alternating visit rows", () => {
     const html = renderToStaticMarkup(<TrackingBoardView />);
-    expect(html).toContain('role="separator"');
+    expect(html.match(/role="separator"/g)).toHaveLength(7);
     expect(html).toContain('aria-label="Resize Patient column"');
     expect(html).toContain('aria-label="Resize Wait column"');
+    expect(html).toContain(
+      'aria-label="Resize Location column" aria-valuemin="70"',
+    );
+    expect(html).toContain('aria-label="Move Location column"');
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
+    expect(html).toContain(
+      'style="width:1145px;min-width:1145px;table-layout:fixed"',
+    );
+    expect(html).toContain("tracking-table");
+    expect(html).toContain('data-label="Patient"');
+  });
+  it("replaces the visit count with a recoverable column selector", () => {
+    const html = renderToStaticMarkup(<TrackingBoardView />);
+    expect(html).toContain("<summary>Columns</summary>");
+    expect(html).toContain('aria-label="Choose tracking board columns"');
+    expect(html.match(/type="checkbox"/g)).toHaveLength(7);
+    expect(html).not.toContain("6 of 6 example visits");
+  });
+  it("keeps provider editing in a modal instead of the table cell", () => {
+    const source = readFileSync(
+      "src/features/clinic/TrackingBoardPage.tsx",
+      "utf8",
+    );
+    expect(source).toContain('className="tracking-provider-dialog"');
+    expect(source).not.toContain('className="tracking-provider-editor"');
   });
   it("does not present an empty preview as an empty actual clinic", () => {
     const html = renderToStaticMarkup(<TrackingBoardView visits={[]} />);
@@ -223,13 +314,37 @@ describe("board and Operations presentation boundaries", () => {
       "not evidence that the clinic has no waiting patients",
     );
   });
+  it("labels backend rows as partial and exposes a capped result", () => {
+    const html = renderToStaticMarkup(
+      <TrackingBoardView
+        visits={[{ ...EXAMPLE_VISITS[0], patientId: 7, encounterId: 9 }]}
+        synthetic={false}
+        truncated
+      />,
+    );
+    expect(html).toContain(
+      "Partial synthetic encounter projection — not a live complete queue.",
+    );
+    expect(html).toContain(
+      "Incomplete result: this projection is capped at 200 rows. Additional encounters are not shown.",
+    );
+    expect(html).toContain('role="alert"');
+  });
+  it("uses board-projected care summaries without per-visit care requests", () => {
+    const source = readFileSync(
+      "src/features/clinic/TrackingBoardPage.tsx",
+      "utf8",
+    );
+    expect(source).toContain("summary: visit.care_summary");
+    expect(source).toContain("synthetic ? visits : EMPTY_BOARD_VISITS");
+  });
   it("withholds the board from users without patient-workspace capability", () => {
     const html = renderToStaticMarkup(<OverviewView patientAccess={false} />);
     expect(html).toContain("assigned patient-workspace users");
     expect(html).not.toContain("EX-001");
     expect(html).not.toContain("tracking-table-container");
   });
-  it("escapes example content and keeps unknown age explicit", () => {
+  it("escapes example content without repeating unavailable demographics", () => {
     const html = renderToStaticMarkup(
       <TrackingBoardView
         visits={[
@@ -242,7 +357,7 @@ describe("board and Operations presentation boundaries", () => {
         ]}
       />,
     );
-    expect(html).toContain("Age not recorded");
+    expect(html).not.toContain("Age not recorded");
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
   });
@@ -281,6 +396,7 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).toContain('href="/clinic/operations" aria-current="page"');
+    expect(html).toContain('href="/clinic">Tracking Board</a>');
     expect(html).not.toContain("EHR");
     expect(loginDestination("/clinic/operations")).toBe("/clinic/operations");
     expect(loginDestination("/clinic/operations?next=//bad.invalid")).toBe(
@@ -409,6 +525,12 @@ describe("mapped read-only care flow", () => {
         { ...template.sections, subjective: "Existing history" },
         template,
       ),
+    ).toBe(false);
+    expect(
+      templateWouldOverwrite(
+        { ...template.sections, objective: "Existing exam" },
+        template,
+      ),
     ).toBe(true);
     expect(templateWouldOverwrite(template.sections, template)).toBe(false);
   });
@@ -503,6 +625,7 @@ describe("viewport-height chart-tab navigation", () => {
       expect(html).toContain('aria-controls="clinic-sidebar"');
       expect(html.includes('hidden=""')).toBe(compact);
       expect(html).toContain("Sign out");
+      expect(html).not.toContain("CLINIC WORKSPACE");
     },
   );
   it("uses only declared clinic tokens and clinic-scoped responsive rules", () => {
@@ -538,9 +661,23 @@ describe("viewport-height chart-tab navigation", () => {
     expect(boardCss).toContain(".MuiTableSortLabel-icon");
     expect(boardCss).toContain("width: 18px");
     expect(boardCss).toContain("height: 18px");
+    expect(boardCss).toContain("font-size: 24px");
+    expect(boardCss).toContain("@media (max-width: 760px)");
     const source = readFileSync("src/features/clinic/Appearance.tsx", "utf8");
     expect(source.indexOf('import "./appearance.css"')).toBeLessThan(
       source.indexOf('import "./clinicFrame.css"'),
     );
+  });
+
+  it("keeps the live board's empty synthetic-summary input stable", () => {
+    const source = readFileSync(
+      "src/features/clinic/TrackingBoardPage.tsx",
+      "utf8",
+    );
+    expect(source).toContain(
+      "const EMPTY_BOARD_VISITS: BoardVisit[] = []; ".trim(),
+    );
+    expect(source).toContain("synthetic ? visits : EMPTY_BOARD_VISITS");
+    expect(source).not.toContain("synthetic ? visits : []");
   });
 });

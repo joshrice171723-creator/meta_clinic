@@ -16,6 +16,10 @@ import { Operations } from "./features/clinic/Operations";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
+import {
+  ChartSelectionPage,
+  chartSelectionProps,
+} from "./features/clinic/ChartSelectionPage";
 import { Office } from "./features/inventory/Office";
 import { Catalog } from "./features/inventory/Catalog";
 import { NewProduct } from "./features/inventory/NewProduct";
@@ -169,6 +173,8 @@ export function App() {
         <Settings user={user} />
       ) : path === "/clinic/schedule" ? (
         <Schedule />
+      ) : path === "/clinic/chart-selection" ? (
+        <ChartSelectionPage {...chartSelectionProps(window.location.search)} />
       ) : path === "/clinic/pharmacy" ? (
         <Catalog />
       ) : path === "/clinic/pharmacy/new" ? (

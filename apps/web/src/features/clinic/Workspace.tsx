@@ -33,7 +33,7 @@ export function ClinicNavigation({
   path: string;
 }) {
   const links = [
-    { href: "/clinic", label: "Overview", allowed: true },
+    { href: "/clinic", label: "Tracking Board", allowed: true },
     {
       href: "/clinic/patients",
       label: "Patients",
@@ -100,6 +100,9 @@ export function Workspace({
   );
   const overview = useResource<ClinicOverview>("/api/clinic");
   const appearance = useClinicAppearance(user.id);
+  const path =
+    typeof window === "undefined" ? "/clinic" : window.location.pathname;
+  const trackingBoard = path.replace(/\/+$/, "") === "/clinic";
   if (!data || !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -133,19 +136,23 @@ export function Workspace({
               navigation={
                 <ClinicNavigation
                   capabilities={data.capabilities}
-                  path={
-                    typeof window === "undefined"
-                      ? "/clinic"
-                      : window.location.pathname
-                  }
+                  path={path}
                 />
               }
             >
               <header className="clinic-topbar">
-                <span>CLINIC WORKSPACE</span>
+                <span>
+                  Currently logged in as: <strong>{user.email_address}</strong>
+                  {data.credentials.length > 0 && (
+                    <>, {data.credentials.join(", ")}</>
+                  )}
+                </span>
                 <a href="/clinic/settings">My settings</a>
               </header>
-              <main id="main" className="clinic-content pharmacy-page">
+              <main
+                id="main"
+                className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}`}
+              >
                 {children}
               </main>
             </ClinicFrame>

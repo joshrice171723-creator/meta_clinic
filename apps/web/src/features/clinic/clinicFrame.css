@@ -26,11 +26,6 @@
 .clinic-theme .clinic-sidebar[hidden] {
   display: none;
 }
-.clinic-theme .clinic-sidebar .workspace-label {
-  margin: 4px 0 14px;
-  font-size: 12px;
-  letter-spacing: 1.5px;
-}
 .clinic-theme .clinic-sidebar .practice-label {
   margin: 0 0 12px;
   padding: 12px 0;
@@ -117,7 +112,12 @@
   cursor: default;
 }
 .clinic-theme .clinic-topbar {
-  padding-block: 16px;
+  padding: 10px 16px;
+}
+.clinic-theme .clinic-content.tracking-board-page {
+  max-width: none;
+  margin: 0;
+  padding: 10px 12px 24px;
 }
 @media (max-width: 760px) {
   .clinic-theme .clinic-shell {
@@ -139,10 +139,13 @@
     right: -44px;
   }
   .clinic-theme .clinic-topbar {
-    padding-inline: 16px;
+    padding: 9px 12px;
   }
   .clinic-theme .clinic-content {
     padding: 18px 16px 40px;
+  }
+  .clinic-theme .clinic-content.tracking-board-page {
+    padding: 8px 8px 20px;
   }
   .clinic-theme .clinic-sidebar {
     border-right: 1px solid var(--clinic-border);
