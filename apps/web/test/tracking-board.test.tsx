@@ -646,7 +646,7 @@ describe("viewport-height chart-tab navigation", () => {
   it("uses only declared clinic tokens and clinic-scoped responsive rules", () => {
     const tokens = new Set(
       [
-        ...Object.keys(CLINIC_THEMES.sage.light),
+        ...Object.keys(CLINIC_THEMES.juniper.light),
         ...Object.keys(CLINIC_STATUS_COLORS.light),
       ].map((key) => `--clinic-${key}`),
     );

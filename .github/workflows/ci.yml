@@ -35,8 +35,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Verify vault links and layered agent instructions
+      - name: Verify vault knowledge base
         run: python3 -B bin/verify-vault
+
+      - name: Verify agent harness and skills
+        run: python3 -B bin/verify-agent-harness
 
       - name: Exercise instruction discovery for each repository surface
         run: |
@@ -44,7 +47,9 @@ jobs:
             --path apps/api \
             --path apps/web \
             --path ops/aws \
-            --path site
+            --path site \
+            --path agent-harness \
+            --path .agents/skills
 
   scan_ruby:
     runs-on: ubuntu-24.04

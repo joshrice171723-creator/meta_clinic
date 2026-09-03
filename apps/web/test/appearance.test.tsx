@@ -139,27 +139,33 @@ describe("system appearance and UI scope", () => {
       media.addEventListener.mock.calls[0][1],
     );
   });
-  it("renders labeled controls, account identity, explicit save and conflict recovery", () => {
+  it("renders labeled controls, immediate-save guidance and visual previews", () => {
     const html = renderToStaticMarkup(
       <AppearanceSettings
         user={user}
         settings={{
           user_id: 7,
-          appearance: { palette: "blue", mode: "dark", version: 2 },
+          appearance: { palette: "cobalt", mode: "dark", version: 2 },
         }}
         accept={() => {}}
       />,
     );
     expect(html.match(/<select /g)).toHaveLength(2);
-    expect(html.match(/<option /g)).toHaveLength(6);
+    expect(html.match(/<option /g)).toHaveLength(7);
     expect(html).toContain("Color theme");
     expect(html).toContain("Brightness");
-    expect(html).toContain('value="blue" selected=""');
+    expect(html).toContain('value="cobalt" selected=""');
     expect(html).toContain('value="dark" selected=""');
     expect(html).toContain("synthetic@example.invalid");
-    expect(html).toContain("Save appearance");
+    expect(html).not.toContain("Save appearance");
     expect(html).toContain('name="appearance[version]"');
     expect(html).toContain("reload saved settings");
+    expect(html).toContain("Preview the color themes");
+    expect(html).toContain("Surface");
+    expect(html).toContain("Text");
+    expect(html).toContain("Action");
+    expect(html).toContain("Status");
+    expect(html).toContain("Selected");
     expect(html).not.toContain("<details");
   });
   it("renders the Omni development-view swap only when the server supplies it", () => {
@@ -168,7 +174,7 @@ describe("system appearance and UI scope", () => {
         user={user}
         settings={{
           user_id: 7,
-          appearance: { palette: "sage", mode: "system", version: 0 },
+          appearance: { palette: "juniper", mode: "system", version: 0 },
           development_access: {
             profile: "clinician",
             options: [

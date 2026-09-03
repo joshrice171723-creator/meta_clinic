@@ -6,7 +6,7 @@ One repository, two applications: a React/TypeScript frontend and a Rails JSON A
 
 Use the [vault table of contents](APPlyVault/01%20Table%20of%20Contents.md) to choose relevant notes/sections; agent work no longer requires reading the entire vault.
 
-For agent work, read the root [agent contract](AGENTS.md), then run `bin/agent-preflight --path <target>` and read the nearest nested `AGENTS.md`. Reusable procedures live in [agent workflow playbooks](agent-workflows/README.md); `bin/agent-check` selects verification from changed paths and `bin/verify-vault` validates vault/instruction documents. Cline receives thin path-conditional adapters from `.clinerules/`; nested `AGENTS.md` files remain the canonical cross-agent source.
+For agent work, read the root [agent contract](AGENTS.md), then run `bin/agent-preflight --path <target>` and read the nearest nested `AGENTS.md`. The [agent harness](agent-harness/README.md) owns reusable procedures, repository skills and deterministic checks. `APPlyVault/` is the separate software knowledge base. `bin/verify-agent-harness` validates the control plane; `bin/verify-vault` validates the knowledge base.
 
 Read the [CI/CD and two-developer guide](APPlyVault/03%20Execution/CICD.md) first: local setup, separate branches/databases, checks, pull requests and the release sequence. [Software Architecture](APPlyVault/03%20Execution/Software%20Architecture.md) explains where code belongs; [canonical tasks](APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md) holds remaining work.
 
@@ -20,8 +20,8 @@ apps/api/           Sessions, authorization, domain workflows, PostgreSQL; Rails
 bin/                Local startup, verification and agent workflow helpers
 ops/aws/            Infrastructure, paired releases and recovery procedures
 APPlyVault/         Canonical requirements, research, decisions and tasks
-agent-workflows/    On-demand implementation, data, research and release procedures
-.clinerules/        Thin Cline adapters to canonical nested instructions
+agent-harness/      Agent architecture, on-demand procedures and provenance
+.agents/skills/     Canonical repository skills, including Plan, Act and frontend UI
 .github/workflows/  API/frontend CI and prepared delivery workflows
 site/               Historical Sites metadata/assets only
 ```
@@ -69,6 +69,8 @@ ruby .\dev_server_startup restart
 
 `start` and `restart` launch the local Docker/PostgreSQL dependency, Rails API, and Vite frontend in the background, but return success only after all three are ready. Startup failures propagate to the command, and occupied ports are accepted only when their recorded processes belong to this checkout. `stop` stops only APPly-owned development processes and the named local PostgreSQL container; it never deletes the persistent volume or database. The lower-level `bin/apply` implementation remains repository-owned, but developers do not need to install its optional global launcher.
 
+In Codex, invoke the explicit `$startdev` repository skill for a full local refresh: its checked-in `bin/startdev-refresh` helper requires a clean branch, fetches and fast-forwards only from the configured upstream, stops the managed stack, replants the guarded loopback development database with rich synthetic seeds, then starts and verifies PostgreSQL, Rails and Vite. This intentionally deletes all records and manual edits in that local development database. Ahead, diverged, dirty, detached and no-upstream checkouts stop for human reconciliation; the skill never stashes, resets, merges, rebases, pushes or deletes the PostgreSQL volume. Its `stop`/`down` and `status`/`doctor` subcommands remain non-resetting. Select it through `/skills`; Codex does not currently register repository skills as arbitrary slash aliases.
+
 The platform-specific `bin/start-dev` and `bin/start-dev.ps1` files are implementation details used by the root command. Run them directly only when diagnosing that lifecycle layer; the ordinary developer interface remains `dev_server_startup`.
 
 Pass `--seed` to `dev_server_startup start` or `restart` only when synthetic seed data is intentionally needed, or pass `--no-browser` when the browser should not open. Use `dev_server_startup status` for a concise environment diagnosis. The existing `bin/dev` remains available as the lower-level foreground launcher after PostgreSQL has already been started.
@@ -84,7 +86,7 @@ Open [local login](http://127.0.0.1:3000/login). The optional flag enables only 
 - [Hosted state](ops/aws/ec2/environments.md) and [pending PostgreSQL cutover](ops/aws/ec2/postgres-cutover.md)
 - [Planning home](APPlyVault/00%20Home.md), [canonical tasks](APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md) and [decisions](APPlyVault/03%20Execution/Decisions.md)
 
-Read [AGENTS.md](AGENTS.md) before agent work. Never build from the repository root or include the vault, credentials, records or logs in an image. The source split does not activate delivery or approve confidential/clinical use. Clinic UI and API remain blocked in packaged production runtime.
+Read [AGENTS.md](AGENTS.md) and the [agent harness map](agent-harness/README.md) before agent work. Never build from the repository root or include the vault, credentials, records or logs in an image. The source split does not activate delivery or approve confidential/clinical use. Clinic UI and API remain blocked in packaged production runtime.
 
 The local `apply_test` database was recreated with the owner's authorization after a verifier cleanup mistake; the corrected helper targets only its generated scratch database. Details and actual checks are preserved in the Progress Log.
 

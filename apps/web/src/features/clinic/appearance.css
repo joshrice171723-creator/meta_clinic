@@ -486,6 +486,87 @@
   grid-column: 1/-1;
   justify-self: start;
 }
+.clinic-theme .appearance-form {
+  margin-bottom: 24px;
+}
+.clinic-theme .appearance-form > fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.clinic-theme .appearance-preview {
+  border-top: 1px solid var(--clinic-border);
+  padding-top: 20px;
+}
+.clinic-theme .appearance-preview-title {
+  color: var(--clinic-text) !important;
+  font-weight: 650;
+  font-size: 16px;
+  margin: 0;
+}
+.clinic-theme .appearance-preview-description {
+  color: var(--clinic-muted) !important;
+  font-size: 14px;
+  margin: 4px 0 14px;
+}
+.clinic-theme .appearance-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.clinic-theme .appearance-preview-tile {
+  border: 2px solid;
+  border-radius: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+.clinic-theme .appearance-preview-tile[aria-current="true"] {
+  box-shadow: 0 0 0 2px var(--clinic-accent);
+}
+.clinic-theme .appearance-preview-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 46px;
+  font-size: 13px;
+}
+.clinic-theme .appearance-preview-heading span {
+  font-size: 12px;
+  font-weight: 700;
+}
+.clinic-theme .appearance-preview-samples {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+.clinic-theme .appearance-preview-samples span {
+  border-radius: 4px;
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  padding: 5px 6px;
+}
+.clinic-theme .appearance-save-status {
+  min-height: 44px;
+  margin-top: 12px;
+}
+.clinic-theme .appearance-save-status p {
+  margin: 0;
+}
+.clinic-theme .appearance-retry {
+  margin-top: 8px;
+}
+.clinic-theme .development-settings {
+  border-top: 1px solid var(--clinic-border);
+  margin-top: 32px;
+  opacity: 0.86;
+}
+.clinic-theme .development-settings > .clinic-card {
+  background: var(--clinic-background);
+  border-style: dashed;
+  margin-top: 20px;
+}
 .clinic-theme .form-note a {
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -550,7 +631,8 @@
 }
 @media (max-width: 600px) {
   .clinic-theme .pharmacy-summary,
-  .clinic-theme .settings-form > fieldset {
+  .clinic-theme .settings-form > fieldset,
+  .clinic-theme .appearance-preview-grid {
     grid-template-columns: 1fr;
   }
   .clinic-theme .pharmacy-summary {

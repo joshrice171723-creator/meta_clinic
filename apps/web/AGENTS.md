@@ -20,6 +20,16 @@ Read the applicable `Software Architecture.md` domain/transport sections, the re
 - Do not include vault files, backend source, secrets or runtime records in the frontend image or build output.
 - Keep synthetic example boards and fixtures clearly labeled and isolated from API-derived records.
 
+## Material UI implementation hierarchy
+
+- Material UI is the default component system for frontend implementation, not an optional visual reference. For every new or materially changed interface, first identify the applicable existing APPly component and Material UI primitive, pattern or icon.
+- Use the Material UI implementation whenever an appropriate component exists. Prefer its supported composition, slots, variants, theme overrides, `sx`/`styled` APIs and owned APPly wrappers over recreating the behavior with raw HTML/CSS or a parallel component.
+- If an existing APPly module or wrapper cannot meet the requirement, improve that owned underlying module so its consumers share the correction. Do not bypass it with a one-off duplicate.
+- If Material UI is still the right foundation but its public extension points are insufficient, modify the Material UI package implementation before rebuilding the component from scratch. The final change must be a narrow, reviewable and reproducible dependency patch, vendored package or pinned fork that survives `npm ci`; never leave the result only as an edit inside generated `node_modules`. Record the exact upstream package/version, changed source, rationale, license/provenance, clean-install application and focused regression evidence. Prefer a patch for a bounded change and a fork/vendor boundary when the modification needs sustained ownership.
+- Build a component from semantic browser primitives only when Material UI has no suitable option and a supported extension or durable package modification cannot meet the required semantics, accessibility or behavior. Record that exception and the considered Material UI extension/patch path in the handoff, keep the custom surface narrow and add interaction/accessibility coverage proportional to the control.
+- Existing unconverted CSS is a compatibility layer, not precedent for new hand-built controls. Do not introduce another component library for a local convenience or copy a Material UI component into the repository.
+- For UI work, load the `frontend-ui` repository skill and inspect the final diff specifically for hand-built controls that duplicate Material UI.
+
 ## Checks
 
 From `apps/web/` run:

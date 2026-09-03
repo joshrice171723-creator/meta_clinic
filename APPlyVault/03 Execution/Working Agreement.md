@@ -1,7 +1,7 @@
 ---
 type: operating-guide
 status: proposed
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 # Working Agreement
 
@@ -25,11 +25,11 @@ Keep direction, evidence, decisions, and next actions understandable to anyone j
 - [[Progress Log]]: dated changes, outcomes, and links; not a second backlog.
 - [[CICD]]: the first developer handoff, prominently linked from Home and the repository README; local frontend/API setup, two-developer Git/PR instructions, verified CI/staging delivery and pending production activation. Scope and dates of actual acceptance remain explicit.
 - [[Software Architecture]]: repository responsibilities and module/dependency rules; independent frontend/Rails API with domain ownership, not a second task or decision register.
-- Root and nested `AGENTS.md`: stable repository and path-specific boundaries. `agent-workflows/` owns on-demand procedures; `bin/agent-preflight`, `bin/agent-check` and `bin/verify-vault` provide deterministic routing and document checks. The vault remains the current state/evidence source rather than copying dated facts into instructions.
+- Root and nested `AGENTS.md`: stable repository and path-specific policy/routing boundaries. `agent-harness/workflows/` owns procedures and `.agents/skills/` owns on-demand capabilities; host adapters are added only after that host is selected. `bin/agent-preflight`, `bin/agent-check`, `bin/verify-agent-harness` and `bin/verify-vault` provide deterministic routing and separate harness/knowledge-base checks. The vault remains the current software state/evidence source rather than copying dated facts into instructions or skills.
 
 ## Working session protocol
 
-1. Read root and nearest nested `AGENTS.md`; use the relevant `agent-workflows/` playbook. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. A full-vault read is no longer required.
+1. Read root and nearest nested `AGENTS.md`; use the relevant `agent-harness/workflows/` playbook and matching repository skill only when needed. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. A full-vault read is no longer required.
 2. Separate reported facts, observed evidence, sourced background, proposals, and decisions.
 3. Challenge the next increment using [[Working Agreement#Failure-first planning and review]], then capture actual evidence with a source/date and scope using [[Evidence Note Template]].
 4. Update affected current-state notes and the task register; link an explicit decision if one was made.

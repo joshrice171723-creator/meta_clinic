@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""Validate APPly's agent harness, instructions, workflows and skills."""
+
+from __future__ import annotations
+
+import os
+import re
+import sys
+import urllib.parse
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+FRONTMATTER_KEY = re.compile(r"^([A-Za-z0-9_-]+):\s*(.*?)\s*$")
+SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+UNFINISHED = re.compile(r"\b(?:TODO|TBD|PLACEHOLDER)\b", re.IGNORECASE)
+
+REQUIRED_INSTRUCTION_FILES = [
+    "README.md",
+    "AGENTS.md",
+    "APPlyVault/AGENTS.md",
+    "apps/api/AGENTS.md",
+    "apps/web/AGENTS.md",
+    "ops/aws/AGENTS.md",
+    "site/AGENTS.md",
+    "agent-harness/AGENTS.md",
+    "agent-harness/README.md",
+    "agent-harness/THIRD_PARTY_NOTICES.md",
+    "agent-harness/workflows/README.md",
+    "agent-harness/workflows/code-change.md",
+    "agent-harness/workflows/vault-change.md",
+    "agent-harness/workflows/database-change.md",
+    "agent-harness/workflows/research.md",
+    "agent-harness/workflows/release.md",
+    "agent-harness/workflows/incident.md",
+    "agent-harness/workflows/handoff.md",
+]
+REQUIRED_SKILLS = {"plan", "act", "vault-context", "create-skill", "frontend-ui", "startdev"}
+REQUIRED_COMMANDS = (
+    "bin/agent-preflight",
+    "bin/agent-check",
+    "bin/create-agent-skill",
+    "bin/startdev-refresh",
+    "bin/verify-agent-harness",
+    "bin/verify-vault",
+)
+
+
+def frontmatter(path: Path, text: str, errors: list[str]) -> dict[str, str]:
+    lines = text.splitlines()
+    label = path.relative_to(ROOT)
+    if not lines or lines[0] != "---":
+        errors.append(f"{label}: missing opening frontmatter fence")
+        return {}
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        errors.append(f"{label}: missing closing frontmatter fence")
+        return {}
+    values: dict[str, str] = {}
+    for line in lines[1:end]:
+        if match := FRONTMATTER_KEY.match(line):
+            values[match.group(1)] = match.group(2).strip('"\'')
+    return values
+
+
+def check_fences(path: Path, text: str, errors: list[str]) -> None:
+    active: str | None = None
+    for line in text.splitlines():
+        marker = line.lstrip()[:3]
+        if marker not in {"```", "~~~"}:
+            continue
+        if active is None:
+            active = marker
+        elif marker == active:
+            active = None
+    if active:
+        errors.append(f"{path.relative_to(ROOT)}: unclosed {active} fence")
+
+
+def clean_link_target(raw: str) -> str:
+    target = raw.strip()
+    if target.startswith("<") and ">" in target:
+        target = target[1 : target.index(">")]
+    else:
+        target = target.split(" ", 1)[0]
+    return urllib.parse.unquote(target)
+
+
+def check_links(path: Path, text: str, errors: list[str]) -> None:
+    for match in MARKDOWN_LINK.finditer(text):
+        target = clean_link_target(match.group(1))
+        if not target or target.startswith(("http://", "https://", "mailto:", "app://")):
+            continue
+        file_part = target.partition("#")[0]
+        destination = path if not file_part else (path.parent / file_part).resolve(strict=False)
+        if not destination.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing relative link target {target!r}")
+
+
+def check_skill(path: Path, errors: list[str]) -> tuple[str, str] | None:
+    text = path.read_text(encoding="utf-8")
+    values = frontmatter(path, text, errors)
+    name = values.get("name", "")
+    description = values.get("description", "")
+    expected = path.parent.name
+    if not SKILL_NAME.fullmatch(name) or len(name) > 63:
+        errors.append(f"{path.relative_to(ROOT)}: invalid kebab-case skill name {name!r}")
+    if name != expected:
+        errors.append(f"{path.relative_to(ROOT)}: skill name must match directory {expected!r}")
+    if not description or len(description) > 1024:
+        errors.append(f"{path.relative_to(ROOT)}: description must contain 1-1024 characters")
+    if UNFINISHED.search(text):
+        errors.append(f"{path.relative_to(ROOT)}: unfinished TODO/TBD/PLACEHOLDER marker")
+    check_fences(path, text, errors)
+    check_links(path, text, errors)
+    return (name, description) if name and description else None
+
+
+def main() -> int:
+    errors: list[str] = []
+    documents: list[Path] = []
+    for relative in REQUIRED_INSTRUCTION_FILES:
+        path = ROOT / relative
+        if not path.is_file():
+            errors.append(f"missing required harness file: {relative}")
+            continue
+        documents.append(path)
+
+    if (ROOT / "agent-workflows").exists():
+        errors.append("legacy agent-workflows/ remains; workflows belong under agent-harness/workflows/")
+
+    for path in documents:
+        text = path.read_text(encoding="utf-8")
+        check_fences(path, text, errors)
+        check_links(path, text, errors)
+
+    for relative in (".cline", ".clinerules"):
+        if (ROOT / relative).exists():
+            errors.append(f"unused Cline host integration remains: {relative}")
+
+    canonical_root = ROOT / ".agents" / "skills"
+    canonical_names = {path.parent.name for path in canonical_root.glob("*/SKILL.md")}
+    for required in sorted(REQUIRED_SKILLS - canonical_names):
+        errors.append(f"missing required canonical skill: {required}")
+
+    canonical: dict[str, tuple[str, str]] = {}
+    for path in sorted(canonical_root.glob("*/SKILL.md")):
+        if result := check_skill(path, errors):
+            canonical[result[0]] = result
+        metadata = path.parent / "agents" / "openai.yaml"
+        if not metadata.is_file():
+            errors.append(f"{path.parent.relative_to(ROOT)}: missing agents/openai.yaml")
+
+    for name in ("plan", "act", "startdev"):
+        metadata = canonical_root / name / "agents" / "openai.yaml"
+        if metadata.is_file() and "allow_implicit_invocation: false" not in metadata.read_text(encoding="utf-8"):
+            errors.append(f"{metadata.relative_to(ROOT)}: command-like skill must be explicit-only")
+
+    root_agents = ROOT / "AGENTS.md"
+    if root_agents.is_file() and root_agents.stat().st_size > 12_000:
+        errors.append(f"AGENTS.md is {root_agents.stat().st_size} bytes; keep it at or below 12000")
+
+    web_agents = ROOT / "apps" / "web" / "AGENTS.md"
+    if web_agents.is_file():
+        guidance = web_agents.read_text(encoding="utf-8")
+        for phrase in (
+            "Material UI is the default",
+            "only when Material UI has no suitable option",
+            "must be a narrow, reviewable and reproducible dependency patch",
+        ):
+            if phrase not in guidance:
+                errors.append(f"apps/web/AGENTS.md: missing required UI hierarchy phrase {phrase!r}")
+
+    preflight = ROOT / "bin" / "agent-preflight"
+    if preflight.is_file() and '".agents/skills/frontend-ui/SKILL.md (for UI work)"' not in preflight.read_text(encoding="utf-8"):
+        errors.append("bin/agent-preflight: frontend route must surface the frontend-ui skill")
+
+    startdev = canonical_root / "startdev" / "SKILL.md"
+    if startdev.is_file():
+        lifecycle = startdev.read_text(encoding="utf-8")
+        for command in (
+            "bin/startdev-refresh",
+            "git fetch",
+            "git pull --ff-only",
+            "./dev_server_startup stop",
+            "DATABASE_URL",
+            "Rails.env.development?",
+            "ActiveRecord::Base.connection_db_config",
+            "db:seed:replant",
+            "APP_SYNTHETIC_SEEDS=1",
+            "./dev_server_startup start",
+            "./dev_server_startup status",
+        ):
+            if command not in lifecycle:
+                errors.append(f"{startdev.relative_to(ROOT)}: missing guarded refresh command {command!r}")
+
+    startdev_refresh = ROOT / "bin" / "startdev-refresh"
+    if startdev_refresh.is_file():
+        implementation = startdev_refresh.read_text(encoding="utf-8")
+        for marker in (
+            '"status", "--porcelain=v1", "--untracked-files=all"',
+            '"fetch", remote',
+            '"pull", "--ff-only"',
+            'ENV.fetch("DATABASE_URL", "").empty?',
+            'Rails.env.development?',
+            'ActiveRecord::Base.connection_db_config',
+            '"db:seed:replant"',
+            '"APP_SYNTHETIC_SEEDS" => "1"',
+            'File.join(ROOT, "dev_server_startup")',
+        ):
+            if marker not in implementation:
+                errors.append(f"bin/startdev-refresh: missing safety marker {marker!r}")
+        for forbidden in ("db:drop", "db:reset", "git reset", "docker volume rm"):
+            if forbidden in implementation:
+                errors.append(f"bin/startdev-refresh: forbidden destructive fallback {forbidden!r}")
+
+    for relative in REQUIRED_COMMANDS:
+        path = ROOT / relative
+        if not path.is_file():
+            errors.append(f"missing agent harness command: {relative}")
+        elif not os.access(path, os.X_OK):
+            errors.append(f"agent harness command is not executable: {relative}")
+
+    if errors:
+        print("Agent harness verification failed:", file=sys.stderr)
+        for error in sorted(set(errors)):
+            print(f"  - {error}", file=sys.stderr)
+        return 1
+
+    print(
+        f"Verified {len(documents)} harness documents, {len(canonical_names)} canonical skills "
+        f"and {len(REQUIRED_COMMANDS)} commands."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

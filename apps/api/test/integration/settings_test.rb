@@ -19,7 +19,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  def save_appearance(palette: "blue", mode: "dark", version: 0, expected_user_id: @user.id, **extra)
+  def save_appearance(palette: "cobalt", mode: "dark", version: 0, expected_user_id: @user.id, **extra)
     patch "/api/settings", params: { expected_user_id: expected_user_id, appearance: { palette: palette, mode: mode, version: version }, **extra }, headers: headers, as: :json
   end
 
@@ -38,7 +38,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
       get "/api/settings"
       assert_response :success
     end
-    assert_equal({ "palette" => "sage", "mode" => "system", "version" => 0 }, response.parsed_body["appearance"])
+    assert_equal({ "palette" => "juniper", "mode" => "system", "version" => 0 }, response.parsed_body["appearance"])
     assert_equal @user.id, response.parsed_body["user_id"]
     save_appearance
     assert_response :success
@@ -46,7 +46,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
     delete "/api/session", headers: headers, as: :json
     sign_in
     get "/api/settings"
-    assert_equal "blue", response.parsed_body.dig("appearance", "palette")
+    assert_equal "cobalt", response.parsed_body.dig("appearance", "palette")
     assert_equal "dark", response.parsed_body.dig("appearance", "mode")
     assert_equal %w[appearance user_id], response.parsed_body.keys.sort
   end
@@ -59,24 +59,24 @@ class SettingsTest < ActionDispatch::IntegrationTest
     assert_not @user.reload.admin?
     sign_in(@other)
     get "/api/settings"
-    assert_equal "sage", response.parsed_body.dig("appearance", "palette")
+    assert_equal "juniper", response.parsed_body.dig("appearance", "palette")
     save_appearance(expected_user_id: @user.id)
     assert_response :conflict
     assert_nil Identity::Preference.find_by(user: @other)
-    save_appearance(expected_user_id: @other.id, palette: "graphite")
+    save_appearance(expected_user_id: @other.id, palette: "plum")
     assert_response :success
-    assert_equal "blue", Identity::Preference.find_by!(user: @user).palette
-    assert_equal "graphite", Identity::Preference.find_by!(user: @other).palette
+    assert_equal "cobalt", Identity::Preference.find_by!(user: @user).palette
+    assert_equal "plum", Identity::Preference.find_by!(user: @other).palette
   end
 
   test "stale and repeated saves cannot silently overwrite newer settings" do
     sign_in
     save_appearance
     assert_response :success
-    save_appearance(palette: "graphite")
+    save_appearance(palette: "plum")
     assert_response :conflict
     assert_match(/Reload saved settings/, response.parsed_body["error"])
-    save_appearance(palette: "graphite", version: 1)
+    save_appearance(palette: "plum", version: 1)
     assert_response :success
     assert_equal 2, response.parsed_body.dig("appearance", "version")
     assert_equal 1, Identity::Preference.where(user: @user).count
@@ -91,7 +91,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
     end
     patch "/api/settings", params: { expected_user_id: @user.id, appearance: "bad shape" }, headers: headers, as: :json
     assert_response :bad_request
-    %w[sage blue graphite].product(%w[system light dark]).each_with_index do |(palette, mode), revision|
+    %w[juniper cobalt plum saffron].product(%w[system light dark]).each_with_index do |(palette, mode), revision|
       save_appearance(palette: palette, mode: mode, version: revision)
       assert_response :success
     end
@@ -99,7 +99,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
 
   test "CSRF origin session expiry and revoked account guards remain enforced" do
     sign_in
-    payload = { expected_user_id: @user.id, appearance: { palette: "blue", mode: "light", version: 0 } }
+    payload = { expected_user_id: @user.id, appearance: { palette: "cobalt", mode: "light", version: 0 } }
     patch "/api/settings", params: payload, as: :json
     assert_response :unprocessable_entity
     patch "/api/settings", params: payload, headers: headers.merge("Origin" => "https://other.example.invalid"), as: :json
@@ -122,6 +122,6 @@ class SettingsTest < ActionDispatch::IntegrationTest
     assert_raises(ActiveRecord::RecordNotUnique) do
       Identity::Preference.transaction(requires_new: true) { Identity::Preference.create!(user: @user) }
     end
-    assert_equal "sage", record.reload.palette
+    assert_equal "juniper", record.reload.palette
   end
 end

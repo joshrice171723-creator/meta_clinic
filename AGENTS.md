@@ -6,10 +6,20 @@ These instructions apply to the whole repository. APPly combines business planni
 
 1. This file contains the repository-wide invariants and task router.
 2. Before changing a path, read the nearest applicable nested `AGENTS.md`. Tools that do not discover nested instructions automatically must read them explicitly.
-3. Load the relevant procedure from [`agent-workflows/`](agent-workflows/README.md) only when the task needs it.
-4. Use the vault for current direction, decisions, tasks and evidence. Do not copy dated project state into agent instructions.
+3. Load the relevant procedure from [`agent-harness/workflows/`](agent-harness/workflows/README.md) only when the task needs it.
+4. Load a repository skill from [`.agents/skills/`](.agents/skills/) only when explicitly invoked or when its description matches the task.
+5. Use the vault for current direction, decisions, tasks and evidence. Do not copy dated project state into agent instructions or skills.
 
 More-specific instructions may add safeguards or commands; they may not weaken the boundaries in this file. Each explicitly delegated agent reviews the instructions and vault context relevant to its own bounded subtask.
+
+## Harness and knowledge boundary
+
+- Root and nested `AGENTS.md` files are the stable, always-on policy and path-routing layer. Their location is part of agent discovery, so they remain beside the paths they govern.
+- `agent-harness/workflows/` contains reusable procedures; `.agents/skills/` contains on-demand capabilities; `bin/agent-*` and the verification commands provide deterministic checks. Host integrations are added only when selected, not maintained speculatively.
+- `APPlyVault/` is the software knowledge base for current direction, requirements, decisions, tasks, risks, research and dated evidence. Application source, tests, migrations and runbooks are executable truth for implemented behavior.
+- Prompt instructions do not create a runtime permission boundary. A plan/act skill cannot change tool availability, sandboxing, approvals or deployment authority.
+
+See [`agent-harness/README.md`](agent-harness/README.md) for the component map and skill catalog.
 
 ## Non-negotiable boundaries
 
@@ -20,7 +30,7 @@ More-specific instructions may add safeguards or commands; they may not weaken t
 - Unknown facts remain unknown. Do not invent owners, dates, approvals, budgets, requirements, rates or completed reviews.
 - A build or test result is not security, legal, clinical, operational, HIPAA or release acceptance.
 
-If potentially sensitive information or a suspected incident appears, stop the affected inspection, avoid repeating the contents, preserve existing evidence and notify the user. Do not independently delete evidence, rewrite history, rotate credentials, change access or send external notices. Follow [`agent-workflows/incident.md`](agent-workflows/incident.md).
+If potentially sensitive information or a suspected incident appears, stop the affected inspection, avoid repeating the contents, preserve existing evidence and notify the user. Do not independently delete evidence, rewrite history, rotate credentials, change access or send external notices. Follow [`agent-harness/workflows/incident.md`](agent-harness/workflows/incident.md).
 
 ## Task modes and authority
 
@@ -61,12 +71,7 @@ Preserve reported facts, observations, sourced background, proposals and decisio
 
 ## Change discipline
 
-### Local development lifecycle
-
-- From the repository root, use `./dev_server_startup start` to start PostgreSQL, Rails and Vite, or `./dev_server_startup restart` to stop and start the managed stack. On Windows, run the same file as `ruby .\dev_server_startup start` or `ruby .\dev_server_startup restart`.
-- `./dev_server_startup stop` preserves the persistent PostgreSQL volume; `./dev_server_startup status` runs the local readiness diagnosis. With no command, the script performs `start`. Pass `--seed` only when synthetic seed data is intentionally required and `--no-browser` when no browser should open.
-- This repository-local entry point is the default agent/developer interface. Do not require installation of the global `apply` launcher or a PATH change. The script delegates to `bin/apply`; keep lifecycle fixes in the owned implementation instead of duplicating them in the wrapper.
-- A successful start/restart must mean PostgreSQL, Rails and Vite passed readiness. Preserve and fix consequential startup failures; do not replace the managed path with an unrecorded manual process and report success.
+Use the current commands and ownership rules in `CICD.md`, `Software Architecture.md` and the nearest nested instructions. Do not copy changing versions, ports, hosted state or implementation details into this root contract.
 
 - Work within the existing package, architecture, migration and lockfile boundaries described by the nearest instructions.
 - Keep changes independently reviewable. Do not overwrite, reformat or silently incorporate unrelated work.
@@ -82,7 +87,7 @@ Preserve reported facts, observations, sourced background, proposals and decisio
 Before finishing:
 
 1. Inspect the scoped diff and working-tree state.
-2. Run the checks required by the nearest `AGENTS.md`; use `bin/agent-check` to list or run checks selected from changed paths.
+2. Run the checks required by the nearest `AGENTS.md`; use `bin/agent-check` to list or run checks selected from changed paths. Harness changes use `bin/verify-agent-harness`; vault changes use `bin/verify-vault`.
 3. Verify that no unrelated work, secret or sensitive material was included.
 4. Update canonical vault records only when direction, task status, evidence or a decision actually changed. Refresh Home only when overall direction or priorities changed.
 5. Report what changed, checks actually run and their outcomes, checks not run, remaining risks/gates and required human decisions.

@@ -5,9 +5,10 @@
     <button type="button" class="btn" data-direction="inventory" aria-pressed="false">C · Operations desk</button>
     <label class="form-label">Palette
       <select class="form-select" id="clinic-study-palette">
-        <option value="sage">Sage &amp; ivory</option>
-        <option value="blue">Mineral blue</option>
-        <option value="graphite">Warm graphite</option>
+        <option value="juniper">Juniper &amp; porcelain</option>
+        <option value="cobalt">Cobalt &amp; limestone</option>
+        <option value="plum">Plum &amp; parchment</option>
+        <option value="saffron">Saffron &amp; ink</option>
       </select>
     </label>
     <label class="form-label">Appearance
@@ -18,7 +19,7 @@
       </select>
     </label>
   </div>
-  <div class="cw-preview" data-palette="sage">
+  <div class="cw-preview" data-palette="juniper">
     <div class="cw-top">
       <span class="cw-brand">APPly<span aria-hidden="true">.</span></span>
       <span class="cw-practice">Test Clinic <span>Clinic workspace</span></span>
@@ -111,7 +112,7 @@
             <details class="cw-disclosure"><summary>Receiving is a separate action</summary><p>Select the catalog product → confirm location, lot, quantity and typed unit → review → record receipt. Adding a product to the catalog does not add stock. No receipt is submitted in this study.</p></details>
           </section>
         </section>
-        <div class="cw-preview-footer"><span id="cw-palette-caption">Sage &amp; ivory</span><span>System-font preview · All examples invented</span></div>
+        <div class="cw-preview-footer"><span id="cw-palette-caption">Juniper &amp; porcelain</span><span>System-font preview · All examples invented</span></div>
       </div>
     </div>
   </div>
@@ -119,15 +120,15 @@
 </div>
 <style>
   #clinic-design-study .cw-preview {
-    --cw-canvas: light-dark(#f5f7f4, #151d19);
-    --cw-surface: light-dark(#ffffff, #1e2823);
-    --cw-ink: light-dark(#20352f, #e5eee8);
-    --cw-muted: light-dark(#52655e, #b3c4b9);
-    --cw-line: light-dark(#ccd8d1, #495d51);
-    --cw-control: light-dark(#71847a, #8aab99);
-    --cw-accent: light-dark(#1f5c4d, #a7d4ba);
-    --cw-on-accent: light-dark(#ffffff, #14261c);
-    --cw-soft: light-dark(#e6efe8, #2b4034);
+    --cw-canvas: light-dark(#f2f7f4, #0d1714);
+    --cw-surface: light-dark(#fbfdfb, #16231e);
+    --cw-ink: light-dark(#182b27, #edf7f2);
+    --cw-muted: light-dark(#52635e, #b6c8c0);
+    --cw-line: light-dark(#b9cec4, #49645a);
+    --cw-control: light-dark(#456d61, #8eb3a5);
+    --cw-accent: light-dark(#006b5f, #62d4bd);
+    --cw-on-accent: light-dark(#ffffff, #063d34);
+    --cw-soft: light-dark(#d8eee6, #1f493d);
     --cw-warning: light-dark(#8a4b12, #ffd298);
     --cw-warning-bg: light-dark(#fff2d9, #48331b);
     color: var(--cw-ink); background: var(--cw-canvas); border: 1px solid var(--cw-line);
@@ -135,19 +136,26 @@
     font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     margin-top: 16px; text-align: left;
   }
-  #clinic-design-study .cw-preview[data-palette="blue"] {
-    --cw-canvas: light-dark(#f4f7fa, #151d25); --cw-surface: light-dark(#ffffff, #1d2934);
-    --cw-ink: light-dark(#213747, #e2edf5); --cw-muted: light-dark(#536574, #b4c6d4);
-    --cw-line: light-dark(#cbd6df, #4b6071); --cw-control: light-dark(#71818e, #8da8bd);
-    --cw-accent: light-dark(#245a81, #a9cfea); --cw-on-accent: light-dark(#ffffff, #162936);
-    --cw-soft: light-dark(#e7eff6, #2a4051);
+  #clinic-design-study .cw-preview[data-palette="cobalt"] {
+    --cw-canvas: light-dark(#f3f6fb, #0c1422); --cw-surface: light-dark(#fbfdff, #17243a);
+    --cw-ink: light-dark(#18233c, #f1f5ff); --cw-muted: light-dark(#526078, #c0cae0);
+    --cw-line: light-dark(#b9c8df, #4b6282); --cw-control: light-dark(#4c648c, #9aafd1);
+    --cw-accent: light-dark(#1d4ed8, #9cc5ff); --cw-on-accent: light-dark(#ffffff, #122c5f);
+    --cw-soft: light-dark(#dce8ff, #1f3d70);
   }
-  #clinic-design-study .cw-preview[data-palette="graphite"] {
-    --cw-canvas: light-dark(#f7f5f1, #201f1c); --cw-surface: light-dark(#ffffff, #292823);
-    --cw-ink: light-dark(#2a3533, #eeeee6); --cw-muted: light-dark(#616a64, #c5c5b8);
-    --cw-line: light-dark(#d7d8d0, #606054); --cw-control: light-dark(#7c8178, #a3a798);
-    --cw-accent: light-dark(#3e4b49, #c5d0c2); --cw-on-accent: light-dark(#ffffff, #242c25);
-    --cw-soft: light-dark(#ecefe7, #3b4037);
+  #clinic-design-study .cw-preview[data-palette="plum"] {
+    --cw-canvas: light-dark(#faf5fb, #19121f); --cw-surface: light-dark(#fffaff, #291b34);
+    --cw-ink: light-dark(#2c1c3b, #fbf5ff); --cw-muted: light-dark(#665675, #d2c2d9);
+    --cw-line: light-dark(#d1bdd8, #624e6e); --cw-control: light-dark(#705681, #bda4c8);
+    --cw-accent: light-dark(#6d28d9, #d9b7ff); --cw-on-accent: light-dark(#ffffff, #3d146e);
+    --cw-soft: light-dark(#ede0fb, #4c2c69);
+  }
+  #clinic-design-study .cw-preview[data-palette="saffron"] {
+    --cw-canvas: light-dark(#fff7e8, #1d160a); --cw-surface: light-dark(#fffdf7, #302512);
+    --cw-ink: light-dark(#302614, #fff9e9); --cw-muted: light-dark(#655a42, #ddd0ad);
+    --cw-line: light-dark(#dfd2b5, #6d6040); --cw-control: light-dark(#806c44, #d2bc7b);
+    --cw-accent: light-dark(#704000, #ffd978); --cw-on-accent: light-dark(#ffffff, #452d00);
+    --cw-soft: light-dark(#ffebba, #5a4010);
   }
   #clinic-design-study .cw-preview * { box-sizing: border-box; }
   #clinic-design-study .cw-preview [hidden] { display: none !important; }

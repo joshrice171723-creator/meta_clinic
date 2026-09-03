@@ -18,7 +18,7 @@ Read the applicable `Software Architecture.md` domain/audit sections and `CICD.m
 - Use forward migrations. Do not edit shared applied migrations, reset an existing database, discard history or rewrite data without explicit transition authority.
 - Review the generated structure diff and preserve exact decimal handling, tenant keys, immutable history and database constraints.
 - `bin/postgres` manages persistent local storage and never deletes it. Verification helpers may remove only their explicitly generated scratch databases.
-- Never run an unqualified development `rails db:drop`, `db:reset`, destructive SQL or wildcard database cleanup. Follow [`../../agent-workflows/database-change.md`](../../agent-workflows/database-change.md).
+- Never run an unqualified development `rails db:drop`, `db:reset`, destructive SQL or wildcard database cleanup. Follow [`../../agent-harness/workflows/database-change.md`](../../agent-harness/workflows/database-change.md).
 
 ## Auditing and protected values
 

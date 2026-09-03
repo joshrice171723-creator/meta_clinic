@@ -43,6 +43,6 @@ For a substantive vault change, update affected current-state notes, change the 
 
 ## Validation
 
-Run `bin/verify-vault` after vault or agent-instruction changes. It checks required frontmatter, dates, fences, note names, wiki/heading targets, relative links, Home reachability and the required instruction/playbook layout. Also run `git diff --check` and inspect the final diff.
+Run `bin/verify-vault` after vault changes. It checks required frontmatter, dates, fences, note names, wiki/heading targets, relative links and Home reachability. Run `bin/verify-agent-harness` after agent-instruction, workflow, skill or adapter changes. Also run `git diff --check` and inspect the final diff.
 
-Use [`../agent-workflows/vault-change.md`](../agent-workflows/vault-change.md) for the complete change procedure and [`../agent-workflows/research.md`](../agent-workflows/research.md) for sourced work.
+Use [`../agent-harness/workflows/vault-change.md`](../agent-harness/workflows/vault-change.md) for the complete change procedure and [`../agent-harness/workflows/research.md`](../agent-harness/workflows/research.md) for sourced work.

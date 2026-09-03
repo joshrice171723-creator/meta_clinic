@@ -1,0 +1,6 @@
+interface:
+  display_name: "Start APPly Dev"
+  short_description: "Sync, reseed, start, and verify local APPly"
+  default_prompt: "Use $startdev to safely fast-forward this clean checkout, replant its synthetic development database, and start and verify the managed APPly stack."
+policy:
+  allow_implicit_invocation: false

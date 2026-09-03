@@ -9,11 +9,11 @@ Home: [[00 Home]] · Index: [[01 Table of Contents]] · Current product: [[Clini
 
 ## Direction and scope
 
-**Founder input, 2026-08-31 (U-26/U-27):** explore a sleek, accessible clinic interface on a feature branch. Staff will primarily perform patient intake and triage; the physician will mainly create and sign notes/prescriptions. The follow-up confirms staff use both desktop and tablet and requests implementing all three themes for users to choose (D-036). Exact staff roles remain unspecified. This clarifies intended use and cosmetic implementation, not clinical permissions or release approval.
+**Founder input, 2026-08-31 (U-26/U-27), updated by D-055:** explore a sleek, accessible clinic interface on a feature branch. Staff will primarily perform patient intake and triage; the physician will mainly create and sign notes/prescriptions. Staff use both desktop and tablet, and users may select Juniper & porcelain, Cobalt & limestone, Plum & parchment or Saffron & ink. Exact staff roles remain unspecified. This clarifies intended use and cosmetic implementation, not clinical permissions or release approval.
 
-**Layout recommendation, not a selected workflow:** staff-first Today/intake queue, a focused clinician workspace, and inventory as a supporting view within the same clinic shell. These are complementary views, not three separate applications. All three palettes are now selectable in the current clinic UI; sage/ivory with Follow system is the implementation default, not a founder-selected exclusive palette. Preserve the launch/clinic distinction and developer-assigned single clinic; no clinic selector, shared login or new account privileges.
+**Layout recommendation, not a selected workflow:** staff-first Today/intake queue, a focused clinician workspace, and inventory as a supporting view within the same clinic shell. These are complementary views, not three separate applications. All four palettes are now selectable in the current clinic UI; Juniper & porcelain with Follow system is the implementation default, not a founder-selected exclusive palette. Preserve the launch/clinic distinction and developer-assigned single clinic; no clinic selector, shared login or new account privileges.
 
-The [interactive design comparison](../../apps/web/design/clinic-workspace-directions.html) contains three layouts and three interchangeable palettes, with system/light/dark appearances. It is an isolated HTML fragment, outside Vite's runtime/public entrypoints. All examples are independently invented; selections only change the preview. It makes no API requests and does not save, sign, prescribe, transmit or alter stock. Navigation chrome is illustrative; comparison controls, example rows, disclosures and review previews are interactive. The preview uses system fonts, not a downloaded font.
+The [interactive design comparison](../../apps/web/design/clinic-workspace-directions.html) contains three layouts and four interchangeable palettes, with system/light/dark appearances. It is an isolated HTML fragment, outside Vite's runtime/public entrypoints. All examples are independently invented; selections only change the preview. It makes no API requests and does not save, sign, prescribe, transmit or alter stock. Navigation chrome is illustrative; comparison controls, example rows, disclosures and review previews are interactive. The preview uses system fonts, not a downloaded font.
 
 The React app provides the synthetic patient directory with registration and patient detail backed by current APIs, read-only legacy drafts, staff/inventory controls, context-driven module navigation, and patient/encounter/observation detail. The current working tree additionally expands registration to demographics, contacts, emergency contacts, communication preferences and social-history fields, and adds a patient update path. `CareFlow.tsx` includes MUI-based scheduling/appointment presentation, patient-bound encounter controls and a structured unsigned SOAP draft workspace. Overview now consumes a capped, permission-scoped open-encounter projection while labeling all missing flow semantics and freshness limits; fixture-only stage, wait, membership and provider-assignment values are not grafted onto those rows. The provider workspace has one identity/visit checkpoint, recorded care and vital context, explicit draft states and a bounded encounter-completion control. These are source observations of uncommitted work, not acceptance of a complete intake or clinical workflow. Arrival, five-stage flow, durable handoffs, clinical signatures and prescriptions are **not implemented in the frontend**; encounter completion does not establish checkout, departure or handoff. The registration and note fields do not by themselves establish complete clinical intake, consent, membership, triage or clinical-content acceptance. The MUI layer is scoped to clinic presentation and does not alter the synthetic-only, authorization or production-denial boundaries.
 
@@ -95,7 +95,7 @@ The founder requested a feature branch, correction of squeezed pharmacy summarie
 
 Failure-first entry: browser-shared preferences could leak into the next account; narrow containers can make controls unreadable; expired sessions, conflicting tabs or lost save responses could falsely report completion. Use server-owned, allowlisted preferences resolved only from the current session, explicit save/error/conflict states and no automatic import of the old browser preference. Verify isolated synthetic accounts, validation/authorization/CSRF and repeated/stale writes, plus desktop/tablet/phone overflow, control wrapping and keyboard interaction. Keep failed edits visibly unsaved and offer reloading the saved settings.
 
-**Delivered:** `/clinic/settings` is the initial personal Settings page, reached from clinic navigation or My settings. It displays the signed-in account and provides Color theme / Brightness plus an explicit Save appearance action. Saved preferences are loaded on later page loads/sessions on that account; Follow system resolves separately on each device. There is no live push to other open tabs. Unsaved choices do not change the current theme. Reloading discards unsaved choices and retrieves the acknowledged server state.
+**Delivered:** `/clinic/settings` is the initial personal Settings page, reached from clinic navigation or My settings. It displays the signed-in account and Color theme / Brightness controls; each changed selection saves immediately after the server accepts it, so there is no ordinary Save appearance action. Accessible previews compare the four themes in the resolved light/dark scheme, mark the selected theme in text, and keep the local-only Development view visually subordinate. Saved preferences are loaded on later page loads/sessions on that account; Follow system resolves separately on each device. There is no live push to other open tabs. A failed change leaves the saved appearance unchanged and exposes a retry action; reloading retrieves the acknowledged server state.
 
 `Identity::Preference` stores only palette, mode and revision with a unique user foreign key, allowlist checks and revision constraints. `/api/settings` GET/PATCH/PUT derives the target from the authenticated session; the submitted expected user ID is a mismatch guard, never a target selector. Server-side user-row locking serializes first saves, stale versions return conflict, and the frontend validates response ownership before reporting success. Old browser-local preferences are no longer read/written or automatically assigned to any account; the unused old key is not deleted. No credentials or records move into browser persistence, and no permission/provisioning/password controls were added.
 
@@ -107,11 +107,11 @@ Later integration evidence: [[Progress Log#2026-08-31 — Clinic and test-accoun
 
 ### Original browser-local baseline — superseded by D-039
 
-D-036/T-41 implement **Sage & ivory**, **Mineral blue** and **Warm graphite** in the clinic's Appearance disclosure. Each supports Light, Dark or Follow system; system mode responds to device preference changes. The default is Sage & ivory / Follow system. Native labeled selects expand inline without covering work; the picker stacks on narrow screens and controls target at least 44px height. Active navigation now has a visible marker and `aria-current="page"`; the clinic uses system sans-serif, larger labels and 16px form/action text.
+D-036/T-41 originally implemented three palettes; D-055 replaces them with **Juniper & porcelain**, **Cobalt & limestone**, **Plum & parchment** and **Saffron & ink**. Each supports Light, Dark or Follow system; system mode responds to device preference changes. The default is Juniper & porcelain / Follow system. Native labeled selects expand inline without covering work; the picker stacks on narrow screens and controls target at least 44px height. Active navigation now has a visible marker and `aria-current="page"`; the clinic uses system sans-serif, larger labels and 16px form/action text.
 
-The two allowlisted cosmetic values are remembered under one versioned browser-local key. No account, clinic, record, token or free text is stored. This is not account sync: desktop and tablet can differ, and people sharing a browser share its appearance. Same-origin tabs respond to preference changes. If storage is blocked, the selected appearance still applies for the current page and the UI explains that it could not remember it. Signing out does not erase this non-sensitive preference.
+The two allowlisted cosmetic values are account-scoped server preferences, not browser-local storage. No account, clinic, record, token or free text is retained in browser persistence. Desktop and tablet retrieve the same saved selection for that account while Follow system still resolves from each device. A save failure does not silently retry or report success.
 
-Ownership: `apps/web/src/features/clinic/Appearance.tsx`, `appearancePreferences.ts` and `appearance.css`. All overrides are clinic-scoped, preserving launch styles and existing routes, API contracts, permissions and clinical workflows. No fonts, dependencies, backend preference service or account settings were added. Existing navigation/layout structure remains; the three conceptual workflow layouts are not implemented by this slice.
+Ownership: `apps/web/src/features/clinic/Appearance.tsx`, `appearancePreferences.ts`, `appearance.css` and `features/identity/Settings.tsx`, with the allowlisted account-preference API owned by Identity. All overrides are clinic-scoped, preserving launch styles and existing routes, API contracts, permissions and clinical workflows. No fonts or dependencies were added. Existing navigation/layout structure remains; the three conceptual workflow layouts are not implemented by this slice.
 
 Verification covers allowlist/persistence failures, system and storage listeners, rendered native controls, permission-filtered active navigation, loading-state isolation, six token sets and static responsive/style contracts. See [[Progress Log#2026-08-31 — Selectable clinic themes implemented]] for actual checks. Rendered contrast, complete keyboard/screen-reader behavior, device interaction and zoom/reflow remain T-22 acceptance work; token math is not full WCAG conformance.
 
@@ -144,16 +144,16 @@ The preview deliberately omits a functioning note editor, clinical fields and si
 
 ## Visual system
 
-| Token, light appearance | Sage & ivory — default | Mineral blue | Warm graphite |
-| --- | --- | --- | --- |
-| Canvas | `#F5F7F4` | `#F4F7FA` | `#F7F5F1` |
-| Surface | `#FFFFFF` | `#FFFFFF` | `#FFFFFF` |
-| Primary text | `#20352F` | `#213747` | `#2A3533` |
-| Secondary text | `#52655E` | `#536574` | `#616A64` |
-| Action / selected accent | `#1F5C4D` | `#245A81` | `#3E4B49` |
-| Selected background | `#E6EFE8` | `#E7EFF6` | `#ECEFE7` |
+| Token, light appearance | Juniper & porcelain — default | Cobalt & limestone | Plum & parchment | Saffron & ink |
+| --- | --- | --- | --- | --- |
+| Canvas | `#F7F9F8` | `#F8F8F6` | `#FCF9FC` | `#FFFAF1` |
+| Surface | `#FFFFFF` | `#FFFFFF` | `#FFFFFF` | `#FFFFFF` |
+| Primary text | `#182B27` | `#18233C` | `#2C1C3B` | `#302614` |
+| Secondary text | `#52635E` | `#526078` | `#665675` | `#655A42` |
+| Action / selected accent | `#006B5F` | `#1D4ED8` | `#6D28D9` | `#7C4A03` |
+| Selected background | `#DDF3EC` | `#E5EDFF` | `#F0E8FF` | `#FFF0C9` |
 
-Sage preserves APPly's existing green while making the clinic feel quieter and lighter. Blue offers a cooler alternative; graphite is deliberately neutral. Color is a preference, not evidence of clinical trust, safety or usability. All three light/dark token sets are implemented; appearance follows the system unless the user explicitly changes it. Status meanings stay consistent across palettes.
+Juniper preserves a calm green identity; Cobalt provides decisive, highly scannable contrast; Plum brings a composed editorial warmth; and Saffron is a clear, optimistic alternative. Color is a preference, not evidence of clinical trust, safety or usability. All four light/dark token sets are implemented; appearance follows the system unless the user explicitly changes it. Status meanings stay consistent across palettes.
 
 Use restrained 6–10px component radii, a small spacing scale (4/8/12/16/24/32px), subtle section separators and limited shadows. Avoid marketing-size headlines, decorative charts, ornamental imagery and icon-only primary actions. Status colors are semantic: amber for a reviewable exception, red reserved for true urgent/error states defined by the approved workflow. Every state also needs text; “unknown” must never look like “normal.”
 
@@ -163,9 +163,10 @@ Calculated token contrast (sRGB WCAG formula; unrounded ratios used for pass dec
 
 | Palette | Lowest tested text pairing, light | Lowest tested text pairing, dark | Light primary-button text |
 | --- | --- | --- | --- |
-| Sage | 5.29:1 | 6.11:1 | 7.79:1 |
-| Blue | 5.19:1 | 6.14:1 | 7.36:1 |
-| Graphite | 4.81:1 | 6.10:1 | 9.10:1 |
+| Juniper | 4.56:1 | 5.17:1 | 6.43:1 |
+| Cobalt | 4.69:1 | 5.15:1 | 6.70:1 |
+| Plum | 4.73:1 | 5.37:1 | 7.10:1 |
+| Saffron | 4.57:1 | 5.41:1 | 7.40:1 |
 
 Tested primary/secondary/accent text on canvas, surface and selected backgrounds, plus primary button foreground/background. Amber labels are 6.12:1 light and 8.46:1 dark. Secondary control borders exceed 3:1 against their surfaces. These calculations are token checks, not proof of whole-interface WCAG conformance; rendered states, focus, zoom and assistive technologies still need validation.
 

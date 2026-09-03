@@ -1,9 +1,10 @@
 import type { CSSProperties } from "react";
 
 export const CLINIC_PALETTES = [
-  { id: "sage", label: "Sage & ivory" },
-  { id: "blue", label: "Mineral blue" },
-  { id: "graphite", label: "Warm graphite" },
+  { id: "juniper", label: "Juniper & porcelain" },
+  { id: "cobalt", label: "Cobalt & limestone" },
+  { id: "plum", label: "Plum & parchment" },
+  { id: "saffron", label: "Saffron & ink" },
 ] as const;
 export const CLINIC_MODES = [
   { id: "system", label: "Follow system" },
@@ -15,7 +16,7 @@ export type ClinicMode = (typeof CLINIC_MODES)[number]["id"];
 export type ClinicAppearance = { palette: ClinicPalette; mode: ClinicMode };
 export type ColorScheme = "light" | "dark";
 export const DEFAULT_APPEARANCE: ClinicAppearance = {
-  palette: "sage",
+  palette: "juniper",
   mode: "system",
 };
 
@@ -26,7 +27,7 @@ export function normalizeAppearance(value: unknown): ClinicAppearance {
       : {};
   return {
     palette:
-      CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ?? "sage",
+      CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ?? "juniper",
     mode: CLINIC_MODES.find((m) => m.id === candidate.mode)?.id ?? "system",
   };
 }
@@ -67,76 +68,100 @@ export const CLINIC_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ThemeTokens>
 > = {
-  sage: {
+  juniper: {
     light: {
-      background: "#f5f7f4",
-      surface: "#ffffff",
-      text: "#20352f",
-      muted: "#52655e",
-      accent: "#1f5c4d",
+      background: "#f2f7f4",
+      surface: "#fbfdfb",
+      text: "#182b27",
+      muted: "#52635e",
+      accent: "#006b5f",
       "on-accent": "#ffffff",
-      soft: "#e6efe8",
-      border: "#ccd8d1",
-      control: "#71847a",
+      soft: "#d8eee6",
+      border: "#b9cec4",
+      control: "#456d61",
     },
     dark: {
-      background: "#151d19",
-      surface: "#1e2823",
-      text: "#e5eee8",
-      muted: "#b3c4b9",
-      accent: "#a7d4ba",
-      "on-accent": "#14261c",
-      soft: "#2b4034",
-      border: "#495d51",
-      control: "#8aab99",
+      background: "#0d1714",
+      surface: "#16231e",
+      text: "#edf7f2",
+      muted: "#b6c8c0",
+      accent: "#62d4bd",
+      "on-accent": "#063d34",
+      soft: "#1f493d",
+      border: "#49645a",
+      control: "#8eb3a5",
     },
   },
-  blue: {
+  cobalt: {
     light: {
-      background: "#f4f7fa",
-      surface: "#ffffff",
-      text: "#213747",
-      muted: "#536574",
-      accent: "#245a81",
+      background: "#f3f6fb",
+      surface: "#fbfdff",
+      text: "#18233c",
+      muted: "#526078",
+      accent: "#1d4ed8",
       "on-accent": "#ffffff",
-      soft: "#e7eff6",
-      border: "#cbd6df",
-      control: "#71818e",
+      soft: "#dce8ff",
+      border: "#b9c8df",
+      control: "#4c648c",
     },
     dark: {
-      background: "#151d25",
-      surface: "#1d2934",
-      text: "#e2edf5",
-      muted: "#b4c6d4",
-      accent: "#a9cfea",
-      "on-accent": "#162936",
-      soft: "#2a4051",
-      border: "#4b6071",
-      control: "#8da8bd",
+      background: "#0c1422",
+      surface: "#17243a",
+      text: "#f1f5ff",
+      muted: "#c0cae0",
+      accent: "#9cc5ff",
+      "on-accent": "#122c5f",
+      soft: "#1f3d70",
+      border: "#4b6282",
+      control: "#9aafd1",
     },
   },
-  graphite: {
+  plum: {
     light: {
-      background: "#f7f5f1",
-      surface: "#ffffff",
-      text: "#2a3533",
-      muted: "#616a64",
-      accent: "#3e4b49",
+      background: "#faf5fb",
+      surface: "#fffaff",
+      text: "#2c1c3b",
+      muted: "#665675",
+      accent: "#6d28d9",
       "on-accent": "#ffffff",
-      soft: "#ecefe7",
-      border: "#d7d8d0",
-      control: "#7c8178",
+      soft: "#ede0fb",
+      border: "#d1bdd8",
+      control: "#705681",
     },
     dark: {
-      background: "#201f1c",
-      surface: "#292823",
-      text: "#eeeee6",
-      muted: "#c5c5b8",
-      accent: "#c5d0c2",
-      "on-accent": "#242c25",
-      soft: "#3b4037",
-      border: "#606054",
-      control: "#a3a798",
+      background: "#19121f",
+      surface: "#291b34",
+      text: "#fbf5ff",
+      muted: "#d2c2d9",
+      accent: "#d9b7ff",
+      "on-accent": "#3d146e",
+      soft: "#4c2c69",
+      border: "#624e6e",
+      control: "#bda4c8",
+    },
+  },
+  saffron: {
+    light: {
+      background: "#fff7e8",
+      surface: "#fffdf7",
+      text: "#302614",
+      muted: "#655a42",
+      accent: "#704000",
+      "on-accent": "#ffffff",
+      soft: "#ffebba",
+      border: "#dfcda8",
+      control: "#79633b",
+    },
+    dark: {
+      background: "#1d160a",
+      surface: "#302512",
+      text: "#fff9e9",
+      muted: "#ddd0ad",
+      accent: "#ffd978",
+      "on-accent": "#452d00",
+      soft: "#5a4010",
+      border: "#705d37",
+      control: "#d2bc7b",
     },
   },
 };

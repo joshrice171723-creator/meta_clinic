@@ -1,0 +1,6 @@
+interface:
+  display_name: "Act"
+  short_description: "Implement and verify the current authorized plan"
+  default_prompt: "Use $act to implement the current authorized plan and verify the result."
+policy:
+  allow_implicit_invocation: false

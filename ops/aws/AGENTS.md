@@ -10,7 +10,7 @@ These instructions apply to `ops/aws/` and extend the repository root contract.
 - Never print, copy or commit AWS credentials, secret values, database URLs, keys or decrypted configuration. Do not broaden IAM, network or public access as a troubleshooting shortcut.
 - Preserve synthetic data, encryption identity and recovery evidence. A successful container start is not database, rollback, security or operational acceptance.
 
-Read `CICD.md`, `PostgreSQL and Inventory Foundation.md`, `ops/aws/ec2/environments.md` and the exact runbook for the requested action. Use [`../../agent-workflows/release.md`](../../agent-workflows/release.md). Database cutovers also use [`../../agent-workflows/database-change.md`](../../agent-workflows/database-change.md).
+Read `CICD.md`, `PostgreSQL and Inventory Foundation.md`, `ops/aws/ec2/environments.md` and the exact runbook for the requested action. Use [`../../agent-harness/workflows/release.md`](../../agent-harness/workflows/release.md). Database cutovers also use [`../../agent-harness/workflows/database-change.md`](../../agent-harness/workflows/database-change.md).
 
 ## Safe implementation and checks
 

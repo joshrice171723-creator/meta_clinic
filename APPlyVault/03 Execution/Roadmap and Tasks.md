@@ -1,7 +1,7 @@
 ---
 type: execution
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 # Roadmap and Tasks
 
@@ -376,7 +376,7 @@ Owners: **unassigned unless stated**. All due dates: **TBD**. Add a named owner 
 | T-44 | P1 / in progress (usable partial board plus provider draft/wrap-up flow) | D-041/D-049 workload-first Overview; capped permission-scoped open-encounter projection; patient-bound chart navigation; deliberate Care dialogs; responsive visit cards; one charting checkpoint; recorded context and bounded encounter completion. Six repeatable local fixture scenarios now cover every board stage, varied reasons/care/history and distinct rooms; zero-count filters remain selectable. Owner: Codex for requested local increments | [[Progress Log#2026-09-02 — Repeatable varied tracking-board fixtures]] and [[Progress Log#2026-09-02 — Provider-flow UX and synthetic-fixture correction]]. The browser labels the projection partial/stale/truncated. Explicit fixture-only stage/reason metadata is omitted for ordinary/production rows; arrival, wait, assignment, handoff and patient membership remain uninferred. Managed local identities are visibly synthetic, while the target structured patient-name model remains open. Per-row care-summary load evidence and accepted checkout/handoff behavior are incomplete. No clinical/release gate closed |
 
 | T-45 | P1 / done (local verification and report) | User-requested full backend validation in one task on a new branch: tests, synthetic repeatable seeds, ERD mapping and healthcare-oriented security audit. Owner: Codex for this requested review | [[Backend Verification Report]] and [[Progress Log#2026-08-31 — Final backend verification and synthetic seeds]]; local review complete with explicit implementation/release gaps. Does not mark full D-044 replacement, T-13/T-34.5, clinical or hosted release complete |
-| T-46 | P1 / done locally (2026-08-31) | D-046 layered agent workflow: concise root contract; nested vault/API/web/AWS/site rules; on-demand playbooks; Cline adapters; preflight/check/vault-validation commands; sixth CI document job. Owner: Codex for founder-requested implementation | Local checks and initial six-job PR success are recorded in [[Progress Log#2026-08-31 — Layered agent workflow instructions implemented]]. Branch merge and any workflow-enforcement claim remain separate |
+| T-46 | P1 / done locally (expanded 2026-09-03) | D-046/D-051/D-052/D-054 agent harness: concise root and nested policy/routes; separate `agent-harness/workflows/` control plane and `APPlyVault/` knowledge base; six canonical repository skills, including Material UI-first `frontend-ui` and explicit `startdev` for guarded fast-forward, local synthetic replant and managed readiness; safe skill scaffolder; separate harness/vault validators; CI document job. Cline adapters were removed after the founder clarified the selected host. Owner: Codex for founder-requested implementation | [[Progress Log#2026-09-03 — Startdev refresh skill added]], [[Progress Log#2026-09-03 — Material UI-first harness and host correction]], [[Progress Log#2026-09-03 — Agent harness separated from software knowledge base]] and the original [[Progress Log#2026-08-31 — Layered agent workflow instructions implemented]]. Prompt skills do not enforce runtime modes or expand authority; dirty/ahead/diverged Git reconciliation and any future host adapter remain separate |
 
 P0 = foundation blocker; P1 = next validation work; P2 = later commitment. Priorities are proposed sequencing, not urgency imposed on the team.
 
