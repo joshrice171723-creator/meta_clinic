@@ -17,6 +17,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Phase 1.5 final Luna web gate
+
+**Verification:** the existing Phase 1.5 draft-edit and unapplied-allocation UI was rechecked after the shared checkout exposed the complete `8855fa8` surface. `npm test -- billing-dashboard.test.ts` passed 1 file / 6 tests; `npm run typecheck` passed; `npm run build` passed with the existing large-bundle warning. No cash behavior or portal files were staged.
+
+**API limit:** the focused Rails rerun could not start because the shared test database has pending concurrent patient-portal migrations (`20260903000600_create_clinic_patient_portal_appointment_requests.rb` and `20260903000700_create_clinic_patient_portal_requests.rb`). This is recorded as an environment blocker, not a billing assertion result. The scoped API implementation and synthetic test commits remain `e9149b7` and `ea2ddfc`; the shared branch is ahead of origin by two upstream commits and contains unrelated portal edits that were preserved.
+
 ## 2026-09-03 — Patient portal critic fixes closed
 
 **Repairs:** converted `datetime-local` appointment inputs to offset-bearing ISO timestamps at submission, added structured JSON rescues for patient-portal parameter/record/uniqueness/context failures, split read capabilities from the appointment-request write capability, removed internal message request keys and dispatch state from the patient projection, restricted result projection to completed encounters, added the page main landmark, responsive narrow layouts, and exact string-preserving currency display.
