@@ -1,6 +1,7 @@
 module Clinic
   module PatientPortal
     class BaseController < ApplicationController
+      include Clinic::Api::RequestParameters
       before_action :require_member
       before_action :require_development_patient
       before_action :require_portal_identity

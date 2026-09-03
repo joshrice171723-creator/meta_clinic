@@ -9,6 +9,14 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Patient appointment-request fallback added
+
+**Implementation:** added a patient-scoped `appointment_requests` record and API under the synthetic portal. Requests carry an idempotency key, preferred time window, optional site/service, pending review state, composite practice/patient/identity foreign keys, overlap protection against scheduled/confirmed appointments, and an audit event. The portal now offers a preferred-window form and shows the latest request without claiming that a booking occurred.
+
+**Verification:** the additive migration applied to local PostgreSQL and `db/structure.sql` was regenerated from that database. Ruby syntax, Zeitwerk eager loading, TypeScript, production build, and Git whitespace checks passed. Rails integration execution remains inconclusive under the same concurrent local transaction/lock contention documented above.
+
+**Limits:** this is the roadmap's staff-confirmation fallback, not real-time booking. Provider calendars, inventory holds, cancellation/reschedule policy, intake signatures, and appointment authority are still required before changing a request into a booked appointment.
+
 ## 2026-09-03 — Synthetic patient portal vertical slice implemented
 
 **Implementation:** added the local/test-only patient portal identity binding and a dedicated synthetic patient login. Rails now resolves one practice/patient identity from the signed session, records a portal context-read audit event, and returns a narrow projection of upcoming appointments, the existing exact-decimal billing ledger, intake status, released SOAP assessment/plan summaries, encrypted observation results, active medications, and message metadata. The React/MUI portal renders those states with explicit empty/error/unavailable copy and emergency/response-time notices; payment collection remains disabled until a processor boundary is accepted.

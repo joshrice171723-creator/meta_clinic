@@ -1,4 +1,4 @@
-import { Form, useResource } from "../../shared/ui";
+import { Field, Form, useResource } from "../../shared/ui";
 import type { PatientPortalContext } from "../../api/contracts";
 import {
   Alert,
@@ -18,6 +18,12 @@ export function PatientPortal() {
     "/api/patient_portal/context",
   );
   const context = resource.data;
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  tomorrow.setMinutes(0, 0, 0);
+  const localInput = (value: Date) => {
+    const offset = value.getTimezoneOffset();
+    return new Date(value.getTime() - offset * 60_000).toISOString().slice(0, 16);
+  };
 
   return (
     <Box
@@ -112,6 +118,22 @@ export function PatientPortal() {
                 Intake forms and consent capture are staged for the next enabled clinic workflow.
               </Typography>
             </Paper>
+
+            {context.capabilities.appointment_requests && (
+              <Paper elevation={0} sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>Request an appointment</Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>Choose a preferred two-hour window. The care team confirms availability before anything is booked.</Typography>
+                <Form endpoint="/api/patient_portal/appointment_requests" submit="Send appointment request" retryKey onSuccess={resource.refresh}>
+                  <Field name="starts_at" label="Preferred start" type="datetime-local" value={localInput(tomorrow)} />
+                  <Field name="ends_at" label="Preferred end" type="datetime-local" value={localInput(new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000))} />
+                </Form>
+                {context.appointment_requests.length > 0 && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    Latest request: {context.appointment_requests[0].status} for {new Date(context.appointment_requests[0].starts_at).toLocaleString()}.
+                  </Typography>
+                )}
+              </Paper>
+            )}
 
             <Box
               sx={{

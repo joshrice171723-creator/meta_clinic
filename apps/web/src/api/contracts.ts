@@ -100,6 +100,13 @@ export type PatientPortalContext = {
     dispatch_state: string | null;
     created_at: string;
   }[];
+  appointment_requests: {
+    id: number;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    requested_at: string;
+  }[];
   capabilities: {
     appointments_read: boolean;
     billing_read: boolean;
@@ -108,6 +115,7 @@ export type PatientPortalContext = {
     results: boolean;
     visit_summaries: boolean;
     payment_collection: boolean;
+    appointment_requests: boolean;
   };
   notices: string[];
 };

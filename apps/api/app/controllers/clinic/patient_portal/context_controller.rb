@@ -15,6 +15,8 @@ module Clinic
         observations = portal_patient.observations.order(observed_at: :desc, id: :desc).limit(20)
         medications = portal_patient.medication_statements.active_for_summary.to_a
         messages = portal_patient.message_intents.includes(:outbox).order(created_at: :desc, id: :desc).limit(20)
+        appointment_requests = Clinic::PatientPortal::AppointmentRequest.for_practice(portal_practice)
+          .where(patient: portal_patient).recent.limit(20)
         record_portal_read("patient_portal.context.read")
         render json: {
           schema_version: "patient-portal-context-v1",
@@ -42,9 +44,13 @@ module Clinic
           results: observations.map { |observation| Clinic::Care::ObservationSerializer.call(observation) },
           medications: medications.map { |medication| medication_payload(medication) },
           messages: messages.map { |message| Clinic::MessageIntentSerializer.call(message) },
+          appointment_requests: appointment_requests.map { |request| {
+            id: request.id, starts_at: request.starts_at.iso8601(6), ends_at: request.ends_at.iso8601(6),
+            status: request.status, requested_at: request.requested_at.iso8601(6)
+          } },
           capabilities: {
             appointments_read: true, billing_read: true, intake: true, messages: true,
-            results: true, visit_summaries: true, payment_collection: false
+            results: true, visit_summaries: true, payment_collection: false, appointment_requests: true
           },
           notices: [
             "This is a synthetic development patient portal.",

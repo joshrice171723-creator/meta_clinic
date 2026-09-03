@@ -112,6 +112,7 @@ Rails.application.routes.draw do
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do
       get "context", to: "context#show"
+      resources :appointment_requests, only: %i[index create]
     end
   end
   namespace :api, module: "launch/api" do
