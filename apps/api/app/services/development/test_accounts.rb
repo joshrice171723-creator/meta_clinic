@@ -7,6 +7,7 @@ module Development
       "admin" => { email: "test-admin@example.invalid", admin: true, active: true },
       "client-a" => { email: "test-client-a@example.invalid", admin: false, active: true, clinic: "Test Clinic A" },
       "client-b" => { email: "test-client-b@example.invalid", admin: false, active: true, clinic: "Test Clinic B" },
+      "patient" => { email: "synthetic-patient@example.invalid", admin: false, active: true, patient: true },
       "disabled" => { email: "test-disabled@example.invalid", admin: false, active: false }
     }.transform_values(&:freeze).freeze
 
@@ -17,6 +18,12 @@ module Development
     def self.omni?(user)
       return false unless user.is_a?(User) &&
         user.email_address == PROFILES.fetch("omni")[:email]
+
+      Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
+    end
+
+    def self.patient?(user)
+      return false unless user.is_a?(User) && user.email_address == PROFILES.fetch("patient")[:email]
 
       Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
     end
@@ -42,7 +49,7 @@ module Development
       User.transaction do
         # Serialize this fixture setup only; retries never reset passwords, access or progress.
         User.connection.execute("SELECT pg_advisory_xact_lock(20260831, 231)")
-        PROFILES.map do |profile, settings|
+        PROFILES.each do |profile, settings|
           user = User.find_by(email_address: settings[:email])
           if user
             identity_matches = user.email_address == settings[:email] &&
@@ -64,6 +71,7 @@ module Development
           OmniAccess.prepare!(user) if settings[:omni] && !user.previously_new_record?
           user
         end
+        Development::PatientPortal.prepare!(User.find_by!(email_address: PROFILES.fetch("patient")[:email]))
       end
     end
 

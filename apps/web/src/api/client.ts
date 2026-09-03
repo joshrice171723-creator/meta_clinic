@@ -99,6 +99,7 @@ export async function api<T>(
 
 export function loginDestination(value: string | null): string {
   if (!value) return "/portal";
+  if (value === "/patient-portal") return value;
   const exact = new Set([
     "/clinic",
     "/clinic/chart-selection",

@@ -68,11 +68,18 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
                 options={[
                   ["client-a", "Test Client A"],
                   ["client-b", "Test Client B"],
+                  ["patient", "Synthetic Patient Portal"],
                   ["admin", "Test Admin — inquiry inbox"],
                   ["disabled", "Test Disabled — expected sign-in denial"],
                 ]}
               />
             </Form>
+            <Form
+              endpoint="/api/development_session"
+              submit="Open synthetic patient portal"
+              onSuccess={() => window.location.assign("/patient-portal")}
+              values={{ profile: "patient" }}
+            />
             <p className="form-note">
               Local synthetic accounts only; no password needed. Client A and B
               retain separate progress and test clinics. Test Admin has inbox

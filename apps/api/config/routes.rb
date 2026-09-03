@@ -109,6 +109,11 @@ Rails.application.routes.draw do
       resource :development_access, controller: :development_access, only: :update
     post "development_session", to: "sessions#development"
   end
+  scope path: "api", as: "api" do
+    namespace :patient_portal, module: "clinic/patient_portal" do
+      get "context", to: "context#show"
+    end
+  end
   namespace :api, module: "launch/api" do
     resources :materials, only: %i[index show]
     post "materials/:material_id/start", to: "learning_progresses#start"

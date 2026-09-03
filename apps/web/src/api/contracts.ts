@@ -22,6 +22,95 @@ export type User = {
   admin: boolean;
   development_demo?: boolean;
 };
+export type PatientPortalContext = {
+  schema_version: "patient-portal-context-v1";
+  development_only: boolean;
+  practice: { id: number; name: string; timezone: string };
+  patient: { id: number; display_name: string; reference: string };
+  upcoming_appointments: {
+    id: number;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    site: string | null;
+    visit_type: string | null;
+  }[];
+  balances: {
+    currency: string;
+    balance_amount: Decimal;
+    allocated_amount: Decimal;
+    credited_amount: Decimal;
+  }[];
+  billing: {
+    invoices: {
+      id: number;
+      currency: string;
+      status: string;
+      created_at: string;
+      total_amount: Decimal;
+      allocated_amount: Decimal;
+      balance_amount: Decimal;
+      lines: { id: number; description: string; quantity: Decimal; posted_amount: Decimal }[];
+    }[];
+    payments: {
+      id: number;
+      currency: string;
+      amount: Decimal;
+      created_at: string;
+      cash_payment: boolean;
+      receipt_available: boolean;
+    }[];
+  };
+  intake: {
+    status: string;
+    emergency_contact_count: number;
+    consent_status: string;
+  };
+  visit_summaries: {
+    id: number;
+    encounter_id: number;
+    signed_at: string | null;
+    assessment: string;
+    plan: string;
+  }[];
+  results: {
+    id: number;
+    code: string;
+    value_kind: string;
+    numeric_value: Decimal | null;
+    text_value: string | null;
+    coded_value: string | null;
+    unit_code: string | null;
+    observed_at: string;
+  }[];
+  medications: {
+    id: number;
+    medication: string | null;
+    dose: string | null;
+    route: string | null;
+    frequency: string | null;
+    purpose: string | null;
+    status: string;
+    effective_from: string | null;
+    effective_until: string | null;
+  }[];
+  messages: {
+    id: number;
+    purpose_code: string;
+    dispatch_state: string | null;
+    created_at: string;
+  }[];
+  capabilities: {
+    appointments_read: boolean;
+    billing_read: boolean;
+    intake: boolean;
+    messages: boolean;
+    results: boolean;
+    visit_summaries: boolean;
+    payment_collection: boolean;
+  };
+  notices: string[];
+};
 export type Paperwork = {
   id: number;
   title: string;

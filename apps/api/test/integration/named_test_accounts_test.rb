@@ -29,7 +29,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
 
   test "setup is atomic, repeatable and preserves progress and disabled status" do
     local_mode do
-      assert_difference "User.count", 7 do
+      assert_difference "User.count", 8 do
         Development::TestAccounts.prepare!
       end
       client = User.find_by!(email_address: "test-client-a@example.invalid")

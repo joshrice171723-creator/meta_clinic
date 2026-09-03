@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict BRcV2Rp177vTyl1gOVpXMmiOixLqbfdeshMbDEP4RwwMVpipK3bf1MaT61Yx4jn
+\restrict dFZSXnLIrVVaGmdmBseDXkEbhkkrVF9W3AJlyFXLrMvwEHqlKIWKVwDi0jztpbF
 
 -- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
 -- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
@@ -3132,6 +3132,44 @@ ALTER SEQUENCE public.clinic_patient_memberships_id_seq OWNED BY public.clinic_p
 
 
 --
+-- Name: clinic_patient_portal_identities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_portal_identities (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    invited_at timestamp(6) without time zone NOT NULL,
+    activated_at timestamp(6) without time zone,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_patient_portal_identity_status CHECK (((status)::text = ANY ((ARRAY['invited'::character varying, 'active'::character varying, 'revoked'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_patient_portal_identities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_portal_identities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_portal_identities_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_portal_identities_id_seq OWNED BY public.clinic_patient_portal_identities.id;
+
+
+--
 -- Name: clinic_patient_social_histories; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4745,6 +4783,13 @@ ALTER TABLE ONLY public.clinic_patient_memberships ALTER COLUMN id SET DEFAULT n
 
 
 --
+-- Name: clinic_patient_portal_identities id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_identities ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_portal_identities_id_seq'::regclass);
+
+
+--
 -- Name: clinic_patient_social_histories id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -5527,6 +5572,14 @@ ALTER TABLE ONLY public.clinic_patient_history_reviews
 
 ALTER TABLE ONLY public.clinic_patient_memberships
     ADD CONSTRAINT clinic_patient_memberships_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_portal_identities clinic_patient_portal_identities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_identities
+    ADD CONSTRAINT clinic_patient_portal_identities_pkey PRIMARY KEY (id);
 
 
 --
@@ -6525,6 +6578,27 @@ CREATE UNIQUE INDEX clinic_patient_memberships_patient_id ON public.clinic_patie
 --
 
 CREATE UNIQUE INDEX clinic_patient_memberships_practice_id ON public.clinic_patient_memberships USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_identities_patient; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_portal_identities_patient ON public.clinic_patient_portal_identities USING btree (practice_id, patient_id);
+
+
+--
+-- Name: clinic_patient_portal_identities_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_portal_identities_practice_id ON public.clinic_patient_portal_identities USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_identities_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_portal_identities_user ON public.clinic_patient_portal_identities USING btree (user_id);
 
 
 --
@@ -9658,6 +9732,30 @@ ALTER TABLE ONLY public.clinic_patient_memberships
 
 
 --
+-- Name: clinic_patient_portal_identities fk_patient_portal_identities_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_identities
+    ADD CONSTRAINT fk_patient_portal_identities_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_identities fk_patient_portal_identities_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_identities
+    ADD CONSTRAINT fk_patient_portal_identities_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_portal_identities fk_patient_portal_identities_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_identities
+    ADD CONSTRAINT fk_patient_portal_identities_user FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_patients fk_patients_primary_address; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10749,5 +10847,5 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BRcV2Rp177vTyl1gOVpXMmiOixLqbfdeshMbDEP4RwwMVpipK3bf1MaT61Yx4jn
+\unrestrict dFZSXnLIrVVaGmdmBseDXkEbhkkrVF9W3AJlyFXLrMvwEHqlKIWKVwDi0jztpbF
 

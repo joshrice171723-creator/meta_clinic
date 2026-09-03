@@ -9,6 +9,14 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Synthetic patient portal vertical slice implemented
+
+**Implementation:** added the local/test-only patient portal identity binding and a dedicated synthetic patient login. Rails now resolves one practice/patient identity from the signed session, records a portal context-read audit event, and returns a narrow projection of upcoming appointments, the existing exact-decimal billing ledger, intake status, released SOAP assessment/plan summaries, encrypted observation results, active medications, and message metadata. The React/MUI portal renders those states with explicit empty/error/unavailable copy and emergency/response-time notices; payment collection remains disabled until a processor boundary is accepted.
+
+**Verification:** the additive migration is applied in the local PostgreSQL database and the canonical `db/structure.sql` contains the new table and constraints. Ruby syntax checks, API route inspection, `npm run typecheck`, production Vite build, the focused login tests (2 tests / 2 passed), `git diff --check`, and the Impeccable detector passed. Rails integration execution was inconclusive because concurrent local seed/test processes left long-lived PostgreSQL transactions and lock timeouts; no passing Rails result is claimed.
+
+**Limits / blockers:** this is synthetic development evidence only. Invitation/step-up/recovery/revocation lifecycle, Stripe Elements/webhooks, unapplied-credit allocation, intake signatures, conflict-safe patient booking, inventory holds, clinician release workflow, superbill/PDF delivery, outbound messaging/refills, and authoritative lab integration remain gated by the roadmap's identity, payment, clinical, scheduling, vendor, accessibility, and operations owners. Existing unrelated worktree changes were preserved.
+
 ## 2026-09-03 — Cash-pay local boundary hardening completed
 
 **Implementation:** added a practice-scoped `request_key` to cash tenders with a unique index and nonblank/length constraint. Rails now rejects replay attempts that change drawer, tender, change, patient, invoice, or allocation intent. The MUI cash workspace now requires an explicit physical-site drawer selection when multiple open drawers exist; it no longer silently chooses the first drawer.
