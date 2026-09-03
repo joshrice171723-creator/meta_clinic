@@ -140,7 +140,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       result = Clinic::Billing::Dashboard.call(practice: @practice, now: now, filter: filter, per_page: 10)
       row = result.fetch(:recent_invoices).find { |invoice| invoice.fetch(:id) == expected_invoice.id }
       assert row, "expected invoice #{expected_invoice.id} in #{filter}"
-      assert_equal filter.sub("age_", "").tr("_", "-"), row.fetch(:age_bucket).sub(" days", "")
+      expected_bucket = { "age_0_30" => "0-30", "age_31_60" => "31-60", "age_61_90" => "61-90", "age_91_plus" => "91+" }.fetch(filter)
+      assert_equal expected_bucket, row.fetch(:age_bucket).sub(" days", "")
     end
   end
 
