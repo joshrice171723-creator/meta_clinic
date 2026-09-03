@@ -26,6 +26,27 @@ APPly's Rails/PostgreSQL ledger remains the financial source of truth. A future 
 
 The current patient-balance screen correctly limits its identity lookup, but its copy says posting and payment recording are unavailable while the ledger dashboard supports those protected actions. Resolve that inconsistency in the first UI increment.
 
+## Current database fit — verified 2026-09-03
+
+This section is a read-only inspection of the active local synthetic `apply_development` PostgreSQL database and current Rails operations. The row counts below are a local synthetic snapshot, not a fixture contract or a claim about any hosted environment: 220 invoices, 110 payment events, 110 allocations, 10 credit notes, and 12 refund events.
+
+| Current record | What the live schema and operation already enforce | Cash-pay implementation consequence |
+| --- | --- | --- |
+| `clinic_invoices` | bigint `id`, `practice_id`, `patient_id`, currency, status, rounding-policy version, timestamps; practice/patient indexes | Use the existing invoice as the collection target. Do not add a second account-receivable header or replace the keys. |
+| `clinic_invoice_lines` | Exact numeric quantity/unit/posted amounts and immutable description snapshot, tied to invoice/practice/patient | Receipt line detail derives from posted snapshots; a payment workflow cannot rewrite lines. |
+| `clinic_payment_events` | bigint practice/patient-scoped event with exact numeric amount/currency and unique `(practice_id, external_event_reference)` | It already provides the idempotency anchor for imported/external payments. A new terminal must create one payment event through the existing locked operation, not store a parallel payment total. |
+| `clinic_payment_allocations` | Exact numeric allocation tied to payment/invoice/patient/practice, with practice-scoped indexes | One payment can be allocated across invoices only up to its event amount; one invoice cannot exceed posted total. The existing operation locks the patient and invoice before it checks both limits. |
+| `clinic_credit_notes` / `clinic_refund_events` | Separate exact numeric historical correction records, not invoice-field overwrites | Show them in the patient ledger and receipt balance calculation; add no destructive "edit payment" shortcut. Current execution routes for creating/refunding them are not part of this package's first phases. |
+| `clinic_insurance_claims` / `clinic_coverage_versions` | Existing practice/patient-scoped records, including encrypted coverage evidence | Leave untouched. Their presence does not authorize insurance workflow, claim submission, or a superbill in the cash-pay increment. |
+
+**Verified gaps:** the live schema has no invoice number, service date, payment-method/source record, cash-drawer session, tender/change record, processor webhook event, receipt/document issuance record, or patient payment preference. APPly must add those forward-only; it must not guess a source type for the 110 existing payment events.
+
+### Selected compatibility design
+
+Use a linked payment-source model rather than adding a required `source_type` directly to `clinic_payment_events`. Existing events stay valid and render as **Imported / source not recorded** until an authorized reconciliation supplies evidence. New terminal-created events require exactly one source record in the same transaction. This avoids inventing history and preserves the current unique external-event-reference idempotency rule.
+
+For Stripe, receive/verify an event before creating a `PaymentEvent` when it is unmatched or not terminal. The processor-event record therefore links to a collection intent first and only optionally to the payment event after APPly applies it. A webhook must never be forced into an allocation merely because it arrived.
+
 ## Product boundary and non-goals
 
 ### This package covers
@@ -73,13 +94,13 @@ Every server mutation derives actor, practice, permission, request correlation, 
 | Increment | Proposed records or fields | Rules |
 | --- | --- | --- |
 | Invoice presentation | `invoice_number`, `service_date` or approved service-period representation, `posted_at`, void reason/version where accepted | Assign a practice-unique human number at a defined irreversible lifecycle point; do not reuse numbers. Date/service semantics need product and professional review. |
-| Payment classification | Add a constrained `source_type` to the event or a linked immutable source record (`cash`, `check`, `external_card`, `stripe`) | The existing `external_event_reference` remains idempotent within practice. Record processor/reference evidence, not card data. |
-| Cash control | `cash_drawer_sessions` and immutable `cash_tenders` linked to payment event and site/drawer | Store tendered amount, change, receiver, session, opening/close data, count, discrepancy and approval evidence as exact decimals. One cash tender cannot be allocated twice. |
-| Processor evidence | `payment_processor_events` linked to payment event, with processor name, opaque processor IDs, event type/version, verified time, normalized outcome, raw-payload digest and processing state | Uniqueness is practice + processor + processor-event ID. Encrypted/minimized retained payload policy requires review; do not retain raw payment or clinical data by default. |
+| Payment classification | Immutable `clinic_payment_sources` linked 1:1 to a new terminal-created payment event: practice/patient/payment IDs, method (`cash`, `check`, `external_card`, `stripe`), normalized reference, server-derived recorder and timestamps | Existing payment events remain source-free and display as imported/unknown; do not backfill a guessed method. Enforce same-practice/patient links and unique practice/payment source. |
+| Cash control | `clinic_cash_drawer_sessions` plus immutable `clinic_cash_tenders` linked through payment source/event and existing `Clinic::Site` | Store tendered amount, change, receiver, session, opening/close data, count, discrepancy and approval evidence as exact decimals. A cash tender is one source of one payment event; allocation remains in the existing allocation table. |
+| Processor evidence | `clinic_payment_collection_intents` and `clinic_payment_processor_events`; only applied events optionally link to `clinic_payment_events` | Intent owns opaque correlation/expected amount/currency/state; event owns processor name, opaque processor IDs, event type/version, verified time, normalized outcome, raw-payload digest and processing state. Uniqueness is practice + processor + processor-event ID. |
 | Documents | Versioned receipt/superbill document metadata: invoice/payment linkage, document type/template version, issuance time/actor, rendered-file digest, delivery status | Re-render only from authoritative history. Correction/reissue creates a new version; it never overwrites the prior issued artifact. |
 | Patient billing preference (future) | Billing email/delivery preference, approved portal identity link, explicit recurring-charge authorization version/time if that later scope is selected | Do not create a local "has card on file" claim from a UI checkbox. Stored payment methods stay processor-owned. |
 
-Migration rules: one additive forward migration per independently deployable increment; bigint IDs and practice scope remain unchanged; composite same-practice integrity uses existing repository conventions; schema/data migration rehearsal, backup/restore, rollback behavior, permissions, and concurrency tests precede acceptance. Do not copy the pasted string-ID/composite-primary-key migration.
+Migration rules: one additive forward migration per independently deployable increment; bigint IDs and practice scope remain unchanged; composite same-practice integrity uses existing repository conventions; schema/data migration rehearsal, backup/restore, rollback behavior, permissions, and concurrency tests precede acceptance. Do not copy the pasted string-ID/composite-primary-key migration. A new source/tender write must create its `PaymentEvent`, source, and first allocation atomically through the existing locked allocation behavior; a processor webhook first records its own deduplicated evidence and applies only after an explicit terminal/reconciliation decision.
 
 ### State models
 
@@ -96,7 +117,7 @@ Use `/api/clinic` only, CSRF for staff mutations, exact-decimal strings across J
 | Endpoint family | Purpose | Required proof |
 | --- | --- | --- |
 | `GET /api/clinic/patients/:id/billing-ledger` | Scoped patient financial projection | Billing read plus identity projection; no chart fields or other-practice rows. |
-| `POST /api/clinic/invoices/:id/payment-tenders` | Create one cash/check/external payment event and allocate intentionally | Posted invoice, exact positive amount, no over-allocation, unique reference/replay intent, locked transaction. |
+| `POST /api/clinic/invoices/:id/payment-tenders` | Create one cash/check/external payment event, source/tender evidence, and intentional allocation | Posted invoice, exact positive amount, no over-allocation, unique reference/replay intent, source required for new terminal events, and one locked transaction. |
 | `POST /api/clinic/cash-drawers/:id/close` | Record counted cash and move to review/closed state | Open session, authorized operator, exact count, idempotent close intent, independent discrepancy evidence. |
 | `GET /api/clinic/invoices/:id/receipt` | Generate or retrieve issued receipt | Scoped read and document-delivery audit; no unbounded document path. |
 | `POST /api/clinic/invoices/:id/superbill-requests` | Create a reviewed export request only if that scope is approved | Explicit professional/data policy gate, provider/service snapshots, export authorization and delivery evidence. |
@@ -110,7 +131,7 @@ Do not allow a generic browser-supplied `patient_id`, `practice_id`, invoice bal
 2. For card collection, prefer a Stripe-hosted surface or current Stripe Payment Element; APPly sends only the amount and a minimal opaque internal correlation ID. Stripe advises against sensitive data in PaymentIntent metadata or descriptions. [Payment Intents](https://docs.stripe.com/payments/payment-intents)
 3. APPly creates/reuses one PaymentIntent per pending collection intent with an idempotency key derived from the server-owned intent. Do not create a new intent on every retry. The browser receives only the processor client secret necessary for that narrowly scoped checkout step.
 4. The webhook endpoint verifies Stripe’s `Stripe-Signature` against the unmodified raw request body, records a deduplicated processor event, and responds safely to duplicate/out-of-order delivery. [Stripe webhook handling](https://docs.stripe.com/webhooks/handling-payment-events?lang=node&locale=en-GB)
-5. Only a verified terminal processor outcome calls the locked APPly payment-event/allocation operation. Reconciliation links processor event → APPly payment event → allocations → invoice.
+5. Only a verified terminal processor outcome calls the locked APPly payment-event/allocation operation. Reconciliation links collection intent → processor event → APPly payment event → allocations → invoice; unmatched events remain visible and unapplied.
 6. Keep patient name, diagnosis, appointment narrative, or line-item clinical detail out of Stripe metadata, descriptions, URLs, and logs. Use a minimal opaque APPly reference.
 7. Reconciliation dashboard lists unmatched/mismatched/late processor events without auto-repair. An operator resolves them through a deliberately authorized workflow.
 
@@ -132,7 +153,7 @@ Payment-related information can be protected health information in context; cash
 
 | Failure hypothesis | Required prevention and evidence |
 | --- | --- |
-| Payment is recorded twice after a timeout or duplicate webhook | Database uniqueness plus same-intent replay, processor event dedupe, locked allocation, and retry/unknown-outcome tests. |
+| Payment is recorded twice after a timeout or duplicate webhook | Existing unique practice/reference event plus same-intent replay, processor-event dedupe, linked source uniqueness, locked allocation, and retry/unknown-outcome tests. |
 | Cash amount/change is wrong or drawer is silently balanced | Exact decimal validation, immutable tender/change records, expected-vs-counted discrepancy, approval trail, and close/reopen tests. |
 | Staff member crosses patient/practice scope | Server-derived practice/actor, capability denial tests, cross-practice fixtures, and no patient names in aggregate dashboard responses. |
 | Browser lies about balance, method, or completion | Server recomputes balance and allowed state under lock; UI shows pending/conflict/error states; API rejects forged totals. |

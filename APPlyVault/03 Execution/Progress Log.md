@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Cash-pay package reconciled with current local ledger
+
+**Request and outcome:** performed a read-only inspection of the active synthetic `apply_development` PostgreSQL billing tables and current allocation operation before revising [[Cash-Pay Billing Implementation Package]]. The package now records the confirmed bigint/practice/patient/exact-decimal ledger shape, unique `(practice_id, external_event_reference)` payment idempotency, existing locked allocation behavior, separate credit/refund history, and the actual absent records needed for payment sources, drawers/tenders, processor events/intents, receipts, invoice numbering, and service dates.
+
+**Limits:** the database contains synthetic records only; no row content, payment credentials, real data, migrations, application code, payment, receipt, processor configuration, or hosted environment was changed. The selected source-table design deliberately leaves existing payment events source-free rather than inventing historical payment methods; a processor event remains unapplied until verified and reconciled.
+
 ## 2026-09-03 — Cash-pay billing implementation package prepared
 
 **Request and outcome:** prepared [[Cash-Pay Billing Implementation Package]] as an additive handoff for professional cash-pay billing. It maps the requested patient ledger, virtual terminal, cash reconciliation, receipts/superbills, and a future Stripe source onto APPly's existing Rails/PostgreSQL invoice, payment-event, allocation, credit, refund, authorization, exact-decimal, and audit boundaries. The package rejects a replacement string/composite-key migration and instead requires additive forward migrations only where the current ledger has a proven gap.
