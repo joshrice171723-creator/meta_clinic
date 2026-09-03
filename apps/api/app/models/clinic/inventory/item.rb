@@ -10,7 +10,7 @@ module Clinic
       validates :sku, presence: true, length: { maximum: 40 }, uniqueness: { scope: :practice_id }
       validates :quantity, :reorder_level, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 1_000_000 }
 
-      def adjust!(delta:, reason:, actor:, request_key:)
+      def adjust!(delta:, reason:, actor:, request_key:, occurred_at: Time.current)
         amount = Integer(delta.to_s, 10)
         raise ArgumentError, "Use a nonzero whole-number adjustment between -1000000 and 1000000." unless amount != 0 && amount.abs <= 1_000_000
         Clinic::Inventory::Access.with(practice_id, actor, "adjust") do |profile|
@@ -22,7 +22,7 @@ module Clinic
               return existing
             end
             raise ArgumentError, "Stock cannot be negative or exceed 1,000,000." unless (quantity + amount).between?(0, 1_000_000)
-            entry = stock_movements.create!(practice_id: practice_id, quantity: amount, stock_unit: "each", kind: "office_adjustment", reason: reason, actor: actor, profile_id: profile.id, request_key: request_key, occurred_at: Time.current)
+            entry = stock_movements.create!(practice_id: practice_id, quantity: amount, stock_unit: "each", kind: "office_adjustment", reason: reason, actor: actor, profile_id: profile.id, request_key: request_key, occurred_at: occurred_at, created_at: occurred_at, updated_at: occurred_at)
             reload
             entry
           end

@@ -284,6 +284,23 @@ export type BillingInvoiceSummary = {
   balance: Decimal;
   created_at: string;
 };
+export type BillingInvoiceDetail = {
+  id: number;
+  patient_id: number;
+  currency: string;
+  status: "draft" | "posted" | "void";
+  rounding_policy_version: string;
+  created_at: string;
+  lines: {
+    id: number;
+    quantity: Decimal;
+    unit_amount: Decimal;
+    posted_amount: Decimal;
+    description: string;
+  }[];
+  allocated_amount: Decimal;
+  credit_amount: Decimal;
+};
 export type BillingDashboard = {
   schema_version: "clinic-billing-v1";
   practice: { id: number; name: string; timezone: string };

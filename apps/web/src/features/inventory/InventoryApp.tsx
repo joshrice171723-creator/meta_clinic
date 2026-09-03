@@ -119,6 +119,17 @@ const links: { screen: Screen; href: string; label: string; short: string }[] =
     },
   ];
 
+const screenDescriptions: Record<Screen, string> = {
+  catalog: "Monitor availability, lot exceptions, and replenishment signals.",
+  replenishment: "Turn low-stock signals into reviewed purchase requests.",
+  purchasing: "Track purchase orders from draft through completion.",
+  receiving: "Verify deliveries, lot details, and quarantine exceptions.",
+  lots: "Review exact balances by lot and storage location.",
+  activity: "Trace every stock movement to its source and operator.",
+  recalls: "Keep affected lots held until disposition is recorded.",
+  controlled: "Resolve count variances with an independent reviewer.",
+};
+
 function screenForPath(path: string): Screen {
   const value = path.replace(/\/$/, "");
   return links.find((link) => link.href === value)?.screen ?? "catalog";
@@ -589,6 +600,19 @@ export function InventoryApp({ path }: { path: string }) {
                   ? "Medication inventory"
                   : links.find((link) => link.screen === screen)?.label}
               </h1>
+              <p className="inventory-header-description">
+                {screenDescriptions[screen]}
+              </p>
+            </div>
+            <div className="inventory-header-actions">
+              <button
+                className="inventory-button outline"
+                type="button"
+                disabled={loading}
+                onClick={() => void load()}
+              >
+                {loading ? "Refreshing…" : "Refresh data"}
+              </button>
             </div>
           </header>
           <div className="inventory-content">
@@ -609,21 +633,6 @@ export function InventoryApp({ path }: { path: string }) {
                 data={data}
                 available={available}
                 held={held}
-                onDemo={
-                  [
-                    "inventory.receive",
-                    "inventory.hold",
-                    "inventory.count",
-                  ].every((permission) => capability(data, permission))
-                    ? () =>
-                        void run(
-                          "/api/clinic/inventory/demo",
-                          {},
-                          "Inventory scenario loaded",
-                          "Products, shipments, lots, ledger entries, and controlled counts are ready.",
-                        )
-                    : undefined
-                }
               />
             )}
             {screen === "replenishment" && (
@@ -656,64 +665,172 @@ function CatalogScreen({
   data,
   available,
   held,
-  onDemo,
 }: {
   data: InventoryData;
   available: Decimal;
   held: Decimal;
-  onDemo?: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const products = data.products.filter((item) =>
-    `${item.name} ${item.ndc} ${item.preferred_supplier}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "attention" | "in_range"
+  >("all");
+  const [sort, setSort] = useState<"name" | "available_asc" | "available_desc">(
+    "name",
   );
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProducts = data.products.filter((item) => {
+    const itemLots = data.lots
+      .filter((candidate) => candidate.product_id === item.id)
+      .map((candidate) => candidate.lot_number)
+      .join(" ");
+    const locationNames = data.balances
+      .filter((balance) => balance.product_id === item.id)
+      .map((balance) => location(data, balance.location_id)?.name ?? "")
+      .join(" ");
+    const searchable =
+      `${item.name} ${item.ndc} ${item.preferred_supplier} ${item.package_id} ${itemLots} ${locationNames}`.toLowerCase();
+    const matchesQuery =
+      !normalizedQuery || searchable.includes(normalizedQuery);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "attention" && item.low_stock) ||
+      (statusFilter === "in_range" && !item.low_stock);
+    return matchesQuery && matchesStatus;
+  });
+  const products = [...filteredProducts].sort((left, right) => {
+    if (sort === "available_asc")
+      return decimalCompare(left.available_units, right.available_units);
+    if (sort === "available_desc")
+      return decimalCompare(right.available_units, left.available_units);
+    return left.name.localeCompare(right.name);
+  });
+  const activeFilter = normalizedQuery || statusFilter !== "all";
+  const availableUnits = decimalSum(
+    data.products.map((item) => item.available_units),
+  );
+  const incomingUnits = data.purchase_orders
+    .filter((order) => !["cancelled", "complete"].includes(order.status))
+    .flatMap((order) => order.lines)
+    .reduce<Decimal>(
+      (total, line) =>
+        decimalAdd(total, nonNegative(decimalSubtract(line.ordered_units, line.received_units))),
+      "0",
+    );
+  const lotExceptions = data.lots.filter(
+    (item) => item.status !== "active",
+  ).length;
   if (data.products.length === 0)
     return (
       <Card title="Product catalog">
         <p className="inventory-lead">No inventory records.</p>
-        {onDemo && (
-          <button
-            className="inventory-button primary"
-            type="button"
-            onClick={onDemo}
-          >
-            Load inventory scenario
-          </button>
-        )}
       </Card>
     );
   return (
     <div className="inventory-stack">
-      <div className="inventory-metrics">
-        <Metric
-          label="Available stock"
-          value={number(available)}
-          detail="Active, unheld units only"
+      <div className="inventory-catalog-topline">
+        <div>
+          <h2>Catalog</h2>
+          <p className="inventory-lead">
+            Products, stock positions, and traceability in one view.
+          </p>
+        </div>
+        <div className="inventory-catalog-actions">
+          <a
+            className="inventory-button primary"
+            href="/clinic/inventory/receiving"
+          >
+            Receive stock
+          </a>
+          <a className="inventory-button outline" href="/clinic/pharmacy/new">
+            Add catalog item
+          </a>
+        </div>
+      </div>
+      <div className="inventory-summary" aria-label="Inventory summary">
+        <DataPoint
+          label="Tracked products"
+          value={number(data.products.length)}
         />
-        <Metric
-          label="Safety held"
-          value={number(held)}
-          detail="Excluded from availability"
-          tone="warning"
+        <DataPoint
+          label="Available units"
+          value={number(availableUnits)}
+          tone="success"
         />
-        <Metric
-          label="Catalog coverage"
-          value={`${data.products.length} products`}
-          detail={`${data.lots.length} traceable lots`}
+        <DataPoint
+          label="Incoming units"
+          value={number(incomingUnits)}
+          tone="blue"
+        />
+        <DataPoint
+          label="Lot exceptions"
+          value={number(lotExceptions)}
+        tone={lotExceptions ? "danger" : "success"}
         />
       </div>
       <Card title="Catalog and lot traceability">
         <div className="inventory-card-heading">
-          <Field label="Search catalog">
+          <div>
+            <p className="inventory-lead">
+              Search the records you need, then open lots or replenishment from
+              the row.
+            </p>
+          </div>
+        </div>
+        <div className="inventory-toolbar">
+          <div>
+            <p className="inventory-lead">
+              Search the records you need, then open lots or replenishment from
+              the row.
+            </p>
+          </div>
+        </div>
+        <div className="inventory-toolbar">
+          <Field label="Search inventory">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name, NDC, supplier"
+              placeholder="Product, NDC, lot, supplier"
             />
           </Field>
+          <Field label="Stock status">
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as typeof statusFilter)
+              }
+            >
+              <option value="all">All products</option>
+              <option value="attention">Needs attention</option>
+              <option value="in_range">In range</option>
+            </select>
+          </Field>
+          <Field label="Sort by">
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as typeof sort)}
+            >
+              <option value="name">Product name</option>
+              <option value="available_asc">Available: low to high</option>
+              <option value="available_desc">Available: high to low</option>
+            </select>
+          </Field>
+          {activeFilter && (
+            <button
+              className="inventory-button outline inventory-reset-button"
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setStatusFilter("all");
+                setSort("name");
+              }}
+            >
+              Reset view
+            </button>
+          )}
         </div>
+        <p className="inventory-results-count" role="status">
+          Showing {products.length} of {data.products.length} products.
+        </p>
         <div className="inventory-table-wrap">
           <table>
             <caption className="sr-only">Medication catalog</caption>
@@ -730,7 +847,7 @@ function CatalogScreen({
             <tbody>
               {products.map((item) => (
                 <tr key={item.id}>
-                  <td>
+                  <td data-label="Product">
                     <strong>{item.name}</strong>
                     <small>
                       {item.preferred_supplier ?? "Supplier not recorded"} ·{" "}
@@ -738,18 +855,34 @@ function CatalogScreen({
                         "Package metadata not recorded"}
                     </small>
                   </td>
-                  <td className="mono">{item.ndc}</td>
-                  <td className="numeric">
+                  <td data-label="NDC" className="mono">
+                    {item.ndc}
+                  </td>
+                  <td data-label="Available" className="numeric">
                     {number(item.available_units)} {item.base_unit}s
                   </td>
-                  <td className="numeric">{number(item.on_hand_units)}</td>
-                  <td className="numeric">
+                  <td data-label="On hand" className="numeric">
+                    {number(item.on_hand_units)}
+                  </td>
+                  <td data-label="Reorder point" className="numeric">
                     {number(item.reorder_point_units)}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <Badge tone={item.low_stock ? "warning" : "success"}>
                       {item.low_stock ? "Reorder" : "In range"}
                     </Badge>
+                  </td>
+                  <td data-label="Actions">
+                    <a href={`/clinic/inventory/lots?product_id=${item.id}`}>
+                      View lots
+                    </a>
+                    {item.low_stock && (
+                      <a
+                        href={`/clinic/inventory/replenishment?product_id=${item.id}`}
+                      >
+                        Start replenishment
+                      </a>
+                    )}
                   </td>
                 </tr>
               ))}

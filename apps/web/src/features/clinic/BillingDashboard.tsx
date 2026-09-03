@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
 import type {
   BillingDashboard as BillingDashboardData,
+  BillingInvoiceDetail,
   BillingInvoiceSummary,
 } from "../../api/contracts";
+import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 
-export type BillingInvoiceFilter = "all" | "draft" | "open";
-function isZero(value: string) {
-  return /^-?0(?:\.0*)?$/.test(value.trim());
-}
+export type BillingInvoiceFilter = "all" | "draft" | "open" | "paid" | "void";
+export type BillingInvoiceSort =
+  "recent" | "oldest" | "balance_desc" | "total_desc";
 
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
@@ -47,11 +48,34 @@ export function totalOpenInvoiceCount(
   );
 }
 
+function isZeroDecimal(value: string) {
+  return /^0+(?:\.0+)?$/.test(value.trim());
+}
+
+function compareDecimal(left: string, right: string) {
+  const normalize = (value: string) => {
+    const [whole = "0", fraction = ""] = value.trim().split(".");
+    return {
+      whole: whole.replace(/^0+(?=\d)/, "") || "0",
+      fraction: fraction.replace(/0+$/, ""),
+    };
+  };
+  const a = normalize(left);
+  const b = normalize(right);
+  if (a.whole.length !== b.whole.length) return a.whole.length - b.whole.length;
+  const wholeComparison = a.whole.localeCompare(b.whole);
+  if (wholeComparison) return wholeComparison;
+  const width = Math.max(a.fraction.length, b.fraction.length);
+  return a.fraction
+    .padEnd(width, "0")
+    .localeCompare(b.fraction.padEnd(width, "0"));
+}
+
 export function invoicePaymentState(invoice: BillingInvoiceSummary) {
   if (invoice.status === "void") return "void";
   if (invoice.status === "draft") return "draft";
-  if (isZero(invoice.balance)) return "paid";
-  if (!isZero(invoice.allocated)) return "partial";
+  if (isZeroDecimal(invoice.balance)) return "paid";
+  if (!isZeroDecimal(invoice.allocated)) return "partial";
   return "open";
 }
 
@@ -63,14 +87,38 @@ export function filteredInvoices(
     return invoices.filter((invoice) => invoice.status === "draft");
   if (filter === "open")
     return invoices.filter(
-      (invoice) => invoice.status === "posted" && !isZero(invoice.balance),
+      (invoice) =>
+        invoice.status === "posted" && !isZeroDecimal(invoice.balance),
     );
+  if (filter === "paid")
+    return invoices.filter(
+      (invoice) =>
+        invoice.status === "posted" && isZeroDecimal(invoice.balance),
+    );
+  if (filter === "void")
+    return invoices.filter((invoice) => invoice.status === "void");
   return invoices;
+}
+
+export function sortedInvoices(
+  invoices: BillingInvoiceSummary[],
+  sort: BillingInvoiceSort,
+) {
+  if (sort === "recent") return invoices;
+  return [...invoices].sort((left, right) => {
+    if (sort === "oldest")
+      return left.created_at.localeCompare(right.created_at);
+    if (sort === "balance_desc")
+      return compareDecimal(right.balance, left.balance);
+    return compareDecimal(right.total, left.total);
+  });
 }
 
 function statusLabel(invoice: BillingInvoiceSummary) {
   const state = invoicePaymentState(invoice);
-  return state === "partial" ? "Partially paid" : state;
+  return state === "partial"
+    ? "Partially paid"
+    : state.charAt(0).toUpperCase() + state.slice(1);
 }
 
 function Metric({
@@ -93,19 +141,126 @@ function Metric({
   );
 }
 
+function DetailLineItems({ detail }: { detail: BillingInvoiceDetail }) {
+  return (
+    <div className="billing-line-items">
+      <div className="billing-line-items-header">
+        <span>Description</span>
+        <span>Qty</span>
+        <span>Amount</span>
+      </div>
+      {detail.lines.map((line) => (
+        <div className="billing-line-item" key={line.id}>
+          <span>
+            <strong>{line.description}</strong>
+            <small>
+              {line.quantity} × {money(line.unit_amount, detail.currency)}
+            </small>
+          </span>
+          <span>{line.quantity}</span>
+          <strong>{money(line.posted_amount, detail.currency)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BillingConfirm({
+  action,
+  invoice,
+  onCancel,
+  onConfirm,
+  busy,
+}: {
+  action: "post" | "payment";
+  invoice: BillingInvoiceSummary;
+  onCancel: () => void;
+  onConfirm: () => void;
+  busy: boolean;
+}) {
+  const isPost = action === "post";
+  return (
+    <div
+      className="billing-confirm"
+      role="dialog"
+      aria-label="Review billing action"
+    >
+      <div>
+        <strong>
+          {isPost
+            ? `Post invoice #${invoice.id}?`
+            : `Record payment on invoice #${invoice.id}?`}
+        </strong>
+        <p>
+          {isPost
+            ? "Posting locks the current line items and moves this invoice into the ledger."
+            : "This records the entered external payment event and reduces the invoice balance."}
+        </p>
+      </div>
+      <div className="billing-confirm-actions">
+        <button
+          className="billing-secondary-button"
+          type="button"
+          onClick={onCancel}
+        >
+          Go back
+        </button>
+        <button
+          className="billing-primary-button"
+          type="button"
+          onClick={onConfirm}
+          disabled={busy}
+        >
+          {busy ? "Saving…" : isPost ? "Post invoice" : "Record payment"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function BillingDashboard() {
   const context = useClinic();
-  const { data, error } = useResource<BillingDashboardData>(
+  const { data, error, refresh } = useResource<BillingDashboardData>(
     "/api/clinic/billing",
   );
   const [filter, setFilter] = useState<BillingInvoiceFilter>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<BillingInvoiceSort>("recent");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     null,
   );
-  const visibleInvoices = useMemo(
-    () => (data ? filteredInvoices(data.recent_invoices, filter) : []),
-    [data, filter],
+  const [confirmAction, setConfirmAction] = useState<"post" | "payment" | null>(
+    null,
   );
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [busyAction, setBusyAction] = useState<"post" | "payment" | null>(null);
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
+  const visibleInvoices = useMemo(() => {
+    if (!data) return [];
+    const normalized = query.trim().toLowerCase();
+    const matches = data.recent_invoices.filter((invoice) =>
+      normalized
+        ? `invoice ${invoice.id} ${invoice.status} ${invoice.currency}`
+            .toLowerCase()
+            .includes(normalized)
+        : true,
+    );
+    return sortedInvoices(filteredInvoices(matches, filter), sort);
+  }, [data, filter, query, sort]);
+  const selectedInvoice =
+    visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
+    visibleInvoices.find(
+      (invoice) => invoicePaymentState(invoice) !== "void",
+    ) ??
+    visibleInvoices[0];
+  const detailResource = useResource<{ invoice: BillingInvoiceDetail }>(
+    selectedInvoice
+      ? `/api/clinic/invoices/${selectedInvoice.id}`
+      : "/api/clinic/billing",
+  );
+  const selectedDetail = detailResource.data?.invoice;
 
   if (context.capabilities.billing_read !== true)
     return (
@@ -120,18 +275,97 @@ export function BillingDashboard() {
       <LoadState error="Unable to verify the billing response. Reload and try again." />
     );
 
-  const primaryCurrency = data.metrics.currencies[0];
+  const primaryCurrency =
+    data.metrics.currencies.length === 1 ? data.metrics.currencies[0] : null;
   const primaryOpenInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
   const openQueueCount = totalOpenInvoiceCount(data.metrics.currencies);
-  const selectedInvoice =
-    visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
-    data.recent_invoices.find((invoice) => invoice.id === selectedInvoiceId) ??
-    visibleInvoices.find(
-      (invoice) => invoicePaymentState(invoice) !== "void",
-    ) ??
-    data.recent_invoices.find(
-      (invoice) => invoicePaymentState(invoice) !== "void",
-    );
+  const clearActionState = () => {
+    setConfirmAction(null);
+    setActionError("");
+  };
+
+  const postInvoice = async () => {
+    if (!selectedInvoice || busyAction) return;
+    setBusyAction("post");
+    setActionError("");
+    try {
+      await api(`/api/clinic/invoices/${selectedInvoice.id}/post`, {
+        method: "POST",
+      });
+      setActionMessage(
+        `Invoice #${selectedInvoice.id} was posted to the ledger.`,
+      );
+      clearActionState();
+      refresh();
+      detailResource.refresh();
+    } catch (reason) {
+      setActionError(
+        reason instanceof Error
+          ? reason.message
+          : "The invoice could not be posted. Review its state and try again.",
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const validatePayment = () => {
+    const reference = paymentReference.trim();
+    const amount = paymentAmount.trim();
+    if (!reference) return "Enter the external payment event reference.";
+    if (reference.length > 255)
+      return "Payment references must be 255 characters or fewer.";
+    if (
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
+      /^0+(?:\.0+)?$/.test(amount)
+    )
+      return "Enter a positive amount with up to six decimal places.";
+    return "";
+  };
+
+  const recordPayment = async () => {
+    if (!selectedInvoice || busyAction) return;
+    const validation = validatePayment();
+    if (validation) {
+      setActionError(validation);
+      setConfirmAction(null);
+      return;
+    }
+    setBusyAction("payment");
+    setActionError("");
+    try {
+      await api(
+        `/api/clinic/invoices/${selectedInvoice.id}/payment_allocations`,
+        {
+          method: "POST",
+          body: {
+            payment: {
+              external_event_reference: paymentReference.trim(),
+              currency: selectedInvoice.currency,
+              amount: paymentAmount.trim(),
+              payment_amount: paymentAmount.trim(),
+            },
+          },
+        },
+      );
+      setActionMessage(
+        `Payment recorded against invoice #${selectedInvoice.id}.`,
+      );
+      setPaymentReference("");
+      setPaymentAmount("");
+      clearActionState();
+      refresh();
+      detailResource.refresh();
+    } catch (reason) {
+      setActionError(
+        reason instanceof Error
+          ? reason.message
+          : "The payment could not be recorded. Check the event reference and try again.",
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  };
   const queueItems: {
     filter: BillingInvoiceFilter;
     label: string;
@@ -161,11 +395,20 @@ export function BillingDashboard() {
             <a href="/clinic/billing/patients">Patient balances</a>
           )}
         </div>
-        <div className="billing-period" aria-label="Reporting period">
-          <span>Current period</span>
-          <strong>
-            {periodLabel(data.period.start, data.practice.timezone)}
-          </strong>
+        <div className="billing-header-actions">
+          <div className="billing-period" aria-label="Reporting period">
+            <span>Current period</span>
+            <strong>
+              {periodLabel(data.period.start, data.practice.timezone)}
+            </strong>
+          </div>
+          <button
+            className="billing-secondary-button"
+            type="button"
+            onClick={refresh}
+          >
+            Refresh ledger
+          </button>
         </div>
       </header>
 
@@ -282,7 +525,7 @@ export function BillingDashboard() {
       <section className="clinic-card billing-ledger-card">
         <div className="billing-section-heading billing-ledger-heading">
           <div>
-            <h2>Recent billing activity</h2>
+            <h2>Recent invoice activity</h2>
           </div>
           <small className="billing-ledger-count">
             Showing {visibleInvoices.length} of {data.metrics.invoice_count}
@@ -293,6 +536,8 @@ export function BillingDashboard() {
                 ["all", "All"],
                 ["draft", "Drafts"],
                 ["open", "Open balances"],
+                ["paid", "Paid"],
+                ["void", "Void"],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -306,6 +551,49 @@ export function BillingDashboard() {
             ))}
           </div>
         </div>
+
+        <div className="billing-ledger-toolbar">
+          <label className="billing-search-field">
+            <span>Search invoices</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Invoice number, status, currency"
+            />
+          </label>
+          <label className="billing-sort-field">
+            <span>Sort by</span>
+            <select
+              value={sort}
+              onChange={(event) =>
+                setSort(event.target.value as BillingInvoiceSort)
+              }
+            >
+              <option value="recent">Most recent</option>
+              <option value="oldest">Oldest first</option>
+              <option value="balance_desc">Largest balance</option>
+              <option value="total_desc">Largest total</option>
+            </select>
+          </label>
+          {(query || filter !== "all" || sort !== "recent") && (
+            <button
+              className="billing-text-button"
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setFilter("all");
+                setSort("recent");
+              }}
+            >
+              Reset view
+            </button>
+          )}
+        </div>
+        <p className="billing-results-count" role="status">
+          Showing {visibleInvoices.length} of {data.metrics.invoice_count}{" "}
+          invoices
+          {query ? ` matching “${query}”` : ""}.
+        </p>
 
         {visibleInvoices.length === 0 ? (
           <p className="billing-clear-state">
@@ -341,17 +629,23 @@ export function BillingDashboard() {
                           #{invoice.id}
                         </button>
                       </th>
-                      <td>
+                      <td data-label="State">
                         <span className={`billing-badge billing-${state}`}>
                           {statusLabel(invoice)}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Created">
                         {date(invoice.created_at, data.practice.timezone)}
                       </td>
-                      <td>{money(invoice.total, invoice.currency)}</td>
-                      <td>{money(invoice.allocated, invoice.currency)}</td>
-                      <td>{money(invoice.balance, invoice.currency)}</td>
+                      <td data-label="Total">
+                        {money(invoice.total, invoice.currency)}
+                      </td>
+                      <td data-label="Paid">
+                        {money(invoice.allocated, invoice.currency)}
+                      </td>
+                      <td data-label="Balance">
+                        {money(invoice.balance, invoice.currency)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -380,26 +674,150 @@ export function BillingDashboard() {
             )}
           </div>
           {selectedInvoice ? (
-            <div className="billing-invoice-detail-values">
-              <div>
-                <span>Total</span>
-                <strong>
-                  {money(selectedInvoice.total, selectedInvoice.currency)}
-                </strong>
+            <>
+              <div className="billing-detail-meta">
+                <span>
+                  Linked patient record · #{selectedDetail?.patient_id ?? "—"}
+                </span>
+                <span>
+                  Created {date(selectedInvoice.created_at, data.practice.timezone)}
+                </span>
               </div>
-              <div>
-                <span>Payments allocated</span>
-                <strong>
-                  {money(selectedInvoice.allocated, selectedInvoice.currency)}
-                </strong>
+              <div className="billing-invoice-detail-values">
+                <div>
+                  <span>Total</span>
+                  <strong>
+                    {money(selectedInvoice.total, selectedInvoice.currency)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Payments allocated</span>
+                  <strong>
+                    {money(selectedInvoice.allocated, selectedInvoice.currency)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Remaining balance</span>
+                  <strong>
+                    {money(selectedInvoice.balance, selectedInvoice.currency)}
+                  </strong>
+                </div>
               </div>
-              <div>
-                <span>Remaining balance</span>
-                <strong>
-                  {money(selectedInvoice.balance, selectedInvoice.currency)}
-                </strong>
-              </div>
-            </div>
+              {detailResource.error ? (
+                <p className="billing-inline-error" role="alert">
+                  Invoice line detail is unavailable for this account. The
+                  ledger summary remains available.
+                </p>
+              ) : selectedDetail ? (
+                <DetailLineItems detail={selectedDetail} />
+              ) : (
+                <p className="billing-loading-detail" role="status">
+                  Loading invoice detail…
+                </p>
+              )}
+              {selectedInvoice.status === "draft" &&
+                context.capabilities.billing && (
+                  <div className="billing-action-row">
+                    {confirmAction === "post" ? (
+                      <BillingConfirm
+                        action="post"
+                        invoice={selectedInvoice}
+                        onCancel={clearActionState}
+                        onConfirm={() => void postInvoice()}
+                        busy={busyAction === "post"}
+                      />
+                    ) : (
+                      <button
+                        className="billing-primary-button"
+                        type="button"
+                        onClick={() => {
+                          setActionError("");
+                          setConfirmAction("post");
+                        }}
+                      >
+                        Post invoice to ledger
+                      </button>
+                    )}
+                  </div>
+                )}
+              {selectedInvoice.status === "posted" &&
+                !isZeroDecimal(selectedInvoice.balance) && (
+                  <form
+                    className="billing-payment-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const validation = validatePayment();
+                      if (validation) {
+                        setActionError(validation);
+                        setConfirmAction(null);
+                      } else {
+                        setActionError("");
+                        setConfirmAction("payment");
+                      }
+                    }}
+                  >
+                    <div>
+                      <h3>Record an external payment</h3>
+                      <p>
+                        Use the processor or bank event reference. The server
+                        validates currency, balance, and replay safety.
+                      </p>
+                    </div>
+                    <div className="billing-payment-fields">
+                      <label>
+                        <span>Event reference</span>
+                        <input
+                          value={paymentReference}
+                          onChange={(event) =>
+                            setPaymentReference(event.target.value)
+                          }
+                          maxLength={255}
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Amount ({selectedInvoice.currency})</span>
+                        <input
+                          value={paymentAmount}
+                          onChange={(event) =>
+                            setPaymentAmount(event.target.value)
+                          }
+                          inputMode="decimal"
+                          pattern="(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?"
+                          required
+                        />
+                      </label>
+                    </div>
+                    {confirmAction === "payment" && (
+                      <BillingConfirm
+                        action="payment"
+                        invoice={selectedInvoice}
+                        onCancel={clearActionState}
+                        onConfirm={() => void recordPayment()}
+                        busy={busyAction === "payment"}
+                      />
+                    )}
+                    {!confirmAction && (
+                      <button
+                        className="billing-secondary-button"
+                        type="submit"
+                      >
+                        Review payment
+                      </button>
+                    )}
+                  </form>
+                )}
+              {actionError && (
+                <p className="billing-inline-error" role="alert">
+                  {actionError}
+                </p>
+              )}
+              {actionMessage && (
+                <p className="billing-inline-success" role="status">
+                  {actionMessage}
+                </p>
+              )}
+            </>
           ) : (
             <p className="billing-clear-state">
               Invoice detail will appear when the ledger has activity.

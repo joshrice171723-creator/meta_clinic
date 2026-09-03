@@ -5,6 +5,7 @@ import {
   invoicePaymentState,
   periodLabel,
   totalOpenInvoiceCount,
+  sortedInvoices,
 } from "../src/features/clinic/BillingDashboard";
 
 const invoices: BillingInvoiceSummary[] = [
@@ -87,5 +88,34 @@ describe("billing invoice presentation", () => {
         { open_invoice_count: 3 },
       ]),
     ).toBe(5);
+  });
+
+  it("supports paid and void review filters", () => {
+    expect(filteredInvoices(invoices, "paid").map(({ id }) => id)).toEqual([2]);
+    expect(filteredInvoices(invoices, "void").map(({ id }) => id)).toEqual([5]);
+  });
+
+  it("sorts decimal ledger values without floating-point coercion", () => {
+    const values = [
+      {
+        ...invoices[0],
+        id: 6,
+        total: "100000000000000000.01",
+        balance: "100000000000000000.01",
+      },
+      {
+        ...invoices[0],
+        id: 7,
+        total: "100000000000000000.00",
+        balance: "100000000000000000.00",
+      },
+      { ...invoices[0], id: 8, total: "9.99", balance: "9.99" },
+    ];
+    expect(sortedInvoices(values, "total_desc").map(({ id }) => id)).toEqual([
+      6, 7, 8,
+    ]);
+    expect(sortedInvoices(values, "balance_desc").map(({ id }) => id)).toEqual([
+      6, 7, 8,
+    ]);
   });
 });

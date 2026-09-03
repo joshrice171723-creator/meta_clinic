@@ -1,0 +1,14 @@
+user_key,email,admin,active,password_profile,display_name,role_key
+test_omni,omni@test.com,true,true,omni,Omni operator,omni_administrator
+test_admin,admin@test.com,true,true,"",Clinic administrator,administrator
+test_clinician_1,clinician1@test.com,false,true,"","Alex Rowan, NP",clinician
+test_clinician_2,clinician2@test.com,false,true,"","Morgan Ellis, MD",clinician
+test_staff_1,staff1@test.com,false,true,"",Jamie Brooks,staff
+test_staff_2,staff2@test.com,false,true,"",Taylor Nguyen,staff
+test_inventory_1,inventory1@test.com,false,true,"",Casey Morgan,inventory
+test_inventory_2,inventory2@test.com,false,true,"",Riley Chen,inventory
+test_billing_1,billing1@test.com,false,true,"",Jordan Patel,billing
+test_billing_2,billing2@test.com,false,true,"",Avery Davis,billing
+test_front_desk,frontdesk@test.com,false,true,"",Quinn Foster,front_desk
+test_reader,reader@test.com,false,true,"",Robin Flores,reader
+test_disabled,disabled@test.com,false,false,"",Disabled account,reader

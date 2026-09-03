@@ -75,6 +75,8 @@ The platform-specific `bin/start-dev` and `bin/start-dev.ps1` files are implemen
 
 Pass `--seed` to `dev_server_startup start` or `restart` only when synthetic seed data is intentionally needed, or pass `--no-browser` when the browser should not open. Use `dev_server_startup status` for a concise environment diagnosis. The existing `bin/dev` remains available as the lower-level foreground launcher after PostgreSQL has already been started.
 
+For the daily reset workflow, run `ruby .\bin\apply up --no-browser` on Windows or `ruby bin/apply up --no-browser` on macOS/Linux. `apply up` refreshes the CSV-backed dev database once per local calendar day, then starts Rails and Vite. The reset is hard-walled to the configured `apply_development` database and requires the internal refresh flag; `--no-seed-refresh` skips it for that startup. `--seed` keeps the existing explicit seed path instead of the daily refresh.
+
 The VS Code workspace tasks select the Windows PowerShell or macOS/Linux launcher automatically.
 
 Open [local login](http://127.0.0.1:3000/login). The optional flag enables only the loopback synthetic walkthrough. Frontend runs on 3000, API on 3001. No signup, patient data, live integrations or development tunnels. Omit the flag for ordinary provisioned accounts.

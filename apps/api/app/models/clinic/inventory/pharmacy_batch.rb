@@ -54,10 +54,10 @@ module Clinic
         status
       end
 
-      def move!(kind:, amount:, reason:, actor:, request_key:)
+      def move!(kind:, amount:, reason:, actor:, request_key:, occurred_at: Time.current)
         if kind == "receipt"
           receipt = Clinic::Inventory::Receiving.call(practice: practice, actor: actor, reason: reason, request_key: request_key, supplier: supplier,
-            lines: [ { product_id: product_id, lot_number: lot_number, location: location, expires_on: expires_on, amount: amount, input_unit: product.stock_unit } ])
+            lines: [ { product_id: product_id, lot_number: lot_number, location: location, expires_on: expires_on, amount: amount, input_unit: product.stock_unit } ], received_at: occurred_at)
           reload
           return movements.find_by!(receipt_line_id: receipt.lines.sole.id)
         end
@@ -75,7 +75,7 @@ module Clinic
             end
             raise ArgumentError, "Reactivate this product before adding stock." if direction.positive? && !product.reload.active?
             raise ArgumentError, "This movement would make stock negative or exceed 1,000,000." unless (quantity + attributes[:quantity]).between?(0, 1_000_000)
-            movement = movements.create!(attributes.merge(stock_unit: product.stock_unit, profile_id: profile.id, occurred_at: Time.current))
+            movement = movements.create!(attributes.merge(stock_unit: product.stock_unit, profile_id: profile.id, occurred_at: occurred_at, created_at: occurred_at, updated_at: occurred_at))
             reload
             movement
           end

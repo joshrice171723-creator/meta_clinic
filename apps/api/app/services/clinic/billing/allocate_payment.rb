@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class AllocatePayment
-      def self.call(practice:, actor:, patient:, invoice:, external_event_reference:, currency:, amount:, payment_amount: nil)
+      def self.call(practice:, actor:, patient:, invoice:, external_event_reference:, currency:, amount:, payment_amount: nil, created_at: nil)
         Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.payment_record", legacy_action: "billing.write")
         patient = practice.patients.find(patient.id)
         invoice = practice.invoices.find(invoice.id)
@@ -21,6 +21,8 @@ module Clinic
             event.patient = patient
             event.currency = currency
             event.amount = payment_amount
+            event.created_at = created_at if created_at
+            event.updated_at = created_at if created_at
           end
           raise ArgumentError, "Payment event details do not match the original event." unless payment.patient_id == patient.id && payment.currency == currency && payment.amount == payment_amount
 
@@ -36,7 +38,9 @@ module Clinic
           invoice_allocated = invoice.payment_allocations.lock.to_a.sum { |allocation| allocation.amount }
           raise ArgumentError, "Invoice cannot be allocated more than its posted total." if invoice_allocated + allocation_amount > invoice_total
 
-          payment.allocations.create!(practice: practice, patient: patient, invoice: invoice, amount: allocation_amount)
+          allocation_attributes = { practice: practice, patient: patient, invoice: invoice, amount: allocation_amount }
+          allocation_attributes.merge!(created_at: created_at, updated_at: created_at) if created_at
+          payment.allocations.create!(allocation_attributes)
         end
       end
     end

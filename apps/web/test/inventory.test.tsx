@@ -97,7 +97,7 @@ describe("inventory integration", () => {
       expect(source).toContain(path);
     }
     expect(source).toContain('"/api/clinic/inventory/bootstrap"');
-    expect(source).toContain('"/api/clinic/inventory/demo"');
+    expect(source).not.toContain('"/api/clinic/inventory/demo"');
     expect(source).not.toContain("history.pushState");
     expect(source).not.toContain('"popstate"');
   });

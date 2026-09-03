@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Cross-platform local startup for macOS/Linux. Synthetic development only.
+# Cross-platform local startup for macOS/Linux. Dev database only.
 require "fileutils"
 require "net/http"
 require "open3"
@@ -16,6 +16,7 @@ log_root = File.join(runtime_root, "logs")
 pid_root = File.join(runtime_root, "pids")
 container = ENV.fetch("APPLY_POSTGRES_CONTAINER", "apply-postgres-development")
 seed = ARGV.delete("--seed")
+refresh_seed = ARGV.delete("--refresh-seed")
 no_browser = ARGV.delete("--no-browser")
 no_docker_start = ARGV.delete("--no-docker-start")
 daemon = ARGV.delete("--daemon")
@@ -111,7 +112,15 @@ abort "PostgreSQL did not become ready. Check: docker logs #{container}" unless 
 
 puts "Preparing the development database..."
 run!("ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "db:prepare", chdir: api_root)
-if seed
+if refresh_seed
+  seed_environment = {
+    "APP_DEV_SEED_REFRESH" => "1",
+    "APP_SYNTHETIC_SEEDS" => "1",
+    "APP_DEV_SEED_PROFILE" => "bulk",
+    "APP_DEVELOPMENT_LOGIN" => "1"
+  }
+  run!(seed_environment, "ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "dev:refresh_seed", chdir: api_root)
+elsif seed
   seed_environment = { "APP_SYNTHETIC_SEEDS" => "1", "APP_DEVELOPMENT_LOGIN" => "1" }
   run!(seed_environment, "ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "db:seed", chdir: api_root)
   run!(seed_environment, "ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "members:prepare_test_accounts", chdir: api_root)

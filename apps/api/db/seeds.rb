@@ -30,5 +30,9 @@ end
 
 # Explicit opt-in; ordinary seeds and all production runs create no clinic data.
 if Rails.env.development? && ENV["APP_SYNTHETIC_SEEDS"] == "1"
-  Development::BackendSamples.call
+  if ENV["APP_DEV_SEED_PROFILE"] == "bulk"
+    Development::BulkDevSeed.call
+  else
+    Development::BackendSamples.call
+  end
 end

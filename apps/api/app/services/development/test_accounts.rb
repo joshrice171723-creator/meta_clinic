@@ -3,7 +3,7 @@ module Development
     class Unavailable < StandardError; end
 
     PROFILES = {
-      "omni" => { email: "test-omni@example.invalid", admin: true, active: true, omni: true },
+      "omni" => { email: "omni@test.com", admin: true, active: true, omni: true },
       "admin" => { email: "test-admin@example.invalid", admin: true, active: true },
       "client-a" => { email: "test-client-a@example.invalid", admin: false, active: true, clinic: "Test Clinic A" },
       "client-b" => { email: "test-client-b@example.invalid", admin: false, active: true, clinic: "Test Clinic B" },

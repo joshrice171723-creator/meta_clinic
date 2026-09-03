@@ -115,7 +115,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       Development::TestAccounts.prepare!
       enter("omni")
       assert_response :created
-      omni = User.find_by!(email_address: "test-omni@example.invalid")
+      omni = User.find_by!(email_address: "omni@test.com")
       practice = omni.clinic_membership.practice
 
       assert_equal 30, practice.patients.where("reference LIKE ?", "SYN-OMNI-%").count

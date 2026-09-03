@@ -111,3 +111,17 @@ Seeds create two synthetic organizations/practices, 60 richly populated patients
 Passwords are random and never printed. Use the existing interactive `members:reset_password` task for a selected address such as `synthetic-review-a-admin@example.invalid`, `synthetic-review-a-clinician-2@example.invalid`, or another listed role/account when manually testing. No new login shortcut is enabled. Ordinary and production seeds create no clinic examples. Patient commercial membership, patient deletion, vital-sign deletion and post-signature addendum endpoints are not currently implemented; the fixtures do not simulate those missing transitions.
 
 `bin/verify-backend` creates its own uniquely named test database, tests true concurrent allocations/addresses/bookings/revisions and restricted runtime history/catalog grants, then removes only that database and its unique temporary no-login role. Run it through `bin/postgres exec`, with PostgreSQL client tools on PATH. Tests require `RAILS_ENV=test`; never point them at an existing development/hosted database. Migration `20260831000800` adds identity/history/index/reservation guards without editing prior migrations. It is forward-only and has not been applied to existing development or hosted databases; review backups, locks and legacy access-equivalence before any cutover.
+
+## CSV-backed dev seed data
+
+`ruby bin/apply up` refreshes `db/seed_data/bulk_v1` once per local calendar day after PostgreSQL is ready. The refresh truncates the explicitly discovered application tables, preserves Rails metadata tables, and refuses any database other than the configured `*_development` database. Use `ruby bin/apply up --no-seed-refresh` to skip the reset for one startup. The lower-level task is `APP_DEV_SEED_REFRESH=1 bundle exec rails dev:refresh_seed` and is guarded by the same database checks.
+
+Regenerate the checked-in CSV bundle with:
+
+```sh
+ruby script/generate_bulk_seed_csv.rb
+```
+
+The bundle contains 100 patients, 220 visits, 220 invoices with five lines each (1,100 `clinic_invoice_lines`), 100 office items, 100 pharmacy products, 200 pharmacy batches and receipts, plus payments, coverage versions, credits, refunds, claims, role grants and inventory adjustments. Records are dated across the prior 90 days. Invoice balances exercise draft, void, paid, partial and open views; paid/partial/open are represented by posted invoices with their corresponding allocation balances.
+
+The user rows include `omni@test.com`, `admin@test.com`, `clinician1@test.com`, `clinician2@test.com`, `staff1@test.com`, `staff2@test.com`, `inventory1@test.com`, `inventory2@test.com`, `billing1@test.com`, `billing2@test.com`, `frontdesk@test.com`, `reader@test.com`, and an inactive `disabled@test.com`. The Omni account uses the existing local development account verifier; the other active role accounts use the deterministic local password form `ApplyDev-<user_key>-2026!`. These addresses are for the local dev database only. See [`db/seed_data/bulk_v1/README.md`](db/seed_data/bulk_v1/README.md) for the CSV map and integrity rules.

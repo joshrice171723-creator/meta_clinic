@@ -1,0 +1,13 @@
+refund_key,payment_key,patient_key,currency,amount,days_ago
+refund_001,payment_001,patient_036,CAD,5.00,49
+refund_002,payment_002,patient_036,USD,5.00,50
+refund_003,payment_003,patient_037,USD,5.00,51
+refund_004,payment_004,patient_037,USD,5.00,52
+refund_005,payment_005,patient_038,USD,5.00,53
+refund_006,payment_006,patient_038,CAD,5.00,54
+refund_007,payment_007,patient_039,USD,5.00,55
+refund_008,payment_008,patient_039,USD,5.00,56
+refund_009,payment_009,patient_040,USD,5.00,57
+refund_010,payment_010,patient_040,USD,5.00,58
+refund_011,payment_011,patient_041,CAD,5.00,59
+refund_012,payment_012,patient_041,USD,5.00,60

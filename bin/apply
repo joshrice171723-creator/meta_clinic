@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# APPly local lifecycle command. Synthetic development only.
+# APPly local lifecycle command. Dev database only.
 require "fileutils"
 require "open3"
 require "rbconfig"
@@ -51,13 +51,19 @@ when "up"
   if Gem.win_platform?
     script = File.join(root, "bin/start-dev.ps1")
     args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script]
-    args << "-Seed" if ARGV.delete("--seed")
+    refresh_seed = !ARGV.delete("--no-seed-refresh")
+    legacy_seed = ARGV.delete("--seed")
+    args << "-RefreshSeed" if refresh_seed && !legacy_seed
+    args << "-Seed" if legacy_seed
     args << "-NoBrowser" if ARGV.delete("--no-browser")
     fail_with("Unknown option: #{ARGV.first}") unless ARGV.empty?
     started = system("powershell", *args, chdir: root)
   else
     args = [File.join(root, "bin/start-dev"), "--daemon"]
-    args << "--seed" if ARGV.delete("--seed")
+    refresh_seed = !ARGV.delete("--no-seed-refresh")
+    legacy_seed = ARGV.delete("--seed")
+    args << "--refresh-seed" if refresh_seed && !legacy_seed
+    args << "--seed" if legacy_seed
     args << "--no-browser" if ARGV.delete("--no-browser")
     args << "--no-docker-start" if ARGV.delete("--no-docker-start")
     fail_with("Unknown option: #{ARGV.first}") unless ARGV.empty?
@@ -93,7 +99,7 @@ else
       restart  Run down followed by up
       doctor   Diagnose local dependencies, ports and service health
 
-    Options for up/restart: --seed, --no-browser
+    Options for up/restart: --no-seed-refresh, --seed, --no-browser
   USAGE
   exit(command ? 1 : 0)
 end
