@@ -114,6 +114,7 @@ export function loginDestination(value: string | null): string {
     "/clinic/settings",
   ]);
   return exact.has(value) ||
+    /^\/clinic\/inventory(?:\/[^/]+)?$/.test(value) ||
     /^\/clinic\/pharmacy\/\d+$/.test(value) ||
     /^\/clinic\/patients\/\d+$/.test(value) ||
     /^\/clinic\/patients\/\d+\/encounters\/\d+$/.test(value)

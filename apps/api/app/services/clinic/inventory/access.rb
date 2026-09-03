@@ -1,7 +1,7 @@
 module Clinic
   module Inventory
     module Access
-      ACTIONS = %w[catalog receive adjust hold release count configure].freeze
+      ACTIONS = %w[catalog receive adjust hold release count configure transfer].freeze
 
       def self.with(practice_id, actor, action)
         raise ArgumentError, "Unsupported inventory action." unless ACTIONS.include?(action)
@@ -11,6 +11,7 @@ module Clinic
           practice = Clinic::Practice.lock("FOR SHARE").find(practice_id)
           user = User.lock("FOR SHARE").find(actor.id)
           Clinic::Authorization.authorize!(actor: user, practice: practice, action: "inventory.#{action}")
+          ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', #{ApplicationRecord.connection.quote("inventory.#{action}")}, true)")
           profile = practice.inventory_profiles.order(version: :desc).first
           unless action == "configure" || (profile&.status == "synthetic" && profile.capabilities.include?("inventory"))
             raise ArgumentError, "Inventory posting is suspended or not configured. History remains available."

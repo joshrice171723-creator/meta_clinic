@@ -18,6 +18,9 @@ module Development
       patients.read patients.identity.read patients.write staff.read staff.write inventory.read
       inventory.catalog inventory.receive inventory.adjust inventory.hold
       inventory.release inventory.count inventory.configure appointments.write
+      inventory.transfer inventory.put_away procurement.read procurement.create
+      procurement.submit procurement.approve recall.read recall.lock recall.dispose
+      controlled.read controlled.count controlled.certify
       appointments.read appointments.book appointments.status_transition
       encounters.write encounters.assign_provider notes.read notes.write notes.sign observations.write messages.write
       documents.read billing.write billing.read billing.invoice_draft billing.invoice_post billing.payment_record roles.manage

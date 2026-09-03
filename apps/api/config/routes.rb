@@ -48,6 +48,31 @@ Rails.application.routes.draw do
     post "pharmacy_batches/:id/count", to: "inventory/pharmacy#count", as: :pharmacy_count
     post "inventory_counts/:id/approve", to: "inventory/pharmacy#approve_count", as: :inventory_count_approval
     post "inventory_configuration", to: "inventory/pharmacy#configure", as: :inventory_configuration
+    scope "inventory", as: "inventory_management" do
+      get "bootstrap", to: "inventory/management#bootstrap"
+      post "demo", to: "inventory/management#demo"
+      get "catalog", to: "inventory/management#catalog"
+      get "replenishment", to: "inventory/management#replenishment"
+      get "purchase-orders", to: "inventory/management#purchase_orders"
+      post "purchase-orders", to: "inventory/management#create_purchase_order"
+      get "purchase-orders/:id", to: "inventory/management#purchase_order"
+      post "purchase-orders/:id/transition", to: "inventory/management#transition_purchase_order"
+      post "purchase-orders/:id/cancel-remainder", to: "inventory/management#cancel_remainder"
+      get "receiving", to: "inventory/management#receiving"
+      post "receipts", to: "inventory/management#create_receipt"
+      get "lots", to: "inventory/management#lots"
+      post "lots/:id/transfer", to: "inventory/management#create_transfer"
+      post "lots/:id/adjust", to: "inventory/management#create_adjustment"
+      post "lots/:id/count", to: "inventory/management#create_count"
+      post "counts/:id/approve", to: "inventory/management#approve_count"
+      get "activity", to: "inventory/management#activity"
+      get "recalls", to: "inventory/management#recalls"
+      post "recalls", to: "inventory/management#create_recall"
+      post "recalls/:id/disposition", to: "inventory/management#create_disposition"
+      get "controlled", to: "inventory/management#controlled"
+      post "controlled/:id/investigate", to: "inventory/management#investigate_control"
+      post "controlled/:id/certify", to: "inventory/management#certify_control"
+    end
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       get :lookup, on: :collection, to: "care/patients#lookup"
       post :note, on: :member

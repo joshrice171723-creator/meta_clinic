@@ -100,7 +100,7 @@ export function ClinicNavigation({
     },
     {
       href: "/clinic/inventory",
-      label: "Office inventory",
+      label: "Inventory",
       Icon: Inventory2Icon,
       allowed: capabilities.inventory,
     },
@@ -203,6 +203,7 @@ export function Workspace({
   }, [landingDestination, navigate]);
   const trackingBoard =
     path.replace(/\/+$/, "") === "/clinic" && homeView === "tracking";
+  const inventoryPage = path.startsWith("/clinic/inventory");
   if (!data || !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -304,7 +305,7 @@ export function Workspace({
                 </header>
                 <main
                   id="main"
-                  className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}`}
+                  className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
                 >
                   {children}
                 </main>

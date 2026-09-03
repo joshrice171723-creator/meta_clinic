@@ -166,6 +166,9 @@
 .clinic-theme .clinic-route-panel:focus {
   outline: none;
 }
+.clinic-theme .clinic-content.inventory-page {
+  padding-bottom: 16px;
+}
 @media (max-width: 900px) {
   .clinic-theme .clinic-menu-toggle {
     display: flex;

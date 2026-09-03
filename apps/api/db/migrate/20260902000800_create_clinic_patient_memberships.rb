@@ -1,5 +1,10 @@
 class CreateClinicPatientMemberships < ActiveRecord::Migration[8.1]
   def change
+    # The original unmerged local migration used a version later claimed by
+    # the inventory work merged to main. Existing local synthetic databases
+    # may therefore already have this table when the corrected version runs.
+    return if table_exists?(:clinic_patient_memberships)
+
     create_tenant_table :clinic_patient_memberships do |t|
       t.bigint :patient_id, null: false
       t.bigint :recorded_by_membership_id, null: false

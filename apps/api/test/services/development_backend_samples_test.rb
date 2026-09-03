@@ -62,6 +62,14 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
       assert ability.can?(:read, practice.patients.first)
       assert ability.cannot?(:create, Clinic::Care::Patient)
       assert ability.cannot?(:read, (practices - [ practice ]).first.patients.first)
+      %w[admin-2 inventory-1].each do |identity|
+        operator = practice.memberships.joins(:user)
+          .find_by!(users: { email_address: "synthetic-review-#{practice.name.last.downcase}-#{identity}@example.invalid" })
+        operator_ability = Ability.new(operator.user, practice: practice)
+        assert operator_ability.can?(:create, Clinic::Inventory::PurchaseOrder), identity
+        assert operator.role_grants.active.joins(:role_version)
+          .exists?(role_versions: { version: 3 }), identity
+      end
     end
     grant = practices.first.memberships.active.first.role_grants.first
     grant.update!(revoked_at: Time.current, revision: grant.revision + 1)

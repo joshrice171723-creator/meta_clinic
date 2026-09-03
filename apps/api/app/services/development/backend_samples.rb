@@ -4,11 +4,17 @@ module Development
   # Wholly invented fixtures. Re-running adds missing fixture structure while
   # preserving edited records, inactive memberships, and revoked grants.
   class BackendSamples
+    INVENTORY_MANAGEMENT_PERMISSIONS = %w[
+      inventory.transfer inventory.put_away procurement.read procurement.create
+      procurement.submit procurement.approve recall.read recall.lock recall.dispose
+      controlled.read controlled.count controlled.certify
+    ].freeze
     ROLE_PERMISSIONS = {
       "admin" => TestClinic::DEFAULT_PERMISSIONS,
       "clinician" => %w[patients.read patients.write appointments.write encounters.write encounters.assign_provider notes.read notes.write notes.sign observations.write documents.read],
       "staff" => %w[patients.read patients.write appointments.write encounters.write encounters.assign_provider notes.read observations.write inventory.read staff.read messages.write],
-      "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure],
+      "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure] +
+        INVENTORY_MANAGEMENT_PERMISSIONS,
       "billing" => %w[patients.read billing.write documents.read],
       "reader" => %w[patients.read notes.read documents.read inventory.read staff.read],
       "front_desk" => %w[patients.identity.read appointments.read appointments.book appointments.status_transition],
@@ -16,10 +22,15 @@ module Development
       "billing_operator" => %w[patients.identity.read billing.read billing.invoice_draft billing.invoice_post billing.payment_record]
     }.transform_values(&:freeze).freeze
     LEGACY_ROLE_PERMISSIONS = {
-      "admin" => TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ],
+      "admin" => TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ] - INVENTORY_MANAGEMENT_PERMISSIONS,
       "clinician" => %w[patients.read patients.write appointments.write encounters.write notes.write notes.sign observations.write documents.read],
       "staff" => %w[patients.read patients.write appointments.write inventory.read staff.read messages.write],
       "reader" => %w[patients.read documents.read inventory.read staff.read]
+    }.transform_values(&:freeze).freeze
+    CURRENT_ROLE_VERSIONS = Hash.new(2).merge("admin" => 3, "inventory" => 3).freeze
+    VERSION_TWO_ROLE_PERMISSIONS = {
+      "admin" => TestClinic::DEFAULT_PERMISSIONS - INVENTORY_MANAGEMENT_PERMISSIONS,
+      "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure]
     }.transform_values(&:freeze).freeze
     PREFIX = "Synthetic Backend Review".freeze
     ACTIVE_USERS_PER_ROLE = 2
@@ -89,7 +100,9 @@ module Development
       ROLE_PERMISSIONS.to_h do |name, actions|
         versions = {}
         versions[1] = create_role(name, 1, LEGACY_ROLE_PERMISSIONS.fetch(name)) if LEGACY_ROLE_PERMISSIONS.key?(name)
-        versions[2] = create_role(name, 2, actions)
+        current_version = CURRENT_ROLE_VERSIONS[name]
+        versions[2] = create_role(name, 2, VERSION_TWO_ROLE_PERMISSIONS.fetch(name)) if current_version > 2
+        versions[current_version] = create_role(name, current_version, actions)
         [ name, versions ]
       end
     end
@@ -162,7 +175,7 @@ module Development
           end
           raise "Synthetic seed identity collision; existing assignment preserved." unless membership.practice_id == practice.id
 
-          role_version = roles.fetch(name).fetch(legacy_identity ? 1 : 2)
+          role_version = roles.fetch(name).fetch(legacy_identity ? 1 : CURRENT_ROLE_VERSIONS[name])
           membership.role_grants.find_or_create_by!(role_version: role_version, scope_kind: "practice", site_id: nil) do |grant|
             grant.practice = practice
             grant.effective_from = Time.utc(2026, 1, 1)

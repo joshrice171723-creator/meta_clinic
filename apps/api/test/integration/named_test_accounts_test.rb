@@ -154,6 +154,13 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_response :success
       get "/api/clinic/context", headers: @headers
       assert response.parsed_body.fetch("capabilities").values.all?
+      inventory_permissions = omni.clinic_membership.role_grants.active.sole.role_version.permissions
+        .where("action_code LIKE 'inventory.%' OR action_code LIKE 'procurement.%' OR action_code LIKE 'recall.%' OR action_code LIKE 'controlled.%'")
+        .pluck(:action_code)
+      assert_equal Development::OmniAccess::INVENTORY_DATABASE_PERMISSIONS.sort, inventory_permissions.sort
+      assert_nothing_raised do
+        Development::InventoryScenario.populate!(practice: practice, actor: omni)
+      end
       get "/api/settings", headers: @headers
       assert_response :success
       tables = ApplicationRecord.connection.tables - %w[schema_migrations ar_internal_metadata]

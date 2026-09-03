@@ -122,6 +122,11 @@ module Clinic
       when [ "clinic/clinicians", "index" ] then "clinicians.read"
       when [ "clinic/inventory/items", "index" ] then "inventory.read"
       when [ "clinic/inventory/pharmacy", "index" ], [ "clinic/inventory/pharmacy", "show" ] then "inventory.read"
+      when [ "clinic/inventory/management", "bootstrap" ], [ "clinic/inventory/management", "catalog" ],
+        [ "clinic/inventory/management", "replenishment" ], [ "clinic/inventory/management", "purchase_orders" ],
+        [ "clinic/inventory/management", "purchase_order" ], [ "clinic/inventory/management", "receiving" ],
+        [ "clinic/inventory/management", "lots" ], [ "clinic/inventory/management", "activity" ],
+        [ "clinic/inventory/management", "recalls" ], [ "clinic/inventory/management", "controlled" ] then "inventory.read"
       when [ "clinic/role_versions", "index" ], [ "clinic/authorization/role_grants", "index" ] then "roles.read"
       when [ "clinic/operation_receipts", "show" ] then "audit.receipts.read"
       end

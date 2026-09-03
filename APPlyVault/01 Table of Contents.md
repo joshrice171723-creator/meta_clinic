@@ -39,6 +39,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | **[[CICD]]** | First developer handoff: local commands, two-developer branches/PRs, six CI jobs, active staging delivery and pending production activation |
 | [[Software Architecture]] | Current frontend/API ownership, planned backend-replacement boundary, PaperTrail coverage and transport rules |
 | [[PostgreSQL and Inventory Foundation]] | Implemented database/inventory controls, verified staging cutover/recovery and pending production cutover |
+| [[Inventory Integration Handoff]] | Current `/clinic/inventory*` routes, workflow ownership, synthetic scenario, database reconciliation and verification boundary |
 | [[Website MVP]] | Current selling-site scope and source-versus-hosted distinction |
 | [[Client Portal]] | Provisioned access, Contact, synthetic paperwork/signing, training and confidential-release limits |
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |

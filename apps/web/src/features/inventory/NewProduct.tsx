@@ -98,10 +98,7 @@ export function NewProduct() {
         </p>
       </Card>
       <Card title="Manual product details">
-        <p>
-          For fictional products without a directory match. Starts at zero
-          stock.
-        </p>
+        <p>For products without a directory match. Starts at zero stock.</p>
         <Form
           endpoint="/api/clinic/pharmacy"
           submit="Create catalog product"
@@ -109,7 +106,7 @@ export function NewProduct() {
         >
           <Field
             name="clinic_pharmacy_product[name]"
-            label="Fictional product name"
+            label="Product name"
             maxLength={160}
           />
           <Field
@@ -137,7 +134,7 @@ export function NewProduct() {
           />
           <Field
             name="clinic_pharmacy_product[package_description]"
-            label="Fictional package description"
+            label="Package description"
             required={false}
             maxLength={4000}
           />

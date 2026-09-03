@@ -8,7 +8,15 @@ require "socket"
 root = File.expand_path("..", __dir__)
 api_root = File.join(root, "apps/api")
 abort "Verification requires loopback PostgreSQL" unless [nil, "127.0.0.1", "localhost", "::1"].include?(ENV["PGHOST"])
-database_command = ENV["PGPASSWORD"] ? [] : ["bin/postgres", "exec"]
+database_command = if ENV["PGPASSWORD"]
+  []
+elsif Gem.win_platform?
+  [ "ruby", "bin/postgres", "exec" ]
+else
+  [ "bin/postgres", "exec" ]
+end
+rails_command = Gem.win_platform? ? [ "ruby", "bin/rails" ] : [ "bin/rails" ]
+vite_command = Gem.win_platform? ? [ "node", "node_modules/vite/bin/vite.js" ] : [ "node_modules/.bin/vite" ]
 database = "apply_web_verify_#{SecureRandom.hex(6)}"
 environment = {
   "RAILS_ENV" => "development", "APPLY_DEVELOPMENT_DATABASE" => database,
@@ -19,25 +27,32 @@ ports = 2.times.map { socket = TCPServer.new("127.0.0.1", 0); port = socket.addr
 children = []
 created = false
 phase = "database setup"
-def command!(environment, directory, *args)
-  _, status = Open3.capture2e(environment, *args, chdir: directory)
+def command!(environment, directory, *args, input: nil)
+  _, status = Open3.capture2e(environment, *args, chdir: directory, stdin_data: input)
   raise "Local verification command failed; raw output suppressed" unless status.success?
 end
 begin
   # PostgreSQL CLI targets exactly this generated name, never Rails' companion DBs.
   command!(environment, api_root, *database_command, "createdb", database)
   created = true
-  command!(environment, api_root, *database_command, "bin/rails", "db:migrate", "db:seed")
-  command!(environment, api_root, *database_command, "bin/rails", "members:prepare_test_accounts")
+  schema = File.read(File.join(api_root, "db", "structure.sql"))
+  command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1", input: schema)
+  command!(environment, api_root, *database_command, *rails_command, "db:seed")
+  command!(environment, api_root, *database_command, *rails_command, "members:prepare_test_accounts")
   phase = "process startup"
-  children << Process.spawn(environment, *database_command, "bin/rails", "server", "-b", "127.0.0.1", "-p", ports[0].to_s, "--pid", "tmp/pids/#{database}.pid", chdir: api_root, pgroup: true, out: File::NULL, err: File::NULL)
-  children << Process.spawn({ "APPLY_API_PORT" => ports[0].to_s }, "node_modules/.bin/vite", "--host", "127.0.0.1", "--port", ports[1].to_s, "--strictPort", chdir: File.join(root, "apps/web"), pgroup: true, out: File::NULL, err: File::NULL)
+  server_options = { chdir: api_root, out: File::NULL, err: File::NULL }
+  server_options[:pgroup] = true unless Gem.win_platform?
+  vite_options = { chdir: File.join(root, "apps/web"), out: File::NULL, err: File::NULL }
+  vite_options[:pgroup] = true unless Gem.win_platform?
+  children << Process.spawn(environment, *database_command, *rails_command, "server", "-b", "127.0.0.1", "-p", ports[0].to_s, "--pid", "tmp/pids/#{database}.pid", **server_options)
+  children << Process.spawn({ "APPLY_API_PORT" => ports[0].to_s }, *vite_command, "--host", "127.0.0.1", "--port", ports[1].to_s, "--strictPort", **vite_options)
   origin = "http://127.0.0.1:#{ports[1]}"
   cookies = {}
   request = lambda do |path, method: "GET", body: nil, token: nil, origin_header: origin|
     uri = URI(origin + path)
     req = Net::HTTPGenericRequest.new(method, !body.nil?, true, uri.request_uri)
     req["Cookie"] = cookies.map { |k, v| "#{k}=#{v}" }.join("; ")
+    req["Connection"] = "close"
     req["Origin"] = origin_header
     req["X-CSRF-Token"] = token if token
     req["Content-Type"] = "application/json" if body
@@ -121,7 +136,11 @@ rescue => error
   warn "FAIL during #{phase}: #{error.class}; raw diagnostics suppressed"
   exit 1
 ensure
-  children.each { |pid| Process.kill("TERM", -pid) rescue Errno::ESRCH }
+  if Gem.win_platform?
+    children.each { |pid| system("taskkill", "/PID", pid.to_s, "/T", "/F", out: File::NULL, err: File::NULL) }
+  else
+    children.each { |pid| Process.kill("TERM", -pid) rescue Errno::ESRCH }
+  end
   children.each { |pid| Process.wait(pid) rescue Errno::ECHILD }
   if created
     raise "Unexpected scratch database name" unless database.match?(/\Aapply_web_verify_[a-f0-9]{12}\z/)

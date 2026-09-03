@@ -31,6 +31,19 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     ApplicationRecord.connection.execute("SET CONSTRAINTS ALL IMMEDIATE")
   end
 
+  test "inventory wire preserves fractional quantities as decimal strings" do
+    receive(lines: [ @line.merge(amount: "0.125", input_unit: "mL") ])
+    Clinic::Inventory::Count.observe!(batch: @product.batches.sole, actor: @user, observed: "0.100", reason: "Fractional check", request_key: SecureRandom.uuid)
+    wire = Clinic::Inventory::InventoryWire.call(practice: @practice, actor: @user)
+
+    assert_equal "10.5", wire.fetch(:products).sole.fetch(:units_per_package)
+    assert_equal "0.125", wire.fetch(:products).sole.fetch(:on_hand_units)
+    assert_equal "0.125", wire.fetch(:balances).sole.fetch(:on_hand_units)
+    assert_equal "0.125", wire.fetch(:movements).sole.fetch(:quantity_units)
+    assert_equal "0.1", wire.fetch(:cycle_counts).sole.fetch(:counted_units)
+    assert_equal "-0.025", wire.fetch(:controlled_reconciliations).sole.fetch(:variance_units)
+  end
+
   test "multi-line failures roll back the whole delivery and refuse ambiguous quantities" do
     [ "NaN", "Infinity", "1e2", "0.0001", "-1" ].each do |amount|
       assert_raises(ArgumentError) { receive(lines: [ @line, @line.merge(amount: amount, input_unit: "mL") ]) }
@@ -112,5 +125,32 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     reject_sql do
       Clinic::Inventory::ReceiptLine.insert_all!([ row.lines.sole.attributes.except("id").merge("unit_cost" => 1, "currency" => nil) ])
     end
+  end
+
+  test "an incompatible trigger context cannot substitute for the posting capability" do
+    receive
+    batch = @product.batches.sole
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "inventory.catalog")
+    attributes = batch.movements.sole.attributes.except("id").merge(
+      "kind" => "adjustment_out", "receipt_line_id" => nil, "quantity" => "1", "request_key" => SecureRandom.uuid
+    )
+    reject_sql do
+      ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', 'inventory.catalog', true)")
+      Clinic::Inventory::PharmacyMovement.insert_all!([ attributes ])
+    end
+  end
+
+  test "transfer-only actor can route stock to the seeded Returns Holding location" do
+    receive
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "inventory.transfer")
+    destination = @practice.inventory_locations.create!(name: "Returns Holding")
+    transfer = Clinic::Inventory::TransferStock.call(practice: @practice, actor: @user,
+      source_batch_id: @product.batches.sole.id, destination_location_id: destination.id,
+      amount: "1", reason: "Synthetic transfer hold", request_key: SecureRandom.uuid)
+
+    assert_equal BigDecimal("1"), transfer.quantity
+    assert @product.batches.where(location_id: destination.id).sole.active_holds.exists?
   end
 end

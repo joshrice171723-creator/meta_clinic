@@ -29,10 +29,10 @@ import {
   ChartSelectionPage,
   chartSelectionProps,
 } from "./features/clinic/ChartSelectionPage";
-import { Office } from "./features/inventory/Office";
 import { Catalog } from "./features/inventory/Catalog";
 import { NewProduct } from "./features/inventory/NewProduct";
 import { Product } from "./features/inventory/Product";
+import { InventoryApp } from "./features/inventory/InventoryApp";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -194,8 +194,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
   ) : patient ? (
     <Patients id={patient[1]} />
-  ) : path === "/clinic/inventory" ? (
-    <Office />
+  ) : path.startsWith("/clinic/inventory") ? (
+    <InventoryApp path={path} />
   ) : path === "/clinic/staff" ? (
     <Staff />
   ) : path === "/clinic/front-desk" ? (

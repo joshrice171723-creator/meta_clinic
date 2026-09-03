@@ -2,7 +2,10 @@ module Development
   class OmniAccess
     DEFAULT_PROFILE = "administrator".freeze
     ROLE_PREFIX = "development-omni-".freeze
-    ROLE_VERSION = 2
+    ROLE_VERSION = 4
+    INVENTORY_DATABASE_PERMISSIONS = TestClinic::DEFAULT_PERMISSIONS.grep(
+      /\A(?:inventory|procurement|recall|controlled)\./
+    ).freeze
     PROFILES = {
       "administrator" => {
         label: "Administrator",
@@ -10,46 +13,46 @@ module Development
         admin: true,
         # Omni authorization is deliberately overridden in Ability. Keep the
         # original immutable role definition stable when new permissions are added.
-        permissions: TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ]
+        permissions: (TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "clinician" => {
         label: "Clinician",
         description: "Clinician UI label for note and encounter rehearsal; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[
+        permissions: (%w[
           patients.read patients.write appointments.write encounters.write
           notes.write notes.sign observations.write documents.read
-        ]
+        ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "staff" => {
         label: "Clinic staff",
         description: "Clinic staff UI label for intake and operations rehearsal; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[
+        permissions: (%w[
           patients.read patients.write appointments.write inventory.read
           staff.read messages.write
-        ]
+        ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "inventory" => {
         label: "Inventory manager",
         description: "Inventory UI label for pharmacy and office workflows; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[
+        permissions: (%w[
           inventory.read inventory.catalog inventory.receive inventory.adjust
           inventory.hold inventory.release inventory.count inventory.configure
-        ]
+        ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "reader" => {
         label: "Read-only",
         description: "Read-only UI label for access-state rehearsal; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[patients.read documents.read inventory.read staff.read]
+        permissions: (%w[patients.read documents.read inventory.read staff.read] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "client" => {
         label: "Client / portal",
         description: "Client / portal UI label; local clinic access remains unrestricted for iteration.",
         admin: false,
-        permissions: []
+        permissions: INVENTORY_DATABASE_PERMISSIONS
       }
     }.transform_values { |profile| profile.merge(permissions: profile[:permissions].freeze).freeze }.freeze
 
