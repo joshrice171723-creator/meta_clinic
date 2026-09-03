@@ -11069,4 +11069,3 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 --
 
 \unrestrict LLdRfxwJwCGylHGgJcbLRaIwazOovqohyQyZLhqmd1472AYNSGsDz05dcFGWtyb
-
