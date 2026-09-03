@@ -15,11 +15,14 @@ module Clinic
           practice: practice, actor: actor, patient: patient, invoice: invoice,
           external_event_reference: "cash:#{drawer.id}:#{request_key}", currency: invoice.currency,
           amount: allocated.to_s("F"), payment_amount: allocated.to_s("F")
-        ) do |payment, _allocation|
+        ) do |payment, allocation|
           CashTender.create!(
             practice: practice, patient: patient, payment_event: payment, cash_drawer_session: drawer,
             tendered_amount: tendered, change_amount: tendered - allocated, recorded_by: actor
           )
+          BillingReceipt.create!(practice: practice, patient: patient, invoice: invoice, payment_event: payment,
+            issued_by: actor, kind: "cash_payment", issued_at: Time.current,
+            payload: { allocation_id: allocation.id, amount: allocated.to_s("F"), currency: invoice.currency, change_amount: (tendered - allocated).to_s("F") })
         end
       end
     end

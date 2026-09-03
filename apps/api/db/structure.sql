@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ISXSSk0cFgozRi2MKqsNq6Kmf5B0Ccea3tw4w0BdpCLET27YYXdvNJ3bddxm0EO
+\restrict 9YAPUAENbQMHlI2jvfP7ccOSL9yQpaKfit6iCPg34pmD8bXiJ81WsPkM5x6BcxW
 
 -- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
 -- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
@@ -646,6 +646,45 @@ CREATE SEQUENCE public.clinic_audit_resource_manifests_id_seq
 --
 
 ALTER SEQUENCE public.clinic_audit_resource_manifests_id_seq OWNED BY public.clinic_audit_resource_manifests.id;
+
+
+--
+-- Name: clinic_billing_receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_billing_receipts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    payment_event_id bigint NOT NULL,
+    issued_by_id bigint NOT NULL,
+    kind character varying NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    issued_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY ((ARRAY['cash_payment'::character varying, 'cash_refund'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_billing_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_billing_receipts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_billing_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_billing_receipts_id_seq OWNED BY public.clinic_billing_receipts.id;
 
 
 --
@@ -4261,6 +4300,13 @@ ALTER TABLE ONLY public.clinic_audit_resource_manifests ALTER COLUMN id SET DEFA
 
 
 --
+-- Name: clinic_billing_receipts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts ALTER COLUMN id SET DEFAULT nextval('public.clinic_billing_receipts_id_seq'::regclass);
+
+
+--
 -- Name: clinic_cash_drawer_sessions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -4973,6 +5019,14 @@ ALTER TABLE ONLY public.clinic_audit_events
 
 ALTER TABLE ONLY public.clinic_audit_resource_manifests
     ADD CONSTRAINT clinic_audit_resource_manifests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_billing_receipts clinic_billing_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts
+    ADD CONSTRAINT clinic_billing_receipts_pkey PRIMARY KEY (id);
 
 
 --
@@ -6813,6 +6867,41 @@ CREATE INDEX idx_on_practice_id_site_id_effective_from_9a85bf6413 ON public.clin
 
 
 --
+-- Name: index_clinic_billing_receipts_on_invoice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_billing_receipts_on_invoice_id ON public.clinic_billing_receipts USING btree (invoice_id);
+
+
+--
+-- Name: index_clinic_billing_receipts_on_issued_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_billing_receipts_on_issued_by_id ON public.clinic_billing_receipts USING btree (issued_by_id);
+
+
+--
+-- Name: index_clinic_billing_receipts_on_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_billing_receipts_on_patient_id ON public.clinic_billing_receipts USING btree (patient_id);
+
+
+--
+-- Name: index_clinic_billing_receipts_on_payment_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_billing_receipts_on_payment_event_id ON public.clinic_billing_receipts USING btree (payment_event_id);
+
+
+--
+-- Name: index_clinic_billing_receipts_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_billing_receipts_on_practice_id ON public.clinic_billing_receipts USING btree (practice_id);
+
+
+--
 -- Name: index_clinic_cash_drawer_sessions_on_closed_by_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8566,6 +8655,30 @@ ALTER TABLE ONLY public.clinic_audit_delivery_receipts
 
 
 --
+-- Name: clinic_billing_receipts fk_billing_receipts_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts
+    ADD CONSTRAINT fk_billing_receipts_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_billing_receipts fk_billing_receipts_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts
+    ADD CONSTRAINT fk_billing_receipts_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_billing_receipts fk_billing_receipts_payment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts
+    ADD CONSTRAINT fk_billing_receipts_payment FOREIGN KEY (practice_id, patient_id, payment_event_id) REFERENCES public.clinic_payment_events(practice_id, patient_id, id);
+
+
+--
 -- Name: clinic_patient_care_needs fk_care_needs_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9710,6 +9823,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_batch_events
 
 
 --
+-- Name: clinic_billing_receipts fk_rails_273fc7946f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts
+    ADD CONSTRAINT fk_rails_273fc7946f FOREIGN KEY (issued_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_inventory_count_approvals fk_rails_27cf416d6e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9859,6 +9980,14 @@ ALTER TABLE ONLY public.clinic_inventory_hold_releases
 
 ALTER TABLE ONLY public.clinic_inventory_recall_lots
     ADD CONSTRAINT fk_rails_40cc42df76 FOREIGN KEY (practice_id, lot_id) REFERENCES public.clinic_inventory_lots(practice_id, id);
+
+
+--
+-- Name: clinic_billing_receipts fk_rails_4259348069; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_receipts
+    ADD CONSTRAINT fk_rails_4259348069 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -10609,4 +10738,4 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ISXSSk0cFgozRi2MKqsNq6Kmf5B0Ccea3tw4w0BdpCLET27YYXdvNJ3bddxm0EO
+\unrestrict 9YAPUAENbQMHlI2jvfP7ccOSL9yQpaKfit6iCPg34pmD8bXiJ81WsPkM5x6BcxW

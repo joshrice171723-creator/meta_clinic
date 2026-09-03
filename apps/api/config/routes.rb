@@ -37,6 +37,10 @@ Rails.application.routes.draw do
     resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
       post :close, on: :member
     end
+    resources :payment_events, controller: "billing/payment_events", only: [] do
+      post :cash_refunds, on: :member
+      get :receipt, on: :member
+    end
     resources :role_grants, controller: "authorization/role_grants", only: %i[index create] do
       post :revoke, on: :member
     end
