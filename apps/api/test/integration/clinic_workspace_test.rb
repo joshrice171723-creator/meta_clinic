@@ -84,6 +84,13 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal 1, response.parsed_body.dig("metrics", "currencies", 0, "open_invoice_count")
 
     revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "billing.read")
+    get "/api/clinic/billing", headers: @headers
+    assert_response :success
+    post "/api/clinic/invoices/#{invoice.id}/post", headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    revoke_all_permissions!(@membership)
     get "/api/clinic/billing", headers: @headers
     assert_response :forbidden
   end

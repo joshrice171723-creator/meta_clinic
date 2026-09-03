@@ -22,7 +22,7 @@ module Development
       procurement.submit procurement.approve recall.read recall.lock recall.dispose
       controlled.read controlled.count controlled.certify
       encounters.write notes.read notes.write notes.sign observations.write messages.write
-      documents.read billing.write roles.manage
+      documents.read billing.read billing.write roles.manage
     ].freeze
 
     def self.create!(user, permissions: DEFAULT_PERMISSIONS)

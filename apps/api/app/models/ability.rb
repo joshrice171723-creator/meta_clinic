@@ -48,6 +48,7 @@ class Ability
     "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :site_or_practice },
     "messages.write" => { action: :create, subjects: [ Clinic::MessageIntent, Clinic::MessageOutbox ], actions: %i[create update], scope: :practice },
     "documents.read" => { action: :read, subjects: [ Clinic::Document ], scope: :practice },
+    "billing.read" => { action: :read, subjects: [ Clinic::Invoice ], scope: :practice },
     "billing.write" => { action: :create, subjects: [ Clinic::Invoice, Clinic::PaymentAllocation ], actions: %i[create update], scope: :practice },
     "roles.manage" => { action: :manage, subjects: [ Clinic::RoleGrant ], scope: :practice }
   }.transform_values { |rule| rule.freeze }.freeze
