@@ -131,7 +131,8 @@ export function Billing() {
         <Typography variant="h1">Patient balances</Typography>
         <Typography color="text.secondary" sx={{ maxWidth: "72ch", mt: 1 }}>
           Review the recorded invoice, allocation, credit, and refund history
-          for one patient. This is a read-only view of the existing ledger.
+          for one patient. Authorized billing staff can also start a draft
+          invoice from this ledger.
         </Typography>
       </Box>
       <Box
@@ -245,6 +246,7 @@ export function Billing() {
               ledger={ledger.data}
               selectedInvoice={selectedInvoice}
               selectInvoice={setSelectedInvoiceId}
+              canDraft={capabilities.billing_invoice_draft === true}
               onFinancialChange={() =>
                 setReloadLedger((version) => version + 1)
               }
@@ -260,11 +262,13 @@ function LedgerDetails({
   ledger,
   selectedInvoice,
   selectInvoice,
+  canDraft,
   onFinancialChange,
 }: {
   ledger: BillingPatientLedger;
   selectedInvoice?: BillingPatientLedger["invoices"][number];
   selectInvoice: (id: number) => void;
+  canDraft: boolean;
   onFinancialChange: () => void;
 }) {
   return (
@@ -314,6 +318,12 @@ function LedgerDetails({
             </Paper>
           ))}
         </Box>
+      )}
+      {canDraft && (
+        <DraftInvoiceForm
+          patientId={ledger.patient.id}
+          onCreated={onFinancialChange}
+        />
       )}
       <Paper variant="outlined">
         <Box sx={{ p: 2.5 }}>
@@ -397,6 +407,145 @@ function LedgerDetails({
         onFinancialChange={onFinancialChange}
       />
     </Stack>
+  );
+}
+
+function DraftInvoiceForm({
+  patientId,
+  onCreated,
+}: {
+  patientId: number;
+  onCreated: () => void;
+}) {
+  const [currency, setCurrency] = useState("USD");
+  const [description, setDescription] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [unitAmount, setUnitAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const decimal = /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/;
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      setError("Use a three-letter uppercase currency code.");
+      return;
+    }
+    if (!decimal.test(quantity) || Number(quantity) <= 0) {
+      setError("Enter a positive quantity with up to six decimal places.");
+      return;
+    }
+    if (!decimal.test(unitAmount) || Number(unitAmount) < 0) {
+      setError(
+        "Enter a non-negative unit amount with up to six decimal places.",
+      );
+      return;
+    }
+    if (!description.trim()) {
+      setError("Enter a line-item description.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await api<{ invoice: { id: number } }>(
+        `/api/clinic/patients/${patientId}/invoices`,
+        {
+          method: "POST",
+          body: {
+            invoice: {
+              currency,
+              lines: [
+                {
+                  quantity: quantity.trim(),
+                  unit_amount: unitAmount.trim(),
+                  description_snapshot: description.trim(),
+                },
+              ],
+            },
+          },
+        },
+      );
+      setDescription("");
+      setQuantity("1");
+      setUnitAmount("");
+      setNotice(`Draft invoice #${result.invoice.id} created.`);
+      onCreated();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "The draft invoice could not be created.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
+      <Typography component="h2" variant="h2">
+        Start a draft invoice
+      </Typography>
+      <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+        Drafts remain editable only through a later approved workflow; posting
+        is a separate protected action.
+      </Typography>
+      <Box
+        component="form"
+        onSubmit={(event) => void submit(event)}
+        sx={{
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 2fr auto" },
+          mt: 2,
+        }}
+      >
+        <TextField
+          label="Currency"
+          onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+          slotProps={{
+            htmlInput: {
+              maxLength: 3,
+              style: { textTransform: "uppercase" },
+            },
+          }}
+          value={currency}
+        />
+        <TextField
+          label="Quantity"
+          inputMode="decimal"
+          onChange={(event) => setQuantity(event.target.value)}
+          value={quantity}
+        />
+        <TextField
+          label="Unit amount"
+          inputMode="decimal"
+          onChange={(event) => setUnitAmount(event.target.value)}
+          value={unitAmount}
+        />
+        <TextField
+          label="Line description"
+          onChange={(event) => setDescription(event.target.value)}
+          value={description}
+        />
+        <Button disabled={busy} type="submit" variant="contained">
+          {busy ? "Creating…" : "Create draft"}
+        </Button>
+      </Box>
+      {error && (
+        <Alert severity="error" sx={{ mt: 1.5 }}>
+          {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert severity="success" sx={{ mt: 1.5 }}>
+          {notice}
+        </Alert>
+      )}
+    </Paper>
   );
 }
 
