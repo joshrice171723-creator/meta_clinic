@@ -1,20 +1,24 @@
 # APPly software production-readiness audit
 
-**Scope:** software only; source, configuration, local runtime and automated checks. This is not a HIPAA certification or legal assessment.
+**Scope:** software only; source, configuration, local runtime and automated checks. This is not a HIPAA certification or legal assessment. The local/synthetic environment and intentional production clinic lock are excluded from feature-readiness scoring.
 
 ## Verdict
 
-**Not ready for real clinic data — 45/100 (medium confidence).** The clinic API intentionally returns 404 in production except for its synthetic staging-demo identity, and several required production workflow and release gates remain incomplete.
+**Cash-based clinic feature readiness — 60/100 (medium confidence).** APPly is a credible internal clinic-operations MVP: patients, schedule/board, encounters, draft/sign/revise notes, allergy and medication summaries, documents, message intents, billing ledger, role-scoped API access, and extensive inventory controls. It is not yet a complete patient-care workflow for a cash clinic.
+
+**Technical HIPAA safeguard readiness — 65/100 (medium confidence).** The API/frontend design is strong for a prototype on authorization, tenant/site scoping, encrypted sensitive fields, CSRF, session handling, audit records and no-store responses. MFA/recovery, complete audit-coverage proof, and real consent/document flows remain gaps. This number is not a compliance certification.
 
 ## Release blockers
 
 | ID | Severity | Status | Evidence | Minimal remediation |
 | --- | --- | --- | --- | --- |
-| R1 | Blocker | Verified | `apps/api/app/controllers/clinic/base_controller.rb:61-66` denies the clinic workspace in production unless `Staging::DemoClinic.available_to?` is true. | Replace the synthetic-only gate with a reviewed real-clinic launch gate, then independently test real role, practice, and site isolation. |
-| R2 | High | Verified | `apps/api/config/routes.rb:97-101` exposes session/settings/development endpoints only; `apps/api/app/models/user.rb:2` uses password authentication; no MFA, password-reset, or recovery workflow was found. | Implement MFA and a secure recovery/reset flow with rate limits, audit events, revocation and tests. |
-| R3 | High | Verified | `npm.cmd test -- --reporter=verbose` fails 2/50 tests in `apps/web/test/clinic-navigation.test.ts:73,110`; current `apps/web/src/App.tsx:342-343,390-392` no longer satisfies those navigation/auth-shell contracts. | Repair either the application regression or stale assertions; make the full frontend suite green in CI. |
-| R4 | High | Verified | No Good Faith Estimate model, route, service, or UI was found; billing routes only support invoice show/post/payment allocation in `apps/api/config/routes.rb:31-35`. | Define and implement a versioned estimate workflow, required snapshots, disclosure artifacts, patient linkage, authorization and audit tests. |
-| R5 | High | Verified | Billing UI displays void states, but the API route surface has no refund, void, receipt, or credit-note mutation route; `apps/api/app/controllers/clinic/billing/invoices_controller.rb:50-76` only posts invoices and records allocations. | Implement authorized, append-only void/refund/credit workflows with reason, reconciliation and duplicate-event protection. |
+| R1 | High | Verified | `apps/api/config/routes.rb:10-12` supports appointment create and status transition, but lacks update/reschedule/cancel endpoints. | Implement guarded update/reschedule/cancel workflows with conflict detection, reason and audit tests. |
+| R2 | High | Verified | No Good Faith Estimate model, route, service, or UI was found; billing routes only support invoice show/post/payment allocation in `apps/api/config/routes.rb:31-35`. | Define and implement a versioned estimate workflow, required snapshots, disclosure artifacts, patient linkage, authorization and audit tests. |
+| R3 | High | Verified | Ledger reads credits/refunds (`apps/api/app/queries/clinic/billing/patient_ledger.rb:14-76`), but no mutation route creates a void, refund or credit note. | Implement authorized, append-only void/refund/credit workflows with reason, reconciliation and duplicate-event protection. |
+| R4 | High | Verified | Documents are read/download only; frontend explicitly rejects uploads (`apps/api/app/controllers/clinic/documents_controller.rb:3-38`, `apps/web/src/api/client.ts:124-147`). | Build a safe document intake/upload, malware-scan/state, retention and authorized release workflow. |
+| R5 | High | Verified | Consent/signing is explicitly demo-only: `apps/api/app/models/launch/paperwork.rb:26-33`. | Build real patient consent intake, immutable version/snapshot, signature, withdrawal and access/audit workflow. |
+| R6 | High | Verified | Password sessions only; no MFA, password reset or recovery workflow was found. | Implement MFA and a secure recovery/reset flow with rate limits, audit events, revocation and tests. |
+| R7 | High | Verified | `npm.cmd test -- --reporter=verbose` fails 2/50 tests in `apps/web/test/clinic-navigation.test.ts:73,110`. | Repair either the application regression or stale assertions; make the full frontend suite green in CI. |
 
 ## Positive verified controls
 
