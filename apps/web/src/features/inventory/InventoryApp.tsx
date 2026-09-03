@@ -5,6 +5,9 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
+import { Button, Chip } from "@mui/material";
 import { api, ApiError } from "../../api/client";
 import { Form as InventoryForm, LoadState } from "../../shared/ui";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
@@ -67,57 +70,93 @@ export function inventoryOutcomeUnconfirmed(reason: unknown): boolean {
   );
 }
 
-const links: { screen: Screen; href: string; label: string; short: string }[] =
-  [
-    {
-      screen: "catalog",
-      href: "/clinic/inventory",
-      label: "Product catalog",
-      short: "Catalog",
-    },
-    {
-      screen: "replenishment",
-      href: "/clinic/inventory/replenishment",
-      label: "Replenishment",
-      short: "Replenish",
-    },
-    {
-      screen: "purchasing",
-      href: "/clinic/inventory/purchasing",
-      label: "Purchasing",
-      short: "Purchase",
-    },
-    {
-      screen: "receiving",
-      href: "/clinic/inventory/receiving",
-      label: "Receiving",
-      short: "Receive",
-    },
-    {
-      screen: "lots",
-      href: "/clinic/inventory/lots",
-      label: "Inventory & lots",
-      short: "Lots",
-    },
-    {
-      screen: "activity",
-      href: "/clinic/inventory/activity",
-      label: "Activity",
-      short: "Activity",
-    },
-    {
-      screen: "recalls",
-      href: "/clinic/inventory/recalls",
-      label: "Recalls",
-      short: "Recalls",
-    },
-    {
-      screen: "controlled",
-      href: "/clinic/inventory/controlled",
-      label: "Controlled",
-      short: "Controlled",
-    },
-  ];
+const links: {
+  screen: Screen;
+  href: string;
+  label: string;
+  short: string;
+  group: "Monitor" | "Procure" | "Operate" | "Exceptions";
+}[] = [
+  {
+    screen: "catalog",
+    href: "/clinic/inventory",
+    label: "Inventory overview",
+    short: "Overview",
+    group: "Monitor",
+  },
+  {
+    screen: "replenishment",
+    href: "/clinic/inventory/replenishment",
+    label: "Plan replenishment",
+    short: "Plan order",
+    group: "Procure",
+  },
+  {
+    screen: "purchasing",
+    href: "/clinic/inventory/purchasing",
+    label: "Orders & delivery",
+    short: "Orders",
+    group: "Procure",
+  },
+  {
+    screen: "receiving",
+    href: "/clinic/inventory/receiving",
+    label: "Receive & put away",
+    short: "Receive",
+    group: "Operate",
+  },
+  {
+    screen: "lots",
+    href: "/clinic/inventory/lots",
+    label: "Stock by lot",
+    short: "Stock detail",
+    group: "Monitor",
+  },
+  {
+    screen: "activity",
+    href: "/clinic/inventory/activity",
+    label: "Movement ledger",
+    short: "Activity",
+    group: "Operate",
+  },
+  {
+    screen: "recalls",
+    href: "/clinic/inventory/recalls",
+    label: "Expiry & recalls",
+    short: "Exceptions",
+    group: "Exceptions",
+  },
+  {
+    screen: "controlled",
+    href: "/clinic/inventory/controlled",
+    label: "Controlled reconciliation",
+    short: "Controlled",
+    group: "Exceptions",
+  },
+];
+
+const workflowLinks = [
+  {
+    label: "Check stock",
+    href: "/clinic/inventory",
+    screen: "catalog" as Screen,
+  },
+  {
+    label: "Plan an order",
+    href: "/clinic/inventory/replenishment",
+    screen: "replenishment" as Screen,
+  },
+  {
+    label: "Receive delivery",
+    href: "/clinic/inventory/receiving",
+    screen: "receiving" as Screen,
+  },
+  {
+    label: "Resolve exceptions",
+    href: "/clinic/inventory/recalls",
+    screen: "recalls" as Screen,
+  },
+];
 
 const screenDescriptions: Record<Screen, string> = {
   catalog: "Monitor availability, lot exceptions, and replenishment signals.",
@@ -329,16 +368,19 @@ function Badge({
 function DataPoint({
   label,
   value,
+  detail,
   tone = "",
 }: {
   label: string;
   value: ReactNode;
+  detail?: ReactNode;
   tone?: string;
 }) {
   return (
     <div className={`inventory-datapoint ${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
+      {detail && <small>{detail}</small>}
     </div>
   );
 }
@@ -597,7 +639,7 @@ export function InventoryApp({ path }: { path: string }) {
             <div>
               <h1>
                 {screen === "catalog"
-                  ? "Medication inventory"
+                  ? "Inventory overview"
                   : links.find((link) => link.screen === screen)?.label}
               </h1>
               <p className="inventory-header-description">
@@ -605,28 +647,82 @@ export function InventoryApp({ path }: { path: string }) {
               </p>
             </div>
             <div className="inventory-header-actions">
-              <button
-                className="inventory-button outline"
+              <Chip
+                label={
+                  import.meta.env.DEV ? "Development data" : "Clinic workspace"
+                }
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: "var(--inventory-border)",
+                  color: "var(--inventory-muted)",
+                  fontWeight: 600,
+                }}
+              />
+              <span className="inventory-header-meta">
+                Updated {inventoryDateTime(data.as_of, data.timezone)}
+              </span>
+              <Button
+                variant="outlined"
+                size="medium"
+                startIcon={<RefreshRoundedIcon />}
                 type="button"
                 disabled={loading}
                 onClick={() => void load()}
+                sx={{
+                  minHeight: 44,
+                  borderColor: "var(--inventory-control)",
+                  color: "var(--inventory-blue)",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
               >
                 {loading ? "Refreshing…" : "Refresh data"}
-              </button>
+              </Button>
             </div>
           </header>
           <div className="inventory-content">
-            <div className="inventory-subnav">
-              {links.map((link) => (
+            <nav className="inventory-subnav" aria-label="Inventory workspace">
+              {(["Monitor", "Procure", "Operate", "Exceptions"] as const).map(
+                (group) => (
+                  <div className="inventory-subnav-group" key={group}>
+                    <span>{group}</span>
+                    <div>
+                      {links
+                        .filter((link) => link.group === group)
+                        .map((link) => (
+                          <a
+                            key={link.screen}
+                            href={link.href}
+                            aria-current={
+                              screen === link.screen ? "page" : undefined
+                            }
+                          >
+                            {link.short}
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                ),
+              )}
+            </nav>
+            <nav
+              className="inventory-workflow"
+              aria-label="Daily inventory flow"
+            >
+              <span className="inventory-workflow-label">Daily flow</span>
+              {workflowLinks.map((item, index) => (
                 <a
-                  key={link.screen}
-                  href={link.href}
-                  aria-current={screen === link.screen ? "page" : undefined}
+                  href={item.href}
+                  key={item.screen}
+                  aria-current={screen === item.screen ? "step" : undefined}
                 >
-                  {link.short}
+                  <span>{index + 1}</span>
+                  {item.label}
                 </a>
               ))}
-            </div>
+            </nav>
             <Notice notice={notice} onClose={() => setNotice(null)} />
             {screen === "catalog" && (
               <CatalogScreen
@@ -716,12 +812,16 @@ function CatalogScreen({
     .flatMap((order) => order.lines)
     .reduce<Decimal>(
       (total, line) =>
-        decimalAdd(total, nonNegative(decimalSubtract(line.ordered_units, line.received_units))),
+        decimalAdd(
+          total,
+          nonNegative(decimalSubtract(line.ordered_units, line.received_units)),
+        ),
       "0",
     );
   const lotExceptions = data.lots.filter(
     (item) => item.status !== "active",
   ).length;
+  const lowStockProducts = data.products.filter((item) => item.low_stock);
   if (data.products.length === 0)
     return (
       <Card title="Product catalog">
@@ -738,45 +838,48 @@ function CatalogScreen({
           </p>
         </div>
         <div className="inventory-catalog-actions">
-          <a
-            className="inventory-button primary"
+          <Button
+            variant="contained"
+            startIcon={<MoveToInboxOutlinedIcon />}
             href="/clinic/inventory/receiving"
+            sx={{
+              minHeight: 44,
+              backgroundColor: "var(--inventory-blue)",
+              textTransform: "none",
+              fontWeight: 700,
+              boxShadow: "none",
+              "&:hover": { backgroundColor: "var(--inventory-blue)" },
+            }}
           >
             Receive stock
-          </a>
+          </Button>
         </div>
       </div>
+      <p className="inventory-flow-note">
+        Quantities are shown in base units unless a package unit is named.
+      </p>
       <div className="inventory-summary" aria-label="Inventory summary">
-        <DataPoint
-          label="Tracked products"
-          value={number(data.products.length)}
-        />
         <DataPoint
           label="Available units"
           value={number(availableUnits)}
+          detail="Ready to dispense"
           tone="success"
         />
         <DataPoint
           label="Incoming units"
           value={number(incomingUnits)}
+          detail="On open orders"
           tone="blue"
         />
         <DataPoint
-          label="Lot exceptions"
-          value={number(lotExceptions)}
-        tone={lotExceptions ? "danger" : "success"}
+          label="Low-stock products"
+          value={number(lowStockProducts.length)}
+          detail={`${number(lotExceptions)} lot exceptions`}
+          tone={lowStockProducts.length ? "danger" : "success"}
         />
       </div>
       <Card title="Catalog and lot traceability">
         <div className="inventory-card-heading">
-          <div>
-            <p className="inventory-lead">
-              Search the records you need, then open lots or replenishment from
-              the row.
-            </p>
-          </div>
-        </div>
-        <div className="inventory-toolbar">
           <div>
             <p className="inventory-lead">
               Search the records you need, then open lots or replenishment from
