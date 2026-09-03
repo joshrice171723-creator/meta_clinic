@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   BillingInvoiceSummary,
   CashDrawer,
@@ -50,6 +50,7 @@ export function CashDrawerOperations({
     "/api/clinic/cash_drawers",
   );
   const [siteId, setSiteId] = useState(sites[0]?.id?.toString() ?? "");
+  const [selectedDrawerId, setSelectedDrawerId] = useState("");
   const [openingFloat, setOpeningFloat] = useState("");
   const [tenderedAmount, setTenderedAmount] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
@@ -64,7 +65,19 @@ export function CashDrawerOperations({
       drawers.data?.drawers.filter((drawer) => drawer.status === "open") ?? [],
     [drawers.data],
   );
-  const drawer = openDrawers[0] ?? null;
+  useEffect(() => {
+    if (
+      !openDrawers.some(
+        (candidate) => candidate.id.toString() === selectedDrawerId,
+      )
+    ) {
+      setSelectedDrawerId(openDrawers[0]?.id.toString() ?? "");
+    }
+  }, [openDrawers, selectedDrawerId]);
+  const drawer =
+    openDrawers.find(
+      (candidate) => candidate.id.toString() === selectedDrawerId,
+    ) ?? null;
   const permitted = capabilities.billing_payment_record === true;
   const payable =
     invoice?.status === "posted" && !/^0+(?:\.0+)?$/.test(invoice.balance);
@@ -244,6 +257,22 @@ export function CashDrawerOperations({
           </Stack>
         ) : (
           <>
+            {openDrawers.length > 1 && (
+              <TextField
+                select
+                label="Cash drawer location"
+                value={selectedDrawerId}
+                onChange={(event) => setSelectedDrawerId(event.target.value)}
+                helperText="Choose the physical site receiving this cash."
+              >
+                {openDrawers.map((candidate) => (
+                  <MenuItem key={candidate.id} value={candidate.id}>
+                    {sites.find((site) => site.id === candidate.site_id)
+                      ?.code ?? `Location ${candidate.site_id}`}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
             <Box
               sx={{
                 display: "grid",

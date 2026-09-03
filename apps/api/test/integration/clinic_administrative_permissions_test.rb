@@ -146,6 +146,94 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_equal "2.0", response.parsed_body.dig("drawer", "discrepancy")
   end
 
+  test "cash replay keys preserve intent and drawers remain isolated by site" do
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
+    second_site = @practice.sites.create!(code: "NORTH")
+    login(@users.fetch("billing_operator"))
+
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    first_drawer_id = response.parsed_body.dig("drawer", "id")
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "11.00" } }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: second_site.id, opening_float: "12.00" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    second_drawer_id = response.parsed_body.dig("drawer", "id")
+
+    payment = { cash_payment: { cash_drawer_session_id: first_drawer_id, tendered_amount: "10.00", allocation_amount: "10.00", request_key: "SYN-REPLAY-001" } }
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: payment, headers: csrf_headers, as: :json
+    assert_response :created
+    payment[:cash_payment][:cash_drawer_session_id] = second_drawer_id
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: payment, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "do not match"
+    assert_equal 1, Clinic::CashTender.where(request_key: "SYN-REPLAY-001").count
+  end
+
+  test "cash payment rolls back every linked record when receipt persistence fails" do
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
+    drawer = @practice.cash_drawer_sessions.create!(site: @site, opened_by: @users.fetch("billing_operator"), opening_float: "10.00")
+    before = [ Clinic::PaymentEvent.count, Clinic::PaymentAllocation.count, Clinic::CashTender.count, Clinic::BillingReceipt.count ]
+
+    Clinic::BillingReceipt.singleton_class.stub(:create!, ->(*) { raise RuntimeError, "synthetic receipt failure" }) do
+      assert_raises(RuntimeError) do
+        Clinic::Billing::RecordCashPayment.call(
+          practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient, invoice: posted_invoice,
+          drawer_session: drawer, tendered_amount: "10.00", allocation_amount: "10.00", request_key: "SYN-ROLLBACK-001"
+        )
+      end
+    end
+
+    assert_equal before, [ Clinic::PaymentEvent.count, Clinic::PaymentAllocation.count, Clinic::CashTender.count, Clinic::BillingReceipt.count ]
+  end
+
+  test "cash payment and refund reject forged or invalid financial inputs" do
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
+    login(@users.fetch("billing_operator"))
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00" } }, headers: csrf_headers, as: :json
+    drawer_id = response.parsed_body.dig("drawer", "id")
+
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments",
+      params: { cash_payment: { cash_drawer_session_id: drawer_id, tendered_amount: "-1.00", allocation_amount: "1.00", request_key: "SYN-INVALID-001" } },
+      headers: csrf_headers, as: :json
+    assert_response :bad_request
+    assert_equal 0, Clinic::CashTender.count
+
+    cash_payment = Clinic::Billing::RecordCashPayment.call(
+      practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient, invoice: posted_invoice,
+      drawer_session: @practice.cash_drawer_sessions.find(drawer_id), tendered_amount: "10.00", allocation_amount: "10.00", request_key: "SYN-REFUND-001"
+    )
+    post "/api/clinic/payment_events/#{cash_payment.payment_event_id}/cash_refunds", params: { cash_refund: { amount: "10.01" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 0, Clinic::RefundEvent.count
+  end
+
+  test "closed drawers reject activity and read-only billing users cannot mutate them" do
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
+    login(@users.fetch("billing_operator"))
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00" } }, headers: csrf_headers, as: :json
+    drawer_id = response.parsed_body.dig("drawer", "id")
+    post "/api/clinic/cash_drawers/#{drawer_id}/close", params: { drawer: { counted_cash: "10.00" } }, headers: csrf_headers, as: :json
+    assert_response :success
+
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments",
+      params: { cash_payment: { cash_drawer_session_id: drawer_id, tendered_amount: "10.00", allocation_amount: "10.00", request_key: "SYN-CLOSED-001" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "closed"
+
+    reader = administrative_user("billing-reader-cash", "billing.read")
+    login(reader)
+    get "/api/clinic/cash_drawers", headers: @headers
+    assert_response :forbidden
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "1.00" } }, headers: csrf_headers, as: :json
+    assert_response :forbidden
+  end
+
   test "context reports atomic capabilities and staff write stays false" do
     get "/api/clinic/context", headers: @headers
     capabilities = response.parsed_body.fetch("capabilities")

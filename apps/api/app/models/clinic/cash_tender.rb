@@ -9,6 +9,7 @@ module Clinic
     belongs_to :cash_drawer_session, class_name: "Clinic::CashDrawerSession"
     belongs_to :recorded_by, class_name: "User"
 
+    validates :request_key, presence: true, length: { maximum: 100 }, uniqueness: { scope: :practice_id }
     validates :tendered_amount, numericality: { greater_than: 0 }
     validates :change_amount, numericality: { greater_than_or_equal_to: 0 }
   end
