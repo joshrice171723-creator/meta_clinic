@@ -347,6 +347,7 @@ export type ClinicCapabilities = {
   billing_invoice_draft?: boolean;
   billing_invoice_post?: boolean;
   billing_payment_record?: boolean;
+  billing_cash_reconcile?: boolean;
   patients: boolean;
   patients_write: boolean;
   staff: boolean;
