@@ -94,7 +94,11 @@ module Clinic
         raise ArgumentError, "The delivered shipment must be received as exactly #{shipment.package_count} packages." unless packages == shipment.package_count
         product = line.product
         lot = Lot.where(practice_id: current_practice.id, product_id: product.id).find_by(number: input.require(:lot_number))
-        recalled = lot&.batches&.any? { |batch| batch.active_holds.where(kind: "recalled").exists? }
+        matched_recall = if lot
+          current_practice.inventory_recalls.joins(:recall_lots)
+            .find_by(product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
+        end
+        recalled = matched_recall.present?
         destination = current_practice.inventory_locations.find_by!(name: input.require(:destination_location))
         if recalled && destination.kind != "quarantine"
           raise ArgumentError, "Blocking recall match: this lot must be routed to a quarantine location."

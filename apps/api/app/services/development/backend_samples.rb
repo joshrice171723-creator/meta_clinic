@@ -15,7 +15,7 @@ module Development
       "staff" => %w[patients.read patients.write appointments.write encounters.write encounters.assign_provider notes.read observations.write inventory.read staff.read messages.write],
       "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure] +
         INVENTORY_MANAGEMENT_PERMISSIONS,
-      "billing" => %w[patients.read billing.write documents.read],
+      "billing" => %w[patients.read billing.read billing.write documents.read],
       "reader" => %w[patients.read notes.read documents.read inventory.read staff.read],
       "front_desk" => %w[patients.identity.read appointments.read appointments.book appointments.status_transition],
       "scheduler" => %w[patients.identity.read appointments.read appointments.book appointments.status_transition],
@@ -27,10 +27,11 @@ module Development
       "staff" => %w[patients.read patients.write appointments.write inventory.read staff.read messages.write],
       "reader" => %w[patients.read documents.read inventory.read staff.read]
     }.transform_values(&:freeze).freeze
-    CURRENT_ROLE_VERSIONS = Hash.new(2).merge("admin" => 3, "inventory" => 3).freeze
+    CURRENT_ROLE_VERSIONS = Hash.new(2).merge("admin" => 3, "inventory" => 3, "billing" => 3).freeze
     VERSION_TWO_ROLE_PERMISSIONS = {
       "admin" => TestClinic::DEFAULT_PERMISSIONS - INVENTORY_MANAGEMENT_PERMISSIONS,
-      "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure]
+      "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure],
+      "billing" => %w[patients.read billing.write documents.read]
     }.transform_values(&:freeze).freeze
     PREFIX = "Synthetic Backend Review".freeze
     ACTIVE_USERS_PER_ROLE = 2

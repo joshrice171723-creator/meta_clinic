@@ -188,6 +188,34 @@ function balanceFor(data: InventoryData, balanceId?: string) {
     data.balances[0]
   );
 }
+function onOrderUnits(data: InventoryData, productId: string): Decimal {
+  return decimalSum(
+    data.purchase_orders
+      .filter((order) => !["cancelled", "complete"].includes(order.status))
+      .flatMap((order) => order.lines)
+      .filter((line) => line.product_id === productId)
+      .map((line) =>
+        nonNegative(decimalSubtract(line.ordered_units, line.received_units)),
+      ),
+  );
+}
+function replenishmentCandidates(data: InventoryData) {
+  return data.products.filter(
+    (item) =>
+      decimalCompare(
+        decimalAdd(item.available_units, onOrderUnits(data, item.id)),
+        item.reorder_point_units,
+      ) < 0,
+  );
+}
+function recordedPackagePrice(
+  data: InventoryData,
+  productId: string,
+): Decimal | undefined {
+  return data.purchase_orders
+    .flatMap((order) => order.lines)
+    .find((line) => line.product_id === productId)?.package_price;
+}
 
 function Card({
   title,
@@ -717,11 +745,19 @@ function ReplenishmentScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const initialItem =
-    data.products.find((product) => product.low_stock) ?? data.products[0];
+  const requestedProductId = new URLSearchParams(window.location.search).get(
+    "product_id",
+  );
+  const candidates = replenishmentCandidates(data);
+  const requestedProduct = data.products.find(
+    (product) => product.id === requestedProductId,
+  );
+  const requestedItem = candidates.find(
+    (product) => product.id === requestedProductId,
+  );
+  const initialItem = requestedProductId ? requestedItem : candidates[0];
   const [productId, setProductId] = useState(initialItem?.id ?? "");
-  const item =
-    data.products.find((product) => product.id === productId) ?? initialItem;
+  const item = candidates.find((product) => product.id === productId);
   const packageInfo = packageFor(data, item?.package_id);
   const initialDestination =
     data.locations.find((location) => location.kind === "storage") ??
@@ -736,13 +772,39 @@ function ReplenishmentScreen({
     initialItem?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
   );
   const supplier = data.suppliers?.find((record) => record.id === supplierId);
-  const [quantity, setQuantity] = useState("5");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [draftNumber] = useState(() => `PO-DRAFT-${Date.now()}`);
+  const suggestedQuantity = (productId: string) => {
+    const product = data.products.find((record) => record.id === productId);
+    if (!product) return "1";
+    const deficit = nonNegative(
+      decimalSubtract(
+        decimalSubtract(product.reorder_point_units, product.available_units),
+        onOrderUnits(data, product.id),
+      ),
+    );
+    return decimalCompare(deficit, "0") > 0
+      ? decimalCeilDivide(deficit, product.units_per_package)
+      : "1";
+  };
+  const [quantity, setQuantity] = useState(() =>
+    initialItem ? suggestedQuantity(initialItem.id) : "1",
+  );
+  const [unitPrice, setUnitPrice] = useState(
+    initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : "",
+  );
+  const [reason, setReason] = useState("");
   if (!item)
     return (
       <Card title="Replenishment suggestions">
-        <p>No product catalog is available.</p>
+        <p>
+          {requestedProductId
+            ? requestedProduct
+              ? `${requestedProduct.name} is not below its projected reorder point.`
+              : "The requested product was not found."
+            : "No products are below their projected reorder point."}
+        </p>
+        <a className="inventory-button outline" href="/clinic/inventory">
+          Return to catalog
+        </a>
       </Card>
     );
   const submit = (event: FormEvent) => {
@@ -751,9 +813,8 @@ function ReplenishmentScreen({
       "/api/clinic/inventory/purchase-orders",
       {
         purchase_order: {
-          number: draftNumber,
           destination: destination?.name ?? "",
-          reason: "User-entered replenishment request",
+          reason: reason.trim(),
           ...(supplierId ? { supplier_id: supplierId } : {}),
           lines: [
             {
@@ -784,9 +845,13 @@ function ReplenishmentScreen({
                 );
                 setProductId(event.target.value);
                 setSupplierId(selected?.preferred_supplier_id ?? "");
+                setQuantity(suggestedQuantity(event.target.value));
+                setUnitPrice(
+                  recordedPackagePrice(data, event.target.value) ?? "",
+                );
               }}
             >
-              {data.products.map((product) => (
+              {candidates.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.name}
                 </option>
@@ -816,7 +881,7 @@ function ReplenishmentScreen({
           />
           <DataPoint
             label="On order"
-            value={`${number(decimalSum(data.purchase_orders.flatMap((order) => order.lines.filter((line) => line.product_id === item.id)).map((line) => decimalSubtract(line.ordered_units, line.received_units))))} ${item.base_unit}`}
+            value={`${number(onOrderUnits(data, item.id))} ${item.base_unit}`}
           />
           <DataPoint
             label="Reorder point"
@@ -824,11 +889,8 @@ function ReplenishmentScreen({
           />
         </div>
         <div className="inventory-muted-panel">
-          <strong>Demand and lead time</strong>
-          <p>
-            Demand and lead-time data are not recorded. Enter a package
-            quantity.
-          </p>
+          <strong>Projected replenishment</strong>
+          <p>Available and inbound stock are below the reorder point.</p>
         </div>
         <form className="inventory-form-grid" onSubmit={submit}>
           <Field
@@ -880,8 +942,12 @@ function ReplenishmentScreen({
               ))}
             </select>
           </Field>
-          <Field label="Justification">
-            <input value="User-entered replenishment quantity" readOnly />
+          <Field label="Reason">
+            <input
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              required
+            />
           </Field>
           <div className="inventory-form-actions">
             <PermissionNote
@@ -894,7 +960,8 @@ function ReplenishmentScreen({
                 !capability(data, "procurement.create") ||
                 !validDecimal(quantity) ||
                 !validDecimal(unitPrice, true) ||
-                !destination
+                !destination ||
+                !reason.trim()
               }
               onConfirm={() => {
                 const fake = new Event("submit") as unknown as FormEvent;
@@ -921,6 +988,12 @@ function ReplenishmentScreen({
             label="Base-unit quantity"
             value={`${number(decimalMultiply(quantity || "0", item.units_per_package))} ${item.base_unit}`}
           />
+          {validDecimal(unitPrice, true) && (
+            <DataPoint
+              label="Estimated subtotal"
+              value={money(decimalMultiply(quantity || "0", unitPrice))}
+            />
+          )}
         </div>
       </Card>
     </div>
@@ -1363,10 +1436,7 @@ function ReceivingScreen({
                   selectedLots.find((record) => record.status === "recalled") ??
                   selectedLots[0];
                 setLineId(selectedLine?.id ?? "");
-                selectLot(
-                  nextLot?.lot_number ?? "",
-                  selectedLine?.product_id,
-                );
+                selectLot(nextLot?.lot_number ?? "", selectedLine?.product_id);
                 setPackages(
                   selectedAllocations.find(
                     (entry) =>

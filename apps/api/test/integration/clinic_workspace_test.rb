@@ -84,6 +84,13 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal 1, response.parsed_body.dig("metrics", "currencies", 0, "open_invoice_count")
 
     revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "billing.read")
+    get "/api/clinic/billing", headers: @headers
+    assert_response :success
+    post "/api/clinic/invoices/#{invoice.id}/post", headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    revoke_all_permissions!(@membership)
     get "/api/clinic/billing", headers: @headers
     assert_response :forbidden
   end
@@ -149,6 +156,77 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     end
     submit "/api/clinic/inventory/purchase-orders", payload.deep_merge(purchase_order: { shipping: "5.00" })
     assert_response :unprocessable_entity
+  end
+
+  test "a separately authorized receiver quarantines a first incoming recalled lot" do
+    product = @practice.pharmacy_products.create!(
+      name: "Synthetic recalled tablet", sku: "SYN-FIRST-RECALL", stock_unit: "tablet",
+      quantity_scale: 0, package_size: 100, unit_reference: "Synthetic package specification v1"
+    )
+    quarantine = @practice.inventory_locations.create!(name: "Quarantine", kind: "quarantine")
+    lot = Clinic::Inventory::Lot.create!(
+      practice: @practice, product: product, number: "SYN-FIRST-LOT",
+      expires_on: Date.current + 1.year
+    )
+    recall = @practice.inventory_recalls.create!(
+      product: product, actor: @user, reference: "SYN-FIRST-RECALL-NOTICE",
+      status: "disposition_pending", reason: "Synthetic manufacturer notice",
+      required_disposition: "return_to_supplier", effective_on: Date.current,
+      affected_units: 200, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16)
+    )
+    recall.recall_lots.create!(practice: @practice, lot: lot)
+    order = @practice.inventory_purchase_orders.create!(
+      actor: @user, number: "SYN-PO-FIRST-RECALL", status: "sent",
+      destination: quarantine.name, reason: "Synthetic recalled shipment",
+      request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16),
+      version: 1, subtotal: 2, tax: 0, shipping: 0, total: 2
+    )
+    line = order.lines.create!(
+      practice: @practice, product: product, product_name: product.name,
+      stock_unit: product.stock_unit, input_unit: "package", ordered_quantity: 2,
+      received_quantity: 0, conversion_factor: product.package_size,
+      unit_price: 1, currency: "USD"
+    )
+    shipment = order.shipments.create!(
+      practice: @practice, actor: @user, reference: "SYN-SHIP-FIRST-RECALL",
+      supplier_reference: "SYN-SUPPLIER-FIRST-RECALL", status: "delivered",
+      package_count: 2, expected_units: 200, delivered_at: Time.current,
+      request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16)
+    )
+    shipment.shipment_lines.create!(
+      practice: @practice, purchase_order_line: line, expected_packages: 2
+    )
+    assert_empty product.batches
+
+    receiver = User.create!(email_address: "separate-receiver@example.invalid", password: @password)
+    receiver_membership = @practice.memberships.create!(user: receiver)
+    grant_permissions!(receiver_membership, "inventory.read", "inventory.receive", "recall.lock")
+    submit "/api/session", {}, method: :delete
+    submit "/api/session", { email_address: receiver.email_address, password: @password }
+    assert_response :success
+
+    assert_difference [ "Clinic::Inventory::Receipt.count", "Clinic::Inventory::Hold.count" ], 1 do
+      submit "/api/clinic/inventory/receipts", {
+        receipt: {
+          request_key: SecureRandom.uuid,
+          purchase_order_id: order.id,
+          shipment_id: shipment.id,
+          purchase_order_line_id: line.id,
+          lot_number: lot.number,
+          expiration_date: lot.expires_on.iso8601,
+          quantity_packages: "2",
+          destination_location: quarantine.name,
+          recall_id: recall.id,
+          status: "quarantined",
+          reason: "Synthetic recall quarantine"
+        }
+      }
+      assert_response :success
+    end
+    receipt = shipment.receipts.sole
+    assert_equal receiver.id, receipt.actor_id
+    assert_equal recall.id, receipt.lines.sole.batch.active_holds.sole.recall_id
+    assert_not receipt.lines.sole.batch.available?
   end
 
   test "login never selects creates or changes the assigned clinic" do

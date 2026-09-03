@@ -24,15 +24,27 @@ function date(value: string, timeZone: string, includeTime = false) {
   }).format(new Date(value));
 }
 
-function periodLabel(start: string, timeZone: string) {
-  const instant = /^\d{4}-\d{2}-\d{2}$/.test(start)
-    ? new Date(`${start}T00:00:00Z`)
+export function periodLabel(start: string, timeZone: string) {
+  const calendarDate = /^(\d{4})-(\d{2})-\d{2}$/.exec(start);
+  const instant = calendarDate
+    ? new Date(
+        Date.UTC(Number(calendarDate[1]), Number(calendarDate[2]) - 1, 15),
+      )
     : new Date(start);
   return new Intl.DateTimeFormat(undefined, {
     month: "long",
     year: "numeric",
-    timeZone,
+    timeZone: calendarDate ? "UTC" : timeZone,
   }).format(instant);
+}
+
+export function totalOpenInvoiceCount(
+  currencies: { open_invoice_count: number }[],
+) {
+  return currencies.reduce(
+    (count, currency) => count + currency.open_invoice_count,
+    0,
+  );
 }
 
 export function invoicePaymentState(invoice: BillingInvoiceSummary) {
@@ -109,12 +121,17 @@ export function BillingDashboard() {
     );
 
   const primaryCurrency = data.metrics.currencies[0];
-  const openInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
+  const primaryOpenInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
+  const openQueueCount = totalOpenInvoiceCount(data.metrics.currencies);
   const selectedInvoice =
     visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
     data.recent_invoices.find((invoice) => invoice.id === selectedInvoiceId) ??
-    visibleInvoices[0] ??
-    data.recent_invoices[0];
+    visibleInvoices.find(
+      (invoice) => invoicePaymentState(invoice) !== "void",
+    ) ??
+    data.recent_invoices.find(
+      (invoice) => invoicePaymentState(invoice) !== "void",
+    );
   const queueItems: {
     filter: BillingInvoiceFilter;
     label: string;
@@ -130,7 +147,7 @@ export function BillingDashboard() {
     {
       filter: "open",
       label: "Reconcile open balances",
-      count: openInvoiceCount,
+      count: openQueueCount,
       tone: "neutral",
     },
   ];
@@ -183,7 +200,7 @@ export function BillingDashboard() {
               ? money(primaryCurrency.outstanding, primaryCurrency.currency)
               : "—"
           }
-          detail={`${openInvoiceCount} posted invoice${openInvoiceCount === 1 ? "" : "s"} with a balance`}
+          detail={`${primaryOpenInvoiceCount} posted invoice${primaryOpenInvoiceCount === 1 ? "" : "s"} with a balance`}
           tone="attention"
         />
         <Metric
@@ -267,6 +284,9 @@ export function BillingDashboard() {
           <div>
             <h2>Recent billing activity</h2>
           </div>
+          <small className="billing-ledger-count">
+            Showing {visibleInvoices.length} of {data.metrics.invoice_count}
+          </small>
           <div className="billing-filter-group" aria-label="Invoice filter">
             {(
               [

@@ -25,7 +25,7 @@ module Clinic
           notes_write: allowed?("notes.write"),
           documents: allowed?("documents.read"),
           messages: allowed?("messages.write"),
-          billing: allowed?("billing.write"),
+          billing: allowed?("billing.read") || allowed?("billing.write"),
           billing_read: allowed?("billing.read"),
           billing_invoice_draft: allowed?("billing.invoice_draft"),
           billing_invoice_post: allowed?("billing.invoice_post"),

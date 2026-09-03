@@ -3,6 +3,8 @@ import type { BillingInvoiceSummary } from "../src/api/contracts";
 import {
   filteredInvoices,
   invoicePaymentState,
+  periodLabel,
+  totalOpenInvoiceCount,
 } from "../src/features/clinic/BillingDashboard";
 
 const invoices: BillingInvoiceSummary[] = [
@@ -72,5 +74,18 @@ describe("billing invoice presentation", () => {
       3, 4,
     ]);
     expect(filteredInvoices(invoices, "all")).toBe(invoices);
+  });
+
+  it("keeps date-only reporting periods in their recorded calendar month", () => {
+    expect(periodLabel("2026-09-01", "America/Chicago")).toBe("September 2026");
+  });
+
+  it("counts the same cross-currency open invoices shown by the queue", () => {
+    expect(
+      totalOpenInvoiceCount([
+        { open_invoice_count: 2 },
+        { open_invoice_count: 3 },
+      ]),
+    ).toBe(5);
   });
 });

@@ -75,6 +75,11 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
         assert operator.role_grants.active.joins(:role_version)
           .exists?(role_versions: { version: 3 }), identity
       end
+      billing_operator = practice.memberships.joins(:user)
+        .find_by!(users: { email_address: "synthetic-review-#{practice.name.last.downcase}-billing-1@example.invalid" })
+      assert Ability.new(billing_operator.user, practice: practice).can?(:read, Clinic::Invoice)
+      assert billing_operator.role_grants.active.joins(:role_version)
+        .exists?(role_versions: { role_code: "synthetic-review-billing", version: 3 })
     end
     grant = practices.first.memberships.active.first.role_grants.first
     grant.update!(revoked_at: Time.current, revision: grant.revision + 1)
