@@ -8,9 +8,11 @@ module Clinic
     has_many :assignments, class_name: "Clinic::ClinicianAssignment", dependent: :restrict_with_error
     has_many :credentials, class_name: "Clinic::ClinicianCredential", dependent: :restrict_with_error
     has_many :booked_appointments, class_name: "Clinic::Appointment", foreign_key: :booked_clinician_id, dependent: :restrict_with_error
+    encrypts :display_name
 
     validates :membership_id, uniqueness: { scope: :practice_id }
     validate :membership_belongs_to_practice
+    validates :display_name, length: { maximum: 120 }, allow_nil: true
 
     private
 

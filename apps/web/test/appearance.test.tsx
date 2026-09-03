@@ -275,12 +275,10 @@ describe("system appearance and UI scope", () => {
       />,
     );
     expect(restricted.match(/<a /g)).toHaveLength(2);
-    expect(restricted.match(/<button /g)).toHaveLength(1);
+    expect(restricted.match(/<button /g)).toBeNull();
     expect(restricted).toContain("/clinic/operations");
     expect(restricted).toContain("/clinic/settings");
-    expect(restricted).toContain(
-      'type="button" aria-current="page">Tracking Board</button>',
-    );
+    expect(restricted).not.toContain("Tracking Board");
   });
 });
 

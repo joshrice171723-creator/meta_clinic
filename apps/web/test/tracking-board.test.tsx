@@ -8,7 +8,7 @@ import type {
   EncounterNote,
   NoteTemplate,
 } from "../src/api/contracts";
-import { loginDestination } from "../src/api/client";
+import { ApiError, loginDestination } from "../src/api/client";
 import {
   ClinicFrame,
   compactNavigation,
@@ -25,7 +25,10 @@ import {
   templateWouldOverwrite,
 } from "../src/features/clinic/CareFlow";
 import {
+  formatClockTime,
   OverviewView,
+  providerAssignmentAttempt,
+  providerAssignmentFailure,
   TrackingBoardView,
 } from "../src/features/clinic/TrackingBoardPage";
 import {
@@ -88,6 +91,7 @@ const contextCapabilities = {
   notes_write: true,
   documents: true,
   messages: true,
+  billing_read: true,
   billing: true,
   roles: true,
 };
@@ -130,6 +134,47 @@ describe("tracking-board identities and waiting times", () => {
     expect(waitingMinutes(EXAMPLE_VISITS[1], EXAMPLE_CLOCK)).toBeNull();
     expect(durationLabel(65)).toBe("1h 5m");
     expect(durationLabel(0)).toBe("0 min");
+  });
+  it("formats clinic clock values in the practice timezone", () => {
+    expect(
+      formatClockTime("2026-09-02T15:00:00Z", "America/Los_Angeles"),
+    ).toContain("8:00");
+    expect(formatClockTime("invalid", "America/Chicago")).toBe("Scheduled");
+  });
+  it("retains one provider request key while reconciling an uncertain attempt", () => {
+    let generated = 0;
+    const first = providerAssignmentAttempt(null, "provider-1", "41", () => {
+      generated += 1;
+      return "assignment-key-1";
+    });
+    const retry = providerAssignmentAttempt(first, "provider-1", "41", () => {
+      generated += 1;
+      return "assignment-key-2";
+    });
+    const changed = providerAssignmentAttempt(retry, "provider-2", "41", () => {
+      generated += 1;
+      return "assignment-key-2";
+    });
+
+    expect(retry).toBe(first);
+    expect(changed.requestKey).toBe("assignment-key-2");
+    expect(generated).toBe(2);
+  });
+  it("retains the assignment attempt only when a mutation outcome is unknown", () => {
+    expect(
+      providerAssignmentFailure(
+        new ApiError(409, "Receipt pending", "outcome_unconfirmed"),
+      ),
+    ).toMatchObject({ outcomeUnknown: true, reloadRequired: false });
+    expect(
+      providerAssignmentFailure(new ApiError(503, "Connection lost")),
+    ).toMatchObject({ outcomeUnknown: true, reloadRequired: false });
+    expect(
+      providerAssignmentFailure(new ApiError(409, "Stale token")),
+    ).toMatchObject({ outcomeUnknown: false, reloadRequired: true });
+    expect(
+      providerAssignmentFailure(new ApiError(403, "Not permitted")),
+    ).toMatchObject({ outcomeUnknown: false, reloadRequired: false });
   });
   it.each([null, "invalid", "2026-08-31T12:00:00-05:00"])(
     "keeps missing/bad/future timestamps unknown: %s",
@@ -179,7 +224,7 @@ describe("tracking-board identities and waiting times", () => {
       <TrackingBoardView visits={[EXAMPLE_VISITS[0]]} synthetic={false} />,
     );
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
-    expect(html).toContain("<span>In intake</span><strong>0</strong>");
+    expect(html).toContain("<span>Intake</span><strong>0</strong>");
     expect(
       filterVisits([EXAMPLE_VISITS[0]], "intake", "", "patient", EXAMPLE_CLOCK),
     ).toEqual([]);
@@ -235,29 +280,27 @@ describe("tracking-board identities and waiting times", () => {
 describe("board and Operations presentation boundaries", () => {
   it("renders a compact patient table without redundant workflow text", () => {
     const html = renderToStaticMarkup(<OverviewView patientAccess />);
-    for (const text of ["Non-member", "Wait", "Vitals"])
+    for (const text of ["Non-member", "Timing", "Vitals"])
       expect(html).toContain(text);
-    expect(html).not.toContain("Not verified");
+    expect(html).toContain("Not verified");
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('for="board-stage"');
     expect(html).toContain("Clinic patient tracking board");
-    expect(html).toContain("Select chart for M. Riv before opening SOAP note");
+    expect(html).toContain('tracking-chart-action-label">Select chart</span>');
     for (const status of [
       "Above normal limits",
       "Within normal limits",
       "Below normal limits",
     ])
       expect(html).toContain(status);
-    expect(html).toContain(
-      "Synthetic display classifications — not clinical guidance",
-    );
+    expect(html).not.toContain("Synthetic display classifications");
     expect(html).toContain(">Provider<");
     expect(html).toContain(">Care<");
     expect(html).toContain("Allergies: 1. Show details for A. Che");
     expect(html).toContain("Review needed: 3. Show details for T. Ben");
     expect(html).not.toContain("Care summary unavailable");
-    expect(html).toContain("Assigned clinician: Alex Morgan, NP");
+    expect(html).toContain("Assigned provider: Alex Morgan, NP");
     expect(html).toContain(">Assign</button>");
     expect(html).not.toContain("Example only — not saved");
     for (const flowStage of ["Intake", "Triage", "Provider", "Checkout"])
@@ -275,28 +318,103 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).not.toContain("Items at reorder");
     expect(html).not.toContain("Active directory");
   });
+  it("distinguishes expected, late, and checked-in operational states", () => {
+    const scheduled = {
+      ...EXAMPLE_VISITS[0],
+      id: "appointment-41",
+      patientId: 41,
+      encounterId: null,
+      patientDisplayName: "Example Scheduled",
+      isSynthetic: false,
+      stage: "scheduled" as const,
+      operationalState: "late" as const,
+      appointmentStartsAt: "2026-08-31T09:50:00-05:00",
+      appointmentEndsAt: "2026-08-31T10:10:00-05:00",
+      arrivedAt: null,
+      stageStartedAt: null,
+    };
+    const checkedIn = {
+      ...EXAMPLE_VISITS[1],
+      id: "encounter-42",
+      patientId: 42,
+      encounterId: 42,
+      patientDisplayName: "Example Waiting",
+      isSynthetic: false,
+      stage: "waiting" as const,
+      operationalState: "waiting_room" as const,
+      appointmentStartsAt: "2026-08-31T10:00:00-05:00",
+      appointmentEndsAt: "2026-08-31T10:30:00-05:00",
+      arrivedAt: null,
+      stageStartedAt: null,
+    };
+    const html = renderToStaticMarkup(
+      <TrackingBoardView
+        visits={[scheduled, checkedIn]}
+        now={EXAMPLE_CLOCK}
+        synthetic={false}
+      />,
+    );
+
+    expect(html).toContain("30 min late");
+    expect(html).toContain("Not checked in");
+    expect(html).toContain("Checked in");
+    expect(html).toContain("Waiting room");
+    expect(html).toContain('href="/clinic/patients/41"');
+    expect(html).toContain('tracking-chart-action-label">View patient</span>');
+    expect(html).toContain('href="/clinic/patients/42/encounters/42"');
+    const scheduledOnly = renderToStaticMarkup(
+      <TrackingBoardView
+        visits={[scheduled]}
+        now={EXAMPLE_CLOCK}
+        synthetic={false}
+      />,
+    );
+    expect(scheduledOnly).not.toContain("Care summary unavailable");
+  });
   it("exposes resizable columns and alternating visit rows", () => {
     const html = renderToStaticMarkup(<TrackingBoardView />);
-    expect(html.match(/role="separator"/g)).toHaveLength(7);
+    expect(html.match(/role="separator"/g)).toHaveLength(9);
     expect(html).toContain('aria-label="Resize Patient column"');
-    expect(html).toContain('aria-label="Resize Wait column"');
+    expect(html).toContain('aria-label="Resize Room column"');
+    expect(html).toContain('aria-label="Resize Timing column"');
+    expect(html).toContain('aria-label="Resize Action column"');
     expect(html).toContain(
-      'aria-label="Resize Location column" aria-valuemin="70"',
+      'aria-label="Resize Status column" aria-valuemin="175"',
     );
-    expect(html).toContain('aria-label="Move Location column"');
+    expect(html).toContain(
+      'aria-label="Resize Care column" aria-valuemin="180"',
+    );
+    expect(html).toContain('aria-label="Move Status column"');
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:1145px;min-width:1145px;table-layout:fixed"',
+      'style="width:1415px;min-width:1415px;table-layout:fixed"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
+    const styles = readFileSync(
+      "src/features/clinic/trackingBoard.css",
+      "utf8",
+    );
+    expect(styles).toContain("min-height: 72px");
+    expect(styles).toContain("width: 28px");
+    expect(styles).toContain("min-width: 28px");
+    expect(styles).toContain("flex-wrap: nowrap");
+    expect(styles).toContain("overflow-wrap: anywhere");
+    expect(styles).toContain(".tracking-visit {\n  background");
+    expect(styles).toContain("height: auto;\n  min-height: 76px");
+    expect(styles).toContain(
+      ".tracking-patient strong {\n  display: block;\n  overflow: visible;\n  overflow-wrap: anywhere;\n  white-space: normal;",
+    );
+    expect(styles).toContain(
+      ".tracking-status-copy > small {\n  overflow-wrap: anywhere;\n  white-space: normal;",
+    );
   });
   it("replaces the visit count with a recoverable column selector", () => {
     const html = renderToStaticMarkup(<TrackingBoardView />);
     expect(html).toContain("<summary>Columns</summary>");
     expect(html).toContain('aria-label="Choose tracking board columns"');
-    expect(html.match(/type="checkbox"/g)).toHaveLength(7);
+    expect(html.match(/type="checkbox"/g)).toHaveLength(9);
     expect(html).not.toContain("6 of 6 example visits");
   });
   it("keeps provider editing in a modal instead of the table cell", () => {
@@ -307,12 +425,52 @@ describe("board and Operations presentation boundaries", () => {
     expect(source).toContain('className="tracking-provider-dialog"');
     expect(source).not.toContain('className="tracking-provider-editor"');
   });
+  it("renders the live assigned provider and exposes editing only with the atomic capability", () => {
+    const clinician = {
+      id: "api-provider-8",
+      firstName: "",
+      lastName: "",
+      credentials: "",
+      displayName: "Alex Rowan, NP",
+      locationIds: ["api-site-1"],
+    };
+    const liveVisit = {
+      ...EXAMPLE_VISITS[2],
+      isSynthetic: false,
+      locationId: "api-site-1",
+      assignedClinicianId: clinician.id,
+      assignedProviderName: clinician.displayName,
+      providerAssignmentToken: "41",
+      providerAssignmentAvailable: true,
+    };
+    const editable = renderToStaticMarkup(
+      <TrackingBoardView
+        visits={[liveVisit]}
+        clinicians={[clinician]}
+        synthetic={false}
+      />,
+    );
+    expect(editable).toContain('class="tracking-provider-value"');
+    expect(editable).toContain(
+      "Assigned provider: Alex Rowan, NP. Change assignment.",
+    );
+    expect(editable).not.toContain('aria-label="Provider not recorded"');
+
+    const readOnly = renderToStaticMarkup(
+      <TrackingBoardView
+        visits={[{ ...liveVisit, providerAssignmentAvailable: false }]}
+        clinicians={[clinician]}
+        synthetic={false}
+      />,
+    );
+    expect(readOnly).toContain("tracking-provider-readonly");
+    expect(readOnly).not.toContain("Change assignment");
+  });
   it("does not present an empty preview as an empty actual clinic", () => {
     const html = renderToStaticMarkup(<TrackingBoardView visits={[]} />);
-    expect(html).toContain("No example visits");
-    expect(html).toContain(
-      "not evidence that the clinic has no waiting patients",
-    );
+    expect(html).toContain("No visits");
+    expect(html).toContain("No visits are currently shown.");
+    expect(html).not.toContain("An empty example is not evidence");
   });
   it("labels backend rows as partial and exposes a capped result", () => {
     const html = renderToStaticMarkup(
@@ -322,11 +480,9 @@ describe("board and Operations presentation boundaries", () => {
         truncated
       />,
     );
+    expect(html).not.toContain("Partial synthetic schedule");
     expect(html).toContain(
-      "Partial synthetic encounter projection — not a live complete queue.",
-    );
-    expect(html).toContain(
-      "Incomplete result: this projection is capped at 200 rows. Additional encounters are not shown.",
+      "Incomplete result: this projection is capped at 200 rows. Additional appointments or encounters are not shown.",
     );
     expect(html).toContain('role="alert"');
   });
@@ -351,6 +507,7 @@ describe("board and Operations presentation boundaries", () => {
           {
             ...EXAMPLE_VISITS[0],
             age: null,
+            gender: null,
             reason: "Same-day concern",
             chiefComplaint: "<script>example</script>",
           },
@@ -358,8 +515,25 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).not.toContain("Age not recorded");
+    expect(html.match(/Demographics not recorded/g)).toHaveLength(1);
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
+  });
+  it("places age and gender beneath the patient name instead of the record reference", () => {
+    const html = renderToStaticMarkup(
+      <TrackingBoardView
+        visits={[
+          {
+            ...EXAMPLE_VISITS[0],
+            age: 37,
+            gender: "F",
+            patientReference: "SYN-HIDDEN-REFERENCE",
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("37 yr · Female");
+    expect(html).not.toContain("SYN-HIDDEN-REFERENCE");
   });
   it("moves administrative counts to Operations without relabeling directory counts as visits", () => {
     const html = renderToStaticMarkup(<OperationsView clinic={clinic} />);
@@ -396,8 +570,9 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).toContain('href="/clinic/operations" aria-current="page"');
-    expect(html).toContain('type="button">Tracking Board</button>');
-    expect(html).toContain('type="button">Schedule</button>');
+    expect(html).toContain('type="button"');
+    expect(html).toContain("Tracking Board");
+    expect(html).toContain("Schedule");
     expect(html).not.toContain("EHR");
     expect(loginDestination("/clinic/operations")).toBe("/clinic/operations");
     expect(loginDestination("/clinic/operations?next=//bad.invalid")).toBe(
@@ -415,11 +590,23 @@ describe("board and Operations presentation boundaries", () => {
         homeView="schedule"
       />,
     );
-    expect(schedule).toContain(
-      'type="button" aria-current="page">Schedule</button>',
-    );
+    expect(schedule).toContain('type="button" aria-current="page"');
+    expect(schedule).toContain("Schedule");
     expect(schedule).not.toContain(
       'aria-current="page">Tracking Board</button>',
+    );
+  });
+  it("adds Billing navigation and preserves the billing destination", () => {
+    const html = renderToStaticMarkup(
+      <ClinicNavigation
+        capabilities={contextCapabilities}
+        path="/clinic/billing"
+      />,
+    );
+    expect(html).toContain('href="/clinic/billing" aria-current="page"');
+    expect(loginDestination("/clinic/billing")).toBe("/clinic/billing");
+    expect(loginDestination("/clinic/billing/patients")).toBe(
+      "/clinic/billing/patients",
     );
   });
 });
@@ -479,7 +666,7 @@ describe("mapped read-only care flow", () => {
           id: 9,
           patient_id: 7,
           appointment_id: 4,
-          site_id: 1,
+          site_id: "1",
           room_id: null,
           started_at: "2026-08-31T15:00:00Z",
           ended_at: null,
@@ -512,7 +699,7 @@ describe("mapped read-only care flow", () => {
         ]}
       />,
     );
-    expect(html).toContain("open/completed API status");
+    expect(html).not.toContain("open/completed API status");
     expect(html).toContain("72 beats/min");
     expect(html).toContain("Editor unavailable");
     expect(html).not.toContain("<textarea");
@@ -619,7 +806,7 @@ describe("mapped read-only care flow", () => {
     expect(html).not.toContain("Apply starter text");
   });
 });
-describe("viewport-height chart-tab navigation", () => {
+describe("viewport-height clinic menu navigation", () => {
   it.each([false, true])(
     "starts with compact=%s and always leaves an accessible toggle",
     (compact) => {
@@ -663,11 +850,11 @@ describe("viewport-height chart-tab navigation", () => {
     expect(css).toContain("height: 100dvh");
     expect(css).toContain("overflow-y: auto");
     expect(css).toContain(".clinic-sidebar[hidden]");
-    expect(css).toContain("width: 44px");
+    expect(css).toContain("width: 40px");
     expect(css).toContain(
-      '.clinic-shell[data-collapsed="false"] .clinic-chart-tab',
+      '.clinic-shell[data-collapsed="false"] .clinic-menu-toggle',
     );
-    expect(css).toContain("right: -20px");
+    expect(css).toContain("right: 12px");
     expect(css).toContain("margin-left: 56px");
     const boardCss = readFileSync(
       "src/features/clinic/trackingBoard.css",

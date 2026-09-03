@@ -2,7 +2,7 @@ module Clinic
   module Billing
     class AllocatePayment
       def self.call(practice:, actor:, patient:, invoice:, external_event_reference:, currency:, amount:, payment_amount: nil)
-        Authorization.authorize!(actor: actor, practice: practice, action: "billing.write")
+        Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.payment_record", legacy_action: "billing.write")
         patient = practice.patients.find(patient.id)
         invoice = practice.invoices.find(invoice.id)
         allocation_amount = Money.decimal(amount, name: "allocation", positive: true)

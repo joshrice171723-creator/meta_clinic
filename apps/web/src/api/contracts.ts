@@ -227,18 +227,81 @@ export type Pagination = {
   total_pages: number;
 };
 export type ClinicCapabilities = {
+  patient_identity_read?: boolean;
+  appointments_read?: boolean;
+  appointments_book?: boolean;
+  appointments_status_transition?: boolean;
+  staff_write?: boolean;
+  billing_read?: boolean;
+  billing_invoice_draft?: boolean;
+  billing_invoice_post?: boolean;
+  billing_payment_record?: boolean;
   patients: boolean;
   patients_write: boolean;
   staff: boolean;
   inventory: boolean;
   appointments: boolean;
   encounters: boolean;
+  encounters_assign_provider?: boolean;
   notes_read: boolean;
   notes_write: boolean;
   documents: boolean;
   messages: boolean;
   billing: boolean;
   roles: boolean;
+};
+export type ClinicInvoice = {
+  id: number;
+  patient_id: number;
+  currency: string;
+  status: string;
+  rounding_policy_version: string;
+  created_at: string;
+  lines?: {
+    quantity: Decimal;
+    unit_amount: Decimal;
+    description_snapshot: string;
+  }[];
+  total_amount?: Decimal;
+  allocated_amount?: Decimal;
+  credit_amount?: Decimal;
+  balance_amount?: Decimal;
+};
+export type BillingCurrencyMetrics = {
+  currency: string;
+  monthly_invoiced: Decimal;
+  monthly_collected: Decimal;
+  collected: Decimal;
+  outstanding: Decimal;
+  open_invoice_count: number;
+};
+export type BillingInvoiceSummary = {
+  id: number;
+  status: "draft" | "posted" | "void";
+  currency: string;
+  total: Decimal;
+  allocated: Decimal;
+  balance: Decimal;
+  created_at: string;
+};
+export type BillingDashboard = {
+  schema_version: "clinic-billing-v1";
+  practice: { id: number; name: string; timezone: string };
+  period: { start: string; end: string };
+  metrics: {
+    invoice_count: number;
+    posted_count: number;
+    draft_count: number;
+    void_count: number;
+    currencies: BillingCurrencyMetrics[];
+  };
+  recent_invoices: BillingInvoiceSummary[];
+  recent_payments: {
+    invoice_id: number;
+    currency: string;
+    amount: Decimal;
+    created_at: string;
+  }[];
 };
 export type ClinicSite = {
   id: number;
@@ -266,6 +329,7 @@ export type Appointment = {
   ends_at: string;
   status: string;
   encounter_id: number | null;
+  patient?: Pick<Patient, "id" | "display_name" | "reference">;
 };
 export type FacilitySite = ClinicSite;
 export type FacilityRoom = { id: number; site_id: number; code: string };
@@ -273,14 +337,14 @@ export type VisitType = { id: number; code: string; retired_at: string | null };
 export type Clinician = {
   id: number;
   membership_id: number;
-  assignments: {
+  assignments?: {
     id: number;
     department_id: number | null;
     site_id: number | null;
     effective_from: string;
     effective_until: string | null;
   }[];
-  credentials: {
+  credentials?: {
     id: number;
     credential_type: string;
     jurisdiction: string;
@@ -292,7 +356,7 @@ export type Encounter = {
   id: number;
   patient_id: number;
   appointment_id: number | null;
-  site_id: number | null;
+  site_id: string | null;
   room_id: number | null;
   started_at: string;
   ended_at: string | null;
@@ -300,8 +364,8 @@ export type Encounter = {
 };
 export type EncounterDetail = Encounter & {
   participants: {
-    id: number;
-    membership_id: number;
+    id: string;
+    membership_id: string;
     participation_role: string;
     effective_from: string;
     effective_until: string | null;
@@ -355,27 +419,52 @@ export type EncounterNote = EncounterNoteSummary & {
 };
 export type ClinicTrackingBoardVisit = {
   id: number;
+  row_type: "appointment" | "encounter";
+  operational_state:
+    "upcoming" | "on_time" | "late" | "waiting_room" | "unrecorded";
   patient_id: number;
-  encounter_id: number;
-  patient: Pick<Patient, "id" | "display_name" | "reference">;
+  encounter_id: number | null;
+  provider_assignment_available: boolean;
+  patient: Pick<Patient, "id" | "display_name" | "reference"> & {
+    demographics?: { age: number | null; sex: string };
+    membership?: "member" | "nonmember" | "not_verified";
+  };
+  vitals?: {
+    blood_pressure?: {
+      systolic: string | null;
+      diastolic: string | null;
+      unit?: string | null;
+    };
+    heart_rate?: { value: string | null; unit?: string | null };
+    weight?: { value: string | null; unit?: string | null };
+  } | null;
+  provider?: {
+    clinician_profile_id: string;
+    display_name: string;
+    token: string | null;
+  } | null;
   encounter: {
     id: number;
     status: "open" | "completed";
     started_at: string;
     ended_at: string | null;
-    site_id: number | null;
+    site_id: string | null;
     site_code: string | null;
     room_id: number | null;
     room_code: string | null;
-  };
+  } | null;
   appointment: {
     id: number;
     status: string;
     starts_at: string;
     ends_at: string;
     visit_type_code: string | null;
+    site_id: string | null;
+    site_code: string | null;
+    room_id: number | null;
+    room_code: string | null;
   } | null;
-  care_summary: PatientCareSummary;
+  care_summary: PatientCareSummary | null;
   synthetic_scenario?: {
     stage:
       "waiting" | "intake" | "ready" | "clinician" | "checkout" | "unrecorded";
@@ -383,10 +472,15 @@ export type ClinicTrackingBoardVisit = {
   };
 };
 export type ClinicTrackingBoard = {
-  schema_version: "tracking-board-v1";
+  schema_version: "tracking-board-v2";
   as_of: string;
   truncated: boolean;
   visits: ClinicTrackingBoardVisit[];
+  eligible_providers: {
+    clinician_profile_id: string;
+    display_name: string;
+    site_ids: string[];
+  }[];
 };
 export type PreviousSignedSoapResponse = {
   schema_version: "previous-signed-soap-v1";

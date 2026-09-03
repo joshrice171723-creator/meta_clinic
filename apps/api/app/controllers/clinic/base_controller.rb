@@ -82,6 +82,11 @@ module Clinic
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: permission, any_site: any_site)
     end
 
+    def require_capability_with_legacy(capability, legacy_capability, site: nil, any_site: false)
+      Clinic::Authorization.authorize_with_legacy!(actor: current_user, practice: current_practice,
+        action: capability, legacy_action: legacy_capability, site: site, any_site: any_site)
+    end
+
     def current_ability
       @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
@@ -101,6 +106,7 @@ module Clinic
     def sensitive_read_action
       case [ controller_path, action_name ]
       when [ "clinic/care/patients", "index" ], [ "clinic/care/patients", "show" ] then "patients.read"
+      when [ "clinic/care/patients", "lookup" ] then "patients.identity.read"
       when [ "clinic/care/patient_care_summaries", "show" ] then "patients.read"
       when [ "clinic/care/patient_chart_history", "show" ], [ "clinic/scheduling/tracking_board", "show" ] then "patients.read"
       when [ "clinic/care/encounter_notes", "index" ], [ "clinic/care/encounter_notes", "show" ] then "notes.read"
@@ -109,6 +115,7 @@ module Clinic
       when [ "clinic/documents", "index" ], [ "clinic/documents", "show" ] then "documents.read"
       when [ "clinic/document_categories", "index" ] then "documents.categories.read"
       when [ "clinic/billing/invoices", "index" ], [ "clinic/billing/invoices", "show" ] then "billing.read"
+      when [ "clinic/billing/dashboard", "show" ] then "billing.read"
       when [ "clinic/messaging/message_intents", "index" ], [ "clinic/messaging/message_intents", "show" ] then "messages.read"
       when [ "clinic/scheduling/appointments", "index" ], [ "clinic/scheduling/appointments", "show" ] then "appointments.read"
       when [ "clinic/scheduling/encounters", "index" ], [ "clinic/scheduling/encounters", "show" ] then "encounters.read"
@@ -116,6 +123,11 @@ module Clinic
       when [ "clinic/clinicians", "index" ] then "clinicians.read"
       when [ "clinic/inventory/items", "index" ] then "inventory.read"
       when [ "clinic/inventory/pharmacy", "index" ], [ "clinic/inventory/pharmacy", "show" ] then "inventory.read"
+      when [ "clinic/inventory/management", "bootstrap" ], [ "clinic/inventory/management", "catalog" ],
+        [ "clinic/inventory/management", "replenishment" ], [ "clinic/inventory/management", "purchase_orders" ],
+        [ "clinic/inventory/management", "purchase_order" ], [ "clinic/inventory/management", "receiving" ],
+        [ "clinic/inventory/management", "lots" ], [ "clinic/inventory/management", "activity" ],
+        [ "clinic/inventory/management", "recalls" ], [ "clinic/inventory/management", "controlled" ] then "inventory.read"
       when [ "clinic/role_versions", "index" ], [ "clinic/authorization/role_grants", "index" ] then "roles.read"
       when [ "clinic/operation_receipts", "show" ] then "audit.receipts.read"
       end

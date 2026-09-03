@@ -201,8 +201,8 @@ describe("tracking-board care indicators", () => {
   it("communicates when an example visit is unlinked without implying no concerns", () => {
     const unlinked = careIndicatorGroups({ status: "unlinked" });
     expect(unlinked[0].label).toBe("Care summary unavailable");
-    expect(unlinked[0].details[0].secondary).toContain(
-      "no concerns were inferred",
+    expect(unlinked[0].details[0].secondary).toBe(
+      "No linked care summary is available.",
     );
     const html = renderToStaticMarkup(
       <CareIndicators state={{ status: "unlinked" }} patientLabel="S. Pat" />,

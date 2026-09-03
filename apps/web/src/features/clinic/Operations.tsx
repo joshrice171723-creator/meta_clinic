@@ -108,7 +108,7 @@ export function Operations() {
               </a>
               <p>
                 Read-only scheduling and visit history from the current clinic
-                API. The tracking board remains a labeled example.
+                API.
               </p>
             </li>
           )}

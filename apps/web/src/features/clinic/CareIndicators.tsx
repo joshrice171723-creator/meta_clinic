@@ -28,6 +28,7 @@ type SummaryVisit = {
 
 export type CareSummaryLoadState =
   | { status: "unlinked" }
+  | { status: "not_applicable" }
   | { status: "loading" }
   | { status: "ready"; summary: PatientCareSummary }
   | { status: "error" };
@@ -144,7 +145,7 @@ export function careIndicatorGroups(
         details: [
           detail(
             "Select the patient chart",
-            "This example visit is not linked to a patient record, so no concerns were inferred.",
+            "No linked care summary is available.",
           ),
         ],
       },

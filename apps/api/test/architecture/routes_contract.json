@@ -20,6 +20,11 @@
     "/api/clinic/appointments(.:format)"
   ],
   [
+    "api_clinic_billing",
+    "GET",
+    "/api/clinic/billing(.:format)"
+  ],
+  [
     "api_clinic_clinicians",
     "GET",
     "/api/clinic/clinicians(.:format)"
@@ -73,6 +78,66 @@
     "api_clinic_inventory_index",
     "GET",
     "/api/clinic/inventory(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management",
+    "GET",
+    "/api/clinic/inventory/purchase-orders/:id(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_activity",
+    "GET",
+    "/api/clinic/inventory/activity(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_bootstrap",
+    "GET",
+    "/api/clinic/inventory/bootstrap(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_catalog",
+    "GET",
+    "/api/clinic/inventory/catalog(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_controlled",
+    "GET",
+    "/api/clinic/inventory/controlled(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_demo",
+    "POST",
+    "/api/clinic/inventory/demo(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_lots",
+    "GET",
+    "/api/clinic/inventory/lots(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_purchase_orders",
+    "GET",
+    "/api/clinic/inventory/purchase-orders(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_recalls",
+    "GET",
+    "/api/clinic/inventory/recalls(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_receipts",
+    "POST",
+    "/api/clinic/inventory/receipts(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_receiving",
+    "GET",
+    "/api/clinic/inventory/receiving(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_replenishment",
+    "GET",
+    "/api/clinic/inventory/replenishment(.:format)"
   ],
   [
     "api_clinic_invoice",
@@ -280,6 +345,11 @@
     "/api/clinic/pharmacy/import(.:format)"
   ],
   [
+    "lookup_api_clinic_patients",
+    "GET",
+    "/api/clinic/patients/lookup(.:format)"
+  ],
+  [
     "lookup_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/lookup(.:format)"
@@ -303,6 +373,11 @@
     "previous_signed_soap_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/previous_signed_soap(.:format)"
+  ],
+  [
+    "provider_assignment_api_clinic_encounter",
+    "POST",
+    "/api/clinic/encounters/:id/provider_assignment(.:format)"
   ],
   [
     "rails_health_check",
@@ -383,6 +458,61 @@
     null,
     "POST",
     "/api/clinic/inventory(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/controlled/:id/certify(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/controlled/:id/investigate(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/counts/:id/approve(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/lots/:id/adjust(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/lots/:id/count(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/lots/:id/transfer(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/purchase-orders(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/purchase-orders/:id/cancel-remainder(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/purchase-orders/:id/transition(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/recalls(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/recalls/:id/disposition(.:format)"
   ],
   [
     null,

@@ -92,14 +92,14 @@ export function Catalog() {
         {data.product_count === 0 ? (
           <div className="pharmacy-empty">
             <h3>Your pharmacy catalog starts here.</h3>
-            <p>Add a product, then receive a fictional lot to add stock.</p>
+            <p>Add a product, then receive a lot to add stock.</p>
             {actions.catalog && (
               <a href="/clinic/pharmacy/new">Add your first product ↗</a>
             )}
             {clinic.development_demo && actions.receive && (
               <Form
                 endpoint="/api/clinic/pharmacy/demo"
-                submit="Load fictional pharmacy examples"
+                submit="Load inventory records"
                 onSuccess={refresh}
               />
             )}
@@ -158,7 +158,7 @@ export function Catalog() {
                       </td>
                       <td>
                         <code>{p.sku}</code>
-                        <small>{p.ndc || "Manual / synthetic"}</small>
+                        <small>{p.ndc || "Manual entry"}</small>
                       </td>
                       <td>
                         <strong className={p.low_stock ? "stock-low" : ""}>
@@ -281,7 +281,12 @@ export function Catalog() {
               name="status"
               label="Inventory state"
               value={data.profile?.status}
-              options={["draft", "synthetic", "suspended", "retired"]}
+              options={[
+                "draft",
+                ["synthetic", "configured"],
+                "suspended",
+                "retired",
+              ]}
             />
             <Field
               name="operator_reference"

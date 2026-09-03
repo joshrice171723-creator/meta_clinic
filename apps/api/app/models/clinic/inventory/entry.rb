@@ -10,6 +10,8 @@ module Clinic
       belongs_to :batch, class_name: "Clinic::Inventory::PharmacyBatch", optional: true
       belongs_to :receipt_line, class_name: "Clinic::Inventory::ReceiptLine", optional: true
       belongs_to :count, class_name: "Clinic::Inventory::Count", optional: true
+      belongs_to :transfer, class_name: "Clinic::Inventory::Transfer", optional: true
+      belongs_to :recall_disposition, class_name: "Clinic::Inventory::RecallDisposition", optional: true
       validates :reason, presence: true, length: { maximum: 200 }
       validates :request_key, presence: true, length: { maximum: 100 }
       validates :quantity, numericality: { other_than: 0 }

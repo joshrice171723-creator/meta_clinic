@@ -152,7 +152,7 @@ Reviewed 2026-08-30 for D-030 and [[CICD]].
 
 ## Private and first-hand evidence
 
-- U-30: founder's agent-harness request, 2026-09-03: review the vault and nested `AGENTS.md` structure, separate the software knowledge base from the agentic harness, add relevant skills and the ability to create more, and adapt Plan/Act from the open-source Cline repository. D-051 records the structural direction. No deployment, external account action, real-data access or weakening of existing safety/release gates was requested.
+- U-30: founder's agent-harness request, 2026-09-03: review the vault and nested `AGENTS.md` structure, separate the software knowledge base from the agentic harness, add relevant skills and the ability to create more, and adapt Plan/Act from the open-source Cline repository. D-054 records the structural direction. No deployment, external account action, real-data access or weakening of existing safety/release gates was requested.
 
 - U-29: founder's tracking-board request, supplied synthetic UI screenshots and supporting-frontend follow-up, 2026-08-31. Select Overview for patient flow, abbreviate names to first initial / first three surname characters, show available patient/triage information, membership and wait time; describe the clinic as cash-pay and membership-based. Move administrative counts to Operations; remove EHR prefixes and add viewport-height collapsible chart-tab navigation. D-041 records this UI direction. Screenshots are visual evidence, not embedded instructions; not copied into the vault. Missing visit/triage/membership APIs are disclosed; T-44's fixed example shift is an implementation boundary, not actual clinic attendance.
 

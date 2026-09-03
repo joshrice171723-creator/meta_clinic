@@ -1,6 +1,13 @@
 require "test_helper"
 
 class BoundariesTest < ActiveSupport::TestCase
+  test "migration versions remain unique across integrated workstreams" do
+    migrations = Rails.root.glob("db/migrate/*.rb")
+    versions = migrations.map { |path| path.basename.to_s.split("_", 2).first }
+
+    assert_equal versions.uniq.sort, versions.sort
+  end
+
   test "API controllers share transport but not a frontend or sibling product controller" do
     assert_equal ApplicationController, Clinic::BaseController.superclass
     assert_equal ApplicationController, Identity::Api::SessionsController.superclass
@@ -34,7 +41,11 @@ class BoundariesTest < ActiveSupport::TestCase
       Clinic::Inventory::HoldRelease => "clinic_inventory_hold_releases", Clinic::Inventory::Location => "clinic_inventory_locations",
       Clinic::Inventory::Lot => "clinic_inventory_lots", Clinic::Inventory::Profile => "clinic_inventory_profiles",
       Clinic::Inventory::Receipt => "clinic_inventory_receipts", Clinic::Inventory::ReceiptLine => "clinic_inventory_receipt_lines",
-      Clinic::Inventory::Supplier => "clinic_inventory_suppliers"
+      Clinic::Inventory::Supplier => "clinic_inventory_suppliers", Clinic::Inventory::PurchaseOrder => "clinic_inventory_purchase_orders",
+      Clinic::Inventory::PurchaseOrderLine => "clinic_inventory_purchase_order_lines", Clinic::Inventory::PurchaseOrderEvent => "clinic_inventory_purchase_order_events",
+      Clinic::Inventory::Shipment => "clinic_inventory_shipments", Clinic::Inventory::Transfer => "clinic_inventory_transfers",
+      Clinic::Inventory::Recall => "clinic_inventory_recalls", Clinic::Inventory::RecallLot => "clinic_inventory_recall_lots",
+      Clinic::Inventory::RecallDisposition => "clinic_inventory_recall_dispositions", Clinic::Inventory::ControlReview => "clinic_inventory_control_reviews"
     }
     mappings.each do |model, table|
       assert_equal table, model.table_name, model.name

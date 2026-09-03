@@ -33,6 +33,7 @@ class ClinicSiteScopedProviderTest < ActionDispatch::IntegrationTest
     assert_response :success
     capabilities = response.parsed_body.fetch("capabilities")
     assert_equal true, capabilities.fetch("encounters")
+    assert_equal false, capabilities.fetch("encounters_assign_provider")
     assert_equal true, capabilities.fetch("notes_read")
     assert_equal true, capabilities.fetch("notes_write")
   end

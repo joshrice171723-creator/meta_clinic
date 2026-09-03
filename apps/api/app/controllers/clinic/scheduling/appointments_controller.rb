@@ -1,23 +1,25 @@
 module Clinic
   module Scheduling
     class AppointmentsController < Clinic::ApiController
-      before_action -> { require_capability("patients.read") }, only: %i[index show]
+      before_action -> { require_capability_with_legacy("appointments.read", "patients.read", any_site: true) }, only: :index
       # Mutation services authorize the actual site and action.
 
       def index
-        appointments = current_practice.appointments
+        appointments = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
         appointments = appointments.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
         appointments = appointments.where(site_id: requested_id!(params[:site_id], :site_id)) if params[:site_id].present?
         appointments = appointments.where(booked_clinician_id: requested_id!(params[:booked_clinician_id], :booked_clinician_id)) if params[:booked_clinician_id].present?
         appointments = appointments.where(status: enum_param!(params[:status], field: :status, allowed: Clinic::Appointment::TRANSITIONS.keys)) if params[:status].present?
         appointments = appointments.where("starts_at >= ?", time_param!(params[:from], field: :from)) if params[:from].present?
         appointments = appointments.where("starts_at < ?", time_param!(params[:to], field: :to)) if params[:to].present?
-        paginate(appointments.includes(:encounter), key: :appointments,
+        paginate(appointments.includes(:encounter, :patient), key: :appointments,
           serializer: ->(appointment) { AppointmentSerializer.call(appointment) }, order: { starts_at: :asc, id: :asc })
       end
 
       def show
-        appointment = current_practice.appointments.includes(:encounter).find(requested_id!(params[:id], :id))
+        appointment_scope = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
+        appointment = appointment_scope.includes(:encounter, :patient).find(requested_id!(params[:id], :id))
+        require_capability_with_legacy("appointments.read", "patients.read", site: appointment.site)
         render json: { appointment: AppointmentSerializer.call(appointment) }
       end
 
@@ -57,6 +59,10 @@ module Clinic
 
       def find_optional(scope, value, field)
         value.present? ? scope.find(requested_id!(value, field)) : nil
+      end
+
+      def atomic_appointment_reads?
+        current_ability.allowed_permission?("appointments.read", any_site: true)
       end
     end
   end

@@ -58,8 +58,10 @@ Do not edit, rename, delete, format broadly, install dependencies, run generator
 
 | Information | Canonical location |
 | --- | --- |
+| Durable product definition | `PRODUCT.md` |
 | Orientation and priorities | `APPlyVault/00 Home.md` |
 | Context routes | `APPlyVault/01 Table of Contents.md` |
+| Clinic visual system | `APPlyVault/03 Execution/Design.md` |
 | Task status | `APPlyVault/03 Execution/Roadmap and Tasks.md` |
 | Explicit decisions and authority | `APPlyVault/03 Execution/Decisions.md` |
 | Risks and assumptions | `APPlyVault/03 Execution/Risks and Assumptions.md` |

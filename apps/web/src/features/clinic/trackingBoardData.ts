@@ -3,44 +3,53 @@
 export const EXAMPLE_CLOCK = "2026-08-31T10:20:00-05:00";
 export const VISIT_STAGES = [
   {
+    id: "scheduled",
+    label: "Expected",
+    action: "Expected",
+    waiting: false,
+  },
+  {
     id: "waiting",
-    label: "Awaiting intake",
+    label: "Waiting room",
     action: "Intake",
     waiting: true,
   },
-  { id: "intake", label: "In intake", action: "Triage", waiting: false },
+  { id: "intake", label: "Intake", action: "Triage", waiting: false },
   {
     id: "ready",
-    label: "Ready for Provider",
+    label: "Ready",
     action: "Provider",
     waiting: true,
   },
   {
     id: "clinician",
-    label: "With Provider",
+    label: "With provider",
     action: "Provider",
     waiting: false,
   },
   {
     id: "checkout",
-    label: "Awaiting checkout",
+    label: "Checkout",
     action: "Checkout",
     waiting: true,
   },
   {
     id: "unrecorded",
-    label: "Visit stage not recorded",
+    label: "Not recorded",
     action: "Review encounter record",
     waiting: false,
   },
 ] as const;
 export type VisitStage = (typeof VISIT_STAGES)[number]["id"];
+export type OperationalState =
+  "upcoming" | "on_time" | "late" | "waiting_room" | "unrecorded";
 export type ExampleVitalStatus = "above" | "within" | "below" | "unassessed";
 export type ExampleClinician = {
   id: string;
   firstName: string;
   lastName: string;
   credentials: string;
+  displayName?: string;
   locationIds: readonly string[];
 };
 export const EXAMPLE_CLINICIANS: readonly ExampleClinician[] = [
@@ -84,6 +93,9 @@ export type BoardVisit = {
     | "Establish Care"
     | "Recorded visit";
   chiefComplaint: string;
+  appointmentStartsAt?: string | null;
+  appointmentEndsAt?: string | null;
+  operationalState?: OperationalState;
   reason: string;
   visitType: string;
   membership: "member" | "nonmember" | "unknown";
@@ -91,6 +103,10 @@ export type BoardVisit = {
   locationId: string;
   room: string | null;
   assignedClinicianId: string | null;
+  assignedProviderName?: string | null;
+  providerAssignmentToken?: string | null;
+  providerAssignmentAvailable?: boolean;
+  eligibleProviders?: readonly ExampleClinician[];
   owner: string | null;
   arrivedAt: string | null;
   stageStartedAt: string | null;
@@ -100,6 +116,11 @@ export type BoardVisit = {
     recordedBy: string;
     vitals: string | null;
     vitalsSummary: string | null;
+    readings?: {
+      bp: { value: string; unit: string | null } | null;
+      hr: { value: string; unit: string | null } | null;
+      weight: { value: string; unit: string | null } | null;
+    } | null;
     vitalStatuses: {
       bp: ExampleVitalStatus;
       hr: ExampleVitalStatus;
@@ -300,7 +321,9 @@ export function clinicianInitials(clinician: ExampleClinician) {
   return `${first ?? "—"}${last ?? "—"}`;
 }
 export function clinicianLabel(clinician: ExampleClinician) {
-  return `${clinician.firstName} ${clinician.lastName}, ${clinician.credentials}`;
+  if (clinician.displayName?.trim()) return clinician.displayName.trim();
+  const name = `${clinician.firstName} ${clinician.lastName}`.trim();
+  return clinician.credentials ? `${name}, ${clinician.credentials}` : name;
 }
 export function patientLabel(first: string, last: string) {
   const characters = (value: string) =>

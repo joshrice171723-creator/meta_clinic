@@ -1,0 +1,51 @@
+.clinic-workflow-list {
+  display: grid;
+  gap: 0;
+}
+.clinic-workflow-list > a,
+.clinic-workflow-unavailable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--clinic-border);
+  color: var(--clinic-text);
+  text-decoration: none;
+}
+.clinic-workflow-list > a:hover,
+.clinic-workflow-list > a:focus-visible {
+  color: var(--clinic-accent);
+}
+.clinic-workflow-list span,
+.clinic-workflow-unavailable span,
+.clinic-selection-list button span {
+  color: var(--clinic-muted);
+  font-size: 14px;
+}
+.clinic-workflow-unavailable {
+  color: var(--clinic-muted);
+}
+.clinic-selection-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.clinic-selection-list button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--clinic-border);
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  text-align: left;
+  cursor: pointer;
+}
+.clinic-selection-list button[aria-pressed="true"] {
+  border-color: var(--clinic-accent);
+  background: var(--clinic-soft);
+}
+.clinic-tabular {
+  font-variant-numeric: tabular-nums;
+}

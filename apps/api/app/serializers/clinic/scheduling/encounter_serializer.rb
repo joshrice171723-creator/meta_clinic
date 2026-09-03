@@ -6,7 +6,7 @@ module Clinic
           id: encounter.id,
           patient_id: encounter.patient_id,
           appointment_id: encounter.appointment_id,
-          site_id: encounter.site_id,
+          site_id: encounter.site_id&.to_s,
           room_id: encounter.room_id,
           started_at: encounter.started_at&.iso8601(6),
           ended_at: encounter.ended_at&.iso8601(6),
@@ -17,8 +17,8 @@ module Clinic
         payload.merge(
           participants: encounter.participants.order(:effective_from, :id).map { |participant|
             {
-              id: participant.id,
-              membership_id: participant.membership_id,
+              id: participant.id.to_s,
+              membership_id: participant.membership_id.to_s,
               participation_role: participant.participation_role,
               effective_from: participant.effective_from&.iso8601(6),
               effective_until: participant.effective_until&.iso8601(6)

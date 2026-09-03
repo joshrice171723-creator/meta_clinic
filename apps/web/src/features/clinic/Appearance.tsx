@@ -13,6 +13,7 @@ import "./appearance.css";
 import "./clinicFrame.css";
 import "./trackingBoard.css";
 import "./careFlow.css";
+import "./billing.css";
 import {
   CLINIC_MODES,
   CLINIC_PALETTES,
@@ -131,17 +132,69 @@ export function ClinicAppearanceScope({
           text: { primary: tokens.text, secondary: tokens.muted },
           divider: tokens.border,
         },
-        shape: { borderRadius: 10 },
-        typography: { fontFamily: "inherit" },
+        shape: { borderRadius: 8 },
+        typography: {
+          fontFamily:
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          h1: { fontSize: "clamp(28px, 3vw, 35px)", fontWeight: 700 },
+          h2: { fontSize: "clamp(20px, 2vw, 24px)", fontWeight: 650 },
+          body1: { fontSize: "1rem", lineHeight: 1.5 },
+          body2: { fontSize: "0.875rem", lineHeight: 1.45 },
+        },
         components: {
           MuiButton: {
             defaultProps: { disableElevation: true },
             styleOverrides: {
-              root: { minHeight: 44, textTransform: "none", fontWeight: 650 },
+              root: {
+                minHeight: 44,
+                textTransform: "none",
+                fontWeight: 650,
+                "&:focus-visible": {
+                  outline: `3px solid ${tokens.accent}`,
+                  outlineOffset: 3,
+                },
+              },
             },
           },
           MuiLink: { defaultProps: { underline: "hover" } },
-          MuiCard: { styleOverrides: { root: { backgroundImage: "none" } } },
+          MuiCard: {
+            styleOverrides: {
+              root: {
+                backgroundImage: "none",
+                borderRadius: 8,
+                boxShadow: "none",
+              },
+            },
+          },
+          MuiPaper: {
+            styleOverrides: {
+              root: { backgroundImage: "none" },
+              outlined: { borderColor: tokens.border },
+            },
+          },
+          MuiChip: {
+            styleOverrides: { root: { borderRadius: 6, fontWeight: 600 } },
+          },
+          MuiIconButton: {
+            styleOverrides: {
+              root: {
+                minWidth: 44,
+                minHeight: 44,
+                "&:focus-visible": {
+                  outline: `3px solid ${tokens.accent}`,
+                  outlineOffset: 3,
+                },
+              },
+            },
+          },
+          MuiDialog: {
+            styleOverrides: {
+              paper: {
+                borderRadius: 10,
+                boxShadow: "var(--clinic-elevation-dialog)",
+              },
+            },
+          },
         },
       }),
     [scheme, tokens],

@@ -11,10 +11,6 @@ export function Office() {
   return (
     <>
       <h1>Office inventory.</h1>
-      <p>
-        Synthetic office supplies. No purchases are placed. Earlier stock
-        history is preserved.
-      </p>
       <Card title="Stock on hand">
         {data.items.length === 0 && <p>No office items yet.</p>}
         {data.items.map((i) => (
@@ -40,7 +36,7 @@ export function Office() {
                     type="number"
                     step={1}
                   />
-                  <Field name="reason" label="Reason — no patient references" />
+                  <Field name="reason" label="Reason" />
                 </Form>
               </details>
             )}
@@ -54,11 +50,7 @@ export function Office() {
             submit="Add item"
             onSuccess={refresh}
           >
-            <Field
-              name="clinic_item[name]"
-              label="Fictional item name"
-              maxLength={160}
-            />
+            <Field name="clinic_item[name]" label="Item name" maxLength={160} />
             <Field name="clinic_item[sku]" label="SKU" maxLength={160} />
             <Field
               name="clinic_item[reorder_level]"

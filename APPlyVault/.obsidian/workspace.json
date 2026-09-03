@@ -188,6 +188,8 @@
   },
   "active": "8d9c76c6775db8bb",
   "lastOpenFiles": [
+    "03 Execution/Inventory Integration Handoff.md",
+    "03 Execution/Design.md",
     "02 Research/Pharmacy Inventory Data Requirements.md",
     "02 Research/MD Pilot.md",
     "02 Research/Customer Discovery.md",
@@ -211,8 +213,6 @@
     "03 Execution/Multi-Clinic ERD Adversarial Review.md",
     "03 Execution/PostgreSQL and Inventory Foundation.md",
     "03 Execution/Progress Log.md",
-    "03 Execution/Risks and Assumptions.md",
-    "03 Execution/Roadmap and Tasks.md",
-    "03 Execution/Software Architecture.md"
+    "03 Execution/Risks and Assumptions.md"
   ]
 }

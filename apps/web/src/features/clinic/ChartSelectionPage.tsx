@@ -156,12 +156,12 @@ export function ChartSelectionPage({
     return (
       <Card title="Select chart">
         <p>
-          Tracking row {boardVisitId ?? "without a visit reference"} is a
-          synthetic example and is not linked to a patient record.
+          Tracking row {boardVisitId ?? "without a visit reference"} is not
+          linked to a patient record.
         </p>
         <p>
-          Confirm the patient in the register before opening a chart. This
-          example cannot select or display a clinical record.
+          Confirm the patient in the register before opening a chart. This row
+          cannot select or display a clinical record.
         </p>
         <a className="primary-link" href="/clinic/patients">
           Open patient register →

@@ -58,4 +58,66 @@ describe("clinic-local navigation", () => {
       '"nav a, nav button, .clinic-sidebar-bottom a"',
     );
   });
+
+  it("preserves the authenticated shell while switching clinic history routes", () => {
+    const app = readFileSync(
+      new URL("../src/App.tsx", import.meta.url),
+      "utf8",
+    );
+    const workspace = readFileSync(
+      new URL("../src/features/clinic/Workspace.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(app).toContain("window.history[method]");
+    expect(app).toContain('window.addEventListener("popstate", restore)');
+    expect(app).toContain("<Workspace\n        key={user.id}");
+    expect(workspace).toContain("const { navigate } = useClinicNavigation();");
+    expect(workspace).toContain(
+      "event.preventDefault();\n                navigate(",
+    );
+  });
+
+  it("keeps schedule paging and board refresh/listeners component-local", () => {
+    const careFlow = readFileSync(
+      new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
+      "utf8",
+    );
+    const board = readFileSync(
+      new URL("../src/features/clinic/TrackingBoardPage.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(careFlow).toContain("const [page, setPage] = useState(1);");
+    expect(careFlow).toContain("onPageChange={setPage}");
+    expect(careFlow).toContain('data-clinic-view="tracking"');
+    expect(careFlow).toContain("Return to tracking board");
+    expect(careFlow).not.toContain("window.history.pushState");
+    expect(board).toContain("if (!active) return;");
+    expect(board).toContain("useTrackingBoard(active)");
+  });
+
+  it("guards in-app SOAP navigation while retaining hard auth exits", () => {
+    const careFlow = readFileSync(
+      new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
+      "utf8",
+    );
+    const app = readFileSync(
+      new URL("../src/App.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(careFlow).toContain("registerBlocker(");
+    expect(careFlow).toContain("unsaved changes. Leave the chart");
+    expect(careFlow).toContain('window.location.replace("/login")');
+    expect(app).toContain('window.location.replace(\n        "/login?next="');
+  });
+
+  it("closes the compact drawer after an in-drawer destination click", () => {
+    const frame = readFileSync(
+      new URL("../src/features/clinic/ClinicFrame.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(frame).toContain("nav a, nav button, .clinic-sidebar-bottom a");
+    expect(frame).toContain("if (!drawer) return;");
+    expect(frame).toContain("panel.current?.querySelector<HTMLAnchorElement>");
+    expect(frame).toContain('window.location.replace("/login")');
+  });
 });

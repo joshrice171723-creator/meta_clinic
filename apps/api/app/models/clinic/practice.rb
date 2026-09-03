@@ -4,6 +4,7 @@ module Clinic
     belongs_to :organization, optional: true
     has_many :memberships, class_name: "Clinic::Membership", dependent: :restrict_with_error
     has_many :patients, class_name: "Clinic::Care::Patient", dependent: :restrict_with_error
+    has_many :patient_memberships, class_name: "Clinic::Care::PatientMembership", dependent: :restrict_with_error
     has_many :pharmacy_products, class_name: "Clinic::Inventory::PharmacyProduct", dependent: :restrict_with_error
     has_many :items, class_name: "Clinic::Inventory::Item", dependent: :restrict_with_error
     has_many :staff_members, class_name: "Clinic::Staff::Member", dependent: :restrict_with_error
@@ -25,6 +26,11 @@ module Clinic
     has_many :patient_history_reviews, class_name: "Clinic::Care::PatientHistoryReview", dependent: :restrict_with_error
     has_many :inventory_profiles, class_name: "Clinic::Inventory::Profile", dependent: :restrict_with_error
     has_many :inventory_suppliers, class_name: "Clinic::Inventory::Supplier", dependent: :restrict_with_error
+    has_many :inventory_locations, class_name: "Clinic::Inventory::Location", dependent: :restrict_with_error
+    has_many :inventory_purchase_orders, class_name: "Clinic::Inventory::PurchaseOrder", dependent: :restrict_with_error
+    has_many :inventory_shipments, class_name: "Clinic::Inventory::Shipment", dependent: :restrict_with_error
+    has_many :inventory_transfers, class_name: "Clinic::Inventory::Transfer", dependent: :restrict_with_error
+    has_many :inventory_recalls, class_name: "Clinic::Inventory::Recall", dependent: :restrict_with_error
     has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error
     has_many :audit_events, class_name: "Clinic::AuditEvent", dependent: :restrict_with_error
     has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error

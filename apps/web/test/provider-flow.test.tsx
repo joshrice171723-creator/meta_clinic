@@ -35,9 +35,15 @@ import {
   openSoapHref,
   previousChartHref,
 } from "../src/features/clinic/chartNavigation";
-import { trackingBoardVisitToBoardVisit } from "../src/features/clinic/trackingBoardApi";
+import {
+  formatRecordedDecimal,
+  trackingBoardVisitToBoardVisit,
+} from "../src/features/clinic/trackingBoardApi";
 import { EXAMPLE_CARE_SUMMARIES } from "../src/features/clinic/trackingBoardCareFixtures";
-import { EXAMPLE_VISITS } from "../src/features/clinic/trackingBoardData";
+import {
+  cliniciansForLocation,
+  EXAMPLE_VISITS,
+} from "../src/features/clinic/trackingBoardData";
 
 const patient: Patient = {
   id: 7,
@@ -49,7 +55,7 @@ const encounter: EncounterDetail = {
   id: 9,
   patient_id: 7,
   appointment_id: null,
-  site_id: 1,
+  site_id: "1",
   room_id: null,
   started_at: "2026-09-01T14:00:00Z",
   ended_at: null,
@@ -316,22 +322,41 @@ describe("provider encounter workflow", () => {
     expect(html).toContain('aria-live="polite"');
   });
 
-  it("maps live board identity and encounter links without inventing stage or vitals", () => {
+  it("maps live board identity, membership, recorded vitals, and provider without deriving clinical status", () => {
     const visit = trackingBoardVisitToBoardVisit({
       id: 14,
+      row_type: "encounter",
+      operational_state: "unrecorded",
       patient_id: 7,
       encounter_id: 14,
+      provider_assignment_available: true,
       patient: {
         id: 7,
         display_name: "Synthetic Patient",
         reference: "SYN-007",
+        demographics: { age: 42, sex: "female" },
+        membership: "member",
+      },
+      vitals: {
+        blood_pressure: {
+          systolic: "118.0",
+          diastolic: "76.0",
+          unit: "mmHg",
+        },
+        heart_rate: { value: "72.0", unit: "/min" },
+        weight: { value: "160.50", unit: "lb" },
+      },
+      provider: {
+        clinician_profile_id: "9007199254740993",
+        display_name: "Alex Rowan, NP",
+        token: "41",
       },
       encounter: {
         id: 14,
         status: "open",
         started_at: "2026-09-01T14:00:00Z",
         ended_at: null,
-        site_id: null,
+        site_id: "9007199254740993",
         site_code: null,
         room_id: null,
         room_code: null,
@@ -349,19 +374,57 @@ describe("provider encounter workflow", () => {
       encounterId: 14,
       patientDisplayName: "Synthetic Patient",
       patientReference: "SYN-007",
+      age: 42,
+      gender: "F",
       isSynthetic: false,
       stage: "unrecorded",
-      triage: null,
-      assignedClinicianId: null,
+      membership: "member",
+      arrivedAt: "2026-09-01T14:00:00Z",
+      triage: {
+        vitalsSummary: "Vitals recorded",
+        readings: {
+          bp: { value: "118/76", unit: "mmHg" },
+          hr: { value: "72", unit: "/min" },
+          weight: { value: "160.5", unit: "lb" },
+        },
+        vitalStatuses: null,
+      },
+      assignedClinicianId: "api-provider-9007199254740993",
+      assignedProviderName: "Alex Rowan, NP",
+      providerAssignmentToken: "41",
+      locationId: "api-site-9007199254740993",
     });
     expect(openSoapHref(visit)).toBe("/clinic/patients/7/encounters/14");
+    expect(
+      cliniciansForLocation(visit.locationId, [
+        {
+          id: "api-provider-9007199254740993",
+          firstName: "",
+          lastName: "",
+          credentials: "",
+          displayName: "Alex Rowan, NP",
+          locationIds: ["api-site-9007199254740993"],
+        },
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it("formats recorded decimals without passing through lossy JavaScript numbers", () => {
+    expect(formatRecordedDecimal("9007199254740993.1234000000")).toBe(
+      "9007199254740993.1234",
+    );
+    expect(formatRecordedDecimal("00072.0000000000")).toBe("72");
+    expect(formatRecordedDecimal("not-recorded")).toBeNull();
   });
 
   it("maps an explicit synthetic seed scenario without treating it as inferred workflow", () => {
     const visit = trackingBoardVisitToBoardVisit({
       id: 15,
+      row_type: "encounter",
+      operational_state: "waiting_room",
       patient_id: 8,
       encounter_id: 15,
+      provider_assignment_available: true,
       patient: {
         id: 8,
         display_name: "SYN_Scenario, Casey",
@@ -372,7 +435,7 @@ describe("provider encounter workflow", () => {
         status: "open",
         started_at: "2030-02-04T14:00:00Z",
         ended_at: null,
-        site_id: 2,
+        site_id: "2",
         site_code: "MAIN",
         room_id: 3,
         room_code: "WAITING",
@@ -383,6 +446,10 @@ describe("provider encounter workflow", () => {
         starts_at: "2030-02-04T14:00:00Z",
         ends_at: "2030-02-04T14:30:00Z",
         visit_type_code: "SYN-BOARD-ANNUAL",
+        site_id: "2",
+        site_code: "MAIN",
+        room_id: 3,
+        room_code: "WAITING",
       },
       care_summary: {
         ...EXAMPLE_CARE_SUMMARIES["EX-001"],
@@ -401,6 +468,46 @@ describe("provider encounter workflow", () => {
       reason: "Annual wellness",
       chiefComplaint: "Annual wellness",
       room: "MAIN · WAITING",
+      operationalState: "waiting_room",
+    });
+  });
+
+  it("maps a scheduled appointment as expected work without inventing arrival", () => {
+    const visit = trackingBoardVisitToBoardVisit({
+      id: 22,
+      row_type: "appointment",
+      operational_state: "late",
+      patient_id: 9,
+      encounter_id: null,
+      provider_assignment_available: false,
+      patient: {
+        id: 9,
+        display_name: "Synthetic Scheduled Patient",
+        reference: "SYN-009",
+      },
+      encounter: null,
+      appointment: {
+        id: 22,
+        status: "confirmed",
+        starts_at: "2026-09-02T14:00:00Z",
+        ends_at: "2026-09-02T14:30:00Z",
+        visit_type_code: "FOLLOW-UP",
+        site_id: "4",
+        site_code: "ED",
+        room_id: null,
+        room_code: null,
+      },
+      care_summary: null,
+    });
+
+    expect(visit).toMatchObject({
+      id: "appointment-22",
+      patientId: 9,
+      encounterId: null,
+      stage: "scheduled",
+      room: "ED",
+      operationalState: "late",
+      arrivedAt: null,
     });
   });
 

@@ -51,6 +51,7 @@ class ClinicErdModelsTest < ActiveSupport::TestCase
     Clinic::CreditNote,
     Clinic::RefundEvent,
     Clinic::CoverageVersion,
+    Clinic::Care::PatientMembership,
     Clinic::InsuranceClaim,
     Clinic::ModelVersion
   ].freeze
@@ -82,6 +83,31 @@ class ClinicErdModelsTest < ActiveSupport::TestCase
     assert_equal "group", Clinic::Care::Observation.value_kinds[:group]
     assert_equal "site", Clinic::RoleGrant.scope_kinds[:site]
     assert_equal "released", Clinic::AuditEvent.outcomes[:released]
+  end
+
+  test "patient commercial membership is append-only and tenant-bound" do
+    assert_equal Clinic::Care::PatientMembership, Clinic::Care::Patient.reflect_on_association(:patient_memberships).klass
+    assert_equal Clinic::Membership, Clinic::Care::PatientMembership.reflect_on_association(:recorded_by_membership).klass
+    assert_equal %w[member nonmember], Clinic::Care::PatientMembership.statuses.keys
+    assert_equal "clinic_patient_memberships", Clinic::Care::PatientMembership.table_name
+    assert Clinic::Care::PatientMembership < Clinic::AppendOnly
+    assert_respond_to Clinic::Care::PatientMembership, :latest_as_of
+  end
+
+  test "patient commercial membership schema is complete and protected" do
+    table = Clinic::Care::PatientMembership.table_name
+    assert_equal %w[clinic_patient_memberships_identity clinic_patient_memberships_patient_id clinic_patient_memberships_practice_id],
+      ApplicationRecord.connection.indexes(table).map(&:name).grep(/clinic_patient_memberships_/).sort
+    assert_equal %w[clinic_patient_memberships_status clinic_patient_memberships_window],
+      ApplicationRecord.connection.check_constraints(table).map(&:name).sort
+    foreign_keys = ApplicationRecord.connection.foreign_keys(table).map(&:options).map { |options| options[:name] }
+    assert_includes foreign_keys, "fk_patient_memberships_patient"
+    assert_includes foreign_keys, "fk_patient_memberships_recorded_by"
+    assert_includes foreign_keys, "fk_clinic_patient_memberships_practice"
+    assert ApplicationRecord.connection.select_value(<<~SQL).present?
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'clinic_patient_memberships_immutable' AND NOT tgisinternal
+    SQL
   end
 
   test "observation validation requires exactly one typed representation" do

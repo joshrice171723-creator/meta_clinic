@@ -25,15 +25,15 @@ module Clinic
         end
       end
 
-      def approve!(actor:)
-        Clinic::Inventory::Access.with(practice_id, actor, "adjust") do |profile|
+      def approve!(actor:, request_key: SecureRandom.uuid)
+        Clinic::Inventory::Access.with(practice_id, actor, "count") do |profile|
           PharmacyProduct.lock("FOR SHARE").find(batch.product_id)
           batch.with_lock do
             return approval if reload.approval
             raise ArgumentError, "Stock moved after this count. Record a new count; the observation is preserved." unless cutoff_entry_id == batch.movements.maximum(:id) && expected_quantity == batch.quantity
             variance = observed_quantity - expected_quantity
             entry = if variance.nonzero?
-              batch.movements.create!(practice_id: practice_id, actor_id: actor.id, profile_id: profile.id, count_id: id, kind: "count_correction", quantity: variance, stock_unit: batch.product.stock_unit, reason: reason, request_key: request_key, occurred_at: Time.current)
+              batch.movements.create!(practice_id: practice_id, actor_id: actor.id, profile_id: profile.id, count_id: id, kind: "count_correction", quantity: variance, stock_unit: batch.product.stock_unit, reason: reason, request_key: "#{request_key}:movement", occurred_at: Time.current)
             end
             create_approval!(practice_id: practice_id, actor_id: actor.id, entry_id: entry&.id)
           end

@@ -22,15 +22,18 @@ import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
+import { FrontDesk } from "./features/clinic/FrontDesk";
+import { Billing } from "./features/clinic/Billing";
+import { BillingDashboard } from "./features/clinic/BillingDashboard";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import {
   ChartSelectionPage,
   chartSelectionProps,
 } from "./features/clinic/ChartSelectionPage";
-import { Office } from "./features/inventory/Office";
 import { Catalog } from "./features/inventory/Catalog";
 import { NewProduct } from "./features/inventory/NewProduct";
 import { Product } from "./features/inventory/Product";
+import { InventoryApp } from "./features/inventory/InventoryApp";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -148,6 +151,7 @@ function ClinicHome({
       {(visited.has("tracking") || view === "tracking") && (
         <div
           ref={trackingPanel}
+          className="clinic-route-panel"
           hidden={view !== "tracking"}
           tabIndex={-1}
           aria-label="Tracking Board"
@@ -158,6 +162,7 @@ function ClinicHome({
       {(visited.has("schedule") || view === "schedule") && (
         <div
           ref={schedulePanel}
+          className="clinic-route-panel"
           hidden={view !== "schedule"}
           tabIndex={-1}
           aria-label="Schedule"
@@ -190,10 +195,16 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
   ) : patient ? (
     <Patients id={patient[1]} />
-  ) : path === "/clinic/inventory" ? (
-    <Office />
+  ) : path.startsWith("/clinic/inventory") ? (
+    <InventoryApp path={path} />
   ) : path === "/clinic/staff" ? (
     <Staff />
+  ) : path === "/clinic/front-desk" ? (
+    <FrontDesk />
+  ) : path === "/clinic/billing/patients" ? (
+    <Billing />
+  ) : path === "/clinic/billing" ? (
+    <BillingDashboard />
   ) : (
     <h1>Page not found.</h1>
   );

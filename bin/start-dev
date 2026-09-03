@@ -111,7 +111,11 @@ abort "PostgreSQL did not become ready. Check: docker logs #{container}" unless 
 
 puts "Preparing the development database..."
 run!("ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "db:prepare", chdir: api_root)
-run!("ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "db:seed", chdir: api_root) if seed
+if seed
+  seed_environment = { "APP_SYNTHETIC_SEEDS" => "1", "APP_DEVELOPMENT_LOGIN" => "1" }
+  run!(seed_environment, "ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "db:seed", chdir: api_root)
+  run!(seed_environment, "ruby", "bin/postgres", "exec", "bundle", "exec", "rails", "members:prepare_test_accounts", chdir: api_root)
+end
 
 children = []
 environment = { "APP_DEVELOPMENT_LOGIN" => "1" }

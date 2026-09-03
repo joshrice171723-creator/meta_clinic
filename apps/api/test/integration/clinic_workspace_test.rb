@@ -52,6 +52,241 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "FOREIGN"
   end
 
+  test "billing dashboard is practice scoped and does not expose patient names" do
+    patient = @practice.patients.first
+    patient_name = patient.display_name
+    invoice = Clinic::Billing::DraftInvoice.call(
+      practice: @practice,
+      actor: @user,
+      patient: patient,
+      currency: "USD",
+      lines: [ { quantity: "2", unit_amount: "12.50", description_snapshot: "Synthetic billing dashboard line" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user)
+    Clinic::Billing::AllocatePayment.call(
+      practice: @practice,
+      actor: @user,
+      patient: patient,
+      invoice: invoice,
+      external_event_reference: "synthetic-dashboard-payment",
+      currency: "USD",
+      amount: "10.00"
+    )
+    get "/api/clinic/billing", headers: @headers
+
+    assert_response :success
+    assert_equal "clinic-billing-v1", response.parsed_body.fetch("schema_version")
+    assert_equal @practice.id, response.parsed_body.dig("practice", "id")
+    assert response.parsed_body.dig("metrics", "invoice_count") >= 1
+    assert_not_includes response.body, patient_name
+    assert response.parsed_body.fetch("recent_invoices").all? { |invoice| invoice["total"].is_a?(String) }
+    assert response.parsed_body.fetch("recent_payments").all? { |payment| payment["amount"].is_a?(String) }
+    assert_equal 1, response.parsed_body.dig("metrics", "currencies", 0, "open_invoice_count")
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "billing.read")
+    get "/api/clinic/billing", headers: @headers
+    assert_response :success
+    post "/api/clinic/invoices/#{invoice.id}/post", headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    revoke_all_permissions!(@membership)
+    get "/api/clinic/billing", headers: @headers
+    assert_response :forbidden
+  end
+
+  test "recall creation accepts the first request and replays only the same intent" do
+    Development::InventoryScenario.populate!(practice: @practice, actor: @user)
+    batch = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500").batches.find_by!(lot_number: "250701B")
+    key = SecureRandom.uuid
+    payload = {
+      recall: {
+        request_key: key,
+        batch_id: batch.id,
+        reference: "SYN-RECALL-#{SecureRandom.hex(4)}",
+        reason: "Synthetic manufacturer notice",
+        required_disposition: "return_to_supplier"
+      }
+    }
+
+    assert_difference "Clinic::Inventory::Recall.count", 1 do
+      submit "/api/clinic/inventory/recalls", payload
+      assert_response :created
+    end
+    assert_no_difference "Clinic::Inventory::Recall.count" do
+      submit "/api/clinic/inventory/recalls", payload
+      assert_response :created
+    end
+    submit "/api/clinic/inventory/recalls", payload.deep_merge(recall: { reason: "Different intent" })
+    assert_response :unprocessable_entity
+  end
+
+  test "purchase-order creation serializes same-key requests and rejects changed intent" do
+    Development::InventoryScenario.populate!(practice: @practice, actor: @user)
+    product = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500")
+    supplier = @practice.inventory_suppliers.find_by!(name: "MedSupply Co.")
+    key = SecureRandom.uuid
+    payload = {
+      purchase_order: {
+        request_key: key,
+        number: "SYN-PO-#{SecureRandom.hex(4)}",
+        supplier_id: supplier.id,
+        destination: "Main Pharmacy",
+        reason: "Synthetic replenishment",
+        tax: "0",
+        shipping: "4.25",
+        lines: [ {
+          product_id: product.id,
+          quantity: "2",
+          input_unit: "package",
+          conversion_factor: product.package_size.to_s,
+          unit_price: "12.375",
+          currency: "USD"
+        } ]
+      }
+    }
+
+    assert_difference "Clinic::Inventory::PurchaseOrder.count", 1 do
+      submit "/api/clinic/inventory/purchase-orders", payload
+      assert_response :created
+    end
+    assert_no_difference "Clinic::Inventory::PurchaseOrder.count" do
+      submit "/api/clinic/inventory/purchase-orders", payload
+      assert_response :created
+    end
+    submit "/api/clinic/inventory/purchase-orders", payload.deep_merge(purchase_order: { shipping: "5.00" })
+    assert_response :unprocessable_entity
+  end
+
+  test "purchase-order generated numbers remain distinct within one second" do
+    Development::InventoryScenario.populate!(practice: @practice, actor: @user)
+    product = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500")
+    supplier = @practice.inventory_suppliers.find_by!(name: "MedSupply Co.")
+    build_payload = lambda do |key|
+      { purchase_order: { request_key: key, supplier_id: supplier.id, destination: "Main Pharmacy", reason: "Synthetic replenishment", lines: [ { product_id: product.id, quantity: "1", unit_price: "2.50", currency: "USD" } ] } }
+    end
+    travel_to Time.current.change(usec: 0) do
+      submit "/api/clinic/inventory/purchase-orders", build_payload.call(SecureRandom.uuid)
+      assert_response :created
+      submit "/api/clinic/inventory/purchase-orders", build_payload.call(SecureRandom.uuid)
+      assert_response :created
+    end
+    numbers = @practice.inventory_purchase_orders.order(id: :desc).limit(2).pluck(:number)
+    assert_equal 2, numbers.uniq.size
+  end
+
+  test "purchase-order creation rejects forged package metadata and mixed currencies atomically" do
+    Development::InventoryScenario.populate!(practice: @practice, actor: @user)
+    product = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500")
+    base = { supplier_id: @practice.inventory_suppliers.first.id, destination: "Main Pharmacy", reason: "Synthetic validation", lines: [ { product_id: product.id, quantity: "1", unit_price: "2.50", currency: "USD" } ] }
+    initial_count = Clinic::Inventory::PurchaseOrder.where(practice_id: @practice.id).count
+    [ { input_unit: "tablet" }, { conversion_factor: (product.package_size.to_d + 1).to_s } ].each do |forged|
+      submit "/api/clinic/inventory/purchase-orders", { purchase_order: base.deep_merge(request_key: SecureRandom.uuid, lines: [ base[:lines].first.merge(forged) ]) }
+      assert_response :unprocessable_entity
+      assert_equal initial_count, Clinic::Inventory::PurchaseOrder.where(practice_id: @practice.id).count
+    end
+    mixed = base.merge(request_key: SecureRandom.uuid, lines: [ base[:lines].first, base[:lines].first.merge(currency: "CAD") ])
+    submit "/api/clinic/inventory/purchase-orders", { purchase_order: mixed }
+    assert_response :unprocessable_entity
+    assert_equal initial_count, Clinic::Inventory::PurchaseOrder.where(practice_id: @practice.id).count
+  end
+
+  test "recall evidence stays linked when recalls share a lot" do
+    Development::InventoryScenario.populate!(practice: @practice, actor: @user)
+    batch = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500").batches.find_by!(lot_number: "250701B")
+    build_recall = lambda do |reference|
+      recall = @practice.inventory_recalls.create!(product: batch.product, actor: @user, reference: reference, status: "disposition_pending", reason: "Synthetic notice", required_disposition: "return_to_supplier", effective_on: Date.current, affected_units: batch.quantity, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16))
+      recall.recall_lots.create!(practice: @practice, lot: batch.lot)
+      recall
+    end
+    recall_a = build_recall.call("SYN-RECALL-A")
+    recall_b = build_recall.call("SYN-RECALL-B")
+    ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', 'inventory.hold', true)")
+    batch.holds.create!(practice: @practice, actor: @user, recall: recall_a, kind: "recalled", reason: "Synthetic A hold", request_key: SecureRandom.uuid)
+
+    wire = Clinic::Inventory::InventoryWire.call(practice: @practice, actor: @user)
+    balance = wire.fetch(:balances).find { |row| row[:id] == "bal_#{batch.id}" }
+    assert_equal [ recall_a.id.to_s ], balance.fetch(:recall_ids)
+    assert_equal batch.quantity.to_d.to_s("F"), wire.fetch(:recalls).find { |row| row[:id] == recall_a.id.to_s }.fetch(:held_units)
+    assert_equal "0.0", wire.fetch(:recalls).find { |row| row[:id] == recall_b.id.to_s }.fetch(:held_units)
+    before = [ batch.reload.quantity, Clinic::Inventory::PharmacyMovement.where(batch_id: batch.id).count ]
+    assert_raises(ArgumentError) do
+      Clinic::Inventory::RecallDisposition.execute!(recall: recall_b, actor: @user, batch_id: batch.id, quantity: "1", method: "return_to_supplier", evidence_reference: "SYN-B", reason: "Synthetic B", request_key: SecureRandom.uuid)
+    end
+    assert_equal before, [ batch.reload.quantity, Clinic::Inventory::PharmacyMovement.where(batch_id: batch.id).count ]
+  end
+
+  test "a separately authorized receiver quarantines a first incoming recalled lot" do
+    product = @practice.pharmacy_products.create!(
+      name: "Synthetic recalled tablet", sku: "SYN-FIRST-RECALL", stock_unit: "tablet",
+      quantity_scale: 0, package_size: 100, unit_reference: "Synthetic package specification v1"
+    )
+    quarantine = @practice.inventory_locations.create!(name: "Quarantine", kind: "quarantine")
+    lot = Clinic::Inventory::Lot.create!(
+      practice: @practice, product: product, number: "SYN-FIRST-LOT",
+      expires_on: Date.current + 1.year
+    )
+    recall = @practice.inventory_recalls.create!(
+      product: product, actor: @user, reference: "SYN-FIRST-RECALL-NOTICE",
+      status: "disposition_pending", reason: "Synthetic manufacturer notice",
+      required_disposition: "return_to_supplier", effective_on: Date.current,
+      affected_units: 200, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16)
+    )
+    recall.recall_lots.create!(practice: @practice, lot: lot)
+    order = @practice.inventory_purchase_orders.create!(
+      actor: @user, number: "SYN-PO-FIRST-RECALL", status: "sent",
+      destination: quarantine.name, reason: "Synthetic recalled shipment",
+      request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16),
+      version: 1, subtotal: 2, tax: 0, shipping: 0, total: 2
+    )
+    line = order.lines.create!(
+      practice: @practice, product: product, product_name: product.name,
+      stock_unit: product.stock_unit, input_unit: "package", ordered_quantity: 2,
+      received_quantity: 0, conversion_factor: product.package_size,
+      unit_price: 1, currency: "USD"
+    )
+    shipment = order.shipments.create!(
+      practice: @practice, actor: @user, reference: "SYN-SHIP-FIRST-RECALL",
+      supplier_reference: "SYN-SUPPLIER-FIRST-RECALL", status: "delivered",
+      package_count: 2, expected_units: 200, delivered_at: Time.current,
+      request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16)
+    )
+    shipment.shipment_lines.create!(
+      practice: @practice, purchase_order_line: line, expected_packages: 2
+    )
+    assert_empty product.batches
+
+    receiver = User.create!(email_address: "separate-receiver@example.invalid", password: @password)
+    receiver_membership = @practice.memberships.create!(user: receiver)
+    grant_permissions!(receiver_membership, "inventory.read", "inventory.receive", "recall.lock")
+    submit "/api/session", {}, method: :delete
+    submit "/api/session", { email_address: receiver.email_address, password: @password }
+    assert_response :success
+
+    assert_difference [ "Clinic::Inventory::Receipt.count", "Clinic::Inventory::Hold.count" ], 1 do
+      submit "/api/clinic/inventory/receipts", {
+        receipt: {
+          request_key: SecureRandom.uuid,
+          purchase_order_id: order.id,
+          shipment_id: shipment.id,
+          purchase_order_line_id: line.id,
+          lot_number: lot.number,
+          expiration_date: lot.expires_on.iso8601,
+          quantity_packages: "2",
+          destination_location: quarantine.name,
+          recall_id: recall.id,
+          status: "quarantined",
+          reason: "Synthetic recall quarantine"
+        }
+      }
+      assert_response :success
+    end
+    receipt = shipment.receipts.sole
+    assert_equal receiver.id, receipt.actor_id
+    assert_equal recall.id, receipt.lines.sole.batch.active_holds.sole.recall_id
+    assert_not receipt.lines.sole.batch.available?
+  end
+
   test "login never selects creates or changes the assigned clinic" do
     submit "/api/session", {}, method: :delete
     get "/api/clinic", headers: @headers
@@ -139,7 +374,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   test "staff directory cannot grant access and status changes stay in clinic" do
-    assert_no_difference "User.count" do
+    assert_no_difference [ "User.count", "Clinic::Membership.count", "Clinic::RoleGrant.count",
+      "Clinic::ClinicianProfile.count", "Clinic::ClinicianCredential.count" ] do
       submit "/api/clinic/staff", { clinic_staff_member: { display_name: "Morgan Example", job_title: "Coordinator", user_id: @other_user.id, admin: true, practice_id: @other.id } }
       assert_response :bad_request
       submit "/api/clinic/staff", { clinic_staff_member: { display_name: "Morgan Example", job_title: "Coordinator" } }

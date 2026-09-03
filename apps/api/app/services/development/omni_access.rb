@@ -2,6 +2,10 @@ module Development
   class OmniAccess
     DEFAULT_PROFILE = "administrator".freeze
     ROLE_PREFIX = "development-omni-".freeze
+    ROLE_VERSION = 4
+    INVENTORY_DATABASE_PERMISSIONS = TestClinic::DEFAULT_PERMISSIONS.grep(
+      /\A(?:inventory|procurement|recall|controlled)\./
+    ).freeze
     PROFILES = {
       "administrator" => {
         label: "Administrator",
@@ -9,46 +13,46 @@ module Development
         admin: true,
         # Omni authorization is deliberately overridden in Ability. Keep the
         # original immutable role definition stable when new permissions are added.
-        permissions: TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ]
+        permissions: (TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "clinician" => {
         label: "Clinician",
         description: "Clinician UI label for note and encounter rehearsal; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[
+        permissions: (%w[
           patients.read patients.write appointments.write encounters.write
           notes.write notes.sign observations.write documents.read
-        ]
+        ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "staff" => {
         label: "Clinic staff",
         description: "Clinic staff UI label for intake and operations rehearsal; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[
+        permissions: (%w[
           patients.read patients.write appointments.write inventory.read
           staff.read messages.write
-        ]
+        ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "inventory" => {
         label: "Inventory manager",
         description: "Inventory UI label for pharmacy and office workflows; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[
+        permissions: (%w[
           inventory.read inventory.catalog inventory.receive inventory.adjust
           inventory.hold inventory.release inventory.count inventory.configure
-        ]
+        ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "reader" => {
         label: "Read-only",
         description: "Read-only UI label for access-state rehearsal; local clinic access remains unrestricted.",
         admin: false,
-        permissions: %w[patients.read documents.read inventory.read staff.read]
+        permissions: (%w[patients.read documents.read inventory.read staff.read] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "client" => {
         label: "Client / portal",
         description: "Client / portal UI label; local clinic access remains unrestricted for iteration.",
         admin: false,
-        permissions: []
+        permissions: INVENTORY_DATABASE_PERMISSIONS
       }
     }.transform_values { |profile| profile.merge(permissions: profile[:permissions].freeze).freeze }.freeze
 
@@ -61,8 +65,8 @@ module Development
       if active.empty?
         switch_locked!(user, membership, DEFAULT_PROFILE)
         seed_workflow!(membership)
-      elsif active.one? && profile_for(user)
-        membership
+      elsif active.one? && (profile = profile_for(user))
+        switch_locked!(user, membership, profile)
       else
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
@@ -83,8 +87,10 @@ module Development
         locked_user = User.lock.find(user.id)
         membership = Clinic::Membership.lock.find_by!(user: locked_user)
         ensure_roles!
-        unexpected = membership.role_grants.active.where.not(role_version: roles_by_profile.values)
-        if unexpected.exists?
+        unexpected = membership.role_grants.active.includes(:role_version).reject do |grant|
+          grant.role_version.role_code.start_with?(ROLE_PREFIX)
+        end
+        if unexpected.any?
           raise TestAccounts::Unavailable, "The Omni test identity has an unexpected active grant. No access was changed."
         end
         switch_locked!(locked_user, membership, profile)
@@ -118,7 +124,9 @@ module Development
 
     def self.switch_locked!(user, membership, profile)
       current = profile_for(user)
-      return membership if current == profile
+      role = roles_by_profile.fetch(profile)
+      active = active_omni_grants(membership)
+      return membership if current == profile && active.one? && active.first.role_version_id == role.id
 
       now = Time.current
       PaperTrail.request(whodunnit: user.id.to_s,
@@ -128,7 +136,6 @@ module Development
           grant.events.create!(practice: membership.practice, grantor_membership: membership,
             grant_revision: grant.revision, event_kind: "development_view_revoked")
         end
-        role = roles_by_profile.fetch(profile)
         grant = membership.role_grants.find_or_initialize_by(practice: membership.practice,
           role_version: role, scope_kind: "practice")
         grant.assign_attributes(effective_from: now - 1.minute, effective_until: nil, revoked_at: nil,
@@ -147,7 +154,7 @@ module Development
 
     def self.ensure_roles!
       PROFILES.each do |profile, settings|
-        role = RoleVersion.find_or_create_by!(role_code: "#{ROLE_PREFIX}#{profile}", version: 1)
+        role = RoleVersion.find_or_create_by!(role_code: "#{ROLE_PREFIX}#{profile}", version: ROLE_VERSION)
         settings[:permissions].each do |action_code|
           permission = Permission.find_or_create_by!(action_code: action_code)
           RoleVersionPermission.find_or_create_by!(role_version: role, permission: permission)
@@ -157,7 +164,7 @@ module Development
     private_class_method :ensure_roles!
 
     def self.roles_by_profile
-      RoleVersion.where(role_code: PROFILES.keys.map { |profile| "#{ROLE_PREFIX}#{profile}" }, version: 1)
+      RoleVersion.where(role_code: PROFILES.keys.map { |profile| "#{ROLE_PREFIX}#{profile}" }, version: ROLE_VERSION)
         .index_by { |role| role.role_code.delete_prefix(ROLE_PREFIX) }
     end
     private_class_method :roles_by_profile

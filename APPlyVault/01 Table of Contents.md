@@ -5,7 +5,7 @@ updated: 2026-09-03
 ---
 # Table of Contents
 
-Home: [[00 Home]] · **Developers: [[CICD|start with CI/CD]]** · Code ownership: [[Software Architecture]] · Status: [[Roadmap and Tasks#Current task register]]
+Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[Design]] · **Developers: [[CICD|start with CI/CD]]** · Code ownership: [[Software Architecture]] · Status: [[Roadmap and Tasks#Current task register]]
 
 Use this index to select the relevant notes and sections for a task; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, tasks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and the [agent harness](../agent-harness/README.md) provide scoped procedure. The harness owns agent behavior; this vault owns software knowledge and evidence.
 
@@ -17,11 +17,12 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 | Task | Start here | Supporting context when needed |
 | --- | --- | --- |
+| Product or visual-system design | [PRODUCT.md](../PRODUCT.md), [[Design]] | [[Clinic Workspace Design]] for implementation history and workflow boundaries; D-036/D-039/D-041/D-049/D-051/D-052; T-47 |
 | Implementation planning or failure review | [[Roadmap and Tasks#Five-step implementation plan]], [[Working Agreement#Failure-first planning and review]] | Chunk entry/exit evidence, [[Risks and Assumptions]], [[Weekly Review Template]], [[Evidence Note Template]]; D-037; existing M/E/professional gates remain |
 | Developer onboarding, Git, local setup or CI | [[CICD#Developer quick start]], [[Software Architecture]] | T-22/T-40 in [[Roadmap and Tasks#Current task register]]; D-033 in [[Decisions#Frontend and backend separation]] |
 | Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | T-20/T-38; [staging owner-review access](../ops/aws/ec2/review-access.md); linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates |
 | Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant M0–M6 criteria/tasks; D-021/D-022/D-033 |
-| Clinic UI, care or staff prototype | [[Clinic Workspace]], [[Clinic Workspace Design]], [[Software Architecture]] | D-025/D-026/D-033/D-036/D-039/D-041; T-13/T-29/T-40/T-41/T-43/T-44; relevant [[Data Modeling]] proposal and release limits |
+| Clinic UI, care or staff prototype | [[Design]], [[Clinic Workspace]], [[Clinic Workspace Design]], [[Software Architecture]] | D-025/D-026/D-033/D-036/D-039/D-041/D-049/D-051/D-052; T-13/T-29/T-40/T-41/T-43/T-44/T-47; relevant [[Data Modeling]] proposal and release limits |
 | ERD-to-frontend integration planning | [[Clinic Frontend Backend Mapping]], [[Backend Verification Report]], [[Target-State Clinic ERD]], [[ERD Implementation Prompt]] | Current browser-to-API readiness, user-flow diagrams, source-versus-gap boundaries and staged acceptance; D-043/D-044; retain existing clinic design and canonical T-13/T-34/T-44 status |
 | Inventory schema, receiving, units, holds or counts | [[PostgreSQL and Inventory Foundation]], [[Clinic Workspace#Current PostgreSQL inventory implementation]] | [[Pharmacy Inventory Data Requirements]]; [[Data Modeling#Inventory and commercial boundary]]; T-13/T-34/T-38 |
 | Supplier prices, procurement or billing | [[Inventory Price Comparison Sources]], [[Business Model]] | D-029/T-37 deferral; T-14 mechanics; entity/professional questions. Reading is not permission to resume integration |
@@ -38,11 +39,13 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | **[[CICD]]** | First developer handoff: local commands, two-developer branches/PRs, six CI jobs, active staging delivery and pending production activation |
 | [[Software Architecture]] | Current frontend/API ownership, planned backend-replacement boundary, PaperTrail coverage and transport rules |
 | [[PostgreSQL and Inventory Foundation]] | Implemented database/inventory controls, verified staging cutover/recovery and pending production cutover |
+| [[Inventory Integration Handoff]] | Current `/clinic/inventory*` routes, workflow ownership, synthetic scenario, database reconciliation and verification boundary |
 | [[Website MVP]] | Current selling-site scope and source-versus-hosted distinction |
 | [[Client Portal]] | Provisioned access, Contact, synthetic paperwork/signing, training and confidential-release limits |
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |
+| [[Design]] | Canonical clinic-only visual system: Clinical Wayfinding Ledger, desktop/tablet targets, tokens, hierarchy, components and failure-first acceptance |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
-| [[Clinic Workspace Design]] | Workload-board example, Operations and chart-tab navigation; account-owned themes, workflow proposals and verified versus unimplemented boundaries |
+| [[Clinic Workspace Design]] | Clinic design and implementation history, workflow proposals, account-owned themes and verified versus unimplemented boundaries; current visual authority is [[Design]] |
 | [[Clinic Intake Handoff Walkthrough]] | T-13.1 synthetic staff-intake-to-clinician-handoff script, evidence distinctions, scope, failure matrix and T-13.2/T-13.3 blockers; no approved clinical workflow |
 | [[Clinic Encounter Workflow Contract]] | Proposed synthetic route/stage contract for identity, intake, triage, handoff, unsigned provider exam, diagnosis boundary and discharge; explicit security, migration, audit and acceptance gates |
 | [[Clinic Frontend Backend Mapping]] | Current frontend-to-implemented-backend readiness map, five user-flow diagrams, minimum read-only context/schedule/patient/encounter implementation, full target-entity coverage, remaining contracts and phased acceptance |

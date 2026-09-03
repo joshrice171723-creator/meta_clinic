@@ -11,11 +11,11 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       patients_access: true,
       inventory_access: true,
       staff_access: true,
-      **Clinic::Inventory::Access::ACTIONS.to_h { |action| [ "inventory_#{action}", true ] }
+      **%w[catalog receive adjust hold release count configure].to_h { |action| [ "inventory_#{action}", true ] }
     )
     grant_permissions!(@membership, "patients.read", "patients.write", "staff.read", "staff.write", "inventory.read",
       "inventory.catalog", "inventory.receive", "inventory.adjust", "inventory.hold", "inventory.release", "inventory.count",
-      "inventory.configure", "appointments.write", "encounters.write", "notes.read", "notes.write", "notes.sign", "observations.write",
+      "inventory.configure", "inventory.transfer", "appointments.write", "encounters.write", "notes.read", "notes.write", "notes.sign", "observations.write",
       "messages.write", "documents.read", "billing.write", "roles.manage")
     @patient = Clinic::Care::Patient.create!(practice: @practice, display_name: "Synthetic Patient", reference: "SYN-001")
   end

@@ -1,27 +1,42 @@
 module Clinic
   module Scheduling
     module TrackingBoardSerializer
-      def self.build_care_summary_batch(encounters, practice_id:, as_of:)
-        CareSummaryBatch.new(encounters, practice_id: practice_id, as_of: as_of)
+      def self.build_care_summary_batch(encounters, practice_id:, as_of:, demographics: nil)
+        CareSummaryBatch.new(encounters, practice_id: practice_id, as_of: as_of, demographics: demographics)
       end
 
-      def self.call(encounter, care_summary: nil, synthetic_scenario: nil)
+      def self.build_vitals_batch(encounters, practice_id:)
+        VitalsBatch.new(encounters, practice_id: practice_id)
+      end
+
+      def self.build_provider_batch(encounters, practice:, as_of:, eligible_site_ids: nil)
+        ProviderBatch.new(encounters, practice: practice, as_of: as_of, eligible_site_ids: eligible_site_ids)
+      end
+
+      def self.call(encounter, care_summary: nil, synthetic_scenario: nil, operational_state: "unrecorded", demographics: nil, vitals: nil, membership: "not_verified", provider: nil, provider_assignment_available: false)
         appointment = encounter.appointment
         payload = {
           id: encounter.id,
+          row_type: "encounter",
+          operational_state: operational_state,
           patient_id: encounter.patient_id,
           encounter_id: encounter.id,
+          provider_assignment_available: provider_assignment_available,
           patient: {
             id: encounter.patient.id,
             display_name: encounter.patient.display_name,
-            reference: encounter.patient.reference
+            reference: encounter.patient.reference,
+            demographics: demographics_payload(demographics),
+            membership: membership
           },
+          vitals: vitals,
+          provider: provider,
           encounter: {
             id: encounter.id,
             status: encounter.status,
             started_at: encounter.started_at&.iso8601(6),
             ended_at: encounter.ended_at&.iso8601(6),
-            site_id: encounter.site_id,
+            site_id: encounter.site_id&.to_s,
             site_code: encounter.site&.code,
             room_id: encounter.room_id,
             room_code: encounter.room&.code
@@ -31,7 +46,11 @@ module Clinic
             status: appointment.status,
             starts_at: appointment.starts_at&.iso8601(6),
             ends_at: appointment.ends_at&.iso8601(6),
-            visit_type_code: appointment.visit_type&.code
+            visit_type_code: appointment.visit_type&.code,
+            site_id: appointment.site_id&.to_s,
+            site_code: appointment.site&.code,
+            room_id: appointment.room_id,
+            room_code: appointment.room&.code
           },
           care_summary: care_summary
         }
@@ -39,13 +58,128 @@ module Clinic
         payload
       end
 
+      def self.call_scheduled(appointment, operational_state:, demographics: nil, membership: "not_verified")
+        {
+          id: appointment.id,
+          row_type: "appointment",
+          operational_state: operational_state,
+          patient_id: appointment.patient_id,
+          encounter_id: nil,
+          provider_assignment_available: false,
+          patient: {
+            id: appointment.patient.id,
+            display_name: appointment.patient.display_name,
+            reference: appointment.patient.reference,
+            demographics: demographics_payload(demographics),
+            membership: membership
+          },
+          encounter: nil,
+          appointment: {
+            id: appointment.id,
+            status: appointment.status,
+            starts_at: appointment.starts_at&.iso8601(6),
+            ends_at: appointment.ends_at&.iso8601(6),
+            visit_type_code: appointment.visit_type&.code,
+            site_id: appointment.site_id&.to_s,
+            site_code: appointment.site&.code,
+            room_id: appointment.room_id,
+            room_code: appointment.room&.code
+          },
+          care_summary: nil,
+          vitals: nil
+        }
+      end
+
+      def self.demographics_payload(demographics)
+        return { age: nil, sex: "not_recorded" } unless demographics
+
+        { age: demographics[:age], sex: demographics[:sex].presence || "not_recorded" }
+      end
+      private_class_method :demographics_payload
+
+      class VitalsBatch
+        VITAL_CODES = %w[vital-systolic-bp vital-diastolic-bp vital-heart-rate vital-weight].freeze
+
+        def initialize(encounters, practice_id:)
+          @by_encounter = Hash.new { |hash, key| hash[key] = {} }
+          observations = Clinic::Care::Observation.where(
+            practice_id: practice_id, encounter_id: encounters.map(&:id), code: VITAL_CODES,
+            value_kind: :numeric
+          ).order(observed_at: :desc, id: :desc)
+          observations.each do |observation|
+            @by_encounter[observation.encounter_id][observation.code] ||= {
+              value: observation.numeric_value&.to_d&.to_s("F"), unit: observation.unit_code
+            }
+          end
+        end
+
+        def call(encounter)
+          values = @by_encounter.fetch(encounter.id, {})
+          {
+            blood_pressure: {
+              systolic: values.dig("vital-systolic-bp", :value),
+              diastolic: values.dig("vital-diastolic-bp", :value),
+              unit: values.dig("vital-systolic-bp", :unit) || values.dig("vital-diastolic-bp", :unit)
+            },
+            heart_rate: values["vital-heart-rate"],
+            weight: values["vital-weight"]
+          }.compact
+        end
+      end
+
+      class ProviderBatch
+        def initialize(encounters, practice:, as_of:, eligible_site_ids: nil)
+          @as_of = as_of
+          @participants = Clinic::EncounterParticipant.where(
+            practice_id: practice.id, encounter_id: encounters.map(&:id), participation_role: "queue_provider"
+          ).current(as_of).includes(membership: :clinician_profile).index_by(&:encounter_id)
+          @eligible_site_ids = eligible_site_ids || encounters.map(&:site_id).compact.uniq
+          @eligible = practice.clinician_profiles.includes(:membership, :assignments).to_a.select do |profile|
+            profile.membership.active? && profile.membership.practice_id == practice.id &&
+              profile.assignments.any? { |assignment| @eligible_site_ids.include?(assignment.site_id) && effective?(assignment) }
+          end
+        end
+
+        def call(encounter)
+          participant = @participants[encounter.id]
+          profile = participant&.membership&.clinician_profile
+          return unless profile && participant.membership.active? &&
+            participant.membership.practice_id == participant.practice_id && profile.practice_id == participant.practice_id
+
+          profile_payload(profile, participant)
+        end
+
+        def eligible
+          @eligible.map do |profile|
+            {
+              clinician_profile_id: profile.id.to_s,
+              display_name: profile.display_name.presence || "Provider name not recorded",
+              site_ids: profile.assignments.select do |assignment|
+                @eligible_site_ids.include?(assignment.site_id) && effective?(assignment)
+              end.map { |assignment| assignment.site_id.to_s }.uniq
+            }
+          end
+        end
+
+        private
+
+        def profile_payload(profile, participant = nil)
+          { clinician_profile_id: profile.id.to_s, display_name: profile.display_name.presence || "Provider name not recorded", token: participant&.id&.to_s }
+        end
+
+        def effective?(assignment)
+          assignment.effective_from <= @as_of && (assignment.effective_until.nil? || assignment.effective_until > @as_of)
+        end
+      end
+
       class CareSummaryBatch
-        def initialize(encounters, practice_id:, as_of:)
+        def initialize(encounters, practice_id:, as_of:, demographics: nil)
           @as_of = as_of
           @patients = encounters.map(&:patient).index_by(&:id)
           @encounter_ids = encounters.map(&:id)
           @patient_ids = @patients.keys
           @practice_id = practice_id
+          @provided_demographics = demographics
           preload
         end
 
@@ -97,7 +231,7 @@ module Clinic
               practice_id: @practice_id, patient_id: @patient_ids, encounter_id: @encounter_ids
             )
           )
-          @demographics = Clinic::Care::PatientDemographics.where(
+          @demographics = @provided_demographics || Clinic::Care::PatientDemographics.where(
             practice_id: @practice_id, patient_id: @patient_ids
           ).index_by(&:patient_id)
           @precautions = grouped(

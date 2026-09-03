@@ -71,13 +71,13 @@ function Lot({
               max={1000000}
               step={0.000001}
             />
-            <Field name="reason" label="Reason — no patient references" />
+            <Field name="reason" label="Reason" />
           </Form>
         </details>
       )}
       {(actions.hold || actions.release) && (
         <details className="pharmacy-details">
-          <summary>Quarantine, recall or release this fictional lot</summary>
+          <summary>Quarantine, recall or release this lot</summary>
           <p>
             Holds can overlap. Release only the reviewed hold; all others
             continue to block availability. This is not regulatory or clinical
@@ -246,10 +246,7 @@ export function Product({ id }: { id: string }) {
             </p>
           </>
         ) : (
-          <p>
-            Manual / fictional reference. No FDA lookup or NDC verification is
-            implied.
-          </p>
+          <p>Manual reference. No FDA lookup or NDC verification is implied.</p>
         )}
         {actions.catalog && (
           <details className="pharmacy-details">
@@ -300,7 +297,7 @@ export function Product({ id }: { id: string }) {
         </div>
       </div>
       {actions.receive && p.active && (
-        <Card title="Receive a fictional lot">
+        <Card title="Receive a lot">
           <p>
             Each delivery retains its supplier and optional cost, even when a
             manufacturing lot repeats. Cost is per entered unit. Blank
@@ -308,24 +305,24 @@ export function Product({ id }: { id: string }) {
           </p>
           <Form
             endpoint={"/api/clinic/pharmacy/" + id + "/receive"}
-            submit="Record fictional receipt"
+            submit="Record receipt"
             onSuccess={refresh}
             retryKey
           >
             <Field
               name="batch[lot_number]"
-              label="Fictional lot number"
+              label="Lot number"
               maxLength={100}
             />
             <Field name="batch[expires_on]" label="Expiry date" type="date" />
             <Field
               name="batch[location]"
-              label="Fictional storage location"
+              label="Storage location"
               maxLength={100}
             />
             <Field
               name="batch[supplier]"
-              label="Fictional supplier (optional)"
+              label="Supplier (optional)"
               required={false}
               maxLength={120}
             />
@@ -358,7 +355,7 @@ export function Product({ id }: { id: string }) {
             />
             <Field
               name="invoice_reference"
-              label="Fictional invoice reference (optional)"
+              label="Invoice reference (optional)"
               maxLength={160}
               required={false}
             />

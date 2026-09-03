@@ -109,9 +109,14 @@ export function loginDestination(value: string | null): string {
     "/clinic/operations",
     "/clinic/inventory",
     "/clinic/staff",
+    "/clinic/front-desk",
+    "/clinic/billing",
     "/clinic/settings",
+    "/clinic/billing",
   ]);
   return exact.has(value) ||
+    /^\/clinic\/inventory(?:\/[^/]+)?$/.test(value) ||
+    /^\/clinic\/billing(?:\/[^/]+)?$/.test(value) ||
     /^\/clinic\/pharmacy\/\d+$/.test(value) ||
     /^\/clinic\/patients\/\d+$/.test(value) ||
     /^\/clinic\/patients\/\d+\/encounters\/\d+$/.test(value)

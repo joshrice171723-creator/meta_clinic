@@ -264,12 +264,29 @@ function statusColor(
   return "default";
 }
 
+export function bookingAvailability(
+  capabilities: Pick<
+    ClinicWorkspaceContext["capabilities"],
+    "appointments" | "appointments_book" | "appointments_read"
+  >,
+) {
+  const atomicBooking =
+    capabilities.appointments_book === true &&
+    capabilities.appointments_read === true;
+  return {
+    visible: capabilities.appointments === true || atomicBooking,
+    identityLookup: atomicBooking && capabilities.appointments !== true,
+  };
+}
+
 function BookingForm({
   timezone,
   onCreated,
+  identityLookup = false,
 }: {
   timezone: string;
   onCreated?: (appointment: Appointment) => void;
+  identityLookup?: boolean;
 }) {
   const defaults = appointmentDefaults();
   const [patientId, setPatientId] = useState("");
@@ -284,7 +301,9 @@ function BookingForm({
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
   const patients = useResource<{ patients: Patient[] }>(
-    "/api/clinic/patients?per_page=100",
+    identityLookup
+      ? "/api/clinic/patients/lookup?per_page=100"
+      : "/api/clinic/patients?per_page=100",
   );
   const facilities = useResource<{ sites: FacilitySite[] }>(
     "/api/clinic/facilities?type=sites",
@@ -346,9 +365,6 @@ function BookingForm({
           <Box>
             <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
               Schedule an appointment
-            </Typography>
-            <Typography color="text.secondary">
-              Create a schedule record for an existing fictional patient.
             </Typography>
           </Box>
           <Chip label="Schedule only" size="small" variant="outlined" />
@@ -669,9 +685,12 @@ export function ScheduleView({
         Read-only scheduled visits from the clinic API. A scheduled time is not
         an arrival or a place in the tracking-board queue.
       </Alert>
-      {context.capabilities.appointments && (
+      {bookingAvailability(context.capabilities).visible && (
         <BookingForm
           timezone={context.practice.timezone}
+          identityLookup={
+            bookingAvailability(context.capabilities).identityLookup
+          }
           onCreated={onAppointmentCreated}
         />
       )}
@@ -741,11 +760,21 @@ export function ScheduleView({
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/clinic/patients/${appointment.patient_id}`}
-                        >
-                          Patient record #{appointment.patient_id}
-                        </Link>
+                        {context.capabilities.patients ? (
+                          <Link
+                            href={`/clinic/patients/${appointment.patient_id}`}
+                          >
+                            {appointment.patient?.display_name ?? "Patient"} ·{" "}
+                            {appointment.patient?.reference ??
+                              "Reference unavailable"}
+                          </Link>
+                        ) : (
+                          <Typography color="text.secondary">
+                            {appointment.patient?.display_name ?? "Patient"} ·{" "}
+                            {appointment.patient?.reference ??
+                              "Reference unavailable"}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Typography>
@@ -771,12 +800,16 @@ export function ScheduleView({
                           <Typography color="text.secondary">
                             No encounter yet
                           </Typography>
-                        ) : (
+                        ) : context.capabilities.patients ? (
                           <Link
                             href={`/clinic/patients/${appointment.patient_id}/encounters/${appointment.encounter_id}`}
                           >
                             Open encounter →
                           </Link>
+                        ) : (
+                          <Typography color="text.secondary">
+                            Encounter record unavailable
+                          </Typography>
                         )}
                       </TableCell>
                     </TableRow>
@@ -845,7 +878,7 @@ function EncounterHistory({ patientId }: { patientId: number }) {
   return (
     <Card title="Encounter history">
       {data.encounters.length === 0 ? (
-        <p>No encounters are recorded for this synthetic patient.</p>
+        <p>No encounters are recorded for this patient.</p>
       ) : (
         <ul className="care-record-list">
           {data.encounters.map((encounter) => (
@@ -1992,18 +2025,12 @@ export function EncounterView({
             <div>
               <p className="eyebrow">ENCOUNTER #{encounter.id}</p>
               <h1>{patient.display_name}</h1>
-              <p className="clinic-lead">
-                Fictional reference: {patient.reference}
-              </p>
+              <p className="clinic-lead">Reference: {patient.reference}</p>
             </div>
             <span className="care-status care-status-large">
               {statusLabel(encounter.status)}
             </span>
           </div>
-          <p className="care-boundary">
-            This is the encounter’s open/completed API status—not an intake,
-            handoff or tracking-board stage.
-          </p>
           <div className="care-summary">
             <div>
               <span>Started</span>

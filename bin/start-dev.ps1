@@ -77,7 +77,25 @@ if (-not $databaseReady) { Fail "PostgreSQL did not become ready. Check: docker 
 
 Write-Host "Preparing the development database..."
 Push-Location $apiRoot
-try { ruby bin/postgres exec bundle exec rails db:prepare; if ($Seed) { ruby bin/postgres exec bundle exec rails db:seed } } finally { Pop-Location }
+try {
+  ruby bin/postgres exec bundle exec rails db:prepare
+  if ($LASTEXITCODE -ne 0) { Fail "Development database preparation failed." }
+  if ($Seed) {
+    $previousSyntheticSeeds = $env:APP_SYNTHETIC_SEEDS
+    $previousDevelopmentLogin = $env:APP_DEVELOPMENT_LOGIN
+    try {
+      $env:APP_SYNTHETIC_SEEDS = "1"
+      $env:APP_DEVELOPMENT_LOGIN = "1"
+      ruby bin/postgres exec bundle exec rails db:seed
+      if ($LASTEXITCODE -ne 0) { Fail "Development seed failed." }
+      ruby bin/postgres exec bundle exec rails members:prepare_test_accounts
+      if ($LASTEXITCODE -ne 0) { Fail "Named development account preparation failed." }
+    } finally {
+      $env:APP_SYNTHETIC_SEEDS = $previousSyntheticSeeds
+      $env:APP_DEVELOPMENT_LOGIN = $previousDevelopmentLogin
+    }
+  }
+} finally { Pop-Location }
 
 if (-not (Test-Port 3001)) {
   Write-Host "Starting Rails API on 127.0.0.1:3001..."

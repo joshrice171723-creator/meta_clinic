@@ -6,14 +6,22 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     assert_equal 2, practices.size
     practices.each do |practice|
       assert_equal 30, practice.patients.count
+      assert_equal 20, practice.patient_memberships.count
+      assert_equal 10, practice.patient_memberships.where(status: "member").count
+      assert_equal 10, practice.patient_memberships.where(status: "nonmember").count
       assert_equal 2, practice.sites.count
       assert_equal 6, practice.rooms.count
-      assert_equal 18, practice.memberships.count
-      assert_equal 12, practice.memberships.active.count
-      assert_equal 6, practice.memberships.where(active: false).count
-      assert_equal 2, practice.clinician_profiles.count
+      assert_operator practice.memberships.count, :>=, 27
+      assert_operator practice.memberships.active.count, :>=, 18
+      assert_operator practice.memberships.where(active: false).count, :>=, 9
+      assert_equal 3, practice.clinician_profiles.count
       assert_equal 4, practice.documents.count
       assert_equal 3, practice.message_intents.count
+      assert_equal 5, practice.invoices.count
+      assert_equal 3, practice.invoices.where(status: "posted").count
+      assert_equal 1, practice.invoices.where(status: "draft").count
+      assert_equal 1, practice.invoices.where(status: "void").count
+      assert_equal BigDecimal("305.00"), Clinic::PaymentAllocation.where(practice: practice).sum(:amount)
       assert_equal 22, practice.appointments.count
       assert_equal 18, practice.encounters.count
       assert_equal 6, practice.encounters.open.count
@@ -42,16 +50,36 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
       assert board_encounters.all? { |encounter| encounter.started_at <= Time.current }
 
       %w[admin clinician staff inventory billing reader].each do |role|
+        label = practice.name.last.downcase
+        primary_suffix = Development::BackendSamples::LEGACY_ROLE_PERMISSIONS.key?(role) ? "" : "-1"
+        expected_emails = [
+          "synthetic-review-#{label}-#{role}#{primary_suffix}@example.invalid",
+          "synthetic-review-#{label}-#{role}-2@example.invalid",
+          "synthetic-review-#{label}-#{role}-inactive@example.invalid"
+        ]
         identities = practice.memberships.joins(:user)
-          .where("users.email_address LIKE ?", "synthetic-review-#{practice.name.last.downcase}-#{role}%")
-        assert_equal 3, identities.count
-        assert_equal 2, identities.active.count
+          .where(users: { email_address: expected_emails })
+        assert_equal 3, identities.count, role
+        assert_equal 2, identities.active.count, role
       end
       reader = practice.memberships.joins(:user).find_by!(users: { email_address: "synthetic-review-#{practice.name.last.downcase}-reader@example.invalid" })
       ability = Ability.new(reader.user, practice: practice)
       assert ability.can?(:read, practice.patients.first)
       assert ability.cannot?(:create, Clinic::Care::Patient)
       assert ability.cannot?(:read, (practices - [ practice ]).first.patients.first)
+      %w[admin-2 inventory-1].each do |identity|
+        operator = practice.memberships.joins(:user)
+          .find_by!(users: { email_address: "synthetic-review-#{practice.name.last.downcase}-#{identity}@example.invalid" })
+        operator_ability = Ability.new(operator.user, practice: practice)
+        assert operator_ability.can?(:create, Clinic::Inventory::PurchaseOrder), identity
+        assert operator.role_grants.active.joins(:role_version)
+          .exists?(role_versions: { version: 3 }), identity
+      end
+      billing_operator = practice.memberships.joins(:user)
+        .find_by!(users: { email_address: "synthetic-review-#{practice.name.last.downcase}-billing-1@example.invalid" })
+      assert Ability.new(billing_operator.user, practice: practice).can?(:read, Clinic::Invoice)
+      assert billing_operator.role_grants.active.joins(:role_version)
+        .exists?(role_versions: { role_code: "synthetic-review-billing", version: 3 })
     end
     grant = practices.first.memberships.active.first.role_grants.first
     grant.update!(revoked_at: Time.current, revision: grant.revision + 1)
@@ -70,7 +98,7 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     membership = Development::TestClinic.create!(user)
     practice = membership.practice
 
-    assert_no_difference [ "Clinic::Practice.count", "User.count", "Clinic::Membership.count" ] do
+    assert_difference [ "User.count", "Clinic::Membership.count" ], 2 do
       Development::BackendSamples.populate_practice!(practice: practice, actor: user, label: "EXISTING")
     end
 
@@ -79,17 +107,24 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     assert_equal [ "SYN_Mercer, Alex", "SYN_Vale, Briar" ],
       practice.patients.where(reference: %w[SYN-BASE-001 SYN-BASE-002]).order(:reference).pluck(:display_name)
     assert_equal 12, practice.encounter_notes.where(note_kind: "soap").count
+    assert_equal 20, practice.patient_memberships.count
+    assert_equal 3, practice.clinician_profiles.count
+    assert_equal [ "Alex Rowan, NP", "Morgan Ellis, MD", "Riley Chen, DO" ], practice.clinician_profiles.order(:id).pluck(:display_name)
     assert_equal 105, practice.observations.where(value_kind: "numeric").count
     assert_equal 6, practice.encounters.open.count
+    assert_equal 5, practice.invoices.count
 
     edited_patient = rich_patients.order(:reference).first
     edited_patient.update!(display_name: "Locally edited synthetic patient")
+    edited_profile = practice.clinician_profiles.order(:id).first
+    edited_profile.update!(display_name: "Locally edited clinician")
     counts = -> { ApplicationRecord.connection.tables.to_h { |table| [ table, ApplicationRecord.connection.select_value("SELECT COUNT(*) FROM #{ApplicationRecord.connection.quote_table_name(table)}") ] } }
     before = counts.call
     Development::BackendSamples.populate_practice!(practice: practice, actor: user, label: "EXISTING")
 
     assert_equal before, counts.call
     assert_equal "Locally edited synthetic patient", edited_patient.reload.display_name
+    assert_equal "Locally edited clinician", edited_profile.reload.display_name
     assert_equal practice.id, user.reload.clinic_membership.practice_id
 
     completed = practice.encounters.open.order(:id).first
@@ -106,6 +141,9 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     assert_equal 6, practice.encounters.open.count
     assert_equal before_replacement + 1, practice.encounters.count
     assert_not practice.encounters.open.exists?(id: completed.id)
+    replacement = practice.encounters.open.joins(appointment: :visit_type)
+      .find_by!(patient: completed.patient, clinic_visit_types: { id: completed.appointment.visit_type_id })
+    assert_operator replacement.started_at, :>, 12.hours.ago
     assert_equal "Locally edited synthetic patient", edited_patient.reload.display_name
   end
 

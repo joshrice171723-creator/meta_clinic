@@ -17,6 +17,7 @@ class Ability
   # through an active grant on the user's practice membership.
   PERMISSION_RULES = {
     "patients.read" => { action: :read, subjects: [ Clinic::Care::Patient ], scope: :practice },
+    "patients.identity.read" => { action: :read_identity, subjects: [ Clinic::Care::Patient ], scope: :practice },
     "patients.write" => { action: :create, subjects: [ Clinic::Care::Patient ], actions: %i[create update], scope: :practice },
     "staff.read" => { action: :read, subjects: [ Clinic::Staff::Member ], scope: :practice },
     "staff.write" => { action: :create, subjects: [ Clinic::Staff::Member ], actions: %i[create update], scope: :practice },
@@ -28,15 +29,35 @@ class Ability
     "inventory.release" => { action: :release, subjects: [ Clinic::Inventory::PharmacyBatch ], scope: :practice },
     "inventory.count" => { action: :count, subjects: [ Clinic::Inventory::Count, Clinic::Inventory::PharmacyBatch ], scope: :practice },
     "inventory.configure" => { action: :configure, subjects: [ Clinic::Inventory::Profile ], scope: :practice },
+    "inventory.transfer" => { action: :transfer, subjects: [ Clinic::Inventory::Transfer, Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "inventory.put_away" => { action: :receive, subjects: [ Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "procurement.read" => { action: :read, subjects: [ Clinic::Inventory::PurchaseOrder, Clinic::Inventory::PurchaseOrderLine ], scope: :practice },
+    "procurement.create" => { action: :create, subjects: [ Clinic::Inventory::PurchaseOrder, Clinic::Inventory::PurchaseOrderLine ], scope: :practice },
+    "procurement.submit" => { action: :submit, subjects: [ Clinic::Inventory::PurchaseOrder ], scope: :practice },
+    "procurement.approve" => { action: :approve, subjects: [ Clinic::Inventory::PurchaseOrder ], scope: :practice },
+    "recall.read" => { action: :read, subjects: [ Clinic::Inventory::Recall, Clinic::Inventory::Hold ], scope: :practice },
+    "recall.lock" => { action: :hold, subjects: [ Clinic::Inventory::PharmacyBatch, Clinic::Inventory::Hold ], scope: :practice },
+    "recall.dispose" => { action: :adjust, subjects: [ Clinic::Inventory::RecallDisposition, Clinic::Inventory::PharmacyBatch ], scope: :practice },
+    "controlled.read" => { action: :read, subjects: [ Clinic::Inventory::Count, Clinic::Inventory::ControlReview ], scope: :practice },
+    "controlled.count" => { action: :count, subjects: [ Clinic::Inventory::Count ], scope: :practice },
+    "controlled.certify" => { action: :approve, subjects: [ Clinic::Inventory::Count, Clinic::Inventory::ControlReview ], scope: :practice },
     "appointments.write" => { action: :create, subjects: [ Clinic::Appointment ], actions: %i[create update], scope: :site_or_practice },
+    "appointments.read" => { action: :read, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
+    "appointments.book" => { action: :create, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
+    "appointments.status_transition" => { action: :transition, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
     "encounters.write" => { action: :create, subjects: [ Clinic::Encounter ], actions: %i[create update], scope: :site_or_practice },
+    "encounters.assign_provider" => { action: :assign_provider, subjects: [ Clinic::Encounter ], scope: :site_or_practice },
     "notes.read" => { action: :read, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], scope: :site_or_practice },
     "notes.write" => { action: :create, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], actions: %i[create update], scope: :site_or_practice },
     "notes.sign" => { action: :sign, subjects: [ Clinic::EncounterNoteSignature, Clinic::EncounterNote ], scope: :site_or_practice },
     "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :site_or_practice },
     "messages.write" => { action: :create, subjects: [ Clinic::MessageIntent, Clinic::MessageOutbox ], actions: %i[create update], scope: :practice },
     "documents.read" => { action: :read, subjects: [ Clinic::Document ], scope: :practice },
+    "billing.read" => { action: :read, subjects: [ Clinic::Invoice ], scope: :practice },
     "billing.write" => { action: :create, subjects: [ Clinic::Invoice, Clinic::PaymentAllocation ], actions: %i[create update], scope: :practice },
+    "billing.invoice_draft" => { action: :create, subjects: [ Clinic::Invoice ], scope: :practice },
+    "billing.invoice_post" => { action: :post, subjects: [ Clinic::Invoice ], scope: :practice },
+    "billing.payment_record" => { action: :create, subjects: [ Clinic::PaymentAllocation ], scope: :practice },
     "roles.manage" => { action: :manage, subjects: [ Clinic::RoleGrant ], scope: :practice }
   }.transform_values { |rule| rule.freeze }.freeze
 
@@ -117,8 +138,11 @@ class Ability
     rule = self.class.rule_for(normalized)
     return true if omni_override? && membership && rule
 
-    scope = @permissions_by_scope&.[](normalized)
-    return false unless membership && rule && scope
+    # Hash.new's empty scope is useful while accumulating grants, but must not
+    # turn an absent atomic permission into an allowed CanCan subject action.
+    return false unless membership && rule && @permissions_by_scope&.key?(normalized)
+
+    scope = @permissions_by_scope[normalized]
 
     if rule[:scope] == :site_or_practice
       site_id = site.respond_to?(:id) ? site.id : site

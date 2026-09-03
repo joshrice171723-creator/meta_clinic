@@ -26,7 +26,13 @@ import {
   Typography,
 } from "@mui/material";
 import ContentPasteSearchIcon from "@mui/icons-material/ContentPasteSearch";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import NoteAltIcon from "@mui/icons-material/NoteAlt";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import PersonPinCircleOutlinedIcon from "@mui/icons-material/PersonPinCircleOutlined";
 import { useClinic } from "./Workspace";
 import type { ClinicTrackingBoard } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
@@ -45,10 +51,10 @@ import {
   EXAMPLE_CLINICIANS,
   EXAMPLE_VISITS,
   VISIT_STAGES,
-  clinicianInitials,
   clinicianLabel,
   cliniciansForLocation,
   durationLabel,
+  elapsedMinutes,
   filterVisits,
   patientLabel,
   waitingMinutes,
@@ -56,9 +62,19 @@ import {
   type ExampleClinician,
   type ExampleVitalStatus,
 } from "./trackingBoardData";
-import { trackingBoardVisitToBoardVisit } from "./trackingBoardApi";
+import {
+  assignBoardProvider,
+  providerAssignmentRequestKey,
+  trackingBoardVisitToBoardVisit,
+} from "./trackingBoardApi";
 
 const EMPTY_BOARD_VISITS: BoardVisit[] = [];
+
+function fallbackCareSummaryState(visit: BoardVisit): CareSummaryLoadState {
+  return visit.encounterId == null
+    ? { status: "not_applicable" }
+    : { status: "unlinked" };
+}
 
 function useTrackingBoard(active = true) {
   const [state, setState] = useState<{
@@ -122,14 +138,51 @@ function patientTableLabel(visit: BoardVisit) {
     visit.patientDisplayName?.trim() ||
     `${last}, ${firstInitial ? `${firstInitial}.` : "—"}`;
   const demographics = [
-    visit.patientReference ? `Ref ${visit.patientReference}` : null,
     visit.age === null ? null : `${visit.age} yr`,
-    visit.gender,
+    visit.gender === "F"
+      ? "Female"
+      : visit.gender === "M"
+        ? "Male"
+        : visit.gender === "X"
+          ? "Intersex"
+          : null,
   ].filter(Boolean);
-  return { identity, demographics: demographics.join(" · ") };
+  return {
+    identity,
+    demographics: demographics.length
+      ? demographics.join(" · ")
+      : "Demographics not recorded",
+  };
 }
 
 function vitalReadings(visit: BoardVisit) {
+  const recorded = visit.triage?.readings;
+  if (recorded) {
+    const display = (reading: { value: string; unit: string | null } | null) =>
+      reading
+        ? `${reading.value}${reading.unit ? ` ${reading.unit}` : ""}`
+        : "—";
+    return {
+      bp: {
+        value: display(recorded.bp),
+        status: recorded.bp
+          ? (visit.triage?.vitalStatuses?.bp ?? "unassessed")
+          : "unassessed",
+      },
+      hr: {
+        value: display(recorded.hr),
+        status: recorded.hr
+          ? (visit.triage?.vitalStatuses?.hr ?? "unassessed")
+          : "unassessed",
+      },
+      weight: {
+        value: display(recorded.weight),
+        status: recorded.weight
+          ? (visit.triage?.vitalStatuses?.weight ?? "unassessed")
+          : "unassessed",
+      },
+    };
+  }
   const summary = visit.triage?.vitalsSummary;
   if (!summary) return null;
   const statuses = visit.triage?.vitalStatuses;
@@ -152,6 +205,174 @@ function vitalReadings(visit: BoardVisit) {
   };
 }
 
+export function formatClockTime(value: string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Scheduled";
+  try {
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: timezone,
+    });
+  } catch {
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+  }
+}
+
+type ProviderAssignmentAttempt = {
+  clinicianId: string | null;
+  expectedToken: string | null;
+  requestKey: string;
+};
+
+export function providerAssignmentAttempt(
+  current: ProviderAssignmentAttempt | null,
+  clinicianId: string | null,
+  expectedToken: string | null,
+  requestKey: () => string = providerAssignmentRequestKey,
+) {
+  return current?.clinicianId === clinicianId &&
+    current.expectedToken === expectedToken
+    ? current
+    : { clinicianId, expectedToken, requestKey: requestKey() };
+}
+
+export function providerAssignmentFailure(error: unknown): {
+  outcomeUnknown: boolean;
+  reloadRequired: boolean;
+  message: string;
+} {
+  if (error instanceof ApiError) {
+    if (error.code === "outcome_unconfirmed" || error.status >= 500) {
+      return {
+        outcomeUnknown: true,
+        reloadRequired: false,
+        message:
+          "Outcome not confirmed. Retry to reconcile this request, or reload the board.",
+      };
+    }
+    if (error.status === 409) {
+      return {
+        outcomeUnknown: false,
+        reloadRequired: true,
+        message: "Assignment changed. Reload the board before trying again.",
+      };
+    }
+    return {
+      outcomeUnknown: false,
+      reloadRequired: false,
+      message: error.message,
+    };
+  }
+  return {
+    outcomeUnknown: true,
+    reloadRequired: false,
+    message:
+      "Outcome not confirmed. Retry to reconcile this request, or reload the board.",
+  };
+}
+
+function operationalTiming(visit: BoardVisit, now: string, timezone: string) {
+  if (visit.appointmentStartsAt) {
+    const startsAt = Date.parse(visit.appointmentStartsAt);
+    const current = Date.parse(now);
+    const offset =
+      Number.isFinite(startsAt) && Number.isFinite(current)
+        ? Math.floor((startsAt - current) / 60_000)
+        : null;
+    if (visit.operationalState === "upcoming")
+      return {
+        value: formatClockTime(visit.appointmentStartsAt, timezone),
+        detail: offset === null ? "Scheduled" : `in ${durationLabel(offset)}`,
+      };
+    if (
+      visit.operationalState === "on_time" ||
+      visit.operationalState === "late"
+    )
+      return {
+        value: formatClockTime(visit.appointmentStartsAt, timezone),
+        detail:
+          offset === null
+            ? "Not checked in"
+            : offset < 0
+              ? `${durationLabel(Math.abs(offset))} ago`
+              : "Due now",
+      };
+    if (visit.operationalState === "waiting_room") {
+      const waiting = waitingMinutes(visit, now);
+      return {
+        value: formatClockTime(visit.appointmentStartsAt, timezone),
+        detail:
+          waiting === null ? "Checked in" : `${durationLabel(waiting)} wait`,
+      };
+    }
+  }
+  if (visit.operationalState === "upcoming")
+    return {
+      value: "Scheduled",
+      detail: "Expected",
+    };
+  if (visit.operationalState === "waiting_room")
+    return { value: "Checked in", detail: "Waiting room" };
+  return null;
+}
+
+function operationalStatusLabel(visit: BoardVisit, now: string) {
+  if (visit.operationalState === "upcoming") return "Expected";
+  if (visit.operationalState === "on_time") return "Due now";
+  if (visit.operationalState === "late") {
+    const minutes = elapsedMinutes(visit.appointmentStartsAt ?? null, now);
+    return minutes === null ? "Late" : `${durationLabel(minutes)} late`;
+  }
+  if (visit.operationalState === "waiting_room") return "Waiting room";
+  return (
+    VISIT_STAGES.find((stage) => stage.id === visit.stage)?.label ??
+    "Not recorded"
+  );
+}
+
+function operationalStatusClass(visit: BoardVisit) {
+  if (visit.operationalState === "late") return "late";
+  if (visit.operationalState === "waiting_room") return "waiting";
+  if (
+    visit.operationalState === "upcoming" ||
+    visit.operationalState === "on_time"
+  )
+    return "scheduled";
+  return visit.stage;
+}
+
+function statusIcon(visit: BoardVisit) {
+  if (visit.operationalState === "late") return AccessTimeOutlinedIcon;
+  if (
+    visit.operationalState === "upcoming" ||
+    visit.operationalState === "on_time"
+  )
+    return EventAvailableOutlinedIcon;
+  if (visit.operationalState === "waiting_room")
+    return PersonPinCircleOutlinedIcon;
+  if (visit.stage === "unrecorded") return PendingActionsOutlinedIcon;
+  return FactCheckOutlinedIcon;
+}
+
+function operationalSortMinutes(visit: BoardVisit, now: string) {
+  const waiting = waitingMinutes(visit, now);
+  if (waiting !== null) return waiting;
+  if (!visit.appointmentStartsAt) return Number.NEGATIVE_INFINITY;
+  const starts = Date.parse(visit.appointmentStartsAt);
+  const current = Date.parse(now);
+  if (!Number.isFinite(starts) || !Number.isFinite(current))
+    return Number.NEGATIVE_INFINITY;
+  const minutesFromStart = Math.floor((current - starts) / 60_000);
+  return visit.operationalState === "upcoming"
+    ? Math.min(-1, minutesFromStart)
+    : Math.max(0, minutesFromStart);
+}
+
 const vitalStatusPresentation: Record<ExampleVitalStatus, { label: string }> = {
   above: { label: "Above normal limits" },
   within: { label: "Within normal limits" },
@@ -165,42 +386,58 @@ const membershipLabels = {
   unknown: "Not verified",
 };
 type ColumnKey =
-  "patient" | "care" | "stage" | "provider" | "reason" | "triage" | "wait";
+  | "patient"
+  | "stage"
+  | "wait"
+  | "location"
+  | "provider"
+  | "reason"
+  | "care"
+  | "triage"
+  | "action";
 const initialColumns: ColumnKey[] = [
   "patient",
-  "care",
   "stage",
+  "wait",
+  "location",
   "provider",
   "reason",
+  "care",
   "triage",
-  "wait",
+  "action",
 ];
 const initialColumnWidths: Record<ColumnKey, number> = {
-  patient: 280,
+  patient: 240,
+  stage: 175,
+  wait: 130,
+  location: 120,
+  provider: 140,
+  reason: 160,
   care: 180,
-  stage: 105,
-  provider: 110,
-  reason: 175,
-  triage: 190,
-  wait: 105,
+  triage: 150,
+  action: 120,
 };
 const columnMinimumWidths: Record<ColumnKey, number> = {
-  patient: 220,
-  care: 150,
-  stage: 70,
-  provider: 70,
-  reason: 115,
+  patient: 240,
+  stage: 175,
+  wait: 130,
+  location: 120,
+  provider: 140,
+  reason: 150,
+  care: 180,
   triage: 145,
-  wait: 75,
+  action: 120,
 };
 const columnLabels: Record<ColumnKey, string> = {
   patient: "Patient",
-  care: "Care",
-  stage: "Location",
+  stage: "Status",
+  wait: "Timing",
+  location: "Room",
   provider: "Provider",
   reason: "Reason",
+  care: "Care",
   triage: "Vitals",
-  wait: "Wait",
+  action: "Action",
 };
 function ExampleVisitRow({
   visit,
@@ -208,22 +445,40 @@ function ExampleVisitRow({
   columns,
   striped,
   assignedClinicianId,
+  providerAssignmentToken,
   careSummaryState,
   timezone,
   clinicians,
   onAssignClinician,
+  onPersistProvider,
 }: {
   visit: BoardVisit;
   now: string;
   columns: ColumnKey[];
   striped: boolean;
   assignedClinicianId: string | null;
+  providerAssignmentToken: string | null;
   careSummaryState: CareSummaryLoadState;
   timezone: string;
   clinicians: readonly ExampleClinician[];
-  onAssignClinician: (clinicianId: string | null) => void;
+  onAssignClinician: (
+    clinicianId: string | null,
+    assignmentToken: string | null,
+  ) => void;
+  onPersistProvider?: (
+    clinicianId: string | null,
+    expectedToken: string | null,
+    requestKey: string,
+  ) => Promise<{ token: string | null }>;
 }) {
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [assignmentPending, setAssignmentPending] = useState(false);
+  const [assignmentReloadRequired, setAssignmentReloadRequired] =
+    useState(false);
+  const assignmentPendingRef = useRef(false);
+  const [assignmentAttempt, setAssignmentAttempt] =
+    useState<ProviderAssignmentAttempt | null>(null);
   const [draftClinicianId, setDraftClinicianId] = useState(
     assignedClinicianId ?? "",
   );
@@ -238,12 +493,44 @@ function ExampleVisitRow({
   const assignedClinician = clinicians.find(
     (clinician) => clinician.id === assignedClinicianId,
   );
+  const assignedProviderLabel = assignedClinician
+    ? clinicianLabel(assignedClinician)
+    : assignedClinicianId
+      ? visit.assignedProviderName
+      : null;
+  const providerEditable =
+    visit.isSynthetic !== false || visit.providerAssignmentAvailable === true;
+  const assignmentOutcomeUnknown =
+    assignmentAttempt !== null && assignmentError !== null;
   const readings = vitalReadings(visit);
+  const timing = operationalTiming(visit, now, timezone);
+  const hasEncounter = visit.patientId != null && visit.encounterId != null;
+  const hasPatient = visit.patientId != null;
+  const primaryHref = hasEncounter
+    ? openSoapHref(visit)
+    : hasPatient
+      ? `/clinic/patients/${visit.patientId}`
+      : openSoapHref(visit);
+  const primaryAction = hasEncounter
+    ? "Open chart"
+    : hasPatient
+      ? "View patient"
+      : "Select chart";
   const openProviderEditor = () => {
-    if (visit.isSynthetic === false) return;
+    if (!providerEditable) return;
+    setAssignmentError(
+      assignmentReloadRequired
+        ? "Assignment changed. Reload the board before trying again."
+        : null,
+    );
+    setAssignmentAttempt(null);
     setDraftClinicianId(assignedClinicianId ?? "");
     setProviderEditorOpen(true);
   };
+  useEffect(() => {
+    setAssignmentReloadRequired(false);
+    setAssignmentAttempt(null);
+  }, [assignedClinicianId, providerAssignmentToken]);
   return (
     <TableRow
       hover
@@ -259,16 +546,20 @@ function ExampleVisitRow({
             data-label={columnLabels[column]}
           >
             <div className="tracking-patient">
-              {visit.membership !== "unknown" && (
-                <Tooltip title={membershipLabels[visit.membership]}>
-                  <Chip
-                    size="small"
-                    label={visit.membership === "member" ? "M" : "N"}
-                    className={`tracking-membership-mark tracking-membership-${visit.membership}`}
-                    aria-label={membershipLabels[visit.membership]}
-                  />
-                </Tooltip>
-              )}
+              <Tooltip title={membershipLabels[visit.membership]}>
+                <Chip
+                  size="small"
+                  label={
+                    visit.membership === "member"
+                      ? "M"
+                      : visit.membership === "nonmember"
+                        ? "N"
+                        : "?"
+                  }
+                  className={`tracking-membership-mark tracking-membership-${visit.membership}`}
+                  aria-label={membershipLabels[visit.membership]}
+                />
+              </Tooltip>
               <div className="tracking-patient-details">
                 <strong>{tableLabel.identity}</strong>
                 {tableLabel.demographics && (
@@ -281,19 +572,6 @@ function ExampleVisitRow({
                   </Typography>
                 )}
               </div>
-              <CareSummaryTrigger
-                state={careSummaryState}
-                patientLabel={label}
-                timezone={timezone}
-                href={openSoapHref(visit)}
-                actionLabel={
-                  visit.patientId != null && visit.encounterId != null
-                    ? `Open SOAP note for ${label}`
-                    : `Select chart for ${label} before opening SOAP note`
-                }
-              >
-                <NoteAltIcon fontSize="inherit" aria-hidden="true" />
-              </CareSummaryTrigger>
             </div>
           </TableCell>
         ) : column === "care" ? (
@@ -306,8 +584,70 @@ function ExampleVisitRow({
           </TableCell>
         ) : column === "stage" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
-            <Typography variant="body2" className="tracking-location">
-              {visit.room ?? "Room unassigned"}
+            <Typography
+              variant="body2"
+              className={`tracking-status-label tracking-status-${operationalStatusClass(visit)}`}
+              sx={{ fontWeight: 650 }}
+            >
+              {(() => {
+                const Icon = statusIcon(visit);
+                return <Icon fontSize="small" aria-hidden="true" />;
+              })()}
+              <span className="tracking-status-copy">
+                <span>{operationalStatusLabel(visit, now)}</span>
+                {(visit.operationalState === "on_time" ||
+                  visit.operationalState === "late") && (
+                  <small>Not checked in</small>
+                )}
+              </span>
+            </Typography>
+          </TableCell>
+        ) : column === "wait" ? (
+          <TableCell key={column} data-label={columnLabels[column]}>
+            {timing ? (
+              <>
+                <Typography
+                  variant="body2"
+                  className="tracking-wait tracking-operational-timing"
+                  sx={{ fontWeight: 650 }}
+                >
+                  {timing.value}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  className="tracking-flow-stage"
+                  color="text.secondary"
+                >
+                  {timing.detail}
+                </Typography>
+              </>
+            ) : (
+              <Typography
+                variant="body2"
+                className="tracking-wait"
+                sx={{ fontWeight: 600 }}
+              >
+                {stage.id === "unrecorded"
+                  ? "—"
+                  : stage.waiting
+                    ? durationLabel(waitingMinutes(visit, now))
+                    : "In care"}
+              </Typography>
+            )}
+            {!timing && (
+              <Typography
+                variant="caption"
+                className="tracking-flow-stage"
+                color="text.secondary"
+              >
+                {stage.action}
+              </Typography>
+            )}
+          </TableCell>
+        ) : column === "location" ? (
+          <TableCell key={column} data-label={columnLabels[column]}>
+            <Typography variant="body2" className="tracking-location-value">
+              {visit.room ?? "Room not recorded"}
             </Typography>
           </TableCell>
         ) : column === "provider" ? (
@@ -315,8 +655,34 @@ function ExampleVisitRow({
             <TableCell
               className="tracking-provider-cell"
               data-label={columnLabels[column]}
+              onDoubleClick={providerEditable ? openProviderEditor : undefined}
+              title={
+                providerEditable
+                  ? "Double-click or select to assign"
+                  : undefined
+              }
             >
-              {visit.isSynthetic === false ? (
+              {assignedProviderLabel ? (
+                providerEditable ? (
+                  <Tooltip title={assignedProviderLabel}>
+                    <button
+                      type="button"
+                      className="tracking-provider-value"
+                      onClick={openProviderEditor}
+                      aria-label={`Assigned provider: ${assignedProviderLabel}. Change assignment.`}
+                    >
+                      {assignedProviderLabel}
+                    </button>
+                  </Tooltip>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    className="tracking-provider-readonly"
+                  >
+                    {assignedProviderLabel}
+                  </Typography>
+                )
+              ) : !providerEditable ? (
                 <Typography
                   variant="body2"
                   color="text.secondary"
@@ -324,17 +690,6 @@ function ExampleVisitRow({
                 >
                   —
                 </Typography>
-              ) : assignedClinician ? (
-                <Tooltip title={clinicianLabel(assignedClinician)}>
-                  <button
-                    type="button"
-                    className="tracking-provider-initials"
-                    onClick={openProviderEditor}
-                    aria-label={`Assigned clinician: ${clinicianLabel(assignedClinician)}. Change assignment.`}
-                  >
-                    {clinicianInitials(assignedClinician)}
-                  </button>
-                </Tooltip>
               ) : (
                 <button
                   type="button"
@@ -345,11 +700,17 @@ function ExampleVisitRow({
                 </button>
               )}
             </TableCell>
-            {visit.isSynthetic !== false && (
+            {providerEditable && (
               <Dialog
                 className="tracking-provider-dialog"
                 open={providerEditorOpen}
-                onClose={() => setProviderEditorOpen(false)}
+                onClose={() => {
+                  if (
+                    !assignmentPendingRef.current &&
+                    !assignmentOutcomeUnknown
+                  )
+                    setProviderEditorOpen(false);
+                }}
                 maxWidth="xs"
                 fullWidth
                 aria-labelledby={`provider-dialog-title-${visit.id}`}
@@ -375,8 +736,15 @@ function ExampleVisitRow({
                     id={`provider-dialog-select-${visit.id}`}
                     autoFocus
                     value={draftClinicianId}
-                    onChange={(event) =>
-                      setDraftClinicianId(event.target.value)
+                    onChange={(event) => {
+                      setDraftClinicianId(event.target.value);
+                      setAssignmentAttempt(null);
+                      setAssignmentError(null);
+                    }}
+                    disabled={
+                      assignmentPending ||
+                      assignmentOutcomeUnknown ||
+                      assignmentReloadRequired
                     }
                     sx={{
                       width: "100%",
@@ -390,28 +758,86 @@ function ExampleVisitRow({
                     }}
                   >
                     <option value="">Unassigned</option>
+                    {assignedClinicianId &&
+                      assignedProviderLabel &&
+                      !availableClinicians.some(
+                        (clinician) => clinician.id === assignedClinicianId,
+                      ) && (
+                        <option value={assignedClinicianId} disabled>
+                          {assignedProviderLabel} (current)
+                        </option>
+                      )}
                     {availableClinicians.map((clinician) => (
                       <option key={clinician.id} value={clinician.id}>
                         {clinicianLabel(clinician)}
                       </option>
                     ))}
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Example only — not saved
-                  </Typography>
+                  {assignmentError && (
+                    <Typography color="error" variant="body2" role="alert">
+                      {assignmentError}
+                    </Typography>
+                  )}
                 </DialogContent>
                 <DialogActions>
-                  <Button onClick={() => setProviderEditorOpen(false)}>
+                  <Button
+                    disabled={assignmentPending || assignmentOutcomeUnknown}
+                    onClick={() => {
+                      setAssignmentAttempt(null);
+                      setProviderEditorOpen(false);
+                    }}
+                  >
                     Cancel
                   </Button>
                   <Button
                     variant="contained"
+                    disabled={assignmentPending || assignmentReloadRequired}
                     onClick={() => {
-                      onAssignClinician(draftClinicianId || null);
-                      setProviderEditorOpen(false);
+                      if (assignmentPendingRef.current) return;
+                      const clinicianId = draftClinicianId || null;
+                      const attempt = providerAssignmentAttempt(
+                        assignmentAttempt,
+                        clinicianId,
+                        providerAssignmentToken,
+                      );
+                      assignmentPendingRef.current = true;
+                      setAssignmentPending(true);
+                      setAssignmentAttempt(attempt);
+                      setAssignmentError(null);
+                      const save = onPersistProvider
+                        ? onPersistProvider(
+                            clinicianId,
+                            providerAssignmentToken,
+                            attempt.requestKey,
+                          )
+                        : Promise.resolve({
+                            token: providerAssignmentToken,
+                          });
+                      void save
+                        .then(({ token }) => {
+                          onAssignClinician(clinicianId, token);
+                          setAssignmentAttempt(null);
+                          setProviderEditorOpen(false);
+                        })
+                        .catch((error: unknown) => {
+                          const failure = providerAssignmentFailure(error);
+                          if (!failure.outcomeUnknown) {
+                            setAssignmentAttempt(null);
+                          }
+                          setAssignmentReloadRequired(failure.reloadRequired);
+                          setAssignmentError(failure.message);
+                        })
+                        .finally(() => {
+                          assignmentPendingRef.current = false;
+                          setAssignmentPending(false);
+                        });
                     }}
                   >
-                    Apply example assignment
+                    {assignmentPending
+                      ? "Assigning…"
+                      : assignmentOutcomeUnknown
+                        ? "Retry assignment"
+                        : "Assign provider"}
                   </Button>
                 </DialogActions>
               </Dialog>
@@ -495,26 +921,20 @@ function ExampleVisitRow({
               </Typography>
             )}
           </TableCell>
-        ) : column === "wait" ? (
+        ) : column === "action" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
-            <Typography
-              variant="body2"
-              className="tracking-wait"
-              sx={{ fontWeight: 600 }}
+            <CareSummaryTrigger
+              state={careSummaryState}
+              patientLabel={label}
+              timezone={timezone}
+              href={primaryHref}
+              actionLabel={`${primaryAction} for ${label}`}
             >
-              {stage.id === "unrecorded"
-                ? "—"
-                : stage.waiting
-                  ? durationLabel(waitingMinutes(visit, now))
-                  : "In care"}
-            </Typography>
-            <Typography
-              variant="caption"
-              className="tracking-flow-stage"
-              color="text.secondary"
-            >
-              {stage.action}
-            </Typography>
+              <NoteAltIcon fontSize="inherit" aria-hidden="true" />
+              <span className="tracking-chart-action-label">
+                {primaryAction}
+              </span>
+            </CareSummaryTrigger>
           </TableCell>
         ) : (
           <TableCell key={column} data-label={columnLabels[column]}>
@@ -534,6 +954,8 @@ export function TrackingBoardView({
   stale = false,
   refreshError,
   careSummaryStates,
+  onPersistProvider,
+  clinicians = EXAMPLE_CLINICIANS,
 }: {
   visits?: readonly BoardVisit[];
   now?: string;
@@ -543,23 +965,47 @@ export function TrackingBoardView({
   stale?: boolean;
   refreshError?: string;
   careSummaryStates?: Record<string, CareSummaryLoadState>;
+  onPersistProvider?: (
+    visit: BoardVisit,
+    clinicianId: string | null,
+    expectedToken: string | null,
+    requestKey: string,
+  ) => Promise<{ token: string | null }>;
+  clinicians?: readonly ExampleClinician[];
 }) {
   const [stage, setStage] = useState("all");
-  const [columns, setColumns] = useState<ColumnKey[]>(
-    synthetic ? initialColumns : ["patient", "care", "stage", "reason"],
-  );
-  const [sortBy, setSortBy] = useState<ColumnKey>("patient");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [columns, setColumns] = useState<ColumnKey[]>(initialColumns);
+  const [sortBy, setSortBy] = useState<ColumnKey>("wait");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [columnWidths, setColumnWidths] =
     useState<Record<ColumnKey, number>>(initialColumnWidths);
   const [providerAssignments, setProviderAssignments] = useState<
-    Record<string, string | null>
+    Record<string, { clinicianId: string | null; token: string | null }>
   >(() =>
     Object.fromEntries(
-      visits.map((visit) => [visit.id, visit.assignedClinicianId]),
+      visits.map((visit) => [
+        visit.id,
+        {
+          clinicianId: visit.assignedClinicianId,
+          token: visit.providerAssignmentToken ?? null,
+        },
+      ]),
     ),
   );
+  useEffect(() => {
+    setProviderAssignments(
+      Object.fromEntries(
+        visits.map((visit) => [
+          visit.id,
+          {
+            clinicianId: visit.assignedClinicianId,
+            token: visit.providerAssignmentToken ?? null,
+          },
+        ]),
+      ),
+    );
+  }, [visits]);
   const [resizingColumn, setResizingColumn] = useState<ColumnKey | null>(null);
   const syntheticCareSummaryStates = usePatientCareSummaries(
     synthetic ? visits : EMPTY_BOARD_VISITS,
@@ -579,18 +1025,24 @@ export function TrackingBoardView({
         return patientLabel(visit.firstName, visit.lastName);
       if (sortBy === "care")
         return careIndicatorGroups(
-          resolvedCareSummaryStates[visit.id] ?? { status: "unlinked" },
+          resolvedCareSummaryStates[visit.id] ??
+            fallbackCareSummaryState(visit),
         ).length;
-      if (sortBy === "stage") return visit.room ?? "Room unassigned";
+      if (sortBy === "stage") return visit.stage;
+      if (sortBy === "location") return visit.room ?? "Room not recorded";
       if (sortBy === "provider") {
-        const clinician = EXAMPLE_CLINICIANS.find(
-          (item) => item.id === providerAssignments[visit.id],
+        const clinician = clinicians.find(
+          (item) => item.id === providerAssignments[visit.id]?.clinicianId,
         );
-        return clinician ? clinicianLabel(clinician) : "Unassigned";
+        return clinician
+          ? clinicianLabel(clinician)
+          : visit.assignedProviderName || "Unassigned";
       }
       if (sortBy === "reason") return visit.chiefComplaint;
       if (sortBy === "triage") return visit.triage?.summary ?? "Not recorded";
-      if (sortBy === "wait") return waitingMinutes(visit, now) ?? -1;
+      if (sortBy === "action")
+        return visit.encounterId == null ? "View patient" : "Open chart";
+      if (sortBy === "wait") return operationalSortMinutes(visit, now);
       return "";
     };
     const comparison =
@@ -600,6 +1052,16 @@ export function TrackingBoardView({
     return (
       (sortDirection === "asc" ? comparison : -comparison) ||
       left.id.localeCompare(right.id)
+    );
+  });
+  const hasVitalReadings = sorted.some(
+    (visit) => vitalReadings(visit) !== null,
+  );
+  const hasClassifiedVitalReadings = sorted.some((visit) => {
+    const readings = vitalReadings(visit);
+    return (
+      readings !== null &&
+      Object.values(readings).some((reading) => reading.status !== "unassessed")
     );
   });
   const sortColumn = (column: ColumnKey) => {
@@ -666,15 +1128,21 @@ export function TrackingBoardView({
   const stageOptions = [{ id: "all", label: "All visits" }, ...VISIT_STAGES];
   return (
     <section className="tracking-board" aria-label="Tracking Board">
-      {!synthetic && (
-        <p className="tracking-data-boundary" role="status">
-          Partial synthetic encounter projection — not a live complete queue.
-        </p>
-      )}
+      <header className="tracking-board-header">
+        <div>
+          <h1>Today’s patient flow</h1>
+        </div>
+        <div className="tracking-freshness" role="status">
+          <span className="tracking-freshness-dot" aria-hidden="true" />
+          {stale
+            ? "Last confirmed snapshot"
+            : `Updated ${formatClockTime(now, timezone)}`}
+        </div>
+      </header>
       {!synthetic && truncated && (
         <p className="tracking-data-warning" role="alert">
           Incomplete result: this projection is capped at 200 rows. Additional
-          encounters are not shown.
+          appointments or encounters are not shown.
         </p>
       )}
       {!synthetic && stale && (
@@ -691,7 +1159,7 @@ export function TrackingBoardView({
       )}
       <div
         className="tracking-stage-filters"
-        aria-label={`Filter ${synthetic ? "example visits" : "current visits"} by stage`}
+        aria-label="Filter visits by stage"
       >
         {stageOptions.map((s) => (
           <button
@@ -755,7 +1223,7 @@ export function TrackingBoardView({
           aria-label="Clinic patient tracking board"
           className="tracking-table"
           style={{
-            width: synthetic ? tableWidth : "100%",
+            width: tableWidth,
             minWidth: tableWidth,
             tableLayout: "fixed",
           }}
@@ -808,7 +1276,7 @@ export function TrackingBoardView({
                         }
                       }}
                     >
-                      ↔
+                      <DragIndicatorIcon fontSize="small" aria-hidden="true" />
                     </span>
                   </div>
                   <span
@@ -863,67 +1331,71 @@ export function TrackingBoardView({
                 now={now}
                 columns={columns}
                 striped={index % 2 === 1}
-                assignedClinicianId={providerAssignments[visit.id] ?? null}
+                assignedClinicianId={
+                  providerAssignments[visit.id]?.clinicianId ?? null
+                }
+                providerAssignmentToken={
+                  providerAssignments[visit.id]?.token ?? null
+                }
                 careSummaryState={
-                  resolvedCareSummaryStates[visit.id] ?? { status: "unlinked" }
+                  resolvedCareSummaryStates[visit.id] ??
+                  fallbackCareSummaryState(visit)
                 }
                 timezone={timezone}
-                clinicians={EXAMPLE_CLINICIANS}
-                onAssignClinician={(clinicianId) =>
+                clinicians={clinicians}
+                onAssignClinician={(clinicianId, token) =>
                   setProviderAssignments((current) => ({
                     ...current,
-                    [visit.id]: clinicianId,
+                    [visit.id]: { clinicianId, token },
                   }))
+                }
+                onPersistProvider={
+                  onPersistProvider
+                    ? (clinicianId, expectedToken, requestKey) =>
+                        onPersistProvider(
+                          visit,
+                          clinicianId,
+                          expectedToken,
+                          requestKey,
+                        )
+                    : undefined
                 }
               />
             ))}
           </TableBody>
         </Table>
       </TableContainer>
-      {columns.includes("triage") && (
-        <div
-          className="tracking-vitals-legend"
-          aria-label={`${synthetic ? "Synthetic " : ""}vital status legend`}
-        >
-          {(["above", "within", "below"] as const).map((status) => (
-            <span key={status} className={`tracking-legend-${status}`}>
-              <i className="tracking-vitals-legend-swatch" aria-hidden="true" />
-              {vitalStatusPresentation[status].label}
-            </span>
-          ))}
-          <small>
-            {synthetic
-              ? "Synthetic display classifications — not clinical guidance"
-              : "Vital status classifications are not recorded on this board"}
-          </small>
-        </div>
-      )}
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: "block", mt: 1 }}
-      >
-        Select a heading to sort. Drag its ↔ control to rearrange columns, or
-        focus that control and use Left/Right Arrow. Resize from any column
-        border.
-        {synthetic &&
-          " Select a Provider control to assign or unassign an example clinician."}
-      </Typography>
+      {columns.includes("triage") &&
+        hasVitalReadings &&
+        hasClassifiedVitalReadings && (
+          <div
+            className="tracking-vitals-legend"
+            aria-label="Vital status legend"
+          >
+            {(["above", "within", "below"] as const).map((status) => (
+              <span key={status} className={`tracking-legend-${status}`}>
+                <i
+                  className="tracking-vitals-legend-swatch"
+                  aria-hidden="true"
+                />
+                {vitalStatusPresentation[status].label}
+              </span>
+            ))}
+          </div>
+        )}
       {filtered.length === 0 && (
         <div className="tracking-empty">
           <h2>
             {visits.length
               ? "No visits match these filters"
               : synthetic
-                ? "No example visits"
+                ? "No visits"
                 : "No current visits"}
           </h2>
           <p>
             {visits.length
-              ? "Try another stage or clear your search."
-              : synthetic
-                ? "An empty example is not evidence that the clinic has no waiting patients."
-                : "No open encounters are currently recorded for this practice."}
+              ? "Try another stage or clear the stage filter."
+              : "No visits are currently shown."}
           </p>
           {visits.length > 0 && (
             <button
@@ -936,11 +1408,6 @@ export function TrackingBoardView({
           )}
         </div>
       )}
-      <p className="tracking-caption">
-        {synthetic
-          ? "Wait = time in the current waiting stage. Queue order is not clinical priority. Membership does not change priority. Abbreviated labels can match; always confirm identity in the record before care."
-          : "Open a chart from the patient row. Care icons open recorded details. Use Columns to reveal additional fields in this partial projection."}
-      </p>
     </section>
   );
 }
@@ -977,16 +1444,40 @@ export function Overview({ active = true }: { active?: boolean }) {
 export function TrackingBoardPage({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
   const { data, error, stale } = useTrackingBoard(active);
+  const eligibleClinicians = useMemo<ExampleClinician[]>(
+    () =>
+      (data?.eligible_providers ?? []).map((provider) => {
+        return {
+          id: `api-provider-${provider.clinician_profile_id}`,
+          firstName: "",
+          lastName: "",
+          credentials: "",
+          displayName: provider.display_name,
+          locationIds: provider.site_ids.map((id) => `api-site-${id}`),
+        };
+      }),
+    [data?.eligible_providers],
+  );
   const visits = useMemo(
-    () => data?.visits.map(trackingBoardVisitToBoardVisit) ?? [],
-    [data?.visits],
+    () =>
+      data?.visits.map((visit) => ({
+        ...trackingBoardVisitToBoardVisit(visit),
+        providerAssignmentAvailable:
+          clinic.capabilities.encounters_assign_provider === true &&
+          visit.provider_assignment_available === true,
+      })) ?? [],
+    [clinic.capabilities.encounters_assign_provider, data?.visits],
   );
   const careSummaryStates = useMemo<Record<string, CareSummaryLoadState>>(
     () =>
       Object.fromEntries(
         (data?.visits ?? []).map((visit) => [
-          `encounter-${visit.encounter_id}`,
-          { status: "ready", summary: visit.care_summary },
+          `${visit.row_type}-${visit.id}`,
+          visit.care_summary
+            ? { status: "ready", summary: visit.care_summary }
+            : visit.row_type === "appointment"
+              ? { status: "not_applicable" }
+              : { status: "unlinked" },
         ]),
       ),
     [data?.visits],
@@ -1002,6 +1493,24 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
       stale={stale}
       refreshError={error}
       careSummaryStates={careSummaryStates}
+      clinicians={eligibleClinicians}
+      onPersistProvider={async (
+        visit,
+        clinicianId,
+        expectedToken,
+        requestKey,
+      ) => {
+        if (!visit.encounterId || !visit.patientId)
+          throw new Error("Provider assignment is unavailable for this row.");
+        const response = await assignBoardProvider(
+          visit.encounterId,
+          visit.patientId,
+          clinicianId ? clinicianId.replace("api-provider-", "") : null,
+          expectedToken,
+          requestKey,
+        );
+        return { token: response.assignment.token };
+      }}
     />
   );
 }
