@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Cash-pay billing test gate and Luna review completed
+
+**Verification:** ran the package-specific [[Cash-Pay Billing Test Plan]] against the local synthetic checkout. The focused Rails administrative/billing integration passed 10 tests / 92 assertions. After Terra Med repaired two CRLF-sensitive, non-billing web assertions in commit `f7584af`, Luna audited the patch and independently reran the full web suite (13 files / 155 tests), typecheck, diff check, and the cash Rails test (1 test / 19 assertions); all passed and Luna found no defect or scope creep. Production build, high-severity npm audit, `bin/verify-web`, `bin/verify-vault`, `git diff --check`, and the Impeccable detector passed.
+
+**Failures and limits:** the first web suite run failed only in two source-text tests because Windows CRLF did not match LF-only expectations; Terra's repair was test-only and is now closed by Luna's audit. The repository-wide formatter check still reports pre-existing drift in 58 web files, so no mass-format change was made. The backend race/restore helper produced no output for approximately four minutes and was stopped after no active scratch database remained; it is recorded Inconclusive, not Pass or a Terra coding issue. The local browser stayed at Loading without API context, so UI acceptance is still blocked. Unapproved production document, check/OCR, superbill, Stripe, portal, real-data and release gates remain unchanged.
+
 ## 2026-09-03 — Cash-pay billing test plan added
 
 **Request and implementation:** added [[Cash-Pay Billing Test Plan]] as the verification companion to [[Cash-Pay Billing Implementation Package]]. It maps the implemented ledger, cash tender/change, idempotency, refund, drawer close, receipt, authorization, UI and regression surfaces to positive, negative, tenant, replay, transaction, browser and operational checks. It defines Pass, Fail, Blocked and Inconclusive evidence states, a bounded Terra Med escalation/review loop for reproducible failures, and explicit local-synthetic exit criteria.

@@ -27,26 +27,27 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 | --- | --- | --- | --- |
 | DB-01 | Forward migrations can be applied without replacing the existing ledger | Test database prepare/migrate; inspect `db/structure.sql` diff and required tables/constraints | Planned |
 | DB-02 | Drawer/tender/receipt rows can cross practices or lose exactness | Composite tenant FKs, decimal checks, unique payment/tender and one-open-drawer-per-site constraints | Planned |
-| LED-01 | A billing operator can read only the selected practice/patient ledger | Focused Rails integration: scoped ledger, exact totals, credit/refund projection, omission of processor reference | Evidence exists; rerun in gate |
-| LED-02 | Historical payments are not falsely labeled as cash | Ledger returns `cash_payment: false` and `receipt_available: false` for an ordinary imported event | Evidence exists; rerun in gate |
-| PAY-01 | A posted invoice can be paid from an open drawer with correct change | Create synthetic drawer/invoice; record tender and allocation; assert server-derived change and one linked receipt | Evidence exists; rerun in gate |
-| PAY-02 | A timeout/retry cannot duplicate money | Replay the same request key with identical intent; assert one payment event, tender and receipt | Evidence exists; rerun in gate |
+| LED-01 | A billing operator can read only the selected practice/patient ledger | Focused Rails integration: scoped ledger, exact totals, credit/refund projection, omission of processor reference | Pass — Rails file gate: 10 tests / 92 assertions |
+| LED-02 | Historical payments are not falsely labeled as cash | Ledger returns `cash_payment: false` and `receipt_available: false` for an ordinary imported event | Pass — covered by the focused Rails file gate |
+| PAY-01 | A posted invoice can be paid from an open drawer with correct change | Create synthetic drawer/invoice; record tender and allocation; assert server-derived change and one linked receipt | Pass — covered by the focused Rails file gate |
+| PAY-02 | A timeout/retry cannot duplicate money | Replay the same request key with identical intent; assert one payment event, tender and receipt | Pass — covered by the focused Rails file gate |
 | PAY-03 | A replay key cannot change its financial intent | Reuse the key with a different drawer/tender/change/allocation; expect a scoped validation error and no new rows | Planned |
 | PAY-04 | Partial payment/tender/receipt failure cannot leave a half-recorded trail | Force a transaction failure at the linked write boundary; assert payment event, allocation, tender and receipt all roll back | Planned |
 | PAY-05 | Browser-supplied totals or ownership cannot set authority | Forge patient/practice, invoice balance, actor, negative/over-allocation or invalid decimal inputs; expect denial/validation and unchanged ledger | Planned |
-| REF-01 | A refund can only reduce cash that was actually collected | Refund a cash payment; assert immutable refund/receipt and expected cash decreases | Evidence exists; rerun in gate |
+| REF-01 | A refund can only reduce cash that was actually collected | Refund a cash payment; assert immutable refund/receipt and expected cash decreases | Pass — covered by the focused Rails file gate |
 | REF-02 | Refunds cannot exceed the original cash payment or refund non-cash history | Cumulative over-refund and imported/non-cash refund attempts return validation/authorization errors | Planned |
 | DRAW-01 | Only one active drawer exists per physical site | Open twice for one site (reject second); open separate synthetic site (allow) | Planned |
-| DRAW-02 | Closing records the observed variance without silently balancing it | Close with short/over count; assert status, counted cash, discrepancy and explanation; staff close remains non-blocking | Evidence exists; rerun in gate |
+| DRAW-02 | Closing records the observed variance without silently balancing it | Close with short/over count; assert status, counted cash, discrepancy and explanation; staff close remains non-blocking | Pass — covered by the focused Rails file gate |
 | DRAW-03 | Closed drawers cannot accept new collection/refund activity | Attempt payment/refund after close; expect rejection and unchanged totals | Planned |
 | DRAW-04 | Drawer endpoints enforce practice and capability boundaries | Cross-practice drawer/invoice/payment/receipt IDs and a read-only billing user; expect forbidden/not-found without leakage | Planned |
-| REC-01 | A receipt is scoped, immutable and not cached as patient content | Payment/refund receipt returns only linked synthetic fields, `Cache-Control: no-store`, and no processor reference | Evidence exists; rerun in gate |
+| REC-01 | A receipt is scoped, immutable and not cached as patient content | Payment/refund receipt returns only linked synthetic fields, `Cache-Control: no-store`, and no processor reference | Pass — covered by the focused Rails file gate |
 | REC-02 | Receipt correction does not overwrite history | Reissue/version/PDF/delivery behavior is a blocked production contract; do not mark local HTML as production acceptance | Blocked by approved document contract |
-| UI-01 | Staff controls consume the API contract without local financial authority | Web typecheck, build, changed-file formatting and Impeccable detector | Evidence exists; rerun in gate |
+| UI-01 | Staff controls consume the API contract without local financial authority | Web typecheck, build, changed-file formatting and Impeccable detector | Pass — Luna audit: typecheck, build, detector and changed-file checks |
 | UI-02 | Staff can complete the visible cash journey at supported sizes | Running local browser: open drawer, select drawer, collect, open receipt, refund, close; desktop/tablet/narrow screenshots | Blocked: local page stayed Loading without API context |
 | UI-03 | Multiple physical-site drawers are explicit to the operator | With two open synthetic sites, the UI requires an explicit drawer selection and posts that ID | Planned |
-| REG-01 | Existing clinic billing behavior remains compatible | Focused administrative permission regression plus route/contract checks; no destructive migration or source inference | Evidence exists; rerun in gate |
-| OPS-01 | The verification record is reproducible and synchronized | `bin/verify-web`, `bin/verify-vault`, `git diff --check`, clean branch and pushed commit | Planned |
+| REG-01 | Existing clinic billing behavior remains compatible | Focused administrative permission regression plus route/contract checks; no destructive migration or source inference | Pass — Rails and full web gates green |
+| OPS-01 | The verification record is reproducible and synchronized | `bin/verify-web`, `bin/verify-vault`, `git diff --check`, clean branch and pushed commit | In progress — validators pass; evidence commit/push pending |
+| DB-03 | Backend race/restore helper completes within a bounded local run | `bin/verify-backend` and `bin/verify-postgres` on task-owned synthetic scratch databases | Inconclusive — helper produced no output for ~4 minutes and was stopped; no active scratch DB remained |
 
 ## Gate sequence
 
@@ -76,7 +77,21 @@ The local cash milestone may be reported as verified only when all applicable ro
 
 ## Evidence record
 
-Update this section after each gate run with the exact command, result, environment and limits. Link the dated entry in [[Progress Log]] rather than copying stale results into the package. The first baseline run should reference the 2026-09-03 cash implementation evidence, distinguish the earlier passing cash test from any later timeout/inconclusive repeat, and state the browser Loading/API-context blocker.
+### 2026-09-03 — Baseline gate and Terra/Luna repair loop
+
+Environment: local Windows checkout, synthetic PostgreSQL, `apps/api` Rails test environment, `apps/web` Vite/Vitest environment. No real records, credentials, cards, checks or external payment services were used.
+
+- `ruby bin/postgres exec bundle exec rails test test/integration/clinic_administrative_permissions_test.rb -v` — **Pass**, 10 tests / 92 assertions / 0 failures.
+- `npm test` before repair — **Fail**, 3 source-text assertions in two unrelated clinic navigation/tracking-board tests; root cause was CRLF checkout text versus LF-only expectations.
+- Terra Med repair — commit `f7584af`, limited to line-ending normalization helpers in those two test files; no billing/API/schema/product code changed.
+- Luna audit/retest — **Pass**, 13 web test files / 155 tests; `npm run typecheck`; `git diff --check f7584af^ f7584af`; and the cash Rails test (1 test / 19 assertions) all passed. Luna found no defect or scope creep and made no further code changes.
+- `npm run build` — **Pass**, with the existing Vite large-bundle warning only.
+- `npm run format:check` — **Fail/non-blocking pre-existing drift**, 58 repository web files; no mass formatting was authorized or performed. Changed billing files had already passed targeted formatting.
+- `npm audit --audit-level=high`, `bin/verify-web`, `bin/verify-vault`, `git diff --check`, and the Impeccable detector — **Pass**.
+- Backend verifier — **Inconclusive**, no output for approximately four minutes; stopped safely after confirming no active task-owned scratch database. `rails zeitwerk:check` passed.
+- Browser workflow — **Blocked**, the local page stayed at Loading because its API context was unavailable; no visible browser acceptance is claimed.
+
+The formatter drift and backend helper timeout are separate test-environment/repository conditions, not billing failures. They remain visible in this matrix and must not be relabeled Pass without new evidence.
 
 ## Handoff to the implementation package
 
