@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
   type FormEvent,
   type MouseEvent,
@@ -8,16 +7,7 @@ import {
 } from "react";
 import { api, ApiError } from "../../api/client";
 import { LoadState } from "../../shared/ui";
-import type {
-  InventoryBalance,
-  InventoryData,
-  InventoryLocation,
-  InventoryLot,
-  InventoryMovement,
-  InventoryProduct,
-  InventoryPurchaseOrder,
-  InventoryReconciliation,
-} from "./inventoryContracts";
+import type { InventoryData } from "./inventoryContracts";
 import "./inventory.css";
 
 type Screen =
@@ -88,7 +78,7 @@ const links: { screen: Screen; href: string; label: string; short: string }[] =
   ];
 
 function screenForPath(path: string): Screen {
-  const value = path.replace(/\/$/, "");
+  const value = path.split(/[?#]/)[0].replace(/\/$/, "");
   return links.find((link) => link.href === value)?.screen ?? "catalog";
 }
 
@@ -129,6 +119,34 @@ function lot(data: InventoryData, id: string) {
 function location(data: InventoryData, id: string) {
   return data.locations.find((item) => item.id === id);
 }
+function statusLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+function movementLabel(value: string) {
+  return (
+    {
+      receipt: "Received",
+      opening_balance: "Opening balance",
+      adjustment_in: "Stock added",
+      adjustment_out: "Stock adjusted",
+      damaged: "Damaged",
+      expired: "Expired",
+      return_to_supplier: "Returned to supplier",
+      count_correction: "Count correction",
+    }[value] ?? statusLabel(value)
+  );
+}
+function signedUnits(value: number) {
+  const prefix = value > 0 ? "+" : value < 0 ? "−" : "";
+  const unit = Math.abs(value) === 1 ? "tablet" : "tablets";
+  return `${prefix}${number(Math.abs(value))} ${unit}`;
+}
+function sourceLabel(value: string) {
+  if (value.startsWith("receipt_")) return "Receipt record";
+  if (value.includes("transfer")) return "Transfer record";
+  if (value.includes("count")) return "Cycle-count record";
+  return "Inventory adjustment";
+}
 function balanceFor(data: InventoryData, balanceId?: string) {
   return (
     data.balances.find((item) => item.id === balanceId) ??
@@ -136,86 +154,6 @@ function balanceFor(data: InventoryData, balanceId?: string) {
     data.balances[0]
   );
 }
-function invariantRows(data: InventoryData) {
-  const nonNegative = data.balances.every((item) =>
-    [
-      item.on_hand_units,
-      item.held_units,
-      item.blocked_units,
-      item.quarantined_units,
-      item.available_units,
-    ].every((value) => value >= 0),
-  );
-  const references = data.balances.every(
-    (item) =>
-      product(data, item.product_id) &&
-      lot(data, item.lot_id) &&
-      location(data, item.location_id),
-  );
-  const recalledUnavailable = data.lots
-    .filter((item) => item.status === "recalled")
-    .every((item) =>
-      data.balances
-        .filter((balance) => balance.lot_id === item.id)
-        .every((balance) => balance.available_units === 0),
-    );
-  const poArithmetic = data.purchase_orders.every(
-    (order) =>
-      Math.abs(order.total - (order.subtotal + order.tax + order.shipping)) <
-      0.001,
-  );
-  return [
-    ["INV-01", "Balance components are non-negative", nonNegative],
-    [
-      "INV-02",
-      "Availability excludes held stock",
-      data.balances.every((item) => item.available_units <= item.on_hand_units),
-    ],
-    [
-      "INV-03",
-      "On-hand has a posted ledger source",
-      data.balances.every((item) =>
-        data.movements.some(
-          (movement) =>
-            movement.lot_id === item.lot_id &&
-            movement.location_id === item.location_id,
-        ),
-      ),
-    ],
-    ["INV-04", "Recalled lots have zero availability", recalledUnavailable],
-    ["INV-05", "Purchase-order totals reconcile", poArithmetic],
-    [
-      "INV-06",
-      "Receipts have exact movement sources",
-      data.receipts.every((receipt) =>
-        receipt.lines.every((line) =>
-          data.movements.some(
-            (movement) =>
-              movement.source_id.includes(
-                receipt.id.replace(/^receipt_/, ""),
-              ) && movement.quantity_units === line.quantity_units,
-          ),
-        ),
-      ),
-    ],
-    [
-      "INV-07",
-      "Transfer records preserve source and destination",
-      (data.transfers ?? []).every(
-        (item) => item.source_location_id !== item.destination_location_id,
-      ),
-    ],
-    [
-      "INV-08",
-      "Controlled variance blocks premature certification",
-      data.controlled_reconciliations.every(
-        (item) => item.variance_units === 0 || item.status !== "certified",
-      ),
-    ],
-    ["INV-09", "All displayed references resolve", references],
-  ] as const;
-}
-
 function Card({
   title,
   eyebrow,
@@ -233,25 +171,6 @@ function Card({
       {title && <h2>{title}</h2>}
       {children}
     </section>
-  );
-}
-function Metric({
-  label,
-  value,
-  detail,
-  tone = "",
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  tone?: string;
-}) {
-  return (
-    <div className={`inventory-metric ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
   );
 }
 function Badge({
@@ -294,6 +213,30 @@ function Field({
       {children}
       {hint && <small>{hint}</small>}
     </label>
+  );
+}
+function RecordPicker({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  if (options.length < 2) return null;
+  return (
+    <Field label={label}>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }
 function ConfirmButton({
@@ -368,18 +311,12 @@ function Notice({ notice, onClose }: { notice: Notice; onClose: () => void }) {
     </div>
   );
 }
-function PermissionNote({
-  allowed,
-  permission,
-}: {
-  allowed: boolean;
-  permission: string;
-}) {
+function PermissionNote({ allowed }: { allowed: boolean }) {
   return allowed ? (
-    <span className="inventory-permission ok">Authorized: {permission}</span>
+    <span className="inventory-permission ok">Available to your account</span>
   ) : (
     <span className="inventory-permission">
-      View only · {permission} is required for this action.
+      View only · your account cannot perform this action.
     </span>
   );
 }
@@ -394,7 +331,8 @@ export function InventoryApp({ path }: { path: string }) {
   const [notice, setNotice] = useState<Notice>(null);
 
   useEffect(() => {
-    const onPopState = () => setActivePath(window.location.pathname);
+    const onPopState = () =>
+      setActivePath(`${window.location.pathname}${window.location.search}`);
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -421,7 +359,7 @@ export function InventoryApp({ path }: { path: string }) {
       return;
     event.preventDefault();
     window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    setActivePath(url.pathname);
+    setActivePath(`${url.pathname}${url.search}${url.hash}`);
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
@@ -516,12 +454,6 @@ export function InventoryApp({ path }: { path: string }) {
     );
   if (!data) return null;
 
-  const available = data.balances.reduce(
-    (sum, item) => sum + item.available_units,
-    0,
-  );
-  const held = data.balances.reduce((sum, item) => sum + item.held_units, 0);
-  const invariants = invariantRows(data);
   const activeUser =
     data.users.find((item) => item.id === data.current_user_id) ??
     data.users[0];
@@ -544,7 +476,6 @@ export function InventoryApp({ path }: { path: string }) {
               </h1>
             </div>
             <div className="inventory-header-meta">
-              <Badge tone="success">Rails API</Badge>
               <span>
                 {activeUser?.name} · {activeUser?.role}
               </span>
@@ -566,14 +497,12 @@ export function InventoryApp({ path }: { path: string }) {
             {screen === "catalog" && (
               <CatalogScreen
                 data={data}
-                available={available}
-                held={held}
                 onDemo={() =>
                   void run(
                     "/api/clinic/inventory/demo",
                     {},
-                    "Canonical scenario loaded",
-                    "The prototype’s two products, partial shipment, recalled lot, ledger, and controlled count are now in APPly PostgreSQL.",
+                    "Example inventory loaded",
+                    "Two example products, a partial shipment, a recalled lot, activity, and a controlled count are now available for review.",
                   )
                 }
               />
@@ -590,9 +519,7 @@ export function InventoryApp({ path }: { path: string }) {
             {screen === "lots" && (
               <LotsScreen data={data} busy={busy} run={run} />
             )}
-            {screen === "activity" && (
-              <ActivityScreen data={data} invariants={invariants} />
-            )}
+            {screen === "activity" && <ActivityScreen data={data} />}
             {screen === "recalls" && (
               <RecallScreen data={data} busy={busy} run={run} />
             )}
@@ -608,13 +535,9 @@ export function InventoryApp({ path }: { path: string }) {
 
 function CatalogScreen({
   data,
-  available,
-  held,
   onDemo,
 }: {
   data: InventoryData;
-  available: number;
-  held: number;
   onDemo: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -634,40 +557,21 @@ function CatalogScreen({
           type="button"
           onClick={onDemo}
         >
-          Load canonical demo scenario
+          Load example inventory
         </button>
         <p className="inventory-caption">
-          Development-only synthetic data. No patient or clinical associations
-          are created.
+          Adds example clinic inventory for local review. No patient records are
+          created.
         </p>
       </Card>
     );
   return (
     <div className="inventory-stack">
-      <div className="inventory-metrics">
-        <Metric
-          label="Available stock"
-          value={number(available)}
-          detail="Active, unheld units only"
-        />
-        <Metric
-          label="Safety held"
-          value={number(held)}
-          detail="Excluded from availability"
-          tone="warning"
-        />
-        <Metric
-          label="Catalog coverage"
-          value={`${data.products.length} products`}
-          detail={`${data.lots.length} traceable lots`}
-        />
-      </div>
       <Card title="Catalog and lot traceability">
         <div className="inventory-card-heading">
           <div>
             <p className="inventory-lead">
-              Search canonical product, package, NDC, supplier, and stock
-              records.
+              Search products, packages, NDCs, suppliers, and stock records.
             </p>
           </div>
           <Field label="Search catalog">
@@ -683,12 +587,13 @@ function CatalogScreen({
             <caption className="sr-only">Medication catalog</caption>
             <thead>
               <tr>
-                <th>Product / package</th>
-                <th>NDC</th>
-                <th>Available</th>
-                <th>On hand</th>
-                <th>Reorder point</th>
-                <th>Status</th>
+                <th scope="col">Product / package</th>
+                <th scope="col">NDC</th>
+                <th scope="col">Available</th>
+                <th scope="col">On hand</th>
+                <th scope="col">Reorder point</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -714,11 +619,36 @@ function CatalogScreen({
                       {item.low_stock ? "Reorder" : "In range"}
                     </Badge>
                   </td>
+                  <td>
+                    <a href={`/clinic/inventory/lots?product_id=${item.id}`}>
+                      View lots
+                    </a>
+                    {item.low_stock && (
+                      <a
+                        href={`/clinic/inventory/replenishment?product_id=${item.id}`}
+                      >
+                        Start replenishment
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {products.length === 0 && (
+          <div className="inventory-muted-panel" role="status">
+            <strong>No matching products</strong>
+            <p>Try a different search or clear the catalog filter.</p>
+            <button
+              className="inventory-button outline"
+              type="button"
+              onClick={() => setQuery("")}
+            >
+              Clear search
+            </button>
+          </div>
+        )}
       </Card>
       <div className="inventory-two-col">
         <Card title="Attention queue">
@@ -727,7 +657,7 @@ function CatalogScreen({
               .filter((item) => item.status !== "active")
               .map((item) => (
                 <li key={item.id}>
-                  <Badge tone="danger">{item.status}</Badge>
+                  <Badge tone="danger">{statusLabel(item.status)}</Badge>
                   <div>
                     <strong>Lot {item.lot_number}</strong>
                     <small>
@@ -742,13 +672,11 @@ function CatalogScreen({
             )}
           </ul>
         </Card>
-        <Card title="Scope and provenance">
+        <Card title="Inventory boundaries">
           <p className="inventory-lead">
-            This surface is backed by the signed-in APPly member and current
-            clinic practice. Inventory records never accept patient IDs or
-            browser-supplied actor IDs.
+            Inventory records belong to this clinic and stay separate from
+            patient records.
           </p>
-          <Badge tone="blue">Synthetic inventory · no clinical authority</Badge>
         </Card>
       </div>
     </div>
@@ -769,8 +697,14 @@ function ReplenishmentScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const item = data.products[0];
+  const requestedProductId = new URLSearchParams(window.location.search).get(
+    "product_id",
+  );
+  const item =
+    data.products.find((candidate) => candidate.id === requestedProductId) ??
+    data.products[0];
   const [quantity, setQuantity] = useState(5);
+  const [reason, setReason] = useState("");
   if (!item)
     return (
       <Card title="Replenishment suggestions">
@@ -785,7 +719,7 @@ function ReplenishmentScreen({
         purchase_order: {
           number: `PO-DRAFT-${Date.now()}`,
           destination: "Main Pharmacy",
-          reason: "User-entered replenishment request",
+          reason: reason.trim(),
           lines: [
             {
               product_id: item.id,
@@ -800,7 +734,7 @@ function ReplenishmentScreen({
         },
       },
       "Draft created",
-      `${quantity} bottles (${quantity * item.units_per_package} tablets) were added using canonical product and package IDs.`,
+      `${quantity} bottles (${quantity * item.units_per_package} tablets) were added to the purchase order draft.`,
     );
   };
   return (
@@ -813,7 +747,6 @@ function ReplenishmentScreen({
               NDC {item.ndc} · Bottle of {item.units_per_package} tablets
             </p>
           </div>
-          <Badge tone="blue">Explainable input</Badge>
         </div>
         <div className="inventory-data-grid four">
           <DataPoint
@@ -827,7 +760,7 @@ function ReplenishmentScreen({
           />
           <DataPoint
             label="On order"
-            value={`${number(data.purchase_orders.flatMap((order) => order.lines.filter((line) => line.product_id === item.id)).reduce((sum, line) => sum + (line.ordered_units - line.received_units), 0))} tablets`}
+            value={`${number(data.purchase_orders.reduce((sum, order) => sum + (order.status === "cancelled" ? 0 : order.lines.filter((line) => line.product_id === item.id).reduce((lineSum, line) => lineSum + (line.ordered_units - line.received_units), 0)), 0))} tablets`}
           />
           <DataPoint
             label="Reorder point"
@@ -837,8 +770,8 @@ function ReplenishmentScreen({
         <div className="inventory-muted-panel">
           <strong>Demand and lead time</strong>
           <p>
-            Not provided in the canonical fixture. APPly does not invent a
-            recommendation; enter a whole-bottle quantity.
+            Demand and lead time are not configured. Enter the whole-bottle
+            quantity you want to order.
           </p>
         </div>
         <form className="inventory-form-grid" onSubmit={submit}>
@@ -860,16 +793,25 @@ function ReplenishmentScreen({
           <Field label="Destination">
             <input value="Main Pharmacy" readOnly />
           </Field>
-          <Field label="Justification">
-            <input value="User-entered replenishment quantity" readOnly />
+          <Field
+            label="Reason for order"
+            hint="Required so the purchase decision can be reviewed later."
+          >
+            <input
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="For example: below reorder point"
+              required
+            />
           </Field>
           <div className="inventory-form-actions">
-            <PermissionNote
-              allowed={capability(data, "procurement.create")}
-              permission="procurement.create"
-            />
+            <PermissionNote allowed={capability(data, "procurement.create")} />
             <ConfirmButton
-              disabled={busy || !capability(data, "procurement.create")}
+              disabled={
+                busy ||
+                !capability(data, "procurement.create") ||
+                !reason.trim()
+              }
               onConfirm={() => {
                 const fake = new Event("submit") as unknown as FormEvent;
                 submit(fake);
@@ -882,19 +824,14 @@ function ReplenishmentScreen({
       </Card>
       <Card title="Quantity preview">
         <div className="inventory-stack compact">
-          <DataPoint label="Product identity" value={<code>{item.id}</code>} />
-          <DataPoint
-            label="Package identity"
-            value={<code>{item.package_id}</code>}
-          />
-          <DataPoint label="Draft quantity" value={`${quantity} bottles`} />
+          <DataPoint label="Package quantity" value={`${quantity} bottles`} />
           <DataPoint
             label="Base-unit quantity"
             value={`${number(quantity * item.units_per_package)} tablets`}
           />
           <p className="inventory-info">
             Each bottle is exactly {item.units_per_package} tablets. Posted
-            balances and movements always use tablets.
+            inventory balances and movements use tablets.
           </p>
         </div>
       </Card>
@@ -916,7 +853,15 @@ function PurchasingScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const order = data.purchase_orders[0];
+  const requestedOrderId = new URLSearchParams(window.location.search).get(
+    "order_id",
+  );
+  const [selectedOrderId, setSelectedOrderId] = useState(
+    requestedOrderId ?? data.purchase_orders[0]?.id ?? "",
+  );
+  const order =
+    data.purchase_orders.find((item) => item.id === selectedOrderId) ??
+    data.purchase_orders[0];
   if (!order)
     return (
       <Card title="Purchasing">
@@ -984,7 +929,7 @@ function PurchasingScreen({
           <div>
             <div className="inventory-title-row">
               <h2>{order.number}</h2>
-              <Badge tone="blue">{order.status.replaceAll("_", " ")}</Badge>
+              <Badge tone="blue">{statusLabel(order.status)}</Badge>
             </div>
             <p className="inventory-lead">
               {order.supplier} → {order.destination} · ordered{" "}
@@ -1016,6 +961,15 @@ function PurchasingScreen({
             )}
           </div>
         </div>
+        <RecordPicker
+          label="Purchase order"
+          value={order.id}
+          options={data.purchase_orders.map((candidate) => ({
+            value: candidate.id,
+            label: `${candidate.number} · ${statusLabel(candidate.status)}`,
+          }))}
+          onChange={setSelectedOrderId}
+        />
         <div className="inventory-timeline">
           {stages.map((stage, index) => (
             <div
@@ -1039,16 +993,16 @@ function PurchasingScreen({
         </div>
       </Card>
       <div className="inventory-two-col wide-left">
-        <Card title="Frozen line snapshot">
+        <Card title="Purchase order lines">
           <div className="inventory-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Product / package</th>
-                  <th>Ordered</th>
-                  <th>Received</th>
-                  <th>Remaining</th>
-                  <th>Price</th>
+                  <th scope="col">Product / package</th>
+                  <th scope="col">Ordered</th>
+                  <th scope="col">Received</th>
+                  <th scope="col">Remaining</th>
+                  <th scope="col">Price</th>
                 </tr>
               </thead>
               <tbody>
@@ -1081,10 +1035,7 @@ function PurchasingScreen({
               </tbody>
             </table>
           </div>
-          <PermissionNote
-            allowed={capability(data, "procurement.approve")}
-            permission="procurement.approve"
-          />
+          <PermissionNote allowed={capability(data, "procurement.approve")} />
         </Card>
         <Card title="Order summary">
           <div className="inventory-stack compact">
@@ -1092,13 +1043,20 @@ function PurchasingScreen({
               label={`${line.ordered_packages} bottles × ${money(line.package_price)}`}
               value={money(order.subtotal)}
             />
-            <DataPoint label="Tax" value={money(order.tax)} />
-            <DataPoint label="Shipping" value={money(order.shipping)} />
+            {order.tax > 0 && (
+              <DataPoint label="Tax" value={money(order.tax)} />
+            )}
+            {order.shipping > 0 && (
+              <DataPoint label="Shipping" value={money(order.shipping)} />
+            )}
             <DataPoint label="Total" value={money(order.total)} />
-            <p className="inventory-info">
-              Shipment MS-88421 delivered 40 bottles. Five bottles remain on the
-              purchase order.
-            </p>
+            {line.received_packages > 0 &&
+              line.ordered_packages > line.received_packages && (
+                <p className="inventory-info">
+                  {line.received_packages} of {line.ordered_packages} bottles
+                  have been received. {remaining} remain open.
+                </p>
+              )}
           </div>
         </Card>
       </div>
@@ -1120,7 +1078,15 @@ function ReceivingScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const shipment = data.shipments[0];
+  const requestedShipmentId = new URLSearchParams(window.location.search).get(
+    "shipment_id",
+  );
+  const [selectedShipmentId, setSelectedShipmentId] = useState(
+    requestedShipmentId ?? data.shipments[0]?.id ?? "",
+  );
+  const shipment =
+    data.shipments.find((item) => item.id === selectedShipmentId) ??
+    data.shipments[0];
   const order = data.purchase_orders.find(
     (item) => item.id === shipment?.po_id,
   );
@@ -1134,6 +1100,9 @@ function ReceivingScreen({
     data.lots.find((item) => item.status === "recalled");
   const [packages, setPackages] = useState(shipment?.package_count ?? 1);
   const [temperature, setTemperature] = useState("20.1");
+  useEffect(() => {
+    setPackages(shipment?.package_count ?? 1);
+  }, [shipment?.id, shipment?.package_count]);
   if (!shipment || !order || !line || !item || !recalledLot)
     return (
       <Card title="Receiving">
@@ -1174,9 +1143,18 @@ function ReceivingScreen({
             </p>
           </div>
           <Badge tone={receipt?.status === "quarantined" ? "warning" : "blue"}>
-            {receipt?.status ?? shipment.status}
+            {statusLabel(receipt?.status ?? shipment.status)}
           </Badge>
         </div>
+        <RecordPicker
+          label="Shipment"
+          value={shipment.id}
+          options={data.shipments.map((candidate) => ({
+            value: candidate.id,
+            label: `${candidate.supplier_reference} · ${statusLabel(candidate.status)}`,
+          }))}
+          onChange={setSelectedShipmentId}
+        />
         <div className="inventory-warning" role="alert">
           <strong>Blocking recall match: lot {recalledLot.lot_number}</strong>
           <p>
@@ -1222,20 +1200,25 @@ function ReceivingScreen({
           </Field>
         </div>
         <div className="inventory-form-actions">
-          <PermissionNote
-            allowed={capability(data, "inventory.receive")}
-            permission="inventory.receive"
-          />
-          <ConfirmButton
-            disabled={
-              busy ||
-              !capability(data, "inventory.receive") ||
-              packages !== shipment.package_count
-            }
-            onConfirm={confirm}
-          >
-            Confirm quarantined receipt
-          </ConfirmButton>
+          {receipt ? (
+            <p className="inventory-success-line" role="status">
+              Receipt recorded. This delivery cannot be posted twice.
+            </p>
+          ) : (
+            <>
+              <PermissionNote allowed={capability(data, "inventory.receive")} />
+              <ConfirmButton
+                disabled={
+                  busy ||
+                  !capability(data, "inventory.receive") ||
+                  packages !== shipment.package_count
+                }
+                onConfirm={confirm}
+              >
+                Confirm quarantined receipt
+              </ConfirmButton>
+            </>
+          )}
         </div>
         {receiptLine && (
           <p className="inventory-success-line">
@@ -1264,7 +1247,7 @@ function ReceivingScreen({
             value={`${Math.max(0, line.ordered_packages - line.received_packages)} bottles · ${number(Math.max(0, line.ordered_units - line.received_units))} tablets`}
           />
           <p className="inventory-info">
-            <strong>Disposition:</strong> quarantine_recall
+            <strong>Disposition:</strong> Quarantine — recall hold
             <br />
             <strong>Available after receipt:</strong> 0 tablets
           </p>
@@ -1288,8 +1271,15 @@ function LotsScreen({
     detail: string,
   ) => Promise<void>;
 }) {
+  const requestedProductId = new URLSearchParams(window.location.search).get(
+    "product_id",
+  );
   const [selectedId, setSelectedId] = useState(
-    () => balanceFor(data)?.id ?? "",
+    () =>
+      data.balances.find((item) => item.product_id === requestedProductId)
+        ?.id ??
+      balanceFor(data)?.id ??
+      "",
   );
   const [action, setAction] = useState<"transfer" | "adjust" | "count">(
     "transfer",
@@ -1360,42 +1350,17 @@ function LotsScreen({
     selected.available_units === 0 || selectedLot.status !== "active";
   return (
     <div className="inventory-stack">
-      <div className="inventory-metrics">
-        <Metric
-          label="On hand"
-          value={number(
-            data.balances.reduce((sum, item) => sum + item.on_hand_units, 0),
-          )}
-          detail="All canonical locations"
-        />
-        <Metric
-          label="Available"
-          value={number(
-            data.balances.reduce((sum, item) => sum + item.available_units, 0),
-          )}
-          detail="After safety holds"
-        />
-        <Metric
-          label="Held"
-          value={number(
-            data.balances.reduce((sum, item) => sum + item.held_units, 0),
-          )}
-          detail="Umbrella hold total"
-          tone="warning"
-        />
-        <Metric label="As of" value={date(data.as_of)} detail={data.timezone} />
-      </div>
       <Card title="Lot balances">
         <div className="inventory-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Product / lot</th>
-                <th>Location</th>
-                <th>On hand</th>
-                <th>Available</th>
-                <th>Status</th>
-                <th>Trace</th>
+                <th scope="col">Product / lot</th>
+                <th scope="col">Location</th>
+                <th scope="col">On hand</th>
+                <th scope="col">Available</th>
+                <th scope="col">Status</th>
+                <th scope="col">Trace</th>
               </tr>
             </thead>
             <tbody>
@@ -1407,7 +1372,15 @@ function LotsScreen({
                   <tr
                     key={balance.id}
                     className={balance.id === selected.id ? "selected" : ""}
+                    tabIndex={0}
+                    aria-selected={balance.id === selected.id}
                     onClick={() => setSelectedId(balance.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedId(balance.id);
+                      }
+                    }}
                   >
                     <td>
                       <strong>{item.name}</strong>
@@ -1430,7 +1403,7 @@ function LotsScreen({
                           lotItem.status === "active" ? "success" : "danger"
                         }
                       >
-                        {lotItem.status}
+                        {statusLabel(lotItem.status)}
                       </Badge>
                     </td>
                     <td>
@@ -1542,13 +1515,6 @@ function LotsScreen({
                       ? "inventory.count"
                       : "inventory.adjust",
                 )}
-                permission={
-                  action === "transfer"
-                    ? "inventory.transfer"
-                    : action === "count"
-                      ? "inventory.count"
-                      : "inventory.adjust"
-                }
               />
               <ConfirmButton
                 disabled={
@@ -1568,8 +1534,6 @@ function LotsScreen({
         </Card>
         <Card title="Selected balance">
           <div className="inventory-stack compact">
-            <DataPoint label="Balance ID" value={<code>{selected.id}</code>} />
-            <DataPoint label="Lot ID" value={<code>{selected.lot_id}</code>} />
             <DataPoint
               label="Available"
               value={`${number(selected.available_units)} tablets`}
@@ -1590,13 +1554,7 @@ function LotsScreen({
   );
 }
 
-function ActivityScreen({
-  data,
-  invariants,
-}: {
-  data: InventoryData;
-  invariants: readonly (readonly [string, string, boolean])[];
-}) {
+function ActivityScreen({ data }: { data: InventoryData }) {
   const [filter, setFilter] = useState("");
   const rows = data.movements.filter((item) =>
     `${item.type} ${item.reason ?? ""} ${item.source_id}`
@@ -1623,11 +1581,11 @@ function ActivityScreen({
           <table>
             <thead>
               <tr>
-                <th>Occurred</th>
-                <th>Type</th>
-                <th>Lot / location</th>
-                <th>Quantity</th>
-                <th>Reason / source</th>
+                <th scope="col">Occurred</th>
+                <th scope="col">Type</th>
+                <th scope="col">Lot / location</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Reason / source</th>
               </tr>
             </thead>
             <tbody>
@@ -1636,7 +1594,7 @@ function ActivityScreen({
                   <td>{dateTime(item.occurred_at)}</td>
                   <td>
                     <Badge tone={item.direction === "out" ? "warning" : "blue"}>
-                      {item.type}
+                      {movementLabel(item.type)}
                     </Badge>
                   </td>
                   <td>
@@ -1649,30 +1607,29 @@ function ActivityScreen({
                   </td>
                   <td>
                     <span>{item.reason}</span>
-                    <small className="mono">{item.source_id}</small>
+                    <details className="inventory-source-details">
+                      <summary>{sourceLabel(item.source_id)}</summary>
+                      <small className="mono">{item.source_id}</small>
+                    </details>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </Card>
-      <Card title="Invariant runner">
-        <div className="inventory-invariant-grid">
-          {invariants.map(([id, label, passed]) => (
-            <div key={id} className={passed ? "passed" : "failed"}>
-              <strong>{id}</strong>
-              <span>{label}</span>
-              <Badge tone={passed ? "success" : "danger"}>
-                {passed ? "Pass" : "Fail"}
-              </Badge>
-            </div>
-          ))}
-        </div>
-        <p className="inventory-caption">
-          These checks are display evidence only. Rails remains authoritative
-          for quantities, permissions, and persistence.
-        </p>
+        {rows.length === 0 && (
+          <div className="inventory-muted-panel" role="status">
+            <strong>No matching activity</strong>
+            <p>Try a different filter or clear the ledger search.</p>
+            <button
+              className="inventory-button outline"
+              type="button"
+              onClick={() => setFilter("")}
+            >
+              Clear search
+            </button>
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -1692,7 +1649,15 @@ function RecallScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const recall = data.recalls[0];
+  const requestedRecallId = new URLSearchParams(window.location.search).get(
+    "recall_id",
+  );
+  const [selectedRecallId, setSelectedRecallId] = useState(
+    requestedRecallId ?? data.recalls[0]?.id ?? "",
+  );
+  const recall =
+    data.recalls.find((item) => item.id === selectedRecallId) ??
+    data.recalls[0];
   const item = recall && product(data, recall.product_id);
   const recalledLot =
     recall &&
@@ -1704,6 +1669,10 @@ function RecallScreen({
     data.balances.find((balance) => balance.lot_id === recalledLot.id);
   const [quantity, setQuantity] = useState(recall?.held_units ?? 0);
   const [evidence, setEvidence] = useState("");
+  useEffect(() => {
+    setQuantity(recall?.held_units ?? 0);
+    setEvidence("");
+  }, [recall?.id, recall?.held_units]);
   if (!recall || !item || !recalledLot || !batch)
     return (
       <Card title="Recalls and disposition">
@@ -1739,11 +1708,20 @@ function RecallScreen({
   return (
     <div className="inventory-two-col wide-left">
       <div className="inventory-stack">
+        <RecordPicker
+          label="Recall"
+          value={recall.id}
+          options={data.recalls.map((candidate) => ({
+            value: candidate.id,
+            label: `${candidate.reference} · ${statusLabel(candidate.status)}`,
+          }))}
+          onChange={setSelectedRecallId}
+        />
         <Card className="recall-card">
           <div className="inventory-panel-heading">
             <div>
               <Badge tone={recall.held_units === 0 ? "success" : "danger"}>
-                {recall.status.replaceAll("_", " ")}
+                {statusLabel(recall.status)}
               </Badge>
               <h2>{recall.reference}</h2>
               <p className="inventory-lead">
@@ -1824,10 +1802,7 @@ function RecallScreen({
                 placeholder="Required supplier RMA or evidence reference"
               />
             </Field>
-            <PermissionNote
-              allowed={capability(data, "recall.dispose")}
-              permission="recall.dispose"
-            />
+            <PermissionNote allowed={capability(data, "recall.dispose")} />
             <ConfirmButton
               tone="danger"
               disabled={
@@ -1865,7 +1840,16 @@ function ControlledScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const reconciliation = data.controlled_reconciliations[0];
+  const requestedReconciliationId = new URLSearchParams(
+    window.location.search,
+  ).get("reconciliation_id");
+  const [selectedReconciliationId, setSelectedReconciliationId] = useState(
+    requestedReconciliationId ?? data.controlled_reconciliations[0]?.id ?? "",
+  );
+  const reconciliation =
+    data.controlled_reconciliations.find(
+      (item) => item.id === selectedReconciliationId,
+    ) ?? data.controlled_reconciliations[0];
   const item = reconciliation && product(data, reconciliation.product_id);
   const selectedLot = reconciliation && lot(data, reconciliation.lot_id);
   const selectedLocation =
@@ -1878,8 +1862,7 @@ function ControlledScreen({
       </Card>
     );
   const unresolved =
-    reconciliation.status !== "resolved" &&
-    reconciliation.status !== "certified";
+    reconciliation.status !== "certified" && !reconciliation.investigation_note;
   const investigate = () =>
     void run(
       `/api/clinic/inventory/controlled/${reconciliation.count_id}/investigate`,
@@ -1897,14 +1880,21 @@ function ControlledScreen({
   return (
     <div className="inventory-two-col wide-left">
       <div className="inventory-stack">
+        <RecordPicker
+          label="Controlled count"
+          value={reconciliation.id}
+          options={data.controlled_reconciliations.map((candidate) => ({
+            value: candidate.id,
+            label: `${product(data, candidate.product_id)?.name ?? "Product"} · ${date(candidate.counted_at)}`,
+          }))}
+          onChange={setSelectedReconciliationId}
+        />
         <Card>
           <div className="inventory-panel-heading">
             <div>
               <div className="inventory-title-row">
                 <Badge tone="danger">Schedule II</Badge>
-                <Badge tone="blue">
-                  {reconciliation.status.replaceAll("_", " ")}
-                </Badge>
+                <Badge tone="blue">{statusLabel(reconciliation.status)}</Badge>
               </div>
               <h2>{item.name}</h2>
               <p className="inventory-lead">
@@ -1928,22 +1918,33 @@ function ControlledScreen({
             />
             <DataPoint
               label="Variance"
-              value={`${reconciliation.variance_units > 0 ? "+" : ""}${number(reconciliation.variance_units)} tablets`}
+              value={signedUnits(reconciliation.variance_units)}
               tone={reconciliation.variance_units === 0 ? "success" : "danger"}
             />
           </div>
           <div className="inventory-data-grid two">
             <DataPoint
-              label="Counter"
-              value={`${data.users[0]?.name ?? "Authenticated member"} · Inventory Manager`}
+              label="Recorded by"
+              value={
+                data.users.find((user) => user.id === reconciliation.counter_id)
+                  ?.name ?? "Clinic inventory member"
+              }
             />
-            <DataPoint label="Witness" value="Separation-of-duties witness" />
+            <DataPoint
+              label="Review"
+              value={
+                reconciliation.certified_at
+                  ? "Certified by a separate reviewer"
+                  : "Separate reviewer required"
+              }
+            />
           </div>
         </Card>
         {unresolved ? (
           <div className="inventory-warning strong" role="alert">
             <strong>
-              Certification blocked: unresolved −1 tablet variance
+              Certification blocked: unresolved{" "}
+              {signedUnits(reconciliation.variance_units)} variance
             </strong>
             <p>
               An Inventory Manager must investigate and post an authorized
@@ -1952,10 +1953,10 @@ function ControlledScreen({
           </div>
         ) : (
           <div className="inventory-success-box">
-            <strong>Variance resolved</strong>
+            <strong>Count reviewed</strong>
             <p>
-              Expected and counted quantities now agree. Pharmacist
-              certification is available to a separate authorized reviewer.
+              Expected and counted quantities now agree. Certification is
+              available to a separate authorized reviewer.
             </p>
           </div>
         )}
@@ -1963,13 +1964,16 @@ function ControlledScreen({
           <ol className="inventory-trail">
             <li className="done">
               <strong>Count recorded</strong>
-              <span>299 tablets counted with a witness.</span>
+              <span>
+                {number(reconciliation.counted_units)} tablets counted by the
+                clinic inventory member.
+              </span>
             </li>
             <li className={reconciliation.investigation_note ? "done" : ""}>
-              <strong>Variance investigated and adjusted</strong>
+              <strong>Investigation recorded</strong>
               <span>
                 {reconciliation.investigation_note ??
-                  "Pending Inventory Manager investigation and authorized adjustment."}
+                  "Pending an authorized investigation before certification."}
               </span>
             </li>
             <li className={reconciliation.status === "certified" ? "done" : ""}>
@@ -1977,17 +1981,13 @@ function ControlledScreen({
               <span>
                 {reconciliation.certified_at
                   ? `Certified ${dateTime(reconciliation.certified_at)}.`
-                  : "Blocked until variance resolution and a separate reviewer."}
+                  : "Blocked until review is recorded and a separate reviewer certifies."}
               </span>
             </li>
           </ol>
         </Card>
       </div>
-      <Card title={unresolved ? "Resolve variance" : "Certify count"}>
-        <p className="inventory-lead">
-          The server enforces the same permission and state checks as this
-          screen.
-        </p>
+      <Card title={unresolved ? "Investigate count" : "Certify count"}>
         {unresolved ? (
           <div className="inventory-stack compact">
             <Field label="Investigation findings">
@@ -1997,13 +1997,11 @@ function ControlledScreen({
                 placeholder="Required count/research findings"
               />
             </Field>
-            <PermissionNote
-              allowed={capability(data, "inventory.adjust")}
-              permission="inventory.adjust"
-            />
+            <PermissionNote allowed={capability(data, "inventory.adjust")} />
             <p className="inventory-info">
-              Resolution posts a −1 tablet adjustment so the authoritative
-              balance matches the physical count.
+              Resolution posts a {signedUnits(reconciliation.variance_units)}
+              adjustment so the authoritative balance matches the physical
+              count.
             </p>
             <ConfirmButton
               disabled={
@@ -2014,22 +2012,25 @@ function ControlledScreen({
               Post variance resolution
             </ConfirmButton>
           </div>
+        ) : reconciliation.status === "certified" ? (
+          <div className="inventory-success-box">
+            <strong>Certification complete</strong>
+            <p>
+              This count was certified by a separate authorized reviewer
+              {reconciliation.certified_at
+                ? ` on ${dateTime(reconciliation.certified_at)}.`
+                : "."}
+            </p>
+          </div>
         ) : (
           <div className="inventory-stack compact">
             <DataPoint
               label="Resolved expected"
               value={`${number(reconciliation.counted_units)} tablets`}
             />
-            <PermissionNote
-              allowed={capability(data, "controlled.certify")}
-              permission="controlled.certify"
-            />
+            <PermissionNote allowed={capability(data, "controlled.certify")} />
             <ConfirmButton
-              disabled={
-                busy ||
-                !capability(data, "controlled.certify") ||
-                reconciliation.status === "certified"
-              }
+              disabled={busy || !capability(data, "controlled.certify")}
               onConfirm={certify}
             >
               Certify reconciliation

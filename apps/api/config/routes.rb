@@ -31,6 +31,7 @@ Rails.application.routes.draw do
       post :post, on: :member
       post :payment_allocations, on: :member, action: :allocate_payment
     end
+    get "billing", to: "billing/dashboard#show"
     resources :role_grants, controller: "authorization/role_grants", only: %i[index create] do
       post :revoke, on: :member
     end

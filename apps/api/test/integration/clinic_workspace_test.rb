@@ -52,6 +52,31 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "FOREIGN"
   end
 
+  test "billing dashboard is practice scoped and does not expose patient names" do
+    patient = @practice.patients.first
+    patient_name = patient.display_name
+    invoice = Clinic::Billing::DraftInvoice.call(
+      practice: @practice,
+      actor: @user,
+      patient: patient,
+      currency: "USD",
+      lines: [ { quantity: "2", unit_amount: "12.50", description_snapshot: "Synthetic billing dashboard line" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user)
+    get "/api/clinic/billing", headers: @headers
+
+    assert_response :success
+    assert_equal "clinic-billing-v1", response.parsed_body.fetch("schema_version")
+    assert_equal @practice.id, response.parsed_body.dig("practice", "id")
+    assert response.parsed_body.dig("metrics", "invoice_count") >= 1
+    assert_not_includes response.body, patient_name
+    assert response.parsed_body.fetch("recent_invoices").all? { |invoice| invoice["total"].is_a?(String) }
+
+    revoke_all_permissions!(@membership)
+    get "/api/clinic/billing", headers: @headers
+    assert_response :forbidden
+  end
+
   test "login never selects creates or changes the assigned clinic" do
     submit "/api/session", {}, method: :delete
     get "/api/clinic", headers: @headers

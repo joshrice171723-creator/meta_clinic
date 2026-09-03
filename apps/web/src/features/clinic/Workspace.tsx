@@ -50,6 +50,11 @@ export function ClinicNavigation({
       allowed: capabilities.inventory,
     },
     {
+      href: "/clinic/billing",
+      label: "Billing",
+      allowed: capabilities.billing,
+    },
+    {
       href: "/clinic/operations",
       label: "Operations",
       allowed: true,
@@ -129,6 +134,7 @@ export function Workspace({
           <ClinicOverviewContext value={overview.data}>
             <ClinicFrame
               practiceName={data.practice.name}
+              inventoryPage={inventoryPage}
               navigation={
                 <ClinicNavigation
                   capabilities={data.capabilities}
@@ -136,15 +142,18 @@ export function Workspace({
                 />
               }
             >
-              <header className="clinic-topbar">
-                <span>
-                  Currently logged in as: <strong>{user.email_address}</strong>
-                  {data.credentials.length > 0 && (
-                    <>, {data.credentials.join(", ")}</>
-                  )}
-                </span>
-                <a href="/clinic/settings">My settings</a>
-              </header>
+              {!inventoryPage && (
+                <header className="clinic-topbar">
+                  <span>
+                    Currently logged in as:{" "}
+                    <strong>{user.email_address}</strong>
+                    {data.credentials.length > 0 && (
+                      <>, {data.credentials.join(", ")}</>
+                    )}
+                  </span>
+                  <a href="/clinic/settings">My settings</a>
+                </header>
+              )}
               <main
                 id="main"
                 className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}

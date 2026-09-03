@@ -110,6 +110,7 @@ export function loginDestination(value: string | null): string {
     "/clinic/inventory",
     "/clinic/staff",
     "/clinic/settings",
+    "/clinic/billing",
   ]);
   return exact.has(value) ||
     /^\/clinic\/inventory(?:\/[^/]+)?$/.test(value) ||

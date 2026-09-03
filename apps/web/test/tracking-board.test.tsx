@@ -407,6 +407,18 @@ describe("board and Operations presentation boundaries", () => {
       "/clinic/patients/7/encounters/9",
     );
   });
+  it("adds Billing navigation and preserves the billing destination", () => {
+    const html = renderToStaticMarkup(
+      <ClinicNavigation
+        capabilities={contextCapabilities}
+        path="/clinic/billing"
+      />,
+    );
+    expect(html).toContain(
+      'href="/clinic/billing" aria-current="page">Billing</a>',
+    );
+    expect(loginDestination("/clinic/billing")).toBe("/clinic/billing");
+  });
 });
 describe("mapped read-only care flow", () => {
   it("defaults to the next quarter-hour and a 30-minute visit", () => {

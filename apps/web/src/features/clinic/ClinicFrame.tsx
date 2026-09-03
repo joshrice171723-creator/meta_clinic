@@ -12,10 +12,12 @@ export function compactNavigation() {
 export function ClinicFrame({
   practiceName,
   navigation,
+  inventoryPage = false,
   children,
 }: {
   practiceName: string;
   navigation: ReactNode;
+  inventoryPage?: boolean;
   children: ReactNode;
 }) {
   const [compact, setCompact] = useState(compactNavigation);
@@ -111,12 +113,12 @@ export function ClinicFrame({
           </a>
           <div className="practice-label">
             <strong>{practiceName}</strong>
-            <span>Local synthetic prototype</span>
+            {!inventoryPage && <span>Local synthetic prototype</span>}
           </div>
           {navigation}
           <div className="clinic-sidebar-bottom">
-            <a href="/portal">← Launch &amp; onboarding</a>
-            <a href="/">APPly selling site</a>
+            {!inventoryPage && <a href="/portal">← Launch &amp; onboarding</a>}
+            {!inventoryPage && <a href="/">APPly selling site</a>}
             <Form
               className="clinic-sign-out"
               endpoint="/api/session"

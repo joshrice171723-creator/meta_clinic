@@ -20,6 +20,11 @@
     "/api/clinic/appointments(.:format)"
   ],
   [
+    "api_clinic_billing",
+    "GET",
+    "/api/clinic/billing(.:format)"
+  ],
+  [
     "api_clinic_clinicians",
     "GET",
     "/api/clinic/clinicians(.:format)"

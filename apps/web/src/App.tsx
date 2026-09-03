@@ -15,6 +15,7 @@ import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
+import { BillingDashboard } from "./features/clinic/BillingDashboard";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import {
   ChartSelectionPage,
@@ -171,6 +172,8 @@ export function App() {
         <Operations />
       ) : path === "/clinic/settings" ? (
         <Settings user={user} />
+      ) : path === "/clinic/billing" ? (
+        <BillingDashboard />
       ) : path === "/clinic/schedule" ? (
         <Schedule />
       ) : path === "/clinic/chart-selection" ? (

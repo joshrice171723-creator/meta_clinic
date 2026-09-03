@@ -13,6 +13,7 @@ import "./appearance.css";
 import "./clinicFrame.css";
 import "./trackingBoard.css";
 import "./careFlow.css";
+import "./billing.css";
 import {
   CLINIC_MODES,
   CLINIC_PALETTES,

@@ -16,9 +16,13 @@ module Clinic
             raise ArgumentError, "Inventory posting is suspended or not configured. History remains available."
           end
           yield profile
-        end
+      end
       rescue Clinic::Authorization::Denied => error
         raise ArgumentError, error.message
+      rescue ActiveRecord::StatementInvalid => error
+        raise unless error.message.include?("Inventory action not permitted")
+
+        raise ArgumentError, "Your account does not have permission for this inventory action."
       end
 
       def self.retry_lock(practice_id, key)
