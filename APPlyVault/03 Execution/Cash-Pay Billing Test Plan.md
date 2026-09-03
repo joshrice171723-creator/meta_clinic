@@ -34,6 +34,10 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 | PAY-03 | A replay key cannot change its financial intent | Reuse the key with a different drawer/tender/change/allocation; expect a scoped validation error and no new rows | Pass — focused Rails gate |
 | PAY-04 | Partial payment/tender/receipt failure cannot leave a half-recorded trail | Force a transaction failure at the linked write boundary; assert payment event, allocation, tender and receipt all roll back | Pass — focused Rails gate |
 | PAY-05 | Browser-supplied totals or ownership cannot set authority | Forge patient/practice, invoice balance, actor, negative/over-allocation or invalid decimal inputs; expect denial/validation and unchanged ledger | Pass — focused Rails gate covers invalid amount and server-owned totals; cross-tenant scope remains controller-enforced |
+| CHK-01 | Check scanning cannot execute without provider/policy authority | Invoke the default OCR adapter with synthetic metadata; expect an explicit not-authorized failure and no external or persistence path | Pass — fail-closed adapter unit gate |
+| CHK-02 | Check intake cannot accept image material or unapproved fields | Validate synthetic metadata containing image/blob/object keys, unknown fields, invalid money or currency; expect rejection before adapter invocation | Pass — focused unit gate |
+| CHK-03 | OCR/provider output cannot leak check or image values | Inject a synthetic adapter response containing check and image-like values; assert only opaque status and field-presence names are returned | Pass — redaction unit gate |
+| CHK-04 | Check intake does not guess provider-specific requirements or persist a scan | Validate amount/currency without a check number; inspect the boundary for no model/migration/route/storage writes | Pass — optional provider fields remain unrequired; boundary is service-only and metadata-only |
 | REF-01 | A refund can only reduce cash that was actually collected | Refund a cash payment; assert immutable refund/receipt and expected cash decreases | Pass — covered by the focused Rails file gate |
 | REF-02 | Refunds cannot exceed the original cash payment or refund non-cash history | Cumulative over-refund and imported/non-cash refund attempts return validation/authorization errors | Pass — focused Rails gate covers over-refund; cash-only service guard remains in place |
 | DRAW-01 | Only one active drawer exists per physical site | Open twice for one site (reject second); open separate synthetic site (allow) | Pass — focused Rails gate |
@@ -81,6 +85,17 @@ When a gate fails:
 The local cash milestone may be reported as verified only when all applicable rows through `REG-01` and `OPS-01` are Pass, `UI-02` is either Pass or explicitly reported as a browser-environment blocker, and no Fail remains. `REC-02`, check scanning/OCR, invoice numbering/service date, superbill, Stripe, portal and release rows remain blocked until their separate authority and implementation are accepted. A blocked row cannot be relabeled complete merely because the automated cash happy path passes.
 
 ## Evidence record
+
+### 2026-09-03 — Check intake/OCR boundary gate
+
+Environment: local Windows checkout and plain Ruby/Minitest unit environment. All values were synthetic; no check image, OCR provider, bank data, credential, external call, database write, or payment event was used.
+
+- `ruby test/services/clinic/billing/check_intake_test.rb` — **Pass**, 4 tests / 16 assertions / 0 failures. Covers exact metadata normalization, default-provider fail-closed behavior, image/blob/unknown-field rejection, invalid money/currency rejection, optional provider-specific fields, and adapter-response redaction.
+- `ruby -c app/services/clinic/billing/check_intake.rb` and `ruby -c test/services/clinic/billing/check_intake_test.rb` — **Pass**.
+- `bundle exec rubocop app/services/clinic/billing/check_intake.rb test/services/clinic/billing/check_intake_test.rb` — **Pass**, 2 files / 0 offenses.
+- Rails `test_helper` execution was attempted first but **Blocked** by the existing local PostgreSQL test connection (`127.0.0.1:54329`, no password). The test was intentionally kept as a dependency-light unit gate because this boundary has no persistence; no Rails integration or browser claim is made.
+
+Limits: this closes only the local adapter/validation/redaction boundary. Provider selection, image transport and custody, required scanned fields, retention/deletion/access/audit policy, OCR outcome semantics, payment recording, browser UI, and production/release authority remain blocked.
 
 ### 2026-09-03 — Baseline gate and Terra/Luna repair loop
 

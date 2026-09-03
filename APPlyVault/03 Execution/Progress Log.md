@@ -7,6 +7,14 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-03 — Check intake/OCR boundary prepared without provider authority
+
+**Implementation:** because no scanner/OCR provider or check-image policy is approved, added only the provider-agnostic `Clinic::Billing::CheckIntake` validation/redaction boundary and fail-closed `Clinic::Billing::CheckOcrAdapter`. It accepts synthetic exact-decimal metadata and bounded opaque references, rejects image/blob/object and unknown fields, and returns only redacted status/field-presence evidence. It adds no route, model, migration, upload, external call, payment event, or stored check image.
+
+**Verification:** dependency-light Ruby/Minitest gate passed 4 tests / 16 assertions; both Ruby syntax checks passed; targeted RuboCop passed 2 files / 0 offenses. The initial Rails test-helper attempt was blocked by the existing local PostgreSQL test connection at `127.0.0.1:54329` with no password, so no Rails integration or browser result is claimed. No real check, bank data, provider credential, or external service was used.
+
+**Limits / next authority:** this is a safe implementation seam, not OCR execution or check-payment acceptance. A future increment needs explicit provider ownership/environment, required fields, image transport/custody, retention/deletion, access/audit, unknown-outcome handling, and payment-ledger handoff decisions. Package/test-plan rows remain blocked for those policy-dependent portions.
+
 ## 2026-09-03 — Patient portal request workflow added locally
 
 **Implementation:** added a synthetic-only patient portal request record with Rails-encrypted content, SHA-256 idempotency compatibility, practice/patient/identity foreign keys, pending/in-review/resolved/declined states, and a same-origin `GET/POST /api/patient_portal/requests` contract. The portal now lets the assigned synthetic patient submit a general question or refill request and see request status without exposing message bodies or claiming clinical approval. The shared form helper supports nested idempotency keys for retry-safe patient writes.
