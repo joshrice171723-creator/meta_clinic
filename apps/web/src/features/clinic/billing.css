@@ -78,6 +78,12 @@
 .clinic-theme .billing-section-heading h2 {
   margin: 4px 0 0;
 }
+.clinic-theme .billing-ledger-count {
+  align-self: flex-end;
+  color: var(--clinic-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
 .clinic-theme .billing-text-button,
 .clinic-theme .billing-filter-group button,
 .clinic-theme .billing-invoice-button {
@@ -329,6 +335,9 @@
   }
   .clinic-theme .billing-filter-group {
     width: fit-content;
+  }
+  .clinic-theme .billing-ledger-count {
+    justify-self: start;
   }
   .clinic-theme .billing-currency {
     display: grid;

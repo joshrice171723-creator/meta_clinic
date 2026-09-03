@@ -9,7 +9,7 @@ module Development
       "clinician" => %w[patients.read patients.write appointments.write encounters.write notes.read notes.write notes.sign observations.write documents.read],
       "staff" => %w[patients.read patients.write appointments.write encounters.write notes.read observations.write inventory.read staff.read messages.write],
       "inventory" => %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure],
-      "billing" => %w[patients.read billing.write documents.read],
+      "billing" => %w[patients.read billing.read billing.write documents.read],
       "reader" => %w[patients.read notes.read documents.read inventory.read staff.read]
     }.transform_values(&:freeze).freeze
     LEGACY_ROLE_PERMISSIONS = {

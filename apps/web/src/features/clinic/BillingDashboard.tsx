@@ -105,7 +105,8 @@ export function BillingDashboard() {
       <LoadState error="Unable to verify the billing response. Reload and try again." />
     );
 
-  const primaryCurrency = data.metrics.currencies[0];
+  const primaryCurrency =
+    data.metrics.currencies.length === 1 ? data.metrics.currencies[0] : null;
   const openInvoiceCount = data.metrics.currencies.reduce(
     (count, currency) => count + currency.open_invoice_count,
     0,
@@ -113,8 +114,12 @@ export function BillingDashboard() {
   const selectedInvoice =
     visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
     data.recent_invoices.find((invoice) => invoice.id === selectedInvoiceId) ??
-    visibleInvoices[0] ??
-    data.recent_invoices[0];
+    visibleInvoices.find(
+      (invoice) => invoicePaymentState(invoice) !== "void",
+    ) ??
+    data.recent_invoices.find(
+      (invoice) => invoicePaymentState(invoice) !== "void",
+    );
   const queueItems: {
     filter: BillingInvoiceFilter;
     label: string;
@@ -163,9 +168,15 @@ export function BillingDashboard() {
                   primaryCurrency.monthly_invoiced,
                   primaryCurrency.currency,
                 )
-              : "—"
+              : data.metrics.currencies.length > 1
+                ? "Multiple"
+                : "—"
           }
-          detail="Posted in the current period"
+          detail={
+            primaryCurrency
+              ? "Posted in the current period"
+              : "See currency totals below"
+          }
         />
         <Metric
           label="Payments received"
@@ -175,9 +186,15 @@ export function BillingDashboard() {
                   primaryCurrency.monthly_collected,
                   primaryCurrency.currency,
                 )
-              : "—"
+              : data.metrics.currencies.length > 1
+                ? "Multiple"
+                : "—"
           }
-          detail="Allocated in the current period"
+          detail={
+            primaryCurrency
+              ? "Allocated in the current period"
+              : "See currency totals below"
+          }
           tone="positive"
         />
         <Metric
@@ -185,9 +202,11 @@ export function BillingDashboard() {
           value={
             primaryCurrency
               ? money(primaryCurrency.outstanding, primaryCurrency.currency)
-              : "—"
+              : data.metrics.currencies.length > 1
+                ? "Multiple"
+                : "—"
           }
-          detail={`${openInvoiceCount} posted invoice${openInvoiceCount === 1 ? "" : "s"} with a balance`}
+          detail={`${openInvoiceCount} posted invoice${openInvoiceCount === 1 ? "" : "s"} with a balance${primaryCurrency ? "" : " across currencies"}`}
           tone="attention"
         />
         <Metric
@@ -209,7 +228,7 @@ export function BillingDashboard() {
               className="billing-text-button"
               onClick={() => setFilter("all")}
             >
-              View all ledger entries
+              Show recent invoices
             </button>
           </div>
           <div className="billing-queue-list">
@@ -277,8 +296,12 @@ export function BillingDashboard() {
         <div className="billing-section-heading billing-ledger-heading">
           <div>
             <p className="eyebrow">INVOICE LEDGER</p>
-            <h2>Recent billing activity</h2>
+            <h2>Recent invoice activity</h2>
           </div>
+          <small className="billing-ledger-count">
+            Showing {visibleInvoices.length} of {data.metrics.invoice_count}{" "}
+            invoices
+          </small>
           <div className="billing-filter-group" aria-label="Invoice filter">
             {(
               [

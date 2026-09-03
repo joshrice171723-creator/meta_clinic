@@ -154,6 +154,32 @@ function balanceFor(data: InventoryData, balanceId?: string) {
     data.balances[0]
   );
 }
+
+function onOrderUnits(data: InventoryData, productId: string) {
+  return data.purchase_orders
+    .filter((order) => !["cancelled", "complete"].includes(order.status))
+    .flatMap((order) => order.lines)
+    .filter((line) => line.product_id === productId)
+    .reduce(
+      (total, line) =>
+        total + Math.max(0, line.ordered_units - line.received_units),
+      0,
+    );
+}
+
+function replenishmentCandidates(data: InventoryData) {
+  return data.products.filter(
+    (item) =>
+      item.available_units + onOrderUnits(data, item.id) <
+      item.reorder_point_units,
+  );
+}
+
+function packagePrice(data: InventoryData, productId: string) {
+  return data.purchase_orders
+    .flatMap((order) => order.lines)
+    .find((line) => line.product_id === productId)?.package_price;
+}
 function Card({
   title,
   eyebrow,
@@ -708,25 +734,57 @@ function ReplenishmentScreen({
   const requestedProductId = new URLSearchParams(window.location.search).get(
     "product_id",
   );
+  const candidates = replenishmentCandidates(data);
+  const requestedItem = data.products.find(
+    (candidate) => candidate.id === requestedProductId,
+  );
   const item =
-    data.products.find((candidate) => candidate.id === requestedProductId) ??
-    data.products[0];
-  const [quantity, setQuantity] = useState(5);
+    requestedItem &&
+    candidates.some((candidate) => candidate.id === requestedItem.id)
+      ? requestedItem
+      : requestedItem
+        ? undefined
+        : candidates[0];
+  const [quantity, setQuantity] = useState(() =>
+    item
+      ? Math.max(
+          1,
+          Math.ceil(
+            Math.max(
+              0,
+              item.reorder_point_units -
+                item.available_units -
+                onOrderUnits(data, item.id),
+            ) / item.units_per_package,
+          ),
+        )
+      : 1,
+  );
   const [reason, setReason] = useState("");
+  const price = item ? packagePrice(data, item.id) : undefined;
+  const destination =
+    data.locations.find((candidate) => candidate.name === "Main Pharmacy")
+      ?.name ?? data.locations[0]?.name;
   if (!item)
     return (
       <Card title="Replenishment suggestions">
-        <p>No product catalog is available.</p>
+        <p>No products are below their projected reorder threshold.</p>
+        <p className="inventory-lead">
+          Projected stock includes available units and confirmed inbound stock.
+        </p>
+        <a className="inventory-button outline" href="/clinic/inventory">
+          Return to catalog
+        </a>
       </Card>
     );
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!price || !destination) return;
     void run(
       "/api/clinic/inventory/purchase-orders",
       {
         purchase_order: {
-          number: `PO-DRAFT-${Date.now()}`,
-          destination: "Main Pharmacy",
+          destination,
           reason: reason.trim(),
           lines: [
             {
@@ -734,7 +792,7 @@ function ReplenishmentScreen({
               quantity,
               input_unit: "package",
               conversion_factor: item.units_per_package,
-              unit_price: 2.4,
+              unit_price: price,
               currency: "USD",
             },
           ],
@@ -776,10 +834,10 @@ function ReplenishmentScreen({
           />
         </div>
         <div className="inventory-muted-panel">
-          <strong>Demand and lead time</strong>
+          <strong>Projected replenishment</strong>
           <p>
-            Demand and lead time are not configured. Enter the whole-bottle
-            quantity you want to order.
+            Available units plus confirmed inbound stock are below the reorder
+            point. Confirm the whole-bottle quantity before creating a draft.
           </p>
         </div>
         <form className="inventory-form-grid" onSubmit={submit}>
@@ -799,7 +857,10 @@ function ReplenishmentScreen({
             <input value={item.preferred_supplier} readOnly />
           </Field>
           <Field label="Destination">
-            <input value="Main Pharmacy" readOnly />
+            <input
+              value={destination ?? "No destination configured"}
+              readOnly
+            />
           </Field>
           <Field
             label="Reason for order"
@@ -814,11 +875,18 @@ function ReplenishmentScreen({
           </Field>
           <div className="inventory-form-actions">
             <PermissionNote allowed={capability(data, "procurement.create")} />
+            {!price && (
+              <span className="inventory-permission">
+                Configure a supplier package price before creating a PO.
+              </span>
+            )}
             <ConfirmButton
               disabled={
                 busy ||
                 !capability(data, "procurement.create") ||
-                !reason.trim()
+                !reason.trim() ||
+                !price ||
+                !destination
               }
               onConfirm={() => {
                 const fake = new Event("submit") as unknown as FormEvent;
@@ -837,6 +905,12 @@ function ReplenishmentScreen({
             label="Base-unit quantity"
             value={`${number(quantity * item.units_per_package)} tablets`}
           />
+          {price !== undefined && (
+            <DataPoint
+              label={`${quantity} bottles × ${money(price)}`}
+              value={money(quantity * price)}
+            />
+          )}
           <p className="inventory-info">
             Each bottle is exactly {item.units_per_package} tablets. Posted
             inventory balances and movements use tablets.
@@ -1103,15 +1177,31 @@ function ReceivingScreen({
   const receipt =
     shipment && data.receipts.find((item) => item.shipment_id === shipment.id);
   const receiptLine = receipt?.lines[0];
-  const recalledLot =
-    data.lots.find((item) => item.lot_number === "250601A") ??
-    data.lots.find((item) => item.status === "recalled");
+  const shipmentLots = line
+    ? data.lots.filter((candidate) => candidate.product_id === line.product_id)
+    : [];
+  const [selectedLotId, setSelectedLotId] = useState("");
   const [packages, setPackages] = useState(shipment?.package_count ?? 1);
   const [temperature, setTemperature] = useState("20.1");
   useEffect(() => {
     setPackages(shipment?.package_count ?? 1);
   }, [shipment?.id, shipment?.package_count]);
-  if (!shipment || !order || !line || !item || !recalledLot)
+  useEffect(() => {
+    if (
+      shipmentLots.length > 0 &&
+      !shipmentLots.some((candidate) => candidate.id === selectedLotId)
+    ) {
+      setSelectedLotId(shipmentLots[0].id);
+    }
+  }, [shipment?.id, shipmentLots.length, shipmentLots[0]?.id, selectedLotId]);
+  const selectedLot =
+    shipmentLots.find((candidate) => candidate.id === selectedLotId) ??
+    shipmentLots[0];
+  const blocked = selectedLot
+    ? selectedLot.status !== "active" || Boolean(selectedLot.recall_id)
+    : false;
+  const destination = blocked ? "Quarantine" : "Main Pharmacy";
+  if (!shipment || !order || !line || !item || !selectedLot)
     return (
       <Card title="Receiving">
         <p>No open shipment is available.</p>
@@ -1125,20 +1215,29 @@ function ReceivingScreen({
           purchase_order_id: order.id,
           shipment_id: shipment.id,
           purchase_order_line_id: line.id,
-          lot_number: recalledLot.lot_number,
-          expiration_date: recalledLot.expiration_date,
+          lot_number: selectedLot.lot_number,
+          expiration_date: selectedLot.expiration_date,
           quantity_packages: packages,
-          destination_location: "Quarantine",
-          area_id: "quarantine_bin_1",
+          destination_location: destination,
+          area_id: blocked ? "quarantine_bin_1" : "shelf_a2",
           temperature_c: temperature,
-          exception: "recall_match",
-          disposition: "quarantine_recall",
-          status: "quarantined",
-          reason: "Partial shipment received into quarantine",
+          ...(blocked
+            ? {
+                exception: "recall_match",
+                disposition: "quarantine_recall",
+                status: "quarantined",
+                reason: "Shipment received into quarantine after lot screening",
+              }
+            : {
+                status: "received",
+                reason: "Shipment received after lot screening",
+              }),
         },
       },
-      "Receipt safely quarantined",
-      "The receipt is represented by one immutable movement. Replaying the workflow cannot create a duplicate and availability remains zero.",
+      blocked ? "Receipt safely quarantined" : "Receipt recorded",
+      blocked
+        ? "The lot is held by a recall or quarantine rule. Replaying the workflow cannot create a duplicate."
+        : "The receipt is represented by one immutable movement. Replaying the workflow cannot create a duplicate.",
     );
   return (
     <div className="inventory-two-col wide-left">
@@ -1163,13 +1262,30 @@ function ReceivingScreen({
           }))}
           onChange={setSelectedShipmentId}
         />
-        <div className="inventory-warning" role="alert">
-          <strong>Blocking recall match: lot {recalledLot.lot_number}</strong>
-          <p>
-            Recall FDA-ACET-2026-08 requires quarantine. Main Pharmacy put-away
-            is disabled and no override is available to receiving staff.
-          </p>
-        </div>
+        {blocked ? (
+          <div className="inventory-warning" role="alert">
+            <strong>Lot requires quarantine: {selectedLot.lot_number}</strong>
+            <p>
+              This lot is marked {statusLabel(selectedLot.status)} and has a
+              blocking recall match or quarantine state. Main Pharmacy put-away
+              is disabled for receiving staff.
+            </p>
+          </div>
+        ) : (
+          <div className="inventory-info" role="status">
+            Lot screening passed. The shipment can be received into Main
+            Pharmacy.
+          </div>
+        )}
+        <RecordPicker
+          label="Lot / expiration"
+          value={selectedLot.id}
+          options={shipmentLots.map((candidate) => ({
+            value: candidate.id,
+            label: `${candidate.lot_number} · expires ${date(candidate.expiration_date)} · ${statusLabel(candidate.status)}`,
+          }))}
+          onChange={setSelectedLotId}
+        />
         <div className="inventory-data-grid two">
           <Field label="Product / package">
             <input
@@ -1178,10 +1294,10 @@ function ReceivingScreen({
             />
           </Field>
           <Field label="Lot number">
-            <input value={recalledLot.lot_number} readOnly />
+            <input value={selectedLot.lot_number} readOnly />
           </Field>
           <Field label="Expiration">
-            <input value={recalledLot.expiration_date} readOnly />
+            <input value={selectedLot.expiration_date} readOnly />
           </Field>
           <Field
             label="Quantity (bottles)"
@@ -1201,9 +1317,12 @@ function ReceivingScreen({
             />
           </Field>
           <Field label="Destination">
-            <select value="Quarantine" disabled>
-              <option>Quarantine · quarantine_bin_1</option>
-              <option disabled>Main Pharmacy — blocked by recall</option>
+            <select value={destination} disabled>
+              <option>
+                {destination === "Quarantine"
+                  ? "Quarantine · quarantine_bin_1"
+                  : "Main Pharmacy · shelf_a2"}
+              </option>
             </select>
           </Field>
         </div>
@@ -1223,7 +1342,7 @@ function ReceivingScreen({
                 }
                 onConfirm={confirm}
               >
-                Confirm quarantined receipt
+                {blocked ? "Confirm quarantined receipt" : "Confirm receipt"}
               </ConfirmButton>
             </>
           )}

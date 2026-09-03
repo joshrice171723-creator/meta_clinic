@@ -19,7 +19,7 @@ module Clinic
           notes_write: allowed?("notes.write"),
           documents: allowed?("documents.read"),
           messages: allowed?("messages.write"),
-          billing: allowed?("billing.write"),
+          billing: allowed?("billing.read") || allowed?("billing.write"),
           roles: allowed?("roles.manage")
         },
         sites: current_practice.sites.order(:code, :id).map { |site| FacilitySerializer.site(site) }
