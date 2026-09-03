@@ -4,7 +4,7 @@ module Clinic
       before_action -> { require_capability_with_legacy("billing.read", "patients.read") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: :create
       before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: :post
-      before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: :allocate_payment
+      before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[allocate_payment record_cash_payment]
 
       def index
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
@@ -74,6 +74,22 @@ module Clinic
           invoice_id: allocation.invoice_id,
           amount: allocation.amount.to_s("F")
         } }, status: :created
+      end
+
+      def record_cash_payment
+        input = parameter_hash!(:cash_payment, %i[cash_drawer_session_id tendered_amount allocation_amount request_key])
+        invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
+        patient = current_practice.patients.find(invoice.patient_id)
+        drawer = current_practice.cash_drawer_sessions.find(requested_id!(input[:cash_drawer_session_id], :cash_drawer_session_id))
+        allocation = RecordCashPayment.call(
+          practice: current_practice, actor: current_user, patient: patient, invoice: invoice, drawer_session: drawer,
+          tendered_amount: decimal_string!(input[:tendered_amount], field: :tendered_amount),
+          allocation_amount: decimal_string!(input[:allocation_amount], field: :allocation_amount),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100)
+        )
+        tender = allocation.payment_event.cash_tender
+        render json: { payment_allocation: { id: allocation.id, amount: allocation.amount.to_s("F") },
+          cash_tender: { id: tender.id, tendered_amount: tender.tendered_amount.to_s("F"), change_amount: tender.change_amount.to_s("F"), cash_drawer_session_id: tender.cash_drawer_session_id } }, status: :created
       end
 
       private

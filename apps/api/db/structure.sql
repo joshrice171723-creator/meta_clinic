@@ -1,3 +1,12 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict ISXSSk0cFgozRi2MKqsNq6Kmf5B0Ccea3tw4w0BdpCLET27YYXdvNJ3bddxm0EO
+
+-- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
+-- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -15,8 +24,6 @@ SET row_security = off;
 --
 
 CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
-
-
 --
 -- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
 --
@@ -639,6 +646,85 @@ CREATE SEQUENCE public.clinic_audit_resource_manifests_id_seq
 --
 
 ALTER SEQUENCE public.clinic_audit_resource_manifests_id_seq OWNED BY public.clinic_audit_resource_manifests.id;
+
+
+--
+-- Name: clinic_cash_drawer_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_cash_drawer_sessions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    opened_by_id bigint NOT NULL,
+    closed_by_id bigint,
+    status character varying DEFAULT 'open'::character varying NOT NULL,
+    opening_float numeric(20,6) NOT NULL,
+    counted_cash numeric(20,6),
+    discrepancy numeric(20,6),
+    discrepancy_explanation text,
+    closed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT cash_drawer_session_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'closed'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_cash_drawer_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_cash_drawer_sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_cash_drawer_sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_cash_drawer_sessions_id_seq OWNED BY public.clinic_cash_drawer_sessions.id;
+
+
+--
+-- Name: clinic_cash_tenders; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_cash_tenders (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    payment_event_id bigint NOT NULL,
+    cash_drawer_session_id bigint NOT NULL,
+    tendered_amount numeric(20,6) NOT NULL,
+    change_amount numeric(20,6) DEFAULT 0.0 NOT NULL,
+    recorded_by_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (change_amount >= (0)::numeric) AND (change_amount < tendered_amount)))
+);
+
+
+--
+-- Name: clinic_cash_tenders_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_cash_tenders_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_cash_tenders_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_cash_tenders_id_seq OWNED BY public.clinic_cash_tenders.id;
 
 
 --
@@ -3055,7 +3141,14 @@ CREATE TABLE public.clinic_patients (
     reference character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    primary_address_version_id bigint
+    primary_address_version_id bigint,
+    date_of_birth date,
+    sex character varying(40),
+    height_cm numeric(5,2),
+    weight_kg numeric(6,2),
+    CONSTRAINT clinic_patients_birth_date_not_future CHECK (((date_of_birth IS NULL) OR (date_of_birth <= CURRENT_DATE))),
+    CONSTRAINT clinic_patients_height_range CHECK (((height_cm IS NULL) OR ((height_cm >= (30)::numeric) AND (height_cm <= (300)::numeric)))),
+    CONSTRAINT clinic_patients_weight_range CHECK (((weight_kg IS NULL) OR ((weight_kg >= 0.1) AND (weight_kg <= (500)::numeric))))
 );
 
 
@@ -4168,6 +4261,20 @@ ALTER TABLE ONLY public.clinic_audit_resource_manifests ALTER COLUMN id SET DEFA
 
 
 --
+-- Name: clinic_cash_drawer_sessions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_drawer_sessions ALTER COLUMN id SET DEFAULT nextval('public.clinic_cash_drawer_sessions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_cash_tenders id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders ALTER COLUMN id SET DEFAULT nextval('public.clinic_cash_tenders_id_seq'::regclass);
+
+
+--
 -- Name: clinic_clinician_assignments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -4866,6 +4973,22 @@ ALTER TABLE ONLY public.clinic_audit_events
 
 ALTER TABLE ONLY public.clinic_audit_resource_manifests
     ADD CONSTRAINT clinic_audit_resource_manifests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_cash_drawer_sessions clinic_cash_drawer_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_drawer_sessions
+    ADD CONSTRAINT clinic_cash_drawer_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_cash_tenders clinic_cash_tenders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders
+    ADD CONSTRAINT clinic_cash_tenders_pkey PRIMARY KEY (id);
 
 
 --
@@ -5707,6 +5830,13 @@ CREATE UNIQUE INDEX clinic_audit_resource_manifests_practice_id ON public.clinic
 --
 
 CREATE INDEX clinic_care_needs_active_lookup ON public.clinic_patient_care_needs USING btree (practice_id, patient_id, status, category);
+
+
+--
+-- Name: clinic_cash_drawer_one_open_per_site; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_cash_drawer_one_open_per_site ON public.clinic_cash_drawer_sessions USING btree (practice_id, site_id) WHERE ((status)::text = 'open'::text);
 
 
 --
@@ -6680,6 +6810,83 @@ CREATE INDEX idx_on_practice_id_room_id_starts_at_a9d2f79b4f ON public.clinic_ap
 --
 
 CREATE INDEX idx_on_practice_id_site_id_effective_from_9a85bf6413 ON public.clinic_clinician_assignments USING btree (practice_id, site_id, effective_from);
+
+
+--
+-- Name: index_clinic_cash_drawer_sessions_on_closed_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_drawer_sessions_on_closed_by_id ON public.clinic_cash_drawer_sessions USING btree (closed_by_id);
+
+
+--
+-- Name: index_clinic_cash_drawer_sessions_on_opened_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_drawer_sessions_on_opened_by_id ON public.clinic_cash_drawer_sessions USING btree (opened_by_id);
+
+
+--
+-- Name: index_clinic_cash_drawer_sessions_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_drawer_sessions_on_practice_id ON public.clinic_cash_drawer_sessions USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_cash_drawer_sessions_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_cash_drawer_sessions_on_practice_id_and_id ON public.clinic_cash_drawer_sessions USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_cash_drawer_sessions_on_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_drawer_sessions_on_site_id ON public.clinic_cash_drawer_sessions USING btree (site_id);
+
+
+--
+-- Name: index_clinic_cash_tenders_on_cash_drawer_session_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_tenders_on_cash_drawer_session_id ON public.clinic_cash_tenders USING btree (cash_drawer_session_id);
+
+
+--
+-- Name: index_clinic_cash_tenders_on_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_tenders_on_patient_id ON public.clinic_cash_tenders USING btree (patient_id);
+
+
+--
+-- Name: index_clinic_cash_tenders_on_payment_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_tenders_on_payment_event_id ON public.clinic_cash_tenders USING btree (payment_event_id);
+
+
+--
+-- Name: index_clinic_cash_tenders_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_tenders_on_practice_id ON public.clinic_cash_tenders USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_cash_tenders_on_practice_id_and_payment_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_cash_tenders_on_practice_id_and_payment_event_id ON public.clinic_cash_tenders USING btree (practice_id, payment_event_id);
+
+
+--
+-- Name: index_clinic_cash_tenders_on_recorded_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_cash_tenders_on_recorded_by_id ON public.clinic_cash_tenders USING btree (recorded_by_id);
 
 
 --
@@ -8375,6 +8582,30 @@ ALTER TABLE ONLY public.clinic_patient_care_needs
 
 
 --
+-- Name: clinic_cash_tenders fk_cash_tenders_drawer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders
+    ADD CONSTRAINT fk_cash_tenders_drawer FOREIGN KEY (practice_id, cash_drawer_session_id) REFERENCES public.clinic_cash_drawer_sessions(practice_id, id);
+
+
+--
+-- Name: clinic_cash_tenders fk_cash_tenders_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders
+    ADD CONSTRAINT fk_cash_tenders_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_cash_tenders fk_cash_tenders_payment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders
+    ADD CONSTRAINT fk_cash_tenders_payment FOREIGN KEY (practice_id, patient_id, payment_event_id) REFERENCES public.clinic_payment_events(practice_id, patient_id, id);
+
+
+--
 -- Name: clinic_allergies fk_clinic_allergies_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9511,6 +9742,14 @@ ALTER TABLE ONLY public.paperworks
 
 
 --
+-- Name: clinic_cash_drawer_sessions fk_rails_2c6b70c160; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_drawer_sessions
+    ADD CONSTRAINT fk_rails_2c6b70c160 FOREIGN KEY (site_id) REFERENCES public.clinic_sites(id);
+
+
+--
 -- Name: clinic_inventory_shipments fk_rails_2d1edd10fd; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9548,6 +9787,22 @@ ALTER TABLE ONLY public.clinic_inventory_control_reviews
 
 ALTER TABLE ONLY public.clinic_inventory_profiles
     ADD CONSTRAINT fk_rails_30d58630f8 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_cash_drawer_sessions fk_rails_3168137046; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_drawer_sessions
+    ADD CONSTRAINT fk_rails_3168137046 FOREIGN KEY (closed_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: clinic_cash_tenders fk_rails_3309419654; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders
+    ADD CONSTRAINT fk_rails_3309419654 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -9644,6 +9899,14 @@ ALTER TABLE ONLY public.clinic_inventory_entries
 
 ALTER TABLE ONLY public.clinic_inventory_shipments
     ADD CONSTRAINT fk_rails_53c98672d2 FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_cash_drawer_sessions fk_rails_55951ba890; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_drawer_sessions
+    ADD CONSTRAINT fk_rails_55951ba890 FOREIGN KEY (opened_by_id) REFERENCES public.users(id);
 
 
 --
@@ -9804,6 +10067,14 @@ ALTER TABLE ONLY public.clinic_inventory_counts
 
 ALTER TABLE ONLY public.clinic_inventory_shipment_lines
     ADD CONSTRAINT fk_rails_8fc90ea7a2 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_cash_tenders fk_rails_9722709391; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_tenders
+    ADD CONSTRAINT fk_rails_9722709391 FOREIGN KEY (recorded_by_id) REFERENCES public.users(id);
 
 
 --
@@ -10159,6 +10430,14 @@ ALTER TABLE ONLY public.clinic_notes
 
 
 --
+-- Name: clinic_cash_drawer_sessions fk_rails_f5b4fda74e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_drawer_sessions
+    ADD CONSTRAINT fk_rails_f5b4fda74e FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_count_approvals fk_rails_f9afbba88d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10330,58 +10609,4 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 -- PostgreSQL database dump complete
 --
 
-SET search_path TO "$user", public;
-
-INSERT INTO "schema_migrations" (version) VALUES
-('20260903000100'),
-('20260902010000'),
-('20260902009903'),
-('20260902009902'),
-('20260902009901'),
-('20260902009900'),
-('20260902002800'),
-('20260902002700'),
-('20260902002600'),
-('20260902002500'),
-('20260902002400'),
-('20260902002300'),
-('20260902002200'),
-('20260902002100'),
-('20260902002000'),
-('20260902001800'),
-('20260902001700'),
-('20260902001600'),
-('20260902001500'),
-('20260902001400'),
-('20260902001300'),
-('20260902001200'),
-('20260902001100'),
-('20260902001000'),
-('20260902000900'),
-('20260902000800'),
-('20260902000700'),
-('20260902000600'),
-('20260902000500'),
-('20260902000400'),
-('20260902000300'),
-('20260902000200'),
-('20260902000100'),
-('20260901000200'),
-('20260901000100'),
-('20260831001100'),
-('20260831001000'),
-('20260831000900'),
-('20260831000800'),
-('20260831000700'),
-('20260831000400'),
-('20260831000300'),
-('20260831000200'),
-('20260831000100'),
-('20260830000800'),
-('20260830000700'),
-('20260830000600'),
-('20260830000500'),
-('20260830000400'),
-('20260830000300'),
-('20260830000200'),
-('20260830000100');
+\unrestrict ISXSSk0cFgozRi2MKqsNq6Kmf5B0Ccea3tw4w0BdpCLET27YYXdvNJ3bddxm0EO

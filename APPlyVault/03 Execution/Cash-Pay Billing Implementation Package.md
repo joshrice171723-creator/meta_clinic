@@ -176,6 +176,27 @@ Payment-related information can be protected health information in context; cash
 | 7 — Patient portal | Self-service invoice/document/payment experience after identity/support scope | Auth/session/ownership/accessibility/live synthetic flow evidence | Cross-patient data, automatic recurring charging |
 | 8 — Release decision | Review exact real-world deployment and controls | Separate authorized environment, policy, operations/recovery, privacy/security/professional gates | Treating local tests as release approval |
 
+### Accepted local cash-drawer rules — 2026-09-03
+
+- One cash drawer is open per clinic location. Staff enter its opening cash amount and may close it.
+- Expected cash equals opening float plus cash received, minus recorded change and cash refunds. A short/over close is recorded and can be reconciled by a manager later; it does not block staff closeout.
+- Cash refunds reduce drawer cash. Every recorded financial event requires a printable receipt.
+- Checks will eventually be scanned for the check number and needed fields. Scanner/OCR provider, bank-data retention, image access and deletion rules remain a separate gated integration; raw check images are not stored by this local milestone.
+
+### Whole-milestone execution status — started 2026-09-03
+
+| Phase | Current execution status | Evidence or blocking authority |
+| --- | --- | --- |
+| 0 — Acceptance brief | Blocked | Drawer ownership, discrepancy approval, receipt fields, numbering, cash/check rules, superbill scope, processor ownership, retention, and release authority remain unapproved. These cannot be invented in code. |
+| 1 — Internal patient ledger | Complete locally | Read-only scoped ledger contract, Material UI patient ledger, focused regression, local synthetic desktop/narrow inspection. |
+| 2 — Cash/check terminal | In progress | Implement only an internal synthetic terminal with explicit source/tender evidence and existing locked allocation authority. No card entry or processor connection. |
+| 3 — Cash reconciliation | In progress | Implement only the locally specified drawer session/count/discrepancy record; no accounting export or real cash operation. |
+| 4 — Receipts | In progress | Implement an internally generated synthetic receipt record/render only after its minimum document fields are made explicit in source; no real delivery. |
+| 5 — Superbill decision | Blocked | Provider/code/date/signature/disclosure specification and qualified approval are absent. |
+| 6 — Stripe card source | Blocked | Processor account owner, contracts, test credentials, webhook secret, supported scope, dispute/refund policy, and security review are absent. |
+| 7 — Patient portal | Blocked | Portal identity, support, consent, document-delivery, accessibility, and privacy scope are unapproved. |
+| 8 — Release decision | Blocked | No authorized deployment environment, operations/recovery, or privacy/security/professional release gate exists. |
+
 ### Phase 1 delivery record — 2026-09-03
 
 **Implemented:** `GET /api/clinic/patients/:id/billing_ledger` now provides a read-only, practice- and patient-scoped `clinic-patient-ledger-v1` projection. It returns exact-decimal invoice totals, allocations, credits, derived balances, payment allocation history, and payment-level refund history. It deliberately omits `external_event_reference`, does not guess historical tender/source type, and does not treat a payment-level refund as an invoice reversal because the current schema has no refund-to-invoice reversal relationship. The patient-balances interface now uses this contract through Material UI components and supports lookup, selected-patient ledger summary, invoice detail, and explicit empty/error/loading states.

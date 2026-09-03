@@ -31,8 +31,12 @@ Rails.application.routes.draw do
     resources :invoices, controller: "billing/invoices", only: :show do
       post :post, on: :member
       post :payment_allocations, on: :member, action: :allocate_payment
+      post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
     end
     get "billing", to: "billing/dashboard#show"
+    resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
+      post :close, on: :member
+    end
     resources :role_grants, controller: "authorization/role_grants", only: %i[index create] do
       post :revoke, on: :member
     end

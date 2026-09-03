@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class AllocatePayment
-      def self.call(practice:, actor:, patient:, invoice:, external_event_reference:, currency:, amount:, payment_amount: nil, created_at: nil)
+      def self.call(practice:, actor:, patient:, invoice:, external_event_reference:, currency:, amount:, payment_amount: nil, created_at: nil, &after_payment)
         Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.payment_record", legacy_action: "billing.write")
         patient = practice.patients.find(patient.id)
         invoice = practice.invoices.find(invoice.id)
@@ -40,7 +40,9 @@ module Clinic
 
           allocation_attributes = { practice: practice, patient: patient, invoice: invoice, amount: allocation_amount }
           allocation_attributes.merge!(created_at: created_at, updated_at: created_at) if created_at
-          payment.allocations.create!(allocation_attributes)
+          allocation = payment.allocations.create!(allocation_attributes)
+          after_payment&.call(payment, allocation)
+          allocation
         end
       end
     end
