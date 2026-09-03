@@ -30,8 +30,9 @@ The checked-in `bin/startdev-refresh` helper executes these phases in order from
    - equal and clean: no pull is needed;
    - behind only and clean: run `git pull --ff-only`, then recheck the status and upstream comparison.
    - ahead only and clean: retain the local commits without pushing, then continue.
+   - diverged and clean: run `git merge --no-edit @{upstream}` to incorporate upstream into the current development branch, then recheck the status and upstream comparison.
 5. When the checkout is dirty, pause before fetching, stopping services, or touching the database. Show `git status --short`, inspect the scoped diff and every untracked file, and run `git diff --check` for sensitive or unrelated material, then offer to create one local commit containing the displayed changes. Commit only after the user explicitly confirms both the exact scope and commit message; run `git add --all`, `git commit -m <user-approved message>`, and recheck the status before continuing. If the user declines, gives no confirmation, or the commit fails, stop without stashing, resetting, cleaning, merging, rebasing, force-updating, switching branches, deleting files, or pushing.
-6. Stop and report the exact state when the checkout is detached, lacks an upstream, has diverged, cannot fetch, cannot fast-forward, or becomes dirty after the pull. A direct `bin/startdev-refresh` invocation still refuses a dirty checkout; the commit offer is a skill-mediated action.
+6. Stop and report the exact state when the checkout is detached, lacks an upstream, cannot fetch, cannot fast-forward, a merge conflicts, or becomes dirty after synchronization. A direct `bin/startdev-refresh` invocation still refuses a dirty checkout; the commit offer is a skill-mediated action.
 
 Record the starting and final commit IDs and whether a fast-forward occurred. A remote fetch or pull does not authorize dependency updates, deployment, hosted access, external communication, or use of real/confidential data.
 
@@ -68,7 +69,7 @@ Treat the refresh as successful only when the managed command reports PostgreSQL
 
 When a refresh fails because Bundler reports a missing locked gem, pause after the failure; do not install anything automatically. Read `apps/api/Gemfile`, `apps/api/Gemfile.lock`, and the failing call site, then state the exact gem and version, its declared registry and lockfile checksum, whether the registry matches the repository-configured trusted source, and what the application uses it for. A registry/checksum match establishes only lockfile provenance, not an independent security approval.
 
-Offer to install the locked API bundle only after that disclosure. Explain that `BUNDLE_FROZEN=true bundle install` runs in `apps/api`, may download any other missing locked gems, and refuses to change `Gemfile.lock`. On explicit user confirmation, run it, then run `bundle check` and resume `bin/startdev-refresh` with the original browser option. If confirmation is absent or declined, installation fails, the source/checksum is inconsistent, or the lockfile would change, stop and report the failure. The direct helper remains non-installing.
+Offer to install the locked API bundle only after that disclosure. Explain that `BUNDLE_FROZEN=true bundle install` runs in `apps/api` and may download any other missing locked gems. On explicit user confirmation, run it, then run `bundle check` and inspect the lockfile diff before resuming `bin/startdev-refresh` with the original browser option. Continue when the lockfile is unchanged or its only new diff is removal of the current Bundler version's own `CHECKSUMS` entry: this is expected Bundler self-metadata normalization, not a dependency-resolution change. Report that normalization. If confirmation is absent or declined, installation fails, the source/checksum is inconsistent, or any other lockfile content changes, stop and report the failure. The direct helper remains non-installing.
 
 ## Handoff
 

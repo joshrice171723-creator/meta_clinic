@@ -46,7 +46,7 @@ end
 
 if ARGV.delete("--help")
   puts "Usage: bin/startdev-refresh [--no-browser]"
-  puts "Fast-forward a clean checkout, replant its local synthetic development database, and start APPly."
+  puts "Synchronize a clean checkout with its upstream, replant its local synthetic development database, and start APPly."
   exit 0
 end
 
@@ -73,7 +73,8 @@ fail_with("could not compare HEAD with #{upstream}") unless counts.length == 2
 ahead, behind = counts
 
 if ahead.positive? && behind.positive?
-  fail_with("#{branch} diverged from #{upstream} (ahead #{ahead}, behind #{behind}); reconcile it explicitly")
+  puts "Merging #{upstream} into #{branch} (ahead #{ahead}, behind #{behind})..."
+  run!("git", "merge", "--no-edit", "@{upstream}")
 elsif ahead.positive?
   puts "#{branch} is ahead of #{upstream} by #{ahead} commit(s); retaining clean local commits without pushing."
 elsif behind.positive?
