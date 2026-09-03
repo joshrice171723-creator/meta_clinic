@@ -77,6 +77,7 @@ Rails.application.routes.draw do
     end
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       get :lookup, on: :collection, to: "care/patients#lookup"
+      get :billing_ledger, on: :member, to: "billing/patient_ledgers#show"
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"
       resource :care_summary, controller: "care/patient_care_summaries", only: :show

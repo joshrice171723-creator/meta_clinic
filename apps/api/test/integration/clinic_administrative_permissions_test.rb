@@ -62,6 +62,35 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_not row.key?("lines")
   end
 
+  test "billing operator can read a patient-scoped ledger without processor references" do
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
+    allocation = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient,
+      invoice: posted_invoice, external_event_reference: "SYN-PROCESSOR-REFERENCE",
+      currency: "USD", amount: "7.00"
+    )
+    Clinic::CreditNote.create!(practice: @practice, patient: @patient, invoice: posted_invoice, currency: "USD", amount: "2.00")
+    Clinic::RefundEvent.create!(practice: @practice, patient: @patient, payment_event: allocation.payment_event, currency: "USD", amount: "1.50")
+
+    login(@users.fetch("billing_operator"))
+    get "/api/clinic/patients/#{@patient.id}/billing_ledger", headers: @headers
+    assert_response :success
+
+    ledger = response.parsed_body
+    assert_equal "clinic-patient-ledger-v1", ledger.fetch("schema_version")
+    assert_equal @patient.id, ledger.dig("patient", "id")
+    assert_equal "1.0", ledger.fetch("currencies").sole.fetch("balance_amount")
+    invoice_row = ledger.fetch("invoices").sole
+    assert_equal "10.0", invoice_row.fetch("total_amount")
+    assert_equal "7.0", invoice_row.fetch("allocated_amount")
+    assert_equal "2.0", invoice_row.fetch("credit_amount")
+    assert_equal "1.0", invoice_row.fetch("balance_amount")
+    payment = ledger.fetch("payments").sole
+    assert_equal "1.5", payment.fetch("refunds").sole.fetch("amount")
+    assert_not payment.key?("external_event_reference")
+  end
+
   test "context reports atomic capabilities and staff write stays false" do
     get "/api/clinic/context", headers: @headers
     capabilities = response.parsed_body.fetch("capabilities")

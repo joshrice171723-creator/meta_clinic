@@ -301,6 +301,54 @@ export type BillingInvoiceDetail = {
   allocated_amount: Decimal;
   credit_amount: Decimal;
 };
+export type BillingPatientLedger = {
+  schema_version: "clinic-patient-ledger-v1";
+  patient: Pick<Patient, "id" | "display_name" | "reference">;
+  currencies: {
+    currency: string;
+    invoiced_amount: Decimal;
+    allocated_amount: Decimal;
+    credited_amount: Decimal;
+    balance_amount: Decimal;
+    refunded_amount: Decimal;
+  }[];
+  invoices: {
+    id: number;
+    currency: string;
+    status: "draft" | "posted" | "void";
+    created_at: string;
+    total_amount: Decimal;
+    allocated_amount: Decimal;
+    credit_amount: Decimal;
+    balance_amount: Decimal;
+    lines: {
+      id: number;
+      description: string;
+      quantity: Decimal;
+      posted_amount: Decimal;
+    }[];
+    allocations: {
+      id: number;
+      payment_event_id: number;
+      amount: Decimal;
+      created_at: string;
+    }[];
+    credits: { id: number; amount: Decimal; created_at: string }[];
+  }[];
+  payments: {
+    id: number;
+    currency: string;
+    amount: Decimal;
+    created_at: string;
+    allocations: {
+      id: number;
+      invoice_id: number;
+      amount: Decimal;
+      created_at: string;
+    }[];
+    refunds: { id: number; amount: Decimal; created_at: string }[];
+  }[];
+};
 export type BillingDashboard = {
   schema_version: "clinic-billing-v1";
   practice: { id: number; name: string; timezone: string };

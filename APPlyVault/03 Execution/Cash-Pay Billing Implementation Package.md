@@ -1,6 +1,6 @@
 ---
 type: implementation-package
-status: proposed
+status: active
 updated: 2026-09-03
 ---
 # Cash-Pay Billing Implementation Package
@@ -175,6 +175,14 @@ Payment-related information can be protected health information in context; cash
 | 6 — Stripe card source | Server-owned PaymentIntent + verified webhook + reconciliation queue | Stripe test-mode events, duplicate/out-of-order/invalid-signature tests; secret/log review | Live keys, saved methods, subscriptions, auto-charge |
 | 7 — Patient portal | Self-service invoice/document/payment experience after identity/support scope | Auth/session/ownership/accessibility/live synthetic flow evidence | Cross-patient data, automatic recurring charging |
 | 8 — Release decision | Review exact real-world deployment and controls | Separate authorized environment, policy, operations/recovery, privacy/security/professional gates | Treating local tests as release approval |
+
+### Phase 1 delivery record — 2026-09-03
+
+**Implemented:** `GET /api/clinic/patients/:id/billing_ledger` now provides a read-only, practice- and patient-scoped `clinic-patient-ledger-v1` projection. It returns exact-decimal invoice totals, allocations, credits, derived balances, payment allocation history, and payment-level refund history. It deliberately omits `external_event_reference`, does not guess historical tender/source type, and does not treat a payment-level refund as an invoice reversal because the current schema has no refund-to-invoice reversal relationship. The patient-balances interface now uses this contract through Material UI components and supports lookup, selected-patient ledger summary, invoice detail, and explicit empty/error/loading states.
+
+**Verification recorded so far:** TypeScript typecheck and production Vite build pass; changed frontend files pass Prettier; the running local synthetic app was inspected at desktop and 768 px narrow widths, including patient selection and the empty-ledger response. A focused Rails integration test was added for ledger scope, exact balances, credit/refund projection, and processor-reference omission. Final commit/push evidence and the focused Rails completion are recorded in [[Progress Log]].
+
+**Still excluded:** Cash/check tender entry, cash drawer sessions, receipt/superbill documents, Stripe, processor webhooks, schema migrations, portal work, clinical fields, and any real payment or patient data.
 
 ## Required implementation checklist for the next AI
 
