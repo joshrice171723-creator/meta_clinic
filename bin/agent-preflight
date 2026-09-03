@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
+ROUTES = ROOT / "agent-harness" / "routes.json"
 
 
 def git(*args: str) -> str:
@@ -66,59 +69,29 @@ def instruction_chain(directory: Path) -> list[Path]:
     return instructions
 
 
-def route_for(relative_path: str) -> list[str]:
-    if relative_path == ".":
-        return [
-            "agent-harness/README.md",
-            "agent-harness/workflows/README.md",
-            "APPlyVault/00 Home.md",
-            "APPlyVault/01 Table of Contents.md",
-        ]
-    if relative_path.startswith(
-        ("agent-harness/", ".agents/", "bin/agent-")
-    ) or relative_path in {"agent-harness", ".agents"}:
-        return [
-            "agent-harness/README.md",
-            "agent-harness/workflows/code-change.md",
-            "APPlyVault/01 Table of Contents.md (when product direction or evidence is affected)",
-        ]
-    if relative_path.startswith("APPlyVault/") or relative_path == "APPlyVault":
-        return [
-            "APPlyVault/00 Home.md",
-            "APPlyVault/01 Table of Contents.md",
-            "APPlyVault/03 Execution/Working Agreement.md",
-            "agent-harness/workflows/vault-change.md",
-        ]
-    if relative_path.startswith("apps/api/") or relative_path == "apps/api":
-        return [
-            "APPlyVault/03 Execution/CICD.md",
-            "APPlyVault/03 Execution/Software Architecture.md",
-            "agent-harness/workflows/code-change.md",
-            "agent-harness/workflows/database-change.md (for schema/data work)",
-        ]
-    if relative_path.startswith("apps/web/") or relative_path == "apps/web":
-        return [
-            "APPlyVault/03 Execution/CICD.md",
-            "APPlyVault/03 Execution/Software Architecture.md",
-            "agent-harness/workflows/code-change.md",
-            ".agents/skills/frontend-ui/SKILL.md (for UI work)",
-        ]
-    if relative_path.startswith("ops/aws/") or relative_path == "ops/aws":
-        return [
-            "APPlyVault/03 Execution/CICD.md",
-            "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
-            "agent-harness/workflows/release.md",
-        ]
-    if relative_path.startswith("site/") or relative_path == "site":
-        return [
-            "site/AGENTS.md",
-            "agent-harness/workflows/release.md (only for authorized hosting changes)",
-        ]
-    return [
-        "APPlyVault/00 Home.md",
-        "APPlyVault/01 Table of Contents.md",
-        "agent-harness/workflows/code-change.md",
-    ]
+def route_manifest() -> dict[str, object]:
+    try:
+        manifest = json.loads(ROUTES.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot load {ROUTES.relative_to(ROOT)}: {error}") from error
+    if manifest.get("version") != 1:
+        raise ValueError(f"{ROUTES.relative_to(ROOT)}: unsupported route-manifest version")
+    if not isinstance(manifest.get("routes"), list) or not isinstance(manifest.get("fallback"), dict):
+        raise ValueError(f"{ROUTES.relative_to(ROOT)}: routes and fallback are required")
+    return manifest
+
+
+def route_for(relative_path: str, manifest: dict[str, object]) -> tuple[dict[str, object], bool]:
+    for route in manifest["routes"]:
+        if not isinstance(route, dict):
+            continue
+        patterns = route.get("patterns", [])
+        if isinstance(patterns, list) and any(
+            isinstance(pattern, str) and fnmatch.fnmatchcase(relative_path, pattern)
+            for pattern in patterns
+        ):
+            return route, False
+    return manifest["fallback"], True
 
 
 def main() -> int:
@@ -131,6 +104,11 @@ def main() -> int:
     )
     args = parser.parse_args()
     paths = args.path or ["."]
+    try:
+        manifest = route_manifest()
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
 
     print(f"Repository: {ROOT}")
     print(f"Branch: {git('branch', '--show-current') or '(detached HEAD)'}")
@@ -143,6 +121,7 @@ def main() -> int:
         try:
             directory, relative = target_directory(raw_path)
             instructions = instruction_chain(directory)
+            route, fallback = route_for(relative, manifest)
         except ValueError as error:
             print(f"error: {error}", file=sys.stderr)
             return 2
@@ -151,9 +130,22 @@ def main() -> int:
         print("Instruction chain:")
         for instruction in instructions:
             print(f"  - {instruction.relative_to(ROOT)}")
-        print("Context route:")
-        for route in route_for(relative):
-            print(f"  - {route}")
+        suffix = " (fallback; no specialized route matched)" if fallback else ""
+        print(f"Route: {route.get('name', 'unnamed')}{suffix}")
+        for label, key in (
+            ("Workflows", "workflows"),
+            ("Skills", "skills"),
+            ("Developer documentation", "developer_docs"),
+            ("Vault context", "vault_context"),
+            ("Checks", "checks"),
+        ):
+            values = route.get(key, [])
+            print(f"{label}:")
+            if isinstance(values, list) and values:
+                for value in values:
+                    print(f"  - {value}")
+            else:
+                print("  - (none)")
 
     print("\nBefore writing, state the reviewed scope, material gaps/conflicts and intended changes.")
     return 0

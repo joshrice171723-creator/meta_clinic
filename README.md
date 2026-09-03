@@ -8,7 +8,7 @@ Use the [vault table of contents](APPlyVault/01%20Table%20of%20Contents.md) to c
 
 For agent work, read the root [agent contract](AGENTS.md), then run `bin/agent-preflight --path <target>` and read the nearest nested `AGENTS.md`. The [agent harness](agent-harness/README.md) owns reusable procedures, repository skills and deterministic checks. `APPlyVault/` is the separate software knowledge base. `bin/verify-agent-harness` validates the control plane; `bin/verify-vault` validates the knowledge base.
 
-Read the [CI/CD and two-developer guide](APPlyVault/03%20Execution/CICD.md) first: local setup, separate branches/databases, checks, pull requests and the release sequence. [Software Architecture](APPlyVault/03%20Execution/Software%20Architecture.md) explains where code belongs; [canonical tasks](APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md) holds remaining work.
+Read the [developer documentation](docs/development/README.md) first: local setup, separate branches/databases, checks, pull requests and the release boundary. [Software Architecture](APPlyVault/03%20Execution/Software%20Architecture.md) explains where code belongs; [canonical tasks](APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md) holds remaining work.
 
 Current source is React/Vite + Rails API + PostgreSQL. The last recorded EC2 verification (2026-08-30) used the older Rails/SQLite bootstrap. Hosted PostgreSQL cutover and delivery activation are still pending in the record; this checkout is not proof of deployed state.
 
@@ -84,7 +84,7 @@ Open [local login](http://127.0.0.1:3000/login). The optional flag enables only 
 - [Frontend ownership and commands](apps/web/README.md)
 - [API, database and security boundaries](apps/api/README.md)
 - [Architecture and extension rules](APPlyVault/03%20Execution/Software%20Architecture.md)
-- [Team/CI/release guide](APPlyVault/03%20Execution/CICD.md)
+- [Developer workflow and CI](docs/development/README.md)
 - [Hosted state](ops/aws/ec2/environments.md) and [pending PostgreSQL cutover](ops/aws/ec2/postgres-cutover.md)
 - [Planning home](APPlyVault/00%20Home.md), [canonical tasks](APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md) and [decisions](APPlyVault/03%20Execution/Decisions.md)
 

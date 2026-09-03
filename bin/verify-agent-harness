@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import sys
 import urllib.parse
@@ -29,12 +30,22 @@ REQUIRED_INSTRUCTION_FILES = [
     "agent-harness/THIRD_PARTY_NOTICES.md",
     "agent-harness/workflows/README.md",
     "agent-harness/workflows/code-change.md",
+    "agent-harness/workflows/failure-first.md",
+    "agent-harness/workflows/knowledge-maintenance.md",
     "agent-harness/workflows/vault-change.md",
     "agent-harness/workflows/database-change.md",
     "agent-harness/workflows/research.md",
     "agent-harness/workflows/release.md",
     "agent-harness/workflows/incident.md",
     "agent-harness/workflows/handoff.md",
+    "docs/AGENTS.md",
+    "docs/README.md",
+    "docs/development/README.md",
+    "docs/architecture/README.md",
+    "records/AGENTS.md",
+    "records/README.md",
+    "records/progress/INDEX.md",
+    "records/tasks/INDEX.md",
 ]
 REQUIRED_SKILLS = {"plan", "act", "vault-context", "create-skill", "frontend-ui", "startdev"}
 REQUIRED_COMMANDS = (
@@ -44,7 +55,18 @@ REQUIRED_COMMANDS = (
     "bin/startdev-refresh",
     "bin/verify-agent-harness",
     "bin/verify-vault",
+    "bin/vault-audit",
 )
+REQUIRED_ROUTES = {
+    "agent-harness",
+    "vault",
+    "historical-records",
+    "developer-documentation",
+    "rails-api",
+    "react-frontend",
+    "aws-operations",
+    "historical-site",
+}
 
 
 def frontmatter(path: Path, text: str, errors: list[str]) -> dict[str, str]:
@@ -173,9 +195,50 @@ def main() -> int:
             if phrase not in guidance:
                 errors.append(f"apps/web/AGENTS.md: missing required UI hierarchy phrase {phrase!r}")
 
-    preflight = ROOT / "bin" / "agent-preflight"
-    if preflight.is_file() and '".agents/skills/frontend-ui/SKILL.md (for UI work)"' not in preflight.read_text(encoding="utf-8"):
-        errors.append("bin/agent-preflight: frontend route must surface the frontend-ui skill")
+    route_path = ROOT / "agent-harness" / "routes.json"
+    try:
+        route_manifest = json.loads(route_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        errors.append(f"agent-harness/routes.json: cannot parse route manifest: {error}")
+        route_manifest = {}
+    if route_manifest.get("version") != 1:
+        errors.append("agent-harness/routes.json: version must be 1")
+    routes = route_manifest.get("routes", [])
+    route_names = {
+        route.get("name")
+        for route in routes
+        if isinstance(route, dict) and isinstance(route.get("name"), str)
+    } if isinstance(routes, list) else set()
+    for name in sorted(REQUIRED_ROUTES - route_names):
+        errors.append(f"agent-harness/routes.json: missing required route {name!r}")
+    for route in routes if isinstance(routes, list) else []:
+        if not isinstance(route, dict):
+            errors.append("agent-harness/routes.json: every route must be an object")
+            continue
+        if not route.get("patterns"):
+            errors.append(f"agent-harness/routes.json: route {route.get('name')!r} has no patterns")
+        for key in ("workflows", "developer_docs", "checks"):
+            values = route.get(key, [])
+            if not isinstance(values, list):
+                errors.append(f"agent-harness/routes.json: route {route.get('name')!r} field {key!r} must be a list")
+                continue
+            for value in values:
+                if not isinstance(value, str):
+                    errors.append(f"agent-harness/routes.json: route {route.get('name')!r} has a non-string {key!r} entry")
+                    continue
+                relative = value.split(" (", 1)[0]
+                if not (ROOT / relative).exists():
+                    errors.append(f"agent-harness/routes.json: route {route.get('name')!r} references missing {relative!r}")
+    rendered_routes = json.dumps(route_manifest)
+    if ".agents/skills/frontend-ui/SKILL.md (for UI work)" not in rendered_routes:
+        errors.append("agent-harness/routes.json: frontend route must surface the frontend-ui skill")
+
+    for path in sorted((ROOT / "docs").rglob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        if "[[" in text or "]]" in text:
+            errors.append(f"{path.relative_to(ROOT)}: developer docs must use Markdown links, not vault wiki links")
+        check_fences(path, text, errors)
+        check_links(path, text, errors)
 
     startdev = canonical_root / "startdev" / "SKILL.md"
     if startdev.is_file():

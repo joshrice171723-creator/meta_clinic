@@ -5,7 +5,9 @@ These procedures are loaded on demand. Repository-wide authority and safety rule
 | Task | Playbook |
 | --- | --- |
 | Ordinary application or tooling change | [`code-change.md`](code-change.md) |
+| Failure hypothesis, negative evidence and recovery | [`failure-first.md`](failure-first.md) |
 | Vault note or workflow-document change | [`vault-change.md`](vault-change.md) |
+| Vault/docs/records cleanup and archival | [`knowledge-maintenance.md`](knowledge-maintenance.md) |
 | Migration, schema or data-transition work | [`database-change.md`](database-change.md) |
 | External/public-source research | [`research.md`](research.md) |
 | Hosted release, cutover or infrastructure action | [`release.md`](release.md) |
@@ -19,6 +21,6 @@ The repository scripts provide the deterministic layer:
 - `bin/agent-preflight --path <target>` reports worktree state, applicable instruction files and vault routes.
 - `bin/agent-check` lists checks selected from changed paths; `bin/agent-check --run` runs them.
 - `bin/verify-agent-harness` validates instructions, workflows and skills.
-- `bin/verify-vault` validates only vault structure, links and reachability.
+- `bin/verify-vault` validates vault structure, links and reachability; `bin/vault-audit` reports size, lifecycle, duplication and misplaced-procedure signals.
 
 Agents whose runtime does not discover nested instructions or repository skills must read the nearest canonical files explicitly. Add a host adapter only after that host is selected; do not maintain speculative mirrors.

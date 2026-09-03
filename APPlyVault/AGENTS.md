@@ -28,7 +28,7 @@ Keep a short in-session record of selected paths/sections and material gaps. Mis
 - Status: `03 Execution/Roadmap and Tasks.md` only.
 - Explicit founder/team decision: `03 Execution/Decisions.md` only.
 - Open uncertainty: `03 Execution/Risks and Assumptions.md`.
-- Dated actual outcome: `03 Execution/Progress Log.md`.
+- Recent dated outcome and compatibility index: `03 Execution/Progress Log.md`; full dated evidence older than the active window: repository `records/`.
 - Navigation and task routing: `01 Table of Contents.md`.
 - Overall direction/priority summary: `00 Home.md`, only when it actually changed.
 
@@ -36,7 +36,9 @@ For a substantive vault change, update affected current-state notes, change the 
 
 ## Editing conventions
 
-- Use plain Markdown, existing `type`/`status`/`updated` frontmatter, ISO dates, unique descriptive filenames and Obsidian wiki links.
+- Use plain Markdown, existing `type`/`status`/`updated` frontmatter, ISO dates, unique descriptive filenames and Obsidian wiki links between vault notes. Use repository-relative Markdown links for `docs/`, `records/`, source and runbooks outside the vault.
+- Developer commands, architecture mechanics, testing and CI belong under repository `docs/`; keep only product context and stable compatibility pointers in the vault.
+- Historical records are retained evidence, not current authority. Do not silently rewrite archived event scope or use an archive as the current task/decision/status register.
 - Update `updated` on materially changed notes.
 - Maintain the table of contents when a note is added, removed or changes purpose.
 - Preserve shared `.obsidian/` configuration unless the task specifically concerns it; workspace UI state may be concurrently modified.
@@ -45,6 +47,6 @@ For a substantive vault change, update affected current-state notes, change the 
 
 ## Validation
 
-Run `bin/verify-vault` after vault changes. It checks required frontmatter, dates, fences, note names, wiki/heading targets, relative links and Home reachability. Run `bin/verify-agent-harness` after agent-instruction, workflow, skill or adapter changes. Also run `git diff --check` and inspect the final diff.
+Run `bin/verify-vault` and `bin/vault-audit` after vault changes. The first checks structure, links and Home reachability; the second reports lifecycle, size, duplication and misplaced-procedure signals. Run `bin/verify-agent-harness` after agent-instruction, workflow, skill, docs or adapter changes. Also run `git diff --check` and inspect the final diff.
 
 Use [`../agent-harness/workflows/vault-change.md`](../agent-harness/workflows/vault-change.md) for the complete change procedure and [`../agent-harness/workflows/research.md`](../agent-harness/workflows/research.md) for sourced work.

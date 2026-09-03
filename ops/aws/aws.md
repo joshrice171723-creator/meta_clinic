@@ -1,6 +1,6 @@
 # AWS deployment boundary
 
-**Source review: 2026-08-31; last recorded hosted verification: 2026-08-30.** Start with the [CI/CD developer guide](../../APPlyVault/03%20Execution/CICD.md), [environment runbook](ec2/environments.md) and [PostgreSQL cutover](ec2/postgres-cutover.md). Current source builds independent React/static-web and Rails API images backed by PostgreSQL. The hosted observations below concern the older SQLite bootstrap, not a fresh check or deployment of that pair.
+**Source review: 2026-08-31; last recorded hosted verification: 2026-08-30.** Start with the [developer CI boundary](../../docs/development/ci.md), [environment runbook](ec2/environments.md) and [PostgreSQL cutover](ec2/postgres-cutover.md). Current source builds independent React/static-web and Rails API images backed by PostgreSQL. The hosted observations below concern the older SQLite bootstrap, not a fresh check or deployment of that pair.
 
 The founder approved launching the smaller paid EC2 setup and authorized root until further notice. The [EC2 runbook](ec2/README.md) describes the running t3.micro in `us-east-1`: 8 GiB encrypted root plus 2 GiB SQLite data, private SSM/TLS access, managed secrets, release tooling and recovery. Its baseline is about $14/month before extras; the 2021 account's introductory EC2 allowance has expired. No existing bucket/objects were accessed. Host operation is verified, but outstanding base-image advisories and broader M1 acceptance remain open.
 

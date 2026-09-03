@@ -1,6 +1,6 @@
 # APPly Rails API
 
-See [the repository README](../../README.md) for orientation and [Software Architecture](../../APPlyVault/03%20Execution/Software%20Architecture.md) for module ownership. Local startup and verification are below.
+See [the repository README](../../README.md) for orientation, [developer documentation](../../docs/development/README.md) for workflow, and [Software Architecture](../../APPlyVault/03%20Execution/Software%20Architecture.md) for module ownership. Local startup and verification are below.
 
 **PostgreSQL is now required in every application environment.** The installed EC2 bootstrap images still use SQLite pending the reviewed maintenance cutover; see [the cutover runbook](../../ops/aws/ec2/postgres-cutover.md). Existing SQLite files are preserved solely as conversion/recovery sources, never an alternative application adapter.
 

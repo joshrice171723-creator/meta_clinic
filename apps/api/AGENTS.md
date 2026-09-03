@@ -10,7 +10,7 @@ These instructions apply to `apps/api/` and extend the repository root contract.
 - Keep session, CSRF and Origin protections. Do not add browser tokens, broad CORS or client-supplied actor/tenant authority.
 - Use wholly synthetic records. Packaged clinic routes remain denied until separately authorized release gates are satisfied.
 
-Read the applicable `Software Architecture.md` domain/audit sections and `CICD.md` commands before changing code.
+Read the applicable `Software Architecture.md` domain/audit sections and [developer documentation](../../docs/development/README.md) before changing code; app-specific commands below remain authoritative.
 
 ## PostgreSQL and migrations
 

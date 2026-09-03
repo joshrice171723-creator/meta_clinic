@@ -174,7 +174,7 @@ Tested primary/secondary/accent text on canvas, surface and selected backgrounds
 
 ## Accessibility and ease-of-access targets
 
-Target WCAG 2.2 AA, with larger touch targets as a product preference. Sources S-82/S-83 were reviewed on 2026-08-31.
+Target WCAG 2.2 AA, with larger touch targets as a product preference. Sources S-92/S-93 were reviewed on 2026-08-31.
 
 - Normal text at least 4.5:1; large text at least 3:1. Target 44px interactive heights where practical; WCAG 2.2 AA's target-size criterion is 24 by 24 CSS pixels with defined exceptions, not a universal 44px requirement.
 - Logical keyboard order, meaningful headings/landmarks, a working skip link, visible unobscured focus and no hover-only information. In implementation, drawers/dialogs need intentional focus entry/return and Escape behavior.

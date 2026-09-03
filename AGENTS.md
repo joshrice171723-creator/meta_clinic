@@ -49,7 +49,7 @@ Before the first write:
 2. Run `bin/agent-preflight --path <target>` for each major area in scope, or perform the equivalent checks manually.
 3. Read the applicable nested `AGENTS.md` and workflow playbook.
 4. For implementation or vault changes, read `APPlyVault/00 Home.md` and use `APPlyVault/01 Table of Contents.md` to select only the relevant current notes, decisions, task rows, risks and evidence.
-5. Development starts with the relevant sections of `CICD.md` and `Software Architecture.md` routed by the table of contents.
+5. Development starts with `docs/development/README.md` and the relevant section of `docs/architecture/software-architecture.md`; use the vault table of contents only for the product, decision, task, risk and evidence context the change needs.
 6. Briefly state the reviewed scope, material gaps or conflicts and intended changes.
 
 Do not edit, rename, delete, format broadly, install dependencies, run generators, change settings or deploy until the review is complete. External links are not reviewed merely because a vault note references them.
@@ -65,22 +65,23 @@ Do not edit, rename, delete, format broadly, install dependencies, run generator
 | Task status | `APPlyVault/03 Execution/Roadmap and Tasks.md` |
 | Explicit decisions and authority | `APPlyVault/03 Execution/Decisions.md` |
 | Risks and assumptions | `APPlyVault/03 Execution/Risks and Assumptions.md` |
-| Dated outcomes | `APPlyVault/03 Execution/Progress Log.md` |
-| Development and release workflow | `APPlyVault/03 Execution/CICD.md` |
-| Code ownership | `APPlyVault/03 Execution/Software Architecture.md` |
+| Recent dated outcomes | `APPlyVault/03 Execution/Progress Log.md` |
+| Detailed historical evidence | `records/` |
+| Development and CI workflow | `docs/development/` |
+| Code ownership and architecture | `docs/architecture/software-architecture.md` |
 
 Preserve reported facts, observations, sourced background, proposals and decisions as distinct evidence types. Follow later decisions and current evidence without erasing superseded history. Do not create parallel task, decision or status registers.
 
 ## Change discipline
 
-Use the current commands and ownership rules in `CICD.md`, `Software Architecture.md` and the nearest nested instructions. Do not copy changing versions, ports, hosted state or implementation details into this root contract.
+Use the current commands and ownership rules in `docs/development/`, `docs/architecture/`, application READMEs and the nearest nested instructions. Do not copy changing versions, ports, hosted state or implementation details into this root contract.
 
 - Work within the existing package, architecture, migration and lockfile boundaries described by the nearest instructions.
 - Keep changes independently reviewable. Do not overwrite, reformat or silently incorporate unrelated work.
 - Keep ordinary development screens focused on the task. Do not add persistent banners or repetitive UI copy that merely restates the synthetic/development or non-production status; record that context in repository documentation and agent guidance instead. This presentation rule never authorizes removing runtime access controls, real-data restrictions, release gates, or security checks.
 - Apply failure-first review proportionately:
   - For an ordinary local edit, identify the principal failure and test or inspect for it.
-  - For authentication, authorization, tenancy, protected values, signing, billing, migrations, auditing, clinical workflows, infrastructure or release work, use the complete failure-first procedure in `Working Agreement.md` and the relevant playbook.
+  - For authentication, authorization, tenancy, protected values, signing, billing, migrations, auditing, clinical workflows, infrastructure or release work, use the complete procedure in `agent-harness/workflows/failure-first.md` and the relevant playbook.
 - Use local tests, mocks, synthetic fixtures or authorized tabletops first. Do not remove guards to make a test pass.
 - Stop only the blocked or unsafe path; continue independent safe work.
 

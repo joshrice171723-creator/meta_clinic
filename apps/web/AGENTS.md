@@ -11,7 +11,7 @@ These instructions apply to `apps/web/` and extend the repository root contract.
 - Failed mutations are not automatically replayed. Preserve explicit retry/idempotency behavior and accept response ownership before showing success.
 - Keep Launch, Identity, Clinic and Inventory feature ownership distinct; shared components remain neutral.
 
-Read the applicable `Software Architecture.md` domain/transport sections, the relevant product note and `CICD.md` before changing behavior.
+Read the applicable `Software Architecture.md` domain/transport sections, the relevant product note and [developer documentation](../../docs/development/README.md) before changing behavior.
 
 ## Design routing
 

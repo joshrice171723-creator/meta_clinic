@@ -1,6 +1,6 @@
 # EC2 operations
 
-Source/runbook updated 2026-08-31. Staging activation/cutover is now verified; explicitly dated 2026-08-30 observations below remain historical and production was not changed. The [CI/CD guide](../../../APPlyVault/03%20Execution/CICD.md) owns developer commands, the five CI jobs and coordinated release activation.
+Source/runbook updated 2026-08-31. Staging activation/cutover is now verified; explicitly dated 2026-08-30 observations below remain historical and production was not changed. The [developer CI boundary](../../../docs/development/ci.md) links developer checks; this runbook owns coordinated release activation.
 
 This package now prepares **PostgreSQL 18.6, a Rails JSON API and a separate static frontend** on one EC2 instance per environment. Staging now runs this stack; production retains its SQLite bootstrap; see [Staging and production](environments.md) for actual installed state and [the PostgreSQL cutover runbook](postgres-cutover.md) before using these changed tools. Local PostgreSQL tests do not constitute a hosted migration. Clinic routes remain denied; no patient/applicant data, S3 integration or public access is authorized.
 

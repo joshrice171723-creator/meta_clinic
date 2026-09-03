@@ -3,6 +3,7 @@
 ## When to use
 
 Use for any edit under `APPlyVault/`, including evidence, planning, status, decisions or navigation.
+For cleanup, archival or cross-boundary moves, also load [`knowledge-maintenance.md`](knowledge-maintenance.md).
 
 ## Procedure
 
@@ -19,7 +20,7 @@ Use for any edit under `APPlyVault/`, including evidence, planning, status, deci
 4. Preserve evidence labels, IDs, frontmatter, backlinks, heading targets and superseded history. Do not duplicate status or decisions.
 5. Update `updated` on materially changed notes. Maintain the TOC only when note membership/purpose or routing changed.
 6. Add one concise progress entry for a substantive vault change: request/outcome, scope/evidence, checks/limits and next action.
-7. Run `bin/verify-vault` and `git diff --check`; inspect the complete Markdown diff.
+7. Run `bin/verify-vault`, `bin/vault-audit` and `git diff --check`; inspect the complete Markdown diff.
 
 ## Evidence rules
 

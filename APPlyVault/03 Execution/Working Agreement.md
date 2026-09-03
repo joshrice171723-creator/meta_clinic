@@ -1,93 +1,88 @@
 ---
-type: operating-guide
-status: proposed
+type: operating-agreement
+status: active
 updated: 2026-09-03
+lifecycle: active
+canonical_for: team-operating-agreement
 ---
 # Working Agreement
 
-Home: [[00 Home]] · Execution: [[Roadmap and Tasks]] · History: [[Progress Log]]
+Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]] · History: [[Progress Log]]
 
 ## Purpose
 
-Keep direction, evidence, decisions, and next actions understandable to anyone joining the conversation. These conventions support the founder's request for a shared record; team roles and cadence remain to be agreed.
+Keep direction, evidence, decisions and next actions understandable to the founder, developers and future collaborators. This note owns the human operating agreement for maintaining the shared record. Agent behavior belongs in root and nested `AGENTS.md`, reusable procedure belongs in `agent-harness/workflows/`, and developer mechanics belong in `docs/`, application READMEs and operational runbooks.
 
-## Where things belong
+## Canonical record ownership
 
-- [[00 Home]]: orientation and a short current-priority summary.
-- [[01 Table of Contents]]: complete note index and task-specific reading routes; maintain it when notes are added, removed or change purpose.
-- Foundation notes: the latest coherent view of customer, offer, model, and unanswered questions.
-- [[Clinic Launch Packet]]: internal plan for turning existing source materials into the applicant packet and delivery process; not a live applicant database.
-- [[Entity and Product Boundary]]: consultancy versus separate EHR/inventory responsibilities, with unresolved contracts, IP, support, and data questions.
-- [[Roadmap and Tasks]]: the single canonical task/status list.
-- [[Decisions]]: explicit choices and their rationale.
-- [[Risks and Assumptions]]: uncertainties and tests, not hidden conclusions.
-- Research notes and evidence notes: observations, sources, applicability, and reviews.
-- [[Progress Log]]: dated changes, outcomes, and links; not a second backlog.
-- [[CICD]]: the first developer handoff, prominently linked from Home and the repository README; local frontend/API setup, two-developer Git/PR instructions, verified CI/staging delivery and pending production activation. Scope and dates of actual acceptance remain explicit.
-- [[Software Architecture]]: repository responsibilities and module/dependency rules; independent frontend/Rails API with domain ownership, not a second task or decision register.
-- Root and nested `AGENTS.md`: stable repository and path-specific policy/routing boundaries. `agent-harness/workflows/` owns procedures and `.agents/skills/` owns on-demand capabilities; host adapters are added only after that host is selected. `bin/agent-preflight`, `bin/agent-check`, `bin/verify-agent-harness` and `bin/verify-vault` provide deterministic routing and separate harness/knowledge-base checks. The vault remains the current software state/evidence source rather than copying dated facts into instructions or skills.
+- [[00 Home]] is a short orientation and current-priority summary, not a task register.
+- [[01 Table of Contents]] is the vault navigation and context index.
+- Foundation and product notes own the latest coherent business and product state.
+- [[Roadmap and Tasks]] is the only task and status register.
+- [[Decisions]] is the only explicit decision and authority register.
+- [[Risks and Assumptions]] owns uncertainties, hypotheses and evidence needed to resolve them.
+- Research notes and [[Source Register]] own source applicability, review dates and limitations.
+- [[Progress Log]] is a compact index of dated outcomes; detailed historical records live under `records/`.
+- [Developer documentation](../../docs/README.md) owns current setup, architecture, testing and CI guidance.
 
-## Working session protocol
+Do not maintain competing lists. Link to the canonical record instead of copying its status or conclusion.
 
-1. Read root and nearest nested `AGENTS.md`; use the relevant `agent-harness/workflows/` playbook and matching repository skill only when needed. Read Home and [[01 Table of Contents]], then review only the notes/sections relevant to the task, including applicable decisions, task rows and progress evidence. Development starts with relevant [[CICD]] and [[Software Architecture]] sections. A full-vault read is no longer required.
-2. Separate reported facts, observed evidence, sourced background, proposals, and decisions.
-3. Challenge the next increment using [[Working Agreement#Failure-first planning and review]], then capture actual evidence with a source/date and scope using [[Evidence Note Template]].
-4. Update affected current-state notes and the task register; link an explicit decision if one was made.
-5. Add a short progress entry: changed, learned, blocked, and next.
-6. Refresh Home only if the overall position or priorities changed.
+## Evidence and authority
 
-When the founder answers questions, summarize faithfully, mark unanswered parts, record explicit choices, and identify the next highest-value questions. Do not turn an exploratory preference into a commitment or silently override a prior decision.
+Keep these evidence types distinct:
 
-The founder reports sole responsibility for consultancy direction, documented direction-setting, and a 49% interest; Kevin holds 51%. The senior developer will be a consultancy employee and software-company owner, with amounts/terms TBD. Keep ownership, voting, signature, and formal governance distinct; the veto concern is unresolved. Required applicant approvals and professional judgments remain explicit in the done-for-you workflow. The latest request prioritizes [[Website MVP]]; do not force further business answers before safe marketing-site implementation.
+- **Reported:** supplied by the founder or another collaborator and not independently verified.
+- **Observed:** directly inspected behavior, source or bounded test evidence with a date and scope.
+- **Sourced background:** a statement supported by a cited source, not case-specific approval.
+- **Proposed or hypothetical:** a design, assumption or option awaiting selection or evidence.
+- **Decided:** an explicit choice by the identified decision-maker, recorded with its date and limits.
 
-Reuse the MD's existing documented work once available; index it before creating replacements. Do not treat inaccessible materials as nonexistent. The founder has expressed no deadline pressure, so agree milestones and actual commitments without imposing an arbitrary launch calendar.
+Unknown facts remain unknown. An unavailable source is not evidence that it does not exist. A passing check, screenshot, implementation or completed plan is not professional, security, operational, clinical, HIPAA or release acceptance.
 
-## Proposed cadence
+Preserve conflicting evidence and superseded decisions with context. Do not silently convert a discrepancy into a new decision, reopen settled direction without material contrary evidence, or turn an exploratory preference into a commitment.
 
-A weekly 20–30 minute founder/MD review: progress, new field evidence, blockers, decisions, and the next three priorities. Use [[Weekly Review Template]]. Confirm participants and timing before treating this as scheduled.
+## Planning and review
 
-No reminder, automation, background monitoring, or automatic synchronization has been set up by this work. Human owners and backup/access practices remain open under T-11.
+Every accepted task has one observable outcome, explicit scope and exclusions, an accountable owner, dependencies and required exit evidence. Due dates are agreed commitments rather than generated estimates. A task is done only when its stated evidence exists.
+
+The repository's [failure-first procedure](../../agent-harness/workflows/failure-first.md) provides the reusable implementation and review method. Vault task or evidence records should contain only the task-specific failure hypothesis, controls, recovery and result—not a copy of the procedure.
+
+Professional-review gates require an appropriate reviewer. Hosted work, destructive recovery, external communication, spending, real/confidential data and production changes require their own explicit authority and evidence.
 
 ## Failure-first planning and review
 
-D-037 makes **“How is this going to fail?”** a required planning question, not a claim that a failure has occurred. Apply it to software, source ingestion, service delivery and business assumptions. Challenge the mechanism and evidence, not the person. Do not reopen settled direction without material contrary evidence or force deferred commercial decisions before they are needed.
+This compatibility heading preserves existing vault links. Agents follow the repository's [failure-first workflow](../../agent-harness/workflows/failure-first.md); this agreement records only the human acceptance and evidence expectations above.
 
-Scale the record to the risk. An ordinary bounded local edit must name and check its principal failure. A substantive chunk—and every authentication, authorization, tenancy, protected-value, signing, billing, migration, auditing, clinical-workflow, infrastructure or release change—uses the complete record below in its canonical task/evidence note. This proportionality does not waive D-037 or any release/professional gate.
+## Human review cadence
 
-Before starting a substantive chunk, record in its canonical task or linked evidence note:
-
-1. **Outcome and boundary:** one observable result, entry dependencies, exclusions, permitted environment/data and accountable owner. Name the smallest independently reviewable change; separate design, implementation, verification and release where they have different gates.
-2. **Failure hypothesis:** an assumption that could be wrong, a concrete trigger, and the resulting user, data, operational or business harm. Consider ordinary mistakes as well as deliberate misuse.
-3. **Detection and prevention:** what signal would reveal the failure, who notices it, and what guard prevents an unsafe or misleading outcome. “We will be careful” is not a control.
-4. **Disproof and recovery:** a bounded synthetic negative test or authorized tabletop, expected result, stop condition and safe recovery/manual fallback. Define what evidence would make us revise or reject the plan, not only what would confirm it.
-5. **Exit record:** actual versus expected outcome, code/content version and environment, evidence reference, reviewer/date, unresolved risks and next action. Untested means untested; a plan, screenshot or passing happy path is not complete acceptance.
-
-For each chunk, consider missing/wrong/stale input; wrong account/clinic or excess authority; concurrent/repeated actions; interrupted sessions and partial/out-of-order failures; unavailable people/services; and falsely reported completion. Cover applicable cases with tests; mark others not applicable with a reason. For business work also challenge scope, demand, cost, capacity, reuse rights and reliance on one person. Link existing R-/A-/L- items instead of creating duplicate registers.
-
-Testing must stay within authorized systems and wholly synthetic data. This method does not authorize live penetration testing, destructive failure injection, patient access, external messages, purchases or deployments. Start with local tests/mocks or a tabletop; hosted exercises need their own approved targets and recovery scope. Do not remove guards to make a test pass.
-
-When an observed defect materially affects the requested outcome, safety boundary or truth of the evidence, preserve the failure signal and fix the defect within the authorized scope before continuing. Do not silently bypass it and report the bypassed path as working. A workaround is acceptable only when the defect can be ignored without consequence to the current task, or when a temporary recovery path is explicitly authorized and recorded with its limitation and follow-up. If the root fix would require new authority, destructive recovery or incompatible concurrent edits, stop that affected path and ask rather than normalizing the workaround.
-
-Do not accept a chunk with unresolved unauthorized access, silent loss/alteration, duplicate external action, false completion, or missing required audit/recovery evidence. Stop only the affected path; keep independent safe work moving. Lesser residual risks require an explicit disposition, accountable owner and review trigger, not a silent waiver. Product acceptance, professional review and real-data release remain separate.
-
-The five workstreams and smaller chunks live in [[Roadmap and Tasks#Five-step implementation plan]]. Other notes describe their domain and link there; they do not maintain another status list.
+A weekly 20–30 minute founder/MD review remains a proposal: progress, new field evidence, blockers, decisions and the next three priorities. Use [[Weekly Review Template]] only after participants and timing are agreed. No reminder, automation, background monitoring or automatic synchronization is established by this proposal.
 
 ## Owners and completion
 
-One accountable owner per accepted task; contributors may be listed separately. Due dates are agreed commitments, not generated estimates. A task is done when its stated evidence exists. A decision requires a decision-maker and date. Professional-review gates require an appropriate reviewer, not merely a checked box.
+Assign one accountable owner per accepted task; list contributors separately. Record an explicit decision with the decision-maker and date. When work slips, preserve the reason and agree a new date rather than silently rolling it forward.
+
+At review:
+
+1. Reconcile the affected current-state note.
+2. Change [[Roadmap and Tasks]] only when task status changed.
+3. Add to [[Decisions]] only when a decision was actually made.
+4. Add or update [[Risks and Assumptions]] when uncertainty changed.
+5. Add one concise dated outcome to [[Progress Log]] with a pointer to detailed evidence.
+6. Refresh Home only when overall direction or priorities changed.
 
 ## Information handling
 
-- Keep this vault free of patient information and system credentials. Use synthetic data for examples and demonstrations.
-- Do not place patient screenshots or real records in attachments, chat excerpts, logs, or linked public pages.
-- Store legal advice, contracts, and sensitive business records only in an approved access-controlled location; reference non-sensitive summaries here when appropriate. A privilege label alone does not resolve access or disclosure concerns.
-- Do not assume that Obsidian plugins, sync, publishing, shared links, AI services, or backups are approved for sensitive data. No settings were changed during initialization.
-- Agree vault access, backup/restore ownership, and sharing rules before adding sensitive company material.
+- Keep the vault free of patient information, confidential applicant material and system credentials.
+- Use independently created synthetic data for examples and demonstrations.
+- Do not place patient screenshots or real records in notes, attachments, prompts, logs or linked public pages.
+- Store legal advice, contracts and sensitive business records only in an approved access-controlled location; a non-sensitive summary may be referenced here.
+- Do not assume Obsidian plugins, sync, publishing, shared links, AI services or backups are approved for sensitive information.
+- Agree vault access, backup/restore ownership and sharing rules before adding sensitive company material.
 
-## Editing conventions
+## Editing and lifecycle
 
-Use plain Markdown and Obsidian wiki links; no community plugins required. Use unique descriptive note names, ISO dates, and the simple frontmatter fields already present. Update `updated` when the note materially changes. Templates can be copied manually; no template-plugin configuration is required.
+Use plain Markdown, unique descriptive names, ISO dates and the established frontmatter. Update `updated` for material changes. Add `lifecycle` and `canonical_for` when a note is reviewed during the cleanup.
 
-Current implementation notes should describe the current source and separately date the last hosted observation. Keep superseded runtime paths/test results in dated history, not as present-day startup instructions. Root and app-specific `.gitignore` files protect local artifacts; shared vault notes/configuration, source, migrations and lockfiles remain tracked. Do not restore the founder-removed `reference/` folder as incidental cleanup.
+Current notes describe coherent current state. Historical implementation transcripts, changing test totals and superseded mechanics belong in `records/`; application source, migrations, tests and runbooks remain executable truth. Preserve unique release, incident, migration, recovery, security and professional-review evidence even when it leaves active vault context.
 
-Preserve conflicting evidence and superseded decisions with context. Avoid copying the same task or legal conclusion into multiple lists. Never claim a source is reviewed, a task complete, or a fact verified unless the record supports it.
+Templates are reusable structures, not evidence that a review occurred. Git history is recoverability, not a substitute for an accessible material evidence record.

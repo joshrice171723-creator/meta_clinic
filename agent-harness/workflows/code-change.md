@@ -9,7 +9,7 @@ Use for local application, test, build-tool or repository-script changes that ar
 1. Run `bin/agent-preflight --path` for each area in scope and read the applicable nested instructions.
 2. Use the vault TOC to review the relevant architecture, task, decision and evidence sections. Inspect current source/tests rather than relying on dated notes alone.
 3. Define one observable outcome, explicit exclusions and the smallest reviewable diff.
-4. Name the principal failure. For auth, tenancy, protected values, billing, signing, clinical workflow or auditing, record the full failure-first fields from `Working Agreement.md`.
+4. Name the principal failure. For auth, tenancy, protected values, billing, signing, clinical workflow or auditing, use the complete [failure-first procedure](failure-first.md).
 5. Implement without broad formatting, unrelated cleanup, new external authority or hidden fallbacks. For frontend UI, load the `frontend-ui` skill and follow the Material UI implementation hierarchy in `apps/web/AGENTS.md` before creating or styling a control.
 6. Add or update tests for success, ownership, denial, validation, retry/concurrency and recovery cases that apply.
 7. Run `bin/agent-check` and then the selected checks. Inspect the diff for secrets, sensitive content and unrelated work.

@@ -57,6 +57,8 @@ def checks_for(paths: set[str]) -> list[Check]:
         or path == "README.md"
         or path.startswith("agent-harness/")
         or path.startswith(".agents/")
+        or path.startswith("docs/")
+        or path.startswith("records/")
         or path == ".github/workflows/ci.yml"
         or path
         in {
@@ -65,11 +67,13 @@ def checks_for(paths: set[str]) -> list[Check]:
             "bin/create-agent-skill",
             "bin/verify-agent-harness",
             "bin/verify-vault",
+            "bin/vault-audit",
         }
         for path in paths
     )
     if vault_changed:
         checks.append(Check("vault knowledge base", ("python3", "-B", "bin/verify-vault")))
+        checks.append(Check("vault hygiene report", ("python3", "-B", "bin/vault-audit")))
     if harness_changed:
         checks.append(Check("agent harness", ("python3", "-B", "bin/verify-agent-harness")))
 
