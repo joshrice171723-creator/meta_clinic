@@ -9,6 +9,14 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Patient portal implementation roadmap prepared
+
+**Request and outcome:** translated the requested concierge/cash-pay patient portal into [[Patient Portal Implementation Roadmap]] and added proposed T-50. The plan sequences portal identity/lifecycle, ledger/Stripe and unapplied credit, intake/booking/inventory holds, clinician-released visit summaries and financial documents, then bounded messages/refills/results. It gives each slice explicit scope, likely blockers, failure cases, fallback, and exit evidence rather than assuming a 12-week build or a final compliance-polish phase.
+
+**Evidence and limits:** the roadmap is grounded in the current synthetic staff-side clinic, cash-pay ledger, scheduling, inventory, and encounter-draft baseline, plus the existing access, operations, and workflow gates. It adds R-14 for the risk of treating patient portal work as ordinary frontend work. It does not select an identity vendor, processor, scribe/lab/e-prescribing integration, production environment, clinical content policy, payment/tax policy, or accepting reviewer; it neither implements features nor authorizes patient data, charges, clinical content, HIPAA/security acceptance, or release.
+
+**Next action:** obtain the Milestone 0 lifecycle/identity and support-policy inputs, then implement only the synthetic authorization-model slice with its tenant, recovery, revocation, audit, and browser evidence.
+
 ## 2026-09-03 — Cash-pay billing test gate and Luna review completed
 
 **Verification:** ran the package-specific [[Cash-Pay Billing Test Plan]] against the local synthetic checkout. The focused Rails administrative/billing integration passed 10 tests / 92 assertions. After Terra Med repaired two CRLF-sensitive, non-billing web assertions in commit `f7584af`, Luna audited the patch and independently reran the full web suite (13 files / 155 tests), typecheck, diff check, and the cash Rails test (1 test / 19 assertions); all passed and Luna found no defect or scope creep. Production build, high-severity npm audit, `bin/verify-web`, `bin/verify-vault`, `git diff --check`, and the Impeccable detector passed.

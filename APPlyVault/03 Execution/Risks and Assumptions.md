@@ -1,7 +1,7 @@
 ---
 type: risk-register
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 # Risks and Assumptions
 
@@ -25,6 +25,7 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 | R-10 | Medium | Existing MD documents are repackaged without applicability checks or duplicated before review                          | Index first when materials arrive; preserve originals, permission, review status, and profession/locality variants | [[Clinic Launch Packet]]; T-12        |
 | R-11 | High   | Kevin's physician/mentorship workload, availability, or backup limits delivery capacity                                | Define service cadence, capacity, agreements, fees, coverage, and escalation for both professions                  | T-15; L-02 / L-04                     |
 | R-12 | High   | Undefined inventory-value billing mechanics or unreviewed drug/referral relationships produce unsuitable metering, unclear bills, or legal exposure | Preserve the selected basis; define mechanics and review patient charges separately from software fees, supplier incentives and procurement roles using pharmacy PQ-21–PQ-30 | T-14 / T-36; L-04; [[Business Model]] |
+| R-14 | High | A cash-pay patient portal is treated as a simple frontend extension, exposing the wrong record, publishing unreviewed clinical content, or creating unreconciled payment/booking obligations | Gate the portal behind approved identity/recovery/support, data-flow/vendor, clinical-content, payment/reconciliation, integration-authority, accessibility, operations, and limited-pilot evidence; keep unapproved features unavailable | T-20/T-22/T-23/T-13/T-44/T-49/T-50; [[Patient Portal Implementation Roadmap]] |
 
 **R-13 — High / open:** broad pharmacy configurability is mistaken for universal implemented coverage, every clinic's authority, or a requirement to collect every field. Mitigation: a shared inventory core, explicit capability dependencies, versioned per-clinic/location profiles, separate action permissions and scoped acceptance evidence; unsupported combinations stay disabled. Track implementation under T-13/T-34 and real-use applicability under L-02/L-05/L-06. Owner remains unassigned.
 
