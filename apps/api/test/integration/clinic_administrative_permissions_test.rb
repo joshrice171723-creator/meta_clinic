@@ -213,6 +213,19 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     post "/api/clinic/payment_events/#{cash_payment.payment_event_id}/cash_refunds", params: { cash_refund: { amount: "10.01" } }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_equal 0, Clinic::RefundEvent.count
+
+    other_invoice = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient,
+      currency: "USD", lines: [ { quantity: "1", unit_amount: "2", description_snapshot: "Synthetic non-cash refund test" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: other_invoice, actor: @users.fetch("billing_operator"))
+    imported_payment = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient, invoice: other_invoice,
+      external_event_reference: "SYN-IMPORTED-REFUND", currency: "USD", amount: "2.00"
+    ).payment_event
+    post "/api/clinic/payment_events/#{imported_payment.id}/cash_refunds", params: { cash_refund: { amount: "1.00" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 0, Clinic::RefundEvent.where(payment_event: imported_payment).count
   end
 
   test "closed drawers reject activity and read-only billing users cannot mutate them" do
@@ -236,6 +249,13 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "1.00" } }, headers: csrf_headers, as: :json
     assert_response :forbidden
+
+    other_organization = Organization.create!(name: "Synthetic Other Organization")
+    other_practice = Clinic::Practice.create!(name: "Synthetic Other Practice", organization: other_organization)
+    other_site = other_practice.sites.create!(code: "OTHER")
+    login(@users.fetch("billing_operator"))
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: other_site.id, opening_float: "1.00" } }, headers: csrf_headers, as: :json
+    assert_response :not_found
   end
 
   test "context reports atomic capabilities and staff write stays false" do
