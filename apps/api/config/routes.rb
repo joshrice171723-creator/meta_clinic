@@ -39,6 +39,7 @@ Rails.application.routes.draw do
       post :close, on: :member
     end
     resources :payment_events, controller: "billing/payment_events", only: [] do
+      post :allocations, on: :member, action: :allocate
       post :cash_refunds, on: :member
       get :receipt, on: :member
     end
@@ -114,6 +115,7 @@ Rails.application.routes.draw do
     namespace :patient_portal, module: "clinic/patient_portal" do
       get "context", to: "context#show"
       resources :appointment_requests, only: %i[index create]
+      resources :requests, controller: "requests", only: %i[index create]
     end
   end
   namespace :api, module: "launch/api" do

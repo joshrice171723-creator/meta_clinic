@@ -107,6 +107,13 @@ export type PatientPortalContext = {
     status: string;
     requested_at: string;
   }[];
+  requests: {
+    id: number;
+    request_type: "message" | "refill";
+    status: "pending" | "in_review" | "resolved" | "declined";
+    requested_at: string;
+    reviewed_at: string | null;
+  }[];
   capabilities: {
     appointments_read: boolean;
     billing_read: boolean;
@@ -116,6 +123,8 @@ export type PatientPortalContext = {
     visit_summaries_read: boolean;
     payment_collection: boolean;
     appointment_requests_write: boolean;
+    messages_write: boolean;
+    refill_requests_write: boolean;
   };
   notices: string[];
 };
@@ -436,6 +445,7 @@ export type BillingPatientLedger = {
     id: number;
     currency: string;
     amount: Decimal;
+    unapplied_amount: Decimal;
     created_at: string;
     cash_payment: boolean;
     receipt_available: boolean;

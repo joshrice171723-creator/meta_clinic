@@ -119,6 +119,40 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_includes [ "0-30 days", "31-60 days", "61-90 days", "91+ days" ], body.fetch("recent_invoices").first.fetch("age_bucket")
   end
 
+  test "billing staff can allocate an unapplied payment remainder to another posted invoice" do
+    patient = @practice.patients.first
+    first = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10.00", description_snapshot: "Synthetic first invoice" } ]
+    )
+    second = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10.00", description_snapshot: "Synthetic second invoice" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: first, actor: @user)
+    Clinic::Billing::PostInvoice.call(invoice: second, actor: @user)
+    payment = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @user, patient: patient, invoice: first,
+      external_event_reference: "synthetic-unapplied-payment", currency: "USD",
+      amount: "5.00", payment_amount: "10.00"
+    ).payment_event
+
+    post "/api/clinic/payment_events/#{payment.id}/allocations",
+      params: { allocation: { invoice_id: second.id, amount: "5.00" } },
+      headers: csrf_headers, as: :json
+
+    assert_response :created
+    body = response.parsed_body
+    assert_equal "5.0", body.dig("payment_allocation", "amount")
+    assert_equal "10.0", body.dig("payment", "allocated_amount")
+    assert_equal "0.0", body.dig("payment", "unapplied_amount")
+
+    get "/api/clinic/patients/#{patient.id}/billing_ledger", headers: @headers
+    assert_response :success
+    ledger_payment = response.parsed_body.fetch("payments").find { |entry| entry["id"] == payment.id }
+    assert_equal "0.0", ledger_payment.fetch("unapplied_amount")
+  end
+
   test "billing draft edits stay draft-only and payment allocation reports unapplied remainder" do
     patient = @practice.patients.first
     invoice = Clinic::Billing::DraftInvoice.call(

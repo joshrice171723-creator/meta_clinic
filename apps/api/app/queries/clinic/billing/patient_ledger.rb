@@ -64,10 +64,12 @@ module Clinic
       end
 
       def payment_payload(payment)
+        allocated = payment.allocations.sum(&:amount)
         {
           id: payment.id,
           currency: payment.currency,
           amount: decimal(payment.amount),
+          unapplied_amount: decimal([payment.amount - allocated, BigDecimal("0")].max),
           created_at: payment.created_at.iso8601,
           cash_payment: payment.cash_tender.present?,
           receipt_available: payment.billing_receipts.any?,
