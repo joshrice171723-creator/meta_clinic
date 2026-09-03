@@ -32,9 +32,27 @@ module Clinic
             }
           },
           allocated_amount: allocated.to_d.to_s("F"),
-          credit_amount: credit.to_d.to_s("F")
+          credit_amount: credit.to_d.to_s("F"),
+          audit_timeline: audit_timeline(invoice)
         )
       end
+
+      def self.audit_timeline(invoice)
+        Clinic::ModelVersion.for_practice(invoice.practice_id)
+          .for_subject(invoice)
+          .order(occurred_at: :desc, id: :desc)
+          .limit(25)
+          .map do |version|
+            {
+              id: version.id,
+              event: version.event,
+              actor_reference: version.actor_reference,
+              changed_fields: version.changed_fields,
+              occurred_at: version.occurred_at.iso8601
+            }
+          end
+      end
+      private_class_method :audit_timeline
     end
   end
 end

@@ -28,6 +28,16 @@ type AgedBillingInvoice = BillingInvoiceSummary & {
   age_bucket: string;
 };
 
+type AuditedBillingInvoiceDetail = BillingInvoiceDetail & {
+  audit_timeline: {
+    id: number;
+    event: string;
+    actor_reference: string | null;
+    changed_fields: string[];
+    occurred_at: string;
+  }[];
+};
+
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
@@ -181,6 +191,36 @@ function DetailLineItems({ detail }: { detail: BillingInvoiceDetail }) {
   );
 }
 
+function InvoiceAuditTimeline({
+  detail,
+}: {
+  detail: AuditedBillingInvoiceDetail;
+}) {
+  return (
+    <div className="billing-audit-timeline">
+      <h3>Invoice history</h3>
+      {detail.audit_timeline.length === 0 ? (
+        <p className="billing-clear-state">No invoice events are available.</p>
+      ) : (
+        <ol>
+          {detail.audit_timeline.map((entry) => (
+            <li key={entry.id}>
+              <strong>{entry.event}</strong>
+              <span>
+                {date(entry.occurred_at, "UTC", true)} ·{" "}
+                {entry.actor_reference ?? "System"}
+              </span>
+              {entry.changed_fields.length > 0 && (
+                <small>Changed: {entry.changed_fields.join(", ")}</small>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 function BillingConfirm({
   action,
   invoice,
@@ -267,7 +307,7 @@ export function BillingDashboard() {
       (invoice) => invoicePaymentState(invoice) !== "void",
     ) ??
     visibleInvoices[0];
-  const detailResource = useResource<{ invoice: BillingInvoiceDetail }>(
+  const detailResource = useResource<{ invoice: AuditedBillingInvoiceDetail }>(
     selectedInvoice
       ? `/api/clinic/invoices/${selectedInvoice.id}`
       : "/api/clinic/billing",
@@ -784,7 +824,10 @@ export function BillingDashboard() {
                   ledger summary remains available.
                 </p>
               ) : selectedDetail ? (
-                <DetailLineItems detail={selectedDetail} />
+                <>
+                  <DetailLineItems detail={selectedDetail} />
+                  <InvoiceAuditTimeline detail={selectedDetail} />
+                </>
               ) : (
                 <p className="billing-loading-detail" role="status">
                   Loading invoice detail…
