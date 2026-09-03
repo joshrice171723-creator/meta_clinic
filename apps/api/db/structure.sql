@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9YAPUAENbQMHlI2jvfP7ccOSL9yQpaKfit6iCPg34pmD8bXiJ81WsPkM5x6BcxW
+\restrict BRcV2Rp177vTyl1gOVpXMmiOixLqbfdeshMbDEP4RwwMVpipK3bf1MaT61Yx4jn
 
 -- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
 -- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
@@ -24,6 +24,8 @@ SET row_security = off;
 --
 
 CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+
+
 --
 -- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
 --
@@ -743,7 +745,9 @@ CREATE TABLE public.clinic_cash_tenders (
     recorded_by_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (change_amount >= (0)::numeric) AND (change_amount < tendered_amount)))
+    request_key character varying DEFAULT ''::character varying NOT NULL,
+    CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (change_amount >= (0)::numeric) AND (change_amount < tendered_amount))),
+    CONSTRAINT cash_tender_request_key_present CHECK (((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100)))
 );
 
 
@@ -5894,6 +5898,13 @@ CREATE UNIQUE INDEX clinic_cash_drawer_one_open_per_site ON public.clinic_cash_d
 
 
 --
+-- Name: clinic_cash_tenders_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_cash_tenders_request_key ON public.clinic_cash_tenders USING btree (practice_id, request_key);
+
+
+--
 -- Name: clinic_clinician_assignments_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10738,4 +10749,5 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9YAPUAENbQMHlI2jvfP7ccOSL9yQpaKfit6iCPg34pmD8bXiJ81WsPkM5x6BcxW
+\unrestrict BRcV2Rp177vTyl1gOVpXMmiOixLqbfdeshMbDEP4RwwMVpipK3bf1MaT61Yx4jn
+
