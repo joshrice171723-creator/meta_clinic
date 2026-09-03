@@ -12,7 +12,7 @@ module Clinic
         per_page = Integer(per_page)
         raise ArgumentError, "Billing page must be positive." unless page.positive?
         raise ArgumentError, "Billing page size must be between 1 and 100." unless per_page.between?(1, 100)
-        invoice_scope = invoice_scope(invoices, query: query, filter: filter)
+        invoice_scope = invoice_scope(invoices, query: query, filter: filter, now: local_now)
         invoice_scope = invoice_scope.order(invoice_order(sort))
         invoice_total = invoice_scope.count
         invoice_pages = invoice_total.zero? ? 0 : (invoice_total.to_f / per_page).ceil
@@ -57,7 +57,7 @@ module Clinic
       end
       private_class_method :currency_metrics
 
-      def self.invoice_scope(invoices, query:, filter:)
+      def self.invoice_scope(invoices, query:, filter:, now:)
         scope = invoices
         text = query.to_s.strip
         scope = scope.where(
@@ -77,6 +77,10 @@ module Clinic
           COALESCE((SELECT SUM(posted_amount) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id), 0) <=
           COALESCE((SELECT SUM(amount) FROM clinic_payment_allocations WHERE invoice_id = clinic_invoices.id), 0)
         SQL
+        when "age_0_30" then scope.where(created_at: (now - 30.days)..)
+        when "age_31_60" then scope.where(created_at: (now - 60.days)...(now - 30.days))
+        when "age_61_90" then scope.where(created_at: (now - 90.days)...(now - 60.days))
+        when "age_91_plus" then scope.where(created_at: ... (now - 90.days))
         else raise ArgumentError, "Invoice filter is not supported."
         end
       end

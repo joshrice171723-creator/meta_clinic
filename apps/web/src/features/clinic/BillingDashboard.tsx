@@ -10,7 +10,16 @@ import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { CashDrawerOperations } from "./CashDrawerOperations";
 
-export type BillingInvoiceFilter = "all" | "draft" | "open" | "paid" | "void";
+export type BillingInvoiceFilter =
+  | "all"
+  | "draft"
+  | "open"
+  | "paid"
+  | "void"
+  | "age_0_30"
+  | "age_31_60"
+  | "age_61_90"
+  | "age_91_plus";
 export type BillingInvoiceSort =
   "recent" | "oldest" | "balance_desc" | "total_desc";
 
@@ -553,6 +562,10 @@ export function BillingDashboard() {
                 ["open", "Open balances"],
                 ["paid", "Paid"],
                 ["void", "Void"],
+                ["age_0_30", "0–30 days"],
+                ["age_31_60", "31–60 days"],
+                ["age_61_90", "61–90 days"],
+                ["age_91_plus", "91+ days"],
               ] as const
             ).map(([value, label]) => (
               <button

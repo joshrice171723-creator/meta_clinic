@@ -18,7 +18,7 @@ module Clinic
 
       def invoice_filter_param
         value = params[:filter].presence || "all"
-        unless %w[all draft open paid void].include?(value)
+        unless %w[all draft open paid void age_0_30 age_31_60 age_61_90 age_91_plus].include?(value)
           raise Clinic::Api::RequestParameters::Invalid.new("filter is not supported.", field: :filter)
         end
 
