@@ -91,6 +91,59 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_not payment.key?("external_event_reference")
   end
 
+  test "cash collection, refund, receipt, and drawer close preserve the recorded cash trail" do
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
+    login(@users.fetch("billing_operator"))
+
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "20.00" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    drawer_id = response.parsed_body.dig("drawer", "id")
+
+    cash_payment = {
+      cash_payment: {
+        cash_drawer_session_id: drawer_id,
+        tendered_amount: "15.00",
+        allocation_amount: "10.00",
+        request_key: "SYN-CASH-001"
+      }
+    }
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    payment_event_id = Clinic::PaymentEvent.find_by!(external_event_reference: "cash:#{drawer_id}:SYN-CASH-001").id
+    assert_equal "5.0", response.parsed_body.dig("cash_tender", "change_amount")
+
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal 1, Clinic::CashTender.count
+    assert_equal 1, Clinic::BillingReceipt.where(kind: "cash_payment").count
+
+    post "/api/clinic/payment_events/#{payment_event_id}/cash_refunds",
+      params: { cash_refund: { amount: "3.00" } }, headers: csrf_headers, as: :json
+    assert_response :created
+
+    get "/api/clinic/payment_events/#{payment_event_id}/receipt", headers: @headers
+    assert_response :success
+    assert_equal "no-store", response.headers.fetch("Cache-Control")
+    assert_includes response.body, "Payment receipt"
+
+    get "/api/clinic/cash_drawers", headers: @headers
+    assert_response :success
+    drawer = response.parsed_body.fetch("drawers").sole
+    assert_equal "27.0", drawer.fetch("expected_cash")
+    assert_equal "3.0", drawer.fetch("cash_refunded")
+
+    post "/api/clinic/cash_drawers/#{drawer_id}/close",
+      params: { drawer: { counted_cash: "29.00", discrepancy_explanation: "Synthetic count variance" } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "closed", response.parsed_body.dig("drawer", "status")
+    assert_equal "2.0", response.parsed_body.dig("drawer", "discrepancy")
+  end
+
   test "context reports atomic capabilities and staff write stays false" do
     get "/api/clinic/context", headers: @headers
     capabilities = response.parsed_body.fetch("capabilities")

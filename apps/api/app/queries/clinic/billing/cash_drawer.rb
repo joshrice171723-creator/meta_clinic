@@ -3,8 +3,8 @@ module Clinic
     class CashDrawer
       def self.call(session)
         tenders = session.cash_tenders.includes(payment_event: :refund_events).to_a
-        received = tenders.sum { |tender| tender.tendered_amount - tender.change_amount }
-        refunds = tenders.sum { |tender| tender.payment_event.refund_events.sum(&:amount) }
+        received = tenders.sum(BigDecimal("0")) { |tender| tender.tendered_amount - tender.change_amount }
+        refunds = tenders.sum(BigDecimal("0")) { |tender| tender.payment_event.refund_events.sum(BigDecimal("0"), &:amount) }
         expected = session.opening_float + received - refunds
         {
           id: session.id, site_id: session.site_id, status: session.status, opening_float: session.opening_float.to_s("F"),

@@ -6,15 +6,16 @@ module Clinic
 
       def cash_refunds
         input = parameter_hash!(:cash_refund, %i[amount])
-        payment = current_practice.payment_events.find(requested_id!(params[:id], :id))
+        payment = PaymentEvent.where(practice: current_practice).find(requested_id!(params[:id], :id))
         refund, receipt = RecordCashRefund.call(practice: current_practice, actor: current_user, payment: payment,
           amount: decimal_string!(input[:amount], field: :amount))
         render json: { refund: { id: refund.id, amount: refund.amount.to_s("F"), currency: refund.currency }, receipt_id: receipt.id }, status: :created
       end
 
       def receipt
-        payment = current_practice.payment_events.find(requested_id!(params[:id], :id))
+        payment = PaymentEvent.where(practice: current_practice).find(requested_id!(params[:id], :id))
         receipt = payment.billing_receipts.order(issued_at: :desc, id: :desc).first!
+        response.headers["Cache-Control"] = "no-store"
         render html: receipt_html(receipt).html_safe, content_type: "text/html"
       end
 
