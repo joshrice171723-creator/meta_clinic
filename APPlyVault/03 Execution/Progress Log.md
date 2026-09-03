@@ -9,6 +9,22 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Cash-pay local boundary hardening completed
+
+**Implementation:** added a practice-scoped `request_key` to cash tenders with a unique index and nonblank/length constraint. Rails now rejects replay attempts that change drawer, tender, change, patient, invoice, or allocation intent. The MUI cash workspace now requires an explicit physical-site drawer selection when multiple open drawers exist; it no longer silently chooses the first drawer.
+
+**Evidence:** focused Rails gate passed 5 tests / 51 assertions / 0 failures for replay mismatch, atomic rollback of payment/allocation/tender/receipt writes, invalid financial input, over-refund and non-cash rejection, one-open-per-site plus separate-site behavior, closed-drawer rejection, and read-only/cross-practice denial. `npm test` passed 13 files / 155 tests; `npm run typecheck` and `npm run build` passed; build retained only the existing large-bundle warning. `bin/verify-vault` and `git diff --check` passed. Commits `40f8549`, `59d10b2`, `3332962`, and `2fec7e6` were pulled safely, committed, and pushed. The current checkout also contains unrelated concurrent patient-portal/receivables edits plus one separate local draft-invoice commit; those remain outside this cash scope and the worktree is not claimed globally clean.
+
+**Limits:** the normal Rails schema-dump task still reports the known local `pg_dump` PATH issue; the schema snapshot was regenerated through the running synthetic PostgreSQL container and committed. Live browser acceptance remains blocked by the previously recorded Loading/API-context issue. No Terra Med escalation was needed because Luna's implementation and audit passed. Check/OCR, production invoice/receipt document rules, superbill, Stripe, portal, real data, and release remain blocked.
+
+## 2026-09-03 — Cash-pay implementation package reconciled
+
+**Documentation:** reconciled the implementation package and its test plan against the actual local cash routes, migrations, models, services, UI controls, and focused evidence. The package now distinguishes shipped local cash behavior from future generalized payment-source, check/OCR, receipt/PDF, processor, portal, and release contracts. It records the local drawer state (`open → closed` with retained count/discrepancy), concrete route map, current schema additions, browser blocker, and the remaining authority gates.
+
+**Workflow rule:** Luna is the primary coding, audit, and testing agent. A bounded coding defect gets up to three Luna repair/test attempts; Terra Med is contacted only after the third failed Luna attempt and fixes code only. Luna audits and retests any Terra patch before work resumes. No Terra testing was used for this increment.
+
+**Verification:** vault documents were checked with `bin/verify-vault`, whitespace was checked with `git diff --check`, and only the three cash-pay vault documents are included in this documentation commit. Unrelated patient-portal/receivables work and its local draft-invoice commit were preserved and not staged. The package remains active because later phases require authority that has not been approved; the local cash increment is complete within its stated boundary.
+
 ## 2026-09-03 — Patient portal implementation roadmap prepared
 
 **Request and outcome:** translated the requested concierge/cash-pay patient portal into [[Patient Portal Implementation Roadmap]] and added proposed T-50. The plan sequences portal identity/lifecycle, ledger/Stripe and unapplied credit, intake/booking/inventory holds, clinician-released visit summaries and financial documents, then bounded messages/refills/results. It gives each slice explicit scope, likely blockers, failure cases, fallback, and exit evidence rather than assuming a 12-week build or a final compliance-polish phase.

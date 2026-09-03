@@ -24,7 +24,7 @@ APPly's Rails/PostgreSQL ledger remains the financial source of truth. A future 
 | `/api/clinic/billing`, invoice detail/post/allocation routes | Existing bounded aggregate/read and protected mutation seam | Version new read contracts deliberately; preserve current capability checks and legacy compatibility only where tested. |
 | `BillingDashboard.tsx` and `Billing.tsx` | Internal ledger dashboard plus read-only patient balance lookup | Consolidate these into one coherent staff journey before adding a patient portal. |
 
-The current patient-balance screen correctly limits its identity lookup, but its copy says posting and payment recording are unavailable while the ledger dashboard supports those protected actions. Resolve that inconsistency in the first UI increment.
+The patient-balance screen correctly limits its identity lookup and now explains that authorized billing staff can start a draft invoice from the ledger. Posting and payment mutations remain capability-gated server operations; the screen does not imply that a lookup alone authorizes them.
 
 ## Current database fit — verified 2026-09-03
 
@@ -39,7 +39,7 @@ This section is a read-only inspection of the active local synthetic `apply_deve
 | `clinic_credit_notes` / `clinic_refund_events` | Separate exact numeric historical correction records, not invoice-field overwrites | Show them in the patient ledger and receipt balance calculation; add no destructive "edit payment" shortcut. Current execution routes for creating/refunding them are not part of this package's first phases. |
 | `clinic_insurance_claims` / `clinic_coverage_versions` | Existing practice/patient-scoped records, including encrypted coverage evidence | Leave untouched. Their presence does not authorize insurance workflow, claim submission, or a superbill in the cash-pay increment. |
 
-**Verified gaps:** the live schema has no invoice number, service date, payment-method/source record, cash-drawer session, tender/change record, processor webhook event, receipt/document issuance record, or patient payment preference. APPly must add those forward-only; it must not guess a source type for the 110 existing payment events.
+**Verified gaps:** invoice number, service date, generalized payment-source classification, processor webhook evidence, and patient payment preference are still absent. The cash increment below has now added local cash-drawer sessions, cash tender/change records, and immutable cash-payment/refund receipt records. APPly must continue adding gaps forward-only; it must not guess a source type for the 110 existing payment events.
 
 ### Selected compatibility design
 
@@ -94,10 +94,10 @@ Every server mutation derives actor, practice, permission, request correlation, 
 | Increment | Proposed records or fields | Rules |
 | --- | --- | --- |
 | Invoice presentation | `invoice_number`, `service_date` or approved service-period representation, `posted_at`, void reason/version where accepted | Assign a practice-unique human number at a defined irreversible lifecycle point; do not reuse numbers. Date/service semantics need product and professional review. |
-| Payment classification | Immutable `clinic_payment_sources` linked 1:1 to a new terminal-created payment event: practice/patient/payment IDs, method (`cash`, `check`, `external_card`, `stripe`), normalized reference, server-derived recorder and timestamps | Existing payment events remain source-free and display as imported/unknown; do not backfill a guessed method. Enforce same-practice/patient links and unique practice/payment source. |
-| Cash control | `clinic_cash_drawer_sessions` plus immutable `clinic_cash_tenders` linked through payment source/event and existing `Clinic::Site` | Store tendered amount, change, receiver, session, opening/close data, count, discrepancy and approval evidence as exact decimals. A cash tender is one source of one payment event; allocation remains in the existing allocation table. |
-| Processor evidence | `clinic_payment_collection_intents` and `clinic_payment_processor_events`; only applied events optionally link to `clinic_payment_events` | Intent owns opaque correlation/expected amount/currency/state; event owns processor name, opaque processor IDs, event type/version, verified time, normalized outcome, raw-payload digest and processing state. Uniqueness is practice + processor + processor-event ID. |
-| Documents | Versioned receipt/superbill document metadata: invoice/payment linkage, document type/template version, issuance time/actor, rendered-file digest, delivery status | Re-render only from authoritative history. Correction/reissue creates a new version; it never overwrites the prior issued artifact. |
+| Payment classification | **Future:** immutable `clinic_payment_sources` linked 1:1 to a new terminal-created payment event: practice/patient/payment IDs, method (`cash`, `check`, `external_card`, `stripe`), normalized reference, server-derived recorder and timestamps | Existing payment events remain source-free and display as imported/unknown; do not backfill a guessed method. The current local cash path uses its cash tender as source evidence and leaves generalized source classification for a later accepted increment. |
+| Cash control | **Implemented locally:** `clinic_cash_drawer_sessions` plus immutable `clinic_cash_tenders` linked directly to a payment event and `Clinic::Site`; `request_key` is practice-scoped and unique | Store tendered amount, change, receiver, session, opening/close data, count, discrepancy and approval evidence as exact decimals. A cash tender is one source of one payment event; allocation remains in the existing allocation table. |
+| Processor evidence | `clinic_payment_collection_intents` and `clinic_payment_processor_events` remain future | Intent owns opaque correlation/expected amount/currency/state; event owns processor name, opaque processor IDs, event type/version, verified time, normalized outcome, raw-payload digest and processing state. Uniqueness is practice + processor + processor-event ID. |
+| Documents | **Implemented locally for cash:** `clinic_billing_receipts` stores immutable payment/refund receipt metadata and payload; versioned rendered documents remain future | The local endpoint provides a scoped printable HTML receipt with `Cache-Control: no-store`. Re-render, PDF, delivery, correction and reissue still require an approved document contract and must never overwrite issued history. |
 | Patient billing preference (future) | Billing email/delivery preference, approved portal identity link, explicit recurring-charge authorization version/time if that later scope is selected | Do not create a local "has card on file" claim from a UI checkbox. Stored payment methods stay processor-owned. |
 
 Migration rules: one additive forward migration per independently deployable increment; bigint IDs and practice scope remain unchanged; composite same-practice integrity uses existing repository conventions; schema/data migration rehearsal, backup/restore, rollback behavior, permissions, and concurrency tests precede acceptance. Do not copy the pasted string-ID/composite-primary-key migration. A new source/tender write must create its `PaymentEvent`, source, and first allocation atomically through the existing locked allocation behavior; a processor webhook first records its own deduplicated evidence and applies only after an explicit terminal/reconciliation decision.
@@ -106,7 +106,7 @@ Migration rules: one additive forward migration per independently deployable inc
 
 **Invoice:** `draft → posted → void` remains the current core. A paid/partial display is derived from posted amount, allocations, credits, and refunds; it is not a mutable invoice state. Any new collection or document state needs an explicit server-owned transition table and tests.
 
-**Cash drawer:** `open → closing_count_recorded → discrepancy_review → closed`, with an explicit reopen/correction process if approved. A failed/unknown close remains visibly pending; never duplicate a close by retrying blindly.
+**Cash drawer target:** `open → closing_count_recorded → discrepancy_review → closed`, with an explicit reopen/correction process if approved. **Local implementation today:** `open → closed`; counted cash, discrepancy and explanation are retained at close, and short/over close is non-blocking. A failed/unknown close remains visibly pending; never duplicate a close by retrying blindly.
 
 **Processor event:** `received → signature_verified → normalized → applied | ignored_duplicate | rejected | needs_reconciliation`. Webhook receipt is not payment success; a processor outcome is not an APPly allocation until the locked, authorized ledger operation commits.
 
@@ -116,14 +116,27 @@ Use `/api/clinic` only, CSRF for staff mutations, exact-decimal strings across J
 
 | Endpoint family | Purpose | Required proof |
 | --- | --- | --- |
-| `GET /api/clinic/patients/:id/billing-ledger` | Scoped patient financial projection | Billing read plus identity projection; no chart fields or other-practice rows. |
-| `POST /api/clinic/invoices/:id/payment-tenders` | Create one cash/check/external payment event, source/tender evidence, and intentional allocation | Posted invoice, exact positive amount, no over-allocation, unique reference/replay intent, source required for new terminal events, and one locked transaction. |
+| `GET /api/clinic/patients/:id/billing-ledger` | Target name for the scoped patient financial projection | Billing read plus identity projection; no chart fields or other-practice rows. |
+| `POST /api/clinic/invoices/:id/payment-tenders` | Target name for a generalized cash/check/external payment operation | Posted invoice, exact positive amount, no over-allocation, unique reference/replay intent, source required for new terminal events, and one locked transaction. |
 | `POST /api/clinic/cash-drawers/:id/close` | Record counted cash and move to review/closed state | Open session, authorized operator, exact count, idempotent close intent, independent discrepancy evidence. |
-| `GET /api/clinic/invoices/:id/receipt` | Generate or retrieve issued receipt | Scoped read and document-delivery audit; no unbounded document path. |
+| `GET /api/clinic/invoices/:id/receipt` | Target name for an issued receipt | Scoped read and document-delivery audit; no unbounded document path. |
 | `POST /api/clinic/invoices/:id/superbill-requests` | Create a reviewed export request only if that scope is approved | Explicit professional/data policy gate, provider/service snapshots, export authorization and delivery evidence. |
 | `POST /api/integrations/stripe/webhooks` (future) | Receive processor events outside session/CSRF flow | Raw-body signature verification, allowlisted event types, deduplication, bounded logging, no browser authority. |
 
 Do not allow a generic browser-supplied `patient_id`, `practice_id`, invoice balance, status, processor event, actor, audit field, or allocation calculation to determine a financial write.
+
+### Local cash route map — verified 2026-09-03
+
+The current implementation uses these concrete routes; future generalized endpoint names above remain a contract-design target and must not be presented as shipped:
+
+| Current route | Operation |
+| --- | --- |
+| `GET /api/clinic/patients/:id/billing_ledger` | Read the scoped patient ledger. |
+| `POST /api/clinic/invoices/:id/cash_payments` | Record one cash tender, allocation, replay key and receipt atomically. |
+| `GET/POST /api/clinic/cash_drawers` | List or open practice-scoped site drawers. |
+| `POST /api/clinic/cash_drawers/:id/close` | Record counted cash, discrepancy and close. |
+| `POST /api/clinic/payment_events/:id/cash_refunds` | Record a cash-only refund and receipt. |
+| `GET /api/clinic/payment_events/:id/receipt` | Render the latest scoped printable receipt without caching. |
 
 ## Stripe integration design — later, isolated increment
 
@@ -184,15 +197,15 @@ Payment-related information can be protected health information in context; cash
 - Cash refunds reduce drawer cash. Every recorded financial event requires a printable receipt.
 - Checks will eventually be scanned for the check number and needed fields. Scanner/OCR provider, bank-data retention, image access and deletion rules remain a separate gated integration; raw check images are not stored by this local milestone.
 
-### Whole-milestone execution status — started 2026-09-03
+### Whole-milestone execution status — reviewed 2026-09-03
 
 | Phase | Current execution status | Evidence or blocking authority |
 | --- | --- | --- |
 | 0 — Acceptance brief | Partially complete | Founder accepted one open drawer per site, staff open/close authority, non-blocking short/over close, cash refunds reducing expected cash, and printable money-event receipts. Invoice numbering, formal receipt fields/delivery, check-image handling, retention, superbill, processor, and release authority remain unapproved. |
-| 1 — Internal patient ledger | Complete locally | Read-only scoped ledger contract, Material UI patient ledger, focused regression, local synthetic desktop/narrow inspection. |
+| 1 — Internal patient ledger | Complete locally; browser recheck blocked | Read-only scoped ledger contract, Material UI patient ledger, focused regression, and local synthetic inspection. The current browser/API context remains unavailable for a fresh visible-flow claim. |
 | 1.5 — Receivables operations | Accepted as the next implementation slice; not yet implemented | The existing dashboard is limited to eight recent invoices and has no draft-authoring UI, unapplied-allocation workflow, aging/follow-up state, or invoice event timeline. Implement only after preserving Phase 1–4 behavior and adding focused server/UI evidence. |
-| 2 — Cash/check terminal | Cash complete locally; check scanning blocked | A server-authoritative cash terminal records tender, change, allocation, replay key, and a linked receipt in one transaction. Check scanning/OCR and check-image policy require an approved provider and retention/access rules. |
-| 3 — Cash reconciliation | Complete locally | One open drawer per site, opening float, received cash, change, cash refunds, expected/count/discrepancy, and non-blocking close are implemented and tested with synthetic records. No accounting export or real cash operation. |
+| 2 — Cash/check terminal | Cash complete locally; check scanning blocked | A server-authoritative cash terminal records tender, change, allocation, practice-scoped replay key, and a linked receipt in one transaction. Check scanning/OCR and check-image policy require an approved provider and retention/access rules. |
+| 3 — Cash reconciliation | Local cash controls complete; production reconciliation blocked | One open drawer per site, opening float, received cash, change, cash refunds, expected/count/discrepancy, and non-blocking close are implemented and tested with synthetic records. Manager review/reopen policy and accounting export remain unapproved. |
 | 4 — Receipts | Basic cash receipts complete locally; production document scope blocked | Cash payment/refund receipts are immutable records with a scoped printable HTML view and no-store response header. Approved clinic identity, invoice numbering/service date, rendered-file digest/version, reprint/reissue, delivery, and PDF evidence remain blocked. |
 | 5 — Superbill decision | Blocked | Provider/code/date/signature/disclosure specification and qualified approval are absent. |
 | 6 — Stripe card source | Blocked | Processor account owner, contracts, test credentials, webhook secret, supported scope, dispute/refund policy, and security review are absent. |
@@ -211,9 +224,15 @@ Payment-related information can be protected health information in context; cash
 
 **Implemented locally:** additive cash-drawer, tender, and receipt tables retain the existing payment-event/allocation ledger as financial authority. A staff member can open one drawer at a clinic site, record cash tender and change against a posted invoice, print the resulting receipt, record a cash refund only against a cash payment, and close a drawer even when its counted cash differs from the server-calculated expected cash. The patient financial ledger exposes only a `cash_payment`/receipt-available indicator for locally evidenced cash events; it does not expose processor references or invent a source for historical records. The Billing workspace uses Material UI controls for drawer open, collection, receipt access, close, and cash-only refund action.
 
-**Safeguards and evidence:** cash writes derive practice/actor on Rails, use exact-decimal validation, lock the drawer and existing allocation path, atomically create tender/receipt evidence, reject mismatched replay details, and retain cash refunds as separate history. The focused synthetic integration proof covers open → tender/change → same-key replay → refund → scoped printable receipt/no-store → expected cash → non-blocking discrepant close. TypeScript typecheck, production build, changed-file formatting, and Impeccable detection pass. A live browser render could not complete because the local workspace remained at its Loading state while its API context was unavailable; it is not claimed as UI acceptance.
+**Safeguards and evidence:** cash writes derive practice/actor on Rails, use exact-decimal validation, lock the drawer and existing allocation path, atomically create tender/receipt evidence, enforce a practice-scoped replay key that cannot change drawer or amount intent, and retain cash refunds as separate history. The focused synthetic integration proof covers open → tender/change → same-key replay and mismatch rejection → refund/over-refund rejection → scoped printable receipt/no-store → expected cash → non-blocking discrepant close, plus transaction rollback and read-only denial. TypeScript typecheck, production build, changed-file formatting, and Impeccable detection pass. The MUI staff UI now requires explicit physical-site drawer selection when multiple drawers are open. A live browser render could not complete because the local workspace remained at its Loading state while its API context was unavailable; it is not claimed as UI acceptance.
 
 **Still blocked:** check scanning/OCR, check-image storage/deletion/access policy, invoice numbering and service-date decisions, approved receipt template/content/delivery/PDF/reissue policy, superbill specification, Stripe account/webhook secrets, patient portal, and every real-data/release authority.
+
+### Package completion review — 2026-09-03
+
+This document is complete as the implementation roadmap and handoff for the accepted local cash-pay increment. The unblocked local cash work is implemented, tested, and recorded above; the package is intentionally still marked **active** because several later phases require product, professional, privacy, processor, or release authority that has not been supplied. “Complete” here means the source-of-truth plan, route map, acceptance evidence, escalation protocol, and explicit blockers are current—not that the blocked production phases are approved or shipped.
+
+For any future coding defect in a bounded slice, Luna is the primary implementer and verifier. Give Luna up to three distinct repair-and-test attempts for that same defect. Escalate only after the third failed Luna attempt to Terra Med with the exact failure and acceptance condition; Terra Med fixes code but does not perform acceptance testing. Luna must then audit Terra's diff and rerun the failed and neighboring checks before the package resumes.
 
 ## Required continuation checklist for the next AI
 
