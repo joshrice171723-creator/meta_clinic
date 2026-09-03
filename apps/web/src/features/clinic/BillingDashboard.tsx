@@ -247,6 +247,7 @@ export function BillingDashboard() {
   );
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentEventAmount, setPaymentEventAmount] = useState("");
   const [busyAction, setBusyAction] = useState<"post" | "payment" | null>(null);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -313,15 +314,23 @@ export function BillingDashboard() {
 
   const validatePayment = () => {
     const reference = paymentReference.trim();
-    const amount = paymentAmount.trim();
+    const allocationAmount = paymentAmount.trim();
+    const eventAmount = paymentEventAmount.trim() || allocationAmount;
     if (!reference) return "Enter the external payment event reference.";
     if (reference.length > 255)
       return "Payment references must be 255 characters or fewer.";
     if (
-      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
-      /^0+(?:\.0+)?$/.test(amount)
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(allocationAmount) ||
+      /^0+(?:\.0+)?$/.test(allocationAmount)
     )
       return "Enter a positive amount with up to six decimal places.";
+    if (
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(eventAmount) ||
+      /^0+(?:\.0+)?$/.test(eventAmount)
+    )
+      return "Enter a positive payment total with up to six decimal places.";
+    if (compareDecimal(allocationAmount, eventAmount) > 0)
+      return "The amount applied now cannot exceed the total payment event.";
     return "";
   };
 
@@ -345,7 +354,7 @@ export function BillingDashboard() {
               external_event_reference: paymentReference.trim(),
               currency: selectedInvoice.currency,
               amount: paymentAmount.trim(),
-              payment_amount: paymentAmount.trim(),
+              payment_amount: paymentEventAmount.trim() || paymentAmount.trim(),
             },
           },
         },
@@ -355,6 +364,7 @@ export function BillingDashboard() {
       );
       setPaymentReference("");
       setPaymentAmount("");
+      setPaymentEventAmount("");
       clearActionState();
       refresh();
       detailResource.refresh();
@@ -811,7 +821,9 @@ export function BillingDashboard() {
                     <div>
                       <h3>Record an external payment</h3>
                       <p>
-                        Use the processor or bank event reference. The server
+                        Use the processor or bank event reference. Enter the
+                        amount to apply now and, when needed, a larger payment
+                        total to retain as unapplied balance. The server
                         validates currency, balance, and replay safety.
                       </p>
                     </div>
@@ -828,7 +840,7 @@ export function BillingDashboard() {
                         />
                       </label>
                       <label>
-                        <span>Amount ({selectedInvoice.currency})</span>
+                        <span>Apply now ({selectedInvoice.currency})</span>
                         <input
                           value={paymentAmount}
                           onChange={(event) =>
@@ -837,6 +849,18 @@ export function BillingDashboard() {
                           inputMode="decimal"
                           pattern="(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?"
                           required
+                        />
+                      </label>
+                      <label>
+                        <span>Payment total ({selectedInvoice.currency})</span>
+                        <input
+                          value={paymentEventAmount}
+                          onChange={(event) =>
+                            setPaymentEventAmount(event.target.value)
+                          }
+                          inputMode="decimal"
+                          pattern="(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?"
+                          placeholder="Same as amount applied"
                         />
                       </label>
                     </div>
