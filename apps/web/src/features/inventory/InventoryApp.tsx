@@ -366,16 +366,24 @@ export function InventoryApp({ path }: { path: string }) {
   const load = async () => {
     setLoading(true);
     setError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
     try {
       const payload = await api<{ data: InventoryData }>(
         "/api/clinic/inventory/bootstrap",
+        { signal: controller.signal },
       );
       setData(payload.data);
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Unable to load inventory.",
+        reason instanceof DOMException && reason.name === "AbortError"
+          ? "Inventory took too long to respond. Check your clinic session and try again."
+          : reason instanceof Error
+            ? reason.message
+            : "Unable to load inventory.",
       );
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   };
