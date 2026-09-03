@@ -315,7 +315,7 @@ BEGIN
       SELECT r.* INTO recall
         FROM clinic_inventory_recalls r
        WHERE r.id = NEW.recall_id;
-      IF NOT FOUND OR NEW.practice_id <> recall.practice_id OR NEW.actor_id IS DISTINCT FROM recall.actor_id OR NEW.kind <> 'recalled' OR NOT EXISTS (
+      IF NOT FOUND OR NEW.practice_id <> recall.practice_id OR NEW.kind <> 'recalled' OR NOT EXISTS (
         SELECT 1 FROM clinic_inventory_recall_lots rl
         JOIN clinic_inventory_lots lot ON lot.id = rl.lot_id AND lot.practice_id = rl.practice_id
         JOIN clinic_pharmacy_batches batch ON batch.lot_id = lot.id AND batch.practice_id = lot.practice_id
@@ -1972,6 +1972,42 @@ CREATE SEQUENCE public.clinic_inventory_receipts_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_receipts_id_seq OWNED BY public.clinic_inventory_receipts.id;
+
+
+--
+-- Name: clinic_inventory_shipment_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_shipment_lines (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    shipment_id bigint NOT NULL,
+    purchase_order_line_id bigint NOT NULL,
+    expected_packages numeric(20,6) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_shipment_line_values CHECK ((expected_packages > (0)::numeric)),
+    CONSTRAINT inventory_shipment_line_whole_packages CHECK ((expected_packages = trunc(expected_packages)))
+);
+
+
+--
+-- Name: clinic_inventory_shipment_lines_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_shipment_lines_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_shipment_lines_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_shipment_lines_id_seq OWNED BY public.clinic_inventory_shipment_lines.id;
 
 
 --
@@ -4370,6 +4406,13 @@ ALTER TABLE ONLY public.clinic_inventory_receipts ALTER COLUMN id SET DEFAULT ne
 
 
 --
+-- Name: clinic_inventory_shipment_lines id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_lines ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_shipment_lines_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_shipments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -5095,6 +5138,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipt_lines
 
 ALTER TABLE ONLY public.clinic_inventory_receipts
     ADD CONSTRAINT clinic_inventory_receipts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_shipment_lines clinic_inventory_shipment_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_lines
+    ADD CONSTRAINT clinic_inventory_shipment_lines_pkey PRIMARY KEY (id);
 
 
 --
@@ -7283,6 +7334,13 @@ CREATE UNIQUE INDEX inventory_receipt_retry ON public.clinic_inventory_receipts 
 
 
 --
+-- Name: inventory_receipt_shipment_once; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_receipt_shipment_once ON public.clinic_inventory_receipts USING btree (practice_id, shipment_id) WHERE (shipment_id IS NOT NULL);
+
+
+--
 -- Name: inventory_release_retry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7294,6 +7352,13 @@ CREATE UNIQUE INDEX inventory_release_retry ON public.clinic_inventory_hold_rele
 --
 
 CREATE UNIQUE INDEX inventory_shipment_identity ON public.clinic_inventory_shipments USING btree (practice_id, reference);
+
+
+--
+-- Name: inventory_shipment_line_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_shipment_line_identity ON public.clinic_inventory_shipment_lines USING btree (practice_id, shipment_id);
 
 
 --
@@ -9734,6 +9799,14 @@ ALTER TABLE ONLY public.clinic_inventory_counts
 
 
 --
+-- Name: clinic_inventory_shipment_lines fk_rails_8fc90ea7a2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_lines
+    ADD CONSTRAINT fk_rails_8fc90ea7a2 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_patients fk_rails_97dd7e2d22; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9779,6 +9852,14 @@ ALTER TABLE ONLY public.clinic_stock_movements
 
 ALTER TABLE ONLY public.clinic_pharmacy_batches
     ADD CONSTRAINT fk_rails_a32323ffa1 FOREIGN KEY (practice_id, location_id) REFERENCES public.clinic_inventory_locations(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_shipment_lines fk_rails_a56c476f5d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_lines
+    ADD CONSTRAINT fk_rails_a56c476f5d FOREIGN KEY (practice_id, shipment_id) REFERENCES public.clinic_inventory_shipments(practice_id, id);
 
 
 --
@@ -9883,6 +9964,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipts
 
 ALTER TABLE ONLY public.clinic_inventory_receipts
     ADD CONSTRAINT fk_rails_c69b8d3b38 FOREIGN KEY (practice_id, shipment_id) REFERENCES public.clinic_inventory_shipments(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_shipment_lines fk_rails_c6b9d2d625; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_lines
+    ADD CONSTRAINT fk_rails_c6b9d2d625 FOREIGN KEY (practice_id, purchase_order_line_id) REFERENCES public.clinic_inventory_purchase_order_lines(practice_id, id);
 
 
 --
@@ -10249,6 +10338,10 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260902009902'),
 ('20260902009901'),
 ('20260902009900'),
+('20260902002600'),
+('20260902002500'),
+('20260902002400'),
+('20260902002300'),
 ('20260902002200'),
 ('20260902002100'),
 ('20260902002000'),

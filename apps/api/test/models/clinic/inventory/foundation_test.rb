@@ -57,6 +57,70 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     assert_equal [ "shelf-a" ], location.fetch(:areas)
   end
 
+  test "shipment receipt is line-bound, single-use, and transitions atomically" do
+    order = @practice.inventory_purchase_orders.create!(actor: @user, number: "PO-SHIP-001", status: "sent",
+      destination: "Shelf", reason: "Synthetic shipment", request_key: SecureRandom.uuid,
+      payload_digest: SecureRandom.hex(16), version: 1, subtotal: 21, tax: 0, shipping: 0, total: 21)
+    line = order.lines.create!(practice: @practice, product: @product, product_name: @product.name,
+      stock_unit: @product.stock_unit, input_unit: "package", ordered_quantity: 2,
+      received_quantity: 0, conversion_factor: @product.package_size, unit_price: 1, currency: "USD")
+    shipment = order.shipments.create!(practice: @practice, actor: @user, reference: "SHIP-SINGLE-001",
+      supplier_reference: "SYN-SUPPLIER-001", status: "delivered", package_count: 2, expected_units: 21,
+      delivered_at: Time.current, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16))
+    shipment.shipment_lines.create!(practice: @practice, purchase_order_line: line, expected_packages: 2)
+    second_line = order.lines.create!(practice: @practice, product: @product, product_name: @product.name,
+      stock_unit: @product.stock_unit, input_unit: "package", ordered_quantity: 1,
+      received_quantity: 0, conversion_factor: @product.package_size, unit_price: 1, currency: "USD")
+    assert_raises(ActiveRecord::RecordInvalid) do
+      shipment.shipment_lines.create!(practice: @practice, purchase_order_line: second_line, expected_packages: 1)
+    end
+    input = @line.merge(amount: "2", input_unit: "package", purchase_order_line_id: line.id)
+    key = SecureRandom.uuid
+
+    receipt = Clinic::Inventory::Receiving.call(practice: @practice, actor: @user, shipment: shipment,
+      purchase_order: order, lines: [ input ], reason: "Synthetic delivered shipment", request_key: key)
+
+    assert_equal "received", shipment.reload.effective_status
+    assert_equal receipt, Clinic::Inventory::Receiving.call(practice: @practice, actor: @user, shipment: shipment,
+      purchase_order: order, lines: [ input ], reason: "Synthetic delivered shipment", request_key: key)
+    assert_raises(ArgumentError) do
+      Clinic::Inventory::Receiving.call(practice: @practice, actor: @user, shipment: shipment,
+        purchase_order: order, lines: [ input ], reason: "Synthetic delivered shipment", request_key: SecureRandom.uuid)
+    end
+    assert_equal 1, shipment.receipts.count
+    assert_raises(ArgumentError) do
+      Clinic::Inventory::Receiving.call(practice: @practice, actor: @user, shipment: shipment,
+        purchase_order: order, lines: [ input.merge(product_id: @practice.pharmacy_products.create!(name: "Other", sku: "OTHER", stock_unit: "mL", quantity_scale: 3, package_size: 1, unit_reference: "Synthetic").id) ],
+        reason: "Synthetic mismatched line", request_key: SecureRandom.uuid)
+    end
+  end
+
+  test "normal receipts reject quarantine and returns locations" do
+    location = @practice.inventory_locations.create!(name: "Arbitrary Safety Room", kind: "quarantine")
+    lot = Clinic::Inventory::Lot.create!(practice: @practice, product: @product,
+      number: @line.fetch(:lot_number), expires_on: Date.iso8601(@line.fetch(:expires_on)))
+    assert_raises(ArgumentError) do
+      receive(lines: [ @line.merge(location: location.name) ])
+    end
+    assert_empty @product.batches.where(location_id: location.id)
+
+    recall = @practice.inventory_recalls.create!(product: @product, actor: @user, reference: "RECALL-SAFETY-001",
+      status: "disposition_pending", reason: "Synthetic safety recall", required_disposition: "return_to_supplier",
+      effective_on: Date.current, affected_units: 2, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16))
+    recall.recall_lots.create!(practice: @practice, lot: lot)
+    receiver = User.create!(email_address: "receiving-safety@example.invalid", password: SecureRandom.hex(20))
+    receiver_membership = @practice.memberships.create!(user: receiver)
+    grant_permissions!(receiver_membership, "inventory.receive", "recall.lock")
+    assert_raises(ArgumentError) do
+      Clinic::Inventory::Receiving.call(practice: @practice, actor: receiver, recall: recall, status: "quarantined",
+        lines: [ @line ], reason: "Synthetic misplaced recall", request_key: SecureRandom.uuid)
+    end
+    Clinic::Inventory::Receiving.call(practice: @practice, actor: receiver, recall: recall, status: "quarantined",
+      lines: [ @line.merge(location: location.name) ], reason: "Synthetic recall quarantine", request_key: SecureRandom.uuid)
+    held_batch = @product.batches.find_by!(location_id: location.id)
+    assert_not held_batch.available?
+  end
+
   test "multi-line failures roll back the whole delivery and refuse ambiguous quantities" do
     [ "NaN", "Infinity", "1e2", "0.0001", "-1" ].each do |amount|
       assert_raises(ArgumentError) { receive(lines: [ @line, @line.merge(amount: amount, input_unit: "mL") ]) }

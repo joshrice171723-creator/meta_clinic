@@ -270,8 +270,10 @@ export type ClinicInvoice = {
 export type BillingCurrencyMetrics = {
   currency: string;
   monthly_invoiced: Decimal;
+  monthly_collected: Decimal;
   collected: Decimal;
   outstanding: Decimal;
+  open_invoice_count: number;
 };
 export type BillingInvoiceSummary = {
   id: number;
@@ -294,6 +296,12 @@ export type BillingDashboard = {
     currencies: BillingCurrencyMetrics[];
   };
   recent_invoices: BillingInvoiceSummary[];
+  recent_payments: {
+    invoice_id: number;
+    currency: string;
+    amount: Decimal;
+    created_at: string;
+  }[];
 };
 export type ClinicSite = {
   id: number;

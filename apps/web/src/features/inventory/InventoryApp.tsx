@@ -7,6 +7,7 @@ import {
 } from "react";
 import { api, ApiError } from "../../api/client";
 import { LoadState } from "../../shared/ui";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type { InventoryData, Decimal } from "./inventoryContracts";
 import {
   decimalAdd,
@@ -354,6 +355,7 @@ function PermissionNote({
 }
 
 export function InventoryApp({ path }: { path: string }) {
+  const { registerBlocker } = useClinicNavigation();
   const screen = screenForPath(path);
   const [data, setData] = useState<InventoryData>();
   const [error, setError] = useState("");
@@ -363,21 +365,44 @@ export function InventoryApp({ path }: { path: string }) {
     useState<PendingInventoryMutation | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
 
-  useEffect(() => setUncertainMutation(null), [path]);
+  useEffect(() => {
+    if (!uncertainMutation || typeof window === "undefined") return;
+    const message =
+      "This inventory action has an unknown outcome. Leaving may make a safe retry impossible.";
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = message;
+      return message;
+    };
+    window.addEventListener("beforeunload", warn);
+    const unregister = registerBlocker(() => message);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      unregister();
+    };
+  }, [registerBlocker, uncertainMutation]);
 
   const load = async () => {
     setLoading(true);
     setError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
     try {
       const payload = await api<{ data: InventoryData }>(
         "/api/clinic/inventory/bootstrap",
+        { signal: controller.signal },
       );
       setData(payload.data);
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Unable to load inventory.",
+        reason instanceof DOMException && reason.name === "AbortError"
+          ? "Inventory took too long to respond. Check your clinic session and try again."
+          : reason instanceof Error
+            ? reason.message
+            : "Unable to load inventory.",
       );
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   };
@@ -630,8 +655,8 @@ function CatalogScreen({
                     <strong>{item.name}</strong>
                     <small>
                       {item.preferred_supplier ?? "Supplier not recorded"} ·{" "}
-                      {number(item.units_per_package)} {item.base_unit}s /
-                      bottle
+                      {packageFor(data, item.package_id)?.description ??
+                        "Package metadata not recorded"}
                     </small>
                   </td>
                   <td className="mono">{item.ndc}</td>
@@ -1194,9 +1219,19 @@ function ReceivingScreen({
   const order = data.purchase_orders.find(
     (item) => item.id === shipment?.po_id,
   );
-  const [lineId, setLineId] = useState(order?.lines[0]?.id ?? "");
+  const allocations = shipment?.allocations ?? [];
+  const allocatedLines =
+    order?.lines.filter((candidate) =>
+      allocations.some(
+        (entry) => entry.purchase_order_line_id === candidate.id,
+      ),
+    ) ?? [];
+  const [lineId, setLineId] = useState(allocatedLines[0]?.id ?? "");
   const line =
-    order?.lines.find((record) => record.id === lineId) ?? order?.lines[0];
+    allocatedLines.find((record) => record.id === lineId) ?? allocatedLines[0];
+  const allocation = allocations.find(
+    (entry) => entry.purchase_order_line_id === line?.id,
+  );
   const item = line && product(data, line.product_id);
   const packageInfo = packageFor(data, line?.package_id);
   const packageUnit = packageInfo?.package_unit ?? "package";
@@ -1221,10 +1256,12 @@ function ReceivingScreen({
   const eligibleLocations = recall
     ? data.locations.filter((record) => record.kind === "quarantine")
     : data.locations;
-  const initialLocation =
-    eligibleLocations.find((record) => record.kind === "quarantine") ??
-    eligibleLocations.find((record) => record.kind === "storage") ??
-    eligibleLocations[0];
+  const initialLocation = recall
+    ? (eligibleLocations.find((record) => record.kind === "quarantine") ??
+      eligibleLocations[0])
+    : (eligibleLocations.find((record) => record.kind === "storage") ??
+      eligibleLocations.find((record) => record.kind === "controlled") ??
+      eligibleLocations[0]);
   const [destinationId, setDestinationId] = useState(initialLocation?.id ?? "");
   const destination =
     eligibleLocations.find((record) => record.id === destinationId) ??
@@ -1236,10 +1273,34 @@ function ReceivingScreen({
     (record) => record.lot_id === selectedLot?.id,
   );
   const [packages, setPackages] = useState(
-    String(shipment?.package_count ?? 1),
+    allocation?.expected_packages ?? "1",
   );
   const [temperature, setTemperature] = useState("");
   const [reason, setReason] = useState("Shipment receipt");
+  const selectLot = (value: string, productId = item?.id) => {
+    setLotNumber(value);
+    const known = data.lots.find(
+      (record) =>
+        record.product_id === productId && record.lot_number === value,
+    );
+    if (known) setExpirationDate(known.expiration_date);
+
+    const nextRecall = data.recalls.find(
+      (record) =>
+        record.product_id === productId && record.lot_numbers.includes(value),
+    );
+    const nextLocations = nextRecall
+      ? data.locations.filter((record) => record.kind === "quarantine")
+      : data.locations;
+    const nextLocation = nextRecall
+      ? (nextLocations.find((record) => record.kind === "quarantine") ??
+        nextLocations[0])
+      : (nextLocations.find((record) => record.kind === "storage") ??
+        nextLocations.find((record) => record.kind === "controlled") ??
+        nextLocations[0]);
+    setDestinationId(nextLocation?.id ?? "");
+    setAreaId(nextLocation?.areas[0] ?? "");
+  };
   if (!shipment || !order || !line || !item)
     return (
       <Card title="Receiving">
@@ -1262,6 +1323,7 @@ function ReceivingScreen({
           ...(temperature ? { temperature_c: temperature } : {}),
           ...(recall
             ? {
+                recall_id: recall.id,
                 exception: "recall_match",
                 disposition: "quarantine_recall",
                 status: "quarantined",
@@ -1288,8 +1350,29 @@ function ReceivingScreen({
                   (record) => record.id === selected?.po_id,
                 );
                 setShipmentId(event.target.value);
-                setLineId(selectedOrder?.lines[0]?.id ?? "");
-                setPackages(String(selected?.package_count ?? 1));
+                const selectedAllocations = selected?.allocations ?? [];
+                const selectedLine = selectedOrder?.lines.find((candidate) =>
+                  selectedAllocations.some(
+                    (entry) => entry.purchase_order_line_id === candidate.id,
+                  ),
+                );
+                const selectedLots = data.lots.filter(
+                  (record) => record.product_id === selectedLine?.product_id,
+                );
+                const nextLot =
+                  selectedLots.find((record) => record.status === "recalled") ??
+                  selectedLots[0];
+                setLineId(selectedLine?.id ?? "");
+                selectLot(
+                  nextLot?.lot_number ?? "",
+                  selectedLine?.product_id,
+                );
+                setPackages(
+                  selectedAllocations.find(
+                    (entry) =>
+                      entry.purchase_order_line_id === selectedLine?.id,
+                  )?.expected_packages ?? "1",
+                );
               }}
             >
               {data.shipments.map((record) => (
@@ -1299,13 +1382,31 @@ function ReceivingScreen({
               ))}
             </select>
           </Field>
-          {order.lines.length > 1 && (
+          {allocatedLines.length > 1 && (
             <Field label="Purchase-order line">
               <select
                 value={line.id}
-                onChange={(event) => setLineId(event.target.value)}
+                onChange={(event) => {
+                  const nextLineId = event.target.value;
+                  const nextLine = allocatedLines.find(
+                    (record) => record.id === nextLineId,
+                  );
+                  const nextLots = data.lots.filter(
+                    (record) => record.product_id === nextLine?.product_id,
+                  );
+                  const nextLot =
+                    nextLots.find((record) => record.status === "recalled") ??
+                    nextLots[0];
+                  setLineId(nextLineId);
+                  selectLot(nextLot?.lot_number ?? "", nextLine?.product_id);
+                  setPackages(
+                    allocations.find(
+                      (entry) => entry.purchase_order_line_id === nextLineId,
+                    )?.expected_packages ?? "1",
+                  );
+                }}
               >
-                {order.lines.map((record) => (
+                {allocatedLines.map((record) => (
                   <option key={record.id} value={record.id}>
                     {product(data, record.product_id)?.name ?? record.id}
                   </option>
@@ -1342,14 +1443,7 @@ function ReceivingScreen({
           <Field label="Lot number">
             <input
               value={lotNumber}
-              onChange={(event) => {
-                const value = event.target.value;
-                setLotNumber(value);
-                const known = productLots.find(
-                  (record) => record.lot_number === value,
-                );
-                if (known) setExpirationDate(known.expiration_date);
-              }}
+              onChange={(event) => selectLot(event.target.value)}
             />
           </Field>
           <Field label="Expiration">
@@ -1423,20 +1517,22 @@ function ReceivingScreen({
           <ConfirmButton
             disabled={
               busy ||
+              !!receipt ||
               !capability(data, "inventory.receive") ||
               !destination ||
               !lotNumber.trim() ||
               !expirationDate ||
               !reason.trim() ||
+              !allocation ||
               !validDecimal(packages) ||
               decimalCompare(
                 packages || "0",
-                String(shipment.package_count),
+                allocation?.expected_packages ?? "0",
               ) !== 0
             }
             onConfirm={confirm}
           >
-            Confirm receipt
+            {receipt ? "Receipt recorded" : "Confirm receipt"}
           </ConfirmButton>
         </div>
         {receiptLine && (

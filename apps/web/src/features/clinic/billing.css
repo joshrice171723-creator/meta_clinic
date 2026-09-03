@@ -1,87 +1,349 @@
-.clinic-theme .billing-heading {
+.clinic-theme .billing-page {
+  display: grid;
+  gap: 22px;
+  max-width: 1480px;
+}
+.clinic-theme .billing-header,
+.clinic-theme .billing-section-heading,
+.clinic-theme .billing-ledger-heading,
+.clinic-theme .billing-currency,
+.clinic-theme .billing-payment-list li {
   display: flex;
-  justify-content: space-between;
-  gap: 24px;
   align-items: flex-start;
-  margin-bottom: 24px;
+  justify-content: space-between;
+  gap: 20px;
 }
-.clinic-theme .billing-heading h1 {
-  margin-bottom: 8px;
+.clinic-theme .billing-header h1 {
+  margin: 4px 0 8px;
 }
-.clinic-theme .billing-status,
-.clinic-theme .billing-unavailable,
+.clinic-theme .billing-period {
+  min-width: 160px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 10px;
+  background: var(--clinic-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+.clinic-theme .billing-period span,
+.clinic-theme .billing-metric > span,
+.clinic-theme .billing-metric small,
+.clinic-theme .billing-currency small,
+.clinic-theme .billing-invoice-detail-values span,
+.clinic-theme .billing-payment-list small {
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .billing-period strong {
+  font-size: 15px;
+}
+.clinic-theme .billing-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.clinic-theme .billing-metric {
+  min-width: 0;
+  border: 1px solid var(--clinic-border);
+  border-radius: 10px;
+  background: var(--clinic-surface);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+.clinic-theme .billing-metric strong {
+  font-size: clamp(23px, 2.2vw, 34px);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-metric-positive {
+  border-top: 3px solid var(--clinic-success);
+}
+.clinic-theme .billing-metric-attention {
+  border-top: 3px solid var(--clinic-warning);
+}
+.clinic-theme .billing-workspace-grid,
+.clinic-theme .billing-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  gap: 18px;
+}
+.clinic-theme .billing-page .clinic-card {
+  margin: 0;
+}
+.clinic-theme .billing-section-heading {
+  margin-bottom: 16px;
+}
+.clinic-theme .billing-section-heading h2 {
+  margin: 4px 0 0;
+}
+.clinic-theme .billing-text-button,
+.clinic-theme .billing-filter-group button,
+.clinic-theme .billing-invoice-button {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.clinic-theme .billing-text-button {
+  min-height: 36px;
+  background: transparent;
+  color: var(--clinic-accent);
+  font-weight: 650;
+  padding: 4px 0;
+}
+.clinic-theme .billing-text-button:hover,
+.clinic-theme .billing-invoice-button:hover {
+  text-decoration: underline;
+}
+.clinic-theme .billing-queue-list {
+  display: grid;
+  gap: 10px;
+}
+.clinic-theme .billing-queue-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--clinic-text);
+  padding: 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.clinic-theme .billing-queue-item:hover,
+.clinic-theme .billing-queue-item[aria-pressed="true"] {
+  border-color: var(--clinic-accent);
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-queue-count {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--clinic-soft);
+  font-size: 18px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-queue-attention .billing-queue-count {
+  background: var(--clinic-warning-bg);
+  color: var(--clinic-warning);
+}
+.clinic-theme .billing-queue-copy {
+  display: grid;
+  gap: 3px;
+}
+.clinic-theme .billing-queue-copy small,
+.clinic-theme .billing-clear-state,
+.clinic-theme .billing-fine-print {
+  color: var(--clinic-muted);
+  font-size: 14px !important;
+}
+.clinic-theme .billing-queue-arrow {
+  color: var(--clinic-accent);
+  font-size: 20px;
+  text-align: right;
+}
+.clinic-theme .billing-clear-state {
+  margin: 16px 0 0;
+}
+.clinic-theme .billing-currency-card {
+  display: flex;
+  flex-direction: column;
+}
+.clinic-theme .billing-currency-list {
+  display: grid;
+  gap: 4px;
+}
+.clinic-theme .billing-currency {
+  padding: 12px 0;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-currency:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.clinic-theme .billing-currency > strong {
+  min-width: 44px;
+}
+.clinic-theme .billing-currency > span {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-fine-print {
+  margin: auto 0 0;
+  padding-top: 16px;
+}
+.clinic-theme .billing-filter-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.clinic-theme .billing-filter-group button {
+  min-height: 34px;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--clinic-muted);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.clinic-theme .billing-filter-group button[aria-pressed="true"] {
+  color: var(--clinic-on-accent);
+  background: var(--clinic-accent);
+}
+.clinic-theme .billing-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-ledger-table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: collapse;
+}
+.clinic-theme .billing-ledger-table th,
+.clinic-theme .billing-ledger-table td {
+  padding: 13px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+.clinic-theme .billing-ledger-table th:not(:first-child),
+.clinic-theme .billing-ledger-table td:not(:first-child) {
+  text-align: right;
+}
+.clinic-theme .billing-ledger-table tbody tr {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-ledger-table tbody tr[data-selected="true"] {
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-invoice-button {
+  background: transparent;
+  color: var(--clinic-accent);
+  font-weight: 750;
+  padding: 3px 0;
+}
 .clinic-theme .billing-badge {
   display: inline-flex;
   align-items: center;
   width: fit-content;
   border: 1px solid var(--clinic-border);
   border-radius: 999px;
-  padding: 6px 10px;
-  color: var(--clinic-muted);
-  background: var(--clinic-soft);
-  font-size: 14px;
-}
-.clinic-theme .billing-stats strong {
-  font-variant-numeric: tabular-nums;
-}
-.clinic-theme .billing-grid {
-  margin-bottom: 24px;
-}
-.clinic-theme .billing-currency-list {
-  display: grid;
-  gap: 12px;
-}
-.clinic-theme .billing-currency {
-  display: grid;
-  grid-template-columns: 64px 1fr 1fr;
-  gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid var(--clinic-border);
-  font-size: 14px;
-}
-.clinic-theme .billing-currency:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-.clinic-theme .billing-currency span {
-  color: var(--clinic-muted);
-}
-.clinic-theme .billing-fine-print {
-  margin-top: 18px;
-  font-size: 14px;
-}
-.clinic-theme .billing-table-wrap {
-  overflow-x: auto;
-}
-.clinic-theme .billing-table-wrap table {
-  min-width: 680px;
-}
-.clinic-theme .billing-badge {
   padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 650;
   text-transform: capitalize;
 }
-.clinic-theme .billing-posted {
-  color: var(--clinic-success);
+.clinic-theme .billing-paid {
   background: var(--clinic-success-bg);
   border-color: var(--clinic-success);
+  color: var(--clinic-success);
 }
-.clinic-theme .billing-draft {
-  color: var(--clinic-warning);
+.clinic-theme .billing-partial,
+.clinic-theme .billing-open {
   background: var(--clinic-warning-bg);
   border-color: var(--clinic-warning);
+  color: var(--clinic-warning);
+}
+.clinic-theme .billing-draft {
+  color: var(--clinic-accent);
+  background: var(--clinic-soft);
 }
 .clinic-theme .billing-void {
   color: var(--clinic-muted);
 }
-@media (max-width: 760px) {
-  .clinic-theme .billing-heading {
-    display: block;
+.clinic-theme .billing-invoice-detail-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--clinic-border);
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-invoice-detail-values > div {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border-left: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-invoice-detail-values > div:first-child {
+  border-left: 0;
+}
+.clinic-theme .billing-invoice-detail-values strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-payment-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-payment-list li {
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-payment-list li > span {
+  display: grid;
+  gap: 3px;
+}
+.clinic-theme .billing-payment-list li > strong {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1080px) {
+  .clinic-theme .billing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .clinic-theme .billing-status {
-    margin-top: 12px;
+  .clinic-theme .billing-workspace-grid,
+  .clinic-theme .billing-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .clinic-theme .billing-page {
+    gap: 16px;
+  }
+  .clinic-theme .billing-header,
+  .clinic-theme .billing-section-heading,
+  .clinic-theme .billing-ledger-heading {
+    display: grid;
+    gap: 12px;
+  }
+  .clinic-theme .billing-period {
+    min-width: 0;
+  }
+  .clinic-theme .billing-metrics {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-filter-group {
+    width: fit-content;
   }
   .clinic-theme .billing-currency {
+    display: grid;
+    grid-template-columns: 48px 1fr 1fr;
+    gap: 8px;
+  }
+  .clinic-theme .billing-invoice-detail-values {
     grid-template-columns: 1fr;
-    gap: 4px;
+  }
+  .clinic-theme .billing-invoice-detail-values > div,
+  .clinic-theme .billing-invoice-detail-values > div:first-child {
+    border-left: 0;
+    border-top: 1px solid var(--clinic-border);
+  }
+  .clinic-theme .billing-invoice-detail-values > div:first-child {
+    border-top: 0;
   }
 }

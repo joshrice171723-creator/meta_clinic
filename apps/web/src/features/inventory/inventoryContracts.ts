@@ -168,6 +168,10 @@ export type InventoryShipment = {
   package_count: number;
   delivered_at: string;
   expected_units: Decimal;
+  allocations?: {
+    purchase_order_line_id: string;
+    expected_packages: Decimal;
+  }[];
 };
 export type InventoryReceiptLine = {
   id: string;

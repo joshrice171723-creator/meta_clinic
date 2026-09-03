@@ -99,7 +99,13 @@ module Clinic
         if recalled && destination.kind != "quarantine"
           raise ArgumentError, "Blocking recall match: this lot must be routed to a quarantine location."
         end
-        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input[:reason].presence || "Shipment receipt", request_key: request_key, purchase_order: order, shipment: shipment, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
+        recall = if recalled
+          Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
+          current_practice.inventory_recalls.joins(:recall_lots).find_by!(id: input.require(:recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
+        elsif input[:recall_id].present?
+          raise ArgumentError, "A recall can only be supplied for a recalled lot."
+        end
+        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input[:reason].presence || "Shipment receipt", request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), receipt_id: receipt.id }
       end
 

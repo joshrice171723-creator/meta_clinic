@@ -10,7 +10,7 @@ module Clinic
         locations = batches.map(&:location_record).compact.uniq(&:id)
         recalls = Recall.where(practice_id: practice.id).includes(:product, :recall_lots, :dispositions).order(id: :desc).to_a
         counts = Count.where(practice_id: practice.id).includes(:approval, batch: :product).order(id: :desc).to_a
-        orders = PurchaseOrder.where(practice_id: practice.id).includes(:supplier, :lines, :shipments, :receipts).order(id: :desc).limit(100).to_a
+        orders = PurchaseOrder.where(practice_id: practice.id).includes(:supplier, :lines, :receipts, shipments: :shipment_lines).order(id: :desc).limit(100).to_a
         receipts = Receipt.where(practice_id: practice.id).includes(:actor, :supplier, :lines, :shipment, :purchase_order).order(id: :desc).limit(100).to_a
         suppliers = Supplier.where(practice_id: practice.id).order(:name, :id).to_a
         area_by_location = ReceiptLine.where(practice_id: practice.id, batch_id: batches.map(&:id)).where.not(area_id: nil).includes(batch: :location_record).to_a.group_by { |line| line.batch.location_id }.transform_values { |lines| lines.map(&:area_id).compact.uniq }
@@ -92,7 +92,7 @@ module Clinic
       end
 
       def shipment_wire(shipment)
-        { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference, status: shipment.status, package_count: shipment.package_count, delivered_at: shipment.delivered_at&.iso8601, expected_units: shipment.expected_units.to_d.to_s("F") }
+        { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference, status: shipment.effective_status, package_count: shipment.package_count, delivered_at: shipment.delivered_at&.iso8601, expected_units: shipment.expected_units.to_d.to_s("F"), allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s, expected_packages: line.expected_packages.to_d.to_s("F") } } }
       end
 
       def receipt_wire(receipt)
