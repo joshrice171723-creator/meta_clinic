@@ -16,9 +16,9 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 ## Evidence rules
 
 - **Pass** means the command or scenario ran in the named local environment and produced the expected result.
-- **Fail** means an expected assertion, invariant, build, or scoped behavior was violated. For a reproducible coding defect, Luna owns up to three bounded repair-and-test attempts for that exact slice before any unrelated package work continues. Terra Med is asked only after Luna has failed three times on the same defect; Terra fixes code but does not test acceptance.
+- **Fail** means an expected assertion, invariant, build, or scoped behavior was violated. Luna owns up to three bounded repair-and-test attempts for the exact slice before unrelated package work continues. If the defect remains after those attempts, stop and report the exact failure for user direction; no second coding agent is used.
 - **Blocked** means a prerequisite or authority is unavailable. It is not a pass and does not trigger speculative implementation.
-- **Inconclusive** means the run did not produce trustworthy completion evidence (for example, a timeout or unavailable browser/API). Rerun once with the same bounded scope before escalating a code fix. An environment or authority blocker is recorded as Blocked and does not trigger Terra.
+- **Inconclusive** means the run did not produce trustworthy completion evidence (for example, a timeout or unavailable browser/API). Rerun once with the same bounded scope before escalating a code fix. An environment or authority blocker is recorded as Blocked and does not trigger speculative coding.
 - All fixtures and records must be synthetic and visibly labeled. Never include patient names, credentials, card data, check images, raw processor payloads, or secrets in output.
 
 ## Test matrix
@@ -55,6 +55,11 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 | OPS-01 | The verification record is reproducible and synchronized | `bin/verify-web`, `bin/verify-vault`, `git diff --check`, scoped commit and pushed upstream state | Pass for the cash implementation commits; this documentation gate is pending, and unrelated concurrent portal/receivables edits are intentionally preserved outside the cash scope |
 | OPS-02 | A release cannot bypass its source-level deployment and recovery controls | `python3 -B ops/aws/ec2/release_readiness.py`; verify manual main-only dispatch, matched API/web digests, health/readiness probes, pre-release backup, isolated restore and failed-release stop contracts | Pass — offline source gate added and wired into CI; hosted release evidence remains blocked |
 | OPS-03 | Credentials or protected command output cannot enter tracked source or operational diagnostics | Release-readiness scanner over tracked text plus operation-script redaction contract checks; synthetic placeholders are allowed, high-confidence token/key material is rejected | Pass — scanner and regression tests pass; it is not a secret-manager, runtime log, or external security assessment |
+| STR-01 | A card collection intent cannot cross practice, invoice, currency, amount, or live-mode boundaries | Synthetic intent creation with posted-invoice locking, exact amount/currency, practice-scoped request-key replay/conflict and live-mode denial | Pass — focused provider-neutral boundary test |
+| STR-02 | A forged or stale processor signature cannot enter the application | Verify the unmodified synthetic raw body with valid, stale, tampered, and malformed Stripe-style signatures | Pass — focused provider-neutral boundary test |
+| STR-03 | Duplicate, out-of-order, or unmatched processor events cannot create money twice or silently allocate | Ingest synthetic verified events; assert digest/reference deduplication, normalized state, unmatched reconciliation state, and no payment/allocation side effect | Pass — focused provider-neutral boundary test |
+| STR-04 | Processor payloads and card-like values cannot enter APPly records or diagnostics | Assert only allowlisted opaque metadata and payload digest are retained; raw body and sensitive fields are rejected/omitted | Pass — focused provider-neutral boundary test |
+| STR-05 | A real Stripe connection cannot be enabled without authority and operational controls | Review account ownership, test/live secrets, webhook custody, PCI/privacy/security, refunds/disputes, retention, alerts, recovery, and ledger-application approval | Blocked — no real provider credentials, account, webhook route, or production authority |
 | DB-03 | Backend race/restore helper completes within a bounded local run | `bin/verify-backend` and `bin/verify-postgres` on task-owned synthetic scratch databases | Inconclusive — helper produced no output for ~4 minutes and was stopped; no active scratch DB remained |
 | LED-03 | Staff can allocate a retained payment remainder without crossing patient/practice scope | Create one payment with an unapplied remainder; allocate it to a second eligible posted invoice; assert exact totals and reject cross-scope/over-allocation attempts | Implemented locally; web contract gate passes; focused Rails rerun blocked by two pending concurrent patient-portal migrations |
 | LED-04 | Draft invoice edits do not alter posted financial history | Edit a draft, assert audit history and updated totals; post it; reject a second edit after posting | Implemented and covered by the focused workspace integration test; web typecheck/build pass; clean Rails rerun pending migration state |
@@ -77,16 +82,22 @@ When a gate fails:
 1. Stop the current package slice at the first reproducible failure. Preserve the failure output and do not broaden the change.
 2. Classify it as backend/data, authorization/tenancy, transport/contract, UI, test harness, or environment. Confirm the smallest source/test files involved.
 3. Send the exact bounded defect to Luna. Luna may repair and test that same slice up to three times; record each attempt, diff, and result. Do not ask Luna to implement unrelated phases or use credentials/real records.
-4. If Luna fails three times on the same coding defect, escalate only that slice to Terra Med with the exact failing command, expected/actual result, relevant files, synthetic-only constraint, and acceptance condition. Terra Med fixes code only; it does not run acceptance testing.
-5. When Terra Med reports finished, Luna audits the diff for scope, Rails authority, exact decimals, tenant/actor checks, idempotency, audit/history, MUI usage and data leakage, then reruns the failed and neighboring regression checks. Reject unsupported claims or unrelated edits.
-6. A pass closes only that matrix row; then resume the gate sequence and implementation package from the next unblocked row.
-7. If the same failure is caused by an unavailable external authority or runtime rather than code, mark it **Blocked**, record the evidence and required owner/decision, and continue only with independent unblocked checks.
+4. If Luna exhausts the three bounded attempts on the same coding defect, stop that slice and report the exact failing command, expected/actual result, relevant files, synthetic-only constraint, and acceptance condition for user direction. Do not switch coding agents or broaden scope.
+5. A pass closes only that matrix row; then resume the gate sequence and implementation package from the next unblocked row.
+6. If the same failure is caused by an unavailable external authority or runtime rather than code, mark it **Blocked**, record the evidence and required owner/decision, and continue only with independent unblocked checks.
 
 ## Exit criteria for the locally implemented milestone
 
 The local cash milestone may be reported as verified only when all applicable rows through `REG-01` and `OPS-01` are Pass, `UI-02` is either Pass or explicitly reported as a browser-environment blocker, and no Fail remains. `REC-02`, check scanning/OCR, invoice numbering/service date, superbill, Stripe, portal and release rows remain blocked until their separate authority and implementation are accepted. A blocked row cannot be relabeled complete merely because the automated cash happy path passes.
 
 ## Evidence record
+
+### 2026-09-03 — Provider-neutral card boundary gate
+
+Environment: local Windows checkout with the synthetic PostgreSQL test database. No Stripe account, provider credential, card data, external webhook, or production environment was used.
+
+- `ruby bin/postgres exec ruby bin/rails test test/services/clinic/billing/payment_collection_boundary_test.rb` — **Pass**, 8 runs / 41 assertions / 0 failures. Covers test-only intent creation, practice/invoice/amount/currency/request-key scope, live-mode denial, raw-body signature verification, stale/tampered signature rejection, redacted processor evidence, duplicate/replay handling, out-of-order safety, and unmatched-event reconciliation without payment/allocation side effects.
+- The focused result closes only the provider-neutral synthetic boundary rows `STR-01`–`STR-04`. `STR-05` remains **Blocked** pending processor ownership, credentials, webhook custody, privacy/security/PCI review, operational controls, and explicit ledger-application authority.
 
 ### 2026-09-03 — Check intake/OCR boundary gate
 
@@ -99,13 +110,13 @@ Environment: local Windows checkout and plain Ruby/Minitest unit environment. Al
 
 Limits: this closes only the local adapter/validation/redaction boundary. Provider selection, image transport and custody, required scanned fields, retention/deletion/access/audit policy, OCR outcome semantics, payment recording, browser UI, and production/release authority remain blocked.
 
-### 2026-09-03 — Baseline gate and Terra/Luna repair loop
+### 2026-09-03 — Baseline gate and Luna repair history
 
 Environment: local Windows checkout, synthetic PostgreSQL, `apps/api` Rails test environment, `apps/web` Vite/Vitest environment. No real records, credentials, cards, checks or external payment services were used.
 
 - `ruby bin/postgres exec bundle exec rails test test/integration/clinic_administrative_permissions_test.rb -v` — **Pass**, 10 tests / 92 assertions / 0 failures.
 - `npm test` before repair — **Fail**, 3 source-text assertions in two unrelated clinic navigation/tracking-board tests; root cause was CRLF checkout text versus LF-only expectations.
-- Terra Med repair — commit `f7584af`, limited to line-ending normalization helpers in those two test files; no billing/API/schema/product code changed.
+- A prior test-only repair commit `f7584af` was limited to line-ending normalization helpers in those two test files; no billing/API/schema/product code changed.
 - Luna audit/retest — **Pass**, 13 web test files / 155 tests; `npm run typecheck`; `git diff --check f7584af^ f7584af`; and the cash Rails test (1 test / 19 assertions) all passed. Luna found no defect or scope creep and made no further code changes.
 - `npm run build` — **Pass**, with the existing Vite large-bundle warning only.
 - `npm run format:check` — **Fail/non-blocking pre-existing drift**, 58 repository web files; no mass formatting was authorized or performed. Changed billing files had already passed targeted formatting.
@@ -117,7 +128,7 @@ The formatter drift and backend helper timeout are separate test-environment/rep
 
 ### 2026-09-03 — Luna local cash boundary increment
 
-Environment: local Windows checkout, synthetic PostgreSQL test database, Rails test environment, and `apps/web` Vite/Vitest environment. No Terra Med testing, real records, credentials, cards, checks or external payment services were used.
+Environment: local Windows checkout, synthetic PostgreSQL test database, Rails test environment, and `apps/web` Vite/Vitest environment. No external coding-agent testing, real records, credentials, cards, checks or external payment services were used.
 
 - Forward migration `20260903000400_harden_cash_tender_idempotency.rb` — **Pass**, applied to the test database and development schema snapshot; migration adds a practice-scoped cash request key, unique index, and nonblank/length constraint. The normal Rails schema dump reports the known local `pg_dump` PATH issue, so the snapshot was regenerated through the running PostgreSQL container and committed separately.
 - Luna follow-up audit — **Pass**, the migration was reviewed for a forward deployment with existing cash tenders; Luna replaced the unsafe blank default with a legacy-key backfill before enforcing `NOT NULL` and re-ran the boundary checks in commits `bdab67d` and `f4ceb34`.
@@ -126,9 +137,9 @@ Environment: local Windows checkout, synthetic PostgreSQL test database, Rails t
 - Web gate — **Pass**, `npm test` 13 files / 155 tests, `npm run typecheck`, and `npm run build`; build retains the existing large-bundle warning only.
 - UI-03 — **Pass at contract level**, the MUI cash workspace now requires an explicit physical-site drawer selection when multiple drawers are open. Live browser acceptance remains blocked by the previously recorded Loading/API-context environment issue.
 - Commits `40f8549` (implementation/tests), `59d10b2` (scoped replay lookup correction), `3332962` (schema snapshot), and `2fec7e6` (boundary tests) — **pushed**. Adjacent receivables commits `02c06f8`, `869bc4c`, `5bcce08`, `d637a99`, and `04a8515` are also upstream but remain outside this cash scope. Unrelated patient-portal edits remain dirty and intentionally unstaged.
-- Follow-up adjacent billing audit: Luna reviewed `bdab67d`/`f4ceb34` and `e715970`; focused age-boundary and web checks passed. A broader Rails workspace run was inconclusive only because local PostgreSQL setup hit an unrelated lock timeout (3 tests / 0 assertions); no code assertion failed and no Terra escalation was made.
+- Follow-up adjacent billing audit: Luna reviewed `bdab67d`/`f4ceb34` and `e715970`; focused age-boundary and web checks passed. A broader Rails workspace run was inconclusive only because local PostgreSQL setup hit an unrelated lock timeout (3 tests / 0 assertions); no code assertion failed and no escalation was needed.
 
-No failure was escalated to Terra Med because Luna's implementation and focused audit passed.
+No escalation was needed because Luna's implementation and focused audit passed.
 
 ## Handoff to the implementation package
 
