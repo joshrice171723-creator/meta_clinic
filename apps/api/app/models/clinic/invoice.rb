@@ -7,6 +7,7 @@ module Clinic
     belongs_to :patient, class_name: "Clinic::Care::Patient"
     has_many :lines, class_name: "Clinic::InvoiceLine", dependent: :restrict_with_error
     has_many :payment_allocations, class_name: "Clinic::PaymentAllocation", dependent: :restrict_with_error
+    has_many :payment_collection_intents, class_name: "Clinic::PaymentCollectionIntent", dependent: :restrict_with_error
     has_many :credit_notes, class_name: "Clinic::CreditNote", dependent: :restrict_with_error
     has_many :insurance_claims, class_name: "Clinic::InsuranceClaim", dependent: :restrict_with_error
 

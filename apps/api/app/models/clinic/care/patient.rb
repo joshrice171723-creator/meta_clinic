@@ -25,6 +25,8 @@ module Clinic
       has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
       has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error
       has_many :payment_events, class_name: "Clinic::PaymentEvent", dependent: :restrict_with_error
+      has_many :payment_collection_intents, class_name: "Clinic::PaymentCollectionIntent", dependent: :restrict_with_error
+      has_many :payment_processor_events, class_name: "Clinic::PaymentProcessorEvent", dependent: :restrict_with_error
       has_many :invoices, class_name: "Clinic::Invoice", dependent: :restrict_with_error
       has_many :coverage_versions, class_name: "Clinic::CoverageVersion", dependent: :restrict_with_error
       has_many :patient_memberships, class_name: "Clinic::Care::PatientMembership", dependent: :restrict_with_error
