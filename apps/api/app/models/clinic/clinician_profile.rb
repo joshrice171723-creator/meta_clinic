@@ -13,6 +13,7 @@ module Clinic
     validates :membership_id, uniqueness: { scope: :practice_id }
     validate :membership_belongs_to_practice
     validates :display_name, length: { maximum: 120 }, allow_nil: true
+    validates :reference, length: { maximum: 32 }, uniqueness: { scope: :practice_id }, allow_nil: true
 
     private
 

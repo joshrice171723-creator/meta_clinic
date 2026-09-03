@@ -581,7 +581,8 @@ function BookingForm({
                         key={clinician.id}
                         value={clinician.id.toString()}
                       >
-                        Clinician profile #{clinician.id}
+                        {clinician.reference ??
+                          `Clinician profile #${clinician.id}`}
                       </MenuItem>
                     ))}
                   </Select>

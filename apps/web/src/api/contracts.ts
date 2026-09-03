@@ -431,6 +431,7 @@ export type VisitType = { id: number; code: string; retired_at: string | null };
 export type Clinician = {
   id: number;
   membership_id: number;
+  reference: string | null;
   assignments?: {
     id: number;
     department_id: number | null;

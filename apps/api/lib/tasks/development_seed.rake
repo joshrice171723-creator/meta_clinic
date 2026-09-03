@@ -16,9 +16,10 @@ namespace :dev do
     abort "Refusing destructive seed refresh for database #{current_database.inspect}. Expected an explicitly configured *_development database." unless safe_database
 
     marker_path = Rails.root.join("tmp", "dev", "bulk-seed-refresh.marker")
-    marker = "bulk_v1|#{current_database}|#{Time.zone.today.iso8601}"
+    seed_date = Time.find_zone!(Development::BulkDevSeed::TIME_ZONE).today
+    marker = "bulk_v3|#{current_database}|#{seed_date.iso8601}"
     if File.file?(marker_path) && File.read(marker_path).strip == marker && Development::BulkDevSeed.ready?
-      puts "Dev seed data already refreshed for #{Time.zone.today}."
+      puts "Dev seed data already refreshed for #{seed_date}."
       next
     end
 

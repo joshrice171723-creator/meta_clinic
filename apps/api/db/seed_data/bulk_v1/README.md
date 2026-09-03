@@ -13,6 +13,6 @@ The loader reads the files in dependency order:
 | Office inventory | `office_items.csv` | 100 item types |
 | Pharmacy inventory | `pharmacy_products.csv`, `pharmacy_batches.csv`, `inventory_adjustments.csv` | 100 products, 200 batches, 100 adjustments |
 
-Every invoice has five lines. Patients have 1, 2 or 3 visits in a 20/40/40 distribution. Invoice rows cover draft, void, paid, partial and open balances. Patient, appointment, invoice and inventory history is dated within the prior 90 days.
+Every invoice has five lines. Patients have 1, 2 or 3 visits in a 20/40/40 distribution. Invoice rows cover draft, void, paid, partial and open balances. Patient, appointment, invoice and inventory history is distributed across the 90-day window centered on the local calendar date of the refresh. Six confirmed appointments remain open on the anchor date so the Tracking Board is populated. The seed anchor is noon in `America/Chicago`, so reruns on the same date are identical.
 
 The seeded role accounts use simple local addresses such as `omni@test.com` and `billing1@test.com`. The Omni account is compatible with the local development Omni verifier. Other active role accounts use `ApplyDev-<user_key>-2026!`; `disabled@test.com` is intentionally inactive.

@@ -38,7 +38,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
       get "/api/settings"
       assert_response :success
     end
-    assert_equal({ "palette" => "juniper", "mode" => "system", "version" => 0 }, response.parsed_body["appearance"])
+    assert_equal({ "palette" => "cobalt", "mode" => "light", "version" => 0 }, response.parsed_body["appearance"])
     assert_equal @user.id, response.parsed_body["user_id"]
     save_appearance
     assert_response :success
@@ -59,7 +59,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
     assert_not @user.reload.admin?
     sign_in(@other)
     get "/api/settings"
-    assert_equal "juniper", response.parsed_body.dig("appearance", "palette")
+    assert_equal "cobalt", response.parsed_body.dig("appearance", "palette")
     save_appearance(expected_user_id: @user.id)
     assert_response :conflict
     assert_nil Identity::Preference.find_by(user: @other)
@@ -122,6 +122,6 @@ class SettingsTest < ActionDispatch::IntegrationTest
     assert_raises(ActiveRecord::RecordNotUnique) do
       Identity::Preference.transaction(requires_new: true) { Identity::Preference.create!(user: @user) }
     end
-    assert_equal "juniper", record.reload.palette
+    assert_equal "cobalt", record.reload.palette
   end
 end

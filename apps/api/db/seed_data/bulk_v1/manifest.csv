@@ -1,5 +1,5 @@
 key,value
-version,bulk_v1
+version,bulk_v3
 window_days,90
 patient_count,100
 visit_count,220

@@ -16,8 +16,8 @@ export type ClinicMode = (typeof CLINIC_MODES)[number]["id"];
 export type ClinicAppearance = { palette: ClinicPalette; mode: ClinicMode };
 export type ColorScheme = "light" | "dark";
 export const DEFAULT_APPEARANCE: ClinicAppearance = {
-  palette: "juniper",
-  mode: "system",
+  palette: "cobalt",
+  mode: "light",
 };
 
 export function normalizeAppearance(value: unknown): ClinicAppearance {
@@ -27,8 +27,8 @@ export function normalizeAppearance(value: unknown): ClinicAppearance {
       : {};
   return {
     palette:
-      CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ?? "juniper",
-    mode: CLINIC_MODES.find((m) => m.id === candidate.mode)?.id ?? "system",
+      CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ?? "cobalt",
+    mode: CLINIC_MODES.find((m) => m.id === candidate.mode)?.id ?? "light",
   };
 }
 

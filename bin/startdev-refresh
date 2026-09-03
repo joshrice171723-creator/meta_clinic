@@ -122,7 +122,7 @@ run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "runner", connection_gu
   chdir: API_ROOT, environment: local_environment)
 
 puts "Replanting #{database} with wholly synthetic seed data..."
-seed_environment = local_environment.merge("APP_SYNTHETIC_SEEDS" => "1")
+seed_environment = local_environment.merge("APP_SYNTHETIC_SEEDS" => "1", "APP_DEV_SEED_PROFILE" => "bulk")
 run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:seed:replant",
   chdir: API_ROOT, environment: seed_environment)
 

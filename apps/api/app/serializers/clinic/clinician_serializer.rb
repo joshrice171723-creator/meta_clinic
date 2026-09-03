@@ -3,7 +3,8 @@ module Clinic
     def self.call(profile, detail: false)
       payload = {
         id: profile.id,
-        membership_id: profile.membership_id
+        membership_id: profile.membership_id,
+        reference: profile.reference
       }
       return payload unless detail
 

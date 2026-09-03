@@ -78,7 +78,7 @@ roles = {
 }.freeze
 
 write_csv(output_root, "manifest.csv", %w[key value], [
-  ["version", "bulk_v1"],
+  ["version", "bulk_v3"],
   ["window_days", "90"],
   ["patient_count", "100"],
   ["visit_count", "220"],
@@ -113,7 +113,7 @@ write_csv(output_root, "roles.csv", %w[role_key role_code version permissions], 
 end)
 
 write_csv(output_root, "role_grants.csv", %w[user_key role_key effective_days_ago], users.map do |user|
-  [user.fetch(0), user.fetch(6), "120"]
+  [user.fetch(0), user.fetch(6), "0"]
 end)
 
 first_names = %w[Avery Jordan Morgan Casey Riley Taylor Cameron Quinn Parker Skyler Emerson Finley Hayden Reese Dakota Rowan Alexis Sage Blake Drew Kendall Jamie Marley Elliot Ari Robin Charlie Micah Shawn Terry]
@@ -126,9 +126,9 @@ patients = 100.times.map do |index|
   number = index + 1
   [
     "patient_#{format('%03d', number)}",
-    "DEV-PAT-#{format('%03d', number)}",
+    "SYNTH_PAT_#{format('%03d', number)}",
     "#{last_names[index % last_names.length]}, #{first_names[index % first_names.length]}",
-    (index % 80) + 10,
+    index % 90,
     Date.new(1955 + (index * 3) % 52, (index % 12) + 1, (index % 27) + 1).iso8601,
     sexes[index % sexes.length],
     languages[index % languages.length],
@@ -153,7 +153,7 @@ visit_index = 0
 patients.each_with_index do |patient, patient_index|
   visit_count = patient_index < 20 ? 1 : patient_index < 60 ? 2 : 3
   visit_count.times do
-    day = (visit_index % 89) + 1
+    day = visit_index % 90
     slot = (visit_index / 89) % 3
     visit_rows << [
       "visit_#{format('%03d', visit_index + 1)}",
@@ -219,7 +219,7 @@ write_csv(output_root, "insurance_claims.csv", %w[claim_key invoice_key patient_
 
 office_rows = 100.times.map do |index|
   number = index + 1
-  ["office_#{format('%03d', number)}", "DEV-OFF-#{format('%03d', number)}", "Office supply #{format('%03d', number)}", 5 + (index % 20), 25 + (index % 60), (index % 80) + 10]
+  ["office_#{format('%03d', number)}", "OFF-#{format('%03d', number)}", "Office supply #{format('%03d', number)}", 5 + (index % 20), 25 + (index % 60), index % 90]
 end
 write_csv(output_root, "office_items.csv", %w[item_key sku name reorder_level opening_quantity days_ago], office_rows)
 
@@ -247,7 +247,7 @@ product_rows = 100.times.map do |index|
     "Dev Pharmacy Manufacturer",
     base,
     "Bottle of 100 #{form.downcase}s",
-    "DEV-RX-#{format('%03d', number)}",
+    "RX-#{format('%03d', number)}",
     20 + (index % 40),
     "true",
     "manual",
@@ -256,7 +256,7 @@ product_rows = 100.times.map do |index|
     100,
     "tablet",
     index % 25 == 0 ? "III" : "",
-    (index % 80) + 10
+    index % 90
   ]
 end
 write_csv(output_root, "pharmacy_products.csv", %w[product_key name generic_name ndc product_ndc dosage_form route labeler ingredients package_description sku reorder_point active source stock_unit quantity_scale package_size unit_reference dea_schedule days_ago], product_rows)
@@ -268,12 +268,12 @@ batch_rows = 200.times.map do |index|
   [
     "batch_#{format('%03d', number)}",
     "product_#{format('%03d', product_index + 1)}",
-    "DEV-LOT-#{format('%03d', product_index + 1)}#{index.even? ? "A" : "B"}",
+    "LOT-#{format('%03d', product_index + 1)}#{index.even? ? "A" : "B"}",
     locations[index % locations.length],
     120 + (index % 90),
     25 + (index % 30),
     "supplier_#{format('%02d', (index % 20) + 1)}",
-    (index % 80) + 10
+    index % 90
   ]
 end
 write_csv(output_root, "pharmacy_batches.csv", %w[batch_key product_key lot_number location expires_in_days opening_packages supplier_key days_ago], batch_rows)
@@ -285,7 +285,7 @@ adjustment_rows = 100.times.map do |index|
     "adjustment_out",
     25 + (index % 10),
     "DEV-SEED cycle usage adjustment #{index + 1}",
-    (index % 78) + 8
+    index % 90
   ]
 end
 write_csv(output_root, "inventory_adjustments.csv", %w[adjustment_key batch_key kind amount reason days_ago], adjustment_rows)

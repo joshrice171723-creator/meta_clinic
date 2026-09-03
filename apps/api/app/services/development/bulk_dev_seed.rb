@@ -8,6 +8,7 @@ module Development
     ORGANIZATION_NAME = "Dev Seed Organization"
     TIME_ZONE = "America/Chicago"
     WINDOW_DAYS = 90
+    CURRENT_FLOW_VISIT_KEYS = %w[visit_001 visit_002 visit_003 visit_004 visit_005 visit_006].freeze
 
     class << self
       def call(as_of: Time.current)
@@ -15,7 +16,7 @@ module Development
 
         rows = load_rows
         validate_rows!(rows)
-        as_of = as_of.respond_to?(:in_time_zone) ? as_of.in_time_zone(TIME_ZONE) : Time.zone.parse(as_of.to_s).in_time_zone(TIME_ZONE)
+        as_of = seed_anchor(as_of)
 
         ApplicationRecord.transaction do
           roles = seed_roles(rows.fetch("roles.csv"))
@@ -23,10 +24,11 @@ module Development
           practice = Clinic::Practice.find_or_initialize_by(name: PRACTICE_NAME)
           practice.organization = organization
           practice.timezone = TIME_ZONE
-          practice.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          practice.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           practice.save!
 
           users = seed_users(practice, rows.fetch("users.csv"), rows.fetch("role_grants.csv"), roles, as_of)
+          seed_staff_members(practice, rows.fetch("users.csv"), as_of)
           facilities = seed_facilities(practice, as_of)
           patients = seed_patients(practice, users.fetch(:admin), rows.fetch("patients.csv"), as_of)
           visits = seed_visits(practice, users.fetch(:admin), users.fetch(:clinicians), facilities, patients, rows.fetch("visits.csv"), as_of)
@@ -39,8 +41,12 @@ module Development
         practice = Clinic::Practice.find_by(name: PRACTICE_NAME)
         practice.present? &&
           practice.patients.count == 100 &&
+          practice.patients.where("reference LIKE ?", "SYNTH_PAT_%").count == 100 &&
+          practice.clinician_profiles.where("reference LIKE ?", "SYNTH_PROV_%").count == 2 &&
+          practice.staff_members.count == 13 &&
           practice.appointments.count == 220 &&
           practice.encounters.count == 220 &&
+          practice.encounters.open.count == CURRENT_FLOW_VISIT_KEYS.length &&
           Clinic::Invoice.where(practice_id: practice.id).count == 220 &&
           Clinic::InvoiceLine.where(practice_id: practice.id).count == 1100 &&
           practice.items.count == 100 &&
@@ -107,7 +113,7 @@ module Development
             else
               "ApplyDev-#{row.fetch('user_key')}-2026!"
             end
-            user.created_at = seed_timestamp(as_of, 120, hour: 7)
+            user.created_at = seed_timestamp(as_of, 0, hour: 7)
           end
           user.admin = boolean(row.fetch("admin"))
           user.active = boolean(row.fetch("active"))
@@ -133,7 +139,7 @@ module Development
             inventory_configure: permissions.include?("inventory.configure"),
             inventory_transfer: permissions.include?("inventory.transfer")
           )
-          membership.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          membership.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           membership.save!
 
           grants_by_user.fetch(row.fetch("user_key")).each do |grant_row|
@@ -163,7 +169,7 @@ module Development
         sites = %w[MAIN ANNEX].to_h do |code|
           site = practice.sites.find_or_initialize_by(code: code)
           site.timezone_override = TIME_ZONE
-          site.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          site.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           site.save!
           [code, site]
         end
@@ -172,13 +178,13 @@ module Development
           4.times do |index|
             room = site.rooms.find_or_initialize_by(code: "EXAM-#{index + 1}")
             room.practice = practice
-            room.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+            room.created_at ||= seed_timestamp(as_of, 0, hour: 7)
             room.save!
             rooms[[site.id, room.code]] = room
           end
         end
         department = practice.departments.find_or_initialize_by(code: "PRIMARY-CARE")
-        department.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+        department.created_at ||= seed_timestamp(as_of, 0, hour: 7)
         department.save!
         clinicians = {
           "test_clinician_1" => ["Alex Rowan, NP", "clinician1@test.com"],
@@ -188,23 +194,50 @@ module Development
           membership = Clinic::Membership.find_by!(practice: practice, user: user)
           profile = practice.clinician_profiles.find_or_initialize_by(membership_id: membership.id)
           profile.display_name = display_name
-          profile.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          profile.reference = provider_reference(key)
+          profile.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           profile.save!
           sites.each_value do |site|
             assignment = profile.assignments.find_or_initialize_by(practice: practice, site: site, department: department)
-            assignment.effective_from = seed_timestamp(as_of, 120, hour: 7)
-            assignment.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+            assignment.effective_from = seed_timestamp(as_of, 0, hour: 7)
+            assignment.created_at ||= seed_timestamp(as_of, 0, hour: 7)
             assignment.save!
           end
           [key, profile]
         end
         visit_types = %w[WELLNESS FOLLOW_UP NEW_CONCERN MEDICATION_REVIEW RESULTS_REVIEW CARE_PLAN].to_h do |code|
           visit_type = practice.visit_types.find_or_initialize_by(code: code)
-          visit_type.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          visit_type.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           visit_type.save!
           [code, visit_type]
         end
         { sites: sites, rooms: rooms, clinicians: clinicians, visit_types: visit_types }
+      end
+
+      def seed_staff_members(practice, rows, as_of)
+        titles = {
+          "omni_administrator" => "Clinic operations administrator",
+          "administrator" => "Clinic administrator",
+          "clinician" => "Clinician",
+          "staff" => "Clinical staff member",
+          "inventory" => "Inventory coordinator",
+          "billing" => "Billing specialist",
+          "front_desk" => "Front desk coordinator",
+          "reader" => "Records coordinator"
+        }
+
+        role_occurrences = Hash.new(0)
+        rows.each do |row|
+          role_key = row.fetch("role_key")
+          role_occurrences[role_key] += 1
+          job_title = titles.fetch(role_key)
+          job_title = "#{job_title} #{role_occurrences.fetch(role_key)}" if role_occurrences.fetch(role_key) > 1
+          staff = practice.staff_members.find_or_initialize_by(job_title: job_title)
+          staff.display_name = row.fetch("display_name")
+          staff.active = boolean(row.fetch("active"))
+          staff.created_at ||= seed_timestamp(as_of, 0, hour: 7)
+          staff.save!
+        end
       end
 
       def seed_patients(practice, admin, rows, as_of)
@@ -266,7 +299,7 @@ module Development
           room = facilities.fetch(:rooms).fetch([site.id, row.fetch("room_code")])
           clinician = facilities.fetch(:clinicians).fetch(row.fetch("clinician_key"))
           visit_type = facilities.fetch(:visit_types).fetch(row.fetch("visit_type_code"))
-          starts_at = seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: integer(row.fetch("start_hour")), minute: integer(row.fetch("start_minute")))
+          starts_at = current_flow_starts_at(as_of, row) || seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: integer(row.fetch("start_hour")), minute: integer(row.fetch("start_minute")))
           ends_at = starts_at + integer(row.fetch("duration_minutes")).minutes
           appointment = practice.appointments.find_by(patient_id: patient.id, starts_at: starts_at)
           appointment ||= Clinic::Scheduling::BookAppointment.call(practice: practice, actor: admin, patient: patient,
@@ -278,11 +311,13 @@ module Development
             encounter.participants.create!(practice: practice, patient: patient, membership: clinician.membership,
               participation_role: "clinician", effective_from: starts_at)
           end
-          if encounter.ended_at.nil?
+          unless current_flow_visit?(row) || encounter.ended_at.present?
             Clinic::Scheduling::CloseEncounter.call(encounter: encounter, actor: admin,
               request_key: uuid("encounter-close:#{row.fetch('visit_key')}"), ended_at: ends_at)
           end
-          Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: admin, to: "completed") if appointment.status == "confirmed"
+          unless current_flow_visit?(row)
+            Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: admin, to: "completed") if appointment.status == "confirmed"
+          end
           [row.fetch("visit_key"), { appointment: appointment.reload, encounter: encounter.reload, starts_at: starts_at }]
         end
       end
@@ -368,7 +403,7 @@ module Development
         suppliers = 20.times.to_h do |index|
           key = "supplier_#{format('%02d', index + 1)}"
           supplier = practice.inventory_suppliers.find_or_initialize_by(name: "Dev Supplier #{format('%02d', index + 1)}")
-          supplier.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          supplier.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           supplier.save!
           [key, supplier]
         end
@@ -378,7 +413,7 @@ module Development
         }.to_h do |name, kind|
           location = practice.inventory_locations.find_or_initialize_by(name: name)
           location.kind = kind
-          location.created_at ||= seed_timestamp(as_of, 120, hour: 7)
+          location.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           location.save!
           [name, location]
         end
@@ -440,10 +475,38 @@ module Development
         end
       end
 
-      def seed_timestamp(as_of, days_ago, hour:, minute: 0)
+      def seed_anchor(value)
         zone = ActiveSupport::TimeZone[TIME_ZONE]
-        date = as_of.in_time_zone(zone).to_date - days_ago.to_i.days
+        time = value.respond_to?(:in_time_zone) ? value.in_time_zone(zone) : Time.zone.parse(value.to_s).in_time_zone(zone)
+        zone.local(time.year, time.month, time.day, 12)
+      end
+
+      def seed_timestamp(as_of, source_day, hour:, minute: 0)
+        zone = ActiveSupport::TimeZone[TIME_ZONE]
+        date = as_of.in_time_zone(zone).to_date + source_day.to_i.days - (WINDOW_DAYS / 2).days
         zone.local(date.year, date.month, date.day, hour, minute)
+      end
+
+      def current_flow_visit?(row)
+        CURRENT_FLOW_VISIT_KEYS.include?(row.fetch("visit_key"))
+      end
+
+      # Keep a usable current-day board at every seed anchor while the rest of the
+      # bundle remains evenly distributed across the centered 90-day window.
+      def current_flow_starts_at(as_of, row)
+        return unless current_flow_visit?(row)
+
+        index = CURRENT_FLOW_VISIT_KEYS.index(row.fetch("visit_key"))
+        minutes_after_midnight = (13 * 60) + (index * 45)
+        hour = minutes_after_midnight / 60
+        minute = minutes_after_midnight % 60
+        zone = ActiveSupport::TimeZone[TIME_ZONE]
+        date = as_of.in_time_zone(zone).to_date
+        zone.local(date.year, date.month, date.day, hour, minute)
+      end
+
+      def provider_reference(key)
+        "SYNTH_PROV_#{key.delete_prefix('test_clinician_').to_i.to_s.rjust(3, '0')}"
       end
 
       def boolean(value)
