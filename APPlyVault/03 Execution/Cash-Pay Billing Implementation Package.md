@@ -187,11 +187,11 @@ Payment-related information can be protected health information in context; cash
 
 | Phase | Current execution status | Evidence or blocking authority |
 | --- | --- | --- |
-| 0 — Acceptance brief | Blocked | Drawer ownership, discrepancy approval, receipt fields, numbering, cash/check rules, superbill scope, processor ownership, retention, and release authority remain unapproved. These cannot be invented in code. |
+| 0 — Acceptance brief | Partially complete | Founder accepted one open drawer per site, staff open/close authority, non-blocking short/over close, cash refunds reducing expected cash, and printable money-event receipts. Invoice numbering, formal receipt fields/delivery, check-image handling, retention, superbill, processor, and release authority remain unapproved. |
 | 1 — Internal patient ledger | Complete locally | Read-only scoped ledger contract, Material UI patient ledger, focused regression, local synthetic desktop/narrow inspection. |
-| 2 — Cash/check terminal | In progress | Implement only an internal synthetic terminal with explicit source/tender evidence and existing locked allocation authority. No card entry or processor connection. |
-| 3 — Cash reconciliation | In progress | Implement only the locally specified drawer session/count/discrepancy record; no accounting export or real cash operation. |
-| 4 — Receipts | In progress | Implement an internally generated synthetic receipt record/render only after its minimum document fields are made explicit in source; no real delivery. |
+| 2 — Cash/check terminal | Cash complete locally; check scanning blocked | A server-authoritative cash terminal records tender, change, allocation, replay key, and a linked receipt in one transaction. Check scanning/OCR and check-image policy require an approved provider and retention/access rules. |
+| 3 — Cash reconciliation | Complete locally | One open drawer per site, opening float, received cash, change, cash refunds, expected/count/discrepancy, and non-blocking close are implemented and tested with synthetic records. No accounting export or real cash operation. |
+| 4 — Receipts | Basic cash receipts complete locally; production document scope blocked | Cash payment/refund receipts are immutable records with a scoped printable HTML view and no-store response header. Approved clinic identity, invoice numbering/service date, rendered-file digest/version, reprint/reissue, delivery, and PDF evidence remain blocked. |
 | 5 — Superbill decision | Blocked | Provider/code/date/signature/disclosure specification and qualified approval are absent. |
 | 6 — Stripe card source | Blocked | Processor account owner, contracts, test credentials, webhook secret, supported scope, dispute/refund policy, and security review are absent. |
 | 7 — Patient portal | Blocked | Portal identity, support, consent, document-delivery, accessibility, and privacy scope are unapproved. |
@@ -203,13 +203,21 @@ Payment-related information can be protected health information in context; cash
 
 **Verification recorded so far:** TypeScript typecheck and production Vite build pass; changed frontend files pass Prettier; the running local synthetic app was inspected at desktop and 768 px narrow widths, including patient selection and the empty-ledger response. A focused Rails integration test was added for ledger scope, exact balances, credit/refund projection, and processor-reference omission. Final commit/push evidence and the focused Rails completion are recorded in [[Progress Log]].
 
-**Still excluded:** Cash/check tender entry, cash drawer sessions, receipt/superbill documents, Stripe, processor webhooks, schema migrations, portal work, clinical fields, and any real payment or patient data.
+**Phase 1 scope exclusions (not current package status):** Cash/check tender entry, cash drawer sessions, receipt/superbill documents, Stripe, processor webhooks, schema migrations, portal work, clinical fields, and any real payment or patient data were excluded from this first ledger increment. Later entries below record the locally implemented cash portions.
 
-## Required implementation checklist for the next AI
+### Phase 2–4 delivery record — 2026-09-03
+
+**Implemented locally:** additive cash-drawer, tender, and receipt tables retain the existing payment-event/allocation ledger as financial authority. A staff member can open one drawer at a clinic site, record cash tender and change against a posted invoice, print the resulting receipt, record a cash refund only against a cash payment, and close a drawer even when its counted cash differs from the server-calculated expected cash. The patient financial ledger exposes only a `cash_payment`/receipt-available indicator for locally evidenced cash events; it does not expose processor references or invent a source for historical records. The Billing workspace uses Material UI controls for drawer open, collection, receipt access, close, and cash-only refund action.
+
+**Safeguards and evidence:** cash writes derive practice/actor on Rails, use exact-decimal validation, lock the drawer and existing allocation path, atomically create tender/receipt evidence, reject mismatched replay details, and retain cash refunds as separate history. The focused synthetic integration proof covers open → tender/change → same-key replay → refund → scoped printable receipt/no-store → expected cash → non-blocking discrepant close. TypeScript typecheck, production build, changed-file formatting, and Impeccable detection pass. A live browser render could not complete because the local workspace remained at its Loading state while its API context was unavailable; it is not claimed as UI acceptance.
+
+**Still blocked:** check scanning/OCR, check-image storage/deletion/access policy, invoice numbering and service-date decisions, approved receipt template/content/delivery/PDF/reissue policy, superbill specification, Stripe account/webhook secrets, patient portal, and every real-data/release authority.
+
+## Required continuation checklist for the next AI
 
 1. Read this package, [[CICD]], [[Software Architecture]], [[Working Agreement]], current [[Roadmap and Tasks]], and the closest `AGENTS.md` files before editing.
 2. Pull and inspect the current branch; preserve unrelated changes. Locate existing billing contracts/tests before adding a migration or UI abstraction.
-3. Select exactly one phase above. State its accepted inputs, non-goals, failure hypothesis, source files, and exit evidence.
+3. Recheck the whole-milestone status table and select only an unblocked remaining phase. State its accepted inputs, non-goals, failure hypothesis, source files, and exit evidence.
 4. Implement Rails authority first: migration/model constraints, authorization, transaction/locking/idempotency, serializer/query, route, and focused negative/concurrency tests.
 5. Then implement the smallest staff UI that consumes only the server contract. Use exact decimal strings; do not add local financial calculation authority.
 6. Add synthetic fixtures only when necessary, clearly labeled as synthetic. Never use real patient/card/payment data or secrets.
@@ -218,12 +226,12 @@ Payment-related information can be protected health information in context; cash
 
 ## Ready-to-use next prompt
 
-> Implement Phase 1 of `APPlyVault/03 Execution/Cash-Pay Billing Implementation Package.md` only: consolidate the existing internal Billing workspace and Patient balances surface into a scoped patient financial ledger. Preserve APPly’s Rails/PostgreSQL invoice, payment, allocation, credit, refund, authorization, exact-decimal, and audit authority. Do not add Stripe, card collection, cash drawers, documents, clinical fields, migrations, or patient portal functionality. Start with a read-only contract and test audit, then implement the smallest server projection and React UI needed to show a selected patient’s invoices, payments/allocations, credits/refunds, and derived balance. Preserve identity-only lookup and capability boundaries. Add focused API/web tests and live synthetic desktop/narrow proof. Pull/merge/commit/push the finished scoped change and report all evidence plus remaining Phase 2 gates.
+> Continue `APPlyVault/03 Execution/Cash-Pay Billing Implementation Package.md` from its current whole-milestone status. Do not repeat Phases 1–3 or present the basic cash receipt as a production document. First obtain or record the exact missing authority for one blocked item (check scanner/OCR and image policy, invoice numbering/service date, approved receipt/PDF/reissue/delivery contract, superbill specification, Stripe ownership/secrets, portal identity, or release controls). Then implement only that accepted increment with Rails authority, exact decimals, tenant/actor checks, additive migrations, focused negative tests, Material UI staff UI when relevant, local synthetic browser proof, package/Progress Log update, commit, and push. Never use real payment/card/check/patient data or external credentials.
 
-## Open decisions before Phase 2
+## Open decisions before the next increment
 
-- Who owns a drawer, approves a discrepancy, and may reopen/correct a close?
-- Is check payment in the first collection scope, and what reference is required?
+- Drawer ownership/close and later manager reconciliation are accepted locally. Reopen/correction rules remain unapproved.
+- Is check payment in the first collection scope, which scanned fields are required, and which approved provider handles scanning/OCR and image custody?
 - At what lifecycle point is an invoice number assigned, and what format/void rule applies?
 - What exact receipt fields and delivery channels are approved?
 - Is a superbill in product scope, and who owns the approved code/provider/signature specification?
