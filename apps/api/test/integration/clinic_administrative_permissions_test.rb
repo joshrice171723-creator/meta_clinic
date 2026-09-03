@@ -177,13 +177,17 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     drawer = @practice.cash_drawer_sessions.create!(site: @site, opened_by: @users.fetch("billing_operator"), opening_float: "10.00")
     before = [ Clinic::PaymentEvent.count, Clinic::PaymentAllocation.count, Clinic::CashTender.count, Clinic::BillingReceipt.count ]
 
-    Clinic::BillingReceipt.singleton_class.stub(:create!, ->(*) { raise RuntimeError, "synthetic receipt failure" }) do
+    original_receipt_create = Clinic::BillingReceipt.method(:create!)
+    Clinic::BillingReceipt.singleton_class.define_method(:create!) { |*| raise RuntimeError, "synthetic receipt failure" }
+    begin
       assert_raises(RuntimeError) do
         Clinic::Billing::RecordCashPayment.call(
           practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient, invoice: posted_invoice,
           drawer_session: drawer, tendered_amount: "10.00", allocation_amount: "10.00", request_key: "SYN-ROLLBACK-001"
         )
       end
+    ensure
+      Clinic::BillingReceipt.singleton_class.define_method(:create!, original_receipt_create)
     end
 
     assert_equal before, [ Clinic::PaymentEvent.count, Clinic::PaymentAllocation.count, Clinic::CashTender.count, Clinic::BillingReceipt.count ]

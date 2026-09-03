@@ -8,7 +8,7 @@ module Clinic
         raise ArgumentError, "Cash tender must cover the allocation amount." if tendered < allocated
 
         ApplicationRecord.transaction do
-          existing_tender = practice.cash_tenders.lock.find_by(request_key: request_key)
+          existing_tender = Clinic::CashTender.where(practice: practice).lock.find_by(request_key: request_key)
           if existing_tender
             existing_allocation = existing_tender.payment_event.allocations.find_by(invoice: invoice)
             unless existing_allocation && existing_tender.patient_id == patient.id &&
