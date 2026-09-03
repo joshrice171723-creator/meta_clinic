@@ -91,6 +91,7 @@ module Development
           seed_chart_history(practice, patients, sites, clinicians, users)
           seed_tracking_board_scenarios(practice, patients, sites, clinicians, users)
           seed_external_workflow_examples(practice, patients.first, actor, label)
+          InventoryScenario.populate!(practice: practice, actor: actor)
         end
       end
       practice
@@ -125,6 +126,7 @@ module Development
       end
       users = create_users(practice, label, roles)
       actor = users.fetch("admin").first
+      inventory_actor = users.fetch("inventory").second
 
       PaperTrail.request(whodunnit: actor.id.to_s, controller_info: { causal_id: "synthetic-backend-seed-v2" }) do
         sites = seed_facilities(practice)
@@ -140,6 +142,7 @@ module Development
         seed_tracking_board_scenarios(practice, patients, sites, clinicians, users)
         seed_external_workflow_examples(practice, patients.first, actor, label)
         seed_staff_and_inventory(practice, actor, label)
+        InventoryScenario.populate!(practice: practice, actor: inventory_actor)
       end
       practice
     end

@@ -267,6 +267,34 @@ export type ClinicInvoice = {
   credit_amount?: Decimal;
   balance_amount?: Decimal;
 };
+export type BillingCurrencyMetrics = {
+  currency: string;
+  monthly_invoiced: Decimal;
+  collected: Decimal;
+  outstanding: Decimal;
+};
+export type BillingInvoiceSummary = {
+  id: number;
+  status: "draft" | "posted" | "void";
+  currency: string;
+  total: Decimal;
+  allocated: Decimal;
+  balance: Decimal;
+  created_at: string;
+};
+export type BillingDashboard = {
+  schema_version: "clinic-billing-v1";
+  practice: { id: number; name: string; timezone: string };
+  period: { start: string; end: string };
+  metrics: {
+    invoice_count: number;
+    posted_count: number;
+    draft_count: number;
+    void_count: number;
+    currencies: BillingCurrencyMetrics[];
+  };
+  recent_invoices: BillingInvoiceSummary[];
+};
 export type ClinicSite = {
   id: number;
   code: string;

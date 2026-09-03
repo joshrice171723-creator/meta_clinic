@@ -24,6 +24,7 @@ import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
 import { FrontDesk } from "./features/clinic/FrontDesk";
 import { Billing } from "./features/clinic/Billing";
+import { BillingDashboard } from "./features/clinic/BillingDashboard";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import {
   ChartSelectionPage,
@@ -200,8 +201,10 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <Staff />
   ) : path === "/clinic/front-desk" ? (
     <FrontDesk />
-  ) : path === "/clinic/billing" ? (
+  ) : path === "/clinic/billing/patients" ? (
     <Billing />
+  ) : path === "/clinic/billing" ? (
+    <BillingDashboard />
   ) : (
     <h1>Page not found.</h1>
   );

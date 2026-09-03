@@ -128,6 +128,7 @@ export function ClinicFrame({
           </a>
           <div className="practice-label">
             <strong>{practiceName}</strong>
+            <span>Local synthetic prototype</span>
           </div>
           {navigation}
           <div className="clinic-sidebar-bottom">

@@ -91,6 +91,7 @@ const contextCapabilities = {
   notes_write: true,
   documents: true,
   messages: true,
+  billing_read: true,
   billing: true,
   roles: true,
 };
@@ -593,6 +594,19 @@ describe("board and Operations presentation boundaries", () => {
     expect(schedule).toContain("Schedule");
     expect(schedule).not.toContain(
       'aria-current="page">Tracking Board</button>',
+    );
+  });
+  it("adds Billing navigation and preserves the billing destination", () => {
+    const html = renderToStaticMarkup(
+      <ClinicNavigation
+        capabilities={contextCapabilities}
+        path="/clinic/billing"
+      />,
+    );
+    expect(html).toContain('href="/clinic/billing" aria-current="page"');
+    expect(loginDestination("/clinic/billing")).toBe("/clinic/billing");
+    expect(loginDestination("/clinic/billing/patients")).toBe(
+      "/clinic/billing/patients",
     );
   });
 });

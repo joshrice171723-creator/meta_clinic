@@ -79,7 +79,8 @@ puts "PASS: simultaneous revisions reject the stale writer"
 Development::InventoryScenario.populate!(practice: practice, actor: actor)
 wire = Clinic::Inventory::InventoryWire.call(practice: practice, actor: actor)
 raise "Inventory wire omitted canonical products" unless wire.fetch(:products).map { |product| product.fetch(:ndc) }.sort == %w[00063-0876-21 00555-0134-02]
-raise "Inventory wire omitted canonical package IDs" unless wire.fetch(:packages).map { |package| package.fetch(:id) }.sort == %w[pkg_acetaminophen_bottle pkg_dextroamphetamine_bottle]
+expected_package_ids = practice.pharmacy_products.order(:id).pluck(:id).map { |id| "pkg_#{id}" }.sort
+raise "Inventory wire omitted stable package IDs" unless wire.fetch(:packages).map { |package| package.fetch(:id) }.sort == expected_package_ids
 order = practice.inventory_purchase_orders.find_by!(number: "PO-2026-000345")
 line = order.lines.sole
 raise "Purchase-order arithmetic is not canonical" unless [ line.ordered_quantity.to_i, line.received_quantity.to_i, order.subtotal.to_f, order.shipping.to_f, order.total.to_f ] == [ 45, 40, 108.0, 12.0, 120.0 ]
@@ -87,7 +88,7 @@ receipt = order.receipts.includes(:lines).sole
 raise "Receipt linkage or quantity is incomplete" unless receipt.shipment_id.present? && receipt.lines.sole.quantity.to_i == 4000
 recalled_batch = practice.pharmacy_products.find_by!(sku: "SYN-ACET-500").batches.find_by!(lot_number: "250601A", location: "Quarantine")
 raise "Recall did not remove availability" unless !recalled_batch.available? && recalled_batch.quantity.to_i == 4000
-returns = practice.inventory_locations.create!(name: "Returns Holding")
+returns = practice.inventory_locations.find_or_create_by!(name: "Returns Holding") { |location| location.kind = "returns" }
 active_batch = practice.pharmacy_products.find_by!(sku: "SYN-ACET-500").batches.find_by!(lot_number: "250701B", location: "Main Pharmacy")
 transfer_key = SecureRandom.uuid
 transfer = Clinic::Inventory::TransferStock.call(practice: practice, actor: actor, source_batch_id: active_batch.id, destination_location_id: returns.id, amount: 25, reason: "Synthetic transfer trace", request_key: transfer_key)
@@ -125,7 +126,9 @@ end
 Clinic::Inventory::RecallDisposition.execute!(recall: recall, actor: actor, batch_id: recalled_batch.id, quantity: 4000, method: "return_to_supplier", evidence_reference: "SYN-RMA-4000", reason: "Synthetic supplier return", request_key: SecureRandom.uuid)
 raise "Recall disposition did not close the held quantity" unless recall.reload.status == "disposition_complete"
 other_practice = Development::BackendSamples.call.last
-raise "Foreign practice inventory leaked into the wire" unless Clinic::Inventory::InventoryWire.call(practice: other_practice, actor: other_practice.memberships.joins(:user).find_by!(users: { email_address: "synthetic-review-b-admin@example.invalid" }).user).fetch(:products).empty?
+other_products = Clinic::Inventory::InventoryWire.call(practice: other_practice, actor: other_practice.memberships.joins(:user).find_by!(users: { email_address: "synthetic-review-b-admin@example.invalid" }).user).fetch(:products)
+first_practice_product_ids = practice.pharmacy_products.ids.map(&:to_s)
+raise "Foreign practice inventory leaked into the wire" if other_products.any? { |product| first_practice_product_ids.include?(product.fetch(:id)) }
 puts "PASS: inventory wire, PO/receipt traceability, recall blocking/disposition, transfer replay, tenant isolation and controlled separation-of-duties"
 
 # Exercise the actual grants file with a unique no-login role on this scratch DB.

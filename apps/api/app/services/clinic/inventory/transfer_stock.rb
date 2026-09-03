@@ -26,7 +26,7 @@ module Clinic
             transfer = Transfer.create!(practice_id: practice.id, source_batch: source, destination_batch: destination, actor: actor, quantity: quantity, reason: reason, request_key: request_key)
             source.movements.create!(practice_id: practice.id, actor: actor, profile: profile, transfer: transfer, kind: "adjustment_out", quantity: -quantity, stock_unit: source.product.stock_unit, reason: "Transfer to #{destination_location.name}: #{reason}", request_key: "#{request_key}:out", occurred_at: Time.current)
             destination.movements.create!(practice_id: practice.id, actor: actor, profile: profile, transfer: transfer, kind: "adjustment_in", quantity: quantity, stock_unit: destination.product.stock_unit, reason: "Transfer from #{source.location}: #{reason}", request_key: "#{request_key}:in", occurred_at: Time.current)
-            if [ "Quarantine", "Returns Holding" ].include?(destination_location.name)
+            if %w[quarantine returns].include?(destination_location.kind)
               destination.holds.create!(practice_id: practice.id, actor: actor, transfer: transfer, kind: "quarantined", reason: "Transfer routed to #{destination_location.name}", request_key: "#{request_key}:hold")
             end
             transfer

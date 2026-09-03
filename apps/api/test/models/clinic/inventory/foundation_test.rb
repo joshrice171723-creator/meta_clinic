@@ -44,6 +44,19 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     assert_equal "-0.025", wire.fetch(:controlled_reconciliations).sole.fetch(:variance_units)
   end
 
+  test "inventory wire exposes only recorded supplier links and receipt areas" do
+    supplier_name = "Supplier with a name collision"
+    receive(lines: [ @line.merge(area_id: "shelf-a") ], supplier: supplier_name)
+    supplier = Clinic::Inventory::Supplier.find_by!(practice: @practice, name: supplier_name)
+    wire = Clinic::Inventory::InventoryWire.call(practice: @practice, actor: @user)
+
+    product = wire.fetch(:products).sole
+    assert_equal supplier.id.to_s, product.fetch(:preferred_supplier_id)
+    assert_equal supplier.name, product.fetch(:preferred_supplier)
+    location = wire.fetch(:locations).sole
+    assert_equal [ "shelf-a" ], location.fetch(:areas)
+  end
+
   test "multi-line failures roll back the whole delivery and refuse ambiguous quantities" do
     [ "NaN", "Infinity", "1e2", "0.0001", "-1" ].each do |amount|
       assert_raises(ArgumentError) { receive(lines: [ @line, @line.merge(amount: amount, input_unit: "mL") ]) }
@@ -145,12 +158,26 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     receive
     revoke_all_permissions!(@membership)
     grant_permissions!(@membership, "inventory.transfer")
-    destination = @practice.inventory_locations.create!(name: "Returns Holding")
+    destination = @practice.inventory_locations.create!(name: "Returns Holding", kind: "returns")
     transfer = Clinic::Inventory::TransferStock.call(practice: @practice, actor: @user,
       source_batch_id: @product.batches.sole.id, destination_location_id: destination.id,
       amount: "1", reason: "Synthetic transfer hold", request_key: SecureRandom.uuid)
 
     assert_equal BigDecimal("1"), transfer.quantity
     assert @product.batches.where(location_id: destination.id).sole.active_holds.exists?
+
+    source_movement = @product.batches.find_by(location_id: @practice.inventory_locations.find_by!(name: "Shelf").id).movements.find_by(kind: "adjustment_out")
+    reject_sql do
+      Clinic::Inventory::PharmacyMovement.insert_all!([ source_movement.attributes.except("id").merge(
+        "batch_id" => @product.batches.where(location_id: destination.id).sole.id,
+        "request_key" => SecureRandom.uuid,
+        "transfer_id" => transfer.id
+      ) ])
+    end
+    reject_sql do
+      Clinic::Inventory::PharmacyMovement.insert_all!([ source_movement.attributes.except("id").merge(
+        "request_key" => SecureRandom.uuid
+      ) ])
+    end
   end
 end

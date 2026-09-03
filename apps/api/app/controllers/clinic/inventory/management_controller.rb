@@ -52,7 +52,7 @@ module Clinic
             raise ArgumentError, "A purchase order needs 1–100 lines." unless rows.size.between?(1, 100)
             supplier = input[:supplier_id].present? ? current_practice.inventory_suppliers.find(input[:supplier_id]) : nil
             subtotal = BigDecimal("0")
-            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{Time.current.strftime('%Y%m%d%H%M%S')}", status: "draft", destination: input[:destination].presence || "Main Pharmacy", reason: input[:reason].presence || "User-entered replenishment request", request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
+            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{Time.current.strftime('%Y%m%d%H%M%S')}", status: "draft", destination: input.require(:destination), reason: input[:reason].presence || "Replenishment request", request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
             products = current_practice.pharmacy_products.where(id: rows.map { |row| row[:product_id] }).index_by { |product| product.id.to_s }
             rows.each do |row|
               product = products[row[:product_id].to_s] || raise(ActiveRecord::RecordNotFound)
@@ -95,11 +95,11 @@ module Clinic
         product = line.product
         lot = Lot.where(practice_id: current_practice.id, product_id: product.id).find_by(number: input.require(:lot_number))
         recalled = lot&.batches&.any? { |batch| batch.active_holds.where(kind: "recalled").exists? }
-        if recalled && input[:destination_location].to_s == "Main Pharmacy"
-          raise ArgumentError, "Blocking recall match: this lot may only be routed to Quarantine."
+        destination = current_practice.inventory_locations.find_by!(name: input.require(:destination_location))
+        if recalled && destination.kind != "quarantine"
+          raise ArgumentError, "Blocking recall match: this lot must be routed to a quarantine location."
         end
-        destination = input[:destination_location].presence || "Quarantine"
-        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input[:reason].presence || "Partial shipment receipt", request_key: request_key, purchase_order: order, shipment: shipment, status: input[:status].presence || "quarantined", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
+        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input[:reason].presence || "Shipment receipt", request_key: request_key, purchase_order: order, shipment: shipment, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), receipt_id: receipt.id }
       end
 
@@ -140,14 +140,14 @@ module Clinic
 
       def create_recall
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
-        input = params[:recall].presence || params
+        input = params.require(:recall).permit(:request_key, :batch_id, :lot_id, :location_id, :reference, :reason, :required_disposition)
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
+        expected_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
         recall = Recall.transaction do
           Access.retry_lock(current_practice.id, request_key)
           existing = Recall.where(practice_id: current_practice.id).find_by(request_key: request_key)
           if existing
-            expected_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
             raise ArgumentError, "This recall request key was already used for different data." unless existing.payload_digest == expected_digest
             existing
           else

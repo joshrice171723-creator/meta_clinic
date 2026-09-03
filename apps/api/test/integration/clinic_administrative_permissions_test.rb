@@ -97,6 +97,8 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     login(reader)
     get "/api/clinic/invoices/#{invoice.id}", headers: @headers
     assert_response :success
+    get "/api/clinic/billing", headers: @headers
+    assert_response :success
     post "/api/clinic/patients/#{@patient.id}/invoices", params: invoice_payload,
       headers: csrf_headers, as: :json
     assert_response :forbidden
@@ -114,6 +116,8 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
 
     legacy = administrative_user("legacy-billing-writer", "billing.write")
     login(legacy)
+    get "/api/clinic/billing", headers: @headers
+    assert_response :forbidden
     post "/api/clinic/patients/#{@patient.id}/invoices", params: invoice_payload,
       headers: csrf_headers, as: :json
     assert_response :created

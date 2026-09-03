@@ -5,13 +5,14 @@ module Clinic
 
       def call(practice:, actor:)
         products = PharmacyProduct.where(practice_id: practice.id).order(:name, :id).to_a
-        batches = PharmacyBatch.where(practice_id: practice.id).includes(:product, :lot, :location_record, :holds, :receipt_lines).order(:expires_on, :id).to_a
+        batches = PharmacyBatch.where(practice_id: practice.id).includes(:product, :lot, :location_record, :holds, receipt_lines: { receipt: :supplier }).order(:expires_on, :id).to_a
         lots = batches.map(&:lot).compact.uniq(&:id)
         locations = batches.map(&:location_record).compact.uniq(&:id)
         recalls = Recall.where(practice_id: practice.id).includes(:product, :recall_lots, :dispositions).order(id: :desc).to_a
         counts = Count.where(practice_id: practice.id).includes(:approval, batch: :product).order(id: :desc).to_a
         orders = PurchaseOrder.where(practice_id: practice.id).includes(:supplier, :lines, :shipments, :receipts).order(id: :desc).limit(100).to_a
         receipts = Receipt.where(practice_id: practice.id).includes(:actor, :supplier, :lines, :shipment, :purchase_order).order(id: :desc).limit(100).to_a
+        suppliers = Supplier.where(practice_id: practice.id).order(:name, :id).to_a
         area_by_location = ReceiptLine.where(practice_id: practice.id, batch_id: batches.map(&:id)).where.not(area_id: nil).includes(batch: :location_record).to_a.group_by { |line| line.batch.location_id }.transform_values { |lines| lines.map(&:area_id).compact.uniq }
         movements = PharmacyMovement.where(practice_id: practice.id).includes(batch: %i[product lot location_record]).order(id: :desc).limit(200).to_a
         {
@@ -24,8 +25,9 @@ module Clinic
           users: [ { id: actor.id.to_s, name: actor.email_address.split("@").first.tr("._-", " ").titleize } ],
           current_user_id: actor.id.to_s,
           capabilities: capabilities(practice, actor),
-          products: products.map { |product| product_wire(product, batches) },
+          products: products.map { |product| product_wire(product, batches, suppliers) },
           packages: products.map { |product| package_wire(product) },
+          suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
           locations: locations.map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, areas: area_by_location.fetch(location.id, []) } },
           lots: lots.map { |lot| lot_wire(lot, batches, recalls) },
           balances: batches.map { |batch| balance_wire(batch) },
@@ -52,13 +54,13 @@ module Clinic
         end
       end
 
-      def product_wire(product, batches)
+      def product_wire(product, batches, suppliers)
         product_batches = batches.select { |batch| batch.product_id == product.id }
         available = product_batches.sum { |batch| batch.available? ? batch.quantity.to_d : 0 }
         on_hand = product_batches.sum { |batch| batch.quantity.to_d }
         package = package_wire(product)
-        preferred_supplier = product_batches.map(&:supplier).compact.first
-        { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, schedule: product.respond_to?(:dea_schedule) ? product.dea_schedule : nil, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: preferred_supplier, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
+        supplier = product_batches.flat_map(&:receipt_lines).filter_map(&:receipt).max_by { |receipt| [ receipt.received_at, receipt.id ] }&.supplier
+        { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, schedule: product.dea_schedule, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
       end
 
       def package_wire(product)
@@ -94,7 +96,7 @@ module Clinic
       end
 
       def receipt_wire(receipt)
-        { id: "receipt_#{receipt.id}", shipment_id: receipt.shipment_id&.to_s, status: receipt.status, received_by: receipt.actor_id.to_s, started_at: receipt.received_at.iso8601, lines: receipt.lines.map { |line| { id: "rline_#{line.id}", lot_id: line.batch.lot_id.to_s, quantity_packages: line.input_unit == "package" ? line.input_quantity.to_d.to_s("F") : (line.quantity.to_d / line.conversion_factor.to_d).to_s("F"), quantity_units: line.quantity.to_d.to_s("F"), location_id: line.batch.location_id.to_s, area_id: line.area_id || areas_for(line.batch.location).first, disposition: line.disposition, temperature_c: line.temperature_c&.to_s, exception: line.exception } } }
+        { id: "receipt_#{receipt.id}", shipment_id: receipt.shipment_id&.to_s, status: receipt.status, received_by: receipt.actor_id.to_s, started_at: receipt.received_at.iso8601, lines: receipt.lines.map { |line| { id: "rline_#{line.id}", lot_id: line.batch.lot_id.to_s, quantity_packages: line.input_unit == "package" ? line.input_quantity.to_d.to_s("F") : (line.quantity.to_d / line.conversion_factor.to_d).to_s("F"), quantity_units: line.quantity.to_d.to_s("F"), location_id: line.batch.location_id.to_s, area_id: line.area_id, disposition: line.disposition, temperature_c: line.temperature_c&.to_s, exception: line.exception } } }
       end
 
       def recall_wire(recall)
@@ -127,16 +129,6 @@ module Clinic
       def cycle_count_wire(count)
         expected = count.approval.present? ? count.observed_quantity.to_d : count.expected_quantity.to_d
         { id: count.id.to_s, lot_id: count.batch.lot_id.to_s, location_id: count.batch.location_id.to_s, expected_units: expected.to_d.to_s("F"), counted_units: count.observed_quantity.to_d.to_s("F"), variance_units: (count.observed_quantity.to_d - expected).to_s("F"), status: count.approval ? "approved" : "posted" }
-      end
-
-      def areas_for(name)
-        case name
-        when "Main Pharmacy" then [ "shelf_a2" ]
-        when "Quarantine" then [ "quarantine_bin_1" ]
-        when "Controlled Cabinet" then [ "cabinet_c2" ]
-        when "Returns Holding" then [ "returns_bin_1" ]
-        else [ "general_storage" ]
-        end
       end
     end
   end

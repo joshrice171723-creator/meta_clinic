@@ -161,6 +161,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_nothing_raised do
         Development::InventoryScenario.populate!(practice: practice, actor: omni)
       end
+      assert_equal "II", practice.pharmacy_products.find_by!(sku: "SYN-DEX-010").dea_schedule
       get "/api/settings", headers: @headers
       assert_response :success
       tables = ApplicationRecord.connection.tables - %w[schema_migrations ar_internal_metadata]

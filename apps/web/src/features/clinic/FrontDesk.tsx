@@ -56,10 +56,7 @@ export function FrontDesk() {
           {canBilling ? (
             <a href="/clinic/billing">
               <strong>Open billing</strong>
-              <span>
-                Choose a patient first; balances are shown from that patient’s
-                record.
-              </span>
+              <span>Review invoices and balances.</span>
             </a>
           ) : (
             <Unavailable label="Billing" />

@@ -289,7 +289,6 @@ function ConfirmButton({
       >
         <div>
           <strong>Confirm this inventory action?</strong>
-          <p>The record will be appended to the audit trail.</p>
         </div>
         <div className="inventory-confirm-actions">
           <button
@@ -981,7 +980,7 @@ function PurchasingScreen({
         reason: `User advanced purchase order to ${next[0]}.`,
       },
       "Purchase order updated",
-      `${order.number} is now ${next[0].replaceAll("_", " ")}. The transition is recorded in the immutable order event trail.`,
+      `${order.number} is now ${next[0].replaceAll("_", " ")}.`,
     );
   const cancel = () =>
     void run(
@@ -1089,7 +1088,7 @@ function PurchasingScreen({
         </div>
       </Card>
       <div className="inventory-two-col wide-left">
-        <Card title="Frozen line snapshot">
+        <Card title="Order lines">
           <div className="inventory-table-wrap">
             <table>
               <thead>
@@ -1139,7 +1138,7 @@ function PurchasingScreen({
                     </small>
                   </td>
                   <td className="numeric">
-                    {money(line.package_price)} / bottle
+                    {money(line.package_price)} / {packageUnit}
                   </td>
                 </tr>
               </tbody>
@@ -1498,9 +1497,9 @@ function LotsScreen({
   const [action, setAction] = useState<"transfer" | "adjust" | "count">(
     "transfer",
   );
-  const [quantity, setQuantity] = useState<Decimal>("100");
+  const [quantity, setQuantity] = useState<Decimal>("1");
   const [destination, setDestination] = useState(
-    data.locations.find((item) => item.name === "Returns Holding")?.id ??
+    data.locations.find((item) => item.kind === "returns")?.id ??
       data.locations[0]?.id ??
       "",
   );
@@ -1529,7 +1528,7 @@ function LotsScreen({
           },
         },
         "Transfer posted",
-        `${number(quantity)} tablets were posted as an equal out/in pair.`,
+        `${number(quantity)} ${selectedProduct.base_unit} were posted as an equal out/in pair.`,
       );
     else if (action === "adjust")
       void run(
@@ -1543,7 +1542,7 @@ function LotsScreen({
           },
         },
         "Adjustment posted",
-        "A new immutable movement was appended; prior ledger entries were not edited.",
+        "Inventory adjusted.",
       );
     else
       void run(
@@ -1557,7 +1556,7 @@ function LotsScreen({
           },
         },
         "Cycle count posted",
-        "The count and signed variance are now in the server snapshot.",
+        "Cycle count recorded.",
       );
   };
   const blocked =
@@ -1585,7 +1584,7 @@ function LotsScreen({
           value={number(
             decimalSum(data.balances.map((item) => item.held_units)),
           )}
-          detail="Umbrella hold total"
+          detail="Safety holds"
           tone="warning"
         />
         <Metric
@@ -1673,13 +1672,6 @@ function LotsScreen({
               label="Expires"
               value={inventoryDate(selectedLot.expiration_date, data.timezone)}
             />
-          </div>
-          <div className="inventory-muted-panel">
-            <strong>Available stock is server-derived.</strong>
-            <p>
-              Held, recalled, blocked, expired, and inactive product records
-              cannot be used as available inventory.
-            </p>
           </div>
           <div className="inventory-form-actions">
             <button
@@ -1789,7 +1781,7 @@ function LotsScreen({
           <div className="inventory-stack compact">
             <DataPoint
               label="Available"
-              value={`${number(selected.available_units)} tablets`}
+              value={`${number(selected.available_units)} ${selectedProduct.base_unit}`}
             />
             <p
               className={
@@ -1798,7 +1790,7 @@ function LotsScreen({
             >
               {blocked
                 ? "Action blocked: held, recalled, or unavailable stock cannot transfer."
-                : "This lot is eligible for an available-stock operation."}
+                : "Available for transfer."}
             </p>
           </div>
         </Card>
@@ -1882,17 +1874,25 @@ function RecallScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const recall = data.recalls[0];
+  const [recallId, setRecallId] = useState(data.recalls[0]?.id ?? "");
+  const recall =
+    data.recalls.find((record) => record.id === recallId) ?? data.recalls[0];
   const item = recall && product(data, recall.product_id);
-  const recalledLot =
-    recall &&
-    data.lots.find((lotItem) =>
-      recall.lot_numbers.includes(lotItem.lot_number),
-    );
+  const recallLotIds = recall
+    ? data.lots
+        .filter((record) => recall.lot_numbers.includes(record.lot_number))
+        .map((record) => record.id)
+    : [];
+  const recallBalances = data.balances.filter((record) =>
+    recallLotIds.includes(record.lot_id),
+  );
+  const [balanceId, setBalanceId] = useState("");
   const batch =
-    recalledLot &&
-    data.balances.find((balance) => balance.lot_id === recalledLot.id);
-  const [quantity, setQuantity] = useState<Decimal>(recall?.held_units ?? "0");
+    recallBalances.find((record) => record.id === balanceId) ??
+    recallBalances[0];
+  const recalledLot = batch && lot(data, batch.lot_id);
+  const batchLocation = batch && location(data, batch.location_id);
+  const [quantity, setQuantity] = useState<Decimal>(batch?.held_units ?? "0");
   const [evidence, setEvidence] = useState("");
   if (!recall || !item || !recalledLot || !batch)
     return (
@@ -1908,13 +1908,13 @@ function RecallScreen({
         disposition: {
           batch_id: batch.id.replace("bal_", ""),
           quantity_units: quantity,
-          method: "return_to_supplier",
+          method: recall.required_disposition,
           evidence_reference: evidence,
           reason: "Approved recall disposition",
         },
       },
       "Disposition recorded",
-      `${number(quantity)} tablets were returned to the supplier and the evidence reference was appended.`,
+      `${number(quantity)} ${item.base_unit} recorded.`,
     );
   };
   const stages = [
@@ -1930,6 +1930,61 @@ function RecallScreen({
     <div className="inventory-two-col wide-left">
       <div className="inventory-stack">
         <Card className="recall-card">
+          <div className="inventory-card-heading">
+            {data.recalls.length > 1 && (
+              <Field label="Recall">
+                <select
+                  value={recall.id}
+                  onChange={(event) => {
+                    const selected = data.recalls.find(
+                      (record) => record.id === event.target.value,
+                    );
+                    const lotIds = selected
+                      ? data.lots
+                          .filter((record) =>
+                            selected.lot_numbers.includes(record.lot_number),
+                          )
+                          .map((record) => record.id)
+                      : [];
+                    const selectedBalance = data.balances.find((record) =>
+                      lotIds.includes(record.lot_id),
+                    );
+                    setRecallId(event.target.value);
+                    setBalanceId(selectedBalance?.id ?? "");
+                    setQuantity(selectedBalance?.held_units ?? "0");
+                    setEvidence("");
+                  }}
+                >
+                  {data.recalls.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {record.reference}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            {recallBalances.length > 1 && (
+              <Field label="Lot / location">
+                <select
+                  value={batch.id}
+                  onChange={(event) => {
+                    const selected = recallBalances.find(
+                      (record) => record.id === event.target.value,
+                    );
+                    setBalanceId(event.target.value);
+                    setQuantity(selected?.held_units ?? "0");
+                  }}
+                >
+                  {recallBalances.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {lot(data, record.lot_id)?.lot_number} ·{" "}
+                      {location(data, record.location_id)?.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+          </div>
           <div className="inventory-panel-heading">
             <div>
               <Badge
@@ -1965,20 +2020,17 @@ function RecallScreen({
             />
             <DataPoint
               label="Location"
-              value={
-                data.locations.find(
-                  (location) => location.kind === "quarantine",
-                )?.name ?? "Location not recorded"
-              }
+              value={batchLocation?.name ?? "Location not recorded"}
             />
             <DataPoint
               label="Available"
-              value={`${number(recall.held_units)} ${item.base_unit}`}
+              value={`${number(batch.available_units)} ${item.base_unit}`}
               tone="danger"
             />
           </div>
           <p className="inventory-info">
-            <strong>Required disposition:</strong> Return to supplier
+            <strong>Required disposition:</strong>{" "}
+            {recall.required_disposition.replaceAll("_", " ")}
             <br />
             {recall.reason}
           </p>
@@ -2000,15 +2052,9 @@ function RecallScreen({
               </div>
             ))}
           </div>
-          <p className="inventory-caption">
-            Ordinary receiving staff cannot release a recall hold.
-          </p>
         </Card>
       </div>
       <Card title="Record disposition">
-        <p className="inventory-lead">
-          Exact quantity and evidence are required.
-        </p>
         {decimalCompare(recall.held_units, "0") === 0 ? (
           <div className="inventory-success-box">
             <strong>Final disposition complete</strong>
@@ -2024,7 +2070,7 @@ function RecallScreen({
               <input
                 type="number"
                 min={1}
-                max={recall.held_units}
+                max={batch.held_units}
                 value={quantity}
                 onChange={(event) => setQuantity(event.target.value)}
               />
@@ -2047,7 +2093,7 @@ function RecallScreen({
                 !capability(data, "recall.dispose") ||
                 !evidence.trim() ||
                 decimalCompare(quantity || "0", "0") <= 0 ||
-                decimalCompare(quantity || "0", recall.held_units) > 0
+                decimalCompare(quantity || "0", batch.held_units) > 0
               }
               onConfirm={() => {
                 const fake = new Event("submit") as unknown as FormEvent;
@@ -2077,7 +2123,13 @@ function ControlledScreen({
     detail: string,
   ) => Promise<void>;
 }) {
-  const reconciliation = data.controlled_reconciliations[0];
+  const [reconciliationId, setReconciliationId] = useState(
+    data.controlled_reconciliations[0]?.id ?? "",
+  );
+  const reconciliation =
+    data.controlled_reconciliations.find(
+      (record) => record.id === reconciliationId,
+    ) ?? data.controlled_reconciliations[0];
   const item = reconciliation && product(data, reconciliation.product_id);
   const selectedLot = reconciliation && lot(data, reconciliation.lot_id);
   const selectedLocation =
@@ -2097,25 +2149,43 @@ function ControlledScreen({
       `/api/clinic/inventory/controlled/${reconciliation.count_id}/investigate`,
       { review: { reason: note } },
       "Variance resolved",
-      "The authorized correction and investigation record were appended. A separate authenticated reviewer must certify.",
+      "Variance resolved. A separate reviewer may now certify.",
     );
   const certify = () =>
     void run(
       `/api/clinic/inventory/controlled/${reconciliation.count_id}/certify`,
-      { review: { reason: "Pharmacist-in-Charge certification" } },
+      { review: { reason: "Authorized certification" } },
       "Reconciliation certified",
-      "The final controlled-substance certification was appended to the audit trail.",
+      "Reconciliation certified.",
     );
   return (
     <div className="inventory-two-col wide-left">
       <div className="inventory-stack">
         <Card>
+          {data.controlled_reconciliations.length > 1 && (
+            <div className="inventory-card-heading">
+              <Field label="Reconciliation">
+                <select
+                  value={reconciliation.id}
+                  onChange={(event) => {
+                    setReconciliationId(event.target.value);
+                    setNote("");
+                  }}
+                >
+                  {data.controlled_reconciliations.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {product(data, record.product_id)?.name} ·{" "}
+                      {lot(data, record.lot_id)?.lot_number}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
           <div className="inventory-panel-heading">
             <div>
               <div className="inventory-title-row">
-                <Badge tone="danger">
-                  {item.schedule || "Schedule not recorded"}
-                </Badge>
+                {item.schedule && <Badge tone="danger">{item.schedule}</Badge>}
                 <Badge tone="blue">
                   {reconciliation.status.replaceAll("_", " ")}
                 </Badge>
@@ -2166,19 +2236,19 @@ function ControlledScreen({
           <div className="inventory-warning strong" role="alert">
             <strong>
               Certification blocked: unresolved{" "}
-              {number(reconciliation.variance_units)} tablet variance
+              {number(reconciliation.variance_units)} {item.base_unit} variance
             </strong>
             <p>
-              An Inventory Manager must investigate and post an authorized
-              adjustment. Only then may a Pharmacist-in-Charge certify.
+              An authorized reviewer must investigate and post an adjustment
+              before certification.
             </p>
           </div>
         ) : (
           <div className="inventory-success-box">
             <strong>Variance resolved</strong>
             <p>
-              Expected and counted quantities now agree. Pharmacist
-              certification is available to a separate authorized reviewer.
+              Expected and counted quantities now agree. Certification is
+              available to a separate authorized reviewer.
             </p>
           </div>
         )}
@@ -2187,18 +2257,18 @@ function ControlledScreen({
             <li className="done">
               <strong>Count recorded</strong>
               <span>
-                {number(reconciliation.counted_units)} tablets counted.
+                {number(reconciliation.counted_units)} {item.base_unit} counted.
               </span>
             </li>
             <li className={reconciliation.investigation_note ? "done" : ""}>
               <strong>Variance investigated and adjusted</strong>
               <span>
                 {reconciliation.investigation_note ??
-                  "Pending Inventory Manager investigation and authorized adjustment."}
+                  "Pending authorized investigation and adjustment."}
               </span>
             </li>
             <li className={reconciliation.status === "certified" ? "done" : ""}>
-              <strong>Pharmacist certification</strong>
+              <strong>Authorized certification</strong>
               <span>
                 {reconciliation.certified_at
                   ? `Certified ${inventoryDateTime(reconciliation.certified_at, data.timezone)}.`
@@ -2209,10 +2279,6 @@ function ControlledScreen({
         </Card>
       </div>
       <Card title={unresolved ? "Resolve variance" : "Certify count"}>
-        <p className="inventory-lead">
-          The server enforces the same permission and state checks as this
-          screen.
-        </p>
         {unresolved ? (
           <div className="inventory-stack compact">
             <Field label="Investigation findings">
@@ -2230,7 +2296,8 @@ function ControlledScreen({
               permission="inventory.count + controlled.count"
             />
             <p className="inventory-info">
-              Resolution posts a {number(reconciliation.variance_units)} tablet
+              Resolution posts a {number(reconciliation.variance_units)}{" "}
+              {item.base_unit}
               adjustment so the balance matches the physical count.
             </p>
             <ConfirmButton
@@ -2249,7 +2316,7 @@ function ControlledScreen({
           <div className="inventory-stack compact">
             <DataPoint
               label="Resolved expected"
-              value={`${number(reconciliation.counted_units)} tablets`}
+              value={`${number(reconciliation.counted_units)} ${item.base_unit}`}
             />
             <PermissionNote
               allowed={capability(data, "controlled.certify")}

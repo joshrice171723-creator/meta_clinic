@@ -115,6 +115,7 @@ module Clinic
       when [ "clinic/documents", "index" ], [ "clinic/documents", "show" ] then "documents.read"
       when [ "clinic/document_categories", "index" ] then "documents.categories.read"
       when [ "clinic/billing/invoices", "index" ], [ "clinic/billing/invoices", "show" ] then "billing.read"
+      when [ "clinic/billing/dashboard", "show" ] then "billing.read"
       when [ "clinic/messaging/message_intents", "index" ], [ "clinic/messaging/message_intents", "show" ] then "messages.read"
       when [ "clinic/scheduling/appointments", "index" ], [ "clinic/scheduling/appointments", "show" ] then "appointments.read"
       when [ "clinic/scheduling/encounters", "index" ], [ "clinic/scheduling/encounters", "show" ] then "encounters.read"
