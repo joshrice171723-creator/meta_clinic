@@ -213,6 +213,11 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             .github
+            apps/api/Dockerfile
+            apps/api/config/environments/production.rb
+            apps/api/config/routes.rb
+            apps/web/Dockerfile
+            apps/web/nginx.conf
             ops/aws/ec2
       - name: Verify release pairs and host launcher contracts without external services
         run: python3 -B -m unittest discover -s ops/aws/ec2 -p 'test_*.py'
@@ -221,3 +226,5 @@ jobs:
           for script in ops/aws/ec2/*.sh; do
             bash -n "$script"
           done
+      - name: Enforce offline release-readiness contracts
+        run: python3 -B ops/aws/ec2/release_readiness.py

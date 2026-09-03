@@ -218,7 +218,7 @@ The next check increment requires an explicit provider/policy decision covering 
 | 5 — Superbill decision | Blocked | Provider/code/date/signature/disclosure specification and qualified approval are absent. |
 | 6 — Stripe card source | Blocked | Processor account owner, contracts, test credentials, webhook secret, supported scope, dispute/refund policy, and security review are absent. |
 | 7 — Patient portal | Blocked | Portal identity, support, consent, document-delivery, accessibility, and privacy scope are unapproved. |
-| 8 — Release decision | Blocked | No authorized deployment environment, operations/recovery, or privacy/security/professional release gate exists. |
+| 8 — Release decision | Offline controls implemented; hosted gate blocked | `ops/aws/ec2/release_readiness.py` now enforces the source-level workflow, paired-digest, health/readiness, backup/restore, image-boundary, and secret/log-redaction contracts in CI. Authorized environment, operations/recovery, privacy/security/professional approval and hosted evidence remain outstanding. |
 
 ### Phase 1 delivery record — 2026-09-03
 

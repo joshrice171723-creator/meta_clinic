@@ -7,6 +7,14 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-03 — Offline release-readiness gate added
+
+**Implementation:** added `ops/aws/ec2/release_readiness.py`, a credential-free source gate that checks manual main-only staging/production workflows, pinned deployment actions, exact API/web promotion digests, non-root image boundaries, API/web readiness endpoints, PostgreSQL pre-release backup and isolated restore contracts, failed-release stop behavior, and high-confidence secret/key markers. It also verifies that operational command failures carry sanitized-output contracts and that host scripts keep strict mode, restrictive umask and no shell tracing. The CI delivery-contract job now runs this gate and includes only the required Docker/runtime/configuration files in its sparse checkout. No hosted credentials, external services or production state were accessed.
+
+**Verification:** `python3 -B ops/aws/ec2/release_readiness.py` passed; its four regression tests passed directly (`python3 -B -m unittest ops.aws.ec2.test_release_readiness`). The broader offline discovery run is not claimed as green on this Windows host because existing launcher tests require symlink privilege and the review-access test imports Unix-only `grp`; those environment failures are outside this slice. No application, migration, portal, inventory or billing source was changed; a sanitized error path was tightened in `verify-review-edge.py` so captured nginx probe output cannot surface raw diagnostics.
+
+**Limits / next gate:** this is offline source-contract evidence only. It does not inspect AWS/GitHub settings, hosted logs, secret-manager values, image scan findings, backups, restore media, alert delivery, browser behavior, clinical/privacy/security acceptance or production authorization. Run the gate again on the exact release commit, then complete separately authorized staging/production and recovery evidence.
+
 ## 2026-09-03 — Check intake/OCR boundary prepared without provider authority
 
 **Implementation:** because no scanner/OCR provider or check-image policy is approved, added only the provider-agnostic `Clinic::Billing::CheckIntake` validation/redaction boundary and fail-closed `Clinic::Billing::CheckOcrAdapter`. It accepts synthetic exact-decimal metadata and bounded opaque references, rejects image/blob/object and unknown fields, and returns only redacted status/field-presence evidence. It adds no route, model, migration, upload, external call, payment event, or stored check image.

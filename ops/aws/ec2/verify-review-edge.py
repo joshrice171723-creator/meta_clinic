@@ -19,7 +19,9 @@ from review_access import render
 
 
 def command(*args):
-    result = subprocess.run(args, capture_output=True, text=True, check=True)
+    result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode:
+        raise RuntimeError("nginx contract probe failed; raw output suppressed")
     return result.stdout.strip()
 
 
