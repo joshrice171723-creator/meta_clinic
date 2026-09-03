@@ -115,6 +115,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal 1, body.dig("invoice_pagination", "per_page")
     assert_equal body.dig("metrics", "invoice_count"), body.dig("invoice_pagination", "total")
     assert_equal 1, body.fetch("recent_invoices").size
+    assert body.fetch("recent_invoices").first.fetch("age_days").is_a?(Integer)
+    assert_includes [ "0-30 days", "31-60 days", "61-90 days", "91+ days" ], body.fetch("recent_invoices").first.fetch("age_bucket")
   end
 
   test "recall creation accepts the first request and replays only the same intent" do

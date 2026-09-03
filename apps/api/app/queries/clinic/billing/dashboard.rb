@@ -31,7 +31,7 @@ module Clinic
           recent_invoices: invoice_scope.includes(:lines, :payment_allocations)
             .limit(per_page)
             .offset((page - 1) * per_page)
-            .map { |invoice| invoice_summary(invoice) },
+            .map { |invoice| invoice_summary(invoice, now: local_now) },
           invoice_pagination: { page: page, per_page: per_page, total: invoice_total, total_pages: invoice_pages },
           recent_payments: recent_payments(practice)
         }
@@ -113,9 +113,10 @@ module Clinic
       end
       private_class_method :open_invoice_count
 
-      def self.invoice_summary(invoice)
+      def self.invoice_summary(invoice, now: Time.current)
         total = invoice.lines.sum(&:posted_amount)
         allocated = invoice.payment_allocations.sum(&:amount)
+        age_days = [ ((now - invoice.created_at) / 1.day).floor, 0 ].max
         {
           id: invoice.id,
           status: invoice.status,
@@ -123,10 +124,22 @@ module Clinic
           total: decimal(total),
           allocated: decimal(allocated),
           balance: decimal(invoice.status == "void" ? 0 : total - allocated),
+          age_days: age_days,
+          age_bucket: age_bucket(age_days),
           created_at: invoice.created_at.iso8601
         }
       end
       private_class_method :invoice_summary
+
+      def self.age_bucket(age_days)
+        case age_days
+        when 0..30 then "0-30 days"
+        when 31..60 then "31-60 days"
+        when 61..90 then "61-90 days"
+        else "91+ days"
+        end
+      end
+      private_class_method :age_bucket
 
       def self.recent_payments(practice)
         Clinic::PaymentAllocation.where(practice: practice)

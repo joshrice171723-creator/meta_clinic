@@ -14,6 +14,11 @@ export type BillingInvoiceFilter = "all" | "draft" | "open" | "paid" | "void";
 export type BillingInvoiceSort =
   "recent" | "oldest" | "balance_desc" | "total_desc";
 
+type AgedBillingInvoice = BillingInvoiceSummary & {
+  age_days: number;
+  age_bucket: string;
+};
+
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
@@ -227,7 +232,10 @@ export function BillingDashboard() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BillingInvoiceSort>("recent");
   const { data, error, refresh } = useResource<
-    BillingDashboardData & { invoice_pagination: Pagination }
+    Omit<BillingDashboardData, "recent_invoices"> & {
+      recent_invoices: AgedBillingInvoice[];
+      invoice_pagination: Pagination;
+    }
   >(
     `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
   );
@@ -613,6 +621,7 @@ export function BillingDashboard() {
                   <th scope="col">Invoice</th>
                   <th scope="col">State</th>
                   <th scope="col">Created</th>
+                  <th scope="col">Age</th>
                   <th scope="col">Total</th>
                   <th scope="col">Paid</th>
                   <th scope="col">Balance</th>
@@ -641,6 +650,11 @@ export function BillingDashboard() {
                       </td>
                       <td data-label="Created">
                         {date(invoice.created_at, data.practice.timezone)}
+                      </td>
+                      <td data-label="Age">
+                        <span title={invoice.age_bucket}>
+                          {invoice.age_days}d
+                        </span>
                       </td>
                       <td data-label="Total">
                         {money(invoice.total, invoice.currency)}
