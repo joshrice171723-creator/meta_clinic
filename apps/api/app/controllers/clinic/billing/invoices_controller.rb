@@ -2,7 +2,7 @@ module Clinic
   module Billing
     class InvoicesController < Clinic::ApiController
       before_action -> { require_capability_with_legacy("billing.read", "patients.read") }, only: %i[index show]
-      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: :create
+      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create update_draft]
       before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: :post
       before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[allocate_payment record_cash_payment]
 
@@ -67,13 +67,35 @@ module Clinic
           amount: decimal_string!(input[:amount], field: :amount),
           payment_amount: input[:payment_amount].present? ? decimal_string!(input[:payment_amount], field: :payment_amount) : nil
         )
+        payment = allocation.payment_event
+        payment_allocated = payment.allocations.sum(:amount)
         render json: { payment_allocation: {
           id: allocation.id,
           patient_id: allocation.patient_id,
           payment_event_id: allocation.payment_event_id,
           invoice_id: allocation.invoice_id,
-          amount: allocation.amount.to_s("F")
+          amount: allocation.amount.to_s("F"),
+          payment_event: {
+            id: payment.id,
+            amount: payment.amount.to_s("F"),
+            allocated_amount: payment_allocated.to_s("F"),
+            unapplied_amount: (payment.amount - payment_allocated).to_s("F")
+          }
         } }, status: :created
+      end
+
+      def update_draft
+        input = parameter_hash!(:invoice, %i[currency], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
+        lines = Array(input[:lines])
+        raise Clinic::Api::RequestParameters::Invalid.new("lines must contain 1–100 entries.", field: :lines) unless lines.size.between?(1, 100)
+        attributes = lines.map.with_index do |line, index|
+          raise Clinic::Api::RequestParameters::Invalid.new("lines[#{index}] must be an object.", field: "lines[#{index}]") unless line.is_a?(ActionController::Parameters)
+          { quantity: decimal_string!(line[:quantity], field: "lines[#{index}].quantity"), unit_amount: decimal_string!(line[:unit_amount], field: "lines[#{index}].unit_amount"), description_snapshot: required_string!(line[:description_snapshot], field: "lines[#{index}].description_snapshot", maximum: 500) }
+        end
+        invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
+        updated = Clinic::Billing::UpdateDraftInvoice.call(practice: current_practice, actor: current_user, invoice: invoice,
+          currency: required_string!(input[:currency], field: :currency, maximum: 3), lines: attributes)
+        render json: { invoice: InvoiceSerializer.call(updated, detail: true) }
       end
 
       def record_cash_payment

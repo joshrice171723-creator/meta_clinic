@@ -28,7 +28,8 @@ Rails.application.routes.draw do
     resources :message_intents, controller: "messaging/message_intents", only: :show do
       post :delivery_events, on: :member, action: :record_delivery
     end
-    resources :invoices, controller: "billing/invoices", only: :show do
+      resources :invoices, controller: "billing/invoices", only: :show do
+        patch :draft, on: :member, action: :update_draft
       post :post, on: :member
       post :payment_allocations, on: :member, action: :allocate_payment
       post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
