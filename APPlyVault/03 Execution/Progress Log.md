@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Startdev locked-dependency recovery added
+
+**Request and implementation:** D-057 now makes `$startdev` pause on a Bundler missing-locked-gem failure, identify the exact dependency/version, configured registry/checksum provenance and application use, then offer a frozen install before resuming the managed refresh. The direct helper remains non-installing. The first observed trigger was `csv 3.3.6`, declared from `https://rubygems.org/` with its lockfile SHA-256 and used because Ruby 3.4 no longer provides CSV as a loadable default gem; APPly uses it for its synthetic bulk-seed CSV loader/generator.
+
+**Limits and evidence:** a registry/checksum match is lockfile provenance, not independent security acceptance. The recovery uses `BUNDLE_FROZEN=true bundle install`, which may download other missing locked gems but must not change `Gemfile.lock`; it requires explicit user confirmation. Harness/vault validation, Ruby syntax and whitespace checks were run. No dependency was installed, no lockfile changed, and the failed refresh did not replant the local development database or start Rails/Vite.
+
 ## 2026-09-03 — Cash-pay local boundary hardening completed
 
 **Implementation:** added a practice-scoped `request_key` to cash tenders with a unique index and nonblank/length constraint. Rails now rejects replay attempts that change drawer, tender, change, patient, invoice, or allocation intent. The MUI cash workspace now requires an explicit physical-site drawer selection when multiple open drawers exist; it no longer silently chooses the first drawer.

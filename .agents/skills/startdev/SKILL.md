@@ -64,6 +64,12 @@ Return to the repository root and run `./dev_server_startup start`, adding `--no
 
 Treat the refresh as successful only when the managed command reports PostgreSQL, Rails and Vite ready and `./dev_server_startup status` confirms the concise final state. If startup fails, preserve the error, inspect only relevant files under `tmp/dev/logs`, run status, and fix only a consequential in-scope lifecycle defect. Do not substitute an unrecorded manual server and report success.
 
+### Dependency recovery
+
+When a refresh fails because Bundler reports a missing locked gem, pause after the failure; do not install anything automatically. Read `apps/api/Gemfile`, `apps/api/Gemfile.lock`, and the failing call site, then state the exact gem and version, its declared registry and lockfile checksum, whether the registry matches the repository-configured trusted source, and what the application uses it for. A registry/checksum match establishes only lockfile provenance, not an independent security approval.
+
+Offer to install the locked API bundle only after that disclosure. Explain that `BUNDLE_FROZEN=true bundle install` runs in `apps/api`, may download any other missing locked gems, and refuses to change `Gemfile.lock`. On explicit user confirmation, run it, then run `bundle check` and resume `bin/startdev-refresh` with the original browser option. If confirmation is absent or declined, installation fails, the source/checksum is inconsistent, or the lockfile would change, stop and report the failure. The direct helper remains non-installing.
+
 ## Handoff
 
 Report the Git comparison and final commit, the exact local development database name that was replanted, the resulting service state, and any skipped or failed phase. Also include a concise summary of changes from the local `main` merge base to the final `HEAD`: report the changed-file count and up to ten `git diff --name-status main...HEAD` entries. State “no changes from main” when the range is empty; if `main` cannot be resolved, state that the comparison is unavailable rather than guessing. Local readiness is not application, security, clinical, release or deployment acceptance.
