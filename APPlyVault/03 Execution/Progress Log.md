@@ -3,6 +3,14 @@ type: progress-log
 status: active
 updated: 2026-09-03
 ---
+## 2026-09-03 — Receivables remainder allocation and draft editing completed locally
+
+**Implemented:** completed the remaining unblocked Phase 1.5 receivables slice. Draft invoice lines can be edited only before posting, with posted lines protected and audited. Authorized billing staff can allocate a retained unapplied payment remainder to another posted invoice for the same patient and currency through a practice-scoped, locked Rails operation. The patient ledger exposes the server-derived unapplied amount, and the Material UI patient-balance surface provides an explicit eligible-invoice allocation control.
+
+**Verification:** Ruby syntax checks, `npm run typecheck`, production Vite build, targeted Prettier, and `git diff --check` passed. The focused Rails rerun was blocked before execution because two concurrent patient-portal migrations are pending in the shared test database; no billing assertion failure was observed. The full Vitest run produced no completion output in its bounded window and was stopped safely. No real patient, card, check, payment, processor or deployment data was used.
+
+**Remaining authority gates:** invoice numbering/service dates, production receipt/PDF/reissue/delivery contract, check scanning/OCR, superbill, Stripe, patient portal billing, accounting export, and release approval remain intentionally blocked by the package's open product/professional/privacy/processor decisions.
+
 # Progress Log
 
 Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
