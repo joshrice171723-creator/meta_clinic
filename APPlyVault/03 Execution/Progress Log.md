@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Patient portal critic fixes closed
+
+**Repairs:** converted `datetime-local` appointment inputs to offset-bearing ISO timestamps at submission, added structured JSON rescues for patient-portal parameter/record/uniqueness/context failures, split read capabilities from the appointment-request write capability, removed internal message request keys and dispatch state from the patient projection, restricted result projection to completed encounters, added the page main landmark, responsive narrow layouts, and exact string-preserving currency display.
+
+**Verification:** the fresh Impeccable adversarial review found the issues above; all were addressed. Full web tests passed 13 files / 155 tests, typecheck and production build passed, Ruby syntax and Zeitwerk eager loading passed, and Git whitespace checks passed. Rails integration execution remains inconclusive under local concurrent PostgreSQL lock contention; the appointment-request integration cases are present but not claimed as passing.
+
 ## 2026-09-03 — Patient appointment-request fallback added
 
 **Implementation:** added a patient-scoped `appointment_requests` record and API under the synthetic portal. Requests carry an idempotency key, preferred time window, optional site/service, pending review state, composite practice/patient/identity foreign keys, overlap protection against scheduled/confirmed appointments, and an audit event. The portal now offers a preferred-window form and shows the latest request without claiming that a booking occurred.

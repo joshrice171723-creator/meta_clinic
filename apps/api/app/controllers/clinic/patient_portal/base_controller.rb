@@ -6,6 +6,22 @@ module Clinic
       before_action :require_development_patient
       before_action :require_portal_identity
 
+      rescue_from ActiveRecord::RecordInvalid do |error|
+        render json: { error: error.record.errors.full_messages.to_sentence, code: "invalid_record" }, status: :unprocessable_entity
+      end
+      rescue_from ActiveRecord::RecordNotUnique do
+        render json: { error: "That request conflicts with an existing record.", code: "already_exists" }, status: :conflict
+      end
+      rescue_from ActiveRecord::InvalidForeignKey do
+        render json: { error: "The related record is not available in this practice.", code: "invalid_context" }, status: :unprocessable_entity
+      end
+      rescue_from Clinic::Api::RequestParameters::Invalid do |error|
+        render json: { error: error.message, code: "invalid_request", field: error.field }, status: :bad_request
+      end
+      rescue_from ArgumentError do |error|
+        render json: { error: error.message, code: "invalid_request" }, status: :unprocessable_entity
+      end
+
       helper_method :patient_portal_identity, :portal_practice, :portal_patient
 
       private

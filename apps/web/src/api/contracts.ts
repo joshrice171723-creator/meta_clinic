@@ -110,12 +110,12 @@ export type PatientPortalContext = {
   capabilities: {
     appointments_read: boolean;
     billing_read: boolean;
-    intake: boolean;
-    messages: boolean;
-    results: boolean;
-    visit_summaries: boolean;
+    intake_read: boolean;
+    messages_read: boolean;
+    results_read: boolean;
+    visit_summaries_read: boolean;
     payment_collection: boolean;
-    appointment_requests: boolean;
+    appointment_requests_write: boolean;
   };
   notices: string[];
 };

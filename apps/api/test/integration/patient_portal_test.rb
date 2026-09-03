@@ -28,6 +28,23 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     assert body.fetch("notices").any?
     patient = User.find_by!(email_address: "synthetic-patient@example.invalid")
     assert_equal 1, Clinic::PatientPortal::Identity.available.where(user_id: patient.id).count
+
+    request = {
+      appointment_request: {
+        request_key: "patient-portal-test-1",
+        starts_at: 2.days.from_now.iso8601,
+        ends_at: (2.days.from_now + 2.hours).iso8601
+      }
+    }
+    post "/api/patient_portal/appointment_requests", params: request, headers: local_csrf, as: :json
+    assert_response :created
+    assert_equal "pending", response.parsed_body.dig("appointment_request", "status")
+    post "/api/patient_portal/appointment_requests", params: request, headers: local_csrf, as: :json
+    assert_response :success
+    post "/api/patient_portal/appointment_requests", params: {
+      appointment_request: { request_key: "patient-portal-test-bad", starts_at: 2.days.from_now.iso8601, ends_at: 1.day.from_now.iso8601 }
+    }, headers: local_csrf, as: :json
+    assert_response :unprocessable_entity
   ensure
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
   end

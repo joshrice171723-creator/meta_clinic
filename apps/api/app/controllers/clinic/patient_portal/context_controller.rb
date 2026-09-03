@@ -12,7 +12,9 @@ module Clinic
           .where(encounter_id: portal_patient.encounters.select(:id))
           .order(created_at: :desc, id: :desc)
           .filter_map { |note| visit_summary(note) }
-        observations = portal_patient.observations.order(observed_at: :desc, id: :desc).limit(20)
+        observations = portal_patient.observations
+          .where(encounter_id: portal_patient.encounters.where(status: "completed").select(:id))
+          .order(observed_at: :desc, id: :desc).limit(20)
         medications = portal_patient.medication_statements.active_for_summary.to_a
         messages = portal_patient.message_intents.includes(:outbox).order(created_at: :desc, id: :desc).limit(20)
         appointment_requests = Clinic::PatientPortal::AppointmentRequest.for_practice(portal_practice)
@@ -43,14 +45,16 @@ module Clinic
           visit_summaries: summaries,
           results: observations.map { |observation| Clinic::Care::ObservationSerializer.call(observation) },
           medications: medications.map { |medication| medication_payload(medication) },
-          messages: messages.map { |message| Clinic::MessageIntentSerializer.call(message) },
+          messages: messages.map { |message| {
+            id: message.id, purpose_code: message.purpose_code, created_at: message.created_at
+          } },
           appointment_requests: appointment_requests.map { |request| {
             id: request.id, starts_at: request.starts_at.iso8601(6), ends_at: request.ends_at.iso8601(6),
             status: request.status, requested_at: request.requested_at.iso8601(6)
           } },
           capabilities: {
-            appointments_read: true, billing_read: true, intake: true, messages: true,
-            results: true, visit_summaries: true, payment_collection: false, appointment_requests: true
+            appointments_read: true, billing_read: true, intake_read: true, messages_read: true,
+            results_read: true, visit_summaries_read: true, payment_collection: false, appointment_requests_write: true
           },
           notices: [
             "This is a synthetic development patient portal.",

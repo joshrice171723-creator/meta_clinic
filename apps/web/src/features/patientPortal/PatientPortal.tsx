@@ -28,6 +28,7 @@ export function PatientPortal() {
   return (
     <Box
       component="main"
+      id="main"
       sx={{
         minHeight: "100vh",
         bgcolor: "#f5f7f6",
@@ -38,7 +39,7 @@ export function PatientPortal() {
     >
       <Box sx={{ maxWidth: 1120, mx: "auto" }}>
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           sx={{ mb: 5, gap: 2, justifyContent: "space-between", alignItems: "center" }}
         >
           <Box>
@@ -119,11 +120,15 @@ export function PatientPortal() {
               </Typography>
             </Paper>
 
-            {context.capabilities.appointment_requests && (
+            {context.capabilities.appointment_requests_write && (
               <Paper elevation={0} sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>Request an appointment</Typography>
                 <Typography color="text.secondary" sx={{ mt: 1 }}>Choose a preferred two-hour window. The care team confirms availability before anything is booked.</Typography>
-                <Form endpoint="/api/patient_portal/appointment_requests" submit="Send appointment request" retryKey onSuccess={resource.refresh}>
+                <Form endpoint="/api/patient_portal/appointment_requests" submit="Send appointment request" retryKey onSuccess={resource.refresh} transform={(values) => ({
+                  ...values,
+                  starts_at: new Date(String(values.starts_at)).toISOString(),
+                  ends_at: new Date(String(values.ends_at)).toISOString(),
+                })}>
                   <Field name="starts_at" label="Preferred start" type="datetime-local" value={localInput(tomorrow)} />
                   <Field name="ends_at" label="Preferred end" type="datetime-local" value={localInput(new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000))} />
                 </Form>
@@ -201,10 +206,7 @@ export function PatientPortal() {
                       variant="h4"
                       sx={{ fontWeight: 700 }}
                     >
-                      {new Intl.NumberFormat(undefined, {
-                        style: "currency",
-                        currency: balance.currency,
-                      }).format(Number(balance.balance_amount))}
+                      {balance.currency} {balance.balance_amount}
                     </Typography>
                   ))
                 )}
@@ -260,9 +262,9 @@ export function PatientPortal() {
               {context.billing.invoices.length === 0 ? (
                 <Typography color="text.secondary" sx={{ mt: 1 }}>No invoices are posted.</Typography>
               ) : context.billing.invoices.map((invoice) => (
-                <Box key={invoice.id} sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb", display: "flex", justifyContent: "space-between", gap: 2 }}>
+                <Box key={invoice.id} sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb", display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}>
                   <Box><Typography>Invoice #{invoice.id}</Typography><Typography variant="body2" color="text.secondary">{invoice.status} · {new Date(invoice.created_at).toLocaleDateString()}</Typography></Box>
-                  <Typography sx={{ fontWeight: 700 }}>{new Intl.NumberFormat(undefined, { style: "currency", currency: invoice.currency }).format(Number(invoice.balance_amount))} due</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>{invoice.currency} {invoice.balance_amount} due</Typography>
                 </Box>
               ))}
             </Paper>
