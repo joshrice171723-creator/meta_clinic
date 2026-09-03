@@ -58,6 +58,7 @@ class Ability
     "billing.invoice_draft" => { action: :create, subjects: [ Clinic::Invoice ], scope: :practice },
     "billing.invoice_post" => { action: :post, subjects: [ Clinic::Invoice ], scope: :practice },
     "billing.payment_record" => { action: :create, subjects: [ Clinic::PaymentAllocation ], scope: :practice },
+    "billing.cash_reconcile" => { action: :reconcile, subjects: [ Clinic::CashDrawerSession ], scope: :practice },
     "roles.manage" => { action: :manage, subjects: [ Clinic::RoleGrant ], scope: :practice }
   }.transform_values { |rule| rule.freeze }.freeze
 
