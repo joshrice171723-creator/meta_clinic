@@ -488,6 +488,20 @@
   color: var(--clinic-muted);
   font-size: 13px;
 }
+
+.clinic-theme .billing-pagination {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  padding: 1rem 0 0;
+}
+
+.clinic-theme .billing-pagination span {
+  color: var(--clinic-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
 .clinic-theme .billing-table-wrap {
   border-top-color: var(--clinic-border);
 }

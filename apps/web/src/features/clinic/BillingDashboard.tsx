@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type {
   BillingDashboard as BillingDashboardData,
   BillingInvoiceDetail,
   BillingInvoiceSummary,
+  Pagination,
 } from "../../api/contracts";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
@@ -221,12 +222,15 @@ function BillingConfirm({
 
 export function BillingDashboard() {
   const context = useClinic();
-  const { data, error, refresh } = useResource<BillingDashboardData>(
-    "/api/clinic/billing",
-  );
+  const [invoicePage, setInvoicePage] = useState(1);
   const [filter, setFilter] = useState<BillingInvoiceFilter>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BillingInvoiceSort>("recent");
+  const { data, error, refresh } = useResource<
+    BillingDashboardData & { invoice_pagination: Pagination }
+  >(
+    `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
+  );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     null,
   );
@@ -238,18 +242,7 @@ export function BillingDashboard() {
   const [busyAction, setBusyAction] = useState<"post" | "payment" | null>(null);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
-  const visibleInvoices = useMemo(() => {
-    if (!data) return [];
-    const normalized = query.trim().toLowerCase();
-    const matches = data.recent_invoices.filter((invoice) =>
-      normalized
-        ? `invoice ${invoice.id} ${invoice.status} ${invoice.currency}`
-            .toLowerCase()
-            .includes(normalized)
-        : true,
-    );
-    return sortedInvoices(filteredInvoices(matches, filter), sort);
-  }, [data, filter, query, sort]);
+  const visibleInvoices = data?.recent_invoices ?? [];
   const selectedInvoice =
     visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
     visibleInvoices.find(
@@ -475,7 +468,10 @@ export function BillingDashboard() {
                 type="button"
                 key={item.filter}
                 aria-pressed={filter === item.filter}
-                onClick={() => setFilter(item.filter)}
+                onClick={() => {
+                  setFilter(item.filter);
+                  setInvoicePage(1);
+                }}
               >
                 <span className="billing-queue-count">{item.count}</span>
                 <span className="billing-queue-copy">
@@ -545,7 +541,10 @@ export function BillingDashboard() {
                 key={value}
                 type="button"
                 aria-pressed={filter === value}
-                onClick={() => setFilter(value)}
+                onClick={() => {
+                  setFilter(value);
+                  setInvoicePage(1);
+                }}
               >
                 {label}
               </button>
@@ -558,17 +557,21 @@ export function BillingDashboard() {
             <span>Search invoices</span>
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Invoice number, status, currency"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setInvoicePage(1);
+              }}
+              placeholder="Invoice number, status, currency on this page"
             />
           </label>
           <label className="billing-sort-field">
             <span>Sort by</span>
             <select
               value={sort}
-              onChange={(event) =>
-                setSort(event.target.value as BillingInvoiceSort)
-              }
+              onChange={(event) => {
+                setSort(event.target.value as BillingInvoiceSort);
+                setInvoicePage(1);
+              }}
             >
               <option value="recent">Most recent</option>
               <option value="oldest">Oldest first</option>
@@ -584,6 +587,7 @@ export function BillingDashboard() {
                 setQuery("");
                 setFilter("all");
                 setSort("recent");
+                setInvoicePage(1);
               }}
             >
               Reset view
@@ -652,6 +656,38 @@ export function BillingDashboard() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        {data.invoice_pagination.total_pages > 1 && (
+          <div className="billing-pagination" aria-label="Invoice pages">
+            <button
+              className="billing-secondary-button"
+              type="button"
+              disabled={invoicePage <= 1}
+              onClick={() => {
+                setInvoicePage((page) => Math.max(1, page - 1));
+                setSelectedInvoiceId(null);
+              }}
+            >
+              Previous page
+            </button>
+            <span role="status">
+              Page {data.invoice_pagination.page} of{" "}
+              {data.invoice_pagination.total_pages}
+            </span>
+            <button
+              className="billing-secondary-button"
+              type="button"
+              disabled={invoicePage >= data.invoice_pagination.total_pages}
+              onClick={() => {
+                setInvoicePage((page) =>
+                  Math.min(data.invoice_pagination.total_pages, page + 1),
+                );
+                setSelectedInvoiceId(null);
+              }}
+            >
+              Next page
+            </button>
           </div>
         )}
       </section>

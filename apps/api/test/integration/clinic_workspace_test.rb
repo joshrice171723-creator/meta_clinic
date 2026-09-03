@@ -95,6 +95,28 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "billing dashboard paginates invoice activity without changing aggregate metrics" do
+    patient = @practice.patients.first
+    2.times do |index|
+      Clinic::Billing::DraftInvoice.call(
+        practice: @practice,
+        actor: @user,
+        patient: patient,
+        currency: "USD",
+        lines: [ { quantity: "1", unit_amount: (index + 1).to_s, description_snapshot: "Synthetic paginated invoice #{index}" } ]
+      )
+    end
+
+    get "/api/clinic/billing?page=2&per_page=1", headers: @headers
+
+    assert_response :success
+    body = response.parsed_body
+    assert_equal 2, body.dig("invoice_pagination", "page")
+    assert_equal 1, body.dig("invoice_pagination", "per_page")
+    assert_equal body.dig("metrics", "invoice_count"), body.dig("invoice_pagination", "total")
+    assert_equal 1, body.fetch("recent_invoices").size
+  end
+
   test "recall creation accepts the first request and replays only the same intent" do
     Development::InventoryScenario.populate!(practice: @practice, actor: @user)
     batch = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500").batches.find_by!(lot_number: "250701B")
