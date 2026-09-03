@@ -340,6 +340,8 @@ export type BillingPatientLedger = {
     currency: string;
     amount: Decimal;
     created_at: string;
+    cash_payment: boolean;
+    receipt_available: boolean;
     allocations: {
       id: number;
       invoice_id: number;
@@ -367,6 +369,33 @@ export type BillingDashboard = {
     amount: Decimal;
     created_at: string;
   }[];
+};
+export type CashDrawer = {
+  id: number;
+  site_id: number;
+  status: "open" | "closed";
+  opening_float: Decimal;
+  cash_received: Decimal;
+  cash_refunded: Decimal;
+  expected_cash: Decimal;
+  counted_cash: Decimal | null;
+  discrepancy: Decimal | null;
+  discrepancy_explanation: string | null;
+  opened_at: string;
+  closed_at: string | null;
+};
+export type CashPaymentResult = {
+  payment_allocation: {
+    id: number;
+    amount: Decimal;
+    payment_event_id: number;
+  };
+  cash_tender: {
+    id: number;
+    tendered_amount: Decimal;
+    change_amount: Decimal;
+    cash_drawer_session_id: number;
+  };
 };
 export type ClinicSite = {
   id: number;

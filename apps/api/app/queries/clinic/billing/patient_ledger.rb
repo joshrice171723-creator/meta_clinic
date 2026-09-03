@@ -12,7 +12,7 @@ module Clinic
 
       def call
         invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes).order(created_at: :desc, id: :desc).to_a
-        payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events).order(created_at: :desc, id: :desc).to_a
+        payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events, :cash_tender, :billing_receipts).order(created_at: :desc, id: :desc).to_a
 
         {
           schema_version: "clinic-patient-ledger-v1",
@@ -69,6 +69,8 @@ module Clinic
           currency: payment.currency,
           amount: decimal(payment.amount),
           created_at: payment.created_at.iso8601,
+          cash_payment: payment.cash_tender.present?,
+          receipt_available: payment.billing_receipts.any?,
           allocations: payment.allocations.sort_by(&:created_at).map do |allocation|
             { id: allocation.id, invoice_id: allocation.invoice_id, amount: decimal(allocation.amount), created_at: allocation.created_at.iso8601 }
           end,

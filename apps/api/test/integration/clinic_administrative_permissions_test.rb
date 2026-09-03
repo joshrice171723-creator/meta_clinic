@@ -88,6 +88,8 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_equal "1.0", invoice_row.fetch("balance_amount")
     payment = ledger.fetch("payments").sole
     assert_equal "1.5", payment.fetch("refunds").sole.fetch("amount")
+    assert_equal false, payment.fetch("cash_payment")
+    assert_equal false, payment.fetch("receipt_available")
     assert_not payment.key?("external_event_reference")
   end
 

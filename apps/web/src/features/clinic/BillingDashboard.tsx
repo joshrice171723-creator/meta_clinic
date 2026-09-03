@@ -7,6 +7,7 @@ import type {
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { CashDrawerOperations } from "./CashDrawerOperations";
 
 export type BillingInvoiceFilter = "all" | "draft" | "open" | "paid" | "void";
 export type BillingInvoiceSort =
@@ -680,7 +681,8 @@ export function BillingDashboard() {
                   Linked patient record · #{selectedDetail?.patient_id ?? "—"}
                 </span>
                 <span>
-                  Created {date(selectedInvoice.created_at, data.practice.timezone)}
+                  Created{" "}
+                  {date(selectedInvoice.created_at, data.practice.timezone)}
                 </span>
               </div>
               <div className="billing-invoice-detail-values">
@@ -855,6 +857,13 @@ export function BillingDashboard() {
           </p>
         </section>
       </div>
+      <CashDrawerOperations
+        invoice={selectedInvoice ?? null}
+        onRecorded={() => {
+          refresh();
+          detailResource.refresh();
+        }}
+      />
     </div>
   );
 }

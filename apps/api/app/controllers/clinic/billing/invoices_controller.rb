@@ -88,7 +88,7 @@ module Clinic
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 100)
         )
         tender = allocation.payment_event.cash_tender
-        render json: { payment_allocation: { id: allocation.id, amount: allocation.amount.to_s("F") },
+        render json: { payment_allocation: { id: allocation.id, payment_event_id: allocation.payment_event_id, amount: allocation.amount.to_s("F") },
           cash_tender: { id: tender.id, tendered_amount: tender.tendered_amount.to_s("F"), change_amount: tender.change_amount.to_s("F"), cash_drawer_session_id: tender.cash_drawer_session_id } }, status: :created
       end
 

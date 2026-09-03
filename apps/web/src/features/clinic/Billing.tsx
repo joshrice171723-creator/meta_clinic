@@ -4,6 +4,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
   Divider,
@@ -69,6 +70,7 @@ export function Billing() {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     null,
   );
+  const [reloadLedger, setReloadLedger] = useState(0);
   const patients = useResource<{ patients?: Patient[] }>(
     `/api/clinic/patients/lookup${query ? `?q=${encodeURIComponent(query)}` : ""}`,
   );
@@ -106,7 +108,7 @@ export function Billing() {
     return () => {
       active = false;
     };
-  }, [selectedPatientId]);
+  }, [reloadLedger, selectedPatientId]);
 
   const matches = useMemo(
     () =>
@@ -243,6 +245,9 @@ export function Billing() {
               ledger={ledger.data}
               selectedInvoice={selectedInvoice}
               selectInvoice={setSelectedInvoiceId}
+              onFinancialChange={() =>
+                setReloadLedger((version) => version + 1)
+              }
             />
           )}
         </Box>
@@ -255,10 +260,12 @@ function LedgerDetails({
   ledger,
   selectedInvoice,
   selectInvoice,
+  onFinancialChange,
 }: {
   ledger: BillingPatientLedger;
   selectedInvoice?: BillingPatientLedger["invoices"][number];
   selectInvoice: (id: number) => void;
+  onFinancialChange: () => void;
 }) {
   return (
     <Stack spacing={3}>
@@ -385,7 +392,10 @@ function LedgerDetails({
         )}
       </Paper>
       {selectedInvoice && <InvoiceDetail invoice={selectedInvoice} />}
-      <PaymentHistory payments={ledger.payments} />
+      <PaymentHistory
+        payments={ledger.payments}
+        onFinancialChange={onFinancialChange}
+      />
     </Stack>
   );
 }
@@ -534,9 +544,48 @@ function LedgerAmount({
 
 function PaymentHistory({
   payments,
+  onFinancialChange,
 }: {
   payments: BillingPatientLedger["payments"];
+  onFinancialChange: () => void;
 }) {
+  const { capabilities } = useClinic();
+  const [refundPaymentId, setRefundPaymentId] = useState<number | null>(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundError, setRefundError] = useState("");
+  const [refundBusy, setRefundBusy] = useState(false);
+
+  const refundCash = async (paymentId: number) => {
+    if (
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(refundAmount) ||
+      isZero(refundAmount)
+    ) {
+      setRefundError(
+        "Enter a positive cash refund amount with up to six decimal places.",
+      );
+      return;
+    }
+    setRefundBusy(true);
+    setRefundError("");
+    try {
+      await api(`/api/clinic/payment_events/${paymentId}/cash_refunds`, {
+        method: "POST",
+        body: { cash_refund: { amount: refundAmount } },
+      });
+      setRefundAmount("");
+      setRefundPaymentId(null);
+      onFinancialChange();
+    } catch (reason) {
+      setRefundError(
+        reason instanceof Error
+          ? reason.message
+          : "The cash refund could not be recorded.",
+      );
+    } finally {
+      setRefundBusy(false);
+    }
+  };
+
   return (
     <Paper component="section" variant="outlined">
       <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
@@ -576,6 +625,74 @@ function PaymentHistory({
                   {payment.allocations.length === 1 ? "" : "s"}
                 </Typography>
               </Stack>
+              {payment.cash_payment && (
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ mt: 1.5 }}
+                >
+                  {payment.receipt_available && (
+                    <Button
+                      component="a"
+                      href={`/api/clinic/payment_events/${payment.id}/receipt`}
+                      rel="noopener"
+                      target="_blank"
+                      variant="outlined"
+                    >
+                      Print receipt
+                    </Button>
+                  )}
+                  {capabilities.billing_payment_record === true && (
+                    <Button
+                      onClick={() => {
+                        setRefundError("");
+                        setRefundPaymentId(payment.id);
+                      }}
+                      variant="outlined"
+                    >
+                      Refund cash
+                    </Button>
+                  )}
+                </Stack>
+              )}
+              {refundPaymentId === payment.id && (
+                <Stack
+                  component="form"
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ mt: 1.5 }}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void refundCash(payment.id);
+                  }}
+                >
+                  <TextField
+                    autoFocus
+                    label="Cash refund amount"
+                    inputMode="decimal"
+                    onChange={(event) => setRefundAmount(event.target.value)}
+                    value={refundAmount}
+                  />
+                  <Button
+                    disabled={refundBusy}
+                    type="submit"
+                    variant="contained"
+                  >
+                    {refundBusy ? "Recording…" : "Record refund"}
+                  </Button>
+                  <Button
+                    onClick={() => setRefundPaymentId(null)}
+                    type="button"
+                  >
+                    Cancel
+                  </Button>
+                </Stack>
+              )}
+              {refundPaymentId === payment.id && refundError && (
+                <Alert severity="error" sx={{ mt: 1.5 }}>
+                  {refundError}
+                </Alert>
+              )}
               {payment.refunds.length > 0 && (
                 <Alert severity="info" sx={{ mt: 1.5 }}>
                   Refund history:{" "}
