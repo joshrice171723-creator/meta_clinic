@@ -28,11 +28,11 @@ import {
 import ContentPasteSearchIcon from "@mui/icons-material/ContentPasteSearch";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
 import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
-import PersonPinCircleOutlinedIcon from "@mui/icons-material/PersonPinCircleOutlined";
 import { useClinic } from "./Workspace";
 import type { ClinicTrackingBoard } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
@@ -134,9 +134,7 @@ function useTrackingBoard(active = true) {
 function patientTableLabel(visit: BoardVisit) {
   const last = visit.lastName.trim() || "Unknown";
   const firstInitial = visit.firstName.trim().charAt(0);
-  const identity =
-    visit.patientDisplayName?.trim() ||
-    `${last}, ${firstInitial ? `${firstInitial}.` : "—"}`;
+  const identity = `${last}, ${firstInitial ? `${firstInitial}.` : "—"}`;
   const demographics = [
     visit.age === null ? null : `${visit.age} yr`,
     visit.gender === "F"
@@ -352,9 +350,8 @@ function statusIcon(visit: BoardVisit) {
     visit.operationalState === "upcoming" ||
     visit.operationalState === "on_time"
   )
-    return EventAvailableOutlinedIcon;
-  if (visit.operationalState === "waiting_room")
-    return PersonPinCircleOutlinedIcon;
+    return EventOutlinedIcon;
+  if (visit.operationalState === "waiting_room") return MeetingRoomOutlinedIcon;
   if (visit.stage === "unrecorded") return PendingActionsOutlinedIcon;
   return FactCheckOutlinedIcon;
 }
@@ -395,16 +392,25 @@ type ColumnKey =
   | "care"
   | "triage"
   | "action";
-const initialColumns: ColumnKey[] = [
-  "patient",
-  "stage",
-  "wait",
+const allColumns: ColumnKey[] = [
   "location",
-  "provider",
+  "patient",
   "reason",
   "care",
   "triage",
+  "provider",
+  "wait",
+  "stage",
   "action",
+];
+const initialColumns: ColumnKey[] = [
+  "location",
+  "patient",
+  "reason",
+  "care",
+  "triage",
+  "provider",
+  "wait",
 ];
 const initialColumnWidths: Record<ColumnKey, number> = {
   patient: 240,
@@ -584,23 +590,21 @@ function ExampleVisitRow({
           </TableCell>
         ) : column === "stage" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
-            <Typography
-              variant="body2"
-              className={`tracking-status-label tracking-status-${operationalStatusClass(visit)}`}
-              sx={{ fontWeight: 650 }}
-            >
-              {(() => {
-                const Icon = statusIcon(visit);
-                return <Icon fontSize="small" aria-hidden="true" />;
-              })()}
-              <span className="tracking-status-copy">
-                <span>{operationalStatusLabel(visit, now)}</span>
-                {(visit.operationalState === "on_time" ||
-                  visit.operationalState === "late") && (
-                  <small>Not checked in</small>
-                )}
-              </span>
-            </Typography>
+            <Tooltip title={operationalStatusLabel(visit, now)}>
+              <Box
+                component="span"
+                className={`tracking-status-label tracking-status-${operationalStatusClass(visit)}`}
+                role="img"
+                tabIndex={0}
+                aria-label={operationalStatusLabel(visit, now)}
+                title={operationalStatusLabel(visit, now)}
+              >
+                {(() => {
+                  const Icon = statusIcon(visit);
+                  return <Icon fontSize="small" aria-hidden="true" />;
+                })()}
+              </Box>
+            </Tooltip>
           </TableCell>
         ) : column === "wait" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
@@ -901,6 +905,15 @@ function ExampleVisitRow({
                       aria-label={`${name}: ${reading.value}. ${presentation.label}.`}
                       title={presentation.label}
                     >
+                      <span className="tracking-vital-state" aria-hidden="true">
+                        {reading.status === "above"
+                          ? "↑"
+                          : reading.status === "below"
+                            ? "↓"
+                            : reading.status === "within"
+                              ? "✓"
+                              : "·"}
+                      </span>
                       <Typography variant="caption" component="span">
                         {key === "bp" ? "BP" : key === "hr" ? "HR" : "Wt"}
                       </Typography>
@@ -1089,7 +1102,7 @@ export function TrackingBoardView({
         return current.length === 1
           ? current
           : current.filter((item) => item !== column);
-      return initialColumns.filter(
+      return allColumns.filter(
         (item) => current.includes(item) || item === column,
       );
     });
@@ -1199,7 +1212,7 @@ export function TrackingBoardView({
         <details className="tracking-column-selector">
           <summary>Columns</summary>
           <div role="group" aria-label="Choose tracking board columns">
-            {initialColumns.map((column) => (
+            {allColumns.map((column) => (
               <label key={column}>
                 <input
                   type="checkbox"

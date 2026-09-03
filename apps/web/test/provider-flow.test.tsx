@@ -467,7 +467,7 @@ describe("provider encounter workflow", () => {
       stage: "waiting",
       reason: "Annual wellness",
       chiefComplaint: "Annual wellness",
-      room: "MAIN · WAITING",
+      room: "WAITING",
       operationalState: "waiting_room",
     });
   });
@@ -505,7 +505,7 @@ describe("provider encounter workflow", () => {
       patientId: 9,
       encounterId: null,
       stage: "scheduled",
-      room: "ED",
+      room: null,
       operationalState: "late",
       arrivedAt: null,
     });

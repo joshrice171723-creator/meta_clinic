@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import AccessibilityNewOutlinedIcon from "@mui/icons-material/AccessibilityNewOutlined";
@@ -392,26 +393,27 @@ export function CareIndicators({
           ? `${group.label} for ${patientLabel}. Show details`
           : `${group.label}: ${group.details.length}. Show details for ${patientLabel}`;
         return (
-          <IconButton
-            key={group.key}
-            size="small"
-            className={`tracking-care-icon tracking-care-${group.key}${unavailable ? " tracking-care-status" : ""}`}
-            aria-label={controlLabel}
-            aria-haspopup="dialog"
-            aria-expanded={expanded}
-            aria-controls={expanded ? popoverId : undefined}
-            onClick={() => openGroup(group)}
-          >
-            <Badge
-              badgeContent={
-                group.details.length > 1 ? group.details.length : null
-              }
-              color="primary"
-              overlap="circular"
+          <Tooltip key={group.key} title={controlLabel}>
+            <IconButton
+              size="small"
+              className={`tracking-care-icon tracking-care-${group.key}${unavailable ? " tracking-care-status" : ""}`}
+              aria-label={controlLabel}
+              aria-haspopup="dialog"
+              aria-expanded={expanded}
+              aria-controls={expanded ? popoverId : undefined}
+              onClick={() => openGroup(group)}
             >
-              <Icon fontSize="small" aria-hidden="true" />
-            </Badge>
-          </IconButton>
+              <Badge
+                badgeContent={
+                  group.details.length > 1 ? group.details.length : null
+                }
+                color="primary"
+                overlap="circular"
+              >
+                <Icon fontSize="small" aria-hidden="true" />
+              </Badge>
+            </IconButton>
+          </Tooltip>
         );
       })}
       <Dialog

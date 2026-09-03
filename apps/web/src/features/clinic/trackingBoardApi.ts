@@ -49,6 +49,18 @@ function displaySex(value: string | null | undefined) {
   return "X" as const;
 }
 
+function patientNameParts(value: string | null | undefined) {
+  const cleaned = value?.trim().replace(/^SYN[_\s-]*/i, "") ?? "";
+  const [lastPart, firstPart] = cleaned.split(",");
+  const fallback = cleaned.split(/\s+/);
+  const lastName = firstPart === undefined ? (fallback.at(-1) ?? "") : lastPart;
+  const firstName = firstPart === undefined ? (fallback[0] ?? "") : firstPart;
+  return {
+    lastName: lastName.trim(),
+    firstName: firstName.trim().split(/\s+/)[0] ?? "",
+  };
+}
+
 export function formatRecordedDecimal(value: string | null | undefined) {
   if (value == null || value.trim() === "") return null;
   const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value.trim());
@@ -66,10 +78,11 @@ export function trackingBoardVisitToBoardVisit(
   const scenario = visit.synthetic_scenario;
   const encounter = visit.encounter;
   const locationRecord = encounter ?? visit.appointment;
-  const location = [
-    locationRecord?.site_code,
-    locationRecord?.room_code,
-  ].filter(Boolean);
+  const room =
+    locationRecord?.room_code?.trim() ||
+    visit.appointment?.room_code?.trim() ||
+    null;
+  const name = patientNameParts(visit.patient.display_name);
   const bp = visit.vitals?.blood_pressure;
   const systolic = formatRecordedDecimal(bp?.systolic);
   const diastolic = formatRecordedDecimal(bp?.diastolic);
@@ -85,8 +98,8 @@ export function trackingBoardVisitToBoardVisit(
     patientDisplayName: visit.patient.display_name,
     patientReference: visit.patient.reference,
     isSynthetic: false,
-    firstName: "",
-    lastName: "",
+    firstName: name.firstName,
+    lastName: name.lastName,
     age: visit.patient.demographics?.age ?? null,
     gender: displaySex(visit.patient.demographics?.sex),
     appointmentType: appointmentType(visitType),
@@ -109,7 +122,7 @@ export function trackingBoardVisitToBoardVisit(
     locationId: locationRecord?.site_id
       ? `api-site-${locationRecord.site_id}`
       : "unassigned",
-    room: location.length ? location.join(" · ") : null,
+    room,
     assignedClinicianId: provider
       ? `api-provider-${provider.clinician_profile_id}`
       : null,

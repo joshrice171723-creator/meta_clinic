@@ -162,9 +162,9 @@
   border-color: var(--clinic-border);
   color: var(--clinic-text);
   vertical-align: top;
-  padding: 12px 14px;
-  font-size: 15px;
-  min-height: 72px;
+  padding: 8px 10px;
+  font-size: 14px;
+  min-height: 0;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -182,7 +182,7 @@
   font-weight: 650;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  min-height: 56px;
+  min-height: 44px;
 }
 .clinic-theme .tracking-table-container .MuiTableSortLabel-root {
   min-height: 26px;
@@ -244,7 +244,7 @@
   flex: 0 0 28px;
   position: relative;
   border: 0;
-  color: var(--clinic-accent);
+  color: var(--clinic-text);
   background: transparent;
   padding: 0;
 }
@@ -266,10 +266,14 @@
 .clinic-theme .tracking-care-icon.MuiIconButton-root:hover::before,
 .clinic-theme .tracking-care-icon.MuiIconButton-root:focus-visible::before {
   background: var(--clinic-soft);
-  border-color: var(--clinic-accent);
+  border-color: currentColor;
+}
+.clinic-theme .tracking-care-allergies.MuiIconButton-root,
+.clinic-theme .tracking-care-precautions.MuiIconButton-root {
+  color: var(--clinic-warning);
 }
 .clinic-theme .tracking-care-review.MuiIconButton-root {
-  color: var(--clinic-warning);
+  color: var(--clinic-error);
 }
 .clinic-theme .tracking-care-loading {
   display: flex;
@@ -293,19 +297,25 @@
 }
 .clinic-theme .tracking-vital {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-columns: 18px 24px minmax(0, 1fr);
   align-items: center;
   gap: 4px;
   border-radius: 3px;
   padding: 3px 4px;
+}
+.clinic-theme .tracking-vital-state {
+  font-weight: 800;
+  line-height: 1;
 }
 .clinic-theme .tracking-vital-value {
   white-space: nowrap;
 }
 .clinic-theme .tracking-column-resize {
   position: absolute;
-  inset: 0 0 0 auto;
-  width: 16px;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
   cursor: col-resize;
   touch-action: none;
   z-index: 4;
@@ -313,9 +323,9 @@
 .clinic-theme .tracking-column-resize::after {
   content: "";
   position: absolute;
-  inset: 5px 0 5px auto;
-  width: 2px;
-  border-right: 2px solid var(--clinic-border);
+  inset: 0 3px;
+  width: 1px;
+  border-right: 1px solid var(--clinic-border);
 }
 .clinic-theme .tracking-column-resize:hover::after,
 .clinic-theme .tracking-column-resize:focus-visible::after,
@@ -323,13 +333,16 @@
   border-right-color: var(--clinic-accent);
 }
 .clinic-theme .tracking-vital-within {
-  background: var(--clinic-surface);
+  color: var(--clinic-success);
+  background: var(--clinic-success-bg);
 }
 .clinic-theme .tracking-vital-above {
-  background: var(--clinic-surface);
+  color: var(--clinic-error);
+  background: var(--clinic-error-bg);
 }
 .clinic-theme .tracking-vital-below {
-  background: var(--clinic-surface);
+  color: var(--clinic-warning);
+  background: var(--clinic-warning-bg);
 }
 .clinic-theme .tracking-vital-unassessed {
   background: var(--clinic-soft);
@@ -355,13 +368,13 @@
   background: currentColor;
 }
 .clinic-theme .tracking-legend-above {
-  color: var(--clinic-muted);
+  color: var(--clinic-error);
 }
 .clinic-theme .tracking-legend-within {
-  color: var(--clinic-muted);
+  color: var(--clinic-success);
 }
 .clinic-theme .tracking-legend-below {
-  color: var(--clinic-muted);
+  color: var(--clinic-warning);
 }
 .clinic-theme .tracking-vitals-legend small {
   font-size: 12px;
@@ -388,17 +401,18 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 .clinic-theme .tracking-reason > div {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 .clinic-theme .tracking-reason .MuiTypography-root {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .clinic-theme .tracking-provider-cell {
   cursor: default;
@@ -451,7 +465,7 @@
 .clinic-theme .tracking-visit {
   background: var(--clinic-surface);
   height: auto;
-  min-height: 76px;
+  min-height: 58px;
   min-width: 0;
 }
 .clinic-theme .tracking-patient {
@@ -460,7 +474,7 @@
   gap: 7px;
   min-height: 30px;
   color: var(--clinic-text);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 650;
 }
 .clinic-theme .tracking-patient-details {
@@ -532,7 +546,10 @@
   display: inline-flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 5px 8px;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
   box-sizing: border-box;
   border: 1px solid var(--clinic-border);
   border-radius: 6px;
@@ -544,22 +561,8 @@
 .clinic-theme .tracking-status-label > svg {
   flex: 0 0 auto;
 }
-.clinic-theme .tracking-status-copy {
-  display: grid;
-  min-width: 0;
-  line-height: 1.2;
-}
-.clinic-theme .tracking-status-copy > span,
-.clinic-theme .tracking-status-copy > small {
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-.clinic-theme .tracking-status-copy > small {
-  font-size: 11px;
-  font-weight: 500;
-}
 .clinic-theme .tracking-status-scheduled {
-  color: var(--clinic-accent);
+  color: var(--clinic-muted);
   background: var(--clinic-soft);
 }
 .clinic-theme .tracking-status-late {
@@ -568,7 +571,7 @@
   border-color: var(--clinic-warning);
 }
 .clinic-theme .tracking-status-waiting {
-  color: var(--clinic-accent);
+  color: var(--clinic-success);
   background: var(--clinic-soft);
 }
 .clinic-theme .tracking-location,

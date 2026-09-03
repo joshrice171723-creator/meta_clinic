@@ -287,7 +287,9 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('for="board-stage"');
     expect(html).toContain("Clinic patient tracking board");
-    expect(html).toContain('tracking-chart-action-label">Select chart</span>');
+    expect(html).not.toContain(
+      'tracking-chart-action-label">Select chart</span>',
+    );
     for (const status of [
       "Above normal limits",
       "Within normal limits",
@@ -355,13 +357,14 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
 
-    expect(html).toContain("30 min late");
-    expect(html).toContain("Not checked in");
+    expect(html).not.toContain("tracking-status-copy");
     expect(html).toContain("Checked in");
     expect(html).toContain("Waiting room");
-    expect(html).toContain('href="/clinic/patients/41"');
-    expect(html).toContain('tracking-chart-action-label">View patient</span>');
-    expect(html).toContain('href="/clinic/patients/42/encounters/42"');
+    expect(html).not.toContain('href="/clinic/patients/41"');
+    expect(html).not.toContain(
+      'tracking-chart-action-label">View patient</span>',
+    );
+    expect(html).not.toContain('href="/clinic/patients/42/encounters/42"');
     const scheduledOnly = renderToStaticMarkup(
       <TrackingBoardView
         visits={[scheduled]}
@@ -373,22 +376,20 @@ describe("board and Operations presentation boundaries", () => {
   });
   it("exposes resizable columns and alternating visit rows", () => {
     const html = renderToStaticMarkup(<TrackingBoardView />);
-    expect(html.match(/role="separator"/g)).toHaveLength(9);
+    expect(html.match(/role="separator"/g)).toHaveLength(7);
     expect(html).toContain('aria-label="Resize Patient column"');
     expect(html).toContain('aria-label="Resize Room column"');
     expect(html).toContain('aria-label="Resize Timing column"');
-    expect(html).toContain('aria-label="Resize Action column"');
-    expect(html).toContain(
-      'aria-label="Resize Status column" aria-valuemin="175"',
-    );
+    expect(html).not.toContain('aria-label="Resize Action column"');
+    expect(html).not.toContain('aria-label="Resize Status column"');
     expect(html).toContain(
       'aria-label="Resize Care column" aria-valuemin="180"',
     );
-    expect(html).toContain('aria-label="Move Status column"');
+    expect(html).not.toContain('aria-label="Move Status column"');
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:1415px;min-width:1415px;table-layout:fixed"',
+      'style="width:1120px;min-width:1120px;table-layout:fixed"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
@@ -396,18 +397,15 @@ describe("board and Operations presentation boundaries", () => {
       "src/features/clinic/trackingBoard.css",
       "utf8",
     );
-    expect(styles).toContain("min-height: 72px");
+    expect(styles).toContain("min-height: 58px");
     expect(styles).toContain("width: 28px");
     expect(styles).toContain("min-width: 28px");
     expect(styles).toContain("flex-wrap: nowrap");
     expect(styles).toContain("overflow-wrap: anywhere");
     expect(styles).toContain(".tracking-visit {\n  background");
-    expect(styles).toContain("height: auto;\n  min-height: 76px");
+    expect(styles).toContain("height: auto;\n  min-height: 58px");
     expect(styles).toContain(
       ".tracking-patient strong {\n  display: block;\n  overflow: visible;\n  overflow-wrap: anywhere;\n  white-space: normal;",
-    );
-    expect(styles).toContain(
-      ".tracking-status-copy > small {\n  overflow-wrap: anywhere;\n  white-space: normal;",
     );
   });
   it("replaces the visit count with a recoverable column selector", () => {

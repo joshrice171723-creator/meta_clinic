@@ -75,7 +75,7 @@ export const CLINIC_SIDEBAR_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ClinicSidebarTokens>
 > = {
-  sage: {
+  juniper: {
     light: {
       ground: "#163937",
       on: "#f3f6f4",
@@ -91,7 +91,7 @@ export const CLINIC_SIDEBAR_THEMES: Record<
       "selected-on": "#e5eee8",
     },
   },
-  blue: {
+  cobalt: {
     light: {
       ground: "#193b52",
       on: "#f2f7fb",
@@ -107,7 +107,7 @@ export const CLINIC_SIDEBAR_THEMES: Record<
       "selected-on": "#e2edf5",
     },
   },
-  graphite: {
+  plum: {
     light: {
       ground: "#29302f",
       on: "#f7f7f3",
@@ -121,6 +121,22 @@ export const CLINIC_SIDEBAR_THEMES: Record<
       muted: "#b9bcb1",
       selected: "#3b4037",
       "selected-on": "#eeeee6",
+    },
+  },
+  saffron: {
+    light: {
+      ground: "#50300a",
+      on: "#fff9e9",
+      muted: "#e7cf9a",
+      selected: "#fff1c6",
+      "selected-on": "#50300a",
+    },
+    dark: {
+      ground: "#171108",
+      on: "#fff9e9",
+      muted: "#d5bf88",
+      selected: "#493514",
+      "selected-on": "#fff9e9",
     },
   },
 };

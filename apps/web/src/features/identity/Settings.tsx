@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Switch from "@mui/material/Switch";
 import type { User, UserSettings } from "../../api/contracts";
 import { api } from "../../api/client";
 import { Card, ErrorMessage, Field, Form, LoadState } from "../../shared/ui";
@@ -8,6 +9,7 @@ import {
   CLINIC_PALETTES,
   CLINIC_STATUS_COLORS,
   CLINIC_THEMES,
+  resolveColorScheme,
 } from "../clinic/appearancePreferences";
 
 export function AppearanceSettings({
@@ -107,122 +109,110 @@ export function AppearanceSettings({
         <form
           className="settings-form appearance-form"
           onSubmit={(event) => event.preventDefault()}
-          onChange={(event) => {
-            const target = event.nativeEvent.target as HTMLSelectElement;
-            if (target.name === "appearance[palette]")
-              changeAppearance({
-                palette: target.value as typeof selection.palette,
-              });
-            if (target.name === "appearance[mode]")
-              changeAppearance({ mode: target.value as typeof selection.mode });
-          }}
         >
-          <fieldset disabled={saveState === "saving"}>
-            <input
-              type="hidden"
-              name="appearance[version]"
-              value={settings.appearance.version}
-              readOnly
-            />
-            <Field
-              name="appearance[palette]"
-              label="Color theme"
-              value={selection.palette}
-              options={CLINIC_PALETTES.map((p) => [p.id, p.label])}
-            />
-            <Field
-              name="appearance[mode]"
-              label="Brightness"
-              value={selection.mode}
-              options={CLINIC_MODES.map((m) => [m.id, m.label])}
-            />
+          <input
+            type="hidden"
+            name="appearance[version]"
+            value={settings.appearance.version}
+            readOnly
+          />
+          <fieldset
+            className="appearance-picker"
+            disabled={saveState === "saving"}
+            aria-describedby="appearance-picker-description"
+          >
+            <legend className="appearance-picker-header">
+              <span className="appearance-picker-title">
+                Select a color theme
+              </span>
+              <label className="appearance-mode-toggle">
+                <span>Dark mode</span>
+                <Switch
+                  checked={
+                    resolveColorScheme(selection.mode, systemDark) === "dark"
+                  }
+                  onChange={() =>
+                    changeAppearance({
+                      mode:
+                        resolveColorScheme(selection.mode, systemDark) ===
+                        "dark"
+                          ? "light"
+                          : "dark",
+                    })
+                  }
+                  slotProps={{ input: { "aria-label": "Dark mode" } }}
+                />
+              </label>
+            </legend>
+            <p
+              className="appearance-picker-description"
+              id="appearance-picker-description"
+            >
+              Choose a palette to apply it immediately to your workspace.
+            </p>
+            <div className="appearance-preview-grid">
+              {CLINIC_PALETTES.map(({ id, label }) => {
+                const scheme = resolveColorScheme(selection.mode, systemDark);
+                const theme = CLINIC_THEMES[id][scheme];
+                const status = CLINIC_STATUS_COLORS[scheme];
+                const selected = selection.palette === id;
+                return (
+                  <label
+                    className="appearance-preview-tile"
+                    key={id}
+                    data-selected={selected ? "true" : "false"}
+                    style={{
+                      backgroundColor: theme.background,
+                      borderColor: selected ? theme.accent : theme.border,
+                      color: theme.text,
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="appearance[palette]"
+                      value={id}
+                      checked={selected}
+                      onChange={() => changeAppearance({ palette: id })}
+                    />
+                    <div className="appearance-preview-heading">
+                      <strong>{label}</strong>
+                      {selected && <span>Selected</span>}
+                    </div>
+                    <div className="appearance-preview-samples">
+                      <span style={{ backgroundColor: theme.surface }}>
+                        Surface
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: theme.soft,
+                          color: theme.text,
+                        }}
+                      >
+                        Text
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: theme.accent,
+                          color: theme["on-accent"],
+                        }}
+                      >
+                        Action
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: status["success-bg"],
+                          color: status.success,
+                        }}
+                      >
+                        Status
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
           </fieldset>
         </form>
-        <section
-          className="appearance-preview"
-          aria-labelledby="appearance-preview-title"
-        >
-          <h3
-            className="appearance-preview-title"
-            id="appearance-preview-title"
-          >
-            Preview the color themes
-          </h3>
-          <p className="appearance-preview-description">
-            Samples show how each palette looks in{" "}
-            {selection.mode === "dark"
-              ? "dark"
-              : selection.mode === "light"
-                ? "light"
-                : systemDark
-                  ? "dark"
-                  : "light"}{" "}
-            mode. The selected theme is marked in text.
-          </p>
-          <div
-            className="appearance-preview-grid"
-            role="list"
-            aria-labelledby="appearance-preview-title"
-          >
-            {CLINIC_PALETTES.map(({ id, label }) => {
-              const scheme =
-                selection.mode === "dark"
-                  ? "dark"
-                  : selection.mode === "light"
-                    ? "light"
-                    : systemDark
-                      ? "dark"
-                      : "light";
-              const theme = CLINIC_THEMES[id][scheme];
-              const status = CLINIC_STATUS_COLORS[scheme];
-              const selected = selection.palette === id;
-              return (
-                <article
-                  role="listitem"
-                  className="appearance-preview-tile"
-                  key={id}
-                  aria-current={selected ? "true" : undefined}
-                  style={{
-                    backgroundColor: theme.background,
-                    borderColor: selected ? theme.accent : theme.border,
-                    color: theme.text,
-                  }}
-                >
-                  <div className="appearance-preview-heading">
-                    <strong>{label}</strong>
-                    {selected && <span>Selected</span>}
-                  </div>
-                  <div className="appearance-preview-samples">
-                    <span style={{ backgroundColor: theme.surface }}>
-                      Surface
-                    </span>
-                    <span
-                      style={{ backgroundColor: theme.soft, color: theme.text }}
-                    >
-                      Text
-                    </span>
-                    <span
-                      style={{
-                        backgroundColor: theme.accent,
-                        color: theme["on-accent"],
-                      }}
-                    >
-                      Action
-                    </span>
-                    <span
-                      style={{
-                        backgroundColor: status["success-bg"],
-                        color: status.success,
-                      }}
-                    >
-                      Status
-                    </span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
         <div className="appearance-save-status" aria-live="polite">
           {saveState === "saving" && <p role="status">Saving appearance…</p>}
           {saveState === "saved" && <p role="status">Appearance saved.</p>}

@@ -139,7 +139,7 @@ describe("system appearance and UI scope", () => {
       media.addEventListener.mock.calls[0][1],
     );
   });
-  it("renders labeled controls, immediate-save guidance and visual previews", () => {
+  it("renders selectable palettes, a dark-mode toggle and immediate-save guidance", () => {
     const html = renderToStaticMarkup(
       <AppearanceSettings
         user={user}
@@ -150,17 +150,16 @@ describe("system appearance and UI scope", () => {
         accept={() => {}}
       />,
     );
-    expect(html.match(/<select /g)).toHaveLength(2);
-    expect(html.match(/<option /g)).toHaveLength(7);
-    expect(html).toContain("Color theme");
-    expect(html).toContain("Brightness");
-    expect(html).toContain('value="cobalt" selected=""');
-    expect(html).toContain('value="dark" selected=""');
+    expect(html.match(/<select /g)).toBeNull();
+    expect(html.match(/type="radio"/g)).toHaveLength(4);
+    expect(html).toContain("Select a color theme");
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('value="cobalt"');
+    expect(html).toContain('checked=""');
     expect(html).toContain("synthetic@example.invalid");
     expect(html).not.toContain("Save appearance");
     expect(html).toContain('name="appearance[version]"');
     expect(html).toContain("reload saved settings");
-    expect(html).toContain("Preview the color themes");
     expect(html).toContain("Surface");
     expect(html).toContain("Text");
     expect(html).toContain("Action");
