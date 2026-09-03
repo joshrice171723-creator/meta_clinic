@@ -22,6 +22,117 @@ export type User = {
   admin: boolean;
   development_demo?: boolean;
 };
+export type PatientPortalContext = {
+  schema_version: "patient-portal-context-v1";
+  development_only: boolean;
+  practice: { id: number; name: string; timezone: string };
+  patient: { id: number; display_name: string; reference: string };
+  upcoming_appointments: {
+    id: number;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    site: string | null;
+    visit_type: string | null;
+  }[];
+  balances: {
+    currency: string;
+    balance_amount: Decimal;
+    allocated_amount: Decimal;
+    credited_amount: Decimal;
+  }[];
+  billing: {
+    invoices: {
+      id: number;
+      currency: string;
+      status: string;
+      created_at: string;
+      total_amount: Decimal;
+      allocated_amount: Decimal;
+      balance_amount: Decimal;
+      lines: {
+        id: number;
+        description: string;
+        quantity: Decimal;
+        posted_amount: Decimal;
+      }[];
+    }[];
+    payments: {
+      id: number;
+      currency: string;
+      amount: Decimal;
+      created_at: string;
+      cash_payment: boolean;
+      receipt_available: boolean;
+    }[];
+  };
+  intake: {
+    status: string;
+    emergency_contact_count: number;
+    consent_status: string;
+  };
+  visit_summaries: {
+    id: number;
+    encounter_id: number;
+    signed_at: string | null;
+    assessment: string;
+    plan: string;
+  }[];
+  results: {
+    id: number;
+    code: string;
+    value_kind: string;
+    numeric_value: Decimal | null;
+    text_value: string | null;
+    coded_value: string | null;
+    unit_code: string | null;
+    observed_at: string;
+  }[];
+  medications: {
+    id: number;
+    medication: string | null;
+    dose: string | null;
+    route: string | null;
+    frequency: string | null;
+    purpose: string | null;
+    status: string;
+    effective_from: string | null;
+    effective_until: string | null;
+  }[];
+  messages: {
+    id: number;
+    purpose_code: string;
+    dispatch_state: string | null;
+    created_at: string;
+  }[];
+  appointment_requests: {
+    id: number;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    requested_at: string;
+  }[];
+  requests: {
+    id: number;
+    request_type: "message" | "refill";
+    status: "pending" | "in_review" | "resolved" | "declined";
+    requested_at: string;
+    reviewed_at: string | null;
+  }[];
+  capabilities: {
+    appointments_read: boolean;
+    billing_read: boolean;
+    intake_read: boolean;
+    messages_read: boolean;
+    results_read: boolean;
+    visit_summaries_read: boolean;
+    payment_collection: boolean;
+    appointment_requests_write: boolean;
+    messages_write: boolean;
+    refill_requests_write: boolean;
+  };
+  notices: string[];
+};
 export type Paperwork = {
   id: number;
   title: string;
@@ -236,6 +347,7 @@ export type ClinicCapabilities = {
   billing_invoice_draft?: boolean;
   billing_invoice_post?: boolean;
   billing_payment_record?: boolean;
+  billing_cash_reconcile?: boolean;
   patients: boolean;
   patients_write: boolean;
   staff: boolean;
@@ -339,6 +451,8 @@ export type BillingPatientLedger = {
     id: number;
     currency: string;
     amount: Decimal;
+    allocated_amount: Decimal;
+    unapplied_amount: Decimal;
     created_at: string;
     cash_payment: boolean;
     receipt_available: boolean;
@@ -383,6 +497,10 @@ export type CashDrawer = {
   discrepancy_explanation: string | null;
   opened_at: string;
   closed_at: string | null;
+  reconciliation_status: "pending" | "reconciled";
+  reconciled_by_id: number | null;
+  reconciled_at: string | null;
+  reconciliation_note: string | null;
 };
 export type CashPaymentResult = {
   payment_allocation: {

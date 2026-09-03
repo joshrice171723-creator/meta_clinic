@@ -119,6 +119,71 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_includes [ "0-30 days", "31-60 days", "61-90 days", "91+ days" ], body.fetch("recent_invoices").first.fetch("age_bucket")
   end
 
+  test "billing staff can allocate an unapplied payment remainder to another posted invoice" do
+    patient = @practice.patients.first
+    first = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10.00", description_snapshot: "Synthetic first invoice" } ]
+    )
+    second = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10.00", description_snapshot: "Synthetic second invoice" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: first, actor: @user)
+    Clinic::Billing::PostInvoice.call(invoice: second, actor: @user)
+    payment = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @user, patient: patient, invoice: first,
+      external_event_reference: "synthetic-unapplied-payment", currency: "USD",
+      amount: "5.00", payment_amount: "10.00"
+    ).payment_event
+
+    post "/api/clinic/payment_events/#{payment.id}/allocations",
+      params: { allocation: { invoice_id: second.id, amount: "5.00" } },
+      headers: csrf_headers, as: :json
+
+    assert_response :created
+    body = response.parsed_body
+    assert_equal "5.0", body.dig("payment_allocation", "amount")
+    assert_equal "10.0", body.dig("payment", "allocated_amount")
+    assert_equal "0.0", body.dig("payment", "unapplied_amount")
+
+    get "/api/clinic/patients/#{patient.id}/billing_ledger", headers: @headers
+    assert_response :success
+    ledger_payment = response.parsed_body.fetch("payments").find { |entry| entry["id"] == payment.id }
+    assert_equal "0.0", ledger_payment.fetch("unapplied_amount")
+  end
+
+  test "billing draft edits stay draft-only and payment allocation reports unapplied remainder" do
+    patient = @practice.patients.first
+    invoice = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic editable draft" } ]
+    )
+
+    patch "/api/clinic/invoices/#{invoice.id}/draft", params: {
+      invoice: { currency: "USD", lines: [ { quantity: "2", unit_amount: "7.50", description_snapshot: "Synthetic edited draft" } ] }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "15.0", response.parsed_body.dig("invoice", "total_amount")
+    assert_equal "Synthetic edited draft", response.parsed_body.dig("invoice", "lines").sole.fetch("description")
+
+    post "/api/clinic/invoices/#{invoice.id}/post", headers: csrf_headers, as: :json
+    assert_response :success
+    post "/api/clinic/invoices/#{invoice.id}/payment_allocations", params: {
+      payment: { external_event_reference: "SYN-UNAPPLIED-001", currency: "USD", amount: "5.00", payment_amount: "12.00" }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    event = response.parsed_body.dig("payment_allocation", "payment_event")
+    assert_equal "12.0", event.fetch("amount")
+    assert_equal "5.0", event.fetch("allocated_amount")
+    assert_equal "7.0", event.fetch("unapplied_amount")
+
+    patch "/api/clinic/invoices/#{invoice.id}/draft", params: {
+      invoice: { currency: "USD", lines: [ { quantity: "1", unit_amount: "1", description_snapshot: "Synthetic forbidden posted edit" } ] }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+  end
+
   test "billing age filters match the displayed floored age buckets" do
     patient = @practice.patients.first
     now = Time.utc(2026, 9, 3, 12)

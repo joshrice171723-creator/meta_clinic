@@ -12,6 +12,7 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -402,8 +403,15 @@ function LedgerDetails({
         )}
       </Paper>
       {selectedInvoice && <InvoiceDetail invoice={selectedInvoice} />}
+      {selectedInvoice?.status === "draft" && canDraft && (
+        <DraftInvoiceEditor
+          invoice={selectedInvoice}
+          onSaved={onFinancialChange}
+        />
+      )}
       <PaymentHistory
         payments={ledger.payments}
+        invoices={ledger.invoices}
         onFinancialChange={onFinancialChange}
       />
     </Stack>
@@ -543,6 +551,113 @@ function DraftInvoiceForm({
       {notice && (
         <Alert severity="success" sx={{ mt: 1.5 }}>
           {notice}
+        </Alert>
+      )}
+    </Paper>
+  );
+}
+
+function DraftInvoiceEditor({
+  invoice,
+  onSaved,
+}: {
+  invoice: BillingPatientLedger["invoices"][number];
+  onSaved: () => void;
+}) {
+  const [currency, setCurrency] = useState(invoice.currency);
+  const [quantity, setQuantity] = useState(invoice.lines[0]?.quantity ?? "1");
+  const [unitAmount, setUnitAmount] = useState(
+    invoice.lines[0]?.posted_amount ?? "",
+  );
+  const [description, setDescription] = useState(
+    invoice.lines[0]?.description ?? "",
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (
+      !/^[A-Z]{3}$/.test(currency) ||
+      !quantity ||
+      !unitAmount ||
+      !description.trim()
+    ) {
+      setError("Enter a currency, quantity, unit amount, and description.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/api/clinic/invoices/${invoice.id}/draft`, {
+        method: "PATCH",
+        body: {
+          invoice: {
+            currency,
+            lines: [
+              {
+                quantity,
+                unit_amount: unitAmount,
+                description_snapshot: description.trim(),
+              },
+            ],
+          },
+        },
+      });
+      onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "The draft could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
+      <Typography component="h2" variant="h2">
+        Edit draft invoice #{invoice.id}
+      </Typography>
+      <Box
+        component="form"
+        onSubmit={(event) => void submit(event)}
+        sx={{
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 2fr auto" },
+          mt: 2,
+        }}
+      >
+        <TextField
+          label="Currency"
+          value={currency}
+          onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+        />
+        <TextField
+          label="Quantity"
+          inputMode="decimal"
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+        />
+        <TextField
+          label="Unit amount"
+          inputMode="decimal"
+          value={unitAmount}
+          onChange={(event) => setUnitAmount(event.target.value)}
+        />
+        <TextField
+          label="Line description"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+        <Button disabled={busy} type="submit" variant="contained">
+          {busy ? "Saving…" : "Save draft"}
+        </Button>
+      </Box>
+      {error && (
+        <Alert severity="error" sx={{ mt: 1.5 }}>
+          {error}
         </Alert>
       )}
     </Paper>
@@ -693,9 +808,11 @@ function LedgerAmount({
 
 function PaymentHistory({
   payments,
+  invoices,
   onFinancialChange,
 }: {
   payments: BillingPatientLedger["payments"];
+  invoices: BillingPatientLedger["invoices"];
   onFinancialChange: () => void;
 }) {
   const { capabilities } = useClinic();
@@ -703,6 +820,61 @@ function PaymentHistory({
   const [refundAmount, setRefundAmount] = useState("");
   const [refundError, setRefundError] = useState("");
   const [refundBusy, setRefundBusy] = useState(false);
+  const [allocationPaymentId, setAllocationPaymentId] = useState<number | null>(
+    null,
+  );
+  const [allocationInvoiceId, setAllocationInvoiceId] = useState("");
+  const [allocationAmount, setAllocationAmount] = useState("");
+  const [allocationError, setAllocationError] = useState("");
+  const [allocationBusy, setAllocationBusy] = useState(false);
+
+  const eligibleInvoices = (
+    payment: BillingPatientLedger["payments"][number],
+  ) =>
+    invoices.filter(
+      (invoice) =>
+        invoice.status === "posted" &&
+        invoice.currency === payment.currency &&
+        !isZero(invoice.balance_amount),
+    );
+
+  const allocatePayment = async (paymentId: number) => {
+    if (
+      !allocationInvoiceId ||
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(allocationAmount) ||
+      isZero(allocationAmount)
+    ) {
+      setAllocationError(
+        "Choose an invoice and enter a positive amount with up to six decimal places.",
+      );
+      return;
+    }
+    setAllocationBusy(true);
+    setAllocationError("");
+    try {
+      await api(`/api/clinic/payment_events/${paymentId}/allocations`, {
+        method: "POST",
+        body: {
+          allocation: {
+            invoice_id: Number(allocationInvoiceId),
+            amount: allocationAmount.trim(),
+          },
+        },
+      });
+      setAllocationPaymentId(null);
+      setAllocationInvoiceId("");
+      setAllocationAmount("");
+      onFinancialChange();
+    } catch (reason) {
+      setAllocationError(
+        reason instanceof Error
+          ? reason.message
+          : "The payment remainder could not be allocated.",
+      );
+    } finally {
+      setAllocationBusy(false);
+    }
+  };
 
   const refundCash = async (paymentId: number) => {
     if (
@@ -772,8 +944,93 @@ function PaymentHistory({
                 <Typography color="text.secondary" variant="body2">
                   {payment.allocations.length} allocation
                   {payment.allocations.length === 1 ? "" : "s"}
+                  {` · Unapplied ${money(payment.unapplied_amount, payment.currency)}`}
                 </Typography>
               </Stack>
+              {!isZero(payment.unapplied_amount) && (
+                <Typography color="warning.main" variant="body2" sx={{ mt: 1 }}>
+                  Unapplied remainder:{" "}
+                  {money(payment.unapplied_amount, payment.currency)}
+                </Typography>
+              )}
+              {!isZero(payment.unapplied_amount) &&
+                capabilities.billing_payment_record === true &&
+                eligibleInvoices(payment).length > 0 && (
+                  <Box sx={{ mt: 1.5 }}>
+                    {allocationPaymentId === payment.id ? (
+                      <Stack
+                        component="form"
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void allocatePayment(payment.id);
+                        }}
+                      >
+                        <TextField
+                          select
+                          label="Apply to invoice"
+                          value={allocationInvoiceId}
+                          onChange={(event) =>
+                            setAllocationInvoiceId(event.target.value)
+                          }
+                          sx={{ minWidth: 190 }}
+                        >
+                          {eligibleInvoices(payment).map((invoice) => (
+                            <MenuItem key={invoice.id} value={invoice.id}>
+                              #{invoice.id} ·{" "}
+                              {money(invoice.balance_amount, invoice.currency)}{" "}
+                              due
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          label="Amount"
+                          inputMode="decimal"
+                          value={allocationAmount}
+                          onChange={(event) =>
+                            setAllocationAmount(event.target.value)
+                          }
+                        />
+                        <Button
+                          disabled={allocationBusy}
+                          type="submit"
+                          variant="contained"
+                        >
+                          {allocationBusy ? "Allocating…" : "Allocate"}
+                        </Button>
+                        <Button
+                          disabled={allocationBusy}
+                          onClick={() => {
+                            setAllocationPaymentId(null);
+                            setAllocationError("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </Stack>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          setAllocationError("");
+                          setAllocationPaymentId(payment.id);
+                          setAllocationInvoiceId(
+                            String(eligibleInvoices(payment)[0].id),
+                          );
+                          setAllocationAmount(payment.unapplied_amount);
+                        }}
+                        variant="outlined"
+                      >
+                        Allocate remainder
+                      </Button>
+                    )}
+                    {allocationError && allocationPaymentId === payment.id && (
+                      <Alert severity="error" sx={{ mt: 1 }}>
+                        {allocationError}
+                      </Alert>
+                    )}
+                  </Box>
+                )}
               {payment.cash_payment && (
                 <Stack
                   direction={{ xs: "column", sm: "row" }}

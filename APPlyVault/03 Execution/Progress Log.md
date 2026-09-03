@@ -11,6 +11,30 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Phase 1.5 final Luna web gate
+
+**Verification:** the existing Phase 1.5 draft-edit and unapplied-allocation UI was rechecked after the shared checkout exposed the complete `8855fa8` surface. `npm test -- billing-dashboard.test.ts` passed 1 file / 6 tests; `npm run typecheck` passed; `npm run build` passed with the existing large-bundle warning. No cash behavior or portal files were staged.
+
+**API limit:** the focused Rails rerun could not start because the shared test database has pending concurrent patient-portal migrations. This is recorded as an environment blocker, not a billing assertion result. The scoped API implementation and synthetic test commits remain `e9149b7` and `ea2ddfc`; unrelated portal edits were preserved.
+
+## 2026-09-03 — Patient portal critic fixes closed
+
+**Repairs:** converted `datetime-local` appointment inputs to offset-bearing ISO timestamps at submission, added structured JSON rescues for patient-portal parameter/record/uniqueness/context failures, split read capabilities from the appointment-request write capability, removed internal message request keys and dispatch state from the patient projection, restricted result projection to completed encounters, added the page main landmark, responsive narrow layouts, and exact string-preserving currency display.
+
+**Verification:** the fresh Impeccable adversarial review found the issues above; all were addressed. Full web tests passed 13 files / 155 tests, typecheck and production build passed, Ruby syntax and Zeitwerk eager loading passed, and Git whitespace checks passed. Rails integration execution remains inconclusive under local concurrent transaction/lock contention.
+
+## 2026-09-03 — Patient appointment-request fallback added
+
+**Implementation:** added a patient-scoped `appointment_requests` record and API under the synthetic portal. Requests carry an idempotency key, preferred time window, optional site/service, pending review state, composite practice/patient/identity foreign keys, overlap protection against scheduled/confirmed appointments, and an audit event. The portal now offers a preferred-window form and shows the latest request without claiming that a booking occurred.
+
+**Limits:** this is the roadmap's staff-confirmation fallback, not real-time booking. Provider calendars, inventory holds, cancellation/reschedule policy, intake signatures, and appointment authority are still required before changing a request into a booked appointment.
+
+## 2026-09-03 — Synthetic patient portal vertical slice implemented
+
+**Implementation:** added the local/test-only patient portal identity binding and a dedicated synthetic patient login. Rails resolves one practice/patient identity from the signed session and returns a narrow projection of upcoming appointments, exact-decimal billing ledger, intake status, released SOAP summaries, encrypted observation results, active medications, and message metadata. The React/MUI portal renders bounded states; payment collection remains disabled pending a processor boundary.
+
+**Limits / blockers:** this is synthetic development evidence only. Invitation/recovery/revocation lifecycle, payment collection, intake signatures, clinician release workflow, outbound messaging/refills/results, real data, and release remain gated.
+
 ## 2026-09-03 — Vault control, developer and evidence planes separated
 
 **Implementation:** on `codex/vault-architecture-cleanup`, three Luna Medium subagents split current developer mechanics into `docs/`, detailed dated evidence into `records/`, and compact current product context into the vault. D-058/T-51 add machine-readable routing, nested docs/records policies, a repeatable knowledge-maintenance workflow and a vault hygiene audit. Stable vault titles/headings remain as compatibility pointers; all task and source IDs were preserved.

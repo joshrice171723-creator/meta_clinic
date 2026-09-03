@@ -56,10 +56,14 @@ export function CashDrawerOperations({
   const [allocationAmount, setAllocationAmount] = useState("");
   const [countedCash, setCountedCash] = useState("");
   const [explanation, setExplanation] = useState("");
-  const [busy, setBusy] = useState<"open" | "cash" | "close" | null>(null);
+  const [busy, setBusy] = useState<
+    "open" | "cash" | "close" | "reconcile" | null
+  >(null);
+  const [reconciliationNote, setReconciliationNote] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [receiptPaymentId, setReceiptPaymentId] = useState<number | null>(null);
+  const allDrawers = drawers.data?.drawers ?? [];
   const openDrawers = useMemo(
     () =>
       drawers.data?.drawers.filter((drawer) => drawer.status === "open") ?? [],
@@ -67,15 +71,15 @@ export function CashDrawerOperations({
   );
   useEffect(() => {
     if (
-      !openDrawers.some(
+      !allDrawers.some(
         (candidate) => candidate.id.toString() === selectedDrawerId,
       )
     ) {
       setSelectedDrawerId(openDrawers[0]?.id.toString() ?? "");
     }
-  }, [openDrawers, selectedDrawerId]);
+  }, [allDrawers, openDrawers, selectedDrawerId]);
   const drawer =
-    openDrawers.find(
+    allDrawers.find(
       (candidate) => candidate.id.toString() === selectedDrawerId,
     ) ?? null;
   const permitted = capabilities.billing_payment_record === true;
@@ -194,6 +198,42 @@ export function CashDrawerOperations({
       drawers.refresh();
     } catch (reason) {
       reportError(reason, "The cash drawer could not be closed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reconcileDrawer = async () => {
+    if (
+      !drawer ||
+      drawer.status !== "closed" ||
+      capabilities.billing_cash_reconcile !== true ||
+      !reconciliationNote.trim()
+    ) {
+      setError(
+        "A manager reconciliation note is required for a closed drawer.",
+      );
+      return;
+    }
+    setBusy("reconcile");
+    setError("");
+    try {
+      await api(`/api/clinic/cash_drawers/${drawer.id}/reconcile`, {
+        method: "POST",
+        body: {
+          drawer: {
+            reconciliation_note: reconciliationNote.trim(),
+            request_key: requestKey(),
+          },
+        },
+      });
+      setReconciliationNote("");
+      setNotice(
+        "Drawer discrepancy reconciled and preserved for review history.",
+      );
+      drawers.refresh();
+    } catch (reason) {
+      reportError(reason, "The drawer reconciliation could not be recorded.");
     } finally {
       setBusy(null);
     }
@@ -372,6 +412,37 @@ export function CashDrawerOperations({
                 {busy === "close" ? "Closing…" : "Close drawer"}
               </Button>
             </Stack>
+            {drawer.status === "closed" &&
+              drawer.reconciliation_status === "pending" &&
+              capabilities.billing_cash_reconcile === true && (
+                <Stack
+                  component="form"
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={1.5}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void reconcileDrawer();
+                  }}
+                >
+                  <TextField
+                    label="Manager reconciliation note"
+                    value={reconciliationNote}
+                    onChange={(event) =>
+                      setReconciliationNote(event.target.value)
+                    }
+                    sx={{ flex: 1 }}
+                  />
+                  <Button
+                    disabled={busy !== null}
+                    type="submit"
+                    variant="contained"
+                  >
+                    {busy === "reconcile"
+                      ? "Reconciling…"
+                      : "Reconcile discrepancy"}
+                  </Button>
+                </Stack>
+              )}
           </>
         )}
         {!permitted && (

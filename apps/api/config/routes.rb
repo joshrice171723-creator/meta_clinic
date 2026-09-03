@@ -28,16 +28,19 @@ Rails.application.routes.draw do
     resources :message_intents, controller: "messaging/message_intents", only: :show do
       post :delivery_events, on: :member, action: :record_delivery
     end
-    resources :invoices, controller: "billing/invoices", only: :show do
+      resources :invoices, controller: "billing/invoices", only: :show do
+        patch :draft, on: :member, action: :update_draft
       post :post, on: :member
       post :payment_allocations, on: :member, action: :allocate_payment
       post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
     end
     get "billing", to: "billing/dashboard#show"
-    resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
-      post :close, on: :member
+      resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
+        post :close, on: :member
+        post :reconcile, on: :member
     end
     resources :payment_events, controller: "billing/payment_events", only: [] do
+      post :allocations, on: :member, action: :allocate
       post :cash_refunds, on: :member
       get :receipt, on: :member
     end
@@ -108,6 +111,13 @@ Rails.application.routes.draw do
     resource :settings, only: %i[show update]
       resource :development_access, controller: :development_access, only: :update
     post "development_session", to: "sessions#development"
+  end
+  scope path: "api", as: "api" do
+    namespace :patient_portal, module: "clinic/patient_portal" do
+      get "context", to: "context#show"
+      resources :appointment_requests, only: %i[index create]
+      resources :requests, controller: "requests", only: %i[index create]
+    end
   end
   namespace :api, module: "launch/api" do
     resources :materials, only: %i[index show]

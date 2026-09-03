@@ -48,6 +48,8 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 | REG-01 | Existing clinic billing behavior remains compatible | Focused administrative permission regression plus route/contract checks; no destructive migration or source inference | Pass — Rails and full web gates green |
 | OPS-01 | The verification record is reproducible and synchronized | `bin/verify-web`, `bin/verify-vault`, `git diff --check`, scoped commit and pushed upstream state | Pass for the cash implementation commits; this documentation gate is pending, and unrelated concurrent portal/receivables edits are intentionally preserved outside the cash scope |
 | DB-03 | Backend race/restore helper completes within a bounded local run | `bin/verify-backend` and `bin/verify-postgres` on task-owned synthetic scratch databases | Inconclusive — helper produced no output for ~4 minutes and was stopped; no active scratch DB remained |
+| LED-03 | Staff can allocate a retained payment remainder without crossing patient/practice scope | Create one payment with an unapplied remainder; allocate it to a second eligible posted invoice; assert exact totals and reject cross-scope/over-allocation attempts | Implemented locally; web contract gate passes; focused Rails rerun blocked by two pending concurrent patient-portal migrations |
+| LED-04 | Draft invoice edits do not alter posted financial history | Edit a draft, assert audit history and updated totals; post it; reject a second edit after posting | Implemented and covered by the focused workspace integration test; web typecheck/build pass; clean Rails rerun pending migration state |
 
 ## Gate sequence
 

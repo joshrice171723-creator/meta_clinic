@@ -30,6 +30,7 @@ module Clinic
           billing_invoice_draft: allowed?("billing.invoice_draft"),
           billing_invoice_post: allowed?("billing.invoice_post"),
           billing_payment_record: allowed?("billing.payment_record"),
+          billing_cash_reconcile: allowed?("billing.cash_reconcile"),
           roles: allowed?("roles.manage")
         },
         sites: current_practice.sites.order(:code, :id).map { |site| FacilitySerializer.site(site) }

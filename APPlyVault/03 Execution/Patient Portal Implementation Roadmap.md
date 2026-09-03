@@ -1,6 +1,6 @@
 ---
 type: implementation-roadmap
-status: proposed
+status: in-progress
 updated: 2026-09-03
 ---
 # Patient Portal Implementation Roadmap
@@ -115,4 +115,6 @@ Pilot measures should be operational, not invented clinical claims: activation c
 
 ## Recommended immediate next slice
 
-Start with Milestone 0's **patient portal lifecycle contract and synthetic authorization model**. It resolves the dependency shared by every other portal feature and lets the team build a dashboard shell without importing payments, clinical content, or real patient data. Do not begin Stripe or real-time booking until the corresponding program-gate inputs are accepted.
+The first synthetic Milestone 0 slice is implemented locally: a patient-to-portal identity binding, dev-only patient login, no-store patient-scoped context endpoint, audit read event, and responsive dashboard shell. The context projection now includes synthetic appointments, ledger invoices/payments, intake status, released-note summaries, results, active medications, and message metadata. Payment collection, outbound messages, refill submission, real-time booking, and document delivery remain visibly unavailable until their source systems and owners are accepted.
+
+Next, add the lifecycle contract (invitation/step-up/recovery/revocation) and server-side appointment/intake request records. Keep the synthetic profile and all fixtures isolated to local/test environments; do not infer that this implementation authorizes production patient data or charges.

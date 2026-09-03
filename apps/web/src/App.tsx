@@ -31,6 +31,7 @@ import {
   chartSelectionProps,
 } from "./features/clinic/ChartSelectionPage";
 import { InventoryApp } from "./features/inventory/InventoryApp";
+import { PatientPortal } from "./features/patientPortal/PatientPortal";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -402,6 +403,7 @@ export function App() {
   if (path.startsWith("/clinic") && user) {
     return <ClinicApplication user={user} />;
   }
+  if (path === "/patient-portal" && user) return <PatientPortal />;
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
     guide = /^\/(?:training|materials)\/(\d+)$/.exec(path);
   page =

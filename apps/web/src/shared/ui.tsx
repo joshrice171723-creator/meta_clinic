@@ -126,6 +126,7 @@ export function Form({
   onSuccess,
   values = {},
   retryKey = false,
+  transform,
   className = "pharmacy-form-grid",
 }: {
   endpoint: string;
@@ -135,6 +136,7 @@ export function Form({
   onSuccess?: (result: Record<string, unknown> | undefined) => void;
   values?: Record<string, unknown>;
   retryKey?: boolean;
+  transform?: (values: Record<string, unknown>) => Record<string, unknown>;
   className?: string;
 }) {
   const [busy, setBusy] = useState(false),
@@ -155,12 +157,13 @@ export function Form({
         setNotice("");
         key.current ||= crypto.randomUUID();
         try {
+          const formValues = formBody(new FormData(form));
           const result = await api<Record<string, unknown> | undefined>(
             endpoint,
             {
               method,
               body: {
-                ...formBody(new FormData(form)),
+                ...(transform ? transform(formValues) : formValues),
                 ...values,
                 ...(retryKey ? { request_key: key.current } : {}),
               },
