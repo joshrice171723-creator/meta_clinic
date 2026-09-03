@@ -77,10 +77,10 @@ module Clinic
           COALESCE((SELECT SUM(posted_amount) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id), 0) <=
           COALESCE((SELECT SUM(amount) FROM clinic_payment_allocations WHERE invoice_id = clinic_invoices.id), 0)
         SQL
-        when "age_0_30" then scope.where(created_at: (now - 31.days)..)
-        when "age_31_60" then scope.where(created_at: (now - 61.days)...(now - 31.days))
-        when "age_61_90" then scope.where(created_at: (now - 91.days)...(now - 61.days))
-        when "age_91_plus" then scope.where(created_at: ... (now - 91.days))
+        when "age_0_30" then scope.where("created_at > ?", now - 31.days)
+        when "age_31_60" then scope.where("created_at <= ? AND created_at > ?", now - 31.days, now - 61.days)
+        when "age_61_90" then scope.where("created_at <= ? AND created_at > ?", now - 61.days, now - 91.days)
+        when "age_91_plus" then scope.where("created_at <= ?", now - 91.days)
         else raise ArgumentError, "Invoice filter is not supported."
         end
       end
