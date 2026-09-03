@@ -147,6 +147,8 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
 
     manager = administrative_user("cash-manager", "billing.read", "billing.cash_reconcile")
     login(manager)
+    get "/api/clinic/cash_drawers", headers: @headers
+    assert_response :success
     post "/api/clinic/cash_drawers/#{drawer_id}/reconcile",
       params: { drawer: { reconciliation_note: "Synthetic manager reviewed the variance", request_key: "SYN-RECONCILE-001" } },
       headers: csrf_headers, as: :json

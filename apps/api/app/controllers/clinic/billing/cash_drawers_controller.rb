@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class CashDrawersController < Clinic::ApiController
-      before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[index create close]
+      before_action :authorize_drawer_access, only: %i[index create close]
       before_action -> { require_capability("billing.cash_reconcile") }, only: :reconcile
 
       def index
@@ -42,6 +42,14 @@ module Clinic
         session.update!(reconciliation_status: "reconciled", reconciled_by: current_user, reconciled_at: Time.current,
           reconciliation_note: required_string!(input[:reconciliation_note], field: :reconciliation_note, maximum: 1000), reconciliation_request_key: request_key)
         render json: { drawer: CashDrawer.call(session.reload) }
+      end
+
+      private
+
+      def authorize_drawer_access
+        require_capability_with_legacy("billing.payment_record", "billing.write")
+      rescue Clinic::Authorization::Denied, CanCan::AccessDenied
+        require_capability("billing.cash_reconcile")
       end
     end
   end
