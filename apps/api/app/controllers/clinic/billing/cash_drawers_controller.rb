@@ -1,7 +1,8 @@
 module Clinic
   module Billing
     class CashDrawersController < Clinic::ApiController
-      before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }
+      before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[index create close]
+      before_action -> { require_capability("billing.cash_reconcile") }, only: :reconcile
 
       def index
         sessions = current_practice.cash_drawer_sessions.includes(cash_tenders: { payment_event: :refund_events }).order(created_at: :desc)
@@ -25,6 +26,21 @@ module Clinic
         expected = BigDecimal(CashDrawer.call(session).fetch(:expected_cash))
         session.update!(status: "closed", counted_cash: counted, discrepancy: counted - expected,
           discrepancy_explanation: input[:discrepancy_explanation].presence, closed_by: current_user, closed_at: Time.current)
+        render json: { drawer: CashDrawer.call(session.reload) }
+      end
+
+      def reconcile
+        input = parameter_hash!(:drawer, %i[reconciliation_note request_key])
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 100)
+        session = current_practice.cash_drawer_sessions.lock.find(requested_id!(params[:id], :id))
+        raise ArgumentError, "Only a closed cash drawer can be reconciled." unless session.status == "closed"
+        raise ArgumentError, "A reconciliation note is required." unless input[:reconciliation_note].to_s.strip.present?
+        if session.reconciliation_status == "reconciled"
+          raise ArgumentError, "The cash drawer is already reconciled." unless session.reconciliation_request_key == request_key
+          return render json: { drawer: CashDrawer.call(session) }
+        end
+        session.update!(reconciliation_status: "reconciled", reconciled_by: current_user, reconciled_at: Time.current,
+          reconciliation_note: required_string!(input[:reconciliation_note], field: :reconciliation_note, maximum: 1000), reconciliation_request_key: request_key)
         render json: { drawer: CashDrawer.call(session.reload) }
       end
     end

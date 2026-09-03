@@ -144,6 +144,15 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "closed", response.parsed_body.dig("drawer", "status")
     assert_equal "2.0", response.parsed_body.dig("drawer", "discrepancy")
+
+    manager = administrative_user("cash-manager", "billing.read", "billing.cash_reconcile")
+    login(manager)
+    post "/api/clinic/cash_drawers/#{drawer_id}/reconcile",
+      params: { drawer: { reconciliation_note: "Synthetic manager reviewed the variance", request_key: "SYN-RECONCILE-001" } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "reconciled", response.parsed_body.dig("drawer", "reconciliation_status")
+    assert_equal "2.0", response.parsed_body.dig("drawer", "discrepancy")
   end
 
   test "cash replay keys preserve intent and drawers remain isolated by site" do

@@ -11,7 +11,9 @@ module Clinic
           cash_received: received.to_s("F"), cash_refunded: refunds.to_s("F"), expected_cash: expected.to_s("F"),
           counted_cash: session.counted_cash&.to_s("F"), discrepancy: session.discrepancy&.to_s("F"),
           discrepancy_explanation: session.discrepancy_explanation, opened_at: session.created_at.iso8601,
-          closed_at: session.closed_at&.iso8601
+          closed_at: session.closed_at&.iso8601, reconciliation_status: session.reconciliation_status,
+          reconciled_by_id: session.reconciled_by_id, reconciled_at: session.reconciled_at&.iso8601,
+          reconciliation_note: session.reconciliation_note
         }
       end
     end

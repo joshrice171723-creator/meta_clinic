@@ -50,7 +50,12 @@ export type PatientPortalContext = {
       total_amount: Decimal;
       allocated_amount: Decimal;
       balance_amount: Decimal;
-      lines: { id: number; description: string; quantity: Decimal; posted_amount: Decimal }[];
+      lines: {
+        id: number;
+        description: string;
+        quantity: Decimal;
+        posted_amount: Decimal;
+      }[];
     }[];
     payments: {
       id: number;
@@ -445,6 +450,7 @@ export type BillingPatientLedger = {
     id: number;
     currency: string;
     amount: Decimal;
+    allocated_amount: Decimal;
     unapplied_amount: Decimal;
     created_at: string;
     cash_payment: boolean;
@@ -490,6 +496,10 @@ export type CashDrawer = {
   discrepancy_explanation: string | null;
   opened_at: string;
   closed_at: string | null;
+  reconciliation_status: "pending" | "reconciled";
+  reconciled_by_id: number | null;
+  reconciled_at: string | null;
+  reconciliation_note: string | null;
 };
 export type CashPaymentResult = {
   payment_allocation: {

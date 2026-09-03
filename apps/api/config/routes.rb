@@ -35,8 +35,9 @@ Rails.application.routes.draw do
       post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
     end
     get "billing", to: "billing/dashboard#show"
-    resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
-      post :close, on: :member
+      resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
+        post :close, on: :member
+        post :reconcile, on: :member
     end
     resources :payment_events, controller: "billing/payment_events", only: [] do
       post :allocations, on: :member, action: :allocate
