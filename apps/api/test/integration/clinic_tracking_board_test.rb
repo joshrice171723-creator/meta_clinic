@@ -124,8 +124,10 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     assert_equal true, visits.fetch(@current.id).fetch("provider_assignment_available")
     assert_equal false, visits.fetch(@other_current.id).fetch("provider_assignment_available")
     roster = response.parsed_body.fetch("eligible_providers")
-    assert_equal [ provider.id ], roster.pluck("clinician_profile_id")
-    assert_equal [ allowed_site.id ], roster.sole.fetch("site_ids")
+    assert_equal [ provider.id.to_s ], roster.pluck("clinician_profile_id")
+    assert_equal [ allowed_site.id.to_s ], roster.sole.fetch("site_ids")
+    assert_equal allowed_site.id.to_s,
+      visits.fetch(@current.id).dig("encounter", "site_id")
   end
 
   test "tracking board projects local birthday age and recorded sex without date of birth" do

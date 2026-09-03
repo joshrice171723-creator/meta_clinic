@@ -356,7 +356,7 @@ export type Encounter = {
   id: number;
   patient_id: number;
   appointment_id: number | null;
-  site_id: number | null;
+  site_id: string | null;
   room_id: number | null;
   started_at: string;
   ended_at: string | null;
@@ -364,8 +364,8 @@ export type Encounter = {
 };
 export type EncounterDetail = Encounter & {
   participants: {
-    id: number;
-    membership_id: number;
+    id: string;
+    membership_id: string;
     participation_role: string;
     effective_from: string;
     effective_until: string | null;
@@ -439,7 +439,7 @@ export type ClinicTrackingBoardVisit = {
     weight?: { value: string | null; unit?: string | null };
   } | null;
   provider?: {
-    clinician_profile_id: number;
+    clinician_profile_id: string;
     display_name: string;
     token: string | null;
   } | null;
@@ -448,7 +448,7 @@ export type ClinicTrackingBoardVisit = {
     status: "open" | "completed";
     started_at: string;
     ended_at: string | null;
-    site_id: number | null;
+    site_id: string | null;
     site_code: string | null;
     room_id: number | null;
     room_code: string | null;
@@ -459,7 +459,7 @@ export type ClinicTrackingBoardVisit = {
     starts_at: string;
     ends_at: string;
     visit_type_code: string | null;
-    site_id: number | null;
+    site_id: string | null;
     site_code: string | null;
     room_id: number | null;
     room_code: string | null;
@@ -477,9 +477,9 @@ export type ClinicTrackingBoard = {
   truncated: boolean;
   visits: ClinicTrackingBoardVisit[];
   eligible_providers: {
-    clinician_profile_id: number;
+    clinician_profile_id: string;
     display_name: string;
-    site_ids: number[];
+    site_ids: string[];
   }[];
 };
 export type PreviousSignedSoapResponse = {

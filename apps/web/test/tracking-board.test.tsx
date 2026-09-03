@@ -666,7 +666,7 @@ describe("mapped read-only care flow", () => {
           id: 9,
           patient_id: 7,
           appointment_id: 4,
-          site_id: 1,
+          site_id: "1",
           room_id: null,
           started_at: "2026-08-31T15:00:00Z",
           ended_at: null,

@@ -8,6 +8,8 @@ import {
   inventoryDateTime,
   inventoryMutationAttempt,
   inventoryOutcomeUnconfirmed,
+  recallSelectableBalances,
+  recallViewState,
 } from "../src/features/inventory/InventoryApp";
 import {
   decimalAdd,
@@ -118,5 +120,65 @@ describe("inventory integration", () => {
     expect(source).not.toContain("Canonical scenario loaded");
     expect(source).not.toContain("Rails API");
     expect(source).not.toMatch(/localStorage|sessionStorage|indexedDB/);
+  });
+
+  it("keeps a recall with no exact held balance selectable and non-actionable", () => {
+    const source = readFileSync(
+      "src/features/inventory/InventoryApp.tsx",
+      "utf8",
+    );
+
+    expect(source).toContain("recallSelectableBalances(");
+    expect(source).toContain("No exact active hold for this recall");
+    expect(source).toContain("Choose another recall to review its exact");
+    expect(source).toContain("no disposition can be recorded here.");
+    expect(source).not.toContain("!recall || !item || !recalledLot || !batch");
+  });
+
+  it("selects only the exact recall hold when recalls share a lot", () => {
+    const balances = [
+      {
+        id: "bal-1",
+        product_id: "product-1",
+        lot_id: "lot-1",
+        location_id: "location-1",
+        recall_ids: ["recall-a"],
+        on_hand_units: "10",
+        held_units: "10",
+        blocked_units: "0",
+        quarantined_units: "10",
+        available_units: "0",
+      },
+    ];
+
+    expect(
+      recallSelectableBalances(balances, "recall-a", ["lot-1"]),
+    ).toHaveLength(1);
+    expect(
+      recallSelectableBalances(balances, "recall-b", ["lot-1"]),
+    ).toHaveLength(0);
+  });
+
+  it("keeps empty, unheld, and held recall states truthful", () => {
+    expect(recallViewState(undefined, false)).toMatchObject({
+      empty: true,
+      actionable: false,
+      showComplete: false,
+    });
+    expect(
+      recallViewState({ status: "disposition_complete" }, false),
+    ).toMatchObject({
+      actionable: false,
+      availability: "Not held for this recall",
+      showComplete: false,
+      workflowStage: 4,
+    });
+    expect(
+      recallViewState({ status: "disposition_pending" }, true),
+    ).toMatchObject({
+      actionable: true,
+      showComplete: false,
+      workflowStage: 4,
+    });
   });
 });

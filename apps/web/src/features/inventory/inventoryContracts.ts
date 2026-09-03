@@ -116,6 +116,7 @@ export type InventoryBalance = {
   product_id: string;
   lot_id: string;
   location_id: string;
+  recall_ids: string[];
   on_hand_units: Decimal;
   held_units: Decimal;
   blocked_units: Decimal;

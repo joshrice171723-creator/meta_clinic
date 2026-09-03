@@ -8,7 +8,12 @@ import {
 import { api, ApiError } from "../../api/client";
 import { LoadState } from "../../shared/ui";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
-import type { InventoryData, Decimal } from "./inventoryContracts";
+import type {
+  InventoryBalance,
+  InventoryData,
+  InventoryRecall,
+  Decimal,
+} from "./inventoryContracts";
 import {
   decimalAdd,
   decimalCeilDivide,
@@ -187,6 +192,52 @@ function balanceFor(data: InventoryData, balanceId?: string) {
     ) ??
     data.balances[0]
   );
+}
+
+export function recallSelectableBalances(
+  balances: InventoryBalance[],
+  recallId: string,
+  recallLotIds: string[],
+): InventoryBalance[] {
+  return balances.filter(
+    (balance) =>
+      recallLotIds.includes(balance.lot_id) &&
+      balance.recall_ids?.includes(recallId),
+  );
+}
+
+export function recallViewState(
+  recall: Pick<InventoryRecall, "status"> | undefined,
+  hasExactBatch: boolean,
+) {
+  if (!recall) {
+    return {
+      empty: true,
+      actionable: false,
+      availability: "Not held",
+      showComplete: false,
+      workflowStage: -1,
+    };
+  }
+  const workflowStage =
+    {
+      identified: 0,
+      inventory_locked: 1,
+      location_sweep: 2,
+      isolated: 3,
+      disposition_pending: 4,
+      disposition_complete: 5,
+      closed: 6,
+    }[recall.status] ?? 1;
+  return {
+    empty: false,
+    actionable: hasExactBatch,
+    availability: hasExactBatch ? "held" : "Not held for this recall",
+    showComplete:
+      hasExactBatch &&
+      ["disposition_complete", "closed"].includes(recall.status),
+    workflowStage: hasExactBatch ? workflowStage : Math.min(workflowStage, 4),
+  };
 }
 function onOrderUnits(data: InventoryData, productId: string): Decimal {
   return decimalSum(
@@ -2049,8 +2100,10 @@ function RecallScreen({
         .filter((record) => recall.lot_numbers.includes(record.lot_number))
         .map((record) => record.id)
     : [];
-  const recallBalances = data.balances.filter((record) =>
-    recallLotIds.includes(record.lot_id),
+  const recallBalances = recallSelectableBalances(
+    data.balances,
+    recall?.id ?? "",
+    recallLotIds,
   );
   const [balanceId, setBalanceId] = useState("");
   const batch =
@@ -2058,9 +2111,10 @@ function RecallScreen({
     recallBalances[0];
   const recalledLot = batch && lot(data, batch.lot_id);
   const batchLocation = batch && location(data, batch.location_id);
+  const viewState = recallViewState(recall, Boolean(batch));
   const [quantity, setQuantity] = useState<Decimal>(batch?.held_units ?? "0");
   const [evidence, setEvidence] = useState("");
-  if (!recall || !item || !recalledLot || !batch)
+  if (!recall || !item)
     return (
       <Card title="Recalls and disposition">
         <p>No recall records are available.</p>
@@ -2068,6 +2122,7 @@ function RecallScreen({
     );
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!batch) return;
     void run(
       `/api/clinic/inventory/recalls/${recall.id}/disposition`,
       {
@@ -2112,9 +2167,11 @@ function RecallScreen({
                           )
                           .map((record) => record.id)
                       : [];
-                    const selectedBalance = data.balances.find((record) =>
-                      lotIds.includes(record.lot_id),
-                    );
+                    const selectedBalance = recallSelectableBalances(
+                      data.balances,
+                      event.target.value,
+                      lotIds,
+                    )[0];
                     setRecallId(event.target.value);
                     setBalanceId(selectedBalance?.id ?? "");
                     setQuantity(selectedBalance?.held_units ?? "0");
@@ -2153,18 +2210,13 @@ function RecallScreen({
           </div>
           <div className="inventory-panel-heading">
             <div>
-              <Badge
-                tone={
-                  decimalCompare(recall.held_units, "0") === 0
-                    ? "success"
-                    : "danger"
-                }
-              >
+              <Badge tone={viewState.showComplete ? "success" : "danger"}>
                 {recall.status.replaceAll("_", " ")}
               </Badge>
               <h2>{recall.reference}</h2>
               <p className="inventory-lead">
-                {item.name} · lot {recalledLot.lot_number}
+                {item.name} · lot{" "}
+                {recalledLot?.lot_number ?? "No exact held lot"}
               </p>
             </div>
             <div className="inventory-date">
@@ -2181,7 +2233,11 @@ function RecallScreen({
             />
             <DataPoint
               label="Held now"
-              value={`${number(recall.held_units)} ${item.base_unit}`}
+              value={
+                batch
+                  ? `${number(recall.held_units)} ${item.base_unit}`
+                  : "Not held for this recall"
+              }
               tone="warning"
             />
             <DataPoint
@@ -2190,8 +2246,12 @@ function RecallScreen({
             />
             <DataPoint
               label="Available"
-              value={`${number(batch.available_units)} ${item.base_unit}`}
-              tone="danger"
+              value={
+                batch
+                  ? `${number(batch.available_units)} ${item.base_unit}`
+                  : "Not held"
+              }
+              tone={batch ? "danger" : ""}
             />
           </div>
           <p className="inventory-info">
@@ -2206,12 +2266,7 @@ function RecallScreen({
             {stages.map((stage, index) => (
               <div
                 key={stage}
-                className={
-                  index <=
-                  (decimalCompare(recall.held_units, "0") === 0 ? 5 : 4)
-                    ? "done"
-                    : ""
-                }
+                className={index <= viewState.workflowStage ? "done" : ""}
               >
                 <span>{index + 1}</span>
                 {stage}
@@ -2221,7 +2276,16 @@ function RecallScreen({
         </Card>
       </div>
       <Card title="Record disposition">
-        {decimalCompare(recall.held_units, "0") === 0 ? (
+        {!batch ? (
+          <div className="inventory-info">
+            <strong>No exact active hold for this recall</strong>
+            <p>
+              This recall is recorded, but no selectable balance is currently
+              held for it. Choose another recall to review its exact held
+              balance; no disposition can be recorded here.
+            </p>
+          </div>
+        ) : viewState.showComplete ? (
           <div className="inventory-success-box">
             <strong>Final disposition complete</strong>
             <p>

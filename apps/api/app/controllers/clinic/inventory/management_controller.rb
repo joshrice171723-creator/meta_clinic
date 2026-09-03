@@ -52,15 +52,26 @@ module Clinic
             raise ArgumentError, "A purchase order needs 1–100 lines." unless rows.size.between?(1, 100)
             supplier = input[:supplier_id].present? ? current_practice.inventory_suppliers.find(input[:supplier_id]) : nil
             subtotal = BigDecimal("0")
-            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{Time.current.strftime('%Y%m%d%H%M%S')}", status: "draft", destination: input.require(:destination), reason: input[:reason].presence || "Replenishment request", request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
+            order_currency = nil
+            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: input.require(:destination), reason: input[:reason].presence || "Replenishment request", request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
             products = current_practice.pharmacy_products.where(id: rows.map { |row| row[:product_id] }).index_by { |product| product.id.to_s }
             rows.each do |row|
               product = products[row[:product_id].to_s] || raise(ActiveRecord::RecordNotFound)
               quantity = Quantity.parse(row[:quantity].presence || "0", scale: 0)
-              factor = Quantity.parse(row[:conversion_factor].presence || product.package_size.to_s, scale: product.quantity_scale, zero: false)
+              package_factor = Quantity.parse(product.package_size.to_s, scale: product.quantity_scale, zero: false)
+              input_unit = row[:input_unit].presence || "package"
+              supplied_factor = row[:conversion_factor].presence && Quantity.parse(row[:conversion_factor], scale: product.quantity_scale, zero: false)
+              raise ArgumentError, "Purchase orders must use the product's package unit." unless input_unit == "package"
+              raise ArgumentError, "The package conversion factor does not match the catalog." if supplied_factor && supplied_factor != package_factor
+              factor = package_factor
               price = Quantity.parse(row[:unit_price].presence || "0", scale: 6, zero: true)
+              currency = row[:currency].presence || "USD"
+              if order_currency && order_currency != currency
+                raise ArgumentError, "A purchase order cannot contain multiple currencies."
+              end
+              order_currency ||= currency
               subtotal += quantity * price
-              order.lines.create!(practice_id: current_practice.id, product: product, product_name: product.name, stock_unit: product.stock_unit, input_unit: row[:input_unit].presence || "package", ordered_quantity: quantity, received_quantity: 0, conversion_factor: factor, unit_price: price, currency: row[:currency].presence || "USD")
+              order.lines.create!(practice_id: current_practice.id, product: product, product_name: product.name, stock_unit: product.stock_unit, input_unit: input_unit, ordered_quantity: quantity, received_quantity: 0, conversion_factor: factor, unit_price: price, currency: currency)
             end
             order.update!(subtotal: subtotal, total: subtotal + order.tax + order.shipping)
             order

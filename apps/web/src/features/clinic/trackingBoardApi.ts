@@ -12,12 +12,12 @@ export function providerAssignmentRequestKey(): string {
 export function assignBoardProvider(
   encounterId: number,
   patientId: number,
-  clinicianProfileId: number | null,
+  clinicianProfileId: string | null,
   expectedToken: string | null,
   requestKey = providerAssignmentRequestKey(),
 ) {
   return api<{
-    assignment: { participant_id: number | null; token: string | null };
+    assignment: { participant_id: string | null; token: string | null };
   }>(`/api/clinic/encounters/${encounterId}/provider_assignment`, {
     method: "POST",
     body: {

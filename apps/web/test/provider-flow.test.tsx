@@ -40,7 +40,10 @@ import {
   trackingBoardVisitToBoardVisit,
 } from "../src/features/clinic/trackingBoardApi";
 import { EXAMPLE_CARE_SUMMARIES } from "../src/features/clinic/trackingBoardCareFixtures";
-import { EXAMPLE_VISITS } from "../src/features/clinic/trackingBoardData";
+import {
+  cliniciansForLocation,
+  EXAMPLE_VISITS,
+} from "../src/features/clinic/trackingBoardData";
 
 const patient: Patient = {
   id: 7,
@@ -52,7 +55,7 @@ const encounter: EncounterDetail = {
   id: 9,
   patient_id: 7,
   appointment_id: null,
-  site_id: 1,
+  site_id: "1",
   room_id: null,
   started_at: "2026-09-01T14:00:00Z",
   ended_at: null,
@@ -344,7 +347,7 @@ describe("provider encounter workflow", () => {
         weight: { value: "160.50", unit: "lb" },
       },
       provider: {
-        clinician_profile_id: 8,
+        clinician_profile_id: "9007199254740993",
         display_name: "Alex Rowan, NP",
         token: "41",
       },
@@ -353,7 +356,7 @@ describe("provider encounter workflow", () => {
         status: "open",
         started_at: "2026-09-01T14:00:00Z",
         ended_at: null,
-        site_id: null,
+        site_id: "9007199254740993",
         site_code: null,
         room_id: null,
         room_code: null,
@@ -386,11 +389,24 @@ describe("provider encounter workflow", () => {
         },
         vitalStatuses: null,
       },
-      assignedClinicianId: "api-provider-8",
+      assignedClinicianId: "api-provider-9007199254740993",
       assignedProviderName: "Alex Rowan, NP",
       providerAssignmentToken: "41",
+      locationId: "api-site-9007199254740993",
     });
     expect(openSoapHref(visit)).toBe("/clinic/patients/7/encounters/14");
+    expect(
+      cliniciansForLocation(visit.locationId, [
+        {
+          id: "api-provider-9007199254740993",
+          firstName: "",
+          lastName: "",
+          credentials: "",
+          displayName: "Alex Rowan, NP",
+          locationIds: ["api-site-9007199254740993"],
+        },
+      ]),
+    ).toHaveLength(1);
   });
 
   it("formats recorded decimals without passing through lossy JavaScript numbers", () => {
@@ -419,7 +435,7 @@ describe("provider encounter workflow", () => {
         status: "open",
         started_at: "2030-02-04T14:00:00Z",
         ended_at: null,
-        site_id: 2,
+        site_id: "2",
         site_code: "MAIN",
         room_id: 3,
         room_code: "WAITING",
@@ -430,7 +446,7 @@ describe("provider encounter workflow", () => {
         starts_at: "2030-02-04T14:00:00Z",
         ends_at: "2030-02-04T14:30:00Z",
         visit_type_code: "SYN-BOARD-ANNUAL",
-        site_id: 2,
+        site_id: "2",
         site_code: "MAIN",
         room_id: 3,
         room_code: "WAITING",
@@ -476,7 +492,7 @@ describe("provider encounter workflow", () => {
         starts_at: "2026-09-02T14:00:00Z",
         ends_at: "2026-09-02T14:30:00Z",
         visit_type_code: "FOLLOW-UP",
-        site_id: 4,
+        site_id: "4",
         site_code: "ED",
         room_id: null,
         room_code: null,

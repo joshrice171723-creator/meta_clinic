@@ -94,6 +94,22 @@ class ClinicErdModelsTest < ActiveSupport::TestCase
     assert_respond_to Clinic::Care::PatientMembership, :latest_as_of
   end
 
+  test "patient commercial membership schema is complete and protected" do
+    table = Clinic::Care::PatientMembership.table_name
+    assert_equal %w[clinic_patient_memberships_identity clinic_patient_memberships_patient_id clinic_patient_memberships_practice_id],
+      ApplicationRecord.connection.indexes(table).map(&:name).grep(/clinic_patient_memberships_/).sort
+    assert_equal %w[clinic_patient_memberships_status clinic_patient_memberships_window],
+      ApplicationRecord.connection.check_constraints(table).map(&:name).sort
+    foreign_keys = ApplicationRecord.connection.foreign_keys(table).map(&:options).map { |options| options[:name] }
+    assert_includes foreign_keys, "fk_patient_memberships_patient"
+    assert_includes foreign_keys, "fk_patient_memberships_recorded_by"
+    assert_includes foreign_keys, "fk_clinic_patient_memberships_practice"
+    assert ApplicationRecord.connection.select_value(<<~SQL).present?
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'clinic_patient_memberships_immutable' AND NOT tgisinternal
+    SQL
+  end
+
   test "observation validation requires exactly one typed representation" do
     practice = Clinic::Practice.new(id: 1)
     patient = Clinic::Care::Patient.new(id: 2, practice_id: 1)

@@ -9,7 +9,7 @@ module Clinic
         profile = unassign ? nil : current_practice.clinician_profiles.find(requested_id!(input[:clinician_profile_id], :clinician_profile_id))
         result = AssignProvider.call(encounter: encounter, actor: current_user, clinician_profile: profile,
           request_key: input[:request_key], expected_token: input[:expected_token], unassign: unassign)
-        render json: { assignment: { participant_id: result[:participant]&.id, token: result[:token] } }
+        render json: { assignment: { clinician_profile_id: result[:participant]&.membership&.clinician_profile&.id&.to_s, participant_id: result[:participant]&.id&.to_s, token: result[:token] } }
       end
     end
   end

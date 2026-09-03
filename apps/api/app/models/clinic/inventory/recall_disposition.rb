@@ -22,7 +22,7 @@ module Clinic
             return existing
           end
           batch = PharmacyBatch.where(practice_id: recall.practice_id).lock.find(batch_id)
-          raise ArgumentError, "The lot is not held for this recall." unless batch.active_holds.where(kind: "recalled").exists?
+          raise ArgumentError, "The lot is not held for this recall." unless batch.active_holds.where(kind: "recalled", recall_id: recall.id).exists?
           raise ArgumentError, "Disposition exceeds held stock." unless amount <= batch.quantity
           record = create!(practice_id: recall.practice_id, recall: recall, batch: batch, actor: actor, quantity: amount, method: method, evidence_reference: evidence_reference, reason: reason, request_key: request_key)
           profile = recall.practice.inventory_profiles.order(version: :desc).first

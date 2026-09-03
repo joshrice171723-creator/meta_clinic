@@ -42,6 +42,38 @@ def assert_receipt_digest_schema():
     if key_schema != "YES|":
         raise RuntimeError("Receipt digest key identity schema is not nullable and default-free")
 
+def assert_patient_membership_schema():
+    columns = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT string_agg(column_name || ':' || data_type || ':' || is_nullable, ',' ORDER BY ordinal_position) "
+        "FROM information_schema.columns WHERE table_name='clinic_patient_memberships'"
+    ]).strip()
+    expected = (
+        "id:bigint:NO,practice_id:bigint:NO,patient_id:bigint:NO,"
+        "recorded_by_membership_id:bigint:NO,status:character varying:NO,version:integer:NO,"
+        "effective_from:timestamp without time zone:NO,effective_until:timestamp without time zone:YES,"
+        "created_at:timestamp without time zone:NO,updated_at:timestamp without time zone:NO"
+    )
+    if columns != expected:
+        raise RuntimeError("Patient membership columns are incomplete or incompatible")
+    invariants = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT count(*) FILTER (WHERE conname IN "
+        "('clinic_patient_memberships_status','clinic_patient_memberships_window')) "
+        ", count(*) FILTER (WHERE conname IN "
+        "('fk_clinic_patient_memberships_practice','fk_patient_memberships_patient','fk_patient_memberships_recorded_by')) "
+        "FROM pg_constraint WHERE conrelid='clinic_patient_memberships'::regclass"
+    ]).strip()
+    if invariants != "2|3":
+        raise RuntimeError("Patient membership constraints are incomplete")
+    trigger = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT count(*) FROM pg_trigger WHERE tgname='clinic_patient_memberships_immutable' "
+        "AND tgrelid='clinic_patient_memberships'::regclass AND NOT tgisinternal"
+    ]).strip()
+    if trigger != "1":
+        raise RuntimeError("Patient membership immutability trigger is missing or misbound")
+
 with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
     environment["SCHEMA"] = str(pathlib.Path(temporary) / "structure.sql")
     created = []
@@ -76,6 +108,7 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         assert retry.returncode != 0
         run(["bin/rails", "db:migrate"])
         assert_receipt_digest_schema()
+        assert_patient_membership_schema()
         run(["bin/rails", "runner", "Identity::Preference.save_for!(User.find(41), palette: 'graphite', mode: 'dark', version: 0)"])
         run(["bin/rails", "runner", "Clinic::Idempotency.execute(practice: Clinic::Practice.find(51), actor: User.find(41), operation_code: 'synthetic.restore', request_key: 'restore-receipt', payload: {status: 'yes'}) { :committed }"])
         checks = """
@@ -157,11 +190,13 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         run(["pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl", "--dbname", databases[1], dump])
         environment.update(PGDATABASE=databases[1], APPLY_DEVELOPMENT_DATABASE=databases[1])
         assert_receipt_digest_schema()
+        assert_patient_membership_schema()
         run(["bin/rails", "runner", checks])
         print("PASS: PostgreSQL backup restores into a separate database with history and constraints", flush=True)
         environment.update(PGDATABASE=databases[2], APPLY_DEVELOPMENT_DATABASE=databases[2])
         run(["bin/rails", "db:migrate"])
         assert_receipt_digest_schema()
+        assert_patient_membership_schema()
         run(["bin/rails", "runner", "raise unless ApplicationRecord.connection.adapter_name=='PostgreSQL' && Clinic::Inventory::Entry.count.zero?; Clinic::Practice.create!(name:'Fresh synthetic clinic')"])
         print("PASS: all migrations initialize a fresh PostgreSQL database", flush=True)
     finally:

@@ -77,7 +77,8 @@ module Clinic
         held = batch.active_holds.any? { |hold| hold.kind == "recalled" || hold.kind == "quarantined" } ? batch.quantity.to_d : 0
         blocked = batch.active_holds.any? { |hold| %w[temperature damaged].include?(hold.kind) } ? batch.quantity.to_d : 0
         quarantined = batch.active_holds.any? { |hold| hold.kind == "quarantined" || hold.kind == "recalled" } ? batch.quantity.to_d : 0
-        { id: "bal_#{batch.id}", product_id: batch.product_id.to_s, lot_id: batch.lot_id.to_s, location_id: batch.location_id.to_s, on_hand_units: batch.quantity.to_d.to_s("F"), held_units: held.to_d.to_s("F"), blocked_units: blocked.to_d.to_s("F"), quarantined_units: quarantined.to_d.to_s("F"), available_units: batch.available? ? batch.quantity.to_d.to_s("F") : "0" }
+        recall_ids = batch.active_holds.filter_map { |hold| hold.recall_id.to_s if hold.kind == "recalled" && hold.recall_id.present? }.uniq
+        { id: "bal_#{batch.id}", product_id: batch.product_id.to_s, lot_id: batch.lot_id.to_s, location_id: batch.location_id.to_s, recall_ids: recall_ids, on_hand_units: batch.quantity.to_d.to_s("F"), held_units: held.to_d.to_s("F"), blocked_units: blocked.to_d.to_s("F"), quarantined_units: quarantined.to_d.to_s("F"), available_units: batch.available? ? batch.quantity.to_d.to_s("F") : "0" }
       end
 
       def movement_wire(movement)
@@ -101,7 +102,7 @@ module Clinic
 
       def recall_wire(recall)
         batches = recall.recall_lots.flat_map { |link| link.lot.batches }.uniq(&:id)
-        held = batches.select { |batch| batch.active_holds.any? { |hold| hold.kind == "recalled" } }.sum { |batch| batch.quantity.to_d }
+        held = batches.sum { |batch| batch.active_holds.any? { |hold| hold.kind == "recalled" && hold.recall_id == recall.id } ? batch.quantity.to_d : 0 }
         disposition = recall.dispositions.order(id: :desc).first
         { id: recall.id.to_s, reference: recall.reference, product_id: recall.product_id.to_s, lot_numbers: recall.recall_lots.map { |link| link.lot.number }, status: recall.status, effective_at: recall.effective_on.iso8601, reason: recall.reason, required_disposition: recall.required_disposition, affected_units: recall.affected_units.to_d.to_s("F"), held_units: held.to_d.to_s("F"), evidence_reference: disposition&.evidence_reference, disposition_units: recall.dispositions.sum(:quantity).to_d.to_s("F") }
       end

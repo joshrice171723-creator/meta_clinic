@@ -36,7 +36,7 @@ module Clinic
             status: encounter.status,
             started_at: encounter.started_at&.iso8601(6),
             ended_at: encounter.ended_at&.iso8601(6),
-            site_id: encounter.site_id,
+            site_id: encounter.site_id&.to_s,
             site_code: encounter.site&.code,
             room_id: encounter.room_id,
             room_code: encounter.room&.code
@@ -47,7 +47,7 @@ module Clinic
             starts_at: appointment.starts_at&.iso8601(6),
             ends_at: appointment.ends_at&.iso8601(6),
             visit_type_code: appointment.visit_type&.code,
-            site_id: appointment.site_id,
+            site_id: appointment.site_id&.to_s,
             site_code: appointment.site&.code,
             room_id: appointment.room_id,
             room_code: appointment.room&.code
@@ -80,7 +80,7 @@ module Clinic
             starts_at: appointment.starts_at&.iso8601(6),
             ends_at: appointment.ends_at&.iso8601(6),
             visit_type_code: appointment.visit_type&.code,
-            site_id: appointment.site_id,
+            site_id: appointment.site_id&.to_s,
             site_code: appointment.site&.code,
             room_id: appointment.room_id,
             room_code: appointment.room&.code
@@ -152,11 +152,11 @@ module Clinic
         def eligible
           @eligible.map do |profile|
             {
-              clinician_profile_id: profile.id,
+              clinician_profile_id: profile.id.to_s,
               display_name: profile.display_name.presence || "Provider name not recorded",
               site_ids: profile.assignments.select do |assignment|
                 @eligible_site_ids.include?(assignment.site_id) && effective?(assignment)
-              end.map(&:site_id).uniq
+              end.map { |assignment| assignment.site_id.to_s }.uniq
             }
           end
         end
@@ -164,7 +164,7 @@ module Clinic
         private
 
         def profile_payload(profile, participant = nil)
-          { clinician_profile_id: profile.id, display_name: profile.display_name.presence || "Provider name not recorded", token: participant&.id&.to_s }
+          { clinician_profile_id: profile.id.to_s, display_name: profile.display_name.presence || "Provider name not recorded", token: participant&.id&.to_s }
         end
 
         def effective?(assignment)

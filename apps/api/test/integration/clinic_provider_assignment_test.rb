@@ -30,6 +30,9 @@ class ClinicProviderAssignmentTest < ActionDispatch::IntegrationTest
     result = assign(expected_token: nil, key: "assign-null")
     assert result[:participant].present?
     assert_equal result[:participant].id.to_s, result[:token]
+    participant = Clinic::Scheduling::EncounterSerializer.call(@encounter.reload, detail: true).fetch(:participants).first
+    assert_equal String, participant.fetch(:id).class
+    assert_equal String, participant.fetch(:membership_id).class
   end
 
   test "HTTP assignment requires the expected token and accepts explicit null" do
@@ -44,6 +47,10 @@ class ClinicProviderAssignmentTest < ActionDispatch::IntegrationTest
       assignment: { patient_id: @patient.id, clinician_profile_id: @profile.id, request_key: "http-null-token", expected_token: nil }
     }, headers: csrf_headers, as: :json
     assert_response :success
+    assignment = response.parsed_body.fetch("assignment")
+    assert_equal @profile.id.to_s, assignment.fetch("clinician_profile_id")
+    assert_equal String, assignment.fetch("participant_id").class
+    assert_equal String, assignment.fetch("token").class
   end
 
   test "same provider with a fresh request key is a no-op" do
@@ -150,11 +157,11 @@ class ClinicProviderAssignmentTest < ActionDispatch::IntegrationTest
       [ @encounter ], practice: @practice, as_of: Time.current
     )
 
-    assert_equal({ clinician_profile_id: @profile.id, display_name: "Dr. Synthetic", token: result[:token] },
+    assert_equal({ clinician_profile_id: @profile.id.to_s, display_name: "Dr. Synthetic", token: result[:token] },
       batch.call(@encounter))
-    assert_equal [ @site.id ], batch.eligible.sole.fetch(:site_ids)
-    assert_equal @profile.id, batch.eligible.sole.fetch(:clinician_profile_id)
-    assert_not_includes batch.eligible.map { |provider| provider.fetch(:clinician_profile_id) }, foreign_profile.id
+    assert_equal [ @site.id.to_s ], batch.eligible.sole.fetch(:site_ids)
+    assert_equal @profile.id.to_s, batch.eligible.sole.fetch(:clinician_profile_id)
+    assert_not_includes batch.eligible.map { |provider| provider.fetch(:clinician_profile_id) }, foreign_profile.id.to_s
   end
 
   private

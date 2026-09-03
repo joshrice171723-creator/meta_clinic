@@ -1505,7 +1505,7 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
         const response = await assignBoardProvider(
           visit.encounterId,
           visit.patientId,
-          clinicianId ? Number(clinicianId.replace("api-provider-", "")) : null,
+          clinicianId ? clinicianId.replace("api-provider-", "") : null,
           expectedToken,
           requestKey,
         );
