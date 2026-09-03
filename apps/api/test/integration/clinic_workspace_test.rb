@@ -119,6 +119,31 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_includes [ "0-30 days", "31-60 days", "61-90 days", "91+ days" ], body.fetch("recent_invoices").first.fetch("age_bucket")
   end
 
+  test "billing age filters match the displayed floored age buckets" do
+    patient = @practice.patients.first
+    now = Time.utc(2026, 9, 3, 12)
+    invoices = [
+      [ "age_0_30", 30.days + 23.hours ],
+      [ "age_31_60", 31.days ],
+      [ "age_61_90", 61.days ],
+      [ "age_91_plus", 91.days ]
+    ].map do |filter, age|
+      record = Clinic::Billing::DraftInvoice.call(
+        practice: @practice, actor: @user, patient: patient, currency: "USD",
+        lines: [ { quantity: "1", unit_amount: "1", description_snapshot: "Synthetic aging boundary #{filter}" } ]
+      )
+      record.update_columns(created_at: now - age, updated_at: now - age)
+      [ filter, record ]
+    end
+
+    invoices.each do |filter, expected_invoice|
+      result = Clinic::Billing::Dashboard.call(practice: @practice, now: now, filter: filter, per_page: 10)
+      row = result.fetch(:recent_invoices).find { |invoice| invoice.fetch(:id) == expected_invoice.id }
+      assert row, "expected invoice #{expected_invoice.id} in #{filter}"
+      assert_equal filter.sub("age_", "").tr("_", "-"), row.fetch(:age_bucket).sub(" days", "")
+    end
+  end
+
   test "recall creation accepts the first request and replays only the same intent" do
     Development::InventoryScenario.populate!(practice: @practice, actor: @user)
     batch = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500").batches.find_by!(lot_number: "250701B")
