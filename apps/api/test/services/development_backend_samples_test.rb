@@ -14,6 +14,11 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
       assert_equal 2, practice.clinician_profiles.count
       assert_equal 4, practice.documents.count
       assert_equal 3, practice.message_intents.count
+      assert_equal 5, practice.invoices.count
+      assert_equal 3, practice.invoices.where(status: "posted").count
+      assert_equal 1, practice.invoices.where(status: "draft").count
+      assert_equal 1, practice.invoices.where(status: "void").count
+      assert_equal BigDecimal("305.00"), Clinic::PaymentAllocation.where(practice: practice).sum(:amount)
       assert_equal 22, practice.appointments.count
       assert_equal 18, practice.encounters.count
       assert_equal 6, practice.encounters.open.count
@@ -81,6 +86,7 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     assert_equal 12, practice.encounter_notes.where(note_kind: "soap").count
     assert_equal 105, practice.observations.where(value_kind: "numeric").count
     assert_equal 6, practice.encounters.open.count
+    assert_equal 5, practice.invoices.count
 
     edited_patient = rich_patients.order(:reference).first
     edited_patient.update!(display_name: "Locally edited synthetic patient")

@@ -46,6 +46,13 @@ module Development
       { stage: "unrecorded", reason: "Care-plan follow-up", visit_type_code: "SYN-BOARD-CARE-PLAN",
         site_code: "ANNEX", room_code: "ANNEX-2", vitals: false }
     ].map(&:freeze).freeze
+    BILLING_SCENARIOS = [
+      { key: "paid", patient_index: 2, unit_amount: "180.00", allocated: "180.00", status: "posted" },
+      { key: "partial", patient_index: 3, unit_amount: "325.00", allocated: "125.00", status: "posted" },
+      { key: "open", patient_index: 4, unit_amount: "210.00", allocated: nil, status: "posted" },
+      { key: "draft", patient_index: 5, unit_amount: "95.00", allocated: nil, status: "draft" },
+      { key: "void", patient_index: 6, unit_amount: "75.00", allocated: nil, status: "void" }
+    ].map(&:freeze).freeze
 
     def self.call
       raise "Synthetic backend samples are local only." unless Rails.env.development? || Rails.env.test?
@@ -74,6 +81,7 @@ module Development
           seed_chart_history(practice, patients, sites, clinicians, users)
           seed_tracking_board_scenarios(practice, patients, sites, clinicians, users)
           seed_external_workflow_examples(practice, patients.first, actor, label)
+          seed_billing_scenarios(practice, patients, actor)
         end
       end
       practice
@@ -114,6 +122,7 @@ module Development
         seed_chart_history(practice, patients, sites, clinicians, users)
         seed_tracking_board_scenarios(practice, patients, sites, clinicians, users)
         seed_external_workflow_examples(practice, patients.first, actor, label)
+        seed_billing_scenarios(practice, patients, actor)
         seed_staff_and_inventory(practice, actor, label)
       end
       practice
@@ -732,12 +741,47 @@ module Development
         Clinic::Messaging::RecordDelivery.call(intent: message, actor: actor,
           provider_event_reference: "synthetic-#{state}", outcome: state) unless state == "pending"
       end
-      return if patient.invoices.exists?
-
-      Clinic::Billing::DraftInvoice.call(practice: practice, actor: actor, patient: patient, currency: "USD",
-        lines: [ { quantity: "2", unit_amount: "1.25", description_snapshot: "Synthetic arithmetic example; not selected pricing" } ])
     end
     private_class_method :seed_external_workflow_examples
+
+    def self.seed_billing_scenarios(practice, patients, actor)
+      BILLING_SCENARIOS.each do |scenario|
+        description = "Synthetic billing scenario: #{scenario.fetch(:key)}"
+        invoice = practice.invoices.joins(:lines).find_by(
+          clinic_invoice_lines: { description_snapshot: description }
+        )
+        invoice ||= Clinic::Billing::DraftInvoice.call(
+          practice: practice,
+          actor: actor,
+          patient: patients.fetch(scenario.fetch(:patient_index)),
+          currency: "USD",
+          lines: [ {
+            quantity: "1",
+            unit_amount: scenario.fetch(:unit_amount),
+            description_snapshot: description
+          } ]
+        )
+
+        if invoice.status == "draft" && scenario.fetch(:status) != "draft"
+          Clinic::Billing::PostInvoice.call(invoice: invoice, actor: actor)
+        end
+        invoice.transition_to!("void") if invoice.status == "posted" && scenario.fetch(:status) == "void"
+        next unless scenario[:allocated] && invoice.status == "posted"
+        next if invoice.payment_allocations.exists?
+
+        Clinic::Billing::AllocatePayment.call(
+          practice: practice,
+          actor: actor,
+          patient: invoice.patient,
+          invoice: invoice,
+          external_event_reference: "synthetic-billing-payment-#{scenario.fetch(:key)}",
+          currency: invoice.currency,
+          amount: scenario.fetch(:allocated),
+          payment_amount: scenario.fetch(:allocated)
+        )
+      end
+    end
+    private_class_method :seed_billing_scenarios
 
     def self.seed_staff_and_inventory(practice, actor, label)
       %w[active inactive].each do |state|

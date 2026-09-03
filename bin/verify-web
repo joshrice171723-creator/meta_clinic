@@ -37,6 +37,12 @@ begin
   created = true
   schema = File.read(File.join(api_root, "db", "structure.sql"))
   command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1", input: schema)
+  migration_versions = Dir[File.join(api_root, "db", "migrate", "*.rb")]
+    .map { |path| File.basename(path).split("_", 2).first }
+    .select { |version| version.match?(/\A\d{14}\z/) }
+  migration_rows = migration_versions.map { |version| "(#{version})" }.join(", ")
+  command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1",
+    input: "INSERT INTO schema_migrations (version) VALUES #{migration_rows};")
   command!(environment, api_root, *database_command, *rails_command, "db:seed")
   command!(environment, api_root, *database_command, *rails_command, "members:prepare_test_accounts")
   phase = "process startup"

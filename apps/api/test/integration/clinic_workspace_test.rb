@@ -63,6 +63,15 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       lines: [ { quantity: "2", unit_amount: "12.50", description_snapshot: "Synthetic billing dashboard line" } ]
     )
     Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user)
+    Clinic::Billing::AllocatePayment.call(
+      practice: @practice,
+      actor: @user,
+      patient: patient,
+      invoice: invoice,
+      external_event_reference: "synthetic-dashboard-payment",
+      currency: "USD",
+      amount: "10.00"
+    )
     get "/api/clinic/billing", headers: @headers
 
     assert_response :success
@@ -71,6 +80,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert response.parsed_body.dig("metrics", "invoice_count") >= 1
     assert_not_includes response.body, patient_name
     assert response.parsed_body.fetch("recent_invoices").all? { |invoice| invoice["total"].is_a?(String) }
+    assert response.parsed_body.fetch("recent_payments").all? { |payment| payment["amount"].is_a?(String) }
+    assert_equal 1, response.parsed_body.dig("metrics", "currencies", 0, "open_invoice_count")
 
     revoke_all_permissions!(@membership)
     get "/api/clinic/billing", headers: @headers
