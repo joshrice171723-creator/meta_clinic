@@ -75,7 +75,7 @@ ahead, behind = counts
 if ahead.positive? && behind.positive?
   fail_with("#{branch} diverged from #{upstream} (ahead #{ahead}, behind #{behind}); reconcile it explicitly")
 elsif ahead.positive?
-  fail_with("#{branch} is ahead of #{upstream} by #{ahead} commit(s); publish or reconcile it explicitly")
+  puts "#{branch} is ahead of #{upstream} by #{ahead} commit(s); retaining clean local commits without pushing."
 elsif behind.positive?
   puts "Fast-forwarding #{branch} by #{behind} commit(s)..."
   run!("git", "pull", "--ff-only")
@@ -83,7 +83,7 @@ end
 
 require_clean_checkout!
 final_counts = capture!("git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}").split.map(&:to_i)
-fail_with("checkout did not reconcile exactly with #{upstream}") unless final_counts == [ 0, 0 ]
+fail_with("checkout diverged from #{upstream} during reconciliation") unless final_counts.length == 2 && final_counts.last.zero?
 final_commit = capture!("git", "rev-parse", "HEAD")
 
 fail_with("DATABASE_URL must be unset for local refresh") unless ENV.fetch("DATABASE_URL", "").empty?

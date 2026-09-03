@@ -11,7 +11,7 @@ Bring a clean checkout forward to its configured upstream, stop the repository-o
 
 | Request | Behavior |
 | --- | --- |
-| no action, `start`, `up`, `restart`, or `refresh` | Run `bin/startdev-refresh`, adding `--no-browser` only when appropriate. |
+| no action, `start`, `up`, `restart`, or `refresh` | Reconcile a dirty checkout through the explicit commit offer below, then run `bin/startdev-refresh`, adding `--no-browser` only when appropriate. |
 | `stop` or `down` | Run `./dev_server_startup stop` only. |
 | `status` or `doctor` | Run `./dev_server_startup status` only. |
 
@@ -29,7 +29,9 @@ The checked-in `bin/startdev-refresh` helper executes these phases in order from
 4. Continue only in one of these states:
    - equal and clean: no pull is needed;
    - behind only and clean: run `git pull --ff-only`, then recheck the status and upstream comparison.
-5. Stop and report the exact state when the checkout is dirty, detached, lacks an upstream, is ahead, has diverged, cannot fetch, cannot fast-forward, or becomes dirty after the pull. Do not stash, commit, reset, clean, merge, rebase, force, switch branches, delete files, or push to reconcile it.
+   - ahead only and clean: retain the local commits without pushing, then continue.
+5. When the checkout is dirty, pause before fetching, stopping services, or touching the database. Show `git status --short`, inspect the scoped diff and every untracked file, and run `git diff --check` for sensitive or unrelated material, then offer to create one local commit containing the displayed changes. Commit only after the user explicitly confirms both the exact scope and commit message; run `git add --all`, `git commit -m <user-approved message>`, and recheck the status before continuing. If the user declines, gives no confirmation, or the commit fails, stop without stashing, resetting, cleaning, merging, rebasing, force-updating, switching branches, deleting files, or pushing.
+6. Stop and report the exact state when the checkout is detached, lacks an upstream, has diverged, cannot fetch, cannot fast-forward, or becomes dirty after the pull. A direct `bin/startdev-refresh` invocation still refuses a dirty checkout; the commit offer is a skill-mediated action.
 
 Record the starting and final commit IDs and whether a fast-forward occurred. A remote fetch or pull does not authorize dependency updates, deployment, hosted access, external communication, or use of real/confidential data.
 
@@ -64,4 +66,4 @@ Treat the refresh as successful only when the managed command reports PostgreSQL
 
 ## Handoff
 
-Report the Git comparison and final commit, the exact local development database name that was replanted, the resulting service state, and any skipped or failed phase. Local readiness is not application, security, clinical, release or deployment acceptance.
+Report the Git comparison and final commit, the exact local development database name that was replanted, the resulting service state, and any skipped or failed phase. Also include a concise summary of changes from the local `main` merge base to the final `HEAD`: report the changed-file count and up to ten `git diff --name-status main...HEAD` entries. State “no changes from main” when the range is empty; if `main` cannot be resolved, state that the comparison is unavailable rather than guessing. Local readiness is not application, security, clinical, release or deployment acceptance.
