@@ -400,6 +400,21 @@ code {
   outline: 3px solid var(--inventory-soft);
   border-color: var(--inventory-blue);
 }
+.inventory-details {
+  margin-top: 8px;
+}
+.inventory-details summary {
+  color: var(--inventory-blue);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.inventory-inline-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  min-width: 220px;
+}
 .inventory-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

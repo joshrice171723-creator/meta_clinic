@@ -324,6 +324,8 @@ module Development
         rows.fetch("coverage_versions.csv").each do |row|
           patient = patients.fetch(row.fetch("patient_key"))
           coverage = patient.coverage_versions.find_or_initialize_by(version: integer(row.fetch("version")))
+          next if coverage.persisted?
+
           coverage.practice = practice
           coverage.encrypted_coverage_evidence = row.fetch("evidence")
           coverage.created_at ||= seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: 10)
@@ -332,6 +334,8 @@ module Development
         rows.fetch("credit_notes.csv").each do |row|
           invoice = invoices.fetch(row.fetch("invoice_key"))
           credit = invoice.credit_notes.find_or_initialize_by(amount: row.fetch("amount"))
+          next if credit.persisted?
+
           credit.assign_attributes(practice: practice, patient: patients.fetch(row.fetch("patient_key")), currency: row.fetch("currency"))
           credit.created_at ||= seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: 16)
           credit.save!
@@ -339,6 +343,8 @@ module Development
         rows.fetch("refund_events.csv").each do |row|
           payment = Clinic::PaymentEvent.find_by!(practice: practice, external_event_reference: row.fetch("payment_key"))
           refund = Clinic::RefundEvent.find_or_initialize_by(payment_event: payment, amount: row.fetch("amount"))
+          next if refund.persisted?
+
           refund.assign_attributes(practice: practice, patient: patients.fetch(row.fetch("patient_key")), currency: row.fetch("currency"))
           refund.created_at ||= seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: 17)
           refund.save!
@@ -350,6 +356,8 @@ module Development
           raise "Insurance claim coverage does not match its patient." unless coverage_row && coverage_row.fetch("patient_key") == row.fetch("patient_key")
           coverage = patients.fetch(coverage_row.fetch("patient_key")).coverage_versions.find_by!(version: integer(coverage_row.fetch("version")))
           claim = Clinic::InsuranceClaim.find_or_initialize_by(invoice: invoice, coverage_version: coverage)
+          next if claim.persisted?
+
           claim.assign_attributes(practice: practice, patient: patients.fetch(row.fetch("patient_key")))
           claim.created_at ||= seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: 17)
           claim.save!

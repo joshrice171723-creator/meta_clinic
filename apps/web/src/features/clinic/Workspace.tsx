@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
-import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -85,12 +84,6 @@ export function ClinicNavigation({
         capabilities.appointments_read === true ||
         capabilities.patients === true,
       view: "schedule" as const,
-    },
-    {
-      href: "/clinic/pharmacy",
-      label: "Pharmacy",
-      Icon: LocalPharmacyIcon,
-      allowed: capabilities.inventory,
     },
     {
       href: "/clinic/operations",
@@ -305,7 +298,7 @@ export function Workspace({
                 </header>
                 <main
                   id="main"
-                  className={`clinic-content pharmacy-page${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
+                  className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
                 >
                   {children}
                 </main>

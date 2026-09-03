@@ -45,7 +45,6 @@ describe("clinic shell composition", () => {
       "DashboardIcon",
       "PersonSearchIcon",
       "CalendarMonthIcon",
-      "LocalPharmacyIcon",
       "StorefrontIcon",
       "Inventory2Icon",
       "PeopleAltIcon",

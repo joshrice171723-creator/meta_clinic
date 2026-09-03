@@ -60,17 +60,6 @@ export function OperationsView({ clinic }: { clinic: ClinicOverview }) {
         </Card>
         <Card title="Workspace shortcuts">
           <ul className="clinic-feature-list">
-            {c.inventory_access && (
-              <li>
-                <a className="text-link" href="/clinic/pharmacy">
-                  Pharmacy →
-                </a>
-                <p>
-                  Products, lots, availability and stock movements. No orders
-                  are placed.
-                </p>
-              </li>
-            )}
             {c.staff_access && (
               <li>
                 <a className="text-link" href="/clinic/staff">

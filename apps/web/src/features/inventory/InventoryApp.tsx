@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, ApiError } from "../../api/client";
-import { LoadState } from "../../shared/ui";
+import { Form as InventoryForm, LoadState } from "../../shared/ui";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type {
   InventoryBalance,
@@ -633,6 +633,7 @@ export function InventoryApp({ path }: { path: string }) {
                 data={data}
                 available={available}
                 held={held}
+                onRefresh={load}
               />
             )}
             {screen === "replenishment" && (
@@ -665,10 +666,12 @@ function CatalogScreen({
   data,
   available,
   held,
+  onRefresh,
 }: {
   data: InventoryData;
   available: Decimal;
   held: Decimal;
+  onRefresh: () => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
@@ -740,9 +743,6 @@ function CatalogScreen({
             href="/clinic/inventory/receiving"
           >
             Receive stock
-          </a>
-          <a className="inventory-button outline" href="/clinic/pharmacy/new">
-            Add catalog item
           </a>
         </div>
       </div>
@@ -883,6 +883,9 @@ function CatalogScreen({
                         Start replenishment
                       </a>
                     )}
+                    {capability(data, "inventory.catalog") && (
+                      <ReorderPointEditor item={item} onSaved={onRefresh} />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -912,6 +915,38 @@ function CatalogScreen({
         </ul>
       </Card>
     </div>
+  );
+}
+
+function ReorderPointEditor({
+  item,
+  onSaved,
+}: {
+  item: InventoryData["products"][number];
+  onSaved: () => Promise<void>;
+}) {
+  return (
+    <details className="inventory-details">
+      <summary>Edit reorder point</summary>
+      <InventoryForm
+        endpoint={`/api/clinic/inventory/products/${item.id}`}
+        method="PATCH"
+        submit="Save reorder point"
+        onSuccess={() => void onSaved()}
+        className="inventory-inline-form"
+      >
+        <Field label={`Reorder point (${item.base_unit}s)`}>
+          <input
+            name="product[reorder_point]"
+            type="number"
+            min={0}
+            max={1000000}
+            step={1}
+            defaultValue={item.reorder_point_units}
+          />
+        </Field>
+      </InventoryForm>
+    </details>
   );
 }
 

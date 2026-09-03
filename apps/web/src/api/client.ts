@@ -104,8 +104,6 @@ export function loginDestination(value: string | null): string {
     "/clinic/chart-selection",
     "/clinic/schedule",
     "/clinic/patients",
-    "/clinic/pharmacy",
-    "/clinic/pharmacy/new",
     "/clinic/operations",
     "/clinic/inventory",
     "/clinic/staff",
@@ -117,7 +115,6 @@ export function loginDestination(value: string | null): string {
   return exact.has(value) ||
     /^\/clinic\/inventory(?:\/[^/]+)?$/.test(value) ||
     /^\/clinic\/billing(?:\/[^/]+)?$/.test(value) ||
-    /^\/clinic\/pharmacy\/\d+$/.test(value) ||
     /^\/clinic\/patients\/\d+$/.test(value) ||
     /^\/clinic\/patients\/\d+\/encounters\/\d+$/.test(value)
     ? value

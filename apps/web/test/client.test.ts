@@ -146,7 +146,7 @@ describe("form contracts", () => {
     expect(formBody(new FormData())).not.toHaveProperty("consent");
   });
   it("only resumes known local destinations", () => {
-    expect(loginDestination("/clinic/pharmacy")).toBe("/clinic/pharmacy");
+    expect(loginDestination("/clinic/pharmacy")).toBe("/portal");
     expect(loginDestination("/clinic")).toBe("/clinic");
     for (const path of [
       "//example.invalid",

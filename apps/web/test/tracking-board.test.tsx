@@ -539,7 +539,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("Active directory entries");
     expect(html).toContain("Not today’s visit count");
     expect(html).toContain("Example office item");
-    expect(html).toContain('href="/clinic/pharmacy"');
+    expect(html).not.toContain('href="/clinic/pharmacy"');
     expect(html).not.toContain("EX-001");
   });
   it("preserves Operations capability filtering even if a payload contains restricted fields", () => {

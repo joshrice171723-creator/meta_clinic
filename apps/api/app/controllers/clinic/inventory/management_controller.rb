@@ -16,6 +16,14 @@ module Clinic
       end
 
       def catalog = bootstrap
+
+      def update_product
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.catalog")
+        product = current_practice.pharmacy_products.find(params[:id])
+        product.update_catalog!(params.require(:product).permit(:reorder_point, :active), actor: current_user)
+        head :no_content
+      end
+
       def replenishment = bootstrap
       def purchase_orders = bootstrap
       def receiving = bootstrap

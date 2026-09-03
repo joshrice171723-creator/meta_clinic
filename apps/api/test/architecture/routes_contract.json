@@ -85,6 +85,11 @@
     "/api/clinic/inventory/purchase-orders/:id(.:format)"
   ],
   [
+    "api_clinic_inventory_management",
+    "PATCH",
+    "/api/clinic/inventory/products/:id(.:format)"
+  ],
+  [
     "api_clinic_inventory_management_activity",
     "GET",
     "/api/clinic/inventory/activity(.:format)"
@@ -433,6 +438,11 @@
     null,
     "PATCH",
     "/api/clinic/patients/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/products/:id(.:format)"
   ],
   [
     null,

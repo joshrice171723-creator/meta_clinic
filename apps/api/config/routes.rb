@@ -53,6 +53,7 @@ Rails.application.routes.draw do
       get "bootstrap", to: "inventory/management#bootstrap"
       post "demo", to: "inventory/management#demo"
       get "catalog", to: "inventory/management#catalog"
+      patch "products/:id", to: "inventory/management#update_product"
       get "replenishment", to: "inventory/management#replenishment"
       get "purchase-orders", to: "inventory/management#purchase_orders"
       post "purchase-orders", to: "inventory/management#create_purchase_order"

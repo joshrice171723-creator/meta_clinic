@@ -30,9 +30,6 @@ import {
   ChartSelectionPage,
   chartSelectionProps,
 } from "./features/clinic/ChartSelectionPage";
-import { Catalog } from "./features/inventory/Catalog";
-import { NewProduct } from "./features/inventory/NewProduct";
-import { Product } from "./features/inventory/Product";
 import { InventoryApp } from "./features/inventory/InventoryApp";
 import {
   ClinicNavigationProvider,
@@ -176,19 +173,12 @@ function ClinicHome({
 
 function ClinicPage({ route }: { route: ClinicRoute }) {
   const { path, search } = route;
-  const pharmacy = /^\/clinic\/pharmacy\/(\d+)$/.exec(path),
-    encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
+  const encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
     patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
   return path === "/clinic/operations" ? (
     <Operations />
   ) : path === "/clinic/chart-selection" ? (
     <ChartSelectionPage {...chartSelectionProps(search)} />
-  ) : path === "/clinic/pharmacy" ? (
-    <Catalog />
-  ) : path === "/clinic/pharmacy/new" ? (
-    <NewProduct />
-  ) : pharmacy ? (
-    <Product id={pharmacy[1]} />
   ) : path === "/clinic/patients" ? (
     <Patients />
   ) : encounter ? (
