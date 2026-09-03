@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Cash-pay billing implementation package prepared
+
+**Request and outcome:** prepared [[Cash-Pay Billing Implementation Package]] as an additive handoff for professional cash-pay billing. It maps the requested patient ledger, virtual terminal, cash reconciliation, receipts/superbills, and a future Stripe source onto APPly's existing Rails/PostgreSQL invoice, payment-event, allocation, credit, refund, authorization, exact-decimal, and audit boundaries. The package rejects a replacement string/composite-key migration and instead requires additive forward migrations only where the current ledger has a proven gap.
+
+**Evidence and limits:** current source/tests and local synthetic Billing workspace/patient-balance views were reviewed. The package includes phased entry/exit evidence, financial/tenant/processor/document failure cases, explicit non-goals, open decisions, and a ready-to-use Phase 1 prompt. No application code, schema, dependency, processor account, secret, payment, receipt, portal, deployment, real/confidential data, legal/professional acceptance, or release gate changed. Official Stripe and HHS references are planning inputs to recheck before any real integration or release.
+
 ## 2026-09-03 — Startdev refresh skill added
 
 **Request and implementation:** D-057 adds the explicit `startdev` repository skill and expands its start-like actions into a complete disposable local refresh. `$startdev`, start/up, restart and refresh route through the checked-in `bin/startdev-refresh` helper, which requires a clean named branch with a configured upstream, fetches its configured remote, accepts only equal or behind-only fast-forward Git state, stops the managed APPly stack, prepares and replants the live-confirmed loopback `apply*_development` database with ordinary and rich synthetic seeds, then starts and verifies PostgreSQL, Rails and Vite through the existing wrappers. Stop/down and status/doctor remain non-resetting. The harness catalog and validator include six canonical skills and enforce `startdev` as explicit-only plus its synchronization, cleanup and readiness gates.
