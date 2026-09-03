@@ -29,6 +29,7 @@ module Clinic
       has_many :coverage_versions, class_name: "Clinic::CoverageVersion", dependent: :restrict_with_error
       has_many :patient_memberships, class_name: "Clinic::Care::PatientMembership", dependent: :restrict_with_error
       has_many :patient_portal_appointment_requests, class_name: "Clinic::PatientPortal::AppointmentRequest", dependent: :restrict_with_error
+      has_many :patient_portal_requests, class_name: "Clinic::PatientPortal::Request", dependent: :restrict_with_error
       encrypts :display_name
       validates :display_name, presence: true, length: { maximum: 120 }
       validates :reference, presence: true, length: { maximum: 32 }, uniqueness: { scope: :practice_id }

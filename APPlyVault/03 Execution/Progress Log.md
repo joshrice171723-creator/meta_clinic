@@ -7,6 +7,14 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-03 — Patient portal request workflow added locally
+
+**Implementation:** added a synthetic-only patient portal request record with Rails-encrypted content, SHA-256 idempotency compatibility, practice/patient/identity foreign keys, pending/in-review/resolved/declined states, and a same-origin `GET/POST /api/patient_portal/requests` contract. The portal now lets the assigned synthetic patient submit a general question or refill request and see request status without exposing message bodies or claiming clinical approval. The shared form helper supports nested idempotency keys for retry-safe patient writes.
+
+**Verification:** the additive migration was applied to the local PostgreSQL development and test databases; `db/structure.sql` includes the table, constraints, indexes, and foreign keys. Ruby syntax, TypeScript typecheck, and Zeitwerk eager loading passed. The focused Rails integration run remains inconclusive under the shared local test database's long-lived transaction/CSRF test-process contention; no endpoint assertion result is claimed. Frontend production build and full Vitest completion remain pending this closeout. No real patient, message, refill, provider, or production data was used.
+
+**Limits / next gates:** this is a request intake queue, not chat delivery, prescribing, or refill approval. Staff triage/outbox integration, attachment policy, response SLA ownership, e-prescribing authority, invitation/step-up/recovery/revocation, Stripe/webhook reconciliation, intake signatures, authoritative booking/inventory holds, clinician release/PDF/superbill workflows, lab authority, browser acceptance, and production privacy/security/accessibility/operations approval remain open.
+
 Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.

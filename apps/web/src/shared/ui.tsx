@@ -126,6 +126,7 @@ export function Form({
   onSuccess,
   values = {},
   retryKey = false,
+  retryKeyField,
   transform,
   className = "pharmacy-form-grid",
 }: {
@@ -136,6 +137,7 @@ export function Form({
   onSuccess?: (result: Record<string, unknown> | undefined) => void;
   values?: Record<string, unknown>;
   retryKey?: boolean;
+  retryKeyField?: string;
   transform?: (values: Record<string, unknown>) => Record<string, unknown>;
   className?: string;
 }) {
@@ -158,14 +160,23 @@ export function Form({
         key.current ||= crypto.randomUUID();
         try {
           const formValues = formBody(new FormData(form));
+          const payload = transform ? transform(formValues) : formValues;
+          if (retryKey && retryKeyField) {
+            const match = /^(\w+)\[(\w+)\]$/.exec(retryKeyField);
+            if (!match) throw new Error("Invalid retry key field.");
+            const group = (payload[match[1]] ||= {}) as Record<string, unknown>;
+            group[match[2]] = key.current;
+          }
           const result = await api<Record<string, unknown> | undefined>(
             endpoint,
             {
               method,
               body: {
-                ...(transform ? transform(formValues) : formValues),
+                ...payload,
                 ...values,
-                ...(retryKey ? { request_key: key.current } : {}),
+                ...(retryKey && !retryKeyField
+                  ? { request_key: key.current }
+                  : {}),
               },
             },
           );

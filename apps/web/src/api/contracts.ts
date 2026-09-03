@@ -102,7 +102,6 @@ export type PatientPortalContext = {
   messages: {
     id: number;
     purpose_code: string;
-    dispatch_state: string | null;
     created_at: string;
   }[];
   appointment_requests: {

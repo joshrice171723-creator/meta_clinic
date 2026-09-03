@@ -3,6 +3,7 @@ require "test_helper"
 class PatientPortalTest < ActionDispatch::IntegrationTest
   setup do
     Rails.cache.clear
+    host! "localhost:3000"
     @origin = "http://localhost:3000"
     @headers = { "Origin" => @origin, "REMOTE_ADDR" => "127.0.0.1" }
   end
@@ -45,6 +46,27 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
       appointment_request: { request_key: "patient-portal-test-bad", starts_at: 2.days.from_now.iso8601, ends_at: 1.day.from_now.iso8601 }
     }, headers: local_csrf, as: :json
     assert_response :unprocessable_entity
+
+    request_payload = {
+      patient_portal_request: {
+        request_key: "patient-portal-message-1",
+        request_type: "message",
+        content: "Please call me about my next visit."
+      }
+    }
+    post "/api/patient_portal/requests", params: request_payload, headers: local_csrf, as: :json
+    assert_response :created
+    assert_equal "pending", response.parsed_body.dig("request", "status")
+    first_request_id = response.parsed_body.dig("request", "id")
+    post "/api/patient_portal/requests", params: request_payload, headers: local_csrf, as: :json
+    assert_response :success
+    assert_equal first_request_id, response.parsed_body.dig("request", "id")
+    post "/api/patient_portal/requests", params: request_payload.deep_merge(
+      patient_portal_request: { content: "A different message" }
+    ), headers: local_csrf, as: :json
+    assert_response :unprocessable_entity
+    get "/api/patient_portal/context", headers: @headers
+    assert_equal "message", response.parsed_body.fetch("requests").first.fetch("request_type")
   ensure
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
   end

@@ -39,6 +39,7 @@ module Clinic
     has_many :cash_drawer_sessions, class_name: "Clinic::CashDrawerSession", dependent: :restrict_with_error
     has_many :model_versions, class_name: "Clinic::ModelVersion", dependent: :restrict_with_error
     has_many :patient_portal_appointment_requests, class_name: "Clinic::PatientPortal::AppointmentRequest", dependent: :restrict_with_error
+    has_many :patient_portal_requests, class_name: "Clinic::PatientPortal::Request", dependent: :restrict_with_error
     after_create { inventory_profiles.create!(version: 1, reason: "New synthetic clinic inventory baseline") }
 
     def inventory_date
