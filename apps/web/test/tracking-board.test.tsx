@@ -51,6 +51,10 @@ import {
 } from "../src/features/clinic/trackingBoardData";
 
 afterEach(() => vi.unstubAllGlobals());
+
+const readSource = (path: string) =>
+  readFileSync(path, "utf8").replaceAll("\r\n", "\n");
+
 const clinic: ClinicOverview = {
   practice: { id: 1, name: "Example clinic", timezone: "America/Chicago" },
   capabilities: {
@@ -393,10 +397,7 @@ describe("board and Operations presentation boundaries", () => {
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
-    const styles = readFileSync(
-      "src/features/clinic/trackingBoard.css",
-      "utf8",
-    );
+    const styles = readSource("src/features/clinic/trackingBoard.css");
     expect(styles).toContain("min-height: 58px");
     expect(styles).toContain("width: 28px");
     expect(styles).toContain("min-width: 28px");

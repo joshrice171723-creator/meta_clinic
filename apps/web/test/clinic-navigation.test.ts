@@ -7,6 +7,9 @@ import {
   normalizeClinicPath,
 } from "../src/features/clinic/clinicNavigation";
 
+const readSource = (path: string | URL) =>
+  readFileSync(path, "utf8").replaceAll("\r\n", "\n");
+
 describe("clinic-local navigation", () => {
   it("canonicalizes tracking and schedule as views of the same URL", () => {
     expect(normalizeClinicPath("/clinic/schedule/")).toBe("/clinic");
@@ -38,17 +41,14 @@ describe("clinic-local navigation", () => {
   });
 
   it("keeps view paging and signed-chart resolution inside React", () => {
-    const careFlow = readFileSync(
+    const careFlow = readSource(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
-      "utf8",
     );
-    const chartSelection = readFileSync(
+    const chartSelection = readSource(
       new URL("../src/features/clinic/ChartSelectionPage.tsx", import.meta.url),
-      "utf8",
     );
-    const clinicFrame = readFileSync(
+    const clinicFrame = readSource(
       new URL("../src/features/clinic/ClinicFrame.tsx", import.meta.url),
-      "utf8",
     );
     expect(careFlow).not.toContain("window.location.assign(`/clinic/schedule");
     expect(careFlow).toContain("onPageChange?.(page)");
@@ -60,13 +60,11 @@ describe("clinic-local navigation", () => {
   });
 
   it("preserves the authenticated shell while switching clinic history routes", () => {
-    const app = readFileSync(
+    const app = readSource(
       new URL("../src/App.tsx", import.meta.url),
-      "utf8",
     );
-    const workspace = readFileSync(
+    const workspace = readSource(
       new URL("../src/features/clinic/Workspace.tsx", import.meta.url),
-      "utf8",
     );
     expect(app).toContain("window.history[method]");
     expect(app).toContain('window.addEventListener("popstate", restore)');
@@ -78,13 +76,11 @@ describe("clinic-local navigation", () => {
   });
 
   it("keeps schedule paging and board refresh/listeners component-local", () => {
-    const careFlow = readFileSync(
+    const careFlow = readSource(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
-      "utf8",
     );
-    const board = readFileSync(
+    const board = readSource(
       new URL("../src/features/clinic/TrackingBoardPage.tsx", import.meta.url),
-      "utf8",
     );
     expect(careFlow).toContain("const [page, setPage] = useState(1);");
     expect(careFlow).toContain("onPageChange={setPage}");
@@ -96,13 +92,11 @@ describe("clinic-local navigation", () => {
   });
 
   it("guards in-app SOAP navigation while retaining hard auth exits", () => {
-    const careFlow = readFileSync(
+    const careFlow = readSource(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
-      "utf8",
     );
-    const app = readFileSync(
+    const app = readSource(
       new URL("../src/App.tsx", import.meta.url),
-      "utf8",
     );
     expect(careFlow).toContain("registerBlocker(");
     expect(careFlow).toContain("unsaved changes. Leave the chart");
@@ -111,9 +105,8 @@ describe("clinic-local navigation", () => {
   });
 
   it("closes the compact drawer after an in-drawer destination click", () => {
-    const frame = readFileSync(
+    const frame = readSource(
       new URL("../src/features/clinic/ClinicFrame.tsx", import.meta.url),
-      "utf8",
     );
     expect(frame).toContain("nav a, nav button, .clinic-sidebar-bottom a");
     expect(frame).toContain("if (!drawer) return;");
