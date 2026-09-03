@@ -1,0 +1,44 @@
+# APPly agent harness
+
+This directory documents the repository's agent control plane. It is separate from the APPly software knowledge base in `APPlyVault/`.
+
+## Boundary
+
+| Layer | Canonical location | Owns | Must not own |
+| --- | --- | --- | --- |
+| Always-on policy and routing | Root and nested `AGENTS.md` | Stable safety, authority, preservation and path-routing rules | Dated project state, task status or duplicated product requirements |
+| On-demand procedures | `agent-harness/workflows/` | Reusable implementation, research, release, incident and handoff methods | Product facts or evidence that changes over time |
+| On-demand capabilities | `.agents/skills/` | Discoverable task-specific instructions and optional resources/scripts | Runtime permissions or claims that a prompt is an enforcement boundary |
+| Deterministic helpers | `bin/agent-*`, `bin/verify-agent-harness`, `bin/verify-vault` | Preflight, routing and structural checks | Human approval, professional judgment or release acceptance |
+| Software knowledge base | `APPlyVault/` | Current direction, requirements, decisions, tasks, risks, research and dated evidence | Agent-runtime procedure that belongs in the harness |
+| Executable truth | Source, tests, migrations and runbooks | Current implementation and operational mechanics | Unverified business or clinical claims |
+
+The physical `AGENTS.md` files remain at repository and subtree boundaries because agent discovery depends on their location. Their content should stay concise and stable. When a product fact changes, update the owning vault note or source—not an agent instruction.
+
+## Entry sequence
+
+1. Read root `AGENTS.md` and the nearest nested `AGENTS.md` for the target path.
+2. Run `bin/agent-preflight --path <target>`.
+3. Load only the relevant workflow from `agent-harness/workflows/`.
+4. Use `APPlyVault/01 Table of Contents.md` to retrieve the minimum current product context needed for the task.
+5. Use a skill only when its description or explicit invocation matches the job.
+6. Run `bin/agent-check` before handoff.
+
+## Skills
+
+Canonical repository skills live under `.agents/skills/`, the repository location discovered by Codex. Host-specific mirrors are intentionally absent; the harness should gain an adapter only when that host is actually selected.
+
+- `plan`: read-only investigation and an evidence-backed execution plan.
+- `act`: scoped implementation and verification using the current plan or clear request.
+- `vault-context`: targeted retrieval from the APPly knowledge base without loading the entire vault.
+- `create-skill`: create or revise focused repository skills.
+- `frontend-ui`: implement APPly interfaces through the existing Material UI system and document the rare custom-control exception.
+- `startdev`: explicitly fast-forward a clean checkout, replant its local synthetic development database, and start and verify the managed stack; stop/status remain non-resetting subcommands.
+
+Codex invokes an explicit skill with `$plan`, `$act`, `$vault-context`, `$create-skill` or `$startdev` (or through `/skills`); `frontend-ui` may be selected automatically when its description matches the request. Codex does not currently expose arbitrary repository-defined slash aliases, so `/startdev` expresses the intended command name while `$startdev` is the reliable invocation. Plan/Act borrow Cline's open-source mode concepts, but they are repository prompt skills rather than Cline integration. A skill or workflow does not remove tools from a host and cannot substitute for its sandbox, approval policy or native mode controls.
+
+Create a new skill with `$create-skill` or with `bin/create-agent-skill` after its description and body are ready. Destructive multi-step skills should route through a checked-in deterministic helper as `startdev` does through `bin/startdev-refresh`. Validate harness structure with `bin/verify-agent-harness`; validate only the knowledge base with `bin/verify-vault`.
+
+## Provenance
+
+The Plan/Act distinction is adapted from Cline's open-source mode design. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the exact reviewed sources, revision and limits of the adaptation.

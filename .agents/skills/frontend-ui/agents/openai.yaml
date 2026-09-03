@@ -1,0 +1,4 @@
+interface:
+  display_name: "APPly Frontend UI"
+  short_description: "Build APPly interfaces through the Material UI system"
+  default_prompt: "Use $frontend-ui to implement this APPly interface with existing Material UI components and patterns first."

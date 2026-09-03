@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Validate APPly vault notes and the repository agent-instruction layout."""
+"""Validate APPly vault notes, links, frontmatter and Home reachability."""
 
 from __future__ import annotations
 
-import os
 import re
 import sys
 import urllib.parse
@@ -19,30 +18,6 @@ MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 FRONTMATTER_KEY = re.compile(r"^([A-Za-z0-9_-]+):\s*(.*?)\s*$")
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-REQUIRED_INSTRUCTION_FILES = [
-    "AGENTS.md",
-    "APPlyVault/AGENTS.md",
-    "apps/api/AGENTS.md",
-    "apps/web/AGENTS.md",
-    "ops/aws/AGENTS.md",
-    "site/AGENTS.md",
-    "agent-workflows/README.md",
-    "agent-workflows/code-change.md",
-    "agent-workflows/vault-change.md",
-    "agent-workflows/database-change.md",
-    "agent-workflows/research.md",
-    "agent-workflows/release.md",
-    "agent-workflows/incident.md",
-    "agent-workflows/handoff.md",
-    ".clinerules/00-canonical.md",
-    ".clinerules/vault.md",
-    ".clinerules/api.md",
-    ".clinerules/web.md",
-    ".clinerules/aws.md",
-    ".clinerules/site.md",
-]
-
 
 def heading_key(value: str) -> str:
     value = re.sub(r"\s+#+\s*$", "", value)
@@ -101,23 +76,6 @@ def check_fences(path: Path, text: str, errors: list[str]) -> None:
             active = None
     if active:
         errors.append(f"{path.relative_to(ROOT)}: unclosed {active} fence")
-
-
-def check_cline_rule(path: Path, text: str, errors: list[str]) -> None:
-    if path.name == "00-canonical.md":
-        return
-    lines = text.splitlines()
-    if not lines or lines[0] != "---":
-        errors.append(f"{path.relative_to(ROOT)}: missing conditional-rule frontmatter")
-        return
-    try:
-        end = lines.index("---", 1)
-    except ValueError:
-        errors.append(f"{path.relative_to(ROOT)}: unclosed conditional-rule frontmatter")
-        return
-    frontmatter = lines[1:end]
-    if "paths:" not in frontmatter or not any(line.lstrip().startswith("- ") for line in frontmatter):
-        errors.append(f"{path.relative_to(ROOT)}: conditional rule must declare at least one path")
 
 
 def clean_link_target(raw: str) -> str:
@@ -219,36 +177,6 @@ def main() -> int:
         if path not in visited:
             errors.append(f"{path.relative_to(ROOT)}: note is not reachable from APPlyVault/00 Home.md")
 
-    for relative in REQUIRED_INSTRUCTION_FILES:
-        path = ROOT / relative
-        if not path.is_file():
-            errors.append(f"missing required instruction/workflow file: {relative}")
-
-    root_agents = ROOT / "AGENTS.md"
-    if root_agents.is_file() and root_agents.stat().st_size > 12_000:
-        errors.append(
-            f"AGENTS.md is {root_agents.stat().st_size} bytes; keep the always-loaded root contract at or below 12000"
-        )
-
-    instruction_documents = [
-        ROOT / relative
-        for relative in REQUIRED_INSTRUCTION_FILES
-        if (ROOT / relative).is_file()
-    ]
-    for path in instruction_documents:
-        text = path.read_text(encoding="utf-8")
-        check_fences(path, text, errors)
-        check_markdown_links(path, text, errors)
-        if path.parent == ROOT / ".clinerules":
-            check_cline_rule(path, text, errors)
-
-    for relative in ("bin/agent-preflight", "bin/agent-check", "bin/verify-vault"):
-        path = ROOT / relative
-        if not path.is_file():
-            errors.append(f"missing agent workflow command: {relative}")
-        elif not os.access(path, os.X_OK):
-            errors.append(f"agent workflow command is not executable: {relative}")
-
     if errors:
         print("Vault/instruction verification failed:", file=sys.stderr)
         for error in sorted(set(errors)):
@@ -256,8 +184,7 @@ def main() -> int:
         return 1
 
     print(
-        f"Verified {len(note_paths)} vault notes, {wiki_count} wiki links, "
-        f"{len(instruction_documents)} instruction/workflow files and Home reachability."
+        f"Verified {len(note_paths)} vault notes, {wiki_count} wiki links and Home reachability."
     )
     return 0
 

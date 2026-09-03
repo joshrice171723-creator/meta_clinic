@@ -1,7 +1,7 @@
 ---
 type: operating-guide
 status: staging-active-production-activation-pending
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 # CICD
 
@@ -96,6 +96,8 @@ Run the app with the same development flag, then select Test Client A, Test Clie
 After setup, root `bin/dev` starts only Rails and Vite; it does not start PostgreSQL, install dependencies, apply migrations or reset databases. Start PostgreSQL first if stopped. Ctrl-C stops only the child processes it started, leaving persistent database storage intact. It refuses occupied ports 3000/3001; do not kill an unrelated server to free them. Frontend edits use Vite reload; restart the appropriate process after configuration/dependency changes.
 
 For the managed daily lifecycle, run `./dev_server_startup start` or `./dev_server_startup restart` from the repository root; use `stop` to preserve the database while stopping services and `status` for diagnostics. With no command, the root script performs `start`. On Windows, invoke it as `ruby .\dev_server_startup <command>`. This checked-in entry point requires no global launcher installation or PATH change and delegates to `bin/apply`.
+
+Codex users may explicitly invoke the repository `$startdev` skill (selected through `/skills`) for a destructive local refresh. Its checked-in `bin/startdev-refresh` helper gives default/start/up/restart/refresh actions one deterministic implementation: require a clean named branch with an upstream, fetch the configured remote, accept only an equal branch or a behind-only `git pull --ff-only`, stop the managed stack, prepare and replant the confirmed loopback `apply*_development` database with ordinary and rich synthetic seeds, then start and verify the checked-in lifecycle. Replanting deletes every record and manual edit in that selected local development database. Dirty, detached, no-upstream, ahead and diverged states stop without stash, reset, merge, rebase or push. Hosted/overridden database connections, test databases, unrelated processes, PostgreSQL volumes and credential files remain outside the command. The `stop`/`down` and `status`/`doctor` skill actions do not fetch or reset. Codex does not currently register repository-defined `/startdev` as a native slash alias.
 
 `start` and `restart` return success only after PostgreSQL, Rails and Vite are ready; startup errors propagate to the caller. They refuse an occupied port unless its recorded process belongs to this checkout, rather than treating an unrelated or legacy listener as a healthy APPly service. If startup fails, keep the reported error and `tmp/dev/logs` evidence, fix a consequential in-scope defect and retry the managed command; do not substitute an unrecorded manual server and claim the lifecycle works. A workaround is appropriate only when the defect has no consequence for the current task or is explicitly accepted as temporary under [[Working Agreement#Failure-first planning and review]].
 
@@ -248,7 +250,7 @@ After merging, each developer updates their own clean `main` with `git pull --ff
 
 | Job | Checks |
 | --- | --- |
-| `agent_docs` | Check out repository documentation with read-only permissions; validate vault frontmatter, links/headings, Home reachability, layered instructions/playbooks and preflight discovery. No application dependency install or external service. |
+| `agent_docs` | Check out repository documentation with read-only permissions; separately validate the vault knowledge base and agent harness, including layered instructions, workflows, canonical skills, the Material UI implementation rule and preflight discovery. No application dependency install or external service. |
 | `scan_ruby` | Brakeman static security analysis and Bundler Audit with refreshed vulnerability data. |
 | `lint` | RuboCop code-style checks. |
 | `frontend` | Install the npm lockfile, run Vitest, Prettier format check, TypeScript/Vite build and npm audit; no app secrets. |
@@ -259,7 +261,7 @@ Triggers are pull requests targeting `main`, pushes to `main` (including merges)
 
 The old `site/backend/.github/workflows/ci.yml` was not discoverable as the parent repository's workflow. GitHub requires repository-root `.github/workflows/`. After D-033, Rails jobs use `apps/api`, frontend uses `apps/web`, and release-contract checks use the repository root. Ruby-action/cache paths match the API location, Node setup uses the frontend version file, and Bundler retains a frozen lockfile. [Workflow syntax; S-23](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax), [Ruby action; S-53](https://github.com/ruby/setup-ruby#working-directory).
 
-CI uses read-only repository permissions and does not persist checkout credentials. Application/release jobs use sparse checkout; `agent_docs` checks out the tracked vault and instruction documents solely for local structural/link validation. CI does not upload vault content, logs or database artifacts, receive AWS or production secrets, or run on the EC2 server. Dependencies and public vulnerability metadata are downloaded by the application jobs. Tests remain wholly synthetic. No path filters are used, so documentation-only pull requests also receive the same checks rather than leaving a future required check pending.
+CI uses read-only repository permissions and does not persist checkout credentials. Application/release jobs use sparse checkout; `agent_docs` checks out the tracked vault and agent harness solely for local structural/link validation. CI does not upload vault content, logs or database artifacts, receive AWS or production secrets, or run on the EC2 server. Dependencies and public vulnerability metadata are downloaded by the application jobs. Tests remain wholly synthetic. No path filters are used, so documentation-only pull requests also receive the same checks rather than leaving a future required check pending.
 
 After publishing reviewed changes through the team workflow, open the pull request's **Checks** tab or repository **Actions → CI**. Inspect the exact commit and all six results; a successful local check is not an observed GitHub run. If Actions or the referenced actions are restricted by repository policy, resolve that with the repository owner. Runner availability/minutes depend on the account plan; no plan or billing setting was changed. T-22/M0 stays open until its remaining remote-CI/browser criteria have evidence.
 

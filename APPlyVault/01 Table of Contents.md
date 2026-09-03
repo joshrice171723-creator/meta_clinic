@@ -1,13 +1,13 @@
 ---
 type: index
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 # Table of Contents
 
 Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[Design]] · **Developers: [[CICD|start with CI/CD]]** · Code ownership: [[Software Architecture]] · Status: [[Roadmap and Tasks#Current task register]]
 
-Use this index to select the relevant notes and sections for a task; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, tasks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and [on-demand playbooks](../agent-workflows/README.md) provide scoped procedure.
+Use this index to select the relevant notes and sections for a task; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, tasks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and the [agent harness](../agent-harness/README.md) provide scoped procedure. The harness owns agent behavior; this vault owns software knowledge and evidence.
 
 This is navigation, not a second backlog. Current status lives in [[Roadmap and Tasks]], explicit choices in [[Decisions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
 
@@ -30,7 +30,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | MD materials, applicant packet or research | [[MD Pilot]], [[Clinic Launch Packet]], [[Source Register]] | [[Customer Discovery]], relevant [[Texas Diligence]] issues and source permissions |
 | Pharmacy professional review | [[Pharmacy Provider and Counsel Questions]], [[Texas Diligence]] | Relevant [[Pharmacy Inventory Data Requirements]] sections and dated sources; actual clinic facts remain required |
 | SharePoint, clinical architecture or data safeguards | [[SharePoint and EMR]], relevant [[Data Modeling]] sections | L-05 and applicable E1–E3 gates; [[Entity and Product Boundary]]; qualified review remains separate |
-| Vault documentation or workflow rules | [[Working Agreement]], this index, [vault agent instructions](AGENTS.md) | Relevant current-state notes, decisions/tasks and progress entries; [agent workflow playbooks](../agent-workflows/README.md); configuration only if the task concerns it |
+| Vault documentation or agent-harness rules | [[Working Agreement]], this index, [vault agent instructions](AGENTS.md) | Relevant current-state notes, decisions/tasks and progress entries; [agent workflow playbooks](../agent-harness/workflows/README.md); [harness map](../agent-harness/README.md); configuration only if the task concerns it |
 
 ## Developer and execution notes — 03 Execution
 

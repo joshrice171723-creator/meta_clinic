@@ -1,6 +1,6 @@
 # APPly agent workflow playbooks
 
-These procedures are loaded on demand. Repository-wide authority and safety rules remain in [`../AGENTS.md`](../AGENTS.md); directory-specific rules remain in the nearest nested `AGENTS.md`.
+These procedures are loaded on demand. Repository-wide authority and safety rules remain in [`../../AGENTS.md`](../../AGENTS.md); directory-specific rules remain in the nearest nested `AGENTS.md`.
 
 | Task | Playbook |
 | --- | --- |
@@ -18,6 +18,7 @@ The repository scripts provide the deterministic layer:
 
 - `bin/agent-preflight --path <target>` reports worktree state, applicable instruction files and vault routes.
 - `bin/agent-check` lists checks selected from changed paths; `bin/agent-check --run` runs them.
-- `bin/verify-vault` validates vault and instruction-document structure.
+- `bin/verify-agent-harness` validates instructions, workflows and skills.
+- `bin/verify-vault` validates only vault structure, links and reachability.
 
-Cline path-conditional adapters in `.clinerules/` point back to the canonical nested instructions. Hermes can progressively discover nested `AGENTS.md` files. Other agents must read the nearest instructions explicitly if their runtime does not discover them.
+Agents whose runtime does not discover nested instructions or repository skills must read the nearest canonical files explicitly. Add a host adapter only after that host is selected; do not maintain speculative mirrors.

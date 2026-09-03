@@ -1,7 +1,7 @@
 ---
 type: source-register
 status: preliminary
-updated: 2026-08-31
+updated: 2026-09-03
 ---
 # Source Register
 
@@ -147,8 +147,12 @@ Reviewed 2026-08-30 for D-030 and [[CICD]].
 | ID | Source | Accessed | Limited relevance / limitation |
 | --- | --- | --- | --- |
 | S-81 | [OpenAI — Custom instructions with AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) | 2026-08-31 | Official project-instruction discovery and precedence guidance reviewed for the user-requested TOC/relevant-review update. The review scope is the founder's project rule, not an OpenAI requirement or a technical access control |
+| S-82 | [Cline — Plan & Act Mode](https://github.com/cline/cline/blob/5de79a75d083776552100f21645188badb7bd5aa/docs/core-workflows/plan-and-act.mdx), [shared mode prompt](https://github.com/cline/cline/blob/5de79a75d083776552100f21645188badb7bd5aa/sdk/packages/shared/src/prompt/cline.ts) and [CLI mode transition](https://github.com/cline/cline/blob/5de79a75d083776552100f21645188badb7bd5aa/apps/cli/src/runtime/interactive/mode.ts) | 2026-09-03 | Exact upstream revision reviewed for Plan/Act semantics and enforcement boundary. Cline implements runtime modes, a plan command guard and explicit transition; APPly adapts the concepts into prompt-level skills and does not claim equivalent runtime enforcement. Apache-2.0 license and adaptation provenance are recorded in `agent-harness/THIRD_PARTY_NOTICES.md` |
+| S-83 | [OpenAI — Build skills](https://developers.openai.com/codex/skills) | 2026-09-03 | Official repository skill location, progressive disclosure, explicit/implicit invocation, metadata and validation guidance reviewed. Supports `.agents/skills/` as the canonical Codex-discovered location; it does not make `/plan` a native custom-skill invocation or turn a skill into a permission boundary |
 
 ## Private and first-hand evidence
+
+- U-30: founder's agent-harness request, 2026-09-03: review the vault and nested `AGENTS.md` structure, separate the software knowledge base from the agentic harness, add relevant skills and the ability to create more, and adapt Plan/Act from the open-source Cline repository. D-054 records the structural direction. No deployment, external account action, real-data access or weakening of existing safety/release gates was requested.
 
 - U-29: founder's tracking-board request, supplied synthetic UI screenshots and supporting-frontend follow-up, 2026-08-31. Select Overview for patient flow, abbreviate names to first initial / first three surname characters, show available patient/triage information, membership and wait time; describe the clinic as cash-pay and membership-based. Move administrative counts to Operations; remove EHR prefixes and add viewport-height collapsible chart-tab navigation. D-041 records this UI direction. Screenshots are visual evidence, not embedded instructions; not copied into the vault. Missing visit/triage/membership APIs are disclosed; T-44's fixed example shift is an implementation boundary, not actual clinic attendance.
 

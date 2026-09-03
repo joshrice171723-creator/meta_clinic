@@ -1,7 +1,7 @@
 ---
 type: architecture
 status: implemented-frontend-api-split
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 # Software Architecture
 
@@ -24,8 +24,10 @@ The paragraph above records the historical prompt scope. Source commits `600976f
 ```text
 APPly/
   README.md                    Startup and navigation
-  AGENTS.md                    TOC-routed relevant review and safety rules
-  APPlyVault/                  Canonical requirements, evidence, decisions and tasks
+  AGENTS.md                    Stable agent policy and repository routing
+  agent-harness/               Agent architecture, procedures and provenance
+  .agents/skills/              Canonical on-demand repository skills
+  APPlyVault/                  Software knowledge: requirements, evidence, decisions and tasks
   apps/web/                    Independent React/TypeScript browser application
     src/features/              Launch, identity, clinic and inventory UI
     src/api/                   Same-origin HTTP client and response types
@@ -38,11 +40,13 @@ APPly/
     db/                        Canonical migrations, structure and runtime grants
     test/                      Domain units, HTTP journeys and architecture contracts
     bin/                       API, PostgreSQL and migration-verification commands
-  bin/                         Two-process local startup and synthetic HTTP rehearsal
+  bin/                         Local startup, synthetic rehearsal and deterministic agent checks
   ops/aws/                     Infrastructure, paired release and recovery tools
   .github/workflows/           Frontend/API CI and prepared delivery workflows
   site/                        Historical Sites metadata/assets only
 ```
+
+The agent harness is the repository control plane; `APPlyVault/` is the software knowledge base. Nested `AGENTS.md` files stay next to the paths they govern because discovery is location-sensitive, but they contain stable constraints and routes rather than dated application state. Procedures belong in `agent-harness/workflows/`; on-demand capabilities belong in `.agents/skills/`. Source, tests, migrations and runbooks remain the authority for currently implemented mechanics. A prompt skill cannot enforce runtime permissions or substitute for a host's native mode, sandbox or approval controls.
 
 No compatibility symlink or active app remains at `apps/apply` or `site/backend`. Rails' local credential bind path is `apps/api/tmp/postgres-password`; the existing persistent PostgreSQL volume, storage identity and credential file were preserved. Historical Sites metadata/caches and dormant generated Dependabot configuration remain untouched.
 
@@ -81,11 +85,11 @@ These boundaries and tests are not complete tenant isolation. Trusted identity/R
 
 ## Shared workflows and presentation
 
-The current clinic working tree introduces Material UI and Emotion through `ClinicAppearanceScope`/`Appearance.tsx`, deriving palette, typography and control defaults from the existing account-owned clinic theme. Existing clinic CSS remains the compatibility layer for unconverted surfaces. This does not move authority into the browser, change API ownership or make the MUI dependency a release or accessibility acceptance claim; the package and lockfile edits remain uncommitted concurrent work.
+D-056 makes Material UI and Emotion, scoped through `ClinicAppearanceScope`/`Appearance.tsx`, the default implementation system for new and materially changed frontend interfaces. Start with an existing APPly component, then the closest Material UI component, icon or documented composition. Adapt an APPly-owned wrapper, theme or owning module through supported Material UI extension APIs when necessary rather than bypassing it with a one-off control. If those extension points are insufficient but MUI remains the right foundation, modify the dependency through a narrow reproducible patch, vendored package or pinned fork tied to its exact upstream version/license and verified after a clean install. A generated `node_modules` edit is exploratory until captured by that source-controlled mechanism. Existing clinic CSS remains the compatibility layer for unconverted surfaces, not precedent for new hand-built controls. A custom component is the final exception only when no suitable MUI primitive, supported extension or durable dependency modification can meet required semantics, accessibility or behavior; its handoff records the considered paths and focused evidence. This direction does not move authority into the browser, change API ownership or constitute release or accessibility acceptance.
 
 Browser URLs remain `/`, `/contact`, `/login`, `/portal`, `/paperwork`, `/training`, `/inquiries` and `/clinic/*`. Application-page rendering, native ERB controllers/views and CSS ownership moved out of Rails. The D-033 split preserved the existing green visual language and product copy; that split was not a redesign.
 
-D-036/T-41 subsequently added three clinic palettes and system/light/dark modes. D-039/T-43 move controls to `src/features/identity/Settings.tsx`, initially routed at `/clinic/settings`; `src/features/clinic/Appearance.tsx` owns account-bound loaded theme state, and `appearancePreferences.ts` owns tokens/system appearance. Clinic-scoped CSS preserves public shared CSS and launch styling. [[Design]] owns the proposed clinic visual system; [[Clinic Workspace Design]] distinguishes implemented appearance history from proposed intake/clinician layouts.
+D-036/T-41 added selectable clinic palettes and system/light/dark modes; D-055 now defines Juniper & porcelain, Cobalt & limestone, Plum & parchment, and Saffron & ink, with a deterministic transition for previously saved choices. D-039/T-43 move controls to `src/features/identity/Settings.tsx`, initially routed at `/clinic/settings`; `src/features/clinic/Appearance.tsx` owns account-bound loaded theme state, and `appearancePreferences.ts` owns tokens/system appearance. Clinic-scoped CSS preserves public shared CSS and launch styling. [[Clinic Workspace Design]] distinguishes these changes from proposed intake/clinician layouts.
 
 `Identity::Preference` / `identity_preferences` owns allowlisted palette/mode/revision with one unique user foreign key. `Identity::Api::SettingsController` exposes authenticated GET/PATCH/PUT `/api/settings`, never user-ID-targeted routes. Expected-user mismatch and stale revisions fail; user-row locking serializes concurrent first saves. CSRF/session checks remain; no other user fields or clinic permissions are writable. Frontend response ownership must be accepted before success is shown. This account API contains no clinical records and does not bypass production clinic route denial. New settings are loaded on page entry, not pushed live to other tabs. Future settings require separate scoped fields and acceptance, not arbitrary JSON storage.
 

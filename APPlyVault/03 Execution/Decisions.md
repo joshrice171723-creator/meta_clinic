@@ -1,7 +1,7 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 # Decisions
 
@@ -220,3 +220,24 @@ Production admin assignments among the three founding members referred to by the
 **D-053 — 2026-09-02 / founder's tracking-board correction:** exercise the clinic board with production-shaped, independently invented local data rather than sparse or hard-coded presentation examples. Display recorded vitals and patient commercial-membership state, keep Care controls from inflating rows, align Status treatments with the selected composition, and make the Provider cell a fast assignment entry point. Keep the persistent header marker and the `SYN_` patient-name prefix, but remove repeated synthetic/example reminders and explanatory subtext that merely restates an obvious heading or control.
 
 **Implementation boundary:** provider selection on the board is an operational queue assignment only; it does not establish clinical responsibility, accept a handoff, start an encounter, sign a note or imply credential acceptance. Patient commercial membership is distinct from staff/account `Clinic::Membership` and insurance `Clinic::CoverageVersion`; it requires its own recorded source and may not be inferred from either. Vital values may be projected only from recorded encounter observations, without client-side normal/abnormal thresholds or clinical response advice. The initial change is additive local source, guarded development/test fixtures and tests. It does not authorize real/confidential data, deployment, production mutation, billing terms, clinical acceptance, accessibility certification or closure of T-13/T-44/L-05/E1-E3.
+## Agent harness and software knowledge separation
+
+**D-054 — 2026-09-03 / founder's agent-harness request:** separate agent procedure from the APPly software knowledge base. Keep root and nested `AGENTS.md` files at their discovery boundaries as concise, stable policy and routing; place reusable procedures under `agent-harness/workflows/`; keep current requirements, decisions, tasks, risks, research and dated evidence in `APPlyVault/`; and expose focused repository skills through `.agents/skills/` with thin Cline adapters. Add explicit Plan and Act skills adapted from Cline's open-source mode semantics, a focused vault-context skill and a skill-creation path for future capabilities.
+
+**Limits:** Cline's native Plan/Act feature is a runtime mode system, not an upstream pair of Agent Skills. APPly's adaptations are prompt-level skills and cannot change tool availability, sandboxing, approvals or host mode. They remain explicit-only to avoid accidental mode selection; actual invocation syntax is host-specific. This restructuring does not weaken D-046, data/credential safeguards, professional and real-data gates, deployment authority or application architecture. New third-party adaptations require source/license review and attribution.
+
+**D-054 continuation — 2026-09-03 / founder's host clarification:** APPly will not use Cline. Keep the Cline-derived Plan/Act concepts and attribution, but make `.agents/skills/` the only current repository skill surface and remove the Cline path, skill and workflow adapters introduced under D-046/D-054. A future host integration requires an explicit selection rather than a speculative mirror.
+
+**Limits:** This supersedes only D-046/D-054's Cline-adapter direction. It does not erase their history, change Plan/Act's prompt-level limits, select another host, or alter application/release authority.
+
+## Material UI implementation default
+
+**D-056 — 2026-09-03 / founder's frontend implementation direction, clarified same day:** use Material UI for every frontend implementation where it provides a suitable component, icon, primitive or composition pattern. Adapt the existing theme, shared APPly wrapper or owning module when necessary. If Material UI remains the right foundation but its supported extension points are insufficient, modify the Material UI package itself through a durable dependency patch, vendored package or pinned fork before building a replacement from scratch. Build a custom component only when no suitable Material UI option, extension or package modification can meet the required semantics, accessibility or behavior.
+
+**Limits:** a dependency-source modification must be narrow, reviewable, tied to an exact upstream version and license, reproducible after a clean install, protected by focused regression evidence and accompanied by a removal/upstreaming condition. A direct exploratory `node_modules` edit is acceptable only when the final result is captured durably; generated local files alone are not source. Existing unconverted CSS remains a compatibility layer rather than precedent for new hand-built controls. A custom exception must identify the Material UI extension and package-modification paths considered and receive proportionate interaction/accessibility review; this decision is not itself accessibility or release acceptance.
+
+## Managed development command skill
+
+**D-057 — 2026-09-03 / founder's harness request:** add an explicit `startdev` repository skill over the existing managed APPly development lifecycle, then make its start-like actions a complete disposable-development refresh. With no action, start/up, restart or refresh, it requires a clean named branch with a configured upstream, fetches that remote, pulls only a behind-only fast-forward, stops the managed stack, replants the confirmed loopback `apply*_development` database with ordinary and rich synthetic seeds, then starts and verifies PostgreSQL, Rails and Vite. Stop/down and status/doctor remain non-resetting control actions.
+
+**Limits:** the refresh deliberately deletes every record and manual edit in the selected local development database, but not the database itself, test databases, persistent volume or credential file. Dirty, detached, no-upstream, ahead, diverged, fetch-failed and non-fast-forward checkouts stop for human direction; the skill never stashes, commits, resets, cleans, merges, rebases, force-updates, switches branches or pushes. It refuses hosted or overridden database connections, kills only checkout-managed processes, does not install dependencies, deploy or expand local-development authority, and routes the destructive sequence through the checked-in `bin/startdev-refresh` helper plus repository lifecycle/database wrappers rather than a global launcher or agent-reconstructed commands. Codex repository skills are reliably invoked as `$startdev` or selected through `/skills`; `/startdev` remains the intended human-facing name rather than a newly registered native slash alias.

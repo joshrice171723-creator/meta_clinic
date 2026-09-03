@@ -50,18 +50,28 @@ def implementation_change(paths: set[str], prefix: str) -> bool:
 
 def checks_for(paths: set[str]) -> list[Check]:
     checks: list[Check] = []
-    docs_changed = any(
+    vault_changed = any(path.startswith("APPlyVault/") for path in paths)
+    harness_changed = any(
         path == "AGENTS.md"
         or path.endswith("/AGENTS.md")
         or path == "README.md"
-        or path.startswith("APPlyVault/")
-        or path.startswith("agent-workflows/")
-        or path.startswith(".clinerules/")
-        or path in {"bin/agent-check", "bin/agent-preflight", "bin/verify-vault"}
+        or path.startswith("agent-harness/")
+        or path.startswith(".agents/")
+        or path == ".github/workflows/ci.yml"
+        or path
+        in {
+            "bin/agent-check",
+            "bin/agent-preflight",
+            "bin/create-agent-skill",
+            "bin/verify-agent-harness",
+            "bin/verify-vault",
+        }
         for path in paths
     )
-    if docs_changed:
-        checks.append(Check("vault and agent documents", ("python3", "-B", "bin/verify-vault")))
+    if vault_changed:
+        checks.append(Check("vault knowledge base", ("python3", "-B", "bin/verify-vault")))
+    if harness_changed:
+        checks.append(Check("agent harness", ("python3", "-B", "bin/verify-agent-harness")))
 
     lifecycle_paths = {
         "dev_server_startup",

@@ -69,42 +69,55 @@ def instruction_chain(directory: Path) -> list[Path]:
 def route_for(relative_path: str) -> list[str]:
     if relative_path == ".":
         return [
+            "agent-harness/README.md",
+            "agent-harness/workflows/README.md",
             "APPlyVault/00 Home.md",
             "APPlyVault/01 Table of Contents.md",
-            "agent-workflows/README.md",
+        ]
+    if relative_path.startswith(
+        ("agent-harness/", ".agents/", "bin/agent-")
+    ) or relative_path in {"agent-harness", ".agents"}:
+        return [
+            "agent-harness/README.md",
+            "agent-harness/workflows/code-change.md",
+            "APPlyVault/01 Table of Contents.md (when product direction or evidence is affected)",
         ]
     if relative_path.startswith("APPlyVault/") or relative_path == "APPlyVault":
         return [
             "APPlyVault/00 Home.md",
             "APPlyVault/01 Table of Contents.md",
             "APPlyVault/03 Execution/Working Agreement.md",
-            "agent-workflows/vault-change.md",
+            "agent-harness/workflows/vault-change.md",
         ]
     if relative_path.startswith("apps/api/") or relative_path == "apps/api":
         return [
             "APPlyVault/03 Execution/CICD.md",
             "APPlyVault/03 Execution/Software Architecture.md",
-            "agent-workflows/code-change.md",
-            "agent-workflows/database-change.md (for schema/data work)",
+            "agent-harness/workflows/code-change.md",
+            "agent-harness/workflows/database-change.md (for schema/data work)",
         ]
     if relative_path.startswith("apps/web/") or relative_path == "apps/web":
         return [
             "APPlyVault/03 Execution/CICD.md",
             "APPlyVault/03 Execution/Software Architecture.md",
-            "agent-workflows/code-change.md",
+            "agent-harness/workflows/code-change.md",
+            ".agents/skills/frontend-ui/SKILL.md (for UI work)",
         ]
     if relative_path.startswith("ops/aws/") or relative_path == "ops/aws":
         return [
             "APPlyVault/03 Execution/CICD.md",
             "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
-            "agent-workflows/release.md",
+            "agent-harness/workflows/release.md",
         ]
     if relative_path.startswith("site/") or relative_path == "site":
-        return ["site/AGENTS.md", "agent-workflows/release.md (only for authorized hosting changes)"]
+        return [
+            "site/AGENTS.md",
+            "agent-harness/workflows/release.md (only for authorized hosting changes)",
+        ]
     return [
         "APPlyVault/00 Home.md",
         "APPlyVault/01 Table of Contents.md",
-        "agent-workflows/code-change.md",
+        "agent-harness/workflows/code-change.md",
     ]
 
 

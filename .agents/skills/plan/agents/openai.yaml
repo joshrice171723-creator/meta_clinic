@@ -1,0 +1,6 @@
+interface:
+  display_name: "Plan"
+  short_description: "Investigate read-only and produce an implementation-ready plan"
+  default_prompt: "Use $plan to investigate this request without changing state and return an implementation-ready plan."
+policy:
+  allow_implicit_invocation: false
