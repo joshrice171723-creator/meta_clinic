@@ -101,6 +101,7 @@ require_ports_available!
 
 local_environment = {
   "APP_SYNTHETIC_SEEDS" => nil,
+  "APPLY_STARTDEV_SKIP_SCHEMA_DUMP" => "1",
   "DATABASE_URL" => nil,
   "RAILS_ENV" => "development"
 }
@@ -110,7 +111,7 @@ run!(RbConfig.ruby, "bin/postgres", "start", chdir: API_ROOT, environment: local
 run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:prepare",
   chdir: API_ROOT, environment: local_environment)
 
-connection_guard = <<~RUBY
+connection_guard = <<~'RUBY'
   expected = ENV.fetch("APPLY_DEVELOPMENT_DATABASE", "apply_development")
   config = ActiveRecord::Base.connection_db_config
   host = config.configuration_hash.fetch(:host).to_s

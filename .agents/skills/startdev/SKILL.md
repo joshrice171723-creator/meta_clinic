@@ -49,7 +49,7 @@ Before touching the database:
 - resolve the selected database as `APPLY_DEVELOPMENT_DATABASE`, defaulting to `apply_development`, and require its name to start with `apply` and end with `_development`;
 - use only the repository `apps/api/bin/postgres` wrapper and its loopback connection; never use hosted credentials or a manually supplied database command.
 
-The helper starts PostgreSQL with `apps/api/bin/postgres`, prepares migrations, then uses a Rails runner through the same wrapper to confirm all three facts from the live connection: `Rails.env.development?`, the `ActiveRecord::Base.connection_db_config` database exactly matches the guarded name, and the database host is loopback.
+The helper starts PostgreSQL with `apps/api/bin/postgres`, prepares migrations without regenerating the tracked `db/structure.sql` file, then uses a Rails runner through the same wrapper to confirm all three facts from the live connection: `Rails.env.development?`, the `ActiveRecord::Base.connection_db_config` database exactly matches the guarded name, and the database host is loopback. Ordinary development migration workflows still regenerate and review that canonical schema file.
 
 Only after those checks pass, run the equivalent of:
 

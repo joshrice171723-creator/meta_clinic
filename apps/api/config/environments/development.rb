@@ -43,6 +43,10 @@ Rails.application.configure do
   # Raise an error on page load if there are pending migrations.
   config.active_record.migration_error = :page_load
 
+  # Managed local refreshes prepare the database but must not rewrite the tracked
+  # schema dump. Ordinary development migrations retain Rails' default behavior.
+  config.active_record.dump_schema_after_migration = ENV["APPLY_STARTDEV_SKIP_SCHEMA_DUMP"] != "1"
+
   # Highlight code that triggered database queries in logs.
   config.active_record.verbose_query_logs = true
 
