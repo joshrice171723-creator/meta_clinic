@@ -5,7 +5,7 @@ updated: 2026-09-03
 ---
 # Cash-Pay Billing Implementation Package
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Status: [[Roadmap and Tasks]] · Architecture: [[Software Architecture]] · Data boundary: [[Data Modeling]] · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Status: [[Roadmap and Tasks]] · Architecture: [[Software Architecture]] · Data boundary: [[Data Modeling]] · Test plan: [[Cash-Pay Billing Test Plan]] · Evidence: [[Progress Log]]
 
 ## Purpose and authority
 
@@ -214,6 +214,8 @@ Payment-related information can be protected health information in context; cash
 **Still blocked:** check scanning/OCR, check-image storage/deletion/access policy, invoice numbering and service-date decisions, approved receipt template/content/delivery/PDF/reissue policy, superbill specification, Stripe account/webhook secrets, patient portal, and every real-data/release authority.
 
 ## Required continuation checklist for the next AI
+
+The package-specific verification procedure and Terra Med failure-escalation rules live in [[Cash-Pay Billing Test Plan]]. Update that matrix and [[Progress Log]] after every gate; never convert an unavailable browser/API or unapproved production contract into a pass.
 
 1. Read this package, [[CICD]], [[Software Architecture]], [[Working Agreement]], current [[Roadmap and Tasks]], and the closest `AGENTS.md` files before editing.
 2. Pull and inspect the current branch; preserve unrelated changes. Locate existing billing contracts/tests before adding a migration or UI abstraction.

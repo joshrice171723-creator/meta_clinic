@@ -9,6 +9,12 @@ Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
+## 2026-09-03 — Cash-pay billing test plan added
+
+**Request and implementation:** added [[Cash-Pay Billing Test Plan]] as the verification companion to [[Cash-Pay Billing Implementation Package]]. It maps the implemented ledger, cash tender/change, idempotency, refund, drawer close, receipt, authorization, UI and regression surfaces to positive, negative, tenant, replay, transaction, browser and operational checks. It defines Pass, Fail, Blocked and Inconclusive evidence states, a bounded Terra Med escalation/review loop for reproducible failures, and explicit local-synthetic exit criteria.
+
+**Limits:** this entry records the plan, not test completion. The plan preserves the known boundary that check scanning/OCR, approved invoice/receipt document rules, superbill, Stripe, portal, real data and release remain blocked. The first gate run will update the matrix with actual commands and results.
+
 ## 2026-09-03 — Cash-pay drawer, receipt, and staff workflow implemented
 
 **Implementation:** completed the locally-authorized cash portion of [[Cash-Pay Billing Implementation Package]]. Additive Rails records now preserve per-site cash-drawer sessions, immutable cash tender/change evidence, and immutable cash-payment/cash-refund receipt records beside the established invoice/payment-event/allocation ledger. The internal Billing workspace can open one drawer per site, record cash against a posted invoice, calculate change server-side, open a scoped printable receipt, close with a recorded short/over variance, and show the server-derived expected cash. The patient financial ledger identifies only locally evidenced cash payments and receipt availability, enabling a cash-only refund control without exposing external processor references or assigning a source to historical payment events.
