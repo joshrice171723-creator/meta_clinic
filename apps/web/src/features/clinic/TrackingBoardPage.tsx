@@ -41,15 +41,10 @@ import {
   CareIndicators,
   CareSummaryTrigger,
   careIndicatorGroups,
-  usePatientCareSummaries,
   type CareSummaryLoadState,
 } from "./CareIndicators";
 import { openSoapHref, previousChartHref } from "./chartNavigation";
-import { EXAMPLE_CARE_SUMMARIES } from "./trackingBoardCareFixtures";
 import {
-  EXAMPLE_CLOCK,
-  EXAMPLE_CLINICIANS,
-  EXAMPLE_VISITS,
   VISIT_STAGES,
   clinicianLabel,
   cliniciansForLocation,
@@ -58,10 +53,10 @@ import {
   filterVisits,
   patientLabel,
   waitingMinutes,
+  type BoardClinician,
   type BoardVisit,
   type BoardChartStatus,
-  type ExampleClinician,
-  type ExampleVitalStatus,
+  type BoardVitalStatus,
 } from "./trackingBoardData";
 import {
   assignBoardProvider,
@@ -69,7 +64,7 @@ import {
   trackingBoardVisitToBoardVisit,
 } from "./trackingBoardApi";
 
-const EMPTY_BOARD_VISITS: BoardVisit[] = [];
+const EMPTY_CARE_SUMMARY_STATES: Record<string, CareSummaryLoadState> = {};
 
 type ChartActionTone = BoardChartStatus;
 
@@ -411,7 +406,7 @@ function operationalSortMinutes(visit: BoardVisit, now: string) {
     : Math.max(0, minutesFromStart);
 }
 
-const vitalStatusPresentation: Record<ExampleVitalStatus, { label: string }> = {
+const vitalStatusPresentation: Record<BoardVitalStatus, { label: string }> = {
   above: { label: "Above normal limits" },
   within: { label: "Within normal limits" },
   below: { label: "Below normal limits" },
@@ -503,7 +498,7 @@ const columnLabels: Record<ColumnKey, string> = {
   triage: "Vitals",
   action: "Action",
 };
-function ExampleVisitRow({
+function TrackingBoardRow({
   visit,
   now,
   columns,
@@ -524,7 +519,7 @@ function ExampleVisitRow({
   providerAssignmentToken: string | null;
   careSummaryState: CareSummaryLoadState;
   timezone: string;
-  clinicians: readonly ExampleClinician[];
+  clinicians: readonly BoardClinician[];
   onAssignClinician: (
     clinicianId: string | null,
     assignmentToken: string | null,
@@ -562,8 +557,7 @@ function ExampleVisitRow({
     : assignedClinicianId
       ? visit.assignedProviderName
       : null;
-  const providerEditable =
-    visit.isSynthetic !== false || visit.providerAssignmentAvailable === true;
+  const providerEditable = visit.providerAssignmentAvailable === true;
   const assignmentOutcomeUnknown =
     assignmentAttempt !== null && assignmentError !== null;
   const readings = vitalReadings(visit);
@@ -1020,22 +1014,20 @@ function ExampleVisitRow({
   );
 }
 export function TrackingBoardView({
-  visits = [],
-  now = EXAMPLE_CLOCK,
-  timezone = "UTC",
-  synthetic = false,
+  visits,
+  now,
+  timezone,
   myClinicianId = null,
   truncated = false,
   stale = false,
   refreshError,
   careSummaryStates,
   onPersistProvider,
-  clinicians = EXAMPLE_CLINICIANS,
+  clinicians = [],
 }: {
-  visits?: readonly BoardVisit[];
-  now?: string;
-  timezone?: string;
-  synthetic?: boolean;
+  visits: readonly BoardVisit[];
+  now: string;
+  timezone: string;
   myClinicianId?: string | null;
   truncated?: boolean;
   stale?: boolean;
@@ -1047,7 +1039,7 @@ export function TrackingBoardView({
     expectedToken: string | null,
     requestKey: string,
   ) => Promise<{ token: string | null }>;
-  clinicians?: readonly ExampleClinician[];
+  clinicians?: readonly BoardClinician[];
 }) {
   const [stage, setStage] = useState("all");
   const [patientFilter, setPatientFilter] = useState<"all" | "mine">("all");
@@ -1096,12 +1088,8 @@ export function TrackingBoardView({
     );
   }, [visits]);
   const [resizingColumn, setResizingColumn] = useState<ColumnKey | null>(null);
-  const syntheticCareSummaryStates = usePatientCareSummaries(
-    synthetic ? visits : EMPTY_BOARD_VISITS,
-    EXAMPLE_CARE_SUMMARIES,
-  );
   const resolvedCareSummaryStates =
-    careSummaryStates ?? syntheticCareSummaryStates;
+    careSummaryStates ?? EMPTY_CARE_SUMMARY_STATES;
   const resizeState = useRef<{
     column: ColumnKey;
     startX: number;
@@ -1235,19 +1223,19 @@ export function TrackingBoardView({
             : `Updated ${formatClockTime(now, timezone)}`}
         </div>
       </header>
-      {!synthetic && truncated && (
+      {truncated && (
         <p className="tracking-data-warning" role="alert">
           Incomplete result: this projection is capped at 200 rows. Additional
           appointments or encounters are not shown.
         </p>
       )}
-      {!synthetic && stale && (
+      {stale && (
         <p className="tracking-data-warning" role="status">
           Showing the last confirmed snapshot; wait times are frozen until a
           refresh succeeds.
         </p>
       )}
-      {!synthetic && refreshError && (
+      {refreshError && (
         <p className="tracking-data-warning" role="alert">
           Board refresh failed: {refreshError} The last confirmed snapshot is
           still shown.
@@ -1441,7 +1429,7 @@ export function TrackingBoardView({
           </TableHead>
           <TableBody>
             {sorted.map((visit, index) => (
-              <ExampleVisitRow
+              <TrackingBoardRow
                 key={visit.id}
                 visit={visit}
                 now={now}
@@ -1504,9 +1492,7 @@ export function TrackingBoardView({
           <h2>
             {visits.length
               ? "No visits match these filters"
-              : synthetic
-                ? "No visits"
-                : "No current visits"}
+              : "No current visits"}
           </h2>
           <p>
             {visits.length
@@ -1527,47 +1513,27 @@ export function TrackingBoardView({
     </section>
   );
 }
-export function OverviewView({
-  patientAccess,
-  timezone = "UTC",
-}: {
-  patientAccess: boolean;
-  timezone?: string;
-}) {
-  if (!patientAccess)
-    return (
-      <section>
-        <h1>Clinic overview</h1>
-        <p>
-          Patient tracking is available to assigned patient-workspace users.
-        </p>
-        <a href="/clinic/operations" className="text-link">
-          Open Operations →
-        </a>
-      </section>
-    );
+export function OverviewView() {
   return (
-    <TrackingBoardView
-      timezone={timezone}
-      visits={EXAMPLE_VISITS}
-      synthetic
-      myClinicianId="example-clinician-am"
-    />
+    <section>
+      <h1>Clinic overview</h1>
+      <p>Patient tracking is available to assigned patient-workspace users.</p>
+      <a href="/clinic/operations" className="text-link">
+        Open Operations →
+      </a>
+    </section>
   );
 }
 export function Overview({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
-  if (!clinic.capabilities.patients)
-    return (
-      <OverviewView patientAccess={false} timezone={clinic.practice.timezone} />
-    );
+  if (!clinic.capabilities.patients) return <OverviewView />;
   return <TrackingBoardPage active={active} />;
 }
 
 export function TrackingBoardPage({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
   const { data, error, stale } = useTrackingBoard(active);
-  const eligibleClinicians = useMemo<ExampleClinician[]>(
+  const eligibleClinicians = useMemo<BoardClinician[]>(
     () =>
       (data?.eligible_providers ?? []).map((provider) => {
         return {
@@ -1611,7 +1577,6 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
       visits={visits}
       now={data.as_of}
       timezone={clinic.practice.timezone}
-      synthetic={false}
       myClinicianId={
         clinic.current_clinician_profile_id
           ? `api-provider-${clinic.current_clinician_profile_id}`

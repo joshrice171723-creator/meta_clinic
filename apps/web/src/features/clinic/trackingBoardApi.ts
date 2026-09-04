@@ -98,7 +98,6 @@ export function trackingBoardVisitToBoardVisit(
     chartStatus: visit.chart_status,
     patientDisplayName: visit.patient.display_name,
     patientReference: visit.patient.reference,
-    isSynthetic: false,
     firstName: name.firstName,
     lastName: name.lastName,
     age: visit.patient.demographics?.age ?? null,

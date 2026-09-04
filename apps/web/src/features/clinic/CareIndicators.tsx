@@ -1,6 +1,5 @@
 import {
   forwardRef,
-  useEffect,
   useState,
   type AnchorHTMLAttributes,
   type ElementType,
@@ -25,7 +24,6 @@ import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import TranslateOutlinedIcon from "@mui/icons-material/TranslateOutlined";
-import { api } from "../../api/client";
 import type { PatientCareSummary } from "../../api/contracts";
 
 type SummaryVisit = {
@@ -295,66 +293,6 @@ export function careIndicatorGroups(
       details: reviewDetails(summary, timezone),
     });
   return groups;
-}
-
-export function usePatientCareSummaries(
-  visits: readonly SummaryVisit[],
-  exampleSummaries: Readonly<Record<string, PatientCareSummary>> = {},
-) {
-  const [states, setStates] = useState<Record<string, CareSummaryLoadState>>(
-    () =>
-      Object.fromEntries(
-        visits.map((visit) => [
-          visit.id,
-          exampleSummaries[visit.id]
-            ? ({
-                status: "ready",
-                summary: exampleSummaries[visit.id],
-              } as const)
-            : careSummaryPath(visit)
-              ? ({ status: "loading" } as const)
-              : ({ status: "unlinked" } as const),
-        ]),
-      ),
-  );
-
-  useEffect(() => {
-    const abort = new AbortController();
-    const next = Object.fromEntries(
-      visits.map((visit) => [
-        visit.id,
-        exampleSummaries[visit.id]
-          ? ({ status: "ready", summary: exampleSummaries[visit.id] } as const)
-          : careSummaryPath(visit)
-            ? ({ status: "loading" } as const)
-            : ({ status: "unlinked" } as const),
-      ]),
-    );
-    setStates(next);
-    for (const visit of visits) {
-      if (exampleSummaries[visit.id]) continue;
-      const path = careSummaryPath(visit);
-      if (!path) continue;
-      void api<PatientCareSummary>(path, { signal: abort.signal })
-        .then((summary) => {
-          if (abort.signal.aborted) return;
-          setStates((current) => ({
-            ...current,
-            [visit.id]: { status: "ready", summary },
-          }));
-        })
-        .catch(() => {
-          if (abort.signal.aborted) return;
-          setStates((current) => ({
-            ...current,
-            [visit.id]: { status: "error" },
-          }));
-        });
-    }
-    return () => abort.abort();
-  }, [exampleSummaries, visits]);
-
-  return states;
 }
 
 type CareSummaryTriggerProps = {

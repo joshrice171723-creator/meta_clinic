@@ -40,11 +40,9 @@ import {
   formatRecordedDecimal,
   trackingBoardVisitToBoardVisit,
 } from "../src/features/clinic/trackingBoardApi";
-import { EXAMPLE_CARE_SUMMARIES } from "../src/features/clinic/trackingBoardCareFixtures";
-import {
-  cliniciansForLocation,
-  EXAMPLE_VISITS,
-} from "../src/features/clinic/trackingBoardData";
+import { cliniciansForLocation } from "../src/features/clinic/trackingBoardData";
+import { EXAMPLE_CARE_SUMMARIES } from "./trackingBoardCareFixtures";
+import { EXAMPLE_VISITS } from "./trackingBoardFixtures";
 
 const patient: Patient = {
   id: 7,
@@ -378,7 +376,6 @@ describe("provider encounter workflow", () => {
       patientReference: "SYN-007",
       age: 42,
       gender: "F",
-      isSynthetic: false,
       stage: "unrecorded",
       membership: "member",
       arrivedAt: "2026-09-01T14:00:00Z",
@@ -466,7 +463,6 @@ describe("provider encounter workflow", () => {
     });
 
     expect(visit).toMatchObject({
-      isSynthetic: false,
       stage: "waiting",
       reason: "Annual wellness",
       chiefComplaint: "Annual wellness",

@@ -10,7 +10,7 @@ import {
   careSummaryPath,
   recordedDateLabel,
 } from "../src/features/clinic/CareIndicators";
-import { EXAMPLE_CARE_SUMMARIES } from "../src/features/clinic/trackingBoardCareFixtures";
+import { EXAMPLE_CARE_SUMMARIES } from "./trackingBoardCareFixtures";
 
 const summary: PatientCareSummary = {
   schema_version: "patient-care-summary-v1",
