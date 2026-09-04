@@ -237,6 +237,58 @@ function validDecimal(value: string, allowZero = false) {
   if (!/^-?\d+(?:\.\d+)?$/.test(value.trim())) return false;
   return decimalCompare(value, "0") >= (allowZero ? 0 : 1);
 }
+type InferredInventoryUnits = {
+  stockUnit: "each" | "tablet" | "capsule" | "vial" | "mL" | "g" | "package";
+  packageSize: string;
+  quantityScale: string;
+  source: "package-description" | "container";
+};
+export function inferInventoryUnits(
+  result: Pick<NdcResult, "dosage_form" | "package_description">,
+): InferredInventoryUnits {
+  const description = result.package_description ?? "";
+  const matches = Array.from(
+    description.matchAll(
+      /(?:^|[\s,;(])([0-9]+(?:\.[0-9]+)?)\s*(TABLETS?|CAPSULES?|VIALS?|ML|MILLILITERS?|G|GRAMS?|EACH|PATCH(?:ES)?|SYRINGES?|APPLICATORS?|BOTTLES?|TUBES?|PACK(?:S|ETS)?|POUCH(?:ES)?)/gi,
+    ),
+  );
+  const standardUnit = (value: string) => {
+    const unit = value.toLowerCase();
+    if (unit.startsWith("tablet")) return "tablet" as const;
+    if (unit.startsWith("capsule")) return "capsule" as const;
+    if (unit.startsWith("vial")) return "vial" as const;
+    if (["ml", "milliliter", "milliliters"].includes(unit))
+      return "mL" as const;
+    if (["g", "gram", "grams"].includes(unit)) return "g" as const;
+    if (unit === "each" || /patch|syringe|applicator/.test(unit))
+      return "each" as const;
+    return "package" as const;
+  };
+  const preferred = matches.find(
+    (match) => !/bottle|tube|pack|pouch/i.test(match[2]),
+  );
+  const match = preferred ?? matches[0];
+  if (match) {
+    const stockUnit = standardUnit(match[2]);
+    const packageSize = match[1];
+    return {
+      stockUnit,
+      packageSize: stockUnit === "package" ? "1" : packageSize,
+      quantityScale:
+        stockUnit === "mL" || stockUnit === "g"
+          ? String(Math.min(packageSize.split(".")[1]?.length ?? 0, 6))
+          : "0",
+      source: preferred ? "package-description" : "container",
+    };
+  }
+
+  return {
+    stockUnit: "package",
+    packageSize: "1",
+    quantityScale: "0",
+    source: "container",
+  };
+}
 function inventoryUnitDefinition(unit: string, quantity: string) {
   const labels: Record<string, string> = {
     each: "unit",
@@ -575,6 +627,9 @@ function CatalogCreateScreen({
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupError, setLookupError] = useState("");
   const [selectedNdc, setSelectedNdc] = useState<NdcResult>();
+  const [unitDetectionSource, setUnitDetectionSource] = useState<
+    InferredInventoryUnits["source"] | "manual"
+  >("manual");
   const lookupVersion = useRef(0);
   const requiresUnitReference = packageSize !== "1";
   const unitReference =
@@ -623,6 +678,7 @@ function CatalogCreateScreen({
     return () => window.clearTimeout(timer);
   }, [data, lookupQuery]);
   const selectNdc = (result: NdcResult) => {
+    const inferredUnits = inferInventoryUnits(result);
     setSelectedNdc(result);
     setName(result.name);
     setNdc(result.ndc);
@@ -630,6 +686,10 @@ function CatalogCreateScreen({
     setDosageForm(result.dosage_form ?? "");
     setPackageDescription(result.package_description ?? "");
     setSku(`NDC-${result.ndc}`);
+    setStockUnit(inferredUnits.stockUnit);
+    setPackageSize(inferredUnits.packageSize);
+    setQuantityScale(inferredUnits.quantityScale);
+    setUnitDetectionSource(inferredUnits.source);
     setLookupError("");
   };
   const submit = (event: FormEvent) => {
@@ -822,6 +882,7 @@ function CatalogCreateScreen({
                 value={stockUnit}
                 onChange={(event) => {
                   const next = event.target.value;
+                  setUnitDetectionSource("manual");
                   setStockUnit(next);
                   if (!["mL", "g"].includes(next)) setQuantityScale("0");
                   if (next === "package") setPackageSize("1");
@@ -836,6 +897,13 @@ function CatalogCreateScreen({
                 <option value="g">g</option>
                 <option value="package">Package</option>
               </select>
+              {selectedNdc && (
+                <small className="inventory-permission">
+                  {unitDetectionSource === "package-description"
+                    ? "Detected automatically from the FDA package description. You can adjust it if your clinic tracks a different unit."
+                    : "FDA data did not specify a standard stock unit, so this defaults to package tracking. You can adjust it if needed."}
+                </small>
+              )}
             </Field>
             <Field
               label="Units per package"

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../src/api/client";
 import {
   InventoryApp,
+  inferInventoryUnits,
   inventoryDate,
   inventoryDateTime,
   inventoryMovementViewState,
@@ -23,6 +24,38 @@ import {
 } from "../src/features/inventory/inventoryContracts";
 
 describe("inventory integration", () => {
+  it("infers the stock unit and package quantity from FDA package text", () => {
+    expect(
+      inferInventoryUnits({
+        dosage_form: "TABLET, FILM COATED",
+        package_description:
+          "40 TABLET, FILM COATED IN 1 BOTTLE, PLASTIC (51655-474-51)",
+      }),
+    ).toEqual({
+      stockUnit: "tablet",
+      packageSize: "40",
+      quantityScale: "0",
+      source: "package-description",
+    });
+    expect(
+      inferInventoryUnits({
+        dosage_form: "SOLUTION",
+        package_description: "7 mL in 1 VIAL",
+      }),
+    ).toEqual({
+      stockUnit: "mL",
+      packageSize: "7",
+      quantityScale: "0",
+      source: "package-description",
+    });
+    expect(
+      inferInventoryUnits({
+        dosage_form: "TABLET",
+        package_description: "1 BOTTLE",
+      }).stockUnit,
+    ).toBe("package");
+  });
+
   it("preserves exact fractional and large decimal values", () => {
     expect(decimalAdd("9007199254740992.125", "0.875")).toBe(
       "9007199254740993",
