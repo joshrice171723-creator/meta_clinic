@@ -57,6 +57,7 @@ Rails.application.routes.draw do
     resources :pharmacy, controller: "inventory/pharmacy", only: %i[index create show update] do
       collection do
         post :lookup
+        post :nadac
         post :import
         post :demo
       end

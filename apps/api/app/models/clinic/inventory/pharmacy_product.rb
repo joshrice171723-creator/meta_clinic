@@ -14,6 +14,7 @@ module Clinic
       validates :ingredients, :package_description, length: { maximum: 4000 }
       validates :ndc, :product_ndc, length: { maximum: 30 }
       validates :source, inclusion: { in: %w[manual openfda synthetic] }
+      validates :category, inclusion: { in: %w[medication clinical_supply lab_supply office_supply cleaning_supply equipment other] }
       validates :dea_schedule, inclusion: { in: %w[II III IV V] }, allow_nil: true
       validates :reorder_point, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 1_000_000 }
 

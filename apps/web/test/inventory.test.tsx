@@ -154,8 +154,12 @@ describe("inventory integration", () => {
     expect(source).toContain('"/api/clinic/pharmacy/lookup"');
     expect(source).toContain('"/api/clinic/inventory/shipments"');
     expect(source).toContain("Create item and continue");
+    expect(source).toContain("Item category");
+    expect(source).toContain("General inventory item");
     expect(source).toContain("Choose exact FDA package");
     expect(source).toContain("Select a package");
+    expect(source).toContain('"/api/clinic/pharmacy/nadac"');
+    expect(source).toContain("Public cost benchmark");
     expect(source).toContain("Inventory definition");
     expect(source).not.toContain("What happens next");
     expect(source).toContain("Search begins automatically after 3 characters.");

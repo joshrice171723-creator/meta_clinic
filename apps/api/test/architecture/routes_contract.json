@@ -505,6 +505,11 @@
     "/api/clinic/pharmacy/lookup(.:format)"
   ],
   [
+    "nadac_api_clinic_pharmacy_index",
+    "POST",
+    "/api/clinic/pharmacy/nadac(.:format)"
+  ],
+  [
     "note_api_clinic_patient",
     "POST",
     "/api/clinic/patients/:id/note(.:format)"

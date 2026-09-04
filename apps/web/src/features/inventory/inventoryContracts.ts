@@ -1,5 +1,13 @@
 export type InventoryCapability = boolean;
 export type Decimal = string;
+export type InventoryCategory =
+  | "medication"
+  | "clinical_supply"
+  | "lab_supply"
+  | "office_supply"
+  | "cleaning_supply"
+  | "equipment"
+  | "other";
 
 export function decimalParts(value: Decimal): [bigint, number] {
   const [whole, fraction = ""] = value.trim().split(".");
@@ -77,6 +85,7 @@ export function decimalMoney(value: Decimal): string {
 export type InventoryProduct = {
   id: string;
   name: string;
+  category: InventoryCategory;
   ndc: string;
   schedule: string | null;
   package_id: string;
@@ -100,6 +109,33 @@ export type NdcResult = {
   labeler?: string;
   ndc: string;
   reference_token: string;
+};
+export type NadacBenchmark = {
+  ndc: string;
+  description?: string;
+  nadac_per_unit: string;
+  effective_date?: string;
+  pricing_unit?: string;
+  source_url: string;
+  source_updated_at?: string;
+};
+export type InventorySupplierProduct = {
+  id: string;
+  supplier_id: string;
+  supplier_name: string;
+  product_id: string | null;
+  ndc: string;
+  supplier_sku: string;
+  description: string;
+  package_quantity: Decimal;
+  wholesale_unit_cost: Decimal;
+  currency: string;
+  ordering_unit: string;
+  contract_status: string;
+  available?: boolean | null;
+  lead_time_days?: number | null;
+  effective_date?: string | null;
+  imported_at: string;
 };
 export type InventoryPackage = {
   id: string;
@@ -258,6 +294,7 @@ export type InventoryData = {
   practice: { id: number; name: string; timezone: string };
   users: { id: string; name: string }[];
   suppliers?: { id: string; name: string }[];
+  supplier_products?: InventorySupplierProduct[];
   current_user_id: string;
   capabilities: Record<string, InventoryCapability>;
   products: InventoryProduct[];

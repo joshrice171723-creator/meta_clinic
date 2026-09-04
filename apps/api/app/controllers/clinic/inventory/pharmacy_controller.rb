@@ -22,13 +22,19 @@ module Clinic
         render_error(error.message.presence || "The FDA directory is unavailable. Try again later.", :unprocessable_entity)
       end
 
+      def nadac
+        render json: { benchmark: ::Integrations::Cms::Nadac.lookup(params[:ndc].to_s.strip) }
+      rescue ArgumentError, ::Integrations::Cms::Nadac::Unavailable => error
+        render_error(error.message.presence || "The CMS public cost benchmark is unavailable. Try again later.", :service_unavailable)
+      end
+
       def import
         product = ndc_catalog.import(params[:reference_token])
         render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user), id: product.id }, status: :created
       end
 
       def create
-        attributes = params.require(:clinic_pharmacy_product).permit(:name, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference)
+        attributes = params.require(:clinic_pharmacy_product).permit(:name, :category, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference)
         @product = if params[:reference_token].present?
           ndc_catalog.import(params[:reference_token], operational_attributes: attributes.slice(:sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
         else
@@ -97,7 +103,7 @@ module Clinic
 
       def require_inventory_action
         action = case action_name
-        when "new", "lookup", "import", "create", "update" then "catalog"
+        when "new", "lookup", "nadac", "import", "create", "update" then "catalog"
         when "receive", "demo" then "receive"
         when "movement" then params[:kind] == "receipt" ? "receive" : "adjust"
         when "batch_status" then params[:status] == "active" ? "release" : "hold"

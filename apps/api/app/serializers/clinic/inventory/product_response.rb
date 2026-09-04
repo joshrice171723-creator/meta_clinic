@@ -4,7 +4,7 @@ module Clinic
     # Decimal quantities stay strings; the browser never computes availability.
     module ProductResponse
       def self.product(record)
-        record.as_json(only: %i[id name sku ndc product_ndc generic_name ingredients dosage_form route labeler package_description source imported_at reorder_point active stock_unit quantity_scale unit_reference])
+        record.as_json(only: %i[id name category sku ndc product_ndc generic_name ingredients dosage_form route labeler package_description source imported_at reorder_point active stock_unit quantity_scale unit_reference])
           .merge(package_size: record.package_size.to_s("F"), available_quantity: record.available_quantity.to_d.to_s("F"),
             on_hand_quantity: record.on_hand_quantity.to_d.to_s("F"), low_stock: record.low_stock?,
             locations: record.has_attribute?(:stock_locations) ? record[:stock_locations] : [],

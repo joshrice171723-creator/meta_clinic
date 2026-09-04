@@ -38,6 +38,7 @@ module Clinic
           { lines: { batch: [ :lot, :location_record ] } }
         ).order(id: :desc).limit(100).to_a
         suppliers = Supplier.where(practice_id: practice.id).order(:name, :id).to_a
+        supplier_products = SupplierProduct.where(practice_id: practice.id).includes(:supplier).order(:ndc, :supplier_sku, :id).to_a
         area_by_location = ReceiptLine.where(practice_id: practice.id, batch_id: batches.map(&:id)).where.not(area_id: nil).includes(batch: :location_record).to_a.group_by { |line| line.batch.location_id }.transform_values { |lines| lines.map(&:area_id).compact.uniq }
         movements = PharmacyMovement.where(practice_id: practice.id).includes(
           { batch: %i[product lot location_record] },
@@ -57,6 +58,7 @@ module Clinic
           products: products.map { |product| product_wire(product, batches, suppliers, active_holds_by_batch, inventory_date) },
           packages: products.map { |product| package_wire(product) },
           suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
+          supplier_products: supplier_products.map { |row| { id: row.id.to_s, supplier_id: row.supplier_id.to_s, supplier_name: row.supplier.name, product_id: row.product_id&.to_s, ndc: row.ndc, supplier_sku: row.supplier_sku, description: row.description, package_quantity: row.package_quantity.to_d.to_s("F"), wholesale_unit_cost: row.wholesale_unit_cost.to_d.to_s("F"), currency: row.currency, ordering_unit: row.ordering_unit, contract_status: row.contract_status, available: row.available, lead_time_days: row.lead_time_days, effective_date: row.effective_date&.iso8601, imported_at: row.imported_at.iso8601 } },
           locations: locations.map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, areas: area_by_location.fetch(location.id, []) } },
           lots: lots.map { |lot| lot_wire(lot, batches_by_lot, recalls, active_holds_by_batch) },
           balances: batches.map { |batch| balance_wire(batch, active_holds_by_batch.fetch(batch.id, []), inventory_date) },
@@ -87,7 +89,7 @@ module Clinic
         on_hand = product_batches.sum { |batch| batch.quantity.to_d }
         package = package_wire(product)
         supplier = product_batches.flat_map(&:receipt_lines).filter_map(&:receipt).max_by { |receipt| [ receipt.received_at, receipt.id ] }&.supplier
-        { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, schedule: product.dea_schedule, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
+        { id: product.id.to_s, name: product.name, category: product.category, ndc: product.ndc.to_s, schedule: product.dea_schedule, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
       end
 
       def package_wire(product)

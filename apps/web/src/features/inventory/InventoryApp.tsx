@@ -17,7 +17,10 @@ import type {
   InventoryBalance,
   InventoryData,
   InventoryRecall,
+  InventoryCategory,
   Decimal,
+  InventorySupplierProduct,
+  NadacBenchmark,
   NdcResult,
 } from "./inventoryContracts";
 import {
@@ -151,6 +154,23 @@ const links: {
     group: "Exceptions",
   },
 ];
+
+const inventoryCategories: Array<{
+  value: InventoryCategory;
+  label: string;
+}> = [
+  { value: "medication", label: "Medication" },
+  { value: "clinical_supply", label: "Clinical supply" },
+  { value: "lab_supply", label: "Lab / specimen supply" },
+  { value: "office_supply", label: "Office supply" },
+  { value: "cleaning_supply", label: "Cleaning / facility" },
+  { value: "equipment", label: "Equipment" },
+  { value: "other", label: "Other" },
+];
+
+function inventoryCategoryLabel(category: InventoryCategory): string {
+  return inventoryCategories.find((option) => option.value === category)?.label ?? "Other";
+}
 
 const screenDescriptions: Record<Screen, string> = {
   catalog: "Monitor availability, lot exceptions, and replenishment signals.",
@@ -416,6 +436,15 @@ function recordedPackagePrice(
     .flatMap((order) => order.lines)
     .find((line) => line.product_id === productId)?.package_price;
 }
+function supplierProductFor(
+  data: InventoryData,
+  productId: string,
+  supplierId: string,
+): InventorySupplierProduct | undefined {
+  return data.supplier_products?.find(
+    (row) => row.product_id === productId && row.supplier_id === supplierId,
+  );
+}
 
 function Card({
   title,
@@ -589,6 +618,7 @@ function CatalogCreateScreen({
   busy: boolean;
   run: InventoryRun;
 }) {
+  const [category, setCategory] = useState<InventoryCategory>("medication");
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [ndc, setNdc] = useState("");
@@ -604,10 +634,14 @@ function CatalogCreateScreen({
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupError, setLookupError] = useState("");
   const [selectedNdc, setSelectedNdc] = useState<NdcResult>();
+  const [nadacBenchmark, setNadacBenchmark] = useState<NadacBenchmark>();
+  const [nadacBusy, setNadacBusy] = useState(false);
+  const [nadacError, setNadacError] = useState("");
   const [unitDetectionSource, setUnitDetectionSource] = useState<
     InferredInventoryUnits["source"] | "manual"
   >("manual");
   const lookupVersion = useRef(0);
+  const nadacVersion = useRef(0);
   const requiresUnitReference = packageSize !== "1";
   const unitReference =
     stockUnit && packageSize
@@ -642,7 +676,11 @@ function CatalogCreateScreen({
   };
   useEffect(() => {
     const query = lookupQuery.trim();
-    if (query.length < 3 || !capability(data, "inventory.catalog")) {
+    if (
+      category !== "medication" ||
+      query.length < 3 ||
+      !capability(data, "inventory.catalog")
+    ) {
       lookupVersion.current += 1;
       setLookupBusy(false);
       setLookupResults([]);
@@ -653,7 +691,52 @@ function CatalogCreateScreen({
       void lookup(query);
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [data, lookupQuery]);
+  }, [category, data, lookupQuery]);
+  useEffect(() => {
+    const selected = selectedNdc?.ndc;
+    if (category !== "medication" || !selected) {
+      nadacVersion.current += 1;
+      setNadacBusy(false);
+      setNadacBenchmark(undefined);
+      setNadacError("");
+      return;
+    }
+    const version = ++nadacVersion.current;
+    setNadacBusy(true);
+    setNadacBenchmark(undefined);
+    setNadacError("");
+    void api<{ benchmark?: NadacBenchmark }>("/api/clinic/pharmacy/nadac", {
+      method: "POST",
+      body: { ndc: selected },
+    })
+      .then((payload) => {
+        if (nadacVersion.current !== version) return;
+        setNadacBenchmark(payload.benchmark);
+      })
+      .catch((reason) => {
+        if (nadacVersion.current !== version) return;
+        setNadacError(
+          reason instanceof Error
+            ? reason.message
+            : "The public cost benchmark could not be loaded.",
+        );
+      })
+      .finally(() => {
+        if (nadacVersion.current === version) setNadacBusy(false);
+      });
+  }, [category, selectedNdc?.ndc]);
+  const changeCategory = (next: InventoryCategory) => {
+    setCategory(next);
+    if (next === "medication") return;
+    lookupVersion.current += 1;
+    setLookupQuery("");
+    setLookupResults([]);
+    setLookupError("");
+    setSelectedNdc(undefined);
+    setNdc("");
+    setGenericName("");
+    setDosageForm("");
+  };
   const selectNdc = (result: NdcResult) => {
     const inferredUnits = inferInventoryUnits(result);
     setSelectedNdc(result);
@@ -669,6 +752,12 @@ function CatalogCreateScreen({
     setUnitDetectionSource(inferredUnits.source);
     setLookupError("");
   };
+  const clearNdcSelection = () => {
+    setSelectedNdc(undefined);
+    setNadacBenchmark(undefined);
+    setNadacError("");
+    nadacVersion.current += 1;
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void run(
@@ -677,6 +766,7 @@ function CatalogCreateScreen({
         reference_token: selectedNdc?.reference_token,
         clinic_pharmacy_product: {
           name: name.trim(),
+          category,
           sku: sku.trim(),
           ndc: ndc.trim() || undefined,
           generic_name: genericName.trim() || undefined,
@@ -704,13 +794,31 @@ function CatalogCreateScreen({
       <a className="inventory-back-link" href="/clinic/inventory">
         ← Back to inventory overview
       </a>
-      <div className="inventory-two-col wide-left">
+      <div>
         <Card title="Product definition">
           <p className="inventory-lead">
             Add the item once. The catalog definition controls package
             conversion, purchasing quantities, and receiving accuracy.
           </p>
-          <div className="inventory-info">
+          <Field
+            label="Item category"
+            hint="Use medication for FDA/NDC-backed products; all other categories use your clinic SKU."
+          >
+            <select
+              value={category}
+              onChange={(event) =>
+                changeCategory(event.target.value as InventoryCategory)
+              }
+            >
+              {inventoryCategories.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {category === "medication" ? (
+            <div className="inventory-info">
             <strong>Use FDA package data</strong>
             <p>
               Search by a medication name or the NDC printed on the package.
@@ -778,17 +886,60 @@ function CatalogCreateScreen({
               <button
                 className="inventory-button outline"
                 type="button"
-                onClick={() => setSelectedNdc(undefined)}
+                onClick={clearNdcSelection}
               >
                 Clear FDA selection and enter manually
               </button>
+            )}
+            {selectedNdc && (
+              <div className="inventory-info inventory-benchmark">
+                <strong>Public cost benchmark</strong>
+                {nadacBusy ? (
+                  <p>Checking CMS NADAC…</p>
+                ) : nadacError ? (
+                  <p>{nadacError} You can continue without it.</p>
+                ) : nadacBenchmark ? (
+                  <>
+                    <p>
+                      <strong>
+                        ${nadacBenchmark.nadac_per_unit ?? "Not available"}
+                      </strong>{" "}
+                      per {nadacBenchmark.pricing_unit ?? "pricing unit"}
+                    </p>
+                    <p>
+                      Effective {nadacBenchmark.effective_date ?? "date unavailable"} · CMS NADAC ·{" "}
+                      <a href={nadacBenchmark.source_url} target="_blank" rel="noreferrer">
+                        Source
+                      </a>
+                    </p>
+                    <p>
+                      This is a national average benchmark, not your clinic’s
+                      supplier price.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    No current NADAC benchmark was found for this NDC. You can
+                    continue without it.
+                  </p>
+                )}
+              </div>
             )}
             <p className="inventory-caption">
               FDA data is used to prefill the package record. It does not
               replace your clinic’s SKU, stock unit, reorder point, or receiving
               setup.
             </p>
-          </div>
+            </div>
+          ) : (
+            <div className="inventory-info">
+              <strong>General inventory item</strong>
+              <p>
+                No NDC is required. Track this item with your internal SKU,
+                package description, stock unit, and reorder point.
+              </p>
+            </div>
+          )}
           <form
             className="inventory-form-grid"
             onSubmit={submit}
@@ -814,36 +965,40 @@ function CatalogCreateScreen({
                 autoComplete="off"
               />
             </Field>
-            <Field label="NDC" hint="Optional for non-medication supplies.">
-              <input
-                value={ndc}
-                onChange={(event) => setNdc(event.target.value)}
-                maxLength={30}
-                readOnly={Boolean(selectedNdc)}
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="Generic name" hint="Optional display metadata.">
-              <input
-                value={genericName}
-                onChange={(event) => setGenericName(event.target.value)}
-                maxLength={500}
-                readOnly={Boolean(selectedNdc)}
-                autoComplete="off"
-              />
-            </Field>
-            <Field
-              label="Dosage form"
-              hint="For example: tablet, vial, or supply."
-            >
-              <input
-                value={dosageForm}
-                onChange={(event) => setDosageForm(event.target.value)}
-                maxLength={500}
-                readOnly={Boolean(selectedNdc)}
-                autoComplete="off"
-              />
-            </Field>
+            {category === "medication" && (
+              <>
+                <Field label="NDC" hint="Optional when an NDC is unavailable.">
+                  <input
+                    value={ndc}
+                    onChange={(event) => setNdc(event.target.value)}
+                    maxLength={30}
+                    readOnly={Boolean(selectedNdc)}
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field label="Generic name" hint="Optional display metadata.">
+                  <input
+                    value={genericName}
+                    onChange={(event) => setGenericName(event.target.value)}
+                    maxLength={500}
+                    readOnly={Boolean(selectedNdc)}
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field
+                  label="Dosage form"
+                  hint="For example: tablet, vial, or liquid."
+                >
+                  <input
+                    value={dosageForm}
+                    onChange={(event) => setDosageForm(event.target.value)}
+                    maxLength={500}
+                    readOnly={Boolean(selectedNdc)}
+                    autoComplete="off"
+                  />
+                </Field>
+              </>
+            )}
             <Field label="Package description">
               <input
                 value={packageDescription}
@@ -993,20 +1148,47 @@ function PurchaseOrderCreateScreen({
   );
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState(
-    initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : "",
+    initialItem
+      ? (supplierProductFor(
+          data,
+          initialItem.id,
+          initialItem.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+        )?.wholesale_unit_cost ??
+          recordedPackagePrice(data, initialItem.id) ??
+        "")
+      : "",
   );
   const [numberValue, setNumberValue] = useState("");
   const [reason, setReason] = useState("");
-  const [currency, setCurrency] = useState("");
+  const [currency, setCurrency] = useState(() => {
+    const offer = initialItem
+      ? supplierProductFor(
+          data,
+          initialItem.id,
+          initialItem.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+        )
+      : undefined;
+    return offer?.currency ?? "";
+  });
+  const supplierProduct = item
+    ? supplierProductFor(data, item.id, supplierId)
+    : undefined;
   const packageInfo = packageFor(data, item?.package_id);
   const destination = data.locations.find(
     (record) => record.id === destinationId,
   );
   const selectProduct = (nextId: string) => {
     const next = data.products.find((record) => record.id === nextId);
+    const nextSupplierId =
+      next?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "";
+    const nextOffer = supplierProductFor(data, nextId, nextSupplierId);
     setProductId(nextId);
-    setSupplierId(next?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "");
-    setUnitPrice(next ? (recordedPackagePrice(data, next.id) ?? "") : "");
+    setSupplierId(nextSupplierId);
+    setUnitPrice(
+      nextOffer?.wholesale_unit_cost ??
+        (next ? (recordedPackagePrice(data, next.id) ?? "") : ""),
+    );
+    setCurrency(nextOffer?.currency ?? "");
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -1088,7 +1270,17 @@ function PurchaseOrderCreateScreen({
             <Field label="Supplier">
               <select
                 value={supplierId}
-                onChange={(event) => setSupplierId(event.target.value)}
+                onChange={(event) => {
+                  const nextSupplierId = event.target.value;
+                  const offer = supplierProductFor(data, item.id, nextSupplierId);
+                  setSupplierId(nextSupplierId);
+                  setUnitPrice(
+                    offer?.wholesale_unit_cost ??
+                      recordedPackagePrice(data, item.id) ??
+                      "",
+                  );
+                  setCurrency(offer?.currency ?? "");
+                }}
               >
                 <option value="">No supplier</option>
                 {data.suppliers?.map((record) => (
@@ -1098,7 +1290,14 @@ function PurchaseOrderCreateScreen({
                 ))}
               </select>
             </Field>
-            <Field label="Package price">
+            <Field
+              label="Package price"
+              hint={
+                supplierProduct
+                  ? `Supplier feed: ${supplierProduct.supplier_sku} · ${supplierProduct.contract_status} contract`
+                  : "Enter the supplier quote for this order."
+              }
+            >
               <input
                 inputMode="decimal"
                 value={unitPrice}
@@ -1789,7 +1988,7 @@ function CatalogScreen({
         </p>
         <div className="inventory-table-wrap">
           <table>
-            <caption className="sr-only">Medication catalog</caption>
+            <caption className="sr-only">Inventory catalog</caption>
             <thead>
               <tr>
                 <th>Product / package</th>
@@ -1806,6 +2005,7 @@ function CatalogScreen({
                   <td data-label="Product">
                     <strong>{item.name}</strong>
                     <small>
+                      {inventoryCategoryLabel(item.category)} ·{" "}
                       {item.preferred_supplier ?? "Supplier not recorded"} ·{" "}
                       {packageFor(data, item.package_id)?.description ??
                         "Package metadata not recorded"}
@@ -1952,6 +2152,16 @@ function ReplenishmentScreen({
     initialItem?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
   );
   const supplier = data.suppliers?.find((record) => record.id === supplierId);
+  const initialSupplierOffer = initialItem
+    ? supplierProductFor(
+        data,
+        initialItem.id,
+        initialItem.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+      )
+    : undefined;
+  const supplierProduct = item
+    ? supplierProductFor(data, item.id, supplierId)
+    : undefined;
   const suggestedQuantity = (productId: string) => {
     const product = data.products.find((record) => record.id === productId);
     if (!product) return "1";
@@ -1969,10 +2179,11 @@ function ReplenishmentScreen({
     initialItem ? suggestedQuantity(initialItem.id) : "1",
   );
   const [unitPrice, setUnitPrice] = useState(
-    initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : "",
+    initialSupplierOffer?.wholesale_unit_cost ??
+      (initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : ""),
   );
   const [reason, setReason] = useState("");
-  const [currency, setCurrency] = useState("");
+  const [currency, setCurrency] = useState(initialSupplierOffer?.currency ?? "");
   if (!item)
     return (
       <Card title="Replenishment suggestions">
@@ -2025,11 +2236,20 @@ function ReplenishmentScreen({
                   (product) => product.id === event.target.value,
                 );
                 setProductId(event.target.value);
-                setSupplierId(selected?.preferred_supplier_id ?? "");
+                const nextSupplierId = selected?.preferred_supplier_id ?? "";
+                const offer = supplierProductFor(
+                  data,
+                  event.target.value,
+                  nextSupplierId,
+                );
+                setSupplierId(nextSupplierId);
                 setQuantity(suggestedQuantity(event.target.value));
                 setUnitPrice(
-                  recordedPackagePrice(data, event.target.value) ?? "",
+                  offer?.wholesale_unit_cost ??
+                    recordedPackagePrice(data, event.target.value) ??
+                    "",
                 );
+                setCurrency(offer?.currency ?? "");
               }}
             >
               {candidates.map((product) => (
@@ -2090,7 +2310,17 @@ function ReplenishmentScreen({
             {(data.suppliers?.length ?? 0) > 0 ? (
               <select
                 value={supplierId}
-                onChange={(event) => setSupplierId(event.target.value)}
+                onChange={(event) => {
+                  const nextSupplierId = event.target.value;
+                  const offer = supplierProductFor(data, item.id, nextSupplierId);
+                  setSupplierId(nextSupplierId);
+                  setUnitPrice(
+                    offer?.wholesale_unit_cost ??
+                      recordedPackagePrice(data, item.id) ??
+                      "",
+                  );
+                  setCurrency(offer?.currency ?? "");
+                }}
               >
                 <option value="">No supplier</option>
                 {data.suppliers?.map((record) => (
@@ -2103,7 +2333,14 @@ function ReplenishmentScreen({
               <input value="Not recorded" readOnly />
             )}
           </Field>
-          <Field label="Unit price">
+          <Field
+            label="Unit price"
+            hint={
+              supplierProduct
+                ? `Supplier feed: ${supplierProduct.supplier_sku} · ${supplierProduct.contract_status} contract`
+                : "Enter the supplier quote for this order."
+            }
+          >
             <input
               inputMode="decimal"
               value={unitPrice}
