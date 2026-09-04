@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import { Button, Chip } from "@mui/material";
 import { api, ApiError } from "../../api/client";
@@ -68,6 +69,16 @@ export function inventoryOutcomeUnconfirmed(reason: unknown): boolean {
     reason.status >= 500 ||
     (reason.status === 409 && /outcome is unconfirmed/i.test(reason.message))
   );
+}
+
+export function inventoryMovementViewState(
+  total: number,
+  visible: number,
+  filter: string,
+): "empty" | "filtered_empty" | "results" {
+  if (total === 0) return "empty";
+  if (visible === 0 && filter.trim()) return "filtered_empty";
+  return "results";
 }
 
 const links: {
@@ -2289,15 +2300,21 @@ function LotsScreen({
 
 function ActivityScreen({ data }: { data: InventoryData }) {
   const [filter, setFilter] = useState("");
+  const normalizedFilter = filter.trim().toLowerCase();
   const rows = data.movements.filter((item) =>
     `${item.type} ${item.reason ?? ""} ${item.source_id}`
       .toLowerCase()
-      .includes(filter.toLowerCase()),
+      .includes(normalizedFilter),
+  );
+  const viewState = inventoryMovementViewState(
+    data.movements.length,
+    rows.length,
+    filter,
   );
   return (
     <div className="inventory-stack">
       <Card title="Activity ledger">
-        <div className="inventory-card-heading">
+        <div className="inventory-card-heading inventory-ledger-toolbar">
           <Field label="Filter ledger">
             <input
               value={filter}
@@ -2305,44 +2322,86 @@ function ActivityScreen({ data }: { data: InventoryData }) {
               placeholder="Type, reason, source"
             />
           </Field>
+          <div className="inventory-ledger-summary">
+            <p className="inventory-results-count" role="status">
+              {normalizedFilter
+                ? `Showing ${rows.length} of ${data.movements.length} movements.`
+                : `${data.movements.length} movement${data.movements.length === 1 ? "" : "s"} recorded.`}
+            </p>
+            {normalizedFilter && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ClearRoundedIcon />}
+                type="button"
+                onClick={() => setFilter("")}
+                sx={{
+                  minHeight: 40,
+                  borderColor: "var(--inventory-control)",
+                  color: "var(--inventory-blue)",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Clear filter
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="inventory-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Occurred</th>
-                <th>Type</th>
-                <th>Lot / location</th>
-                <th>Quantity</th>
-                <th>Reason / source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((item) => (
-                <tr key={item.id}>
-                  <td>{inventoryDateTime(item.occurred_at, data.timezone)}</td>
-                  <td>
-                    <Badge tone={item.direction === "out" ? "warning" : "blue"}>
-                      {item.type}
-                    </Badge>
-                  </td>
-                  <td>
-                    <strong>Lot {lot(data, item.lot_id)?.lot_number}</strong>
-                    <small>{location(data, item.location_id)?.name}</small>
-                  </td>
-                  <td className="numeric">
-                    {item.direction === "out" ? "−" : "+"}
-                    {number(item.quantity_units)}
-                  </td>
-                  <td>
-                    <span>{item.reason}</span>
-                    <small className="mono">{item.source_id}</small>
-                  </td>
+        {viewState === "results" ? (
+          <div className="inventory-table-wrap">
+            <table>
+              <caption className="sr-only">Inventory movement ledger</caption>
+              <thead>
+                <tr>
+                  <th>Occurred</th>
+                  <th>Type</th>
+                  <th>Lot / location</th>
+                  <th>Quantity</th>
+                  <th>Reason / source</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((item) => (
+                  <tr key={item.id}>
+                    <td>{inventoryDateTime(item.occurred_at, data.timezone)}</td>
+                    <td>
+                      <Badge tone={item.direction === "out" ? "warning" : "blue"}>
+                        {item.type}
+                      </Badge>
+                    </td>
+                    <td>
+                      <strong>Lot {lot(data, item.lot_id)?.lot_number}</strong>
+                      <small>{location(data, item.location_id)?.name}</small>
+                    </td>
+                    <td className="numeric">
+                      {item.direction === "out" ? "−" : "+"}
+                      {number(item.quantity_units)}
+                    </td>
+                    <td>
+                      <span>{item.reason}</span>
+                      <small className="mono">{item.source_id}</small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="inventory-empty-state" role="status">
+            <strong>
+              {viewState === "filtered_empty"
+                ? `No movements match “${filter.trim()}”.`
+                : "No movements recorded"}
+            </strong>
+            <p>
+              {viewState === "filtered_empty"
+                ? "Clear the filter to review the full movement ledger."
+                : "Recorded stock receipts, transfers, adjustments, and counts will appear here with their source."}
+            </p>
+          </div>
+        )}
       </Card>
     </div>
   );
