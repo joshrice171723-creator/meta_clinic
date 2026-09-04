@@ -48,9 +48,11 @@ __pycache__/
 /outputs/
 /work/
 
-# OS/editor scratch files. Shared Obsidian configuration stays tracked.
+# OS/editor scratch files. Keep durable Obsidian configuration tracked, but ignore
+# the local workspace layout that changes whenever the vault is opened.
 .DS_Store
 ._*
 *.swp
 *.swo
 *~
+APPlyVault/.obsidian/workspace.json

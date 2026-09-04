@@ -4,30 +4,38 @@ APPly is a React/Vite frontend backed by a Rails JSON API and local PostgreSQL. 
 
 ## Prerequisites
 
-Use the pinned versions in `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. Install Ruby/Bundler, Node 24, Docker and Python 3. PostgreSQL 18 client tools are optional for commands run through `apps/api/bin/postgres exec`; its child-process shims route `psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb` and `pg_isready` through the local PostgreSQL container.
+Use the pinned versions in `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. Install Ruby/Bundler, Node 24, Docker, Python 3, `lsof` on macOS/Linux, and PostgreSQL 18 client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb`, `pg_isready`).
 
 ## First setup
 
 From the repository root:
 
 ```sh
-cd apps/api
-bundle install
-bin/postgres start
-bin/postgres exec pg_isready -d postgres
-bin/postgres exec bin/rails db:prepare db:seed
-cd ../web
-npm ci --ignore-scripts
-cd ../..
-APP_DEVELOPMENT_LOGIN=1 bin/dev
+bin/dev setup
+bin/dev start
 ```
 
 Open `http://127.0.0.1:3000/login` and choose **Continue as demo client** only for a fictional Test Clinic. Do not tunnel local services or put credentials, records or real/real-derived data in this workspace.
 
-For the normal daily lifecycle, use `./dev_server_startup start|restart|stop|status` from the root. It does not install dependencies or reset the database. The lower-level `bin/dev` remains useful after PostgreSQL is already running. See the app READMEs for API/frontend-specific setup and verification.
+## Canonical lifecycle
+
+Use only repository-root `bin/dev` for the combined local stack:
+
+```sh
+bin/dev start
+bin/dev restart
+bin/dev status
+bin/dev stop
+bin/dev refresh
+bin/dev reset-data --yes
+```
+
+`start` and `restart` do not run Git, install dependencies or reset data. They migrate the guarded development database, launch checkout-owned services and require strict migration, database, process and HTTP readiness. `refresh` requires a clean branch and fast-forwards only; divergence stops before runtime mutation. It reconciles only locked dependencies and never auto-merges or resets data. `reset-data --yes` is the sole destructive command and replants only the selected loopback `apply*_development` database with synthetic fixtures.
+
+Each command prints phase durations and writes a metadata-only JSON trace plus SVG timeline under ignored `tmp/task-traces/`. Use `--no-browser` with `start`, `restart` or `refresh` when needed. On Windows use `ruby .\bin\dev ACTION`. Older launchers remain compatibility shims only.
 
 ## Isolated checkouts
 
-Each developer uses an independent checkout and database. A second local worktree must use its own PostgreSQL container/volume, port, database names and application ports; never point two checkouts at one database. The detailed example lives in the API README.
+Each developer uses an independent checkout and database. A second local worktree must use its own `APPLY_POSTGRES_CONTAINER`, `PGPORT`, `APPLY_DEVELOPMENT_DATABASE`, `APPLY_WEB_PORT` and `APPLY_API_PORT`; never point two checkouts at one database. The detailed example lives in the API README.
 
-The explicit `$startdev` skill starts a clean, synchronized local checkout without replants or destructive database resets. It requires the skill's confirmation and branch/upstream safeguards; it never authorizes hosted changes.
+The explicit `$startdev` skill delegates every action to `bin/dev`; it does not make refresh destructive. `$task-trace` measures observable task work and returns the same safe timeline format. Neither skill authorizes hosted changes.

@@ -60,16 +60,15 @@ Both EC2 environments are running; see the [environment runbook](../../ops/aws/e
 
 ## Local PostgreSQL and conversion checks
 
-Use the pinned Ruby/Bundler versions. Local PostgreSQL 18 client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb`) are optional when commands run through `bin/postgres exec`: the helper routes child-process client calls through the local PostgreSQL container, including Windows hosts where `pg_dump` is not on PATH. On macOS, `brew install libpq` remains useful for direct client commands; add its `bin` directory to PATH for the current shell. `bin/postgres start` creates a loopback-only PostgreSQL 18.6 container with a persistent named volume and a generated ignored mode-0600 local password file. `bin/postgres exec COMMAND...` passes the secret without printing it. Do not delete that file while retaining the database volume. This helper is local/synthetic only and never resets data.
+Install PostgreSQL 18 client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb`) and use the pinned Ruby/Bundler versions. On macOS `brew install libpq` supplies them; add its `bin` directory to PATH for the current shell. `bin/postgres start` creates a loopback-only PostgreSQL 18.6 container with a persistent named volume and a generated ignored mode-0600 local password file. `bin/postgres exec COMMAND...` passes the secret without printing it. Do not delete that file while retaining the database volume. This helper is local/synthetic only and never resets data.
 
 ```sh
-# From the repository root:
+# From the repository root, use the canonical combined lifecycle:
+bin/dev setup
+bin/dev start
+
+# From apps/api, run component checks through the existing PostgreSQL wrapper:
 cd apps/api
-bundle install
-bin/postgres start
-bin/postgres exec bin/rails db:prepare db:seed
-# API only; the frontend runs separately on 3000:
-bin/postgres exec env APP_DEVELOPMENT_LOGIN=1 bin/dev
 # Run these separately (not `db:prepare test` in one Rails process):
 bin/postgres exec env RAILS_ENV=test bin/rails db:prepare
 bin/postgres exec bin/rails test
@@ -83,7 +82,7 @@ bin/bundler-audit check --update
 
 `bin/verify-postgres` creates uniquely named scratch databases, generates an independent synthetic legacy SQLite fixture, imports all legacy tables with value reconciliation, migrates forward, tests simultaneous writes/retries and restores a PostgreSQL dump. It removes only its own scratch databases. `bin/import-legacy-sqlite --synthetic SOURCE_BACKUP` is a one-time maintenance tool requiring an explicit empty PostgreSQL target at migration 004; it never reads an existing source automatically. See the cutover runbook before using it. Preserve existing SQLite files and matching encryption keys until an authorized migration and recovery check succeeds.
 
-Use repository-root `bin/dev` to start both apps after frontend `npm ci --ignore-scripts`. Root `bin/verify-web` checks the real local proxy/API with an explicit generated scratch PostgreSQL database; it uses single-target `createdb`/`dropdb`, isolates companion test settings and never uses Rails' multi-database cleanup task.
+Repository-root `bin/dev` is the only public combined lifecycle. It validates or installs locked dependencies through explicit subcommands, migrates from source, starts both apps and performs strict readiness checks. Root `bin/verify-web` checks the real local proxy/API with an explicit generated scratch PostgreSQL database; it uses single-target `createdb`/`dropdb`, isolates companion test settings and never uses Rails' multi-database cleanup task.
 
 Open [local login](http://localhost:3000/login) and explicitly choose **Continue as demo client**. Each entry creates an isolated fictional Test Clinic and demo launch document. Navigation never creates a session; there is no clinic picker or public signup. Do not expose or tunnel the development server. Normal accounts use the interactive `members:create` task after payment confirmation; assisted password reset revokes sessions. No email delivery or payment automation is implemented.
 
@@ -112,9 +111,9 @@ Passwords are random and never printed. Use the existing interactive `members:re
 
 `bin/verify-backend` creates its own uniquely named test database, tests true concurrent allocations/addresses/bookings/revisions and restricted runtime history/catalog grants, then removes only that database and its unique temporary no-login role. Run it through `bin/postgres exec`, with PostgreSQL client tools on PATH. Tests require `RAILS_ENV=test`; never point them at an existing development/hosted database. Migration `20260831000800` adds identity/history/index/reservation guards without editing prior migrations. It is forward-only and has not been applied to existing development or hosted databases; review backups, locks and legacy access-equivalence before any cutover.
 
-## Optional dev seed data
+## CSV-backed dev seed data
 
-Normal startup does not load, refresh, truncate, or replant seed data. The local development database is persistent so catalog items, suppliers, purchase orders, receipts, and inventory adjustments remain available between restarts. Use `ruby bin/apply up --seed` only when synthetic seed data is intentionally needed. The CSV bundle and `dev:refresh_seed` task remain maintenance/test fixtures and are not part of the user workflow.
+From the repository root, `bin/dev reset-data --yes` explicitly replants `db/seed_data/bulk_v1`. No start, restart or refresh command resets data. The reset truncates the explicitly guarded application tables, preserves Rails metadata tables, refuses any database outside the selected loopback `apply*_development` boundary, and leaves services stopped so readiness can be established separately with `bin/dev start`. The lower-level `dev:refresh_seed` task remains internal compatibility behavior and is not part of the public lifecycle.
 
 Regenerate the checked-in CSV bundle with:
 

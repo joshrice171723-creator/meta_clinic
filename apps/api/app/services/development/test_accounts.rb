@@ -49,7 +49,7 @@ module Development
       User.transaction do
         # Serialize this fixture setup only; retries never reset passwords, access or progress.
         User.connection.execute("SELECT pg_advisory_xact_lock(20260831, 231)")
-        PROFILES.each do |profile, settings|
+        accounts = PROFILES.map do |profile, settings|
           user = User.find_by(email_address: settings[:email])
           if user
             identity_matches = user.email_address == settings[:email] &&
@@ -72,6 +72,7 @@ module Development
           user
         end
         Development::PatientPortal.prepare!(User.find_by!(email_address: PROFILES.fetch("patient")[:email]))
+        accounts
       end
     end
 

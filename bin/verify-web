@@ -96,7 +96,7 @@ begin
   raise "Named second login failed" unless post.call("/api/development_session", { profile: "client-b" }).code == "201"
   raise "Cross-client disclosure" unless request.call("/api/paperworks/#{first_document}").code == "404"
   second_settings = JSON.parse(request.call("/api/settings").body)
-  raise "Settings leaked between named clients" unless second_settings.fetch("user_id") != first.fetch("id") && second_settings.dig("appearance", "palette") == "juniper" && second_settings.dig("appearance", "version") == 0
+  raise "Settings leaked between named clients" unless second_settings.fetch("user_id") != first.fetch("id") && second_settings.dig("appearance", "palette") == "cobalt" && second_settings.dig("appearance", "version") == 0
   raise "Stale account settings save accepted" unless post.call("/api/settings", first_settings, method: "PATCH").code == "409"
   raise "Named repeat login failed" unless post.call("/api/development_session", { profile: "client-a" }).code == "201"
   raise "Named identity replaced" unless JSON.parse(request.call("/api/session").body).dig("user", "id") == first.fetch("id")

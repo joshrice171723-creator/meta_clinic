@@ -1,23 +1,6 @@
 #!/usr/bin/env ruby
-# Install a PATH launcher for this checkout without modifying repository files.
-require "fileutils"
+# frozen_string_literal: true
 
-root = File.expand_path("..", __dir__)
-if Gem.win_platform?
-  destination = File.join(ENV.fetch("USERPROFILE"), "bin")
-  FileUtils.mkdir_p(destination)
-  launcher = File.join(destination, "apply.cmd")
-  File.write(launcher, "@echo off\r\nset APPLY_ROOT=#{root}\r\nruby \"#{File.join(root, 'bin/apply')}\" %*\r\n")
-  user_path = [ENV.fetch("PATH", "").split(File::PATH_SEPARATOR), destination].flatten.uniq.join(File::PATH_SEPARATOR)
-  escaped_path = user_path.gsub("'", "''")
-  powershell = "[Environment]::SetEnvironmentVariable('Path', '#{escaped_path}', 'User')"
-  abort "Could not update the user PATH." unless system("powershell", "-NoProfile", "-Command", powershell)
-  puts "Installed #{launcher}. Open a new terminal before using `apply up`."
-else
-  destination = File.join(ENV.fetch("HOME"), ".local/bin")
-  FileUtils.mkdir_p(destination)
-  launcher = File.join(destination, "apply")
-  FileUtils.rm_f(launcher)
-  File.symlink(File.join(root, "bin/apply"), launcher)
-  puts "Installed #{launcher}. Ensure #{destination} is on PATH, then use `apply up`."
-end
+warn "The global apply launcher is retired and was not installed."
+warn "Use the repository-owned canonical command: bin/dev help"
+exit 1

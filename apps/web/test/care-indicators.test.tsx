@@ -1,14 +1,16 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { PatientCareSummary } from "../src/api/contracts";
 import {
   CareIndicators,
   CareSummaryTrigger,
+  careIndicatorControlLabel,
   careIndicatorGroups,
   careSummaryPath,
   recordedDateLabel,
 } from "../src/features/clinic/CareIndicators";
-import { EXAMPLE_CARE_SUMMARIES } from "../src/features/clinic/trackingBoardCareFixtures";
+import { EXAMPLE_CARE_SUMMARIES } from "./trackingBoardCareFixtures";
 
 const summary: PatientCareSummary = {
   schema_version: "patient-care-summary-v1",
@@ -164,21 +166,22 @@ describe("tracking-board care indicators", () => {
         patientLabel="S. Pat"
       />,
     );
-    for (const [label, count] of [
-      ["Allergies", 1],
-      ["Medications", 1],
-      ["Communication needs", 1],
-      ["Access and care needs", 1],
-      ["Encounter precautions", 1],
-      ["Current-care conditions", 1],
-      ["Review needed", 1],
-    ]) {
+    for (const group of careIndicatorGroups({ status: "ready", summary }))
       expect(html).toContain(
-        `aria-label="${label}: ${count}. Show details for S. Pat"`,
+        `aria-label="${careIndicatorControlLabel(group, "S. Pat")}"`,
       );
-    }
+    expect(html).not.toContain("Review needed: 1. Show details");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
+  });
+
+  it("uses the patient name as the care-details dialog heading", () => {
+    const source = readFileSync(
+      "src/features/clinic/CareIndicators.tsx",
+      "utf8",
+    );
+    expect(source).toContain("<DialogTitle id={popoverId}>{patientLabel}");
+    expect(source).toContain("onClick={() => openGroup(group)}");
   });
 
   it("keeps chart navigation separate from care-detail disclosure", () => {
@@ -188,14 +191,23 @@ describe("tracking-board care indicators", () => {
         patientLabel="S. Pat"
         href="/clinic/patients/7/encounters/9"
         actionLabel="Open SOAP note for S. Pat"
+        data-tooltip-anchor="true"
       >
         <span>Chart</span>
       </CareSummaryTrigger>,
     );
     expect(html).toContain('href="/clinic/patients/7/encounters/9"');
     expect(html).toContain('aria-label="Open SOAP note for S. Pat"');
+    expect(html).toContain('data-tooltip-anchor="true"');
     expect(html).not.toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("aria-expanded");
+    const source = readFileSync(
+      "src/features/clinic/CareIndicators.tsx",
+      "utf8",
+    );
+    expect(source).toContain("forwardRef");
+    expect(source).toContain("{...anchorProps}");
+    expect(source).toContain("ref={ref}");
   });
 
   it("communicates when an example visit is unlinked without implying no concerns", () => {

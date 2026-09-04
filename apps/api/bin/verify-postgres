@@ -137,7 +137,7 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
           raise unless batch.movements.find(111).origin == 'legacy_movement'
           raise unless Clinic::Membership.find(61).inventory_receive?
           raise unless ApplicationRecord.connection.select_value('SELECT message FROM contact_messages WHERE id=121') == 'synthetic-encrypted-marker'
-          raise unless Identity::Preference.for_user(User.find(41)).appearance == {palette: 'graphite', mode: 'dark', version: 1}
+          raise unless Identity::Preference.for_user(User.find(41)).appearance == {palette: 'plum', mode: 'dark', version: 1}
           receipt = Clinic::OperationReceipt.find_by!(practice_id: 51, request_key: 'restore-receipt')
           raise unless receipt.digest_algorithm == Clinic::Idempotency::DIGEST_ALGORITHM
           raise unless receipt.digest_key_id == Clinic::Idempotency::DEFAULT_DIGEST_KEY_ID
@@ -187,7 +187,7 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
               ApplicationRecord.connection_pool.with_connection do
                 gate.pop
                 begin
-                  Identity::Preference.save_for!(User.find(user.id), palette: 'blue', mode: 'light', version: 0)
+                  Identity::Preference.save_for!(User.find(user.id), palette: 'cobalt', mode: 'light', version: 0)
                   :saved
                 rescue Identity::Preference::Conflict
                   :conflict

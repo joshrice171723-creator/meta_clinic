@@ -1,6 +1,3 @@
-// Independently invented UI examples, never mapped to directory/API patient IDs.
-// A fixed scenario clock avoids presenting simulated waits as a live feed.
-export const EXAMPLE_CLOCK = "2026-08-31T10:20:00-05:00";
 export const VISIT_STAGES = [
   {
     id: "scheduled",
@@ -43,8 +40,9 @@ export const VISIT_STAGES = [
 export type VisitStage = (typeof VISIT_STAGES)[number]["id"];
 export type OperationalState =
   "upcoming" | "on_time" | "late" | "waiting_room" | "unrecorded";
-export type ExampleVitalStatus = "above" | "within" | "below" | "unassessed";
-export type ExampleClinician = {
+export type BoardChartStatus = "unopened" | "draft" | "signed" | "unavailable";
+export type BoardVitalStatus = "above" | "within" | "below" | "unassessed";
+export type BoardClinician = {
   id: string;
   firstName: string;
   lastName: string;
@@ -52,36 +50,13 @@ export type ExampleClinician = {
   displayName?: string;
   locationIds: readonly string[];
 };
-export const EXAMPLE_CLINICIANS: readonly ExampleClinician[] = [
-  {
-    id: "example-clinician-am",
-    firstName: "Alex",
-    lastName: "Morgan",
-    credentials: "NP",
-    locationIds: ["example-main"],
-  },
-  {
-    id: "example-clinician-jl",
-    firstName: "Jordan",
-    lastName: "Lee",
-    credentials: "PA-C",
-    locationIds: ["example-main"],
-  },
-  {
-    id: "example-clinician-rs",
-    firstName: "Riley",
-    lastName: "Singh",
-    credentials: "NP",
-    locationIds: ["example-north"],
-  },
-];
 export type BoardVisit = {
   id: string;
   patientId?: number | null;
   encounterId?: number | null;
+  chartStatus: BoardChartStatus;
   patientDisplayName?: string | null;
   patientReference?: string | null;
-  isSynthetic?: boolean;
   firstName: string;
   lastName: string;
   age: number | null;
@@ -106,7 +81,7 @@ export type BoardVisit = {
   assignedProviderName?: string | null;
   providerAssignmentToken?: string | null;
   providerAssignmentAvailable?: boolean;
-  eligibleProviders?: readonly ExampleClinician[];
+  eligibleProviders?: readonly BoardClinician[];
   owner: string | null;
   arrivedAt: string | null;
   stageStartedAt: string | null;
@@ -122,205 +97,27 @@ export type BoardVisit = {
       weight: { value: string; unit: string | null } | null;
     } | null;
     vitalStatuses: {
-      bp: ExampleVitalStatus;
-      hr: ExampleVitalStatus;
-      weight: ExampleVitalStatus;
+      bp: BoardVitalStatus;
+      hr: BoardVitalStatus;
+      weight: BoardVitalStatus;
     } | null;
     review: string;
   } | null;
 };
-const at = (time: string) => `2026-08-31T${time}:00-05:00`;
-const assessed = (
-  time: string,
-  summary: string,
-  readings: {
-    bp: string;
-    hr: number;
-    weight: number;
-    bpStatus: ExampleVitalStatus;
-    hrStatus: ExampleVitalStatus;
-  },
-): NonNullable<BoardVisit["triage"]> => ({
-  summary,
-  recordedAt: at(time),
-  recordedBy: "Example staff A",
-  vitals: `BP ${readings.bp} mmHg · HR ${readings.hr} bpm · ${readings.weight} kg`,
-  vitalsSummary: `BP ${readings.bp} · HR ${readings.hr} · ${readings.weight} kg`,
-  vitalStatuses: {
-    bp: readings.bpStatus,
-    hr: readings.hrStatus,
-    weight: "unassessed",
-  },
-  review: "Medication and allergy review recorded in this example",
-});
-export const EXAMPLE_VISITS: readonly BoardVisit[] = [
-  {
-    id: "EX-001",
-    firstName: "Mara",
-    lastName: "Rivera",
-    age: 46,
-    gender: "F",
-    appointmentType: "Follow-up",
-    chiefComplaint: "Migraine",
-    reason: "Follow-up visit",
-    visitType: "Scheduled · Follow-up",
-    membership: "member",
-    stage: "waiting",
-    locationId: "example-main",
-    room: "Waiting room",
-    assignedClinicianId: null,
-    owner: null,
-    arrivedAt: at("09:59"),
-    stageStartedAt: at("09:59"),
-    triage: null,
-  },
-  {
-    id: "EX-002",
-    firstName: "Theo",
-    lastName: "Bennett",
-    age: 34,
-    gender: "M",
-    appointmentType: "Establish Care",
-    chiefComplaint: "New patient intake",
-    reason: "Establish care",
-    visitType: "Scheduled · New patient",
-    membership: "nonmember",
-    stage: "intake",
-    locationId: "example-main",
-    room: "Room 2",
-    assignedClinicianId: null,
-    owner: "Example staff A",
-    arrivedAt: at("09:50"),
-    stageStartedAt: at("10:10"),
-    triage: {
-      summary: "Intake in progress",
-      recordedAt: at("10:12"),
-      recordedBy: "Example staff A",
-      vitals: null,
-      vitalsSummary: null,
-      vitalStatuses: null,
-      review: "Medication and allergy review not recorded",
-    },
-  },
-  {
-    id: "EX-003",
-    firstName: "Avery",
-    lastName: "Chen",
-    age: 61,
-    gender: "F",
-    appointmentType: "Scheduled",
-    chiefComplaint: "Flu Shot",
-    reason: "Medication follow-up",
-    visitType: "Scheduled · Follow-up",
-    membership: "member",
-    stage: "ready",
-    locationId: "example-main",
-    room: "Room 1",
-    assignedClinicianId: "example-clinician-am",
-    owner: "Example Provider A",
-    arrivedAt: at("09:40"),
-    stageStartedAt: at("10:03"),
-    triage: assessed("10:01", "Ready for Provider review", {
-      bp: "118/76",
-      hr: 72,
-      weight: 72,
-      bpStatus: "within",
-      hrStatus: "within",
-    }),
-  },
-  {
-    id: "EX-004",
-    firstName: "Jules",
-    lastName: "Patel",
-    age: 45,
-    gender: "X",
-    appointmentType: "Scheduled",
-    chiefComplaint: "Annual wellness",
-    reason: "Annual visit",
-    visitType: "Scheduled · Annual",
-    membership: "member",
-    stage: "clinician",
-    locationId: "example-main",
-    room: "Room 3",
-    assignedClinicianId: "example-clinician-jl",
-    owner: "Example Provider B",
-    arrivedAt: at("09:25"),
-    stageStartedAt: at("09:55"),
-    triage: assessed("09:48", "Questions for Provider", {
-      bp: "88/56",
-      hr: 52,
-      weight: 64,
-      bpStatus: "below",
-      hrStatus: "below",
-    }),
-  },
-  {
-    id: "EX-005",
-    firstName: "Lena",
-    lastName: "Morris",
-    age: 28,
-    gender: "F",
-    appointmentType: "Unscheduled",
-    chiefComplaint: "Migraine",
-    reason: "Same-day concern",
-    visitType: "Same-day · Return patient",
-    membership: "unknown",
-    stage: "ready",
-    locationId: "example-main",
-    room: "Room 4",
-    assignedClinicianId: null,
-    owner: null,
-    arrivedAt: at("09:58"),
-    stageStartedAt: at("10:11"),
-    triage: assessed("10:09", "Provider review requested", {
-      bp: "148/94",
-      hr: 54,
-      weight: 77,
-      bpStatus: "above",
-      hrStatus: "below",
-    }),
-  },
-  {
-    id: "EX-006",
-    firstName: "Eli",
-    lastName: "Ross",
-    age: 52,
-    gender: "M",
-    appointmentType: "Follow-up",
-    chiefComplaint: "Medication Refill",
-    reason: "Follow-up visit",
-    visitType: "Scheduled · Follow-up",
-    membership: "member",
-    stage: "checkout",
-    locationId: "example-main",
-    room: "Checkout",
-    assignedClinicianId: "example-clinician-am",
-    owner: "Example front desk",
-    arrivedAt: at("09:15"),
-    stageStartedAt: at("10:15"),
-    triage: assessed("09:30", "Intake recorded", {
-      bp: "152/96",
-      hr: 108,
-      weight: 86,
-      bpStatus: "above",
-      hrStatus: "above",
-    }),
-  },
-];
 export function cliniciansForLocation(
   locationId: string,
-  clinicians: readonly ExampleClinician[] = EXAMPLE_CLINICIANS,
+  clinicians: readonly BoardClinician[],
 ) {
   return clinicians.filter((clinician) =>
     clinician.locationIds.includes(locationId),
   );
 }
-export function clinicianInitials(clinician: ExampleClinician) {
+export function clinicianInitials(clinician: BoardClinician) {
   const first = Array.from(clinician.firstName.trim().normalize("NFC"))[0];
   const last = Array.from(clinician.lastName.trim().normalize("NFC"))[0];
   return `${first ?? "—"}${last ?? "—"}`;
 }
-export function clinicianLabel(clinician: ExampleClinician) {
+export function clinicianLabel(clinician: BoardClinician) {
   if (clinician.displayName?.trim()) return clinician.displayName.trim();
   const name = `${clinician.firstName} ${clinician.lastName}`.trim();
   return clinician.credentials ? `${name}, ${clinician.credentials}` : name;

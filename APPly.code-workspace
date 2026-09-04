@@ -13,30 +13,27 @@
         "label": "APPly: Start development",
         "type": "shell",
         "windows": {
-          "command": "powershell",
-          "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\bin\\start-dev.ps1"]
+          "command": "ruby",
+          "args": ["${workspaceFolder}\\bin\\dev", "start"]
         },
-        "linux": { "command": "${workspaceFolder}/bin/start-dev" },
-        "osx": { "command": "${workspaceFolder}/bin/start-dev" },
+        "linux": { "command": "${workspaceFolder}/bin/dev", "args": ["start"] },
+        "osx": { "command": "${workspaceFolder}/bin/dev", "args": ["start"] },
         "problemMatcher": []
       },
       {
         "label": "APPly: Check environment",
         "type": "shell",
-        "windows": {
-          "command": "powershell",
-          "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\bin\\doctor.ps1"]
-        },
-        "linux": { "command": "${workspaceFolder}/bin/doctor" },
-        "osx": { "command": "${workspaceFolder}/bin/doctor" },
+        "windows": { "command": "ruby", "args": ["${workspaceFolder}\\bin\\dev", "status"] },
+        "linux": { "command": "${workspaceFolder}/bin/dev", "args": ["status"] },
+        "osx": { "command": "${workspaceFolder}/bin/dev", "args": ["status"] },
         "problemMatcher": []
       },
       {
         "label": "APPly: Stop development",
         "type": "shell",
-        "windows": { "command": "apply.cmd", "args": ["down"] },
-        "linux": { "command": "apply", "args": ["down"] },
-        "osx": { "command": "apply", "args": ["down"] },
+        "windows": { "command": "ruby", "args": ["${workspaceFolder}\\bin\\dev", "stop"] },
+        "linux": { "command": "${workspaceFolder}/bin/dev", "args": ["stop"] },
+        "osx": { "command": "${workspaceFolder}/bin/dev", "args": ["stop"] },
         "problemMatcher": []
       }
     ]

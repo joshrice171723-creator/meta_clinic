@@ -1,107 +1,22 @@
 #!/usr/bin/env ruby
-# APPly local lifecycle command. Dev database only.
-require "fileutils"
-require "open3"
+# frozen_string_literal: true
+
+# Compatibility shim for previously installed `apply` launchers.
 require "rbconfig"
 
 root = File.expand_path("..", __dir__)
-api_root = File.join(root, "apps/api")
-runtime_root = File.join(root, "tmp/dev")
-pid_root = File.join(runtime_root, "pids")
-container = ENV.fetch("APPLY_POSTGRES_CONTAINER", "apply-postgres-development")
-command = ARGV.shift
+canonical = File.join(root, "bin", "dev")
+requested = ARGV.shift
+commands = {"up" => "start", "down" => "stop", "restart" => "restart", "doctor" => "status"}.freeze
+exec(RbConfig.ruby, canonical, "help", chdir: root) unless requested
+command = commands.fetch(requested, requested)
 
-def fail_with(message)
-  warn "apply: #{message}"
-  exit 1
+legacy_seed = ARGV.delete("--seed")
+ARGV.delete("--no-seed-refresh")
+if legacy_seed
+  exit 1 unless system(RbConfig.ruby, canonical, "reset-data", "--yes", chdir: root)
+  command = "start"
 end
 
-def run!(*args, chdir: nil)
-  output, status = Open3.capture2e(*args, chdir: chdir)
-  fail_with(output.strip) unless status.success?
-end
-
-def kill_pid(pid)
-  if Gem.win_platform?
-    system("taskkill", "/PID", pid.to_s, "/T", "/F", out: File::NULL, err: File::NULL)
-  else
-    begin
-      Process.kill("TERM", -pid)
-    rescue Errno::ESRCH
-      begin
-        Process.kill("TERM", pid)
-      rescue Errno::ESRCH
-        nil
-      end
-    end
-  end
-end
-
-def pid_files(pid_root)
-  Dir[File.join(pid_root, "*.pid")]
-end
-
-def remove_pid_files(pid_root)
-  pid_files(pid_root).each { |path| File.delete(path) rescue nil }
-end
-
-case command
-when "up"
-  FileUtils.mkdir_p(pid_root)
-  if Gem.win_platform?
-    script = File.join(root, "bin/start-dev.ps1")
-    args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script]
-    # Kept as a compatibility no-op for older local commands. Development
-    # startup must never truncate or replant the user's database.
-    ARGV.delete("--no-seed-refresh")
-    legacy_seed = ARGV.delete("--seed")
-    args << "-Seed" if legacy_seed
-    args << "-NoBrowser" if ARGV.delete("--no-browser")
-    fail_with("Unknown option: #{ARGV.first}") unless ARGV.empty?
-    started = system("powershell", *args, chdir: root)
-  else
-    args = [File.join(root, "bin/start-dev"), "--daemon"]
-    # Kept as a compatibility no-op for older local commands. Development
-    # startup must never truncate or replant the user's database.
-    ARGV.delete("--no-seed-refresh")
-    legacy_seed = ARGV.delete("--seed")
-    args << "--seed" if legacy_seed
-    args << "--no-browser" if ARGV.delete("--no-browser")
-    args << "--no-docker-start" if ARGV.delete("--no-docker-start")
-    fail_with("Unknown option: #{ARGV.first}") unless ARGV.empty?
-    started = system("ruby", *args, chdir: root)
-  end
-  fail_with("Local startup failed. Review the reported error and tmp/dev/logs before retrying.") unless started
-when "down"
-  pid_files(pid_root).each do |path|
-    pid = Integer(File.read(path).strip, 10) rescue nil
-    kill_pid(pid) if pid
-  end
-  remove_pid_files(pid_root)
-  if system("docker", "info", out: File::NULL, err: File::NULL)
-    system("docker", "stop", container, out: File::NULL, err: File::NULL)
-  end
-  puts "APPly stopped. Persistent PostgreSQL storage was preserved."
-when "restart"
-  system(RbConfig.ruby, __FILE__, "down")
-  exec(RbConfig.ruby, __FILE__, "up", *ARGV)
-when "doctor"
-  if Gem.win_platform?
-    exec("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", File.join(root, "bin/doctor.ps1"))
-  else
-    exec(RbConfig.ruby, File.join(root, "bin/doctor"))
-  end
-else
-  puts <<~USAGE
-    Usage: apply <command>
-
-    Commands:
-      up       Start Docker/PostgreSQL, Rails and Vite in the background
-      down     Stop APPly services and PostgreSQL without deleting data
-      restart  Run down followed by up
-      doctor   Diagnose local dependencies, ports and service health
-
-    Options for up/restart: --seed, --no-browser
-  USAGE
-  exit(command ? 1 : 0)
-end
+warn "The installed apply launcher is deprecated; use #{canonical} #{command}."
+exec(RbConfig.ruby, canonical, command, *ARGV, chdir: root)

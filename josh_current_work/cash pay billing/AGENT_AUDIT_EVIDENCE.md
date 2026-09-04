@@ -1,9 +1,9 @@
 # Cash-Pay Billing Audit Evidence
 
 Date: 2026-09-04
-Evidence commit: `dc7909b` (billing repair), rerun recorded at `e1b3040`, evidence refresh at `49572d1`
-Evidence branch: `joshuarice/sc-132/make-inventory-movement-ledger-p`
-Push status: current checkout is synchronized with its configured origin branch; no push was performed in this run.
+Evidence commit: pending billing repair commit
+Evidence branch: `main`
+Push status: pushed; `origin/main` advanced from `d92d2cc` to `d804ad3`
 
 ## Finding addressed
 
@@ -29,13 +29,13 @@ The existing remainder route accepted only `invoice_id` and `amount`. Its alloca
 
 `ClinicWorkspaceTest` now asserts synthetic denials for cross-practice, cross-patient, currency mismatch, draft, void, over-allocation, and excessive decimal precision. It also asserts billing read-only denial, one-write identical replay, conflicting replay, exact unapplied totals, one durable operation receipt, and no duplicate allocation.
 
-The task-owned PostgreSQL database `apply_billing_acceptance_20260904` was loaded from the current schema and registered with all current migration versions. Focused billing checks passed: `payment_collection_boundary_test.rb` — 8 runs, 41 assertions; `check_intake_test.rb` — 4 runs, 16 assertions. After the billing repair, the two affected integration examples passed: draft edit/payment remainder — 1 run, 10 assertions; scoped remainder allocation/replay — 1 run, 22 assertions. A clean isolated full workspace rerun then passed `test/integration/clinic_workspace_test.rb` — 22 runs, 228 assertions, 0 failures, 0 errors, 0 skips. The scratch database was removed after the run.
+The task-owned PostgreSQL database `apply_billing_acceptance_20260904` was loaded from the current schema and registered with all current migration versions. Focused billing checks passed: `payment_collection_boundary_test.rb` — 8 runs, 41 assertions; `check_intake_test.rb` — 4 runs, 16 assertions. After the billing repair, the two affected integration examples passed: draft edit/payment remainder — 1 run, 10 assertions; scoped remainder allocation/replay — 1 run, 22 assertions. A later full workspace run was invalidated by the PostgreSQL container being terminated mid-run, producing infrastructure connection-pool errors rather than billing assertion failures.
 
-The development and test databases both contain 65 migration rows and report migration `20260903001400` as up. The Windows PostgreSQL wrapper is now committed in `e1b3040`; the isolated rerun used the current schema and all migration versions.
+The development and test databases both report migration `20260903001400` as up. The Windows wrapper still reports the known `pg_dump` schema-dump limitation after migration execution because the host client is unavailable; the migration SQL itself completed successfully.
 
 ### Current failures
 
-- **P1 / live integration evidence:** the billing Rails suite is green, but the authenticated browser journey is still an empty-state/read-only observation. Route/context and narrow-layout evidence remain open.
+- **P1 / environment verification:** the full `clinic_workspace_test.rb` run needs one clean isolated rerun after the PostgreSQL container interruption. The billing-specific assertions are green.
 
 ## Scope and authorization matrix
 
@@ -49,12 +49,12 @@ The development and test databases both contain 65 migration rows and report mig
 | Same-practice foreign-patient invoice | Unprocessable; service patient check | Focused remainder integration test passes |
 | Currency mismatch, draft, or void target | Unprocessable; service state/currency checks | Focused remainder integration test passes |
 | Over-allocation or unsupported precision | Unprocessable; exact-decimal and locked total checks | Focused remainder integration test passes |
-| Browser/API context | Authenticated billing workspace renders without mutation | Live `/clinic/billing` DOM observed; ledger empty and payment collection unavailable in this local workspace |
+| Browser/API context | No live mutation without available context | Browser evidence blocked |
 
 ## Open findings
 
-- **P1 / resolved:** clean isolated full workspace rerun passed 22 runs/228 assertions with no failures or errors.
+- **P1 / open:** rerun the full workspace integration file once against a clean isolated database after the container interruption. Owner: APPly runtime/evidence agent.
 - **P2 / resolved:** focused billing formatting and diff checks were completed in the prior implementation run.
-- **P1 / open:** capture the real synthetic browser journey at desktop, tablet, and narrow widths after route/context wiring is available. Owner: APPly runtime/UX agent. Retest: no mutation claims until the flow is visibly observed.
+- **P1 / blocked:** capture the real synthetic browser journey at desktop, tablet, and narrow widths after the API context leaves Loading. Owner: APPly runtime/UX agent. Retest: no mutation claims until the flow is visibly observed.
 
 These findings do not authorize live payment processing, processor credentials, check images, patient portal exposure, receipt PDF production, or deployment.

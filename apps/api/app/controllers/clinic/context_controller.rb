@@ -6,6 +6,7 @@ module Clinic
         user_id: current_user.id,
         practice: { id: current_practice.id, name: current_practice.name, timezone: current_practice.timezone },
         membership_id: clinic_membership.id,
+        current_clinician_profile_id: current_clinician_profile&.id&.to_s,
         credentials: current_credential_types,
         policy_version: "clinic-authorization-v1",
         capabilities: {
@@ -52,10 +53,14 @@ module Clinic
     end
 
     def current_credential_types
-      profile = current_practice.clinician_profiles.includes(:credentials).find_by(membership: clinic_membership)
+      profile = current_clinician_profile
       return [] unless profile
 
       profile.credentials.map(&:credential_type).uniq.sort
+    end
+
+    def current_clinician_profile
+      @current_clinician_profile ||= current_practice.clinician_profiles.find_by(membership: clinic_membership)
     end
   end
 end

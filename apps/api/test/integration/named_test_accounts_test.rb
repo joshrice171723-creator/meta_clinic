@@ -29,9 +29,12 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
 
   test "setup is atomic, repeatable and preserves progress and disabled status" do
     local_mode do
+      accounts = nil
       assert_difference "User.count", 8 do
-        Development::TestAccounts.prepare!
+        accounts = Development::TestAccounts.prepare!
       end
+      assert_equal Development::TestAccounts::PROFILES.values.pluck(:email).sort,
+        accounts.map(&:email_address).sort
       client = User.find_by!(email_address: "test-client-a@example.invalid")
       document = client.paperworks.sole
       document.begin_review!

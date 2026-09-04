@@ -50,8 +50,15 @@ describe("frontend responsibility", () => {
       );
     }
     for (const source of sources(resolve("src"))) {
+      const isTrackingBoard = source.path.endsWith("TrackingBoardPage.tsx");
+      const storageReferences = source.content.match(/localStorage/g) ?? [];
+      expect(storageReferences).toHaveLength(isTrackingBoard ? 2 : 0);
+      if (isTrackingBoard)
+        expect(source.content).toContain(
+          'const trackingBoardColumnsStorageKey = "apply.tracking-board.columns.v2"',
+        );
       expect(source.content).not.toMatch(
-        /localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
+        /sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
       );
     }
   });

@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-04
+updated: 2026-09-03
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -11,13 +11,11 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
-## 2026-09-04 — Billing-only patient portal and Omni preview implemented
+## 2026-09-03 — Shortcut OAuth recovery added to agent coordination
 
-**Implementation:** applied the owner-approved D-062 first-release boundary. The patient portal context is now a no-store, read-only billing projection containing only practice/patient identity metadata, exact-decimal invoices and lines, balances, credits, payments, allocations, refunds, receipt-availability state, and billing capability flags. The normal development patient remains bound to its assigned portal identity. Dormant appointment, intake, clinical, reminder, messaging, refill, and request actions are blocked at the patient-portal API boundary.
+**Request and outcome:** after the configured Shortcut refresh token was rejected, the founder directed `/startdev` and shared coordination to reconnect agents as needed. The current host completed `codex mcp login shortcut`, refreshed the tool catalog in the same task, and verified the authenticated APPly user and Agent Workspace team. The `startdev` skill, Shortcut workflow and developer documentation now permit one bounded login attempt for the exact enabled endpoint and existing `read`, `story-write` and `comment-write` scopes before treating Shortcut as unavailable; harness checks preserve the command contract.
 
-**Omni development path:** added a local-only, server-gated, read-only preview switch. Omni enters through the existing local development login, Rails derives the assigned practice from Omni's membership, accepts any patient in that practice, and stores the selected patient only in the current server session. A new session starts from the first patient; no production impersonation or real data path was added. The frontend renders the same billing portal for the selected patient with an additional Omni-only selector.
-
-**Limits:** focused automated checks and source verification are implementation evidence, not the formal audit or release acceptance. Provider/Stripe/security/operations/finance approvals, PDF/email delivery policy, checks/OCR, card-present equipment, Superbills, real data, accessibility evidence, deployment, and go/no-go approval remain blocked.
+**Verification and limits:** the component-selected harness, vault, audit and diff checks passed before this entry and are rerun after it. Valid credentials may refresh without human input, but a rejected refresh token still requires any OAuth account-consent step imposed by Shortcut, Codex or the active host; no skill may bypass that safeguard. Agents may not widen scopes, handle tokens directly, persist authorization material, accept a changed identity/team or write without a verified Story claim. This recovery adds no deployment, hosted-data, production, workspace-administration or professional authority. Decision: D-057.
 
 ## 2026-09-03 — Billing package consolidated to Luna-only execution
 

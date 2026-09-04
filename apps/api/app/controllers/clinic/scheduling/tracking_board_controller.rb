@@ -34,6 +34,13 @@ module Clinic
         vitals_batch = TrackingBoardSerializer.build_vitals_batch(
           encounter_visits, practice_id: current_practice.id
         )
+        chart_status_batch = TrackingBoardSerializer.build_chart_status_batch(
+          encounter_visits,
+          practice_id: current_practice.id,
+          accessible_encounter_ids: encounter_visits.filter_map do |encounter|
+            encounter.id if current_ability.allowed_permission?("notes.read", site: encounter.site)
+          end
+        )
         assignable_site_ids = encounter_visits.map(&:site_id).compact.uniq.select do |site_id|
           current_ability.allowed_permission?("encounters.assign_provider", site: site_id)
         end
@@ -57,6 +64,7 @@ module Clinic
                 operational_state: synthetic_scenario&.fetch(:stage) == "waiting" ? "waiting_room" : "unrecorded",
                 demographics: demographic_projection(demographics[visit.patient_id], board_date),
                 vitals: vitals_batch.call(visit),
+                chart_status: chart_status_batch.call(visit),
                 membership: memberships.fetch(visit.patient_id, "not_verified"),
                 provider: provider_batch.call(visit),
                 provider_assignment_available: assignable_site_ids.include?(visit.site_id)
@@ -65,7 +73,8 @@ module Clinic
               TrackingBoardSerializer.call_scheduled(
                 visit, operational_state: appointment_state(visit, as_of),
                 demographics: demographic_projection(demographics[visit.patient_id], board_date),
-                membership: memberships.fetch(visit.patient_id, "not_verified")
+                membership: memberships.fetch(visit.patient_id, "not_verified"),
+                chart_status: "unopened"
               )
             end
           end

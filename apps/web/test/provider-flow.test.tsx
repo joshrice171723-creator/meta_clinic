@@ -8,6 +8,7 @@ import type {
   Patient,
 } from "../src/api/contracts";
 import {
+  ChartQuickJump,
   closeFailureState,
   closeRequestKey,
   closeRequestBody,
@@ -39,11 +40,9 @@ import {
   formatRecordedDecimal,
   trackingBoardVisitToBoardVisit,
 } from "../src/features/clinic/trackingBoardApi";
-import { EXAMPLE_CARE_SUMMARIES } from "../src/features/clinic/trackingBoardCareFixtures";
-import {
-  cliniciansForLocation,
-  EXAMPLE_VISITS,
-} from "../src/features/clinic/trackingBoardData";
+import { cliniciansForLocation } from "../src/features/clinic/trackingBoardData";
+import { EXAMPLE_CARE_SUMMARIES } from "./trackingBoardCareFixtures";
+import { EXAMPLE_VISITS } from "./trackingBoardFixtures";
 
 const patient: Patient = {
   id: 7,
@@ -329,6 +328,7 @@ describe("provider encounter workflow", () => {
       operational_state: "unrecorded",
       patient_id: 7,
       encounter_id: 14,
+      chart_status: "unopened",
       provider_assignment_available: true,
       patient: {
         id: 7,
@@ -376,7 +376,6 @@ describe("provider encounter workflow", () => {
       patientReference: "SYN-007",
       age: 42,
       gender: "F",
-      isSynthetic: false,
       stage: "unrecorded",
       membership: "member",
       arrivedAt: "2026-09-01T14:00:00Z",
@@ -424,6 +423,7 @@ describe("provider encounter workflow", () => {
       operational_state: "waiting_room",
       patient_id: 8,
       encounter_id: 15,
+      chart_status: "draft",
       provider_assignment_available: true,
       patient: {
         id: 8,
@@ -463,7 +463,6 @@ describe("provider encounter workflow", () => {
     });
 
     expect(visit).toMatchObject({
-      isSynthetic: false,
       stage: "waiting",
       reason: "Annual wellness",
       chiefComplaint: "Annual wellness",
@@ -479,6 +478,7 @@ describe("provider encounter workflow", () => {
       operational_state: "late",
       patient_id: 9,
       encounter_id: null,
+      chart_status: "unopened",
       provider_assignment_available: false,
       patient: {
         id: 9,
@@ -526,6 +526,16 @@ describe("provider encounter workflow", () => {
     expect(html).toContain("Synthetic Patient");
     expect(html).toContain("Confirm and begin charting");
     expect(html).not.toContain("SOAP editor");
+  });
+
+  it("offers chart quick links to patient, HPI, and ROS anchors", () => {
+    const html = renderToStaticMarkup(<ChartQuickJump />);
+
+    expect(html).toContain('aria-label="Chart quick navigation"');
+    expect(html).toContain('href="#chart-patient"');
+    expect(html).toContain('href="#chart-hpi"');
+    expect(html).toContain('href="#chart-ros"');
+    expect(html).toContain("Quick jump");
   });
 
   it("keeps SOAP save reconciliation inside the confirmed chart workspace", () => {
@@ -598,7 +608,7 @@ describe("provider encounter workflow", () => {
     );
     expect(html).not.toContain("Quick exam entry");
     expect(html).not.toContain("Personal macros");
-    expect(html).toContain("Start from a template");
+    expect(html).not.toContain("Apply starter text");
     expect(html).toContain("Save draft");
     expect(html).not.toContain("autosav");
   });

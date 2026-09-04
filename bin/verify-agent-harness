@@ -49,12 +49,22 @@ REQUIRED_INSTRUCTION_FILES = [
     "records/progress/INDEX.md",
     "records/tasks/INDEX.md",
 ]
-REQUIRED_SKILLS = {"plan", "act", "vault-context", "create-skill", "frontend-ui", "startdev"}
+REQUIRED_SKILLS = {
+    "plan",
+    "act",
+    "vault-context",
+    "create-skill",
+    "frontend-ui",
+    "startdev",
+    "task-trace",
+}
 REQUIRED_COMMANDS = (
     "bin/agent-preflight",
     "bin/agent-check",
     "bin/create-agent-skill",
+    "bin/dev",
     "bin/startdev-refresh",
+    "bin/task-trace",
     "bin/verify-agent-harness",
     "bin/verify-vault",
     "bin/vault-audit",
@@ -177,7 +187,7 @@ def main() -> int:
         if not metadata.is_file():
             errors.append(f"{path.parent.relative_to(ROOT)}: missing agents/openai.yaml")
 
-    for name in ("plan", "act", "startdev"):
+    for name in ("plan", "act", "startdev", "task-trace"):
         metadata = canonical_root / name / "agents" / "openai.yaml"
         if metadata.is_file() and "allow_implicit_invocation: false" not in metadata.read_text(encoding="utf-8"):
             errors.append(f"{metadata.relative_to(ROOT)}: command-like skill must be explicit-only")
@@ -248,11 +258,13 @@ def main() -> int:
         "agent-harness/workflows/shortcut-task.md": (
             "before every repository-changing task",
             "overlapping paths",
+            "codex mcp login shortcut",
             "Done",
         ),
         "docs/development/shortcut.md": (
             "https://app.shortcut.com/apply-1/roadmap",
             "6a9a1399-c3ef-478b-ad87-4acd84f2b7fa",
+            "codex mcp login shortcut",
             "500000008",
             "500000010",
         ),
@@ -297,40 +309,62 @@ def main() -> int:
     if startdev.is_file():
         lifecycle = startdev.read_text(encoding="utf-8")
         for command in (
-            "bin/startdev-refresh",
-            "git fetch",
-            "git pull --ff-only",
-            "./dev_server_startup stop",
+            "bin/dev start",
+            "bin/dev refresh",
+            "bin/dev stop",
+            "bin/dev status",
+            "bin/dev setup",
+            "bin/dev reset-data --yes",
             "DATABASE_URL",
-            "Rails.env.development?",
-            "ActiveRecord::Base.connection_db_config",
-            "db:seed:replant",
-            "APP_SYNTHETIC_SEEDS=1",
-            "./dev_server_startup start",
-            "./dev_server_startup status",
+            "pending migrations",
+            "tmp/task-traces/",
         ):
             if command not in lifecycle:
-                errors.append(f"{startdev.relative_to(ROOT)}: missing guarded refresh command {command!r}")
+                errors.append(f"{startdev.relative_to(ROOT)}: missing canonical lifecycle marker {command!r}")
 
-    startdev_refresh = ROOT / "bin" / "startdev-refresh"
-    if startdev_refresh.is_file():
-        implementation = startdev_refresh.read_text(encoding="utf-8")
+    lifecycle_path = ROOT / "bin" / "lib" / "development_lifecycle.rb"
+    if lifecycle_path.is_file():
+        implementation = lifecycle_path.read_text(encoding="utf-8")
         for marker in (
             '"status", "--porcelain=v1", "--untracked-files=all"',
             '"fetch", remote',
-            '"pull", "--ff-only"',
-            'ENV.fetch("DATABASE_URL", "").empty?',
-            'Rails.env.development?',
-            'ActiveRecord::Base.connection_db_config',
+            '"merge", "--ff-only", "@{upstream}"',
+            'diverged from',
+            '@environment.fetch("DATABASE_URL", "").empty?',
+            'apply[a-z0-9_]*_development',
+            '"db:create"',
+            '"db:migrate"',
+            '"SCHEMA" => sentinel',
+            '"SKIP_TEST_DATABASE" => "1"',
             '"db:seed:replant"',
             '"APP_SYNTHETIC_SEEDS" => "1"',
-            'File.join(ROOT, "dev_server_startup")',
+            'reset-data is destructive',
+            'db:abort_if_pending_migrations',
+            'select_value("SELECT 1")',
+            'TaskTrace.start',
         ):
             if marker not in implementation:
-                errors.append(f"bin/startdev-refresh: missing safety marker {marker!r}")
-        for forbidden in ("db:drop", "db:reset", "git reset", "docker volume rm"):
+                errors.append(f"bin/lib/development_lifecycle.rb: missing safety marker {marker!r}")
+        for forbidden in ('"db:drop"', '"db:reset"', '"git", "reset"', '"git", "merge", "--no-edit"', "docker volume rm"):
             if forbidden in implementation:
-                errors.append(f"bin/startdev-refresh: forbidden destructive fallback {forbidden!r}")
+                errors.append(f"bin/lib/development_lifecycle.rb: forbidden lifecycle fallback {forbidden!r}")
+    else:
+        errors.append("missing canonical lifecycle implementation: bin/lib/development_lifecycle.rb")
+
+    task_trace = canonical_root / "task-trace" / "SKILL.md"
+    if task_trace.is_file():
+        guidance = task_trace.read_text(encoding="utf-8")
+        for marker in (
+            "observable agent and tool activity",
+            "cannot recover time before activation",
+            "bin/task-trace start",
+            "bin/task-trace span",
+            "bin/task-trace finish",
+            "unattributed time",
+            "not a CPU flame graph",
+        ):
+            if marker not in guidance:
+                errors.append(f"{task_trace.relative_to(ROOT)}: missing task-trace boundary {marker!r}")
 
     for relative in REQUIRED_COMMANDS:
         path = ROOT / relative

@@ -1,4 +1,4 @@
-import type { PatientCareSummary } from "../../api/contracts";
+import type { PatientCareSummary } from "../src/api/contracts";
 
 type Allergy = PatientCareSummary["allergies"]["items"][number];
 type Medication = PatientCareSummary["medications"]["items"][number];
@@ -170,7 +170,7 @@ function summary({
   };
 }
 
-// Wholly synthetic board-only summaries. They are never mapped to API record IDs.
+// Independently invented test summaries. This file is outside the production source graph.
 export const EXAMPLE_CARE_SUMMARIES: Readonly<
   Record<string, PatientCareSummary>
 > = {
