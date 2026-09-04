@@ -4,7 +4,7 @@ This document defines how to make meaningful progress across the five APPly capa
 
 ## Verified starting point
 
-- Authoritative repository: `C:\Users\joshr\Desktop\Work\APPly`, branch `joshuarice/sc-132/make-inventory-movement-ledger-p`, HEAD `e1b3040` (`Fix Windows PostgreSQL client fallback`).
+- Authoritative repository: `C:\Users\joshr\Desktop\Work\APPly`, branch `joshuarice/sc-132/make-inventory-movement-ledger-p`, HEAD `49572d1` (`Refresh roadmap execution evidence`), with the inventory/helper commit at `e1b3040` in history.
 - The working tree is clean at this checkpoint. The approved shared-checkout inventory work is included in that HEAD; no additional inventory diff is waiting to be staged.
 - The migration directory and both checked databases report 65 migrations applied, latest `20260903001400` (`apply_development` and `apply_test`).
 - Rails `/up` responds `200` on `127.0.0.1:3001`; the Vite root responds `200` on `127.0.0.1:3000`.

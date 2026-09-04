@@ -1,7 +1,7 @@
 # Cash-Pay Billing Audit Evidence
 
 Date: 2026-09-04
-Evidence commit: `dc7909b` (billing repair), rerun recorded at `e1b3040`
+Evidence commit: `dc7909b` (billing repair), rerun recorded at `e1b3040`, evidence refresh at `49572d1`
 Evidence branch: `joshuarice/sc-132/make-inventory-movement-ledger-p`
 Push status: current checkout is synchronized with its configured origin branch; no push was performed in this run.
 
