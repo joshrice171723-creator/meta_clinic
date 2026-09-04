@@ -252,9 +252,6 @@ export function ClinicFrame({
                         }
                       }}
                     >
-                      <span className="practice-location-menu-heading">
-                        Switch location
-                      </span>
                       {locations.map((site, index) => (
                         <button
                           key={site.id}
@@ -268,11 +265,6 @@ export function ClinicFrame({
                           onClick={() => selectLocation(site.id)}
                         >
                           <span>{site.name || site.code}</span>
-                          {site.id === selectedLocationId && (
-                            <span className="practice-location-current">
-                              Current
-                            </span>
-                          )}
                         </button>
                       ))}
                     </div>
