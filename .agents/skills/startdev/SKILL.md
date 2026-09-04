@@ -72,7 +72,7 @@ This intentionally removes all records from the selected local development datab
 
 ### 4. Start and verify
 
-Return to the repository root and run `./dev_server_startup start`, adding `--no-browser` only when requested or when the environment cannot open a browser. Do not pass `--seed`; the database was already replanted.
+Return to the repository root and run `./dev_server_startup start --no-seed-refresh` with the same guarded database, schema-load and test-database environment, adding `--no-browser` only when requested or when the environment cannot open a browser. Do not pass `--seed`; the database was already replanted, and startup must not touch a separate test database or repeat the refresh.
 
 Treat the refresh as successful only when the managed command reports PostgreSQL, Rails and Vite ready and `./dev_server_startup status` confirms the concise final state. If startup fails, preserve the error, inspect only relevant files under `tmp/dev/logs`, run status, and fix only a consequential in-scope lifecycle defect. Do not substitute an unrecorded manual server and report success.
 

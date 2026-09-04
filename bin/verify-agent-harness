@@ -332,6 +332,8 @@ def main() -> int:
             '"SKIP_TEST_DATABASE" => "1"',
             '"db:seed:replant"',
             '"APP_SYNTHETIC_SEEDS" => "1"',
+            '"--no-seed-refresh"',
+            'environment: local_environment',
             'File.join(ROOT, "dev_server_startup")',
         ):
             if marker not in implementation:
