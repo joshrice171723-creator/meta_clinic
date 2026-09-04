@@ -90,6 +90,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #000;
 }
 .clinic-theme .clinic-sidebar .practice-location-chevron {
   flex: 0 0 auto;
@@ -141,6 +142,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #000;
 }
 .clinic-theme .clinic-sidebar .practice-location-option:hover,
 .clinic-theme .clinic-sidebar .practice-location-option[data-highlighted="true"],
