@@ -11,6 +11,10 @@ Date: 2026-09-03
 
 ## Verification
 
+### Current execution-matrix follow-up
+
+The task-owned PostgreSQL database `apply_portal_acceptance_20260904` was loaded from the current schema with all current migration versions registered. `test/integration/patient_portal_lifecycle_test.rb` passed with 5 runs, 35 assertions, 0 failures, 0 errors, and 0 skips.
+
 | Check | Result | Notes |
 | --- | --- | --- |
 | Ruby syntax | Pass | Lifecycle services, controllers, and migration returned `Syntax OK`. |
@@ -19,7 +23,7 @@ Date: 2026-09-03
 | Web typecheck | Blocked by unrelated shared work | `npm run typecheck` reached another agent's `apps/web/src/features/clinic/Reminders.tsx` and failed on MUI `Stack` `justifyContent` typing at lines 12 and 31. |
 | Web test suite | Inconclusive | The concurrent `npm test` process did not finish during the bounded verification window. |
 | Rails route load | Inconclusive | The concurrent `bundle exec rails routes` process did not finish during the bounded verification window. |
-| Patient Portal integration tests | Not run | Route wiring and test fixtures are in mixed/shared files and require reconciliation first. |
+| Patient Portal integration tests | Pass | 5 runs, 35 assertions, 0 failures, 0 errors, 0 skips against the task-owned migrated database. |
 | Live browser smoke | Not run | The activation route is not yet safely committed with the mixed `App.tsx`/routes wiring. |
 
 ## Required follow-up acceptance
