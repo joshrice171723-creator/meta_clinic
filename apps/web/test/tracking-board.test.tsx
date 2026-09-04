@@ -284,22 +284,15 @@ describe("tracking-board identities and waiting times", () => {
 describe("board and Operations presentation boundaries", () => {
   it("renders a compact patient table without redundant workflow text", () => {
     const html = renderToStaticMarkup(<OverviewView patientAccess />);
-    for (const text of ["Non-member", "Timing", "Vitals"])
+    for (const text of ["Non-member", "Timing", "Action"])
       expect(html).toContain(text);
     expect(html).toContain("Not verified");
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('for="board-stage"');
     expect(html).toContain("Clinic patient tracking board");
-    expect(html).not.toContain(
-      'tracking-chart-action-label">Select chart</span>',
-    );
-    for (const status of [
-      "Above normal limits",
-      "Within normal limits",
-      "Below normal limits",
-    ])
-      expect(html).toContain(status);
+    expect(html).toContain('tracking-chart-action-label">Select chart</span>');
+    expect(html).not.toContain("Above normal limits");
     expect(html).not.toContain("Synthetic display classifications");
     expect(html).toContain(">Provider<");
     expect(html).toContain(">Care<");
@@ -364,11 +357,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).not.toContain("tracking-status-copy");
     expect(html).toContain("Checked in");
     expect(html).toContain("Waiting room");
-    expect(html).not.toContain('href="/clinic/patients/41"');
-    expect(html).not.toContain(
-      'tracking-chart-action-label">View patient</span>',
-    );
-    expect(html).not.toContain('href="/clinic/patients/42/encounters/42"');
+    expect(html).toContain('tracking-chart-action-label">Open chart</span>');
     const scheduledOnly = renderToStaticMarkup(
       <TrackingBoardView
         visits={[scheduled]}
@@ -384,7 +373,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain('aria-label="Resize Patient column"');
     expect(html).toContain('aria-label="Resize Room column"');
     expect(html).toContain('aria-label="Resize Timing column"');
-    expect(html).not.toContain('aria-label="Resize Action column"');
+    expect(html).toContain('aria-label="Resize Action column"');
     expect(html).not.toContain('aria-label="Resize Status column"');
     expect(html).toContain(
       'aria-label="Resize Care column" aria-valuemin="180"',
@@ -393,7 +382,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:1120px;min-width:1120px;table-layout:fixed"',
+      'style="width:1090px;min-width:1090px;table-layout:fixed"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
@@ -756,9 +745,16 @@ describe("mapped read-only care flow", () => {
     );
     for (const name of ["subjective", "objective", "assessment", "plan"])
       expect(html).toContain(`name="${name}"`);
-    expect(html).toContain("Apply starter text");
+    expect(html).not.toContain("Apply starter text");
     expect(html).toContain("Save draft");
-    expect(html).toContain("Review every statement before saving.");
+    expect(html).toContain("Review of Systems");
+    expect(html).toContain("0/13 systems with selections");
+    expect(html).toContain(
+      "Click a finding to cycle: positive, negative, then not reviewed.",
+    );
+    expect(html).toContain('id="chart-hpi"');
+    expect(html).toContain('id="chart-ros"');
+    expect(html).toContain("Capture the patient-reported history");
     expect(html).not.toContain(
       "Starter normal finding must not appear before application",
     );

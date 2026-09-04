@@ -406,12 +406,29 @@ const allColumns: ColumnKey[] = [
 const initialColumns: ColumnKey[] = [
   "location",
   "patient",
+  "action",
   "reason",
   "care",
-  "triage",
   "provider",
   "wait",
 ];
+const trackingBoardColumnsStorageKey = "apply.tracking-board.columns.v2";
+function storedTrackingBoardColumns(): ColumnKey[] {
+  if (typeof window === "undefined") return initialColumns;
+  try {
+    const value = JSON.parse(
+      window.localStorage.getItem(trackingBoardColumnsStorageKey) ?? "null",
+    );
+    if (!Array.isArray(value)) return initialColumns;
+    const valid = value.filter((column): column is ColumnKey =>
+      allColumns.includes(column),
+    );
+    if (!valid.length) return initialColumns;
+    return valid.includes("action") ? valid : [...valid, "action"];
+  } catch {
+    return initialColumns;
+  }
+}
 const initialColumnWidths: Record<ColumnKey, number> = {
   patient: 240,
   stage: 175,
@@ -987,12 +1004,24 @@ export function TrackingBoardView({
   clinicians?: readonly ExampleClinician[];
 }) {
   const [stage, setStage] = useState("all");
-  const [columns, setColumns] = useState<ColumnKey[]>(initialColumns);
+  const [columns, setColumns] = useState<ColumnKey[]>(
+    storedTrackingBoardColumns,
+  );
   const [sortBy, setSortBy] = useState<ColumnKey>("wait");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [columnWidths, setColumnWidths] =
     useState<Record<ColumnKey, number>>(initialColumnWidths);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        trackingBoardColumnsStorageKey,
+        JSON.stringify(columns),
+      );
+    } catch {
+      // Preferences are best effort.
+    }
+  }, [columns]);
   const [providerAssignments, setProviderAssignments] = useState<
     Record<string, { clinicianId: string | null; token: string | null }>
   >(() =>
