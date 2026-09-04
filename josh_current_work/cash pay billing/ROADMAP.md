@@ -4,7 +4,7 @@
 
 Deliver a professional, auditable cash-pay billing capability for APPly clinics. Staff must be able to create and manage receivables, collect cash safely, track drawer cash, reconcile discrepancies, and issue truthful receipts without making the browser or a payment provider the financial authority.
 
-The implementation source of truth is the APPly package: [Cash-Pay Billing Implementation Package](../../APPly/APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md). This folder is the cross-project roadmap handoff: it defines sequencing, ownership, production gates, and the build/audit artifacts.
+The implementation source of truth is the APPly package: [Cash-Pay Billing Implementation Package](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md). This folder is the cross-project roadmap handoff: it defines sequencing, ownership, production gates, and the build/audit artifacts.
 
 ## Current position
 
@@ -100,6 +100,6 @@ Exit: zero open P0/P1 findings, reproducible release evidence, named on-call own
 
 - [Build plan](CASH_PAY_BILLING_BUILD_PLAN.md)
 - [Audit plan](CASH_PAY_BILLING_AUDIT_PLAN.md)
-- [APPly implementation package](../../APPly/APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md)
-- [APPly test plan](../../APPly/APPlyVault/03%20Execution/Cash-Pay%20Billing%20Test%20Plan.md)
-- [APPly progress log](../../APPly/APPlyVault/03%20Execution/Progress%20Log.md)
+- [APPly implementation package](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md)
+- [APPly test plan](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Test%20Plan.md)
+- [APPly progress log](../../APPlyVault/03%20Execution/Progress%20Log.md)

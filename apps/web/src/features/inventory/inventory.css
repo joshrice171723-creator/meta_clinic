@@ -904,6 +904,45 @@ code {
   color: var(--inventory-muted);
   font-size: 13px;
 }
+.inventory-ledger-toolbar {
+  align-items: end;
+  margin-bottom: 16px;
+}
+.inventory-ledger-toolbar .inventory-field {
+  flex: 1 1 280px;
+  margin: 0;
+}
+.inventory-ledger-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.inventory-ledger-summary .inventory-results-count {
+  margin: 0;
+  white-space: nowrap;
+}
+.inventory-empty-state {
+  border: 1px dashed var(--inventory-control);
+  border-radius: 10px;
+  background: var(--inventory-background);
+  padding: 28px 24px;
+  text-align: center;
+}
+.inventory-empty-state strong,
+.inventory-empty-state p {
+  display: block;
+}
+.inventory-empty-state strong {
+  font-size: 15px;
+}
+.inventory-empty-state p {
+  max-width: 56ch;
+  margin: 6px auto 0;
+  color: var(--inventory-muted);
+  font-size: 13px;
+}
 .inventory-field {
   font-size: 13px;
 }

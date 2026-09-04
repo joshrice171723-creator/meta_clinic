@@ -4,9 +4,9 @@
 
 This plan turns the [cash-pay billing roadmap](ROADMAP.md) into implementation work. The live APPly package and test plan remain authoritative for actual route names, current status, and evidence:
 
-- [Implementation package](../../APPly/APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md)
-- [Test plan](../../APPly/APPlyVault/03%20Execution/Cash-Pay%20Billing%20Test%20Plan.md)
-- [Progress log](../../APPly/APPlyVault/03%20Execution/Progress%20Log.md)
+- [Implementation package](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md)
+- [Test plan](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Test%20Plan.md)
+- [Progress log](../../APPlyVault/03%20Execution/Progress%20Log.md)
 
 Use Rails for authority and persistence, PostgreSQL for constraints and locking, and MUI for new staff UI. Use exact-decimal strings across JSON. Every change is additive and forward-only. Keep unrelated dirty work outside the billing commit.
 
