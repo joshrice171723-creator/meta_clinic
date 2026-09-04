@@ -69,6 +69,7 @@ module Clinic
           id: payment.id,
           currency: payment.currency,
           amount: decimal(payment.amount),
+          allocated_amount: decimal(allocated),
           unapplied_amount: decimal([payment.amount - allocated, BigDecimal("0")].max),
           created_at: payment.created_at.iso8601,
           cash_payment: payment.cash_tender.present?,

@@ -25,6 +25,7 @@ import { Staff } from "./features/clinic/Staff";
 import { FrontDesk } from "./features/clinic/FrontDesk";
 import { Billing } from "./features/clinic/Billing";
 import { BillingDashboard } from "./features/clinic/BillingDashboard";
+import { Reminders } from "./features/clinic/Reminders";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import {
   ChartSelectionPage,
@@ -32,6 +33,7 @@ import {
 } from "./features/clinic/ChartSelectionPage";
 import { InventoryApp } from "./features/inventory/InventoryApp";
 import { PatientPortal } from "./features/patientPortal/PatientPortal";
+import { PatientPortalActivation } from "./features/patientPortal/PatientPortalActivation";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -196,6 +198,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <Billing />
   ) : path === "/clinic/billing" ? (
     <BillingDashboard />
+  ) : path === "/clinic/reminders" ? (
+    <Reminders />
   ) : (
     <h1>Page not found.</h1>
   );
@@ -356,7 +360,7 @@ export function App() {
       .catch(() => {});
   }, []);
   const path = window.location.pathname.replace(/\/$/, "") || "/";
-  const publicPage = ["/", "/contact", "/login"].includes(path);
+  const publicPage = ["/", "/contact", "/login", "/patient-portal/activate"].includes(path);
   const [session, setSession] = useState<{
     user?: User | null;
     error?: string;
@@ -400,6 +404,7 @@ export function App() {
     );
   const user = session.user || null;
   let page: ReactNode;
+  if (path === "/patient-portal/activate") return <PatientPortalActivation />;
   if (path.startsWith("/clinic") && user) {
     return <ClinicApplication user={user} />;
   }
