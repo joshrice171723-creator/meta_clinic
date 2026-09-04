@@ -11,11 +11,13 @@
 
 Determine whether the portal can expose the correct patient’s approved information and accept bounded requests without becoming an ungoverned clinical, prescribing, payment, or emergency system. Audit the full journey from invitation and session assurance through dashboard reads, request submission, scheduling/payment/document transitions, result release, support, failure recovery, and rollback.
 
+The current implementation target is the owner-approved billing-only first release. The formal evidence-first audit is intentionally deferred until the implementation slice is complete. Implementation checks below are evidence inputs only; they do not create audit acceptance.
+
 Passing automated tests does not prove HIPAA compliance, clinical safety, reimbursement eligibility, accessibility conformance, or vendor/contract approval. Those decisions require named owners and evidence outside the codebase.
 
 ## 2. Required evidence package
 
-Collect the commit/environment manifest, route and serializer inventory, schema/migrations/indexes/constraints, identity and capability matrix, data-flow/threat model, encryption/key-rotation notes, audit-event catalog, retention/legal-hold policy, vendor/processor/scribe/lab/e-prescribing review, notification policy, document/PDF policy, incident/runbooks, accessibility report, synthetic account fixtures, screenshots, and pilot go/no-go record.
+For the billing-only first-release target, collect the commit/environment manifest, route and serializer inventory, identity and capability matrix, Omni preview denial/session-scope evidence, billing ledger and exact-decimal projection evidence, no-store/CSRF/origin evidence, privacy/log review, and the still-required vendor/processor, document/PDF/email, finance/tax, security, accessibility, operations, real-data, and pilot go/no-go records.
 
 For every operation, map: role, patient/practice relationship, capability, UI control, server enforcement, audit event, source/version, failure state, retry behavior, and evidence location.
 

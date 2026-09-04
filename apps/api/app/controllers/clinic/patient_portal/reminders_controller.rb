@@ -1,6 +1,8 @@
 module Clinic
   module PatientPortal
     class RemindersController < BaseController
+      before_action :block_non_billing_action
+
       def index
         reminders = portal_patient.patient_reminders.includes(:communication_endpoint, :delivery_attempts).order(scheduled_at: :asc, id: :asc).limit(50)
         record_portal_read("patient_portal.reminders.read")

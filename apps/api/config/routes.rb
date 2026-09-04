@@ -78,6 +78,7 @@ Rails.application.routes.draw do
       get "purchase-orders/:id", to: "inventory/management#purchase_order"
       post "purchase-orders/:id/transition", to: "inventory/management#transition_purchase_order"
       post "purchase-orders/:id/cancel-remainder", to: "inventory/management#cancel_remainder"
+      post "shipments", to: "inventory/management#create_shipment"
       get "receiving", to: "inventory/management#receiving"
       post "receipts", to: "inventory/management#create_receipt"
       get "lots", to: "inventory/management#lots"
@@ -162,6 +163,7 @@ Rails.application.routes.draw do
       post "reminder_preferences", to: "reminder_preferences#update"
       resources :appointment_requests, only: %i[index create]
       resources :requests, controller: "requests", only: %i[index create]
+      patch "development_patient", to: "development_patient#update"
       post "invitation/activate", to: "activation#create"
       post "step_up", to: "step_up#create"
       post "recovery", to: "recovery#create"

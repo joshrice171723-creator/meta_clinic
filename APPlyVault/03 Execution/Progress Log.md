@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,14 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-04 — Billing-only patient portal and Omni preview implemented
+
+**Implementation:** applied the owner-approved D-062 first-release boundary. The patient portal context is now a no-store, read-only billing projection containing only practice/patient identity metadata, exact-decimal invoices and lines, balances, credits, payments, allocations, refunds, receipt-availability state, and billing capability flags. The normal development patient remains bound to its assigned portal identity. Dormant appointment, intake, clinical, reminder, messaging, refill, and request actions are blocked at the patient-portal API boundary.
+
+**Omni development path:** added a local-only, server-gated, read-only preview switch. Omni enters through the existing local development login, Rails derives the assigned practice from Omni's membership, accepts only `SYN-OMNI-*` patients in that practice, and stores the selected patient only in the current server session. A new session starts from the first development patient; no production impersonation or real data path was added. The frontend renders the same billing portal for the selected patient with an additional Omni-only selector.
+
+**Limits:** focused automated checks and source verification are implementation evidence, not the formal audit or release acceptance. Provider/Stripe/security/operations/finance approvals, PDF/email delivery policy, checks/OCR, card-present equipment, Superbills, real data, accessibility evidence, deployment, and go/no-go approval remain blocked.
 
 ## 2026-09-03 — Billing package consolidated to Luna-only execution
 

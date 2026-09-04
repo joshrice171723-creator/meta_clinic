@@ -1,31 +1,58 @@
-import { Field, Form, useResource } from "../../shared/ui";
+import { useState } from "react";
 import type { PatientPortalContext } from "../../api/contracts";
+import { api } from "../../api/client";
+import { Form, useResource } from "../../shared/ui";
 import {
   Alert,
   Box,
   Chip,
   CircularProgress,
+  Divider,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Typography,
 } from "@mui/material";
-import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+
+function money(currency: string, amount: string) {
+  return `${currency} ${amount}`;
+}
 
 export function PatientPortal() {
   const resource = useResource<PatientPortalContext>(
     "/api/patient_portal/context",
   );
   const context = resource.data;
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  tomorrow.setMinutes(0, 0, 0);
-  const localInput = (value: Date) => {
-    const offset = value.getTimezoneOffset();
-    return new Date(value.getTime() - offset * 60_000)
-      .toISOString()
-      .slice(0, 16);
-  };
+  const [previewError, setPreviewError] = useState("");
+  const [switchingPatient, setSwitchingPatient] = useState(false);
+
+  async function switchPreviewPatient(patientId: number) {
+    if (
+      switchingPatient ||
+      patientId === context?.development_preview?.selected_patient_id
+    )
+      return;
+    setSwitchingPatient(true);
+    setPreviewError("");
+    try {
+      await api("/api/patient_portal/development_patient", {
+        method: "PATCH",
+        body: { patient_id: patientId },
+      });
+      resource.refresh();
+    } catch (error) {
+      setPreviewError(
+        error instanceof Error
+          ? error.message
+          : "The development patient could not be changed.",
+      );
+    } finally {
+      setSwitchingPatient(false);
+    }
+  }
 
   return (
     <Box
@@ -62,7 +89,7 @@ export function PatientPortal() {
               variant="h3"
               sx={{ fontWeight: 700, letterSpacing: "-0.03em" }}
             >
-              Your care, in one place.
+              Billing at a glance.
             </Typography>
           </Box>
           <Form
@@ -109,13 +136,58 @@ export function PatientPortal() {
                 </Box>
                 <Chip
                   icon={<LockOutlinedIcon />}
-                  label="Private session"
+                  label="Private read-only session"
                   color="success"
                   variant="outlined"
                   sx={{ alignSelf: "flex-start" }}
                 />
               </Stack>
             </Paper>
+
+            {context.development_preview && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: "1px solid #d6e1dd",
+                  borderRadius: 3,
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Development patient preview
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
+                  Omni can inspect each development patient&apos;s billing view.
+                  This selector is session-scoped and read-only.
+                </Typography>
+                <Select
+                  fullWidth
+                  value={context.development_preview.selected_patient_id}
+                  onChange={(event) =>
+                    void switchPreviewPatient(Number(event.target.value))
+                  }
+                  disabled={switchingPatient}
+                  inputProps={{ "aria-label": "Development patient" }}
+                  sx={{ mt: 2, maxWidth: 520 }}
+                >
+                  {context.development_preview.patients.map((patient) => (
+                    <MenuItem key={patient.id} value={patient.id}>
+                      {patient.display_name} · {patient.reference}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {switchingPatient && (
+                  <Typography role="status" sx={{ mt: 1 }}>
+                    Loading selected patient…
+                  </Typography>
+                )}
+                {previewError && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {previewError}
+                  </Alert>
+                )}
+              </Paper>
+            )}
 
             {context.notices.map((notice) => (
               <Alert key={notice} severity="info">
@@ -125,394 +197,152 @@ export function PatientPortal() {
 
             <Paper
               elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              aria-labelledby="reminders-heading"
+              sx={{
+                p: { xs: 2.5, md: 4 },
+                border: "1px solid #d6e1dd",
+                borderRadius: 3,
+              }}
             >
-              <Typography id="reminders-heading" variant="h6" sx={{ fontWeight: 700 }}>
-                Patient reminders
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Operational reminders use minimum-content previews. Delivery is not a guarantee and this is not an emergency channel.
-              </Typography>
-              {context.reminders.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 2 }}>No reminders are currently scheduled.</Typography>
-              ) : context.reminders.map((reminder) => (
-                <Box key={reminder.id} sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}>
-                  <Typography sx={{ fontWeight: 700 }}>{reminder.safe_preview}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {reminder.local_schedule_label} · {reminder.channel} · {reminder.status.replaceAll("_", " ")}
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                <AccountBalanceWalletOutlinedIcon color="primary" />
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    Current balance
                   </Typography>
-                  {reminder.status === "delivered" && (
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }}>
-                      <Form endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`} submit="Confirm" retryKey retryKeyField="reminder_action[request_key]" values={{ reminder_action: { action_type: "confirm" } }} onSuccess={resource.refresh} className="pharmacy-form-grid" />
-                      <Form endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`} submit="Request help" retryKey retryKeyField="reminder_action[request_key]" values={{ reminder_action: { action_type: "request_help" } }} onSuccess={resource.refresh} className="pharmacy-form-grid" />
-                    </Stack>
-                  )}
+                  <Typography variant="body2" color="text.secondary">
+                    Posted invoice activity for this patient
+                  </Typography>
                 </Box>
-              ))}
-              <Typography variant="subtitle2" sx={{ mt: 3 }}>Communication preference</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Blocking a channel applies to future operational reminders and is recorded with a versioned change.</Typography>
-              <Form endpoint="/api/patient_portal/reminder_preferences" submit="Block portal reminders" retryKey values={{ preference: { channel: "portal", setting: "blocked", timezone: context.practice.timezone, locale: "en-US" } }} onSuccess={resource.refresh} className="pharmacy-form-grid" />
-            </Paper>
-
-            <Paper
-              elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Intake &amp; care preferences
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Profile: {context.intake.status.replaceAll("_", " ")} ·
-                Emergency contacts on file:{" "}
-                {context.intake.emergency_contact_count} · Consent:{" "}
-                {context.intake.consent_status.replaceAll("_", " ")}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Intake forms and consent capture are staged for the next enabled
-                clinic workflow.
-              </Typography>
-            </Paper>
-
-            {(context.capabilities.messages_write ||
-              context.capabilities.refill_requests_write) && (
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Contact your care team
+              </Stack>
+              {context.balances.length === 0 ? (
+                <Typography color="text.secondary" sx={{ mt: 3 }}>
+                  No invoice or payment activity is recorded.
                 </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Send a non-urgent request. A request is not a diagnosis,
-                  prescription, or emergency service.
-                </Typography>
-                <Form
-                  endpoint="/api/patient_portal/requests"
-                  submit="Send request"
-                  retryKey
-                  retryKeyField="patient_portal_request[request_key]"
-                  onSuccess={resource.refresh}
+              ) : (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+                    gap: 2,
+                    mt: 3,
+                  }}
                 >
-                  <Field
-                    name="patient_portal_request[request_type]"
-                    label="Request type"
-                    options={[
-                      ["message", "General question"],
-                      ...(context.capabilities.refill_requests_write
-                        ? [["refill", "Refill request"] as [string, string]]
-                        : []),
-                    ]}
-                  />
-                  <Field
-                    name="patient_portal_request[content]"
-                    label="What can we help with?"
-                    type="textarea"
-                    maxLength={10000}
-                  />
-                </Form>
-                {context.requests.length > 0 && (
-                  <Stack spacing={1} sx={{ mt: 3 }}>
-                    <Typography variant="subtitle2">Recent requests</Typography>
-                    {context.requests.slice(0, 5).map((request) => (
+                  {context.balances.map((balance) => (
+                    <Box key={balance.currency}>
+                      <Typography variant="overline" color="text.secondary">
+                        {balance.currency} balance
+                      </Typography>
+                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                        {money(balance.currency, balance.balance_amount)}
+                      </Typography>
                       <Typography
-                        key={request.id}
                         variant="body2"
                         color="text.secondary"
+                        sx={{ mt: 0.5 }}
                       >
-                        {request.request_type === "refill"
-                          ? "Refill request"
-                          : "General question"}{" "}
-                        · {request.status.replaceAll("_", " ")} ·{" "}
-                        {new Date(request.requested_at).toLocaleString()}
-                      </Typography>
-                    ))}
-                  </Stack>
-                )}
-              </Paper>
-            )}
-
-            {context.capabilities.appointment_requests_write && (
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Request an appointment
-                </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Choose a preferred two-hour window. The care team confirms
-                  availability before anything is booked.
-                </Typography>
-                <Form
-                  endpoint="/api/patient_portal/appointment_requests"
-                  submit="Send appointment request"
-                  retryKey
-                  onSuccess={resource.refresh}
-                  transform={(values) => ({
-                    ...values,
-                    starts_at: new Date(String(values.starts_at)).toISOString(),
-                    ends_at: new Date(String(values.ends_at)).toISOString(),
-                  })}
-                >
-                  <Field
-                    name="starts_at"
-                    label="Preferred start"
-                    type="datetime-local"
-                    value={localInput(tomorrow)}
-                  />
-                  <Field
-                    name="ends_at"
-                    label="Preferred end"
-                    type="datetime-local"
-                    value={localInput(
-                      new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
-                    )}
-                  />
-                </Form>
-                {context.appointment_requests.length > 0 && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 2 }}
-                  >
-                    Latest request: {context.appointment_requests[0].status} for{" "}
-                    {new Date(
-                      context.appointment_requests[0].starts_at,
-                    ).toLocaleString()}
-                    .
-                  </Typography>
-                )}
-              </Paper>
-            )}
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 3,
-              }}
-            >
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  sx={{ mb: 2, alignItems: "center" }}
-                >
-                  <EventAvailableOutlinedIcon color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Upcoming appointments
-                  </Typography>
-                </Stack>
-                {context.upcoming_appointments.length === 0 ? (
-                  <Typography color="text.secondary">
-                    No upcoming appointments are recorded.
-                  </Typography>
-                ) : (
-                  context.upcoming_appointments.map((appointment) => (
-                    <Box
-                      key={appointment.id}
-                      sx={{ py: 1.5, borderTop: "1px solid #e7eeeb" }}
-                    >
-                      <Typography>
-                        {new Date(appointment.starts_at).toLocaleString()}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {appointment.visit_type || "Visit"} ·{" "}
-                        {appointment.status}
+                        Invoiced {balance.invoiced_amount} · Paid {balance.allocated_amount} · Credits {balance.credited_amount}
                       </Typography>
                     </Box>
-                  ))
-                )}
-              </Paper>
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  sx={{ mb: 2, alignItems: "center" }}
-                >
-                  <AccountBalanceWalletOutlinedIcon color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Open balance
-                  </Typography>
-                </Stack>
-                {context.balances.length === 0 ? (
-                  <Typography color="text.secondary">
-                    No posted balance is recorded.
-                  </Typography>
-                ) : (
-                  context.balances.map((balance) => (
-                    <Typography
-                      key={balance.currency}
-                      variant="h4"
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {balance.currency} {balance.balance_amount}
-                    </Typography>
-                  ))
-                )}
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 1 }}
-                >
-                  Payment collection is not enabled in this development build.
-                </Typography>
-              </Paper>
-            </Box>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 3,
-              }}
-            >
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Visit summaries
-                </Typography>
-                {context.visit_summaries.length === 0 ? (
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    No signed visit summary is available yet.
-                  </Typography>
-                ) : (
-                  context.visit_summaries.map((summary) => (
-                    <Box
-                      key={summary.id}
-                      sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        Signed{" "}
-                        {summary.signed_at
-                          ? new Date(summary.signed_at).toLocaleString()
-                          : ""}
-                      </Typography>
-                      {summary.assessment && (
-                        <Typography sx={{ mt: 1 }}>
-                          {summary.assessment}
-                        </Typography>
-                      )}
-                      {summary.plan && (
-                        <Typography color="text.secondary" sx={{ mt: 1 }}>
-                          {summary.plan}
-                        </Typography>
-                      )}
-                    </Box>
-                  ))
-                )}
-              </Paper>
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Results
-                </Typography>
-                {context.results.length === 0 ? (
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    No lab or test results are available yet.
-                  </Typography>
-                ) : (
-                  context.results.map((result) => (
-                    <Box
-                      key={result.id}
-                      sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                    >
-                      <Typography>{result.code}</Typography>
-                      <Typography color="text.secondary">
-                        {result.numeric_value ??
-                          result.text_value ??
-                          result.coded_value ??
-                          "Not recorded"}
-                        {result.unit_code ? ` ${result.unit_code}` : ""}
-                      </Typography>
-                    </Box>
-                  ))
-                )}
-              </Paper>
-            </Box>
-
-            <Paper
-              elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Medication regimen
-              </Typography>
-              {context.medications.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  No active medications are recorded.
-                </Typography>
-              ) : (
-                context.medications.map((medication) => (
-                  <Box
-                    key={medication.id}
-                    sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                  >
-                    <Typography>
-                      {medication.medication || "Medication"}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {[medication.dose, medication.route, medication.frequency]
-                        .filter(Boolean)
-                        .join(" · ") || "Details not recorded"}
-                    </Typography>
-                  </Box>
-                ))
+                  ))}
+                </Box>
               )}
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Refill requests will be enabled after provider messaging is
-                connected.
-              </Typography>
             </Paper>
 
             <Paper
               elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
+              sx={{
+                p: { xs: 2.5, md: 4 },
+                border: "1px solid #d6e1dd",
+                borderRadius: 3,
+              }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Billing history
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                Invoices
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1 }}>
+                Invoice lines and balances are shown exactly as recorded. No
+                payment action is available here.
               </Typography>
               {context.billing.invoices.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  No invoices are posted.
+                <Typography color="text.secondary" sx={{ mt: 3 }}>
+                  No invoices are recorded.
                 </Typography>
               ) : (
-                context.billing.invoices.map((invoice) => (
-                  <Box
-                    key={invoice.id}
-                    sx={{
-                      mt: 2,
-                      pt: 2,
-                      borderTop: "1px solid #e7eeeb",
-                      display: "flex",
-                      flexDirection: { xs: "column", sm: "row" },
-                      justifyContent: "space-between",
-                      gap: 2,
-                    }}
-                  >
-                    <Box>
-                      <Typography>Invoice #{invoice.id}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {invoice.status} ·{" "}
-                        {new Date(invoice.created_at).toLocaleDateString()}
+                <Stack divider={<Divider flexItem />} spacing={2} sx={{ mt: 3 }}>
+                  {context.billing.invoices.map((invoice) => (
+                    <Box key={invoice.id}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        sx={{ gap: 1, justifyContent: "space-between" }}
+                      >
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Invoice {invoice.id} · {invoice.status}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {money(invoice.currency, invoice.balance_amount)} due
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        Total {invoice.total_amount} · Allocated {invoice.allocated_amount} · Credits {invoice.credit_amount}
+                      </Typography>
+                      <Stack spacing={0.5} sx={{ mt: 1 }}>
+                        {invoice.lines.map((line) => (
+                          <Typography key={line.id} variant="body2">
+                            {line.description} · {line.quantity} × {line.posted_amount}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2.5, md: 4 },
+                border: "1px solid #d6e1dd",
+                borderRadius: 3,
+              }}
+            >
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                Payment history
+              </Typography>
+              {context.billing.payments.length === 0 ? (
+                <Typography color="text.secondary" sx={{ mt: 2 }}>
+                  No payments are recorded.
+                </Typography>
+              ) : (
+                <Stack divider={<Divider flexItem />} spacing={2} sx={{ mt: 3 }}>
+                  {context.billing.payments.map((payment) => (
+                    <Box key={payment.id}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        sx={{ gap: 1, justifyContent: "space-between" }}
+                      >
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {money(payment.currency, payment.amount)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(payment.created_at).toLocaleString()}
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        Allocated {payment.allocated_amount} · Unapplied {payment.unapplied_amount}
+                        {payment.cash_payment ? " · Cash payment" : ""}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {invoice.currency} {invoice.balance_amount} due
-                    </Typography>
-                  </Box>
-                ))
+                  ))}
+                </Stack>
               )}
             </Paper>
           </Stack>

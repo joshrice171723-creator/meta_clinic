@@ -15,7 +15,7 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
 
   test "synthetic patient login receives only its assigned portal projection" do
     previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
-    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "test", "1"
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     Development::TestAccounts.prepare!
 
     post "/api/development_session", params: { profile: "patient" }, headers: local_csrf, as: :json
@@ -25,55 +25,83 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     body = response.parsed_body
     assert_equal "patient-portal-context-v1", body.fetch("schema_version")
     assert_equal true, body.fetch("development_only")
+    assert_equal true, body.dig("capabilities", "billing_read")
     assert_equal false, body.dig("capabilities", "payment_collection")
     assert body.fetch("notices").any?
+    %w[upcoming_appointments intake visit_summaries results medications messages reminders reminder_preferences appointment_requests requests].each do |key|
+      refute body.key?(key), "#{key} must not be in the billing-only projection"
+    end
     patient = User.find_by!(email_address: "synthetic-patient@example.invalid")
     assert_equal 1, Clinic::PatientPortal::Identity.available.where(user_id: patient.id).count
 
-    request = {
-      appointment_request: {
-        request_key: "patient-portal-test-1",
-        starts_at: 2.days.from_now.iso8601,
-        ends_at: (2.days.from_now + 2.hours).iso8601
-      }
-    }
-    post "/api/patient_portal/appointment_requests", params: request, headers: local_csrf, as: :json
-    assert_response :created
-    assert_equal "pending", response.parsed_body.dig("appointment_request", "status")
-    post "/api/patient_portal/appointment_requests", params: request, headers: local_csrf, as: :json
-    assert_response :success
-    post "/api/patient_portal/appointment_requests", params: {
-      appointment_request: { request_key: "patient-portal-test-bad", starts_at: 2.days.from_now.iso8601, ends_at: 1.day.from_now.iso8601 }
-    }, headers: local_csrf, as: :json
-    assert_response :unprocessable_entity
+    post "/api/patient_portal/appointment_requests", params: {}, headers: local_csrf, as: :json
+    assert_response :not_found
+    assert_equal "patient_portal_billing_only", response.parsed_body.fetch("code")
+    post "/api/patient_portal/requests", params: {}, headers: local_csrf, as: :json
+    assert_response :not_found
+    get "/api/patient_portal/reminders", headers: @headers
+    assert_response :not_found
+    post "/api/patient_portal/reminder_preferences", params: {}, headers: local_csrf, as: :json
+    assert_response :not_found
+  ensure
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
+  end
 
-    request_payload = {
-      patient_portal_request: {
-        request_key: "patient-portal-message-1",
-        request_type: "message",
-        content: "Please call me about my next visit."
-      }
-    }
-    post "/api/patient_portal/requests", params: request_payload, headers: local_csrf, as: :json
+  test "Omni can preview only synthetic patients and keeps selection in its session" do
+    previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
+    Development::TestAccounts.prepare!
+
+    post "/api/development_session", params: { profile: "omni" }, headers: local_csrf, as: :json
     assert_response :created
-    assert_equal "pending", response.parsed_body.dig("request", "status")
-    first_request_id = response.parsed_body.dig("request", "id")
-    post "/api/patient_portal/requests", params: request_payload, headers: local_csrf, as: :json
-    assert_response :success
-    assert_equal first_request_id, response.parsed_body.dig("request", "id")
-    post "/api/patient_portal/requests", params: request_payload.deep_merge(
-      patient_portal_request: { content: "A different message" }
-    ), headers: local_csrf, as: :json
-    assert_response :unprocessable_entity
     get "/api/patient_portal/context", headers: @headers
-    assert_equal "message", response.parsed_body.fetch("requests").first.fetch("request_type")
+    assert_response :success
+    first_context = response.parsed_body
+    preview = first_context.fetch("development_preview")
+    assert_equal 30, preview.fetch("patients").length
+    first_patient = preview.fetch("patients").first
+    second_patient = preview.fetch("patients").second
+    assert_equal first_patient.fetch("id"), preview.fetch("selected_patient_id")
+
+    patch "/api/patient_portal/development_patient", params: { patient_id: second_patient.fetch("id") }, headers: local_csrf, as: :json
+    assert_response :success
+    assert_equal second_patient.fetch("id"), response.parsed_body.dig("selected_patient", "id")
+    get "/api/patient_portal/context", headers: @headers
+    assert_equal second_patient.fetch("id"), response.parsed_body.dig("patient", "id")
+    assert_equal second_patient.fetch("id"), response.parsed_body.dig("development_preview", "selected_patient_id")
+
+    other = open_session
+    other.host! "localhost:3000"
+    other_headers = { "Origin" => @origin, "REMOTE_ADDR" => "127.0.0.1" }
+    other.get "/api/csrf", headers: other_headers
+    other_headers["X-CSRF-Token"] = other.response.parsed_body.fetch("csrf_token")
+    other.post "/api/development_session", params: { profile: "omni" }, headers: other_headers, as: :json
+    other.get "/api/patient_portal/context", headers: other_headers
+    assert_equal first_patient.fetch("id"), other.response.parsed_body.dig("development_preview", "selected_patient_id")
+
+    patch "/api/patient_portal/development_patient", params: { patient_id: "not-an-id" }, headers: local_csrf, as: :json
+    assert_response :bad_request
+    patch "/api/patient_portal/development_patient", params: { patient_id: "999999999" }, headers: local_csrf, as: :json
+    assert_response :not_found
+  ensure
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
+  end
+
+  test "assigned patient cannot use the Omni preview switch" do
+    previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
+    Development::TestAccounts.prepare!
+    post "/api/development_session", params: { profile: "patient" }, headers: local_csrf, as: :json
+    assert_response :created
+    patch "/api/patient_portal/development_patient", params: { patient_id: 1 }, headers: local_csrf, as: :json
+    assert_response :not_found
   ensure
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
   end
 
   test "ordinary synthetic accounts cannot use the patient portal" do
     previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
-    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "test", "1"
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     Development::TestAccounts.prepare!
     post "/api/development_session", params: { profile: "client-a" }, headers: local_csrf, as: :json
     assert_response :created

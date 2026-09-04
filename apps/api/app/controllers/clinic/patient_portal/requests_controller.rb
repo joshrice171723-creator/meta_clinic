@@ -1,6 +1,8 @@
 module Clinic
   module PatientPortal
     class RequestsController < BaseController
+      before_action :block_non_billing_action
+
       ALLOWED_TYPES = %w[message refill].freeze
 
       def index

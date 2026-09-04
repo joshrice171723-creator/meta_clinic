@@ -7,7 +7,7 @@
 - [Shared roadmap index](../ROADMAP_INDEX.md)
 - Host implementation roadmap: `APPlyVault/03 Execution/Patient Portal Implementation Roadmap.md`
 
-Status: implementation planning artifact. The current repository contains a synthetic development slice; this plan describes the remaining implementation and does not authorize production operation.
+Status: implementation planning artifact. The current repository contains a billing-only local development slice; this plan describes the remaining implementation and does not authorize production operation.
 
 ## 1. Product boundary and assumptions
 
@@ -15,28 +15,32 @@ Rails in `apps/api/` owns authentication, sessions/CSRF, practice and patient te
 
 Use only synthetic records until the Phase 0 owners, contracts, and release gates are accepted. A local development shortcut may create fixtures only when the explicit development flag and loopback boundary are present; it must be unavailable in production.
 
-### In scope
+The first release is billing-only. The ordinary patient path is bound to its assigned active portal identity. Omni's local preview is an additional read-only development path; Rails derives its practice from the Omni membership, accepts only `SYN-OMNI-*` patients, and stores the selected patient only in the current server session.
 
-- Patient identity lifecycle and a narrow authenticated portal shell.
-- Read-only projections for appointments, intake status, released summaries, results, medications, invoices, payments, credits, and request status.
-- Preferred-window appointment requests with staff confirmation fallback.
-- Encrypted, idempotent patient question and refill-request intake.
-- Later gated booking, payment, document, notification, result, and prescribing integrations.
+### In scope for the first release
+
+- Patient identity lifecycle and a narrow authenticated billing portal shell.
+- Read-only projections for invoices, invoice lines, balances, credits, payments, allocations, refunds, and receipt-availability state.
+- Omni's local development preview with a session-scoped synthetic-patient selector.
+- Explicit server-side denial of dormant nonbilling portal routes.
+- Later gated appointment, intake, clinical-release, request, notification, document, payment, and prescribing integrations.
 
 ### Explicitly out of scope until separately approved
 
-Public signup; shared accounts; unreviewed proxy/minor access; emergency care; direct card-number handling; automatic booking; prescription issuance; raw scribe/audio display; unreviewed lab interpretation; unrestricted exports; production data; and claims that tests equal HIPAA, clinical, legal, or reimbursement approval.
+Public signup; shared accounts; unreviewed proxy/minor access; emergency care; appointment/intake/clinical/request/reminder portal actions; payment collection; direct card-number handling; automatic booking; prescription issuance; raw scribe/audio display; unreviewed lab interpretation; unrestricted exports; production data; production impersonation; and claims that tests equal HIPAA, clinical, legal, or reimbursement approval.
 
 ## 2. Current implementation map
 
 The current synthetic slice is implemented in these existing boundaries:
 
 - `apps/api/app/models/clinic/patient_portal/identity.rb` and additive identity migration.
-- `apps/api/app/controllers/clinic/patient_portal/base_controller.rb`, `context_controller.rb`, `appointment_requests_controller.rb`, and `requests_controller.rb`.
+- `apps/api/app/controllers/clinic/patient_portal/base_controller.rb`, `context_controller.rb`, `development_patient_controller.rb`, `appointment_requests_controller.rb`, and `requests_controller.rb`.
 - `apps/api/app/models/clinic/patient_portal/request.rb` and `create_request.rb` for encrypted/idempotent question and refill requests.
 - `apps/api/app/queries/clinic/billing/patient_ledger.rb` for exact-decimal patient ledger projection.
 - `apps/api/config/routes.rb` for `/api/patient_portal/context`, `/appointment_requests`, and `/requests`.
 - `apps/web/src/features/patientPortal/PatientPortal.tsx`, `src/api/contracts.ts`, `src/api/client.ts`, and the shared `Form` helper.
+
+The current context contract contains only patient/practice metadata, read-only billing data, billing capability flags, and notices. Omni additionally receives an in-memory UI selector backed by `PATCH /api/patient_portal/development_patient`; the selected patient is never persisted to a patient identity or browser storage.
 
 The existing request queue intentionally records status and audit metadata but does not deliver messages, prescribe, or resolve a request. Keep that boundary until staff triage and clinical ownership are connected.
 

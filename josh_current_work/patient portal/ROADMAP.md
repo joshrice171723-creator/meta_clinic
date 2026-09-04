@@ -2,13 +2,13 @@
 
 ## Objective
 
-Deliver a secure, patient-scoped portal for a cash-pay clinic. Patients should be able to authenticate, review appointments, intake status, clinician-released summaries, results, medications, invoices and credits, request appointments, and submit bounded questions or refill requests. The portal must remain a presentation and request surface: Rails remains authoritative for identity, tenant scope, clinical records, scheduling, inventory, billing, audit, and every state transition.
+Deliver a secure, patient-scoped portal for a cash-pay clinic. The owner-approved first release is billing-only: patients authenticate and review their own invoices, credits, balances, and payment history. Later releases may add appointments, intake, clinical releases, requests, and notifications. The portal must remain a presentation and request surface: Rails remains authoritative for identity, tenant scope, clinical records, scheduling, inventory, billing, audit, and every state transition.
 
 The implementation companion is [PATIENT_PORTAL_BUILD_PLAN.md](PATIENT_PORTAL_BUILD_PLAN.md). The evidence and go/no-go companion is [PATIENT_PORTAL_AUDIT_PLAN.md](PATIENT_PORTAL_AUDIT_PLAN.md). These are planning artifacts; they do not authorize production patient data, charges, clinical release, prescribing, or HIPAA compliance.
 
 ## Current state
 
-The APPly repository already contains a synthetic-only vertical slice: a patient-to-portal identity binding, a development patient login, a no-store patient context projection, upcoming appointments, read-only cash ledger data, intake status, signed-note summaries, completed-encounter observations, active medications, appointment requests, and an encrypted/idempotent question or refill-request queue. The web suite and production build pass for the current source slice.
+The APPly repository contains a local development billing-only slice: a patient-to-portal identity binding, a dedicated development patient login, a no-store patient context projection, and read-only cash ledger data. Omni can enter the same portal through the local development login and switch among `SYN-OMNI-*` patients in the current server session. Dormant appointment, intake, clinical, reminder, and request actions are blocked at the API boundary.
 
 The slice is not production-ready. The remaining work below is ordered by safety and dependency, not by the original calendar estimate.
 
@@ -18,6 +18,14 @@ The slice is not production-ready. The remaining work below is ordered by safety
 - The portal may display only server-released projections. It must never expose raw ambient audio, draft SOAP content, internal staff notes, processor/card data, message bodies in telemetry, or another patient’s record.
 - Appointment requests are not bookings until the authoritative scheduling service confirms them. Refill requests are not prescriptions or approvals. Results are not diagnoses.
 - No public signup, shared account, unreviewed proxy/minor access, emergency channel, direct browser database access, browser-held tokens, or production shortcut login.
+- The first release is billing-only. Payment collection remains disabled; appointments, intake, clinical summaries/results/medications, reminders, messages/refills, and booking remain unavailable until separately authorized.
+- Omni preview is local-development-only, read-only, server-gated, session-scoped, and limited to synthetic patients in Omni's assigned development practice. It is not production impersonation.
+
+## Current owner-approved slice — 2026-09-04
+
+D-062 authorizes the billing-only patient portal first release and an Omni local development preview. The normal patient path uses the assigned active portal identity. The Omni path uses the existing local development login, derives the practice from Omni's membership, and stores only the selected synthetic patient ID in the current server session. No portal business mutation is available from either path.
+
+The current implementation is local development evidence, not release acceptance. Provider/Stripe, finance, privacy/security, accessibility, operations, document/PDF/email, real-data, and deployment gates remain open.
 
 ## Delivery sequence
 

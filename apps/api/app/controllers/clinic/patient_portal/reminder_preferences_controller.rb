@@ -1,6 +1,8 @@
 module Clinic
   module PatientPortal
     class ReminderPreferencesController < BaseController
+      before_action :block_non_billing_action
+
       def show
         render json: { preferences: current_preferences.map { |preference| preference_payload(preference) }, timezone: portal_practice.timezone }
       end

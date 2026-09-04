@@ -52,10 +52,16 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
               onSuccess={done}
               values={{ profile: "omni" }}
             />
+            <Form
+              endpoint="/api/development_session"
+              submit="Open Omni patient portal"
+              onSuccess={() => window.location.assign("/patient-portal")}
+              values={{ profile: "omni" }}
+            />
             <p className="form-note">
-              One synthetic clinic identity for rapid review. After login, use
-              Settings → Development view to swap between administrator,
-              clinician, staff, inventory, read-only and client views.
+              OmniLogin is the local development identity for rapid review. The
+              patient portal preview adds a session-only patient selector.
+              Settings → Development view still swaps clinic workspace labels.
             </p>
             <Form
               endpoint="/api/development_session"

@@ -1,35 +1,23 @@
-# Patient Portal audit evidence
+# Patient Portal implementation evidence
 
-Date: 2026-09-03
+Date: 2026-09-04
 
-## Change and repository evidence
+## Scope
 
-- `git status --short --branch` showed a shared worktree with unrelated reminder/scribe/staff-messaging edits and the protected `apps/api/app/queries/clinic/billing/patient_ledger.rb` change.
-- Migration collision check found unrelated versions `20260903001200`, `20260903001210`, `20260903001220`, and `20260903001230`; the Patient Portal migration uses unique version `20260903001300`.
-- The lifecycle files are present in `bf81eb3`, and `HEAD` and `origin/main` both point to that commit at handoff time. That commit also contains unrelated shared-agent work because the checkout advanced concurrently; no history rewrite was attempted.
-- The handoff documentation is the only new material being committed by this checkpoint.
+This checkpoint implements the owner-approved local billing-only patient portal first release and Omni's local development preview. It is not the formal evidence-first audit.
 
-## Verification
+## Expected evidence
 
-### Current execution-matrix follow-up
+- Normal patient sessions resolve one active portal identity and its assigned patient only.
+- The context projection contains billing data only: invoices, lines, balances, credits, payment history, allocations, refunds, and receipt-availability state.
+- Appointment, intake, clinical, reminder, messaging, refill, and request data are absent from the projection and their dormant endpoints return `patient_portal_billing_only` before any action executes.
+- Omni can enter through the local development login, see a session-scoped patient selector, and switch only among `SYN-OMNI-*` patients in Omni's assigned practice.
+- Invalid IDs, another-practice IDs, ordinary patient sessions, nonlocal requests, and production requests do not gain preview access.
 
-The task-owned PostgreSQL database `apply_portal_acceptance_20260904` was loaded from the current schema with all current migration versions registered. `test/integration/patient_portal_lifecycle_test.rb` passed with 5 runs, 35 assertions, 0 failures, 0 errors, and 0 skips.
+## Verification status
 
-| Check | Result | Notes |
-| --- | --- | --- |
-| Ruby syntax | Pass | Lifecycle services, controllers, and migration returned `Syntax OK`. |
-| `git diff --check` | Pass | No whitespace errors were reported for the checked working tree. |
-| Migration version uniqueness | Pass | `20260903001300` is distinct from all existing/untracked migration versions. |
-| Web typecheck | Blocked by unrelated shared work | `npm run typecheck` reached another agent's `apps/web/src/features/clinic/Reminders.tsx` and failed on MUI `Stack` `justifyContent` typing at lines 12 and 31. |
-| Web test suite | Inconclusive | The concurrent `npm test` process did not finish during the bounded verification window. |
-| Rails route load | Inconclusive | The concurrent `bundle exec rails routes` process did not finish during the bounded verification window. |
-| Patient Portal integration tests | Pass | 5 runs, 35 assertions, 0 failures, 0 errors, 0 skips against the task-owned migrated database. |
-| Live browser smoke | Not run | The activation route is not yet safely committed with the mixed `App.tsx`/routes wiring. |
+The focused Rails integration test and web checks are run after implementation and recorded in the final handoff. No browser acceptance or formal audit is claimed by this document.
 
-## Required follow-up acceptance
+## Remaining blocked gates
 
-1. Reconcile and commit the mixed route/App/contracts/context hunks so activation is reachable and the patient projection cannot expose an unsigned later revision.
-2. Add focused integration tests for invitation replay/expiry, wrong patient/practice assignment, missing terms, reserved-account activation, revocation invalidating an existing session, and generic recovery responses.
-3. Add the dedicated `patient_portal.identity.invite` and `patient_portal.identity.revoke` permission rules once `Ability` is free of the concurrent reminder/scribe edits.
-4. Run Rails migration/loadability checks, focused backend tests, web typecheck/tests, and a redacted synthetic browser activation → portal → revoke denial smoke test.
-5. Keep production enablement blocked pending the roadmap's identity, recovery, support, privacy/security, clinical, finance, accessibility, and operations owners and approvals.
+Provider/Stripe account and webhook custody, finance/tax/receipt policy, PDF and email delivery, checks/OCR, card-present equipment, Superbills, real data, security/privacy review, accessibility evidence, operations/recovery, deployment, and go/no-go approval remain blocked. Omni preview is not production impersonation and cannot be used with real patient data.

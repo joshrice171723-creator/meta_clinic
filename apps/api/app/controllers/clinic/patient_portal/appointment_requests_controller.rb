@@ -1,6 +1,8 @@
 module Clinic
   module PatientPortal
     class AppointmentRequestsController < BaseController
+      before_action :block_non_billing_action
+
       def index
         requests = AppointmentRequest.for_practice(portal_practice)
           .where(patient: portal_patient).recent.limit(20)

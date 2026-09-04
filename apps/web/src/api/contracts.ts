@@ -27,19 +27,13 @@ export type PatientPortalContext = {
   development_only: boolean;
   practice: { id: number; name: string; timezone: string };
   patient: { id: number; display_name: string; reference: string };
-  upcoming_appointments: {
-    id: number;
-    starts_at: string;
-    ends_at: string;
-    status: string;
-    site: string | null;
-    visit_type: string | null;
-  }[];
   balances: {
     currency: string;
+    invoiced_amount: Decimal;
     balance_amount: Decimal;
     allocated_amount: Decimal;
     credited_amount: Decimal;
+    refunded_amount: Decimal;
   }[];
   billing: {
     invoices: {
@@ -49,6 +43,7 @@ export type PatientPortalContext = {
       created_at: string;
       total_amount: Decimal;
       allocated_amount: Decimal;
+      credit_amount: Decimal;
       balance_amount: Decimal;
       lines: {
         id: number;
@@ -56,85 +51,41 @@ export type PatientPortalContext = {
         quantity: Decimal;
         posted_amount: Decimal;
       }[];
+      allocations: {
+        id: number;
+        payment_event_id: number;
+        amount: Decimal;
+        created_at: string;
+      }[];
+      credits: { id: number; amount: Decimal; created_at: string }[];
     }[];
     payments: {
       id: number;
       currency: string;
       amount: Decimal;
+      allocated_amount: Decimal;
+      unapplied_amount: Decimal;
       created_at: string;
       cash_payment: boolean;
       receipt_available: boolean;
+      allocations: {
+        id: number;
+        invoice_id: number;
+        amount: Decimal;
+        created_at: string;
+      }[];
+      refunds: { id: number; amount: Decimal; created_at: string }[];
     }[];
   };
-  intake: {
-    status: string;
-    emergency_contact_count: number;
-    consent_status: string;
-  };
-  visit_summaries: {
-    id: number;
-    encounter_id: number;
-    signed_at: string | null;
-    assessment: string;
-    plan: string;
-  }[];
-  results: {
-    id: number;
-    code: string;
-    value_kind: string;
-    numeric_value: Decimal | null;
-    text_value: string | null;
-    coded_value: string | null;
-    unit_code: string | null;
-    observed_at: string;
-  }[];
-  medications: {
-    id: number;
-    medication: string | null;
-    dose: string | null;
-    route: string | null;
-    frequency: string | null;
-    purpose: string | null;
-    status: string;
-    effective_from: string | null;
-    effective_until: string | null;
-  }[];
-  messages: {
-    id: number;
-    purpose_code: string;
-    created_at: string;
-  }[];
-  reminders: PatientReminder[];
-  reminder_preferences: ReminderPreference[];
-  appointment_requests: {
-    id: number;
-    starts_at: string;
-    ends_at: string;
-    status: string;
-    requested_at: string;
-  }[];
-  requests: {
-    id: number;
-    request_type: "message" | "refill";
-    status: "pending" | "in_review" | "resolved" | "declined";
-    requested_at: string;
-    reviewed_at: string | null;
-  }[];
   capabilities: {
-    appointments_read: boolean;
     billing_read: boolean;
-    intake_read: boolean;
-    messages_read: boolean;
-    results_read: boolean;
-    visit_summaries_read: boolean;
     payment_collection: boolean;
-    appointment_requests_write: boolean;
-    messages_write: boolean;
-    refill_requests_write: boolean;
-    step_up: boolean;
-    recovery: boolean;
   };
   notices: string[];
+  development_preview?: {
+    selected_patient_id: number;
+    patients: { id: number; display_name: string; reference: string }[];
+  };
 };
 export type PatientReminder = {
   id: number;

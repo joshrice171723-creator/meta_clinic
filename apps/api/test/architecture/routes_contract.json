@@ -365,6 +365,11 @@
     "/api/patient_portal/context(.:format)"
   ],
   [
+    "api_patient_portal_development_patient",
+    "PATCH",
+    "/api/patient_portal/development_patient(.:format)"
+  ],
+  [
     "api_patient_portal_invitation_activate",
     "POST",
     "/api/patient_portal/invitation/activate(.:format)"

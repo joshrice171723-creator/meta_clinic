@@ -27,13 +27,13 @@ module Clinic
       private
 
       def require_development_patient
-        return if Development::TestAccounts.patient?(current_user)
+        return if Development::TestAccounts.patient?(current_user) || development_omni_preview?
 
         render json: { error: "The patient portal is available only for its assigned synthetic account." }, status: :not_found
       end
 
       def require_portal_identity
-        return if patient_portal_identity
+        return if patient_portal_identity || development_omni_preview_patient
 
         render json: { error: "No active patient portal access is assigned." }, status: :forbidden
       end
@@ -44,11 +44,39 @@ module Clinic
       end
 
       def portal_practice
-        patient_portal_identity.practice
+        patient_portal_identity&.practice || development_omni_practice
       end
 
       def portal_patient
-        patient_portal_identity.patient
+        patient_portal_identity&.patient || development_omni_preview_patient
+      end
+
+      def development_omni_preview?
+        (Rails.env.test? || DevelopmentAccess.allowed?(request)) &&
+          Development::TestAccounts.omni?(current_user)
+      end
+
+      def development_omni_practice
+        Clinic::Membership.active.find_by(user_id: current_user.id)&.practice
+      end
+
+      def development_omni_preview_patients
+        development_omni_practice&.patients&.where("reference LIKE ?", "SYN-OMNI-%")&.order(:id) || Clinic::Care::Patient.none
+      end
+
+      def development_omni_preview_patient
+        return unless development_omni_preview?
+
+        patients = development_omni_preview_patients
+        selected = patients.find_by(id: session[:patient_portal_preview_patient_id])
+        selected || patients.first
+      end
+
+      def block_non_billing_action
+        render json: {
+          error: "This patient portal release supports billing only.",
+          code: "patient_portal_billing_only"
+        }, status: :not_found
       end
 
       def record_portal_read(action_code)
