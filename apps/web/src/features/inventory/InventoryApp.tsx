@@ -433,22 +433,53 @@ function recordedPackagePrice(
   data: InventoryData,
   productId: string,
 ): Decimal | undefined {
-  return data.purchase_orders
+  return recordedPackageTerms(data, productId)?.packagePrice;
+}
+function recordedPackageTerms(
+  data: InventoryData,
+  productId: string,
+): { packagePrice: Decimal; currency: string } | undefined {
+  const line = data.purchase_orders
     .flatMap((order) => order.lines)
-    .find((line) => line.product_id === productId)?.package_price;
+    .find((line) => line.product_id === productId);
+  return line
+    ? { packagePrice: line.package_price, currency: line.currency }
+    : undefined;
 }
 function supplierProductFor(
   data: InventoryData,
   productId: string,
   supplierId: string,
 ): InventorySupplierProduct | undefined {
+  const item = product(data, productId);
   return data.supplier_products?.find(
-    (row) => row.product_id === productId && row.supplier_id === supplierId,
+    (row) =>
+      row.supplier_id === supplierId &&
+      (row.product_id === productId ||
+        (row.product_id == null && Boolean(item?.ndc) && row.ndc === item?.ndc)),
   );
 }
 function supplierOffersFor(data: InventoryData, productId: string) {
+  const item = product(data, productId);
   return (data.supplier_products ?? []).filter(
-    (row) => row.product_id === productId && row.available !== false,
+    (row) =>
+      (row.product_id === productId ||
+        (row.product_id == null && Boolean(item?.ndc) && row.ndc === item?.ndc)) &&
+      row.available !== false,
+  );
+}
+function purchaseOrderDestination(data: InventoryData, productId: string) {
+  const itemLocation = data.balances
+    .filter((balance) => balance.product_id === productId)
+    .map((balance) => location(data, balance.location_id))
+    .find(
+      (record) => record && !["quarantine", "returns"].includes(record.kind ?? ""),
+    );
+  return (
+    itemLocation ??
+    data.locations.find((record) => record.kind === "storage") ??
+    data.locations.find((record) => record.kind === "controlled") ??
+    data.locations[0]
   );
 }
 
@@ -1296,11 +1327,17 @@ function PurchaseOrderCreateScreen({
   const initialSupplierId =
     initialItem?.preferred_supplier_id ??
     supplierOffersFor(data, initialItem?.id ?? "")[0]?.supplier_id ??
-    data.suppliers?.[0]?.id ??
     "";
-  const initialDestination =
-    data.locations.find((record) => record.kind === "storage") ??
-    data.locations[0];
+  const initialOffer = initialItem
+    ? supplierProductFor(data, initialItem.id, initialSupplierId)
+    : undefined;
+  const initialTerms = initialItem
+    ? recordedPackageTerms(data, initialItem.id)
+    : undefined;
+  const initialDestination = purchaseOrderDestination(
+    data,
+    initialItem?.id ?? "",
+  );
   const [destinationId, setDestinationId] = useState(
     initialDestination?.id ?? "",
   );
@@ -1309,27 +1346,12 @@ function PurchaseOrderCreateScreen({
   );
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState(
-    initialItem
-      ? (supplierProductFor(
-          data,
-          initialItem.id,
-          initialSupplierId,
-        )?.wholesale_unit_cost ??
-          recordedPackagePrice(data, initialItem.id) ??
-        "")
-      : "",
+    initialOffer?.wholesale_unit_cost ?? initialTerms?.packagePrice ?? "",
   );
   const [numberValue, setNumberValue] = useState("");
   const [reason, setReason] = useState("");
   const [currency, setCurrency] = useState(() => {
-    const offer = initialItem
-      ? supplierProductFor(
-          data,
-          initialItem.id,
-          initialSupplierId,
-        )
-      : undefined;
-    return offer?.currency ?? "";
+    return initialOffer?.currency ?? initialTerms?.currency ?? "";
   });
   const supplierProduct = item
     ? supplierProductFor(data, item.id, supplierId)
@@ -1343,16 +1365,17 @@ function PurchaseOrderCreateScreen({
     const nextSupplierId =
       next?.preferred_supplier_id ??
       supplierOffersFor(data, nextId)[0]?.supplier_id ??
-      data.suppliers?.[0]?.id ??
       "";
     const nextOffer = supplierProductFor(data, nextId, nextSupplierId);
+    const nextTerms = recordedPackageTerms(data, nextId);
     setProductId(nextId);
     setSupplierId(nextSupplierId);
+    setDestinationId(purchaseOrderDestination(data, nextId)?.id ?? "");
     setUnitPrice(
       nextOffer?.wholesale_unit_cost ??
-        (next ? (recordedPackagePrice(data, next.id) ?? "") : ""),
+        (nextTerms?.packagePrice ?? ""),
     );
-    setCurrency(nextOffer?.currency ?? "");
+    setCurrency(nextOffer?.currency ?? nextTerms?.currency ?? "");
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -1437,13 +1460,14 @@ function PurchaseOrderCreateScreen({
                 onChange={(event) => {
                   const nextSupplierId = event.target.value;
                   const offer = supplierProductFor(data, item.id, nextSupplierId);
+                  const terms = recordedPackageTerms(data, item.id);
                   setSupplierId(nextSupplierId);
                   setUnitPrice(
                     offer?.wholesale_unit_cost ??
-                      recordedPackagePrice(data, item.id) ??
+                      terms?.packagePrice ??
                       "",
                   );
-                  setCurrency(offer?.currency ?? "");
+                  setCurrency(offer?.currency ?? terms?.currency ?? "");
                 }}
               >
                 <option value="">No supplier</option>
