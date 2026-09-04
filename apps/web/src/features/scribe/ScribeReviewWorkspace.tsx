@@ -80,6 +80,13 @@ const knownDraftStatuses = new Set<ScribeDraft["status"]>([
   "deleted",
 ]);
 
+const currentDraftStatuses = new Set<ScribeDraft["status"]>([
+  "draft",
+  "in_review",
+  "approved",
+  "exported",
+]);
+
 function formatSectionLabel(sectionKey: string) {
   return sectionLabels[sectionKey as ScribeDraftSection["section_key"]] ?? sectionKey;
 }
@@ -114,10 +121,24 @@ function sourceForDraft(encounter: ScribeEncounter, draft?: ScribeDraft) {
   );
 }
 
-export function reviewStateSummary(draft: ScribeDraft | undefined) {
+export function hasUnsavedDraftEdits(
+  draft: ScribeDraft | undefined,
+  edits: Record<string, string>,
+) {
+  if (!draft) return false;
+  return draft.sections.some((section) => {
+    if (!(section.section_key in edits)) return false;
+    return edits[section.section_key] !== (section.human_content ?? "");
+  });
+}
+
+export function reviewStateSummary(draft: ScribeDraft | undefined, source?: ScribeSource) {
   if (!draft) return { unresolved: true, approved: false, exported: false };
+  const sourceUnavailable = !source || source.status !== "ready" || source.content === null;
   const unresolved =
     !knownDraftStatuses.has(draft.status) ||
+    !currentDraftStatuses.has(draft.status) ||
+    sourceUnavailable ||
     draft.sections.length === 0 ||
     draft.sections.some(
       (section) =>
@@ -483,7 +504,9 @@ export function ScribeReviewWorkspace({
   const encounter = state.kind === "ready" ? state.encounter : undefined;
   const draft = useMemo(() => (encounter ? selectedDraft(encounter) : undefined), [encounter]);
   const source = useMemo(() => (encounter ? sourceForDraft(encounter, draft) : undefined), [encounter, draft]);
-  const reviewSummary = reviewStateSummary(draft);
+  const reviewSummary = reviewStateSummary(draft, source);
+  const hasUnsavedEdits = hasUnsavedDraftEdits(draft, edits);
+  const staleDraft = Boolean(draft && ["superseded", "deleted"].includes(draft.status));
 
   useEffect(() => {
     setSelectedSegmentId(null);
@@ -497,6 +520,16 @@ export function ScribeReviewWorkspace({
         : {},
     );
   }, [draft?.id, draft?.version]);
+
+  useEffect(() => {
+    if (!hasUnsavedEdits || typeof window === "undefined") return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedEdits]);
 
   if (state.kind === "loading") return <LoadingState message={state.message} />;
   if (state.kind === "error")
@@ -525,15 +558,21 @@ export function ScribeReviewWorkspace({
 
   const encounterUnknown = !encounterStatusLabels[encounter.status];
   const approved = reviewSummary.approved;
-  const approvalBlocked = reviewSummary.unresolved || encounterUnknown || !onApprove;
-  const exportBlocked = !approved || reviewSummary.exported || !onExport;
-  const actionStatus = reviewSummary.exported
-    ? "Export recorded for this approved revision."
-    : approved
-      ? "Approved revision is eligible for a separate export request."
-      : reviewSummary.unresolved
-        ? "Resolve every warning and section before requesting approval."
-        : "Review complete. Approval is still a separate explicit action.";
+  const approvalBlocked = reviewSummary.unresolved || encounterUnknown || hasUnsavedEdits || !onApprove;
+  const exportBlocked = !approved || reviewSummary.unresolved || reviewSummary.exported || hasUnsavedEdits || !onExport;
+  const actionStatus = hasUnsavedEdits
+    ? "Unsaved reviewer edits are not part of the server revision. Save or discard them before requesting approval or export."
+    : staleDraft
+      ? "This draft revision is no longer current. Reload the current draft before reviewing or exporting."
+      : reviewSummary.unresolved && (!source || source.status !== "ready" || source.content === null)
+        ? "The source transcript is unavailable or not ready. Approval and export are blocked until reviewable evidence is available."
+        : reviewSummary.exported
+          ? "Export recorded for this approved revision."
+          : approved
+            ? "Approved revision is eligible for a separate export request."
+            : reviewSummary.unresolved
+              ? "Resolve every warning and section before requesting approval."
+              : "Review complete. Approval is still a separate explicit action.";
 
   return (
     <Box component="main" aria-labelledby="scribe-review-heading" sx={{ maxWidth: 1440, mx: "auto", p: { xs: 2, sm: 3, lg: 4 }, minWidth: 0 }}>
@@ -645,6 +684,11 @@ export function ScribeReviewWorkspace({
                 <Typography color="text.secondary">
                   Approval marks this exact draft revision as reviewer-approved. Export is a separate request to the parent-record adapter.
                 </Typography>
+                {hasUnsavedEdits && (
+                  <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
+                    Unsaved reviewer edits are visible only in this review session. Save them through the server-authorized integration or discard them before leaving; approval and export remain blocked.
+                  </Alert>
+                )}
                 <Box role="status" aria-live="polite" sx={{ color: "text.secondary" }}>{actionStatus}</Box>
                 <LinearProgress
                   variant="determinate"
@@ -674,10 +718,10 @@ export function ScribeReviewWorkspace({
                 </Stack>
                 <Stack spacing={0.5}>
                   <Typography id="scribe-approval-help" variant="body2" color="text.secondary">
-                    {onApprove ? "Approval remains blocked while any section is unresolved or the draft state is unknown." : "Approval control is shown for the eventual integration; no save handler is connected in this isolated slice."}
+                    {hasUnsavedEdits ? "Approval remains blocked while reviewer edits are unsaved." : onApprove ? "Approval remains blocked while any section, source, or draft revision is unresolved." : "Approval control is shown for the eventual integration; no save handler is connected in this isolated slice."}
                   </Typography>
                   <Typography id="scribe-export-help" variant="body2" color="text.secondary">
-                    {onExport ? "Export is enabled only for an approved current revision and is never implied by approval." : "Export control is shown separately; no export handler is connected in this isolated slice."}
+                    {hasUnsavedEdits ? "Export remains blocked until reviewer edits are saved or discarded; it never exports local-only text." : onExport ? "Export is enabled only for an approved current revision with reviewable source evidence and is never implied by approval." : "Export control is shown separately; no export handler is connected in this isolated slice."}
                   </Typography>
                 </Stack>
               </Stack>

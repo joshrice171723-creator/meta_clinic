@@ -1,11 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  hasUnsavedDraftEdits,
   reviewStateSummary,
   ScribeReviewWorkspace,
   type ScribeReviewState,
 } from "../src/features/scribe/ScribeReviewWorkspace";
-import type { ScribeDraft } from "../src/features/scribe/types";
+import type { ScribeDraft, ScribeSource } from "../src/features/scribe/types";
 
 const draft = {
   id: 18,
@@ -112,6 +113,8 @@ const readyState: ScribeReviewState = {
   },
 };
 
+const readySource = readyState.encounter.sources[0] as ScribeSource;
+
 describe("synthetic AI scribe review workspace", () => {
   it("keeps source, generated, edited, unresolved, approval, and export states explicit", () => {
     const html = renderToStaticMarkup(<ScribeReviewWorkspace state={readyState} />);
@@ -142,8 +145,20 @@ describe("synthetic AI scribe review workspace", () => {
 
   it("derives approval readiness conservatively and never treats export as approval", () => {
     expect(reviewStateSummary(draft)).toEqual({ unresolved: true, approved: false, exported: false });
-    expect(reviewStateSummary({ ...draft, status: "approved", sections: draft.sections.map((section) => ({ ...section, status: "accepted", warning_codes: [], effective_content: "Resolved synthetic content." })) })).toEqual({ unresolved: false, approved: true, exported: false });
-    expect(reviewStateSummary({ ...draft, status: "exported", export_state: "exported", sections: draft.sections.map((section) => ({ ...section, status: "accepted", warning_codes: [], effective_content: "Resolved synthetic content." })) })).toEqual({ unresolved: false, approved: true, exported: true });
+    const resolvedDraft: ScribeDraft = {
+      ...draft,
+      sections: draft.sections.map((section) => ({
+        ...section,
+        status: "accepted",
+        warning_codes: [],
+        effective_content: "Resolved synthetic content.",
+      })),
+    };
+    expect(reviewStateSummary({ ...resolvedDraft, status: "approved" }, readySource)).toEqual({ unresolved: false, approved: true, exported: false });
+    expect(reviewStateSummary({ ...resolvedDraft, status: "exported", export_state: "exported" }, readySource)).toEqual({ unresolved: false, approved: true, exported: true });
+    expect(reviewStateSummary({ ...resolvedDraft, status: "approved" }, { ...readySource, status: "incomplete" })).toEqual({ unresolved: true, approved: true, exported: false });
+    expect(hasUnsavedDraftEdits(draft, { objective: "Reviewer-edited synthetic observation." })).toBe(false);
+    expect(hasUnsavedDraftEdits(draft, { subjective: "Unsaved reviewer change." })).toBe(true);
   });
 
   it("exposes keyboard-reachable evidence controls and live action status", () => {
