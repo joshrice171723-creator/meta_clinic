@@ -34,6 +34,7 @@ import {
 import { InventoryApp } from "./features/inventory/InventoryApp";
 import { PatientPortal } from "./features/patientPortal/PatientPortal";
 import { PatientPortalActivation } from "./features/patientPortal/PatientPortalActivation";
+import { StaffMessagingPage } from "./features/staff-messaging/StaffMessagingPage";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -200,6 +201,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <BillingDashboard />
   ) : path === "/clinic/reminders" ? (
     <Reminders />
+  ) : path === "/clinic/messages" ? (
+    <StaffMessagingPage />
   ) : (
     <h1>Page not found.</h1>
   );

@@ -387,6 +387,10 @@ export type ClinicCapabilities = {
   notes_write: boolean;
   documents: boolean;
   messages: boolean;
+  staff_messaging_read?: boolean;
+  staff_messaging_send?: boolean;
+  staff_messaging_create_conversation?: boolean;
+  staff_messaging_acknowledge?: boolean;
   reminders?: boolean;
   reminders_write?: boolean;
   billing: boolean;

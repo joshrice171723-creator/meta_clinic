@@ -110,6 +110,24 @@ Rails.application.routes.draw do
       post :adjust, on: :member
     end
     resources :staff, controller: "staff/members", only: %i[index create update]
+    scope "staff-messaging", as: "staff_messaging" do
+      get "conversations", to: "messaging/staff#index"
+      post "conversations", to: "messaging/staff#create_conversation"
+      get "conversations/:id", to: "messaging/staff#show"
+      post "conversations/:id/messages", to: "messaging/staff#create_message"
+      post "conversations/:id/read", to: "messaging/staff#mark_read"
+      get "participants", to: "messaging/staff#participants"
+      get "notifications", to: "messaging/staff#notifications"
+      post "notifications/:id/read", to: "messaging/staff#read_notification"
+      get "preferences", to: "messaging/staff#preferences"
+      patch "preferences", to: "messaging/staff#preferences"
+      post "messages/:id/acknowledge", to: "messaging/staff#acknowledge"
+      post "requests/:id/transition", to: "messaging/staff#transition"
+      post "requests/:id/escalate", to: "messaging/staff#escalate"
+      post "messages/:message_id/attachments", to: "messaging/staff#presign_attachment"
+      post "attachments/:id/complete", to: "messaging/staff#complete_attachment"
+      get "attachments/:id/download", to: "messaging/staff#download_attachment"
+    end
     namespace :patient_portal do
       resources :invitations, only: :create
       post "identities/:id/revoke", to: "identity_lifecycle#revoke"

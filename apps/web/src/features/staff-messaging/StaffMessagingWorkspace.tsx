@@ -60,8 +60,9 @@ export type StaffMessagingState = {
 type StaffMessagingWorkspaceProps = {
   state?: StaffMessagingState;
   onSelectConversation?: (conversationId: number) => void;
-  onSend?: (conversationId: number, body: string) => void;
-  onAcknowledge?: (messageId: number) => void;
+  onSend?: (conversationId: number, body: string) => void | Promise<void>;
+  onAcknowledge?: (messageId: number) => void | Promise<void>;
+  onRetry?: () => void;
 };
 
 const classLabel: Record<StaffMessageClass, string> = {
@@ -277,6 +278,7 @@ export function StaffMessagingWorkspace({
   onSelectConversation,
   onSend,
   onAcknowledge,
+  onRetry,
 }: StaffMessagingWorkspaceProps) {
   const [draft, setDraft] = useState("");
   const selectedConversation = useMemo(
@@ -306,7 +308,11 @@ export function StaffMessagingWorkspace({
       <Alert
         severity="error"
         role="alert"
-        action={<Button color="inherit">Retry</Button>}
+        action={
+          <Button color="inherit" onClick={onRetry}>
+            Retry
+          </Button>
+        }
       >
         {state.error}
       </Alert>
