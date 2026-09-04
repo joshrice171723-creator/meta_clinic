@@ -44,6 +44,38 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     assert @practice.audit_events.where(action_code: "patients.read", outcome: "released").exists?
   end
 
+  test "tracking board projects SOAP chart state without exposing note content" do
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    initial = response.parsed_body.fetch("visits").index_by { |visit| visit.fetch("encounter_id") }
+    assert_equal "unopened", initial.fetch(@current.id).fetch("chart_status")
+    assert_equal "unopened", initial.fetch(@other_current.id).fetch("chart_status")
+
+    create_draft_note(@current)
+    create_signed_note(@other_current, Time.utc(2026, 9, 2, 19))
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    visits = response.parsed_body.fetch("visits").index_by { |visit| visit.fetch("encounter_id") }
+    assert_equal "draft", visits.fetch(@current.id).fetch("chart_status")
+    assert_equal "signed", visits.fetch(@other_current.id).fetch("chart_status")
+    assert_equal false, visits.fetch(@current.id).key?("notes")
+  end
+
+  test "tracking board does not disclose chart state without note read permission" do
+    create_signed_note(@current, Time.utc(2026, 9, 2, 19))
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read")
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    visit = response.parsed_body.fetch("visits").find { |row| row.fetch("encounter_id") == @current.id }
+    assert_equal "unavailable", visit.fetch("chart_status")
+  end
+
   test "tracking board projects effective patient commercial membership for encounter and appointment rows" do
     now = Time.current
     Clinic::Care::PatientMembership.create!(
@@ -459,6 +491,22 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
       content_digest: Digest::SHA256.hexdigest(revision.encrypted_body),
       attestation_version: "synthetic-test-v1",
       signed_at: signed_at
+    )
+  end
+
+  def create_draft_note(encounter)
+    Clinic::Care::CreateEncounterNote.call(
+      practice: @practice,
+      actor: @user,
+      encounter: encounter,
+      note_kind: "soap",
+      payload_version: Clinic::Care::SoapNotePayload::VERSION,
+      request_key: "tracking-board-draft-#{encounter.id}",
+      encrypted_body: Clinic::Care::SoapNotePayload.dump(
+        template_id: "adult-physical-exam-detailed",
+        template_version: 1,
+        sections: { subjective: "synthetic", objective: "synthetic", assessment: "synthetic", plan: "synthetic" }
+      )
     )
   end
 

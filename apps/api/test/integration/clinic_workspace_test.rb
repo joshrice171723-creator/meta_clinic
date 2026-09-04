@@ -48,6 +48,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     get "/api/clinic/context", headers: @headers
 
     assert_response :success
+    assert_equal profile.id.to_s, response.parsed_body.fetch("current_clinician_profile_id")
     assert_equal [ "SYNTHETIC-NP" ], response.parsed_body.fetch("credentials")
     assert_not_includes response.body, "FOREIGN"
   end

@@ -560,6 +560,7 @@ export type ClinicWorkspaceContext = {
   user_id: number;
   practice: { id: number; name: string; timezone: string };
   membership_id: number;
+  current_clinician_profile_id: string | null;
   credentials: string[];
   policy_version: "clinic-authorization-v1";
   capabilities: ClinicCapabilities;
@@ -672,6 +673,7 @@ export type ClinicTrackingBoardVisit = {
     "upcoming" | "on_time" | "late" | "waiting_room" | "unrecorded";
   patient_id: number;
   encounter_id: number | null;
+  chart_status: "unopened" | "draft" | "signed" | "unavailable";
   provider_assignment_available: boolean;
   patient: Pick<Patient, "id" | "display_name" | "reference"> & {
     demographics?: { age: number | null; sex: string };
