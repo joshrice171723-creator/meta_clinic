@@ -4,17 +4,20 @@ This document defines how to make meaningful progress across the five APPly capa
 
 ## Verified starting point
 
-- Authoritative repository: `C:\Users\joshr\Desktop\Work\APPly`, branch `main`.
-- The working tree was clean at review time.
-- All current PostgreSQL migrations are `up` in `apply_development`, including reminders, staff messaging, scribe workflow, and patient-portal lifecycle changes.
-- Rails is responding on `127.0.0.1:3001`; the frontend is expected on `127.0.0.1:3000`.
-- The five capability packets already exist under this directory.
-- Active Shortcut coordination found during review:
-  - `sc-97` — patient-reminders Rails security verification slice — In Progress and owned.
-  - `sc-99` — bounded staff-messaging frontend slice — In Progress and owned.
-  - `sc-102` — AI-scribe review workspace safety boundary — In Progress and owned.
-  - `sc-96` — cash-pay billing acceptance evidence — To Do and currently unowned.
-  - No active patient-portal story was found by the capability search.
+- Authoritative repository: `C:\Users\joshr\Desktop\Work\APPly`, branch `joshuarice/sc-132/make-inventory-movement-ledger-p`, HEAD `e1b3040` (`Fix Windows PostgreSQL client fallback`).
+- The working tree is clean at this checkpoint. The approved shared-checkout inventory work is included in that HEAD; no additional inventory diff is waiting to be staged.
+- The migration directory and both checked databases report 65 migrations applied, latest `20260903001400` (`apply_development` and `apply_test`).
+- Rails `/up` responds `200` on `127.0.0.1:3001`; the Vite root responds `200` on `127.0.0.1:3000`.
+- The five capability packets and the portal Shortcut story exist under this directory and in Shortcut.
+- Current Shortcut coordination: `sc-96`, `sc-97`, `sc-99`, `sc-102`, and `sc-120` In Review and owned; `sc-129` Done and owned.
+
+## Current checkpoint — 2026-09-04
+
+- Billing’s repaired focused checks are green, and one clean isolated full `test/integration/clinic_workspace_test.rb` rerun passed: 22 runs, 228 assertions, 0 failures, 0 errors, 0 skips. The scratch database was removed after the run.
+- Browser/live evidence is partial but current: `/clinic/billing` and `/clinic/reminders` load the authenticated synthetic workspaces; `/clinic/staff` loads the employee directory; `/patient-portal` loads the assigned synthetic-account gate. No financial or patient mutation was executed in the browser.
+- Staff messaging and AI-scribe remain source/test checkpoints only: their workspace components are present, but no visible route currently wires either one into `App.tsx`.
+- The launch page at `/portal` is not the patient portal. Do not use it as patient-portal evidence.
+- The next meaningful slice is serialized shared integration/browser evidence for the reviewed capabilities, beginning with route wiring/context and narrow-layout observation. Keep implementation WIP at three or fewer lanes.
 
 The roadmap percentages are estimates, not acceptance decisions. A migration being applied or a frontend build passing does not prove a capability is ready.
 
@@ -40,23 +43,24 @@ Do not keep five broad capabilities open as five simultaneous coding projects. T
 
 Confirm migration status, service health, branch/worktree state, current Shortcut claims, and the exact shared contract versions. This wave is currently satisfied for the development database, but must be repeated for any task-owned test database. Do not use the shared development database for concurrent mutation tests.
 
-### Wave 1 — Start now: three isolated slices
+### Wave 1 — Completed bounded checkpoints
 
 | Lane | Capability | Shortcut | Bounded outcome | Allowed ownership | Gate |
 |---|---|---|---|---|---|
-| Build A | Staff messaging | `sc-99` | Complete the inbox/conversation frontend checkpoint using the existing backend shape or a clearly bounded adapter. | `apps/web/src/features/staff-messaging/` and its focused tests only. | Focused web check, keyboard/live-region review, and narrow-layout observation. |
-| Build B | AI scribe | `sc-102` | Complete the reviewer-edit, leave-warning, and server-authorized approval/export gating checkpoint. | `apps/web/src/features/scribe/` and `apps/web/test/scribe-review-workspace.test.tsx` only. | Focused test plus accessible unsaved/edit/blocked-state observation. |
-| Evidence C | Patient reminders | `sc-97` | Execute the focused Rails security assertions against a migrated task-owned database. | `apps/api/test/integration/` for the bounded reminders test only. | Unauthenticated, wrong-practice, wrong-site, role, endpoint, preference, and replay outcomes are recorded. |
+| Build A | Staff messaging | `sc-99` | Inbox/conversation/composer frontend checkpoint is implemented and focused-tested; route wiring and live proof remain separate. | `apps/web/src/features/staff-messaging/` and its focused tests only. | Focused web check passes; live route wiring and narrow-layout observation remain. |
+| Build B | AI scribe | `sc-102` | Reviewer-edit, leave-warning, and server-authorized approval/export gating checkpoint is implemented and focused-tested; route wiring remains separate. | `apps/web/src/features/scribe/` and its focused tests only. | Focused test and typecheck pass; live browser/server integration remains. |
+| Evidence C | Patient reminders | `sc-97` | Rails security verification slice is recorded against a migrated task-owned database. | `apps/api/test/integration/patient_reminders_security_test.rb` only. | 2 runs, 14 assertions pass; delivery/recovery and live mutation evidence remain. |
 
-These three are already claimed in Shortcut and have explicit exclusions that avoid the principal shared-file collisions. They are the highest-leverage immediate wave because they convert existing domain checkpoints into tested or visible product behavior.
+These three bounded checkpoints are now in Shortcut review. They converted the existing domain slices into focused evidence without resolving the shared-route or live-browser gaps.
 
-### Wave 2 — Rotate closed lanes
+### Wave 2 — Current integration and evidence queue
 
 | Capability | Next bounded slice | Dependency | Why it follows Wave 1 |
 |---|---|---|---|
-| Patient portal | Verify activation, revocation, no-store context, cross-tenant denial, and one patient-safe request journey. Create one bounded Shortcut story before implementation. | Current portal identity/context contract and task-owned database. | The portal already has a vertical slice; the next value is lifecycle and access evidence, not another broad screen set. |
-| Cash-pay billing | Run the focused Rails acceptance checks, then a read-only/browser-safe billing smoke. Execute synthetic financial mutations only after the required human approval in `sc-96`. | Migrated task-owned PostgreSQL database and authenticated API/browser context. | Billing is furthest along in implementation and can convert existing code into acceptance evidence without opening new product scope. |
-| Patient reminders | Add provider callback signature/replay handling and durable worker/retry recovery as a separate slice after `sc-97`. | Reminder contract plus staff-messaging acknowledgement/escalation event contract. | Delivery reliability is a distinct state machine and should not be mixed into the security test slice. |
+| Cash-pay billing | Attach the clean isolated full-suite result to `sc-96`, then complete serialized route/context and narrow-layout browser evidence. | `sc-96` is assigned/approved; focused and full isolated Rails checks are green. | Billing’s test blocker is cleared; remaining work is live integration evidence, not another billing mutation slice. |
+| Patient portal | Wire/verify the canonical patient portal route and lifecycle/access browser evidence under `sc-120`. | Patient-portal Shortcut story, lifecycle test, and assigned synthetic-account gate exist. | `/portal` is only launch/onboarding; it cannot substitute for patient-portal evidence. |
+| Staff messaging + AI scribe | Integrate one visible route at a time, then capture desktop and narrow-layout evidence for the existing focused-tested workspaces. | `sc-99` and `sc-102` are in review; shared `App.tsx` route ownership stays with the coordinator. | Components exist but are not reachable from the current browser navigation. |
+| Patient reminders | Add provider callback signature/replay handling and durable worker/retry recovery as a separate slice after the current security evidence. | Reminder contract plus staff-messaging acknowledgement/escalation event contract. | Delivery reliability is a distinct state machine and should not be mixed into the security test slice. |
 
 Run billing browser evidence serially with other browser evidence unless each run has a genuinely isolated runtime and database. Do not claim a billing pass from source inspection or a build.
 
@@ -101,16 +105,16 @@ The next slice is not complete when only a roadmap, mockup, migration, typecheck
 
 ## Immediate coordinator checklist
 
-1. Keep `sc-97`, `sc-99`, and `sc-102` as the active three-lane wave; do not start a fourth implementation agent.
-2. Provision or confirm separate task-owned PostgreSQL databases for Rails checks.
-3. Let each active lane finish its bounded artifact and commit before integration.
-4. Create one patient-portal Shortcut story for the Wave 2 lifecycle/access verification slice; keep its scope narrower than the full portal roadmap.
-5. Assign and approve `sc-96` before any billing mutation; otherwise run only read-only/source/test evidence.
-6. Re-run the shared integration and browser gates after Wave 1 rather than continuously restarting the whole suite.
+1. Treat the billing full-suite rerun as cleared: the isolated run passed 22/228 and its scratch database was removed; retain `sc-96` in review until the live route evidence is attached.
+2. Keep task-owned databases for Rails checks and serialize shared-route/browser work; do not restart the full suite for every small UI change.
+3. Treat `sc-97`, `sc-99`, `sc-102`, and `sc-120` as review-stage evidence, not as complete live journeys.
+4. Use the existing `sc-120` portal story for lifecycle/access integration; do not create a duplicate story.
+5. Wire and verify one shared route at a time, starting with the reviewed billing/portal context boundary, then staff messaging and scribe.
+6. Keep implementation WIP capped at three lanes and update this matrix plus the capability evidence after each serialized integration checkpoint.
 
 ## Open decisions and gates
 
-- Human approval is still required for any synthetic financial mutation during billing browser evidence.
+- Browser/live integration evidence remains open for billing, patient portal, staff messaging, and AI scribe; current pages were observed without executing a mutation.
 - No capability is approved for real patient data, production use, HIPAA certification, clinical operations, or external provider execution.
 - Provider credentials, callbacks, durable workers, support/recovery procedures, retention/deletion review, accessibility evidence, and rollback evidence remain capability-specific gates.
 - Shortcut is the coordination/status authority; this file must not be used to infer that an active story is done.
