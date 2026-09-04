@@ -21,7 +21,7 @@ class Ability
     "patients.write" => { action: :create, subjects: [ Clinic::Care::Patient ], actions: %i[create update], scope: :practice },
     "staff.read" => { action: :read, subjects: [ Clinic::Staff::Member ], scope: :practice },
     "staff.write" => { action: :create, subjects: [ Clinic::Staff::Member ], actions: %i[create update], scope: :practice },
-    "facilities.read" => { action: :read, subjects: [ Clinic::Site ], scope: :practice },
+    "facilities.read" => { action: :read, subjects: [ Clinic::Site ], scope: :site_or_practice },
     "facilities.write" => { action: :create, subjects: [ Clinic::Site ], actions: %i[create update], scope: :practice },
     "inventory.read" => { action: :read, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyProduct, Clinic::Inventory::PharmacyBatch ], scope: :practice },
     "inventory.catalog" => { action: :create, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyProduct ], actions: %i[create update], scope: :practice },
@@ -168,6 +168,15 @@ class Ability
     end
 
     can?(self.class.action_for(normalized), self.class.subjects_for(normalized).first)
+  end
+
+  def practice_scope_for?(permission)
+    scope = @permissions_by_scope&.[](self.class.normalize_permission(permission))
+    scope&.fetch(:practice, false) == true
+  end
+
+  def accessible_site_ids
+    @permissions_by_scope&.values&.flat_map { |scope| scope[:site_ids] }&.uniq || []
   end
 
   private

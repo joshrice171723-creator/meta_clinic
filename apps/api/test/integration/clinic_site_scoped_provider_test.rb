@@ -38,6 +38,19 @@ class ClinicSiteScopedProviderTest < ActionDispatch::IntegrationTest
     assert_equal true, capabilities.fetch("notes_write")
   end
 
+  test "site-scoped location access exposes and selects only the assigned site" do
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "facilities.read", scope_kind: "site", site: @allowed_site)
+
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal [ @allowed_site.id ], response.parsed_body.fetch("sites").map { |site| site.fetch("id") }
+    assert_equal @allowed_site.id, response.parsed_body.dig("current_site", "id")
+
+    patch "/api/clinic/context", params: { site_id: @other_site.id }, headers: csrf_headers, as: :json
+    assert_response :not_found
+  end
+
   test "site-only provider can write observations and close only an allowed-site encounter" do
     post "/api/clinic/patients/#{@patient.id}/observations", params: {
       observation: {

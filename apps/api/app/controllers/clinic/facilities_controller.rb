@@ -1,17 +1,18 @@
 module Clinic
   class FacilitiesController < ApiController
-    before_action -> { require_capability_with_legacy("facilities.read", "appointments.book") }, only: :index
+    before_action -> { require_capability_with_legacy("facilities.read", "appointments.book", any_site: true) }, only: :index
     before_action -> { require_capability_with_legacy("facilities.write", "appointments.write") }, only: %i[create update]
 
     def index
       type = enum_param!(params[:type].presence || "sites", field: :type, allowed: %w[sites rooms departments visit_types])
       query = query_param
       records = case type
-      when "sites" then current_practice.sites
+      when "sites" then accessible_clinic_sites
       when "rooms" then current_practice.rooms
       when "departments" then current_practice.departments
       when "visit_types" then current_practice.visit_types
       end
+      records = records.where(id: current_clinic_site&.id || -1) if type == "sites" && params[:selected_only].to_s == "true"
       records = records.where("code ILIKE ?", "%#{records.model.sanitize_sql_like(query)}%") if query.present?
 
       serializer = case type

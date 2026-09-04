@@ -549,6 +549,7 @@ export type ClinicWorkspaceContext = {
   credentials: string[];
   policy_version: "clinic-authorization-v1";
   capabilities: ClinicCapabilities;
+  current_site: ClinicSite | null;
   sites: ClinicSite[];
 };
 export type Appointment = {

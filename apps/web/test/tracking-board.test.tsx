@@ -137,6 +137,7 @@ const context: ClinicWorkspaceContext = {
   credentials: ["SYNTHETIC-NP"],
   policy_version: "clinic-authorization-v1",
   capabilities: contextCapabilities,
+  current_site: null,
   sites: [{ id: 1, code: "MAIN", timezone_override: null }],
 };
 describe("tracking-board identities and waiting times", () => {

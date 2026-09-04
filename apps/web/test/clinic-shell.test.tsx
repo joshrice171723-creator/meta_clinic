@@ -25,6 +25,9 @@ describe("clinic shell composition", () => {
     expect(frame).toContain('if (event.key === "Escape" && !collapsed)');
     expect(frame).toContain("panel.current?.querySelector<HTMLAnchorElement>");
     expect(frame).toContain('window.location.replace("/login")');
+    expect(frame).toContain('className="practice-location"');
+    expect(frame).toContain('aria-label="Current clinic location"');
+    expect(frame).toContain("Select a location");
     expect(frame).not.toContain("clinic-chart-tab");
   });
 
@@ -53,6 +56,8 @@ describe("clinic shell composition", () => {
       expect(workspace).toContain(icon);
     expect(workspace).toContain('className="clinic-topbar"');
     expect(workspace).toContain('className="clinic-topbar-location"');
+    expect(workspace).toContain("data?.current_site?.name");
+    expect(workspace).toContain('method: "PATCH"');
     expect(frame).toContain('href="/portal"');
     expect(frame).toContain('href="/"');
   });

@@ -3,6 +3,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import LaunchIcon from "@mui/icons-material/Launch";
 import MenuIcon from "@mui/icons-material/Menu";
 import PublicIcon from "@mui/icons-material/Public";
+import type { ClinicSite } from "../../api/contracts";
 import { Form } from "../../shared/ui";
 
 export const COMPACT_NAV_QUERY = "(max-width: 900px)";
@@ -15,10 +16,18 @@ export function compactNavigation() {
 }
 export function ClinicFrame({
   practiceName,
+  locationName,
+  locations = [],
+  selectedLocationId,
+  onLocationChange,
   navigation,
   children,
 }: {
   practiceName: string;
+  locationName?: string | null;
+  locations?: Pick<ClinicSite, "id" | "code" | "name">[];
+  selectedLocationId?: number | null;
+  onLocationChange?: (siteId: number) => void;
   navigation: ReactNode;
   children: ReactNode;
 }) {
@@ -128,7 +137,28 @@ export function ClinicFrame({
           </a>
           <div className="practice-label">
             <strong>{practiceName}</strong>
-            <span>Local synthetic prototype</span>
+            <span className="practice-location">
+              <small>Location</small>
+              {locations.length > 1 ? (
+                <select
+                  aria-label="Current clinic location"
+                  value={selectedLocationId ?? ""}
+                  onChange={(event) => {
+                    if (event.target.value)
+                      onLocationChange?.(Number(event.target.value));
+                  }}
+                >
+                  <option value="">Select a location</option>
+                  {locations.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name || site.code}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span>{locationName || "No location selected"}</span>
+              )}
+            </span>
           </div>
           {navigation}
           <div className="clinic-sidebar-bottom">

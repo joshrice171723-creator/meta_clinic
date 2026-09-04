@@ -53,6 +53,28 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "FOREIGN"
   end
 
+  test "clinic context switches assigned locations and filters the selected facility" do
+    first = @practice.sites.create!(code: "MAIN", name: "Main synthetic location")
+    second = @practice.sites.create!(code: "ANNEX", name: "Annex synthetic location")
+
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.fetch("current_site")
+    assert_equal [ second.id, first.id ], response.parsed_body.fetch("sites").map { |site| site.fetch("id") }
+
+    patch "/api/clinic/context", params: { site_id: second.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal second.id, response.parsed_body.dig("current_site", "id")
+
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal second.id, response.parsed_body.dig("current_site", "id")
+
+    get "/api/clinic/facilities", params: { type: "sites", selected_only: "true" }, headers: @headers
+    assert_response :success
+    assert_equal [ second.id ], response.parsed_body.fetch("sites").map { |site| site.fetch("id") }
+  end
+
   test "billing dashboard is practice scoped and does not expose patient names" do
     patient = @practice.patients.first
     patient_name = patient.display_name

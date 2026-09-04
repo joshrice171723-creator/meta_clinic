@@ -1,6 +1,14 @@
 module Clinic
   class ContextController < ApiController
     def show
+      sites = accessible_clinic_sites.order(:code, :id)
+      current_site = current_clinic_site
+      session.delete(:clinic_site_id) if session[:clinic_site_id].present? && current_site.nil?
+      if current_site.nil? && sites.one?
+        current_site = sites.first
+        session[:clinic_site_id] = current_site.id
+      end
+
       render json: {
         schema_version: "clinic-context-v1",
         user_id: current_user.id,
@@ -42,8 +50,15 @@ module Clinic
           billing_cash_reconcile: allowed?("billing.cash_reconcile"),
           roles: allowed?("roles.manage")
         },
-        sites: current_practice.sites.order(:code, :id).map { |site| FacilitySerializer.site(site) }
+        current_site: current_site && FacilitySerializer.site(current_site),
+        sites: sites.map { |site| FacilitySerializer.site(site) }
       }
+    end
+
+    def update
+      site = accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id))
+      session[:clinic_site_id] = site.id
+      render json: { current_site: FacilitySerializer.site(site) }
     end
 
     private

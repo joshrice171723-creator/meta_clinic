@@ -91,6 +91,21 @@ module Clinic
       @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
 
+    def accessible_clinic_sites
+      sites = current_practice.sites
+      return sites if current_ability.practice_scope_for?("facilities.read") ||
+        current_ability.practice_scope_for?("appointments.book")
+
+      sites.where(id: current_ability.accessible_site_ids)
+    end
+
+    def current_clinic_site
+      site_id = session[:clinic_site_id]
+      return unless site_id.present?
+
+      accessible_clinic_sites.find_by(id: site_id)
+    end
+
     # Keep positive-id parsing available to every clinic controller. ApiController
     # has the same helper for its specialized error handlers, but most clinic
     # endpoints intentionally inherit directly from this shared boundary.

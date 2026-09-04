@@ -17,6 +17,7 @@ import type {
   ClinicWorkspaceContext,
   User,
 } from "../../api/contracts";
+import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { ClinicFrame } from "./ClinicFrame";
 import {
@@ -211,6 +212,8 @@ export function Workspace({
   const trackingBoard =
     path.replace(/\/+$/, "") === "/clinic" && homeView === "tracking";
   const inventoryPage = path.startsWith("/clinic/inventory");
+  const locationName =
+    data?.current_site?.name || data?.current_site?.code || null;
   if (!data || !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -287,6 +290,15 @@ export function Workspace({
             >
               <ClinicFrame
                 practiceName={data.practice.name}
+                locationName={locationName}
+                locations={data.sites}
+                selectedLocationId={data.current_site?.id}
+                onLocationChange={(siteId) => {
+                  void api("/api/clinic/context", {
+                    method: "PATCH",
+                    body: { site_id: siteId },
+                  }).then(() => window.location.reload());
+                }}
                 navigation={
                   <ClinicNavigation
                     capabilities={data.capabilities}

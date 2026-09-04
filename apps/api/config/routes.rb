@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"
+    patch "context", to: "context#update"
     get "note_templates", to: "care/note_templates#index"
     get "facilities", to: "facilities#index"
     post "facilities", to: "facilities#create"

@@ -95,9 +95,9 @@ function siteForm(site: ClinicSite): EditableSite {
 }
 
 export function Facilities() {
-  const { capabilities } = useClinic();
+  const { capabilities, current_site: currentSite } = useClinic();
   const { data, error, refresh } = useResource<{ sites: ClinicSite[] }>(
-    "/api/clinic/facilities?type=sites&detail=true&per_page=100",
+    "/api/clinic/facilities?type=sites&detail=true&per_page=100&selected_only=true",
   );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
@@ -224,7 +224,9 @@ export function Facilities() {
           </Stack>
           {data.sites.length === 0 && (
             <Typography color="text.secondary">
-              No facility sites have been recorded.
+              {currentSite
+                ? "No facility sites have been recorded."
+                : "Select a clinic location from the sidebar to view its profile."}
             </Typography>
           )}
           <Stack
