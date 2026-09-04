@@ -328,6 +328,8 @@ def main() -> int:
             'ActiveRecord::Base.connection_db_config',
             '"db:create"',
             '"db:migrate"',
+            '"SCHEMA" => schema_sentinel',
+            '"SKIP_TEST_DATABASE" => "1"',
             '"db:seed:replant"',
             '"APP_SYNTHETIC_SEEDS" => "1"',
             'File.join(ROOT, "dev_server_startup")',

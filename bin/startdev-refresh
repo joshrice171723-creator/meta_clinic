@@ -99,11 +99,16 @@ puts "Stopping the managed APPly stack..."
 run!(RbConfig.ruby, File.join(ROOT, "dev_server_startup"), "stop")
 require_ports_available!
 
+schema_sentinel = File.join(API_ROOT, "tmp", "startdev-source-migrations-#{Process.pid}.sql")
+fail_with("schema sentinel unexpectedly exists: #{schema_sentinel}") if File.exist?(schema_sentinel)
+
 local_environment = {
   "APP_SYNTHETIC_SEEDS" => nil,
   "APPLY_STARTDEV_SKIP_SCHEMA_DUMP" => "1",
   "DATABASE_URL" => nil,
-  "RAILS_ENV" => "development"
+  "RAILS_ENV" => "development",
+  "SCHEMA" => schema_sentinel,
+  "SKIP_TEST_DATABASE" => "1"
 }
 
 puts "Starting the checkout-owned PostgreSQL container..."
