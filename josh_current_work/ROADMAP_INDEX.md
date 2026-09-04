@@ -12,6 +12,10 @@ This index connects the capability roadmaps. Each capability has a roadmap, an i
 | AI scribe | [ROADMAP.md](ai%20scribe/ROADMAP.md) | [AI_SCRIBE_BUILD_PLAN.md](ai%20scribe/AI_SCRIBE_BUILD_PLAN.md) | [AI_SCRIBE_AUDIT_PLAN.md](ai%20scribe/AI_SCRIBE_AUDIT_PLAN.md) | Produces reviewable encounter drafts; approved outputs may link to the official record and create follow-up work. |
 | Cash-pay billing | [ROADMAP.md](cash%20pay%20billing/ROADMAP.md) | [CASH_PAY_BILLING_BUILD_PLAN.md](cash%20pay%20billing/CASH_PAY_BILLING_BUILD_PLAN.md) | [CASH_PAY_BILLING_AUDIT_PLAN.md](cash%20pay%20billing/CASH_PAY_BILLING_AUDIT_PLAN.md) | Provides staff receivables, cash drawer control, manager reconciliation, receipts, and gated check/card integrations while Rails remains the financial authority. |
 
+## Coordinated execution
+
+Use [EXECUTION_MATRIX.md](EXECUTION_MATRIX.md) for the current three-lane work-in-progress limit, shared-file ownership, capability dependencies, execution waves, and the exact next bounded actions. Shortcut remains authoritative for active task claims and status; the matrix is the repository-side sequencing and handoff contract.
+
 ## Shared integration rules
 
 - The host application remains authoritative for identity, tenant/practice/site scope, patient and appointment master data, permissions, CSRF/session security, official-record persistence, and organization-wide audit infrastructure.

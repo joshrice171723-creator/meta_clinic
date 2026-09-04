@@ -6,6 +6,7 @@ import {
   InventoryApp,
   inventoryDate,
   inventoryDateTime,
+  inventoryMovementViewState,
   inventoryMutationAttempt,
   inventoryOutcomeUnconfirmed,
   recallSelectableBalances,
@@ -68,6 +69,20 @@ describe("inventory integration", () => {
     expect(
       inventoryDateTime("2027-07-31T02:30:00Z", "America/Chicago"),
     ).toContain("Jul 30");
+  });
+
+  it("distinguishes an empty movement ledger from a filter with no matches", () => {
+    expect(inventoryMovementViewState(0, 0, "")).toBe("empty");
+    expect(inventoryMovementViewState(4, 0, "transfer")).toBe("filtered_empty");
+    expect(inventoryMovementViewState(4, 4, "")).toBe("results");
+
+    const source = readFileSync(
+      "src/features/inventory/InventoryApp.tsx",
+      "utf8",
+    );
+    expect(source).toContain("No movements recorded");
+    expect(source).toContain("Clear the filter to review the full movement ledger.");
+    expect(source).toContain("Inventory movement ledger");
   });
   it("renders a loading state before the Rails wire is available", () => {
     const html = renderToStaticMarkup(
