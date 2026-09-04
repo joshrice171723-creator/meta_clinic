@@ -26,8 +26,10 @@ class ApplicationController < ActionController::Base
   def current_user
     record = current_member_session
     return if session[:development_demo_user_id] && !development_demo?
-    return if record && Development::TestAccounts.reserved_email?(record.user.email_address) && !development_demo?
-    record.user if record && record.unexpired? && record.user.active?
+    return if record && Development::TestAccounts.reserved_email?(record.user.email_address) &&
+      !development_demo? && !patient_portal_session?
+    record.user if record && record.unexpired? && record.user.active? &&
+      (!Development::TestAccounts.reserved_email?(record.user.email_address) || development_demo? || patient_portal_session?)
   end
 
   def development_demo?
@@ -51,6 +53,13 @@ class ApplicationController < ActionController::Base
 
   def require_member
     render json: { error: "Please sign in to continue." }, status: :unauthorized unless current_user
+  end
+
+  def patient_portal_session?
+    identity_id = session[:patient_portal_identity_id]
+    return false unless identity_id
+
+    Clinic::PatientPortal::Identity.available.exists?(id: identity_id, user_id: current_member_session&.user_id)
   end
 
   def require_admin
