@@ -368,7 +368,9 @@ describe("board and Operations presentation boundaries", () => {
     expect(scheduledOnly).not.toContain("Care summary unavailable");
   });
   it("exposes resizable columns and alternating visit rows", () => {
-    const html = renderToStaticMarkup(<TrackingBoardView />);
+    const html = renderToStaticMarkup(
+      <TrackingBoardView visits={EXAMPLE_VISITS} synthetic />,
+    );
     expect(html.match(/role="separator"/g)).toHaveLength(7);
     expect(html).toContain('aria-label="Resize Patient column"');
     expect(html).toContain('aria-label="Resize Room column"');
@@ -399,7 +401,9 @@ describe("board and Operations presentation boundaries", () => {
     );
   });
   it("replaces the visit count with a recoverable column selector", () => {
-    const html = renderToStaticMarkup(<TrackingBoardView />);
+    const html = renderToStaticMarkup(
+      <TrackingBoardView visits={EXAMPLE_VISITS} synthetic />,
+    );
     expect(html).toContain("<summary>Columns</summary>");
     expect(html).toContain('aria-label="Choose tracking board columns"');
     expect(html.match(/type="checkbox"/g)).toHaveLength(9);

@@ -976,10 +976,10 @@ function ExampleVisitRow({
   );
 }
 export function TrackingBoardView({
-  visits = EXAMPLE_VISITS,
+  visits = [],
   now = EXAMPLE_CLOCK,
   timezone = "UTC",
-  synthetic = true,
+  synthetic = false,
   truncated = false,
   stale = false,
   refreshError,
@@ -1472,7 +1472,9 @@ export function OverviewView({
         </a>
       </section>
     );
-  return <TrackingBoardView timezone={timezone} />;
+  return (
+    <TrackingBoardView timezone={timezone} visits={EXAMPLE_VISITS} synthetic />
+  );
 }
 export function Overview({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
