@@ -112,9 +112,9 @@ Passwords are random and never printed. Use the existing interactive `members:re
 
 `bin/verify-backend` creates its own uniquely named test database, tests true concurrent allocations/addresses/bookings/revisions and restricted runtime history/catalog grants, then removes only that database and its unique temporary no-login role. Run it through `bin/postgres exec`, with PostgreSQL client tools on PATH. Tests require `RAILS_ENV=test`; never point them at an existing development/hosted database. Migration `20260831000800` adds identity/history/index/reservation guards without editing prior migrations. It is forward-only and has not been applied to existing development or hosted databases; review backups, locks and legacy access-equivalence before any cutover.
 
-## CSV-backed dev seed data
+## Optional dev seed data
 
-`ruby bin/apply up` refreshes `db/seed_data/bulk_v1` once per local calendar day after PostgreSQL is ready. The refresh truncates the explicitly discovered application tables, preserves Rails metadata tables, and refuses any database other than the configured `*_development` database. Use `ruby bin/apply up --no-seed-refresh` to skip the reset for one startup. The lower-level task is `APP_DEV_SEED_REFRESH=1 bundle exec rails dev:refresh_seed` and is guarded by the same database checks.
+Normal startup does not load, refresh, truncate, or replant seed data. The local development database is persistent so catalog items, suppliers, purchase orders, receipts, and inventory adjustments remain available between restarts. Use `ruby bin/apply up --seed` only when synthetic seed data is intentionally needed. The CSV bundle and `dev:refresh_seed` task remain maintenance/test fixtures and are not part of the user workflow.
 
 Regenerate the checked-in CSV bundle with:
 

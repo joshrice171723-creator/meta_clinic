@@ -30,4 +30,4 @@ For the normal daily lifecycle, use `./dev_server_startup start|restart|stop|sta
 
 Each developer uses an independent checkout and database. A second local worktree must use its own PostgreSQL container/volume, port, database names and application ports; never point two checkouts at one database. The detailed example lives in the API README.
 
-The explicit `$startdev` skill is a destructive local refresh that replants the selected development database. It requires the skill's confirmation and branch/upstream safeguards; it never authorizes hosted changes.
+The explicit `$startdev` skill starts a clean, synchronized local checkout without replants or destructive database resets. It requires the skill's confirmation and branch/upstream safeguards; it never authorizes hosted changes.

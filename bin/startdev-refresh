@@ -46,7 +46,7 @@ end
 
 if ARGV.delete("--help")
   puts "Usage: bin/startdev-refresh [--no-browser]"
-  puts "Synchronize a clean checkout with its upstream, replant its local synthetic development database, and start APPly."
+  puts "Synchronize a clean checkout with its upstream, preserve its local development database, and start APPly."
   exit 0
 end
 
@@ -121,15 +121,10 @@ RUBY
 run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "runner", connection_guard,
   chdir: API_ROOT, environment: local_environment)
 
-puts "Replanting #{database} with wholly synthetic seed data..."
-seed_environment = local_environment.merge("APP_SYNTHETIC_SEEDS" => "1", "APP_DEV_SEED_PROFILE" => "bulk")
-run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:seed:replant",
-  chdir: API_ROOT, environment: seed_environment)
-
 puts "Starting and verifying the managed APPly stack..."
 start_command = [ RbConfig.ruby, File.join(ROOT, "dev_server_startup"), "start" ]
 start_command << "--no-browser" if no_browser
 run!(*start_command)
 run!(RbConfig.ruby, File.join(ROOT, "dev_server_startup"), "status")
 
-puts "APPly refresh complete: #{starting_commit} -> #{final_commit}; replanted #{database}."
+puts "APPly refresh complete: #{starting_commit} -> #{final_commit}; preserved #{database}."

@@ -2,7 +2,6 @@
 param(
   [switch]$NoDockerStart,
   [switch]$Seed,
-  [switch]$RefreshSeed,
   [switch]$NoBrowser
 )
 
@@ -81,30 +80,7 @@ Push-Location $apiRoot
 try {
   ruby bin/postgres exec bundle exec rails db:prepare
   if ($LASTEXITCODE -ne 0) { Fail "Development database preparation failed." }
-  if ($RefreshSeed) {
-    $previousSeedRefresh = $env:APP_DEV_SEED_REFRESH
-    $previousSyntheticSeeds = $env:APP_SYNTHETIC_SEEDS
-    $previousSeedProfile = $env:APP_DEV_SEED_PROFILE
-    try {
-      $env:APP_DEV_SEED_REFRESH = "1"
-      $env:APP_SYNTHETIC_SEEDS = "1"
-      $env:APP_DEV_SEED_PROFILE = "bulk"
-      ruby bin/postgres exec bundle exec rails dev:refresh_seed
-      if ($LASTEXITCODE -ne 0) { Fail "Automatic development seed refresh failed." }
-    } finally {
-      $env:APP_DEV_SEED_REFRESH = $previousSeedRefresh
-      $env:APP_SYNTHETIC_SEEDS = $previousSyntheticSeeds
-      $env:APP_DEV_SEED_PROFILE = $previousSeedProfile
-    }
-    $previousDevelopmentLogin = $env:APP_DEVELOPMENT_LOGIN
-    try {
-      $env:APP_DEVELOPMENT_LOGIN = "1"
-      ruby bin/postgres exec bundle exec rails members:prepare_omni_account
-      if ($LASTEXITCODE -ne 0) { Fail "Named development account preparation failed." }
-    } finally {
-      $env:APP_DEVELOPMENT_LOGIN = $previousDevelopmentLogin
-    }
-  } elseif ($Seed) {
+  if ($Seed) {
     $previousSyntheticSeeds = $env:APP_SYNTHETIC_SEEDS
     $previousDevelopmentLogin = $env:APP_DEVELOPMENT_LOGIN
     try {
