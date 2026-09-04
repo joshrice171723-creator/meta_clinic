@@ -14,7 +14,7 @@ This record captures owner decisions made for the cash-pay billing roadmap. It d
 | Cash refunds | Approved | Cash-only refunds tied to evidenced cash payments. |
 | One drawer per physical site | Approved | One open drawer per clinic location. |
 | Manager reconciliation | Approved | Staff close may record a short/over amount; a manager reconciles it without rewriting the original facts. |
-| Checks/OCR | Approved | Provider, image custody, retention, access, deletion, and review rules must still be selected and implemented. |
+| Checks/OCR | Approved for a later increment; deferred from first release | No check image, OCR, or manual check-entry path is enabled in the first release. Provider, custody, retention, access, deletion, and review rules remain future work. |
 | Stripe/card payments | Approved | Provider integration remains server-authoritative and requires provider/security/operations review. |
 | Patient portal | Approved | Patient identity, consent, document access, support, and privacy controls remain required. |
 | Superbills | Explicitly out of scope | Do not build, expose, or label receipts as superbills under this roadmap. |
