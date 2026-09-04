@@ -19,17 +19,17 @@ Use Rails for authority and persistence, PostgreSQL for constraints and locking,
 | Manager reconciliation | Implemented locally | Final combined audit; detailed correction policy remains release-gated. |
 | Check intake | Metadata-only, fail-closed boundary | Choose provider and approve image custody/retention/access before adding a scan path. |
 | Receipts | Immutable local HTML snapshot; PDF/email production path gated | Approve detailed template, document, delivery, retention, and reissue contract. |
-| Patient portal | Billing-only synthetic projection; Omni preview in this pass | Complete final browser evidence; clinical portal actions remain disabled. |
+| Patient portal | Billing-only local projection; Omni patient view implemented | Browser evidence, identity lifecycle, support/privacy/accessibility review, and production gates remain open; clinical portal actions remain disabled. |
 | Stripe | Synthetic boundary only; online-first direction approved | Approve account owner, contracts, test credentials, supported scope, and security review. |
 | Release | Offline source gates in CI | Provide authorized hosted environment, secrets/recovery ownership, and release sign-off. |
 
 ## Immediate APPly completion handoff
 
-The implementation package's previously unblocked receivables work is shipped in APPly. This pass completes only the explicitly approved billing-facing portal behavior and safe Omni preview. Do not enable provider, document-delivery, clinical, or production behavior while their gates remain blocked.
+The implementation package's previously unblocked receivables work is shipped in APPly. The approved billing-facing portal behavior and Omni patient view are now implemented locally. Do not enable provider, document-delivery, clinical, or production behavior while their gates remain blocked.
 
 | Step | Action | Exit evidence |
 |---|---|---|
-| 1 | Finish the billing-only portal projection and Omni synthetic patient-preview selector with server-side scope and no production impersonation. | API and UI contracts expose financial data only; nonbilling portal actions are blocked. |
+| 1 | Finish the billing-only portal projection and Omni patient view selector with server-side scope and no production impersonation. | API and UI contracts expose financial data only; nonbilling portal actions are blocked. **Complete in `4754715` and `e3e734d`.** |
 | 2 | Run focused Rails/web checks, typecheck/build/formatting, vault verification, and `git diff --check`. | Named commands, results, commit, and warning/limit recorded. |
 | 3 | Run one final combined audit for source, tests, runtime, browser behavior, and approvals. | Findings are fixed in one follow-up pass; no production claim is inferred. |
 

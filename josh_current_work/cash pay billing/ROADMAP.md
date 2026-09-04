@@ -17,7 +17,7 @@ Completed in APPly's local synthetic scope, with this pass completing the approv
 - Synthetic Stripe collection-intent/provider-event boundary with HMAC verification, deduplication, redaction, and reconciliation states; no account, SDK, live key, or card data. Online card payments are the approved first-release direction, but provider implementation remains blocked pending the provider/security/operations approvals below.
 - Offline release-readiness gates for source, digest, health, backup/restore, container, and secret/log contracts.
 
-The remaining implementation pass is limited to the approved local synthetic workflow: billing-only patient portal projection, read-only Omni patient switching, and current receipt/ledger presentation. Browser acceptance is intentionally deferred until the single final audit. Unrelated clinical portal actions, check/OCR intake, Superbills, card-present payments, real provider calls, document delivery, and deployment remain outside the enabled scope.
+The implementation pass is complete for the approved local workflow: billing-only patient portal projection, read-only Omni patient switching, and current receipt/ledger presentation. The final audit records browser and shared-database verification limits. Unrelated clinical portal actions, check/OCR intake, Superbills, card-present payments, real provider calls, document delivery, and deployment remain outside the enabled scope.
 
 Owner scope decisions and working defaults are recorded in [OWNER_DECISIONS.md](OWNER_DECISIONS.md). Superbills are explicitly out of scope; all other listed capabilities are approved for the roadmap subject to their implementation, review, and release gates.
 
@@ -30,9 +30,9 @@ Relevant upstream commits: `e9149b7` (draft edit authority), `ea2ddfc` (receivab
 ### Definition of done for this handoff
 
 1. Keep invoice/service-date/receipt policy decisions explicit and implement only the approved local defaults.
-2. Finish the billing-only patient portal projection and the server-gated, read-only Omni preview with synthetic patient switching.
-3. Run the focused Rails and web checks after implementation, then run one final end-to-end audit across source, tests, runtime, browser behavior, and approvals.
-4. Update this roadmap, the APPly package/test plan/progress log, and the audit finding register with command output, commit, viewport, and remaining limitations.
+2. Finish the billing-only patient portal projection and the server-gated, read-only Omni patient view with practice-scoped patient switching. **Complete locally in `4754715` and `e3e734d`.**
+3. Run the focused Rails and web checks after implementation, then run one final end-to-end audit across source, tests, runtime, browser behavior, and approvals. **Completed with the unresolved limits recorded in the package/test plan.**
+4. Update this roadmap, the APPly package/test plan/progress log, and the audit finding register with command output, commit, viewport, and remaining limitations. **Completed for the current local pass.**
 
 This handoff is complete when the local synthetic implementation and one final audit pass. It does not authorize real payments, processor credentials, patient data, document delivery, or deployment.
 
@@ -42,7 +42,7 @@ This handoff is complete when the local synthetic implementation and one final a
 - All tests use synthetic data. No real patient, card, check, processor, or delivery data is permitted in development evidence.
 - Cash pay does not remove privacy, accounting, professional, tax, or records obligations.
 - A receipt is not a superbill. Superbills are explicitly out of scope for this roadmap.
-- Stripe, check scanning, patient portal, and hosted release are gated integrations, not implied by local adapter seams.
+- Stripe, check scanning, production patient portal, and hosted release are gated integrations, not implied by local adapter seams.
 
 ## Delivery sequence
 

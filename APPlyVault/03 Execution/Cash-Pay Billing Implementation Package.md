@@ -1,7 +1,7 @@
 ---
 type: implementation-package
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 # Cash-Pay Billing Implementation Package
 
@@ -22,7 +22,7 @@ APPly's Rails/PostgreSQL ledger remains the financial source of truth. A future 
 | `Clinic::CreditNote` / `Clinic::RefundEvent` | Separate immutable financial corrections | Never edit or erase posted financial history to simulate a refund or correction. |
 | `Clinic::Billing::{DraftInvoice,PostInvoice,AllocatePayment}` | Authorized, locked server-side financial operations | New terminal, documents, and processor flows call or extend these operations; browser code never derives a balance authoritatively. |
 | `/api/clinic/billing`, invoice detail/post/allocation routes | Existing bounded aggregate/read and protected mutation seam | Version new read contracts deliberately; preserve current capability checks and legacy compatibility only where tested. |
-| `BillingDashboard.tsx` and `Billing.tsx` | Internal ledger dashboard plus read-only patient balance lookup | Consolidate these into one coherent staff journey before adding a patient portal. |
+| `BillingDashboard.tsx` and `Billing.tsx` | Internal ledger dashboard plus read-only patient balance lookup | Keep the staff billing journey separate from the local billing-only patient portal. |
 
 The patient-balance screen correctly limits its identity lookup and now explains that authorized billing staff can start a draft invoice from the ledger. Posting and payment mutations remain capability-gated server operations; the screen does not imply that a lookup alone authorizes them.
 
@@ -53,7 +53,7 @@ For Stripe, receive/verify an event before creating a `PaymentEvent` when it is 
 
 - Staff-facing cash-pay receivables: draft invoice, review/post, cash/check/external-card recording, allocation, correction visibility, daily cash close, receipt, and patient balance history.
 - A later optional Stripe card-payment source, with server-verified webhook ingestion.
-- A later optional patient billing portal only after the internal workflow is complete and its identity, consent, delivery, privacy, accessibility, and support design is accepted.
+- The owner-approved local billing-only patient portal slice, including an Omni-only patient view selector; production identity, consent, delivery, privacy, accessibility, support, and payment gates remain separate.
 
 ### This package does not authorize or include
 
@@ -73,7 +73,7 @@ Keep one **Billing** destination. Do not add sidebar entries for every table.
 | Billing reader | View only the scoped ledger, invoice detail, and permitted receipt status | Patient-chart access, posting, payment entry, voids, or exports |
 | Billing operator | Draft/post invoice, record a cash/check/external payment, issue allowed receipt | Refund, void, cash close approval, or processor configuration |
 | Billing supervisor | Review corrections, approve closeout discrepancies and permitted void/refund workflow | Unrestricted tenant, clinical, or processor-secret access |
-| Patient portal user (future) | View own eligible documents and initiate a hosted/Elements payment flow | Staff terminal, other-patient data, account/card administration outside explicit scope |
+| Patient portal user (local first release) | View own billing ledger, invoices, balances, credits, refunds, payment history, and receipt availability | Staff terminal, other-patient data, payment collection, account/card administration outside explicit scope |
 
 Every server mutation derives actor, practice, permission, request correlation, and timestamp from trusted server context. Do not accept those fields from the browser.
 
@@ -181,13 +181,13 @@ Payment-related information can be protected health information in context; cash
 | --- | --- | --- | --- |
 | 0 — Acceptance brief | Approve cash-pay model, roles, exact document fields, numbering, cash-drawer ownership, and first processor scope | Founder/product decisions recorded; professional/privacy/accounting questions assigned | Any code, migration, Stripe account, portal |
 | 1 — Internal patient ledger | Consolidate dashboard and patient financial view using current invoices/allocations/credits/refunds | Scoped API/UI tests, synthetic browser desktop/narrow evidence, permission denial coverage | Cash close, documents, payment processor |
-| 1.5 — Receivables operations | Make the internal ledger operational: full invoice retrieval, draft authoring/editing, intentional partial or unapplied allocation, aging/follow-up state, and invoice audit timeline | Server-paginated/searchable ledger; authorized draft create/edit/post path; exact-decimal allocation tests including unapplied remainder; derived aging contract; read-only event timeline with tenant/role denial tests; synthetic desktop/narrow workflow evidence | Void/credit execution until policy is approved; statements/reminders; accounting export; processor and portal work |
+| 1.5 — Receivables operations | Make the internal ledger operational: full invoice retrieval, draft authoring/editing, intentional partial or unapplied allocation, aging/follow-up state, and invoice audit timeline | Server-paginated/searchable ledger; authorized draft create/edit/post path; exact-decimal allocation tests including unapplied remainder; derived aging contract; read-only event timeline with tenant/role denial tests; synthetic desktop/narrow workflow evidence | Void/credit execution until policy is approved; statements/reminders; accounting export; processor work |
 | 2 — Cash/check terminal | Add tender classification and protected collection UI; intentional allocation only | Exact decimal/over-allocation/retry/concurrency/actor tests; synthetic cash payment live proof | Card capture, stored cards, refund execution |
 | 3 — Cash reconciliation | Drawer sessions, close review, discrepancy workflow/report | Parallel-session, close-retry, discrepancy, role-denial, and audit tests | General ledger/accounting export |
 | 4 — Receipts | Versioned standard receipt generation/reprint and delivery audit | Rendered synthetic PDF review; authorization/reissue/no-data-leak tests | Superbill, real delivery |
 | 5 — Superbill decision | Separate approved specification and bounded export implementation if authorized | Qualified review recorded; code provenance/export/delivery tests | Claim submission or automated coding |
 | 6 — Stripe card source | Server-owned PaymentIntent + verified webhook + reconciliation queue | Stripe test-mode events, duplicate/out-of-order/invalid-signature tests; secret/log review | Live keys, saved methods, subscriptions, auto-charge |
-| 7 — Patient portal | Self-service invoice/document/payment experience after identity/support scope | Auth/session/ownership/accessibility/live synthetic flow evidence | Cross-patient data, automatic recurring charging |
+| 7 — Patient portal | Billing-only patient ledger plus local Omni patient view selector | Practice/patient/session denial coverage, billing-only projection, contract/UI tests, synthetic browser evidence | Clinical portal actions, payment collection, production impersonation, cross-practice data |
 | 8 — Release decision | Review exact real-world deployment and controls | Separate authorized environment, policy, operations/recovery, privacy/security/professional gates | Treating local tests as release approval |
 
 ### Accepted local cash-drawer rules — 2026-09-03
@@ -205,7 +205,7 @@ An injected synthetic adapter can return an opaque status and field names for co
 
 The next check increment requires an explicit provider/policy decision covering provider ownership and allowed environment, required fields, image transport/custody, retention and deletion, authorized staff access and audit, error/unknown outcomes, and the handoff into the existing payment-event/allocation operation. Until those inputs are accepted, the Phase 2 check path remains blocked.
 
-### Whole-milestone execution status — reviewed 2026-09-03
+### Whole-milestone execution status — reviewed 2026-09-04
 
 | Phase | Current execution status | Evidence or blocking authority |
 | --- | --- | --- |
@@ -217,7 +217,7 @@ The next check increment requires an explicit provider/policy decision covering 
 | 4 — Receipts | Basic cash receipts complete locally; production document scope blocked | Cash payment/refund receipts are immutable records with a scoped printable HTML view and no-store response header. Approved clinic identity, invoice numbering/service date, rendered-file digest/version, reprint/reissue, delivery, and PDF evidence remain blocked. |
 | 5 — Superbill decision | Blocked | Provider/code/date/signature/disclosure specification and qualified approval are absent. |
 | 6 — Stripe card source | Provider-neutral boundary complete locally; real integration blocked | Synthetic intent, raw-body signature verification, redacted/deduplicated processor-event evidence, and unmatched-event reconciliation state are covered by focused tests. Processor account owner, contracts, test credentials, webhook secret, supported scope, dispute/refund policy, security review, and explicit ledger-application workflow remain absent. |
-| 7 — Patient portal | Blocked | Portal identity, support, consent, document-delivery, accessibility, and privacy scope are unapproved. |
+| 7 — Patient portal | Implemented locally; acceptance and production gates blocked | Billing-only projection, assigned-patient access, local Omni patient switching, dormant-action denial, session isolation, and contracts/UI are implemented. Rails integration evidence is currently unresolved because shared PostgreSQL fixture setup deadlocked/lock-waited; browser, identity lifecycle, support, consent, document delivery, accessibility, privacy, real-data, and production evidence remain open. |
 | 8 — Release decision | Offline controls implemented; hosted gate blocked | `ops/aws/ec2/release_readiness.py` now enforces the source-level workflow, paired-digest, health/readiness, backup/restore, image-boundary, and secret/log-redaction contracts in CI. Authorized environment, operations/recovery, privacy/security/professional approval and hosted evidence remain outstanding. |
 
 ### Phase 1 delivery record — 2026-09-03
@@ -234,13 +234,19 @@ The next check increment requires an explicit provider/policy decision covering 
 
 **Safeguards and evidence:** cash writes derive practice/actor on Rails, use exact-decimal validation, lock the drawer and existing allocation path, atomically create tender/receipt evidence, enforce a practice-scoped replay key that cannot change drawer or amount intent, and retain cash refunds as separate history. Closed drawers retain immutable expected/count/discrepancy values and a manager-only reconciliation mutation records reviewer identity/time, required note, and an idempotent request key. The focused synthetic integration proof covers open → tender/change → same-key replay and mismatch rejection → refund/over-refund rejection → scoped printable receipt/no-store → expected cash → non-blocking discrepant close → manager reconciliation, plus transaction rollback and read-only denial. TypeScript typecheck, production build, changed-file formatting, and Impeccable detection pass. The MUI staff UI now requires explicit physical-site drawer selection when multiple drawers are open and presents reconciliation for an authorized manager after refresh. A live browser render could not complete because the local workspace remained at its Loading state while its API context was unavailable; it is not claimed as UI acceptance.
 
-**Still blocked:** check scanning/OCR, check-image storage/deletion/access policy, invoice numbering and service-date decisions, approved receipt template/content/delivery/PDF/reissue policy, superbill specification, Stripe account/webhook secrets, patient portal, and every real-data/release authority.
+**Still blocked:** check scanning/OCR, check-image storage/deletion/access policy, invoice numbering and service-date decisions, approved receipt template/content/delivery/PDF/reissue policy, superbill specification, Stripe account/webhook secrets, patient portal production identity/lifecycle and document/payment gates, and every real-data/release authority. The local billing-only patient portal and Omni patient view are implemented separately in the 2026-09-04 handoff.
 
 ### Provider-neutral card boundary delivery record — 2026-09-03
 
 **Implemented locally:** the additive provider-neutral seam now models a practice-scoped collection intent and processor-event evidence without connecting to Stripe or another provider. Intent creation locks the posted invoice, preserves exact amount/currency, rejects live mode, and makes request-key replay/conflict explicit. Synthetic Stripe-style raw-body signatures are verified with timestamp tolerance; verified events are normalized, deduplicated, redacted, and left in reconciliation when unmatched. No event creates an APPly payment event or allocation, and raw webhook bodies/card-like values are not stored.
 
 **Verification and limits:** `ruby bin/postgres exec ruby bin/rails test test/services/clinic/billing/payment_collection_boundary_test.rb` passed 8 runs / 41 assertions / 0 failures. It covers intent scope, idempotency/conflict, live-mode denial, signature tampering/staleness, duplicate/out-of-order/unmatched events, and redaction. This is not a Stripe integration or payment acceptance. Account ownership, test/live credentials, webhook route and secret custody, supported scope, PCI/privacy/security review, refunds/disputes, retention, alerting, recovery, and explicit ledger-application authority remain blocked.
+
+### Billing-only patient portal delivery record — 2026-09-04
+
+**Implemented locally:** the patient portal now exposes a read-only billing projection containing practice/patient identity, exact-decimal balances, invoices and lines, credits, payment history, allocations, refunds, and receipt availability. Ordinary patient access remains bound to the active portal identity. Dormant appointment, intake, clinical, reminder, messaging, refill, and request actions are denied at the patient-portal boundary. Omni can enter through the local development login and select any patient in Omni's assigned practice; the selected ID is session-scoped and the same billing view is rendered.
+
+**Verification and limits:** web Vitest passed 15 files / 163 tests; changed Ruby syntax, route-contract JSON, vault verification, release-readiness source checks, and whitespace checks passed. The focused Rails integration remains unresolved after shared PostgreSQL fixture deadlock/lock-wait errors, and the isolated Omni run found and repaired the controller's unavailable ID helper in `e3e734d`. Typecheck/build remain blocked by unrelated missing staff-messaging and inventory symbols. Browser evidence, production identity/lifecycle, payment collection, document delivery, and all release approvals remain blocked.
 
 ### Receivables operations delivery record — 2026-09-03
 

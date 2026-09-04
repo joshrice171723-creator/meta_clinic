@@ -47,7 +47,7 @@ This record captures owner decisions made for the cash-pay billing roadmap. The 
 | Decision | Owner approval | Boundary |
 | --- | --- | --- |
 | First-release rollout posture | Controlled U.S. pilot with one clinic | Prove the complete workflow in a bounded pilot before broader rollout. |
-| Portal verification access | Omni portal preview with patient switching | Omni may view what selected development patients would see using development seed data; the preview is read-only, clearly labeled, server-gated, and unavailable for real patient data or production impersonation. |
+| Portal verification access | Omni portal patient view with patient switching | Omni may view what any selected patient in its assigned practice would see using local development data; the view is read-only, clearly labeled, server-gated, and unavailable for real patient data or production impersonation. |
 
 Support and on-call ownership is intentionally deferred because it is not relevant to the current planning slice.
 

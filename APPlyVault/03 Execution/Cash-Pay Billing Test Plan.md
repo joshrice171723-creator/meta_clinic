@@ -1,7 +1,7 @@
 ---
 type: test-plan
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 # Cash-Pay Billing Test Plan
 
@@ -9,7 +9,7 @@ Home: [[00 Home]] · Package: [[Cash-Pay Billing Implementation Package]] · Sta
 
 ## Purpose and test boundary
 
-This plan is the verification companion to [[Cash-Pay Billing Implementation Package]]. It tests the locally implemented, synthetic cash-pay milestone against the current Rails/PostgreSQL ledger and the React staff surface. It does not authorize real cash, checks, cards, patient data, document delivery, processor accounts, deployment, or release.
+This plan is the verification companion to [[Cash-Pay Billing Implementation Package]]. It tests the locally implemented, synthetic cash-pay milestone and the owner-approved billing-only patient portal against the current Rails/PostgreSQL ledger and React surfaces. It does not authorize real cash, checks, cards, patient data, document delivery, processor accounts, deployment, or release.
 
 Rails remains authoritative for practice/actor authorization, invoice state, exact amounts, allocation, drawer expected cash, idempotency, persistence and receipt records. Browser checks verify presentation, request ownership and visible failure states; they never establish financial correctness by themselves.
 
@@ -48,11 +48,11 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 | DRAW-06 | Reconciliation is tenant/capability-bound and safely idempotent | Reject open drawer, missing note/key, read-only/cross-practice manager, and conflicting replay; identical replay returns the same reconciled record | Pass — negative paths are controller/model guarded; focused Rails rerun is environment-blocked |
 | REC-01 | A receipt is scoped, immutable and not cached as patient content | Payment/refund receipt returns only linked synthetic fields, `Cache-Control: no-store`, and no processor reference | Pass — covered by the focused Rails file gate |
 | REC-02 | Receipt correction does not overwrite history | Reissue/version/PDF/delivery behavior is a blocked production contract; do not mark local HTML as production acceptance | Blocked by approved document contract |
-| UI-01 | Staff controls consume the API contract without local financial authority | Web typecheck, build, changed-file formatting and Impeccable detector | Pass — Luna audit: typecheck, build, detector and changed-file checks |
+| UI-01 | Staff controls consume the API contract without local financial authority | Web typecheck, build, changed-file formatting and Impeccable detector | Prior cash evidence passed; current workspace typecheck/build are blocked by unrelated `StaffMessagingPage` and inventory symbols |
 | UI-02 | Staff can complete the visible cash journey at supported sizes | Running local browser: open drawer, select drawer, collect, open receipt, refund, close; desktop/tablet/narrow screenshots | Blocked: local page stayed Loading without API context |
 | UI-03 | Multiple physical-site drawers are explicit to the operator | With two open synthetic sites, the UI requires an explicit drawer selection and posts that ID | Pass — MUI UI now exposes an explicit location selector; web tests/typecheck/build pass; live browser remains blocked |
 | REG-01 | Existing clinic billing behavior remains compatible | Focused administrative permission regression plus route/contract checks; no destructive migration or source inference | Pass — Rails and full web gates green |
-| OPS-01 | The verification record is reproducible and synchronized | `bin/verify-web`, `bin/verify-vault`, `git diff --check`, scoped commit and pushed upstream state | Pass for the cash implementation commits; this documentation gate is pending, and unrelated concurrent portal/receivables edits are intentionally preserved outside the cash scope |
+| OPS-01 | The verification record is reproducible and synchronized | `bin/verify-web`, `bin/verify-vault`, `git diff --check`, scoped commits, and current worktree review | Pass for vault/release/diff checks and scoped commits; current branch is ahead of origin and has unrelated inventory edits; no push claimed |
 | OPS-02 | A release cannot bypass its source-level deployment and recovery controls | `python3 -B ops/aws/ec2/release_readiness.py`; verify manual main-only dispatch, matched API/web digests, health/readiness probes, pre-release backup, isolated restore and failed-release stop contracts | Pass — offline source gate added and wired into CI; hosted release evidence remains blocked |
 | OPS-03 | Credentials or protected command output cannot enter tracked source or operational diagnostics | Release-readiness scanner over tracked text plus operation-script redaction contract checks; synthetic placeholders are allowed, high-confidence token/key material is rejected | Pass — scanner and regression tests pass; it is not a secret-manager, runtime log, or external security assessment |
 | STR-01 | A card collection intent cannot cross practice, invoice, currency, amount, or live-mode boundaries | Synthetic intent creation with posted-invoice locking, exact amount/currency, practice-scoped request-key replay/conflict and live-mode denial | Pass — focused provider-neutral boundary test |
@@ -60,6 +60,11 @@ Rails remains authoritative for practice/actor authorization, invoice state, exa
 | STR-03 | Duplicate, out-of-order, or unmatched processor events cannot create money twice or silently allocate | Ingest synthetic verified events; assert digest/reference deduplication, normalized state, unmatched reconciliation state, and no payment/allocation side effect | Pass — focused provider-neutral boundary test |
 | STR-04 | Processor payloads and card-like values cannot enter APPly records or diagnostics | Assert only allowlisted opaque metadata and payload digest are retained; raw body and sensitive fields are rejected/omitted | Pass — focused provider-neutral boundary test |
 | STR-05 | A real Stripe connection cannot be enabled without authority and operational controls | Review account ownership, test/live secrets, webhook custody, PCI/privacy/security, refunds/disputes, retention, alerts, recovery, and ledger-application approval | Blocked — no real provider credentials, account, webhook route, or production authority |
+| PORT-01 | An ordinary patient can read only the assigned billing projection | Focused Rails integration: assigned identity, exact billing fields, clinical/nonbilling omission, and read-only capabilities | Implementation complete by source/test inspection; focused Rails run unresolved after fixture deadlock/lock-wait errors |
+| PORT-02 | Dormant clinical, scheduling, reminder, messaging, refill, and request actions cannot execute in the billing-only release | Call the compatibility routes as the patient and assert `patient_portal_billing_only` before action execution | Source-inspected and covered by focused test; full focused run unresolved because shared PostgreSQL fixture setup errors |
+| PORT-03 | Omni can view any patient in its assigned practice without cross-practice access | Local Omni context/switch test, patient outside the seed prefix, invalid ID, session isolation, and ordinary-patient denial | Source-inspected; focused Omni test found and repaired an ID-parser defect; rerun remains unresolved under shared PostgreSQL fixture contention |
+| PORT-04 | The portal UI renders only the billing contract and exposes the Omni patient view only to Omni | Web tests, contract inspection, typecheck/build, and accessible error/loading/status states | Vitest pass — 15 files / 163 tests; typecheck/build blocked by unrelated missing `StaffMessagingPage` import |
+| PORT-05 | The visible patient journey works at supported sizes | Running local browser at desktop/tablet/narrow widths with assigned patient and Omni selector | Blocked — no fresh browser/API evidence; prior local API context remained unavailable |
 | DB-03 | Backend race/restore helper completes within a bounded local run | `bin/verify-backend` and `bin/verify-postgres` on task-owned synthetic scratch databases | Inconclusive — helper produced no output for ~4 minutes and was stopped; no active scratch DB remained |
 | LED-03 | Staff can allocate a retained payment remainder without crossing patient/practice scope | Create one payment with an unapplied remainder; allocate it to a second eligible posted invoice; assert exact totals and reject cross-scope/over-allocation attempts | Implemented locally; web contract gate passes; focused Rails rerun blocked by two pending concurrent patient-portal migrations |
 | LED-04 | Draft invoice edits do not alter posted financial history | Edit a draft, assert audit history and updated totals; post it; reject a second edit after posting | Implemented and covered by the focused workspace integration test; web typecheck/build pass; clean Rails rerun pending migration state |
@@ -88,9 +93,21 @@ When a gate fails:
 
 ## Exit criteria for the locally implemented milestone
 
-The local cash milestone may be reported as verified only when all applicable rows through `REG-01` and `OPS-01` are Pass, `UI-02` is either Pass or explicitly reported as a browser-environment blocker, and no Fail remains. `REC-02`, check scanning/OCR, invoice numbering/service date, superbill, Stripe, portal and release rows remain blocked until their separate authority and implementation are accepted. A blocked row cannot be relabeled complete merely because the automated cash happy path passes.
+The local cash milestone may be reported as verified only when all applicable rows through `REG-01` and `OPS-01` are Pass, `UI-02` is either Pass or explicitly reported as a browser-environment blocker, and no Fail remains. `REC-02`, check scanning/OCR, invoice numbering/service date, superbill, Stripe production, portal production, and release rows remain blocked until their separate authority and evidence are accepted. The local billing-only portal rows are implemented but not browser- or production-accepted; a blocked row cannot be relabeled complete merely because an automated happy path passes.
 
 ## Evidence record
+
+### 2026-09-04 — Billing-only patient portal and Omni patient view closeout
+
+Environment: local Windows checkout, synthetic development data, Rails test database, and React/Vitest environment. No real patient data, credentials, payment provider, or production environment was used.
+
+- `npm test` from `apps/web` — **Pass**, 15 files / 163 tests.
+- Ruby syntax checks for the changed patient-portal controllers and integration test, routes-contract JSON parsing, `python3 -B bin/verify-vault`, `python3 -B ops/aws/ec2/release_readiness.py`, and `git diff --check` — **Pass**. `bin/verify-web` returned exit code 0 but emitted a repository Ruby-runtime warning (`ruby.EXE: invalid option -B`); this is not treated as patient-portal behavioral evidence.
+- `npm run typecheck` and `npm run build` — **Blocked**, the shared web workspace stops on the unrelated missing `src/features/staff-messaging/StaffMessagingPage` import before reaching portal compilation.
+- `ruby bin/postgres exec ruby bin/rails test test/integration/patient_portal_test.rb` — **Unresolved**, 4 runs / 4 assertions / 0 failures / 2 errors after shared fixture setup deadlock and lock-wait contention in role/permission preparation.
+- The isolated Omni test then exposed a real scoped defect: the development patient-switch controller called unavailable `requested_id!`. It was repaired to use the shared `integer_id!` parser; the repair is committed in `e3e734d` and the invalid-ID path is covered by the integration test. A clean post-repair Rails completion remains unavailable because the shared fixture database is still contention-prone.
+
+The implementation status is local/source-complete for this billing-only slice, with Rails completion and browser behavior unresolved. Production identity lifecycle, document/PDF/email, online-card provider execution, checks/OCR, card-present equipment, Superbills, real data, privacy/security/accessibility/operations review, deployment, and go/no-go approval remain blocked.
 
 ### 2026-09-03 — Provider-neutral card boundary gate
 
@@ -143,4 +160,4 @@ No escalation was needed because Luna's implementation and focused audit passed.
 
 ## Handoff to the implementation package
 
-After the test gate, return to [[Cash-Pay Billing Implementation Package]] and its whole-milestone status table. Do not repeat completed local cash work. Select the next phase only when its authority is accepted: check scanning/OCR and image policy, invoice numbering/service dates, approved receipt/PDF/reissue/delivery contract, superbill, Stripe ownership/secrets, portal identity, or release controls.
+After the test gate, return to [[Cash-Pay Billing Implementation Package]] and its whole-milestone status table. Do not repeat completed local cash or billing-only portal work. Select the next phase only when its authority is accepted: check scanning/OCR and image policy, invoice numbering/service dates, approved receipt/PDF/reissue/delivery contract, superbill, Stripe ownership/secrets, portal identity lifecycle/document policy, or release controls.

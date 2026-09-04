@@ -4,7 +4,7 @@ module Clinic
       before_action :require_omni_preview
 
       def update
-        patient = development_omni_preview_patients.find(requested_id!(params[:patient_id], :patient_id))
+        patient = development_omni_preview_patients.find(integer_id!(params[:patient_id], field: :patient_id))
         session[:patient_portal_preview_patient_id] = patient.id
         Clinic::AuditRecorder.record!(practice: portal_practice, actor: current_user,
           action_code: "patient_portal.development_preview.switch", outcome: :committed,

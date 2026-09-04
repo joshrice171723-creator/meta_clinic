@@ -19,7 +19,14 @@ Every result must be labeled one of:
 
 Never label a synthetic adapter, offline gate, or passing unit test as a live provider or production approval.
 
-## Current APPly evidence and retest queue — 2026-09-03
+## Current APPly evidence and retest queue — 2026-09-04
+
+### Billing-only patient portal closeout
+
+- Source inspected: `Clinic::PatientPortal::BaseController`, `ContextController`, `DevelopmentPatientController`, the dormant-action controllers, the patient portal contracts/UI, and the integration test. The local implementation is billing-only, assigned-patient scoped for ordinary patients, practice-scoped/session-scoped/read-only for Omni, and denies dormant nonbilling actions.
+- Automated pass: `npm test` — 15 files / 163 tests; Ruby syntax, routes-contract JSON, vault, release-readiness, and whitespace checks pass.
+- Unresolved: the focused Rails portal run produced fixture deadlock/lock-wait errors; the isolated Omni run exposed and repaired the unavailable `requested_id!` helper in `e3e734d`, but a clean post-repair Rails completion is not available.
+- Blocked: web typecheck/build stop on unrelated missing staff-messaging and inventory symbols; browser/API evidence is unavailable; production identity, privacy/security, accessibility, document/payment, operations, deployment, and go/no-go gates remain blocked.
 
 ### Shipped locally and pushed
 
