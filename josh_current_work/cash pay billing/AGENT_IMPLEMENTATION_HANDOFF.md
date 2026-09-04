@@ -1,24 +1,20 @@
 # Cash-Pay Billing Agent Handoff
 
+This handoff supersedes the 2026-09-03 remainder-only checkpoint. The current run is the single cohesive implementation pass for the owner-approved local synthetic billing scope; one final audit follows implementation.
+
 ## Checkpoint
 
-- Commit: `d804ad3` — Harden remainder allocation replay safety
-- Push: confirmed successful; `origin/main` advanced to this checkpoint before later capability work
-- Scope: existing-remainder allocation now requires a server-owned request key and idempotency boundary; focused Rails coverage and Billing UI request-key handling were updated.
+- Scope: keep the existing ledger, cash drawer, refund, receipt, and provider-neutral boundaries; add the billing-only patient portal projection and server-gated, read-only Omni patient preview with synthetic patient switching.
+- Explicitly deferred: check/OCR intake, card-present payments, Superbills, real provider credentials/calls, production PDF/email delivery, and hosted release.
 
 ## Verification
 
-- Ruby syntax checks passed for the changed controller and integration test.
-- Web TypeScript check passed.
-- `git diff --check` passed for the changed Billing files.
-- Rails integration execution was blocked by three concurrent pending capability migrations in the shared test database.
-- Prettier did not complete within the bounded verification window.
-- Browser acceptance remained unavailable because the local API context was not ready.
+Verification is intentionally recorded after the implementation pass and one combined final audit, not per slice.
 
 ## Scope protection
 
-The pre-existing `apps/api/app/queries/clinic/billing/patient_ledger.rb` change was preserved and was not included in the Billing commit. No real payment credentials, card data, patient data, or live processor behavior was introduced.
+No real payment credentials, card data, patient data, or live processor behavior is authorized or introduced. Any existing unrelated work remains preserved unless it is required by the owner-approved billing scope.
 
 ## Remaining gate
 
-After the concurrent migrations settle, rerun the focused Rails tests and bounded web formatting/build checks, then capture the synthetic desktop/tablet/narrow Billing flow.
+After implementation, run the focused checks and one final source/runtime/browser/approval audit. Fix consolidated findings once, then update the roadmap and evidence records.

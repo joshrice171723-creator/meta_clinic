@@ -4,7 +4,7 @@ Date: 2026-09-04
 Decision owner: Joshua Rice  
 Status: Product scope approved; detailed implementation, qualified review, and release gates remain required.
 
-This record captures owner decisions made for the cash-pay billing roadmap. It does not authorize real payment transactions, provider credentials, patient data, document delivery, or deployment by itself.
+This record captures owner decisions made for the cash-pay billing roadmap. The canonical APPly decision register remains [Decisions.md](../../APPlyVault/03%20Execution/Decisions.md); this file is the capability-specific execution copy. It does not authorize real payment transactions, provider credentials, patient data, document delivery, or deployment by itself.
 
 ## Approved product scope
 

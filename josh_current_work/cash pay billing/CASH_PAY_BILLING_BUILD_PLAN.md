@@ -8,33 +8,32 @@ This plan turns the [cash-pay billing roadmap](ROADMAP.md) into implementation w
 - [Test plan](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Test%20Plan.md)
 - [Progress log](../../APPlyVault/03%20Execution/Progress%20Log.md)
 
-Use Rails for authority and persistence, PostgreSQL for constraints and locking, and MUI for new staff UI. Use exact-decimal strings across JSON. Every change is additive and forward-only. Keep unrelated dirty work outside the billing commit.
+Use Rails for authority and persistence, PostgreSQL for constraints and locking, and MUI for new staff UI. Use exact-decimal strings across JSON. Every change is additive and forward-only. Keep provider, policy, clinical, and release gates explicit even where the owner has approved the product direction.
 
 ## Build status
 
 | Workstream | Current build state | Next build gate |
 |---|---|---|
-| Ledger/receivables | Implemented locally | Re-run Rails proof after the shared test database migration conflict is cleared; capture browser evidence. |
-| Cash drawers | Implemented locally | Hosted accounting/reconciliation policy and browser proof. |
-| Manager reconciliation | Implemented locally | Re-run Rails integration evidence; approve reopen/correction policy. |
+| Ledger/receivables | Implemented locally | Final combined audit and browser proof. |
+| Cash drawers | Implemented locally | Final combined audit and browser proof. |
+| Manager reconciliation | Implemented locally | Final combined audit; detailed correction policy remains release-gated. |
 | Check intake | Metadata-only, fail-closed boundary | Choose provider and approve image custody/retention/access before adding a scan path. |
-| Receipts | Basic cash HTML only | Approve numbering, service date, template, PDF, reissue, delivery, and retention contract. |
-| Stripe | Synthetic boundary only | Approve account owner, contracts, test credentials, supported scope, and security review. |
+| Receipts | Immutable local HTML snapshot; PDF/email production path gated | Approve detailed template, document, delivery, retention, and reissue contract. |
+| Patient portal | Billing-only synthetic projection; Omni preview in this pass | Complete final browser evidence; clinical portal actions remain disabled. |
+| Stripe | Synthetic boundary only; online-first direction approved | Approve account owner, contracts, test credentials, supported scope, and security review. |
 | Release | Offline source gates in CI | Provide authorized hosted environment, secrets/recovery ownership, and release sign-off. |
 
 ## Immediate APPly completion handoff
 
-The implementation package's remaining unblocked Phase 1.5 work is shipped in APPly. Do not reimplement it or broaden the scope while the shared test database is blocked by concurrent patient-portal migrations.
+The implementation package's previously unblocked receivables work is shipped in APPly. This pass completes only the explicitly approved billing-facing portal behavior and safe Omni preview. Do not enable provider, document-delivery, clinical, or production behavior while their gates remain blocked.
 
 | Step | Action | Exit evidence |
 |---|---|---|
-| 1 | Re-run the focused Rails workspace and administrative-permission tests after the pending portal migrations are applied in the task-owned test database. | Tests complete without migration or lock errors; billing assertions and authorization denials pass. |
-| 2 | Exercise `POST /api/clinic/payment_events/:id/allocations` with same-patient/same-currency posted invoices, then verify cross-practice, cross-patient, currency mismatch, draft, over-allocation, read-only, and identical/conflicting replay behavior. | Exact-decimal response and unchanged ledger on every rejected request. |
-| 3 | Run bounded web verification: full Vitest, typecheck, production build, targeted formatting, `bin/verify-vault`, and `git diff --check`. | Named command, result, commit, and warning/limit recorded. |
-| 4 | Capture synthetic browser proof for draft edit → post → partial/unapplied payment → later remainder allocation → invoice audit history at desktop/tablet/narrow widths. | Screenshots or equivalent evidence with API availability and viewport recorded. |
-| 5 | Update the audit plan and APPly progress log, then reassess the blocked production gates below. | No unverified claim is marked production-ready. |
+| 1 | Finish the billing-only portal projection and Omni synthetic patient-preview selector with server-side scope and no production impersonation. | API and UI contracts expose financial data only; nonbilling portal actions are blocked. |
+| 2 | Run focused Rails/web checks, typecheck/build/formatting, vault verification, and `git diff --check`. | Named commands, results, commit, and warning/limit recorded. |
+| 3 | Run one final combined audit for source, tests, runtime, browser behavior, and approvals. | Findings are fixed in one follow-up pass; no production claim is inferred. |
 
-The APPly branch is currently clean relative to `origin/main` for the billing commits, but unrelated patient-portal files remain dirty and must stay outside billing commits. The last Rails rerun was blocked before assertions by pending concurrent migrations; the last full Vitest run was stopped after no bounded completion output. Typecheck, Vite production build, Ruby syntax, targeted Prettier, and vault verification passed.
+The current checkout includes the owner-approved APPly work committed in this repository. Prior migration/transaction and browser-loading notes are historical until the combined final verification records current results.
 
 ## Existing APPly implementation map
 

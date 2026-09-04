@@ -8,16 +8,16 @@ The implementation source of truth is the APPly package: [Cash-Pay Billing Imple
 
 ## Current position
 
-Completed and pushed in APPly's local synthetic scope:
+Completed in APPly's local synthetic scope, with this pass completing the approved billing-only portal and Omni preview wiring:
 
 - Practice- and patient-scoped ledger with exact-decimal balances, credits, refunds, aging, and audit history.
 - Draft invoice create/edit/post workflow and intentional allocation of retained unapplied payment amounts.
 - Cash drawer open/close, cash tender/change, cash-only refunds, immutable printable HTML receipts, replay protection, and manager discrepancy reconciliation.
 - Fail-closed metadata-only check/OCR boundary; no image, bank data, provider credential, or external scan is accepted.
-- Synthetic Stripe collection-intent/provider-event boundary with HMAC verification, deduplication, redaction, and reconciliation states; no account, SDK, live key, or card data.
+- Synthetic Stripe collection-intent/provider-event boundary with HMAC verification, deduplication, redaction, and reconciliation states; no account, SDK, live key, or card data. Online card payments are the approved first-release direction, but provider implementation remains blocked pending the provider/security/operations approvals below.
 - Offline release-readiness gates for source, digest, health, backup/restore, container, and secret/log contracts.
 
-The branch is synchronized upstream. Browser acceptance is still unavailable because the local API context remains on Loading. Unrelated portal/inventory work remains outside this capability and must not be staged as billing work.
+The remaining implementation pass is limited to the approved local synthetic workflow: billing-only patient portal projection, read-only Omni patient switching, and current receipt/ledger presentation. Browser acceptance is intentionally deferred until the single final audit. Unrelated clinical portal actions, check/OCR intake, Superbills, card-present payments, real provider calls, document delivery, and deployment remain outside the enabled scope.
 
 Owner scope decisions and working defaults are recorded in [OWNER_DECISIONS.md](OWNER_DECISIONS.md). Superbills are explicitly out of scope; all other listed capabilities are approved for the roadmap subject to their implementation, review, and release gates.
 
@@ -29,20 +29,19 @@ Relevant upstream commits: `e9149b7` (draft edit authority), `ea2ddfc` (receivab
 
 ### Definition of done for this handoff
 
-1. Wait for the concurrent patient-portal migration work to settle, then run the focused Rails workspace and permission tests against a migrated task-owned test database. Do not stage or reset the concurrent portal files.
-2. Confirm the new remainder-allocation route has explicit cross-practice, cross-patient, currency-mismatch, draft-invoice, over-allocation, read-only-role, and safe-replay assertions.
-3. Run the web test suite in a bounded window, then typecheck, production build, changed-file formatting, vault verification, and `git diff --check`.
-4. Capture the real synthetic Billing flow at desktop, tablet, and narrow widths once the API context is available: draft edit → post → partial/unapplied payment → remainder allocation → audit history.
-5. Update this roadmap, the APPly package/test plan/progress log, and the audit finding register with command output, commit, viewport, and any remaining limitation.
+1. Keep invoice/service-date/receipt policy decisions explicit and implement only the approved local defaults.
+2. Finish the billing-only patient portal projection and the server-gated, read-only Omni preview with synthetic patient switching.
+3. Run the focused Rails and web checks after implementation, then run one final end-to-end audit across source, tests, runtime, browser behavior, and approvals.
+4. Update this roadmap, the APPly package/test plan/progress log, and the audit finding register with command output, commit, viewport, and remaining limitations.
 
-This handoff is complete when those evidence gates pass. It does not authorize real payments, processor credentials, patient data, document delivery, or deployment.
+This handoff is complete when the local synthetic implementation and one final audit pass. It does not authorize real payments, processor credentials, patient data, document delivery, or deployment.
 
 ## Product boundaries
 
 - Rails/PostgreSQL remains authoritative for identity, practice/site scope, permissions, invoice totals, allocations, refunds, drawer state, receipts, and audit history.
 - All tests use synthetic data. No real patient, card, check, processor, or delivery data is permitted in development evidence.
 - Cash pay does not remove privacy, accounting, professional, tax, or records obligations.
-- A receipt is not a superbill. Superbill export is a separate approved capability.
+- A receipt is not a superbill. Superbills are explicitly out of scope for this roadmap.
 - Stripe, check scanning, patient portal, and hosted release are gated integrations, not implied by local adapter seams.
 
 ## Delivery sequence
@@ -65,21 +64,21 @@ Support cash tender/change, cash-only refunds, one open drawer per site, non-blo
 
 Exit: Rails transaction/concurrency/authorization tests pass; UI consumes server-derived totals; browser evidence is captured when the local API context is available.
 
-### Phase 3 — Check intake
+### Phase 3 — Check intake (deferred)
 
-Select and contract an OCR/scanning provider only after image transport, custody, retention, deletion, access, provider failure, and bank-data policy review. Feed verified fields into the existing payment-event/allocation operation; never store raw images by default.
+Checks/OCR are deferred from the first release. Keep the existing metadata-only, fail-closed boundary until a later provider, image custody, retention, deletion, access, bank-data, and operator-review decision exists.
 
 Exit: provider test-mode evidence, redaction/access tests, duplicate/unknown outcomes, and an explicit operator review path pass.
 
-### Phase 4 — Production receipts and documents
+### Phase 4 — Receipt/document contract (locally bounded; production gated)
 
-Approve and implement invoice numbering, service date, clinic identity, line snapshots, payment/refund totals, document version/digest, PDF rendering, reprint/reissue lineage, delivery audit, retention, and scoped authorization.
+Use the approved local defaults for invoice numbering, service date, immutable receipt snapshots, reprint/reissue lineage, and verified-address email intent. PDF rendering, delivery, retention, and production document acceptance remain gated until the detailed policy and environment approvals exist.
 
 Exit: synthetic rendered-document review, authorization/immutability tests, delivery/reissue evidence, and professional/privacy sign-off pass.
 
-### Phase 5 — Card processor integration
+### Phase 5 — Online card processor integration (provider-gated)
 
-After processor ownership and contracts are approved, add a server-owned collection intent, hosted/Payment Element flow, verified raw-body webhook ingestion, monotonic event handling, reconciliation queue, redacted logs, and test/live key separation.
+After processor ownership and contracts are approved, extend the existing server-owned collection intent and verified webhook boundary with a hosted/Payment Element flow, monotonic event handling, reconciliation queue, redacted logs, and test/live key separation. Card-present remains deferred until equipment is available.
 
 Exit: processor test-mode duplicate/out-of-order/invalid-signature/unknown-outcome evidence and security review pass. Live keys remain a separate authorization.
 
