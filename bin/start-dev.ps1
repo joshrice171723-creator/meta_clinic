@@ -96,6 +96,14 @@ try {
       $env:APP_SYNTHETIC_SEEDS = $previousSyntheticSeeds
       $env:APP_DEV_SEED_PROFILE = $previousSeedProfile
     }
+    $previousDevelopmentLogin = $env:APP_DEVELOPMENT_LOGIN
+    try {
+      $env:APP_DEVELOPMENT_LOGIN = "1"
+      ruby bin/postgres exec bundle exec rails members:prepare_omni_account
+      if ($LASTEXITCODE -ne 0) { Fail "Named development account preparation failed." }
+    } finally {
+      $env:APP_DEVELOPMENT_LOGIN = $previousDevelopmentLogin
+    }
   } elseif ($Seed) {
     $previousSyntheticSeeds = $env:APP_SYNTHETIC_SEEDS
     $previousDevelopmentLogin = $env:APP_DEVELOPMENT_LOGIN

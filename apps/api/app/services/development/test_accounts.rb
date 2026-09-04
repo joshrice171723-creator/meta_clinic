@@ -75,6 +75,27 @@ module Development
       end
     end
 
+    def self.prepare_omni!
+      ensure_local!
+      settings = PROFILES.fetch("omni")
+      User.transaction do
+        user = User.lock.find_by(email_address: settings.fetch(:email))
+        if user
+          identity_matches = user.email_address == settings.fetch(:email) &&
+            user.admin? == settings.fetch(:admin)
+          unless identity_matches && user.authenticate(password_for("omni"))
+            raise Unavailable, "A test identity conflicts with an existing account. No accounts were changed."
+          end
+        else
+          user = User.create!(email_address: settings.fetch(:email), admin: settings.fetch(:admin),
+            active: settings.fetch(:active), password: password_for("omni"))
+          Launch::Paperwork.assign_demo!(user)
+        end
+        OmniAccess.prepare!(user)
+        user
+      end
+    end
+
     def self.ensure_local!
       return if Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
       raise Unavailable, "Named test accounts require explicitly enabled local development."

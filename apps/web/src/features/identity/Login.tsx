@@ -60,8 +60,9 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
             />
             <p className="form-note">
               OmniLogin is the local development identity for rapid review. The
-              patient portal preview adds a session-only patient selector.
-              Settings → Development view still swaps clinic workspace labels.
+              patient portal uses this signed-in account and loads patient and
+              billing records from the backend. Settings → Development view
+              still swaps clinic workspace labels.
             </p>
             <Form
               endpoint="/api/development_session"
@@ -80,15 +81,9 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
                 ]}
               />
             </Form>
-            <Form
-              endpoint="/api/development_session"
-              submit="Open synthetic patient portal"
-              onSuccess={() => window.location.assign("/patient-portal")}
-              values={{ profile: "patient" }}
-            />
             <p className="form-note">
-              Local synthetic accounts only; no password needed. Client A and B
-              retain separate progress and test clinics. Test Admin has inbox
+              Local development accounts only; no password needed. Client A and
+              B retain separate progress and test clinics. Test Admin has inbox
               access, not clinic access. Sessions end 12 hours after login.
             </p>
             <Form
@@ -97,7 +92,7 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
               onSuccess={done}
             />
             <p className="form-note">
-              Development only. Creates a fresh synthetic walkthrough with an
+              Development only. Creates a fresh local walkthrough with an
               assigned Test Clinic. No password or ChatGPT sign-in needed.
             </p>
           </>

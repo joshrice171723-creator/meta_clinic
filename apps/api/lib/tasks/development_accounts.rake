@@ -7,4 +7,13 @@ namespace :members do
   rescue Development::TestAccounts::Unavailable => error
     abort error.message
   end
+
+  desc "Prepare the local-only Omni account and patient portal"
+  task prepare_omni_account: :environment do
+    user = Development::TestAccounts.prepare_omni!
+    puts "#{user.email_address}: available"
+    puts "Use Open Omni patient portal on the loopback development login page."
+  rescue Development::TestAccounts::Unavailable => error
+    abort error.message
+  end
 end
