@@ -11,10 +11,10 @@ class CreateStaffMessaging < ActiveRecord::Migration[8.1]
       t.datetime :last_message_at
       t.timestamps
     end
+    add_index :clinic_staff_conversations, [ :practice_id, :id ], unique: true, name: "clinic_staff_conversations_practice_id"
     add_foreign_key :clinic_staff_conversations, :clinic_practices, column: :practice_id, name: "fk_staff_conversations_practice"
     add_foreign_key :clinic_staff_conversations, :clinic_sites, column: [ :practice_id, :site_id ], primary_key: [ :practice_id, :id ], name: "fk_staff_conversations_site"
     add_foreign_key :clinic_staff_conversations, :clinic_memberships, column: [ :practice_id, :created_by_membership_id ], primary_key: [ :practice_id, :id ], name: "fk_staff_conversations_creator"
-    add_index :clinic_staff_conversations, [ :practice_id, :id ], unique: true, name: "clinic_staff_conversations_practice_id"
     add_index :clinic_staff_conversations, [ :practice_id, :site_id, :last_message_at ], name: "clinic_staff_conversations_recent"
     add_check_constraint :clinic_staff_conversations, "kind IN ('direct','team','role') AND status IN ('active','archived','locked') AND retention_class IN ('routine','time_sensitive','urgent','safety_critical')", name: "staff_conversations_values"
 
@@ -57,6 +57,7 @@ class CreateStaffMessaging < ActiveRecord::Migration[8.1]
       t.bigint :acknowledged_by_membership_id
       t.timestamps
     end
+    add_index :clinic_staff_messages, [ :practice_id, :id ], unique: true, name: "clinic_staff_messages_practice_id"
     add_foreign_key :clinic_staff_messages, :clinic_practices, column: :practice_id, name: "fk_staff_messages_practice"
     add_foreign_key :clinic_staff_messages, :clinic_staff_conversations, column: [ :practice_id, :conversation_id ], primary_key: [ :practice_id, :id ], name: "fk_staff_messages_conversation"
     add_foreign_key :clinic_staff_messages, :clinic_memberships, column: [ :practice_id, :sender_membership_id ], primary_key: [ :practice_id, :id ], name: "fk_staff_messages_sender"
@@ -93,6 +94,7 @@ class CreateStaffMessaging < ActiveRecord::Migration[8.1]
       t.text :resolution_note
       t.timestamps
     end
+    add_index :clinic_staff_message_requests, [ :practice_id, :id ], unique: true, name: "clinic_staff_message_requests_practice_id"
     add_foreign_key :clinic_staff_message_requests, :clinic_practices, column: :practice_id, name: "fk_staff_message_requests_practice"
     add_foreign_key :clinic_staff_message_requests, :clinic_staff_messages, column: [ :practice_id, :message_id ], primary_key: [ :practice_id, :id ], name: "fk_staff_message_requests_message"
     add_foreign_key :clinic_staff_message_requests, :clinic_memberships, column: [ :practice_id, :assignee_membership_id ], primary_key: [ :practice_id, :id ], name: "fk_staff_message_requests_assignee"

@@ -28,6 +28,13 @@ Rails.application.routes.draw do
     resources :message_intents, controller: "messaging/message_intents", only: :show do
       post :delivery_events, on: :member, action: :record_delivery
     end
+    resources :reminders, controller: "reminders", only: %i[index show create] do
+      post :pause, on: :member
+      post :cancel, on: :member
+      post :retry, on: :member
+      post :dispatch, on: :member, action: :dispatch_reminder
+      post :delivery_events, on: :member, action: :record_delivery
+    end
       resources :invoices, controller: "billing/invoices", only: :show do
         patch :draft, on: :member, action: :update_draft
       post :post, on: :member
@@ -103,6 +110,22 @@ Rails.application.routes.draw do
       post :adjust, on: :member
     end
     resources :staff, controller: "staff/members", only: %i[index create update]
+    namespace :patient_portal do
+      resources :invitations, only: :create
+      post "identities/:id/revoke", to: "identity_lifecycle#revoke"
+    end
+    namespace :scribe do
+      resources :encounters, controller: "encounters", only: %i[create show destroy] do
+        post :consent, on: :member
+        post :sources, on: :member
+        post :generate, on: :member
+      end
+      resources :drafts, controller: "drafts", only: [] do
+        post :review, on: :member
+        post :approve, on: :member
+        post :export, on: :member
+      end
+    end
   end
   end
   namespace :api, module: "identity/api" do
@@ -115,8 +138,15 @@ Rails.application.routes.draw do
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do
       get "context", to: "context#show"
+      get "reminders", to: "reminders#index"
+      post "reminders/:id/actions", to: "reminders#action"
+      get "reminder_preferences", to: "reminder_preferences#show"
+      post "reminder_preferences", to: "reminder_preferences#update"
       resources :appointment_requests, only: %i[index create]
       resources :requests, controller: "requests", only: %i[index create]
+      post "invitation/activate", to: "activation#create"
+      post "step_up", to: "step_up#create"
+      post "recovery", to: "recovery#create"
     end
   end
   namespace :api, module: "launch/api" do

@@ -104,6 +104,8 @@ export type PatientPortalContext = {
     purpose_code: string;
     created_at: string;
   }[];
+  reminders: PatientReminder[];
+  reminder_preferences: ReminderPreference[];
   appointment_requests: {
     id: number;
     starts_at: string;
@@ -129,8 +131,35 @@ export type PatientPortalContext = {
     appointment_requests_write: boolean;
     messages_write: boolean;
     refill_requests_write: boolean;
+    step_up: boolean;
+    recovery: boolean;
   };
   notices: string[];
+};
+export type PatientReminder = {
+  id: number;
+  patient_id: number;
+  category: string;
+  channel: string;
+  safe_preview: string;
+  scheduled_at: string;
+  timezone: string;
+  local_schedule_label: string;
+  status: string;
+  priority: string;
+  expires_at: string | null;
+  endpoint: { type: string; label: string; masked_value: string };
+  action_types: string[];
+  delivery_attempts?: { attempt_number: number; status: string; failure_class: string | null; retryable: boolean }[];
+};
+export type ReminderPreference = {
+  channel: string;
+  setting: string;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  timezone: string;
+  locale: string;
+  version: number;
 };
 export type Paperwork = {
   id: number;
@@ -358,6 +387,8 @@ export type ClinicCapabilities = {
   notes_write: boolean;
   documents: boolean;
   messages: boolean;
+  reminders?: boolean;
+  reminders_write?: boolean;
   billing: boolean;
   roles: boolean;
 };

@@ -9,6 +9,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import DeskIcon from "@mui/icons-material/RoomService";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import type {
   ClinicCapabilities,
   ClinicOverview,
@@ -108,6 +109,12 @@ export function ClinicNavigation({
       label: "Billing",
       Icon: ReceiptLongIcon,
       allowed: capabilities.billing_read === true,
+    },
+    {
+      href: "/clinic/reminders",
+      label: "Reminders",
+      Icon: NotificationsNoneIcon,
+      allowed: capabilities.reminders === true,
     },
     {
       href: "/clinic/settings",

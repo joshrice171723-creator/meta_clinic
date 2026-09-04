@@ -22,7 +22,7 @@ module Development
       procurement.submit procurement.approve recall.read recall.lock recall.dispose
       controlled.read controlled.count controlled.certify
       appointments.read appointments.book appointments.status_transition
-      encounters.write encounters.assign_provider notes.read notes.write notes.sign observations.write messages.write
+      encounters.write encounters.assign_provider notes.read notes.write notes.sign observations.write messages.write reminders.read reminders.write
       documents.read billing.write billing.read billing.invoice_draft billing.invoice_post billing.payment_record roles.manage
     ].freeze
 
@@ -40,7 +40,8 @@ module Development
         membership = Clinic::Membership.create!(practice: practice, user: user)
         grant_access!(membership, permissions)
         MANAGED_PATIENTS.each do |fixture|
-          practice.patients.create!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
+          patient = practice.patients.create!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
+          create_reminder_defaults!(practice, patient)
         end
         paper = practice.items.create!(name: "Printer paper", sku: "OFFICE-001", reorder_level: 5)
         folders = practice.items.create!(name: "File folders", sku: "OFFICE-002", reorder_level: 10)
@@ -81,7 +82,21 @@ module Development
 
         legacy.update!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
       end
+      practice.patients.find_each { |patient| create_reminder_defaults!(practice, patient) }
     end
     private_class_method :normalize_managed_patients!
+
+    def self.create_reminder_defaults!(practice, patient)
+      endpoint = practice.communication_endpoints.find_or_create_by!(patient: patient, endpoint_type: "portal", value_digest: Digest::SHA256.hexdigest("portal:#{practice.id}:#{patient.id}")) do |record|
+        record.value = "portal:synthetic:#{patient.id}"
+        record.label = "Private portal"
+        record.verified_at = Time.current
+      end
+      preference = practice.communication_preferences.where(patient: patient, category: "operational", channel: "portal").order(version: :desc).first
+      return if preference
+
+      practice.communication_preferences.create!(patient: patient, category: "operational", channel: "portal", setting: "allowed", timezone: practice.timezone, effective_at: Time.current, source: "synthetic_seed", version: 1)
+    end
+    private_class_method :create_reminder_defaults!
   end
 end

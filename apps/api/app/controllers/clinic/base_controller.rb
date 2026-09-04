@@ -91,6 +91,13 @@ module Clinic
       @current_ability ||= Ability.new(current_user, practice: current_practice)
     end
 
+    # Keep positive-id parsing available to every clinic controller. ApiController
+    # has the same helper for its specialized error handlers, but most clinic
+    # endpoints intentionally inherit directly from this shared boundary.
+    def requested_id!(value, field)
+      integer_id!(value, field: field)
+    end
+
     def boolean_or_default(value, field:, default: false)
       value.nil? ? default : boolean_param(value, field: field)
     end
