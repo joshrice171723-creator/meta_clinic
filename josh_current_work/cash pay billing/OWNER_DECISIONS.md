@@ -33,6 +33,15 @@ This record captures owner decisions made for the cash-pay billing roadmap. It d
 | First-release card payments | Online card payments only | Use a hosted Checkout or Payment Element flow; no physical terminal is required for the first release. |
 | Card-present payments | Approved for a later increment | Defer implementation and acceptance until physical equipment is available for testing. |
 
+## Additional owner decisions
+
+| Decision | Owner approval | Boundary |
+| --- | --- | --- |
+| First patient portal scope | Billing-only portal first | Start with authenticated access to permitted billing documents and payment actions; do not expand to a full clinic portal in this increment. |
+| Receipt email delivery | Automatic email after payment | Send only to a verified, authorized address and record delivery attempts/failures. |
+| Receipt and billing-data retention | Applicable U.S., state, and clinic policy | Do not invent a universal retention period; configure the approved policy before real release. |
+| Accounting and tax boundary | APPly records payment facts; accounting system owns tax/GL | Do not build tax calculation or accounting export into the first release unless separately approved. |
+
 ## Working defaults adopted
 
 These defaults may guide implementation unless the owner later overrides them. They are not a substitute for qualified legal, accounting, privacy, security, accessibility, or professional review.
