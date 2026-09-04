@@ -825,6 +825,7 @@ function PaymentHistory({
   );
   const [allocationInvoiceId, setAllocationInvoiceId] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
+  const [allocationRequestKey, setAllocationRequestKey] = useState("");
   const [allocationError, setAllocationError] = useState("");
   const [allocationBusy, setAllocationBusy] = useState(false);
 
@@ -851,6 +852,8 @@ function PaymentHistory({
     }
     setAllocationBusy(true);
     setAllocationError("");
+    const requestKey = allocationRequestKey || crypto.randomUUID();
+    setAllocationRequestKey(requestKey);
     try {
       await api(`/api/clinic/payment_events/${paymentId}/allocations`, {
         method: "POST",
@@ -858,12 +861,14 @@ function PaymentHistory({
           allocation: {
             invoice_id: Number(allocationInvoiceId),
             amount: allocationAmount.trim(),
+            request_key: requestKey,
           },
         },
       });
       setAllocationPaymentId(null);
       setAllocationInvoiceId("");
       setAllocationAmount("");
+      setAllocationRequestKey("");
       onFinancialChange();
     } catch (reason) {
       setAllocationError(
@@ -971,9 +976,10 @@ function PaymentHistory({
                           select
                           label="Apply to invoice"
                           value={allocationInvoiceId}
-                          onChange={(event) =>
-                            setAllocationInvoiceId(event.target.value)
-                          }
+                          onChange={(event) => {
+                            setAllocationInvoiceId(event.target.value);
+                            setAllocationRequestKey("");
+                          }}
                           sx={{ minWidth: 190 }}
                         >
                           {eligibleInvoices(payment).map((invoice) => (
@@ -988,9 +994,10 @@ function PaymentHistory({
                           label="Amount"
                           inputMode="decimal"
                           value={allocationAmount}
-                          onChange={(event) =>
-                            setAllocationAmount(event.target.value)
-                          }
+                          onChange={(event) => {
+                            setAllocationAmount(event.target.value);
+                            setAllocationRequestKey("");
+                          }}
                         />
                         <Button
                           disabled={allocationBusy}
@@ -1018,6 +1025,7 @@ function PaymentHistory({
                             String(eligibleInvoices(payment)[0].id),
                           );
                           setAllocationAmount(payment.unapplied_amount);
+                          setAllocationRequestKey("");
                         }}
                         variant="outlined"
                       >

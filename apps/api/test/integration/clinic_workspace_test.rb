@@ -138,7 +138,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     ).payment_event
 
     post "/api/clinic/payment_events/#{payment.id}/allocations",
-      params: { allocation: { invoice_id: second.id, amount: "5.00" } },
+      params: { allocation: { invoice_id: second.id, amount: "5.00", request_key: "SYN-REMAINDER-001" } },
       headers: csrf_headers, as: :json
 
     assert_response :created
@@ -151,6 +151,94 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_response :success
     ledger_payment = response.parsed_body.fetch("payments").find { |entry| entry["id"] == payment.id }
     assert_equal "0.0", ledger_payment.fetch("unapplied_amount")
+  end
+
+  test "remainder allocation is scoped, exact, authorized, and safely replayed" do
+    patient = @practice.patients.first
+    first = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic remainder source" } ]
+    )
+    second = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic remainder target" } ]
+    )
+    draft = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic draft target" } ]
+    )
+    voided = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic void target" } ]
+    )
+    foreign_patient = @practice.patients.create!(display_name: "SYN_Workspace, Foreign", reference: "SYN-WORKSPACE-FOREIGN")
+    cross_patient = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: foreign_patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic cross patient target" } ]
+    )
+    currency_mismatch = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "EUR",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic currency target" } ]
+    )
+    [ first, second, currency_mismatch, cross_patient, draft, voided ].each { |invoice| Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user) }
+    voided.transition_to!("void")
+    other_patient = @other.patients.first
+    foreign_invoice = Clinic::Billing::DraftInvoice.call(
+      practice: @other, actor: @other_user, patient: other_patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic foreign target" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: foreign_invoice, actor: @other_user)
+    payment = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @user, patient: patient, invoice: first,
+      external_event_reference: "synthetic-remainder-edge-payment", currency: "USD",
+      amount: "5.00", payment_amount: "10.00"
+    ).payment_event
+
+    edge_cases = [
+      [ foreign_invoice.id, "5.00", :not_found ],
+      [ cross_patient.id, "5.00", :unprocessable_entity ],
+      [ currency_mismatch.id, "5.00", :unprocessable_entity ],
+      [ draft.id, "5.00", :unprocessable_entity ],
+      [ voided.id, "5.00", :unprocessable_entity ],
+      [ second.id, "5.01", :unprocessable_entity ],
+      [ second.id, "5.0000001", :unprocessable_entity ]
+    ]
+    edge_cases.each_with_index do |(invoice_id, amount, status), index|
+      post "/api/clinic/payment_events/#{payment.id}/allocations",
+        params: { allocation: { invoice_id: invoice_id, amount: amount, request_key: "SYN-REMAINDER-EDGE-#{index}" } },
+        headers: csrf_headers, as: :json
+      assert_response status
+    end
+
+    reader = User.create!(email_address: "remainder-reader@example.invalid", password: @password)
+    reader_membership = @practice.memberships.create!(user: reader)
+    grant_permissions!(reader_membership, "billing.read")
+    post "/api/session", params: { email_address: reader.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+    post "/api/clinic/payment_events/#{payment.id}/allocations",
+      params: { allocation: { invoice_id: second.id, amount: "5.00", request_key: "SYN-REMAINDER-READONLY" } },
+      headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+    request = { allocation: { invoice_id: second.id, amount: "5.00", request_key: "SYN-REMAINDER-SAFE-001" } }
+    assert_difference "Clinic::PaymentAllocation.count", 1 do
+      post "/api/clinic/payment_events/#{payment.id}/allocations", params: request, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    allocation_id = response.parsed_body.dig("payment_allocation", "id")
+    assert_equal 1, Clinic::OperationReceipt.where(practice: @practice, request_key: "SYN-REMAINDER-SAFE-001").count
+    assert_no_difference "Clinic::PaymentAllocation.count" do
+      post "/api/clinic/payment_events/#{payment.id}/allocations", params: request, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_equal allocation_id, response.parsed_body.dig("payment_allocation", "id")
+    assert_equal "0.0", response.parsed_body.dig("payment", "unapplied_amount")
+    conflicting = request.deep_merge(allocation: { amount: "4.99" })
+    post "/api/clinic/payment_events/#{payment.id}/allocations", params: conflicting, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal 1, Clinic::OperationReceipt.where(practice: @practice, request_key: "SYN-REMAINDER-SAFE-001").count
   end
 
   test "billing draft edits stay draft-only and payment allocation reports unapplied remainder" do
