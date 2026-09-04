@@ -15,7 +15,7 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
 
   test "synthetic patient login receives only its assigned portal projection" do
     previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
-    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "test", "1"
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     Development::TestAccounts.prepare!
 
     post "/api/development_session", params: { profile: "patient" }, headers: local_csrf, as: :json
@@ -73,7 +73,7 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
 
   test "ordinary synthetic accounts cannot use the patient portal" do
     previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
-    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "test", "1"
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     Development::TestAccounts.prepare!
     post "/api/development_session", params: { profile: "client-a" }, headers: local_csrf, as: :json
     assert_response :created
