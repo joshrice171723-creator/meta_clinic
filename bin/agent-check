@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shlex
 import subprocess
 import sys
@@ -33,10 +34,26 @@ def git_lines(*args: str) -> set[str]:
     return {line for line in result.stdout.splitlines() if line}
 
 
-def changed_paths(base: str) -> set[str]:
-    tracked = git_lines("diff", "--name-only", base, "--")
+def changed_paths(base: str, staged: bool = False) -> set[str]:
+    diff_args = ["diff", "--cached", "--name-only"] if staged else ["diff", "--name-only", base]
+    tracked = git_lines(*diff_args, "--")
     untracked = git_lines("ls-files", "--others", "--exclude-standard")
     return tracked | untracked
+
+
+def matches_scope(path: str, scopes: list[str]) -> bool:
+    normalized = [scope.rstrip("/") for scope in scopes]
+    return any(
+        scope in {"", "."} or path == scope or path.startswith(f"{scope}/")
+        for scope in normalized
+    )
+
+
+def select_paths(all_paths: set[str], scopes: list[str]) -> tuple[set[str], set[str]]:
+    if not scopes:
+        return all_paths, set()
+    selected = {path for path in all_paths if matches_scope(path, scopes)}
+    return selected, all_paths - selected
 
 
 def implementation_change(paths: set[str], prefix: str) -> bool:
@@ -48,8 +65,10 @@ def implementation_change(paths: set[str], prefix: str) -> bool:
     )
 
 
-def checks_for(paths: set[str]) -> list[Check]:
+def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD", staged: bool = False) -> list[Check]:
     checks: list[Check] = []
+    diff_command = ("git", "diff", "--cached" if staged else base, "--check", "--", *sorted(paths))
+    checks.append(Check("git diff --check", diff_command))
     vault_changed = any(path.startswith("APPlyVault/") for path in paths)
     harness_changed = any(
         path == "AGENTS.md"
@@ -71,11 +90,20 @@ def checks_for(paths: set[str]) -> list[Check]:
         }
         for path in paths
     )
-    if vault_changed:
+    if level != "focused" and vault_changed:
         checks.append(Check("vault knowledge base", ("python3", "-B", "bin/verify-vault")))
         checks.append(Check("vault hygiene report", ("python3", "-B", "bin/vault-audit")))
-    if harness_changed:
+    if level != "focused" and harness_changed:
         checks.append(Check("agent harness", ("python3", "-B", "bin/verify-agent-harness")))
+
+    if level == "focused":
+        if implementation_change(paths, "apps/api"):
+            ruby_paths = tuple(path for path in sorted(paths) if path.endswith(".rb"))
+            if ruby_paths:
+                checks.append(Check("focused Ruby syntax", ("ruby", "-e", "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }", *ruby_paths)))
+        if implementation_change(paths, "apps/web"):
+            checks.append(Check("focused frontend typecheck", ("npm", "run", "typecheck"), ROOT / "apps/web"))
+        return checks
 
     lifecycle_paths = {
         "dev_server_startup",
@@ -172,6 +200,12 @@ def checks_for(paths: set[str]) -> list[Check]:
     if cross_boundary:
         checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
 
+    if level == "integration":
+        if api_changed and not cross_boundary:
+            checks.append(Check("backend contracts", ("bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"))
+        if web_changed and not cross_boundary:
+            checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
+
     if ops_changed:
         checks.append(
             Check(
@@ -204,23 +238,63 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default="HEAD", help="Git base for tracked changes; default: HEAD")
     parser.add_argument("--run", action="store_true", help="Run selected checks instead of only listing them.")
+    parser.add_argument("--path", action="append", default=[], help="Limit check selection to this file or directory; repeatable.")
+    parser.add_argument("--staged", action="store_true", help="Use staged tracked changes instead of the worktree diff.")
+    parser.add_argument("--level", choices=("focused", "component", "integration"), default="component")
+    parser.add_argument("--json", action="store_true", help="Print a machine-readable report to stdout.")
     args = parser.parse_args()
 
     try:
-        paths = changed_paths(args.base)
+        all_paths = changed_paths(args.base, args.staged)
     except subprocess.CalledProcessError as error:
         print(error.stderr, file=sys.stderr)
         return error.returncode or 2
 
+    # Staged mode selects only index changes; still disclose untracked files as unrelated.
+    candidate_paths = all_paths - (git_lines("ls-files", "--others", "--exclude-standard") if args.staged else set())
+    paths, unrelated = select_paths(candidate_paths, args.path)
+    if args.staged:
+        unrelated |= all_paths - candidate_paths
     if not paths:
-        print("No tracked or untracked changes detected.")
+        if args.json:
+            print(json.dumps({"base": args.base, "scope": args.path, "level": args.level, "staged": args.staged, "selected_files": [], "unrelated_files": sorted(unrelated), "selected_commands": [], "outcomes": []}, sort_keys=True))
+        else:
+            print("No changes detected in the requested scope.")
+            if unrelated:
+                print("\nUnrelated dirty paths (disclosed, not used for check selection):")
+                for path in sorted(unrelated):
+                    print(f"  - {path}")
         return 0
 
-    print("Changed paths:")
+    checks = checks_for(paths, args.level, base=args.base, staged=args.staged)
+    if args.json:
+        outcomes = []
+        for check in checks:
+            outcomes.append({"name": check.name, "command": display(check), "status": "pending" if args.run else "skipped"})
+        report = {"base": args.base, "scope": args.path, "level": args.level, "staged": args.staged, "selected_files": sorted(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
+        if args.run:
+            for outcome, check in zip(outcomes, checks):
+                result = subprocess.run(check.command, cwd=check.cwd, capture_output=True, text=True)
+                outcome["status"] = "passed" if result.returncode == 0 else "failed"
+                outcome["returncode"] = result.returncode
+                if result.returncode:
+                    if result.stdout:
+                        outcome["stdout"] = result.stdout
+                    if result.stderr:
+                        outcome["stderr"] = result.stderr
+                    print(json.dumps(report, sort_keys=True))
+                    return result.returncode
+        print(json.dumps(report, sort_keys=True))
+        return 0
+
+    print("Changed paths in scope:")
     for path in sorted(paths):
         print(f"  - {path}")
+    if unrelated:
+        print("\nUnrelated dirty paths (disclosed, not used for check selection):")
+        for path in sorted(unrelated):
+            print(f"  - {path}")
 
-    checks = checks_for(paths)
     if not checks:
         print("\nNo automated check mapping exists for these paths; inspect the diff manually.")
         return 0

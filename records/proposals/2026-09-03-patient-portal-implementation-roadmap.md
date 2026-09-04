@@ -5,11 +5,11 @@ updated: 2026-09-03
 ---
 # Patient Portal Implementation Roadmap
 
-Home: [[00 Home]] · Execution: [[Roadmap and Tasks]] · [[Cash-Pay Billing Implementation Package]] · [[Clinic Encounter Workflow Contract]] · [[Risks and Assumptions]]
+Home: [[00 Home]] · Execution: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · [[Cash-Pay Billing Implementation Package]] · [[Clinic Encounter Workflow Contract]] · [[Risks and Assumptions]]
 
 ## Purpose, scope, and limits
 
-This is a proposed implementation sequence for a patient-facing APPly portal for a cash-pay clinic. It converts the requested dashboard, booking, payment, intake, visit-summary, refill, result, and messaging capabilities into independently reviewable slices. The canonical status record is [[Roadmap and Tasks]]; this note does not create a second task register or authorize production use.
+This is a proposed implementation sequence for a patient-facing APPly portal for a cash-pay clinic. It converts the requested dashboard, booking, payment, intake, visit-summary, refill, result, and messaging capabilities into independently reviewable slices. The canonical status record is [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap); this note does not create a second task register or authorize production use.
 
 The existing APPly clinic implementation is a synthetic staff-side foundation: schedule-aware board, encounter-draft probe, inventory, and cash-pay ledger. It is not an approved patient-record system, clinical workflow, payment processor integration, patient portal, or HIPAA/release acceptance. The roadmap must use synthetic data until the separately accepted privacy, security, professional, operations, and release gates exist.
 

@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
+
+Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
 ## 2026-09-03 — Billing package consolidated to Luna-only execution
 
 **Audit:** reconciled the package and test plan with the current source and recent commits `d0e9923`, `b6c03b6`, and `e490f4b`. The check/OCR slice is accurately limited to a metadata-only, fail-closed adapter boundary; provider execution, image custody and payment handoff remain blocked. The card slice is accurately recorded as a synthetic provider-neutral intent/signature/event boundary only; its focused Rails test passed 8 runs / 41 assertions, but no Stripe account, credentials, webhook route, or APPly ledger application is enabled. Cash receipt HTML remains locally implemented, while the approved production receipt/PDF/version/reissue/delivery contract remains blocked.
@@ -37,7 +41,7 @@ canonical_for: recent-progress-and-history-index
 
 **Limits / next gates:** this is a request intake queue, not chat delivery, prescribing, or refill approval. Staff triage/outbox integration, attachment policy, response SLA ownership, e-prescribing authority, invitation/step-up/recovery/revocation, Stripe/webhook reconciliation, intake signatures, authoritative booking/inventory holds, clinician release/PDF/superbill workflows, lab authority, browser acceptance, and production privacy/security/accessibility/operations approval remain open.
 
-Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
+Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
@@ -115,7 +119,7 @@ Newest entry first. Record actual changes and results, not projected achievement
 
 ## 2026-09-03 — Patient portal implementation roadmap prepared
 
-**Request and outcome:** translated the requested concierge/cash-pay patient portal into [[Patient Portal Implementation Roadmap]] and added proposed T-50. The plan sequences portal identity/lifecycle, ledger/Stripe and unapplied credit, intake/booking/inventory holds, clinician-released visit summaries and financial documents, then bounded messages/refills/results. It gives each slice explicit scope, likely blockers, failure cases, fallback, and exit evidence rather than assuming a 12-week build or a final compliance-polish phase.
+**Request and outcome:** translated the requested concierge/cash-pay patient portal into a preserved proposal record and Shortcut Roadmap Stories. The plan sequences portal identity/lifecycle, ledger/Stripe and unapplied credit, intake/booking/inventory holds, clinician-released visit summaries and financial documents, then bounded messages/refills/results. It gives each slice explicit scope, likely blockers, failure cases, fallback, and exit evidence rather than assuming a 12-week build or a final compliance-polish phase.
 
 **Evidence and limits:** the roadmap is grounded in the current synthetic staff-side clinic, cash-pay ledger, scheduling, inventory, and encounter-draft baseline, plus the existing access, operations, and workflow gates. It adds R-14 for the risk of treating patient portal work as ordinary frontend work. It does not select an identity vendor, processor, scribe/lab/e-prescribing integration, production environment, clinical content policy, payment/tax policy, or accepting reviewer; it neither implements features nor authorizes patient data, charges, clinical content, HIPAA/security acceptance, or release.
 
@@ -166,6 +170,10 @@ Archived: [full dated entry](<../../records/progress/2026-09.md#2026-09-03%20%E2
 Archived: [full dated entry](<../../records/progress/2026-09.md#2026-09-03%20%E2%80%94%20Startdev%20refresh%20skill%20added>) · IDs: D-057.
 
 ## 2026-09-03 — Material UI-first harness and host correction
+
+## 2026-09-03 — MUI MCP and Vault authority reconciliation
+
+The project-scoped configuration selects the official Material UI MCP as an upstream documentation/example source. Local source, installed types, architecture, tests and executable behavior remain implementation truth; Shortcut remains the roadmap and coordination plane. Read-only verification resolved `@mui/mcp` 0.1.4 with `fetchDocs` and `generateReactCode`; the documented `useMuiDocs` tool was unavailable. Code generation credentials were not configured or requested. Detailed evidence: [record](../../records/progress/2026/09/2026-09-03-mui-mcp-and-vault-authority-reconciliation.md).
 
 Archived: [full dated entry](<../../records/progress/2026-09.md#2026-09-03%20%E2%80%94%20Material%20UI-first%20harness%20and%20host%20correction>) · IDs: D-054, D-056.
 

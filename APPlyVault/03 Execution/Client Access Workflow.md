@@ -5,11 +5,11 @@ updated: 2026-08-31
 ---
 # Client Access Workflow
 
-Home: [[00 Home]] · Product: [[Client Portal]] · Canonical status: [[Roadmap and Tasks#Step 2 — Client onboarding and operator workflow]] · Risk: [[Risks and Assumptions]]
+Home: [[00 Home]] · Product: [[Client Portal]] · Canonical status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Risk: [[Risks and Assumptions]]
 
 ## Purpose and review boundary
 
-**T-23.1 structure accepted, revision 3 — 2026-08-31.** Define how a paid launch client receives, uses, recovers and loses portal access, with an operator path for each exception. The founder accepted the structure with a 12-hour session limit (D-040); Codex owns this implementation/documentation increment. The founder owns initial payment confirmation and client-access authorization under D-038. Other production role assignments/backups are deliberately deferred; due date remains TBD. Structure acceptance does not imply full implementation or operational acceptance. Task status stays in [[Roadmap and Tasks]].
+**Client-access structure accepted, revision 3 — 2026-08-31.** Define how a paid launch client receives, uses, recovers and loses portal access, with an operator path for each exception. The founder accepted the structure with a 12-hour session limit (D-040); Codex owns this implementation/documentation increment. The founder owns initial payment confirmation and client-access authorization under D-038. Other production role assignments/backups are deliberately deferred; due date remains TBD. Structure acceptance does not imply full implementation or operational acceptance. Current status stays in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap).
 
 **Settled direction:** D-022 requires provisioned access after payment, no public signup, and a first signed-in page with **Paperwork** and **Onboarding & Training**. The initial boundary is one individual account with personal assignments/progress. Shared credentials and multi-person engagement access are outside this increment. D-025/D-026/D-033 preserve separate clinic permissions and frontend/API responsibilities; portal access does not grant clinic access, signing authority, professional authority or access to another entity's records.
 

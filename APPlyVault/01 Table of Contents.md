@@ -7,11 +7,11 @@ canonical_for: vault-context-routing
 ---
 # Table of Contents
 
-Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[Design]] · **Developers: [start with the handbook](../docs/README.md)** · Code ownership: [architecture](../docs/architecture/software-architecture.md) · Status: [[Roadmap and Tasks#Current task register]]
+Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[Design]] · **Developers: [start with the handbook](../docs/README.md)** · Code ownership: [architecture](../docs/architecture/software-architecture.md) · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap)
 
-Use this index to select the relevant notes and sections for a task; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, tasks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and the [agent harness](../agent-harness/README.md) provide scoped procedure. The harness owns agent behavior; this vault owns software knowledge and evidence.
+Use this index to select the relevant notes and sections for a Story; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, risks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and the [agent harness](../agent-harness/README.md) provide scoped procedure. The harness owns agent behavior; this vault owns software knowledge and evidence.
 
-This is navigation, not a second backlog. Current status lives in [[Roadmap and Tasks]], explicit choices in [[Decisions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
+This is navigation, not a backlog. The [Shortcut Roadmap and Agent Workspace](../docs/development/shortcut.md) own Epics, Stories, task scope/acceptance, claims and status; explicit choices live in [[Decisions]], risks in [[Risks and Assumptions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
 
 ## Choose a reading route
 
@@ -19,20 +19,20 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 | Task | Start here | Supporting context when needed |
 | --- | --- | --- |
-| Product or visual-system design | [PRODUCT.md](../PRODUCT.md), [[Design]] | [[Clinic Workspace Design]] for implementation history and workflow boundaries; D-036/D-039/D-041/D-049/D-051/D-052; T-47 |
-| Implementation planning or failure review | [[Roadmap and Tasks#Five-step implementation plan]], [failure-first workflow](../agent-harness/workflows/failure-first.md) | Human agreement in [[Working Agreement]]; chunk entry/exit evidence, [[Risks and Assumptions]], templates and existing gates remain |
-| Developer onboarding, Git, local setup or CI | [Developer handbook](../docs/README.md), [software architecture](../docs/architecture/software-architecture.md) | [[CICD]] and [[Software Architecture]] preserve vault context/links; T-22/T-40 and D-033 own status/direction |
-| Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | T-20/T-38; [staging owner-review access](../ops/aws/ec2/review-access.md); linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates |
-| Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant M0–M6 criteria/tasks; D-021/D-022/D-033 |
-| Clinic UI, care or staff prototype | [[Design]], [[Clinic Workspace]], [[Clinic Workspace Design]], [[Clinic Domain and Data Boundaries]] | [Software architecture](../docs/architecture/software-architecture.md); relevant decisions/tasks and release limits |
+| Product or visual-system design | [PRODUCT.md](../PRODUCT.md), [[Design]] | [[Clinic Workspace Design]] for implementation history and workflow boundaries; D-036/D-039/D-041/D-049/D-051/D-052 |
+| Implementation planning or failure review | [Shortcut Roadmap and Agent Workspace](../docs/development/shortcut.md), [failure-first workflow](../agent-harness/workflows/failure-first.md) | Human agreement in [[Working Agreement]]; relevant requirements, [[Risks and Assumptions]], evidence and existing gates remain |
+| Developer onboarding, Git, local setup or CI | [Developer handbook](../docs/README.md), [software architecture](../docs/architecture/software-architecture.md) | [[CICD]] and [[Software Architecture]] preserve vault context/links; D-033 owns the architecture direction |
+| Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | [staging owner-review access](../ops/aws/ec2/review-access.md); linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates and current Shortcut Stories |
+| Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant criteria and Stories; D-021/D-022/D-033 |
+| Clinic UI, care or staff prototype | [[Design]], [[Clinic Workspace]], [[Clinic Workspace Design]], [[Clinic Domain and Data Boundaries]] | [Software architecture](../docs/architecture/software-architecture.md); relevant decisions, risks and release limits |
 | ERD-to-frontend integration planning | [[Clinic Domain and Data Boundaries]], [frontend/backend contract](../docs/architecture/clinic-frontend-backend-contract.md), [target-state ERD](../docs/architecture/clinic-target-state-erd.md) | Pointer notes below preserve historical titles; detailed proposal/review/prompt/verification evidence is under [records](../records/README.md) |
-| Inventory schema, receiving, units, holds or counts | [[PostgreSQL and Inventory Foundation]], [[Clinic Workspace#Current PostgreSQL inventory implementation]] | [[Pharmacy Inventory Data Requirements]]; [[Data Modeling#Inventory and commercial boundary]]; T-13/T-34/T-38 |
-| Supplier prices, procurement or billing | [[Inventory Price Comparison Sources]], [[Business Model]] | D-029/T-37 deferral; T-14 mechanics; entity/professional questions. Reading is not permission to resume integration |
+| Inventory schema, receiving, units, holds or counts | [[PostgreSQL and Inventory Foundation]], [[Clinic Workspace#Current PostgreSQL inventory implementation]] | [[Pharmacy Inventory Data Requirements]]; [[Data Modeling#Inventory and commercial boundary]]; current Shortcut Stories |
+| Supplier prices, procurement or billing | [[Inventory Price Comparison Sources]], [[Business Model]] | D-029 deferral; unresolved fee mechanics; entity/professional questions. Reading is not permission to resume integration |
 | Offer, ownership, support or business planning | [[Company Foundation]], [[Customer and Offer]], [[Entity and Product Boundary]] | [[Business Model]], relevant [[Decisions]] and [[Foundation Questions]] answers; do not reopen deliberately deferred questions |
 | MD materials, applicant packet or research | [[MD Pilot]], [[Clinic Launch Packet]], [[Source Register]] | [[Customer Discovery]], relevant [[Texas Diligence]] issues and source permissions |
 | Pharmacy professional review | [[Pharmacy Provider and Counsel Questions]], [[Texas Diligence]] | Relevant [[Pharmacy Inventory Data Requirements]] sections and dated sources; actual clinic facts remain required |
 | SharePoint, clinical architecture or data safeguards | [[SharePoint and EMR]], relevant [[Data Modeling]] sections | L-05 and applicable E1–E3 gates; [[Entity and Product Boundary]]; qualified review remains separate |
-| Vault documentation or agent-harness rules | [[Working Agreement]], this index, [vault agent instructions](AGENTS.md) | Relevant current-state notes, decisions/tasks and progress entries; [agent workflow playbooks](../agent-harness/workflows/README.md); [harness map](../agent-harness/README.md); configuration only if the task concerns it |
+| Vault documentation or agent-harness rules | [[Working Agreement]], this index, [vault agent instructions](AGENTS.md) | Relevant current-state notes, decisions, risks and progress entries; [agent workflow playbooks](../agent-harness/workflows/README.md); [harness map](../agent-harness/README.md); configuration only if the Story concerns it |
 
 ## Current execution notes and compatibility pointers — 03 Execution
 
@@ -45,14 +45,13 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Inventory Integration Handoff]] | Compatibility pointer to the [developer inventory handoff](../docs/development/inventory-integration.md) |
 | [[Cash-Pay Billing Implementation Package]] | Proposed cash-pay receivables roadmap, current ledger mapping, cash/receipt/Stripe boundaries, phased acceptance and next-agent prompt |
 | [[Cash-Pay Billing Test Plan]] | Package-specific positive, negative, authorization, replay, UI, escalation and exit checks with dated evidence status |
-| [[Patient Portal Implementation Roadmap]] | Proposed patient-facing cash-pay portal sequence: identity, payments/credit, intake/booking, summaries/documents, messages/refills/results, and release blockers |
 | [[Website MVP]] | Current selling-site scope and source-versus-hosted distinction |
 | [[Client Portal]] | Provisioned access, Contact, synthetic paperwork/signing, training and confidential-release limits |
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |
 | [[Design]] | Canonical clinic-only visual system: Clinical Wayfinding Ledger, desktop/tablet targets, tokens, hierarchy, components and failure-first acceptance |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
 | [[Clinic Workspace Design]] | Clinic design and implementation history, workflow proposals, account-owned themes and verified versus unimplemented boundaries; current visual authority is [[Design]] |
-| [[Clinic Intake Handoff Walkthrough]] | T-13.1 synthetic staff-intake-to-clinician-handoff script, evidence distinctions, scope, failure matrix and T-13.2/T-13.3 blockers; no approved clinical workflow |
+| [[Clinic Intake Handoff Walkthrough]] | Synthetic staff-intake-to-clinician-handoff script, evidence distinctions, scope, failure matrix and unresolved review/contract blockers; no approved clinical workflow |
 | [[Clinic Encounter Workflow Contract]] | Proposed synthetic route/stage contract for identity, intake, triage, handoff, unsigned provider exam, diagnosis boundary and discharge; explicit security, migration, audit and acceptance gates |
 | [[Clinic Frontend Backend Mapping]] | Compatibility pointer to the current [frontend/backend contract](../docs/architecture/clinic-frontend-backend-contract.md) |
 | [[Data Modeling]] | Compatibility pointer to the dated proposal; executable schema remains source truth |
@@ -60,9 +59,8 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[ERD Implementation Prompt]] | Compatibility pointer to the dated full-replacement prompt |
 | [[Backend Verification Report]] | Compatibility pointer to the dated verification snapshot and its limits |
 | [[Target-State Clinic ERD]] | Compatibility pointer to the detailed [target-state ERD](../docs/architecture/clinic-target-state-erd.md) |
-| [[Roadmap and Tasks]] | Canonical parent tasks and 27 smaller chunks across five workstreams, with dependencies, failure scenarios, exit evidence and unchanged milestone gates |
+| [[Progress Log]] | Thin current-window index of dated outcomes; one-record-per-outcome evidence is in [records/progress/2026/09](../records/progress/2026/09/) and older monthly archives in [records/progress](../records/progress/INDEX.md) |
 | [[Decisions]] | Explicit direction and supersession. Read relevant decisions and later refinements |
-| [[Progress Log]] | Recent dated outcomes plus stable headings for older entries; full older evidence is in [records/progress](../records/progress/INDEX.md) |
 | [[Risks and Assumptions]] | Open risks/hypotheses, failure signals and required evidence; plans are not closure |
 | [[Working Agreement]] | Human operating agreement, evidence distinctions, ownership and information handling; agent procedure stays in the harness |
 

@@ -15,7 +15,7 @@ This note's former catalog, illustrative SQL and broad security proposal are pre
 
 ## Durable boundary
 
-Practice-local custody, tenant-qualified relationships, immutable clinical/history records, a single authoritative inventory ledger, explicit protected-document ownership, and complementary audit evidence remain the durable design invariants. Current unresolved professional, retention, identity, external-service and release gates remain open in [[Risks and Assumptions]] and [[Roadmap and Tasks]].
+Practice-local custody, tenant-qualified relationships, immutable clinical/history records, a single authoritative inventory ledger, explicit protected-document ownership, and complementary audit evidence remain the durable design invariants. Current unresolved professional, retention, identity, external-service and release gates remain open in [[Risks and Assumptions]] and [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap).
 
 ## Auditing design
 

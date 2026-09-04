@@ -7,7 +7,7 @@ canonical_for: software-boundary-pointer
 ---
 # Software Architecture
 
-Home: [[00 Home]] · Developer document: [current software architecture](../../docs/architecture/software-architecture.md) · Status: [[Roadmap and Tasks]]
+Home: [[00 Home]] · Developer document: [current software architecture](../../docs/architecture/software-architecture.md) · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
 
 ## Purpose and authority
 

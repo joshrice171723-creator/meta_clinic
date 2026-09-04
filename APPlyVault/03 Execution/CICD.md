@@ -7,7 +7,7 @@ canonical_for: delivery-state-pointer
 ---
 # CICD
 
-Home: [[00 Home]] · Developer docs: [Getting started](../../docs/development/getting-started.md), [Contributing](../../docs/development/contributing.md), [CI](../../docs/development/ci.md) · Architecture: [[Software Architecture]] · Status: [[Roadmap and Tasks]] · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Developer docs: [Getting started](../../docs/development/getting-started.md), [Contributing](../../docs/development/contributing.md), [CI](../../docs/development/ci.md) · Architecture: [[Software Architecture]] · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Evidence: [[Progress Log]]
 
 ## Purpose and ownership
 
@@ -17,7 +17,7 @@ This note routes current APPly context; it is not the developer command manual. 
 
 D-033 keeps one repository with independent React/Vite and Rails/PostgreSQL applications. The frontend owns presentation and same-origin transport; Rails owns sessions, authorization, tenancy, domain workflows and persistence. Release artifacts are a matched API/web pair from one reviewed commit. Source, tests, migrations and runbooks are executable truth; this vault records the rationale, limits and evidence.
 
-Staging PostgreSQL/API/web activation and bounded recovery were verified on 2026-08-31. Production retains its prior arrangement and requires separate cutover, promotion and acceptance authority. CI, local checks, staging review and browser/accessibility review are not interchangeable evidence. Current status and dated outcomes remain in [[Roadmap and Tasks]] and [[Progress Log]].
+Staging PostgreSQL/API/web activation and bounded recovery were verified on 2026-08-31. Production retains its prior arrangement and requires separate cutover, promotion and acceptance authority. CI, local checks, staging review and browser/accessibility review are not interchangeable evidence. Current status and dated outcomes remain in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) and [[Progress Log]].
 
 ## Release limits
 

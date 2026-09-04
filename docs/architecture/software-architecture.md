@@ -5,7 +5,7 @@ updated: 2026-09-03
 ---
 # Software Architecture
 
-Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Direction: [Decisions](<../../APPlyVault/03%20Execution/Decisions.md>) · Delivery: [CICD](<../../APPlyVault/03%20Execution/CICD.md>) · Database: [PostgreSQL and Inventory Foundation](<../../APPlyVault/03%20Execution/PostgreSQL%20and%20Inventory%20Foundation.md>) · Status: [Roadmap and Tasks](<../../APPlyVault/03%20Execution/Roadmap%20and%20Tasks.md>)
+Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Direction: [Decisions](<../../APPlyVault/03%20Execution/Decisions.md>) · Delivery: [CICD](<../../APPlyVault/03%20Execution/CICD.md>) · Database: [PostgreSQL and Inventory Foundation](<../../APPlyVault/03%20Execution/PostgreSQL%20and%20Inventory%20Foundation.md>) · Roadmap and active tasks: [Shortcut](https://app.shortcut.com/apply-1/roadmap)
 
 ## Direction and scope
 
@@ -27,7 +27,7 @@ APPly/
   AGENTS.md                    Stable agent policy and repository routing
   agent-harness/               Agent architecture, procedures and provenance
   .agents/skills/              Canonical on-demand repository skills
-  APPlyVault/                  Software knowledge: requirements, evidence, decisions and tasks
+  APPlyVault/                  Software knowledge: requirements, evidence, decisions, risks and acceptance contracts
   apps/web/                    Independent React/TypeScript browser application
     src/features/              Launch, identity, clinic and inventory UI
     src/api/                   Same-origin HTTP client and response types
@@ -85,7 +85,7 @@ These boundaries and tests are not complete tenant isolation. Trusted identity/R
 
 ## Shared workflows and presentation
 
-D-056 makes Material UI and Emotion, scoped through `ClinicAppearanceScope`/`Appearance.tsx`, the default implementation system for new and materially changed frontend interfaces. Start with an existing APPly component, then the closest Material UI component, icon or documented composition. Adapt an APPly-owned wrapper, theme or owning module through supported Material UI extension APIs when necessary rather than bypassing it with a one-off control. If those extension points are insufficient but MUI remains the right foundation, modify the dependency through a narrow reproducible patch, vendored package or pinned fork tied to its exact upstream version/license and verified after a clean install. A generated `node_modules` edit is exploratory until captured by that source-controlled mechanism. Existing clinic CSS remains the compatibility layer for unconverted surfaces, not precedent for new hand-built controls. A custom component is the final exception only when no suitable MUI primitive, supported extension or durable dependency modification can meet required semantics, accessibility or behavior; its handoff records the considered paths and focused evidence. This direction does not move authority into the browser, change API ownership or constitute release or accessibility acceptance.
+D-056 makes Material UI and Emotion, scoped through `ClinicAppearanceScope`/`Appearance.tsx`, the default implementation system for new and materially changed frontend interfaces. Start with an existing APPly component, then the closest Material UI primitive, icon or documented composition. Prefer supported theme, slots, variants, `sx`/`styled` APIs and APPly-owned wrappers; use semantic HTML with scoped CSS when it is clearer for a focused control. CSS is normal for layout and visual treatment—the guard is against unnecessarily reimplementing MUI interaction/accessibility behavior in custom JavaScript. A new reusable design-system primitive, another component library, or a dependency patch/fork requires explicit rationale. Modify, vendor or fork MUI only for a confirmed reusable upstream limitation worth ongoing ownership, with exact upstream version/license and clean-install evidence. This direction does not move authority into the browser, change API ownership or constitute release or accessibility acceptance.
 
 Browser URLs remain `/`, `/contact`, `/login`, `/portal`, `/paperwork`, `/training`, `/inquiries` and `/clinic/*`. Application-page rendering, native ERB controllers/views and CSS ownership moved out of Rails. The D-033 split preserved the existing green visual language and product copy; that split was not a redesign.
 

@@ -8,7 +8,7 @@ This procedure asks “How is this going to fail?” It challenges mechanisms an
 
 ## Complete record
 
-Before implementation, record the following in the canonical task or linked evidence note:
+Before implementation, record the following in the claimed Shortcut Story or linked evidence note:
 
 1. **Outcome and boundary:** one observable result, entry dependencies, exclusions, permitted environment/data and accountable owner. Separate design, implementation, verification and release where their gates differ.
 2. **Failure hypothesis:** an assumption that could be wrong, a concrete trigger and the resulting user, data, operational or business harm.

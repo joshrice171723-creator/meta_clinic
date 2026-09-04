@@ -1,14 +1,16 @@
 # Progress archive index
 
 These monthly files preserve the full dated contents removed from the active
-[Progress Log](../../APPlyVault/03%20Execution/Progress%20Log.md). The active log retains the newest 20 full entries and
-compatibility headings for older anchors. Historical entries remain event-dated
-and are not current status.
+[Progress Log](../../APPlyVault/03%20Execution/Progress%20Log.md). The active log
+is now a current-window index with compatibility headings for older anchors.
+Historical entries remain event-dated and are not current status.
 
 | Period | Entries | Archive |
 | --- | ---: | --- |
 | 2026-08 | 67 | [2026-08](2026-08.md) |
 | 2026-09 | 49 | [2026-09](2026-09.md) |
+
+The active-window entries split into individual records are also available in [2026/09](2026/09/). The monthly file remains the preserved historical snapshot.
 
 Preserve entries that contain failures, inconclusive checks, incidents,
 migrations, recovery, security findings, professional limitations, release

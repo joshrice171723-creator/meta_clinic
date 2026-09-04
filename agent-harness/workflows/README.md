@@ -13,13 +13,14 @@ These procedures are loaded on demand. Repository-wide authority and safety rule
 | Hosted release, cutover or infrastructure action | [`release.md`](release.md) |
 | Potential sensitive-data or security incident | [`incident.md`](incident.md) |
 | Branch, review or agent handoff | [`handoff.md`](handoff.md) |
+| Every repository-changing task: Shortcut claim, overlap check and completion update | [`shortcut-task.md`](shortcut-task.md) |
 
 Use only the playbooks relevant to the task. When several apply, follow the strictest stop condition and keep implementation, verification and release as separate evidence events.
 
 The repository scripts provide the deterministic layer:
 
-- `bin/agent-preflight --path <target>` reports worktree state, applicable instruction files and vault routes.
-- `bin/agent-check` lists checks selected from changed paths; `bin/agent-check --run` runs them.
+- `bin/agent-preflight --story sc-<id> --path <target>` reports the claimed Story, worktree state, applicable instruction files and vault routes.
+- `bin/agent-check --path <target> --level <focused|component|integration>` lists scoped checks and unrelated dirty paths; add `--run` to execute, `--json` for structured output or `--staged` to inspect only indexed changes.
 - `bin/verify-agent-harness` validates instructions, workflows and skills.
 - `bin/verify-vault` validates vault structure, links and reachability; `bin/vault-audit` reports size, lifecycle, duplication and misplaced-procedure signals.
 

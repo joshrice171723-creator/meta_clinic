@@ -5,8 +5,8 @@ These instructions apply to `APPlyVault/` and extend the repository root contrac
 ## Select context before editing
 
 1. Read `00 Home.md` and `01 Table of Contents.md`.
-2. Use the table's task route to select complete relevant sections, including frontmatter, scope/limits, linked decisions, task rows, risks and dated evidence.
-3. Follow only dependencies needed to understand the task. A full-vault read is not required.
+2. Use the table's Story context route to select complete relevant sections, including frontmatter, scope/limits, linked decisions, risks and dated evidence.
+3. Follow only dependencies needed to understand the Story. A full-vault read is not required.
 4. If the table is stale, use targeted `rg` searches and `rg --files --hidden --no-ignore APPlyVault`; do not assume missing evidence exists.
 5. Recheck selected files before writing when concurrent edits are possible.
 
@@ -16,7 +16,7 @@ Keep a short in-session record of selected paths/sections and material gaps. Mis
 
 - Keep reported facts, direct observations, sourced background, hypotheses/proposals and explicit decisions distinct.
 - Record source or event date, applicability, limits and reviewer scope. A link or checklist is not proof of review or approval.
-- Preserve decision/task IDs, backlinks, heading targets and superseded history. Do not silently turn a discrepancy into a new decision.
+- Preserve decision IDs, backlinks, heading targets and superseded history. Preserve former task IDs in archived evidence rather than reviving them as live vault tracking. Do not silently turn a discrepancy into a new decision.
 - Never infer the contents of unavailable MD, governance, contract, SharePoint or other external materials.
 - Research uses generic public queries only; never send private vault text or identifiers to a search service.
 
@@ -25,14 +25,14 @@ Keep a short in-session record of selected paths/sections and material gaps. Mis
 - Durable product definitions and the portal/clinic separation: root `PRODUCT.md`.
 - Canonical clinic visual system: `03 Execution/Design.md`; implementation history and workflow boundaries remain in `03 Execution/Clinic Workspace Design.md`.
 - Current coherent state: the relevant foundation, research or implementation note.
-- Status: `03 Execution/Roadmap and Tasks.md` only.
+- Roadmap, task scope/acceptance, claims, owners and status: Shortcut APPly / Agent Workspace only; see `../docs/development/shortcut.md`. Do not create or mirror task lists, task briefs or Story state in the vault.
 - Explicit founder/team decision: `03 Execution/Decisions.md` only.
 - Open uncertainty: `03 Execution/Risks and Assumptions.md`.
-- Recent dated outcome and compatibility index: `03 Execution/Progress Log.md`; full dated evidence older than the active window: repository `records/`.
-- Navigation and task routing: `01 Table of Contents.md`.
+- Recent dated outcome and compatibility index: `03 Execution/Progress Log.md`; full dated evidence is in repository `records/`, with new progress records under `records/progress/YYYY/MM/`.
+- Navigation and Story context routing: `01 Table of Contents.md`.
 - Overall direction/priority summary: `00 Home.md`, only when it actually changed.
 
-For a substantive vault change, update affected current-state notes, change the task register only when status changed, record a decision only when one was made, and add one concise progress entry. Do not maintain competing lists.
+For a substantive vault change, update affected current-state notes, record a decision or risk only when it changed, and add one concise progress entry when the outcome is material. Update task state only in Shortcut. Do not maintain competing lists.
 
 ## Editing conventions
 

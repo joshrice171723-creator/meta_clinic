@@ -13,7 +13,7 @@ Public supplier/manufacturer documents and pricing references for comparing U.S.
 
 **Suggested starting point:** DiaMedical's priced PDF and Bound Tree's public list prices for supplies/equipment; CMS NADAC for pharmacy acquisition-cost background; CDC's private-sector column for vaccines. Add authorized supplier quotes for the clinic's actual basket before claiming achievable savings. Keep routine supplies, medications, vaccines, and capital equipment distinct.
 
-**Current status — deferred by founder, 2026-08-30 (D-029 / U-19):** preserve the source shortlist, supplier-integration findings and proposed extensible design below; do not start integration implementation or supplier onboarding now. T-37 in [[Roadmap and Tasks]] is the canonical deferred work item. No supplier, network, API contract, build scope, budget or delivery date has been selected. T-13/T-34's broader inventory work and T-14's unresolved billing mechanics remain unchanged.
+**Current status — deferred by founder, 2026-08-30 (D-029 / U-19):** preserve the source shortlist, supplier-integration findings and proposed extensible design below; do not start integration implementation or supplier onboarding now. T-37 in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) is the canonical deferred work item. No supplier, network, API contract, build scope, budget or delivery date has been selected. T-13/T-34's broader inventory work and T-14's unresolved billing mechanics remain unchanged.
 
 ## Supplier and manufacturer documents
 
@@ -110,7 +110,7 @@ The earlier pharmacy slice used whole sealed packages. D-031 now supplies exact 
 
 ## Future work when reprioritized
 
-T-37 holds status and ownership; this sequence records scope and acceptance considerations, not a separate backlog or authorization to act now.
+Shortcut owns the current status and ownership for this deferred work; this sequence records scope and acceptance considerations, not a separate backlog or authorization to act now.
 
 1. **Revalidate scope and access.** Define a small non-sensitive comparison basket and required suppliers; recheck public documentation. Obtain authorized account/feed documentation, sandbox eligibility, fees, support, rate limits, permitted caching/display/retention and clinic-specific price scope. Choose direct integration versus a network using actual coverage and cost evidence, not supplier size or marketing alone.
 2. **Reconcile the data model.** Coordinate with T-13/T-34 on product identity, typed units, supplier/receipt provenance and clinic isolation. Keep quote/list/benchmark/invoice values distinct. Define how freight, cold-chain fees, discounts, order thresholds, tax and credits affect a comparison; display unresolved components.

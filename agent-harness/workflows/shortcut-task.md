@@ -1,0 +1,78 @@
+# Shortcut task coordination workflow
+
+## When to use
+
+Use this workflow before every repository-changing task. D-060 makes Shortcut's
+APPly **Agent Workspace** the canonical active task, claim and status plane. A
+read-only review may proceed without creating a Story unless the user asks for
+one, but it must not cross into a repository write without a claim.
+
+The exact workspace, team, workflow and state IDs are recorded in
+[`docs/development/shortcut.md`](../../docs/development/shortcut.md). A Shortcut
+Story coordinates execution; it cannot expand repository, data, release,
+clinical, contractual or spending authority.
+
+## Inspect and select
+
+1. Query Agent Workspace before editing. Search non-Done Stories by objective,
+   likely component and relevant keywords, then inspect started Stories for
+   overlapping paths, branch/worktree, contract or migration claims.
+2. Reuse a Story only when it describes the same bounded outcome. If it is
+   unclaimed and ready, start it. If another run or person has an active claim,
+   do not reassign it, duplicate it or touch the overlapping scope; coordinate
+   on that Story and continue only independent work.
+3. If no exact Story exists, create one in Agent Workspace with a concise
+   outcome, boundaries, acceptance evidence and relevant repository context.
+   Use an existing Epic or current Iteration only when the fit is clear. Do not
+   invent an Epic, Iteration, deadline, estimate, owner or priority merely to
+   fill a field.
+4. Assign the current authenticated Shortcut user and move the Story to **In
+   Progress**. Add one claim comment with the agent/run identity, base commit,
+   branch or worktree, intended outcome and bounded path scope. When practical,
+   include `sc-<id>` in a new `codex/` branch name; an existing branch may be
+   retained when the claim comment makes ownership unambiguous.
+5. Run `bin/agent-preflight --story sc-<id> --path <target>` for every major
+   path. The Story owns the task-level outcome, acceptance, dependencies and
+   active status; repository and vault sources remain supporting context.
+
+## Execution and evidence
+
+- Keep the Story's scope and claim current when the objective or owned paths
+  materially change. Progress chatter stays in the agent task; comment only on
+  a material blocker, handoff, scope/ownership change or verified result.
+- Keep product requirements, decisions, risks and professional/release gates in
+  the vault. Keep material dated evidence under `records/`. Shortcut owns the
+  active execution state and points to those durable sources rather than
+  copying them.
+- Use isolated worktrees, databases and ports when concurrent work needs them.
+  A separate worktree does not cure overlapping contracts, schema or shared
+  generated artifacts; the Story claim must disclose those surfaces.
+- Never put credentials, patient information, confidential applicant material,
+  legal advice or private source documents in a Story, comment or attachment.
+
+## Standard workflow
+
+- **Backlog** — proposed or not ready for selection.
+- **To Do** — bounded and available, but not actively claimed.
+- **In Progress** — an identified run/person owns the current execution scope.
+- **In Review** — implementation or documentation is ready, but pull-request or
+  human acceptance remains.
+- **Done** — the Story's bounded outcome and stated checks/evidence are complete.
+
+For a material blocker, leave the Story In Progress and add the blocker, owner
+needed and safe next action. If abandoning the claim, comment why, return it to
+To Do and remove only the current user's assignment when doing so will not erase
+another accountable owner.
+
+## Completion
+
+Before the final response, add one concise Story comment containing the result,
+changed paths or pull request, checks actually run, durable evidence links and
+remaining risks or gates. Move the Story to In Review when review remains, or
+Done only when the bounded acceptance is satisfied. Merge, CI or an agent
+assertion alone does not close a security, professional, clinical, operational,
+HIPAA or release gate.
+
+If Shortcut is unavailable or its current state cannot be established, preserve
+the discrepancy and continue read-only diagnosis only. Do not create a local
+status mirror or start an uncoordinated repository write.

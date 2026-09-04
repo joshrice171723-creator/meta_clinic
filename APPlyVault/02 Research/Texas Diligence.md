@@ -36,7 +36,7 @@ The implications for our planning are inferences, not legal opinions. Guidance p
 
 [[Pharmacy Provider and Counsel Questions]] now provides 60 open questions for providers, a pharmacist and Texas healthcare/pharmacy counsel. It distinguishes on-site administration, practitioner supply/samples, licensed dispensing, compounding, remote arrangements and distribution; it also separates patient drug charges from APPly's inventory-based software fee. Use the operating-profile questions first, then only the relevant conditional sections.
 
-This is an agenda and preliminary public-source research, not a clinic classification or completed legal review. D-028's broad configurable product direction remains unchanged: shared synthetic design can proceed while each actual clinic's activity/site/operator authority is unresolved. T-36 tracks the proposed professional follow-up; evidence must close the applicable L issues below before real use.
+This is an agenda and preliminary public-source research, not a clinic classification or completed legal review. D-028's broad configurable product direction remains unchanged: shared synthetic design can proceed while each actual clinic's activity/site/operator authority is unresolved. The corresponding Shortcut Story tracks the proposed professional follow-up; evidence must close the applicable L issues below before real use.
 
 The follow-up retrieved official Occupations Code Chapter 158 and selected Chapter 157/102 provisions, resolving the initial Chapter 158 access gap. Current administrative-rule reconciliation, actual clinic facts and professional applicability remain open. Source scope and limitations are recorded in the guide and [[Source Register]].
 

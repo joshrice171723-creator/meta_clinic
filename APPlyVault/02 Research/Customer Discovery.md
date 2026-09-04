@@ -5,7 +5,7 @@ updated: 2026-08-30
 ---
 # Customer Discovery
 
-Home: [[00 Home]] · Hypotheses: [[Customer and Offer]] · Tasks: [[Roadmap and Tasks]]
+Home: [[00 Home]] · Hypotheses: [[Customer and Offer]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
 
 ## Objective
 

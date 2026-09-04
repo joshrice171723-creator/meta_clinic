@@ -5,7 +5,7 @@ updated: 2026-08-31
 ---
 # Pharmacy Inventory Data Requirements
 
-Home: [[00 Home]] · Product: [[Clinic Workspace]] · Model: [[Data Modeling]] · Diligence: [[Texas Diligence]] · Sources: [[Source Register]] · Tasks: [[Roadmap and Tasks]]
+Home: [[00 Home]] · Product: [[Clinic Workspace]] · Model: [[Data Modeling]] · Diligence: [[Texas Diligence]] · Sources: [[Source Register]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
 
 ## Recommendation and scope
 
@@ -49,7 +49,7 @@ Keep three separate facts: **product capability exists**, **clinic requests/conf
 
 Collection should follow the work: verify catalog/package data at setup; capture lot/expiry/condition and quantities at receiving; capture opening/temperature events when they occur; post actual use, movement or disposition once; reconcile counts and purchasing evidence separately. Supplier feeds, barcode capture and document extraction may assist later, but ambiguous matches go to review and no external transaction is sent merely because a record was imported.
 
-The logical record extensions are in [[Data Modeling#Inventory and commercial boundary]], and the proposed delivery order and acceptance criteria are in [[Roadmap and Tasks#Pharmacy capability implementation sequence]]. These extend the requirements baseline; they do not claim the implemented inventory foundation covers the full matrix.
+The logical record extensions are in [[Data Modeling#Inventory and commercial boundary]], and the proposed delivery order and acceptance criteria are in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). These extend the requirements baseline; they do not claim the implemented inventory foundation covers the full matrix.
 
 ## First establish what pharmacy means here
 
@@ -66,7 +66,7 @@ Texas's licensing guidance distinguishes Class A community pharmacies from Class
 
 Proposed applicability record: clinic/legal operator, physical site, activity (purchase/store/administer/provide/dispense/transfer), professional and facility license references, controlled-drug registration if relevant, authorized roles, product categories, reviewer, supporting authority, review date, and recheck trigger. Keep confidential originals in approved controlled storage. Unknown classifications remain unknown; a software checkbox cannot grant professional authority.
 
-Provider and professional review now has a companion agenda: [[Pharmacy Provider and Counsel Questions]]. Its 60 open questions connect the proposed collection to licensing, NP/PA authority, patient charges, APPly procurement/fees, storage, tracing, controlled drugs, compounding, privacy and continuity. T-36 tracks the review; no answer or clearance is inferred from this data specification.
+Provider and professional review now has a companion agenda: [[Pharmacy Provider and Counsel Questions]]. Its 60 open questions connect the proposed collection to licensing, NP/PA authority, patient charges, APPly procurement/fees, storage, tracing, controlled drugs, compounding, privacy and continuity. The corresponding Shortcut Story tracks the review; no answer or clearance is inferred from this data specification.
 
 ## Core collection dictionary
 
@@ -165,7 +165,7 @@ Read-only inspection on 2026-08-30 covered the in-progress pharmacy migration, f
 
 The inspected code has package-level catalog entries, lot/expiry/location, supplier text, whole-package movements, actor/reason/retry attribution, and quarantine/recall states. Those are useful foundations. At that earlier inspection the structures did not model verified unit conversions, individual opened containers/BUD, receipt lines with separate cost/supplier history, purchase/invoice/credit reconciliation, temperature evidence, serialized tracing, formal count records, or patient-use allocations. Do not represent whole packages as administered doses. No clinical workflow should be added just to make the ledger balance.
 
-The original next-scope recommendation was typed units, receipts, movements/counts and controlled holds; that bounded core is now delivered under D-031. T-34 still owns location/operator configuration and scoped acceptance, while T-13 retains broader requirements. Add product-specific container/temperature handling before rehearsing that product class. Patient dispensing, controlled-drug operations, traceability integrations and billing each need their own scoped evidence and acceptance. These are dependencies, not a second task/status register or permission to expand the code now.
+The original next-scope recommendation was typed units, receipts, movements/counts and controlled holds; that bounded core is now delivered under D-031. Location/operator configuration and scoped acceptance remain open, while this note retains the broader requirements. Add product-specific container/temperature handling before rehearsing that product class. Patient dispensing, controlled-drug operations, traceability integrations and billing each need their own bounded Shortcut Story, evidence and acceptance. These are dependencies, not permission to expand the code now.
 
 Useful synthetic acceptance cases: two deliveries of the same lot at different costs; a carton converted into stock units; partial receipt and later credit; two containers from one lot opened at different times; overlapping recall and temperature holds; duplicate event retry; a count discrepancy; and a returned shipment whose credit arrives later. No patient examples are needed to validate the inventory core.
 

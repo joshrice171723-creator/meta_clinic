@@ -5,7 +5,7 @@ updated: 2026-08-31
 ---
 # PostgreSQL and Inventory Foundation
 
-Home: [[00 Home]] · Scope: [[Clinic Workspace]], [[Pharmacy Inventory Data Requirements]] · Larger design: [[Data Modeling]] · Delivery: [[CICD]] · Status: [[Roadmap and Tasks]] · Authority: [[Decisions]]
+Home: [[00 Home]] · Scope: [[Clinic Workspace]], [[Pharmacy Inventory Data Requirements]] · Larger design: [[Data Modeling]] · Delivery: [[CICD]] · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Authority: [[Decisions]]
 
 ## Selected direction and actual state
 
@@ -52,10 +52,10 @@ These checks use wholly synthetic fixtures. They are not a hosted cutover, succe
 
 ## Remaining work in order
 
-Use [[Roadmap and Tasks#Step 4 — Configurable inventory foundation]] for T-34.1–T-34.5: capability matrix, scoped profile/lifecycle, permissions, invariant acceptance and a bounded security proof. [[Roadmap and Tasks#Step 1 — Engineering and release foundation]] owns remaining browser/operations and production cutover work; CI/staging evidence is already recorded. T-13 retains broader clinical requirements. Do not switch on clinical modules merely because their catalog tables could be added.
+Use [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) for the capability matrix, scoped profile/lifecycle, permissions, invariant acceptance and bounded security proof. The Roadmap also owns remaining browser/operations and production cutover work; CI/staging evidence is already recorded. Broader clinical requirements remain separate. Do not switch on clinical modules merely because their catalog tables could be added.
 
 Apply [[Working Agreement#Failure-first planning and review]] to every increment. The failure cases are configuration/history drift, caller-forged scope, self-grants, concurrent configuration/posting, repeated receipts, stale counts, overlapping holds and audit/restore failure. T-34's exit evidence must show the safe outcome under contrasting synthetic profiles and preserve the established ledger/history; the scoped identity/RLS/read-audit proof requires an accepted design before build and does not silently approve the complete [[Data Modeling]] proposal.
 
-Containers/BUD and storage excursions, transfers, purchasing/invoice/credit matching, exports/valuation, administration, practitioner supply, dispensing, controlled-drug/tracing and compounding remain separate increments in [[Roadmap and Tasks#Pharmacy capability implementation sequence]]. Supplier pricing integration stays deferred by D-029/T-37. No rates, staffing, dates, pharmacy license/pathway or professional approval was invented.
+Containers/BUD and storage excursions, transfers, purchasing/invoice/credit matching, exports/valuation, administration, practitioner supply, dispensing, controlled-drug/tracing and compounding remain separate increments in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). Supplier pricing integration stays deferred by D-029/T-37. No rates, staffing, dates, pharmacy license/pathway or professional approval was invented.
 
 Clinic routes remain disabled in Rails production mode, including staging. The consultancy/software/clinic entity boundaries, one-clinic-per-login rule, and L-05/E2/E3 and other applicable professional/real-data gates remain unchanged. Missing MD, governance and SharePoint originals were not needed for this synthetic core and were not treated as reviewed.

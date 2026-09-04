@@ -77,4 +77,4 @@ We can describe and record:
 - The company's data-access boundary and the evidence required before any patient-data service.
 - A small validation plan with owners, dates, and go / revise / stop criteria.
 
-The foundation can be coherent before all hypotheses are validated. Legal diligence, clinical readiness, and product-market fit have separate evidence gates in [[Roadmap and Tasks]].
+The foundation can be coherent before all hypotheses are validated. Legal diligence, clinical readiness, and product-market fit have separate evidence gates in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap).

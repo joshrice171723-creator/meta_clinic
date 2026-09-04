@@ -5,7 +5,7 @@ updated: 2026-09-02
 ---
 # Clinic Encounter Workflow Contract — Proposed Synthetic Boundary
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Parent task: [[Roadmap and Tasks#Step 5 — Define the first clinic workflow|T-13]] · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Existing walkthrough: [[Clinic Intake Handoff Walkthrough]] · Frontend map: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Parent task: [T-13](https://app.shortcut.com/apply-1/roadmap) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Existing walkthrough: [[Clinic Intake Handoff Walkthrough]] · Frontend map: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
 
 ## Purpose, authority and limits
 
