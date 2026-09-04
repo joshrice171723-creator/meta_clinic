@@ -120,7 +120,10 @@ describe("inventory integration", () => {
     expect(source).toContain("Create item and continue");
     expect(source).toContain("Mark delivered → Receiving");
     expect(source).toContain('"/api/clinic/inventory_configuration"');
-    expect(source).not.toContain('package_unit');
+    expect(source).toContain("Initial clinic inventory setup");
+    expect(source).toContain("Enable purchasing and receiving");
+    expect(source).toContain("requiresReasonDetails");
+    expect(source).not.toContain("package_unit");
     expect(source).not.toContain('currency: "USD"');
     expect(source).not.toContain('reason: "Authorized certification"');
     expect(source).not.toContain('"/api/clinic/inventory/demo"');

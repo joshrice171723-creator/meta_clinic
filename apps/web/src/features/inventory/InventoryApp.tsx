@@ -189,6 +189,14 @@ const screenDescriptions: Record<Screen, string> = {
   controlled: "Resolve count variances with an independent reviewer.",
 };
 
+const inventoryConfigurationReasons = [
+  { value: "initial_setup", label: "Initial clinic inventory setup" },
+  { value: "enable_operations", label: "Enable purchasing and receiving" },
+  { value: "resume_operations", label: "Resume inventory operations" },
+  { value: "approved_change", label: "Approved operating change" },
+  { value: "other", label: "Other" },
+] as const;
+
 function screenForPath(path: string): Screen {
   const value = path.replace(/\/$/, "");
   if (value === "/clinic/inventory/catalog/new") return "catalog_new";
@@ -1000,16 +1008,22 @@ function InventoryConfigureScreen({
   busy: boolean;
   run: InventoryRun;
 }) {
-  const [reason, setReason] = useState("");
-  const [operatorReference, setOperatorReference] = useState("");
+  const [reasonSelection, setReasonSelection] = useState("");
+  const [reasonDetails, setReasonDetails] = useState("");
+  const selectedReason = inventoryConfigurationReasons.find(
+    (option) => option.value === reasonSelection,
+  );
+  const requiresReasonDetails = reasonSelection === "other";
+  const reason = [selectedReason?.label, reasonDetails.trim()]
+    .filter(Boolean)
+    .join(": ");
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void run(
       "/api/clinic/inventory_configuration",
       {
         status: "configured",
-        reason: reason.trim(),
-        operator_reference: operatorReference.trim() || undefined,
+        reason,
       },
       "Inventory configured",
       "Inventory writes are now enabled for this practice.",
@@ -1025,30 +1039,49 @@ function InventoryConfigureScreen({
         </p>
         <form className="inventory-form-grid" onSubmit={submit}>
           <Field label="Configuration reason">
-            <textarea
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              maxLength={200}
+            <select
+              value={reasonSelection}
+              onChange={(event) => setReasonSelection(event.target.value)}
               required
               autoFocus
-              placeholder="Describe the approved inventory operating setup"
-            />
+            >
+              <option value="">Select a reason</option>
+              {inventoryConfigurationReasons.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </Field>
-          <Field label="Operator reference" hint="Optional internal reference.">
-            <input
-              value={operatorReference}
-              onChange={(event) => setOperatorReference(event.target.value)}
-              maxLength={200}
-            />
-          </Field>
+          {requiresReasonDetails && (
+            <Field
+              label="Explain the reason"
+              hint="Required when Other is selected."
+            >
+              <textarea
+                value={reasonDetails}
+                onChange={(event) => setReasonDetails(event.target.value)}
+                maxLength={120}
+                required
+                placeholder="Describe the approved inventory operating setup"
+              />
+            </Field>
+          )}
           <div className="inventory-form-actions">
             <PermissionNote
               allowed={capability(data, "inventory.configure")}
               permission="inventory.configure"
             />
             <ConfirmButton
-              disabled={busy || !capability(data, "inventory.configure") || !reason.trim()}
-              onConfirm={() => submit(new Event("submit") as unknown as FormEvent)}
+              disabled={
+                busy ||
+                !capability(data, "inventory.configure") ||
+                !reasonSelection ||
+                (requiresReasonDetails && !reasonDetails.trim())
+              }
+              onConfirm={() =>
+                submit(new Event("submit") as unknown as FormEvent)
+              }
             >
               Configure inventory →
             </ConfirmButton>
