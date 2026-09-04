@@ -28,6 +28,14 @@ class Integrations::Fda::NdcDirectoryTest < ActiveSupport::TestCase
     assert_not_includes search, "api_key"
   end
 
+  test "short medication fragments use FDA wildcard search" do
+    captured = nil
+    with_method(Integrations::Fda::NdcDirectory, :fetch, ->(uri) { captured = uri; fixture }) { Integrations::Fda::NdcDirectory.search("Exa") }
+    search = URI.decode_www_form(captured.query).to_h.fetch("search")
+    assert_includes search, "brand_name:Exa*"
+    assert_includes search, "generic_name:Exa*"
+  end
+
   test "malformed queries never reach the network and missing packaging is safe" do
     [ "a", 'example" OR *', "https://example.invalid", "123", "a" * 81 ].each do |query|
       with_method(Integrations::Fda::NdcDirectory, :fetch, ->(*) { flunk "Invalid query reached the network" }) do

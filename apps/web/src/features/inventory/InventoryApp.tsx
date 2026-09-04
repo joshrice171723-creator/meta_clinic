@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -17,6 +18,7 @@ import type {
   InventoryData,
   InventoryRecall,
   Decimal,
+  NdcResult,
 } from "./inventoryContracts";
 import {
   decimalAdd,
@@ -176,7 +178,8 @@ const workflowLinks = [
 const screenDescriptions: Record<Screen, string> = {
   catalog: "Monitor availability, lot exceptions, and replenishment signals.",
   catalog_new: "Add a product definition before ordering or receiving stock.",
-  configure: "Record the inventory operating configuration before posting stock.",
+  configure:
+    "Record the inventory operating configuration before posting stock.",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
   purchase_order_new:
@@ -551,12 +554,70 @@ function CatalogCreateScreen({
   const [quantityScale, setQuantityScale] = useState("0");
   const [unitReference, setUnitReference] = useState("");
   const [reorderPoint, setReorderPoint] = useState("0");
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState<NdcResult[]>([]);
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupError, setLookupError] = useState("");
+  const [selectedNdc, setSelectedNdc] = useState<NdcResult>();
+  const lookupVersion = useRef(0);
   const requiresUnitReference = packageSize !== "1";
+  const lookup = async (query: string) => {
+    const version = ++lookupVersion.current;
+    setLookupBusy(true);
+    setLookupError("");
+    setLookupResults([]);
+    try {
+      const payload = await api<{ results?: NdcResult[] }>(
+        "/api/clinic/pharmacy/lookup",
+        { method: "POST", body: { ndc_query: query } },
+      );
+      if (lookupVersion.current !== version) return;
+      setLookupResults(payload.results ?? []);
+      if (!payload.results?.length)
+        setLookupError(
+          "No FDA package matches were found. You can still enter the item manually.",
+        );
+    } catch (reason) {
+      if (lookupVersion.current !== version) return;
+      setLookupError(
+        reason instanceof Error
+          ? reason.message
+          : "The FDA directory could not be searched. You can still enter the item manually.",
+      );
+    } finally {
+      if (lookupVersion.current === version) setLookupBusy(false);
+    }
+  };
+  useEffect(() => {
+    const query = lookupQuery.trim();
+    if (query.length < 3 || !capability(data, "inventory.catalog")) {
+      lookupVersion.current += 1;
+      setLookupBusy(false);
+      setLookupResults([]);
+      setLookupError("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void lookup(query);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [data, lookupQuery]);
+  const selectNdc = (result: NdcResult) => {
+    setSelectedNdc(result);
+    setName(result.name);
+    setNdc(result.ndc);
+    setGenericName(result.generic_name ?? "");
+    setDosageForm(result.dosage_form ?? "");
+    setPackageDescription(result.package_description ?? "");
+    setSku(`NDC-${result.ndc}`);
+    setLookupError("");
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void run(
       "/api/clinic/pharmacy",
       {
+        reference_token: selectedNdc?.reference_token,
         clinic_pharmacy_product: {
           name: name.trim(),
           sku: sku.trim(),
@@ -592,7 +653,90 @@ function CatalogCreateScreen({
             Add the item once. The catalog definition controls package
             conversion, purchasing quantities, and receiving accuracy.
           </p>
-          <form className="inventory-form-grid" onSubmit={submit}>
+          <div className="inventory-info">
+            <strong>Use FDA package data</strong>
+            <p>
+              Search by a medication name or the NDC printed on the package.
+              Choose the exact package to prefill its verified label data, then
+              complete the clinic-owned purchasing fields below.
+            </p>
+            <form className="inventory-inline-form" autoComplete="off">
+              <Field label="Search FDA NDC Directory">
+                <input
+                  value={lookupQuery}
+                  onChange={(event) => setLookupQuery(event.target.value)}
+                  placeholder="Type 3+ letters or an NDC, e.g. ibu"
+                  maxLength={80}
+                  disabled={!capability(data, "inventory.catalog")}
+                  autoComplete="off"
+                />
+              </Field>
+              <small className="inventory-permission">
+                {lookupBusy
+                  ? "Searching FDA…"
+                  : "Search begins automatically after 3 characters."}
+              </small>
+            </form>
+            {lookupError && (
+              <p className="inventory-danger-text">{lookupError}</p>
+            )}
+            {lookupResults.length > 0 && (
+              <div className="inventory-stack compact">
+                <Field
+                  label="Choose exact FDA package"
+                  hint={lookupResults.length + " package matches found."}
+                >
+                  <select
+                    value={selectedNdc?.reference_token ?? ""}
+                    onChange={(event) => {
+                      const result = lookupResults.find(
+                        (item) => item.reference_token === event.target.value,
+                      );
+                      if (result) selectNdc(result);
+                    }}
+                  >
+                    <option value="">Select a package</option>
+                    {lookupResults.map((result) => (
+                      <option
+                        key={result.reference_token}
+                        value={result.reference_token}
+                      >
+                        {result.name} · NDC {result.ndc}
+                        {result.package_description
+                          ? " · " + result.package_description
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {selectedNdc && (
+                  <p className="inventory-success-line">
+                    Selected {selectedNdc.name} · NDC {selectedNdc.ndc}
+                    {selectedNdc.labeler ? " · " + selectedNdc.labeler : ""}
+                  </p>
+                )}
+              </div>
+            )}
+            {selectedNdc && (
+              <button
+                className="inventory-button outline"
+                type="button"
+                onClick={() => setSelectedNdc(undefined)}
+              >
+                Clear FDA selection and enter manually
+              </button>
+            )}
+            <p className="inventory-caption">
+              FDA data is used to prefill the package record. It does not
+              replace your clinic’s SKU, stock unit, reorder point, or receiving
+              setup.
+            </p>
+          </div>
+          <form
+            className="inventory-form-grid"
+            onSubmit={submit}
+            autoComplete="off"
+          >
             <Field label="Product name">
               <input
                 value={name}
@@ -600,6 +744,8 @@ function CatalogCreateScreen({
                 maxLength={160}
                 required
                 autoFocus
+                readOnly={Boolean(selectedNdc)}
+                autoComplete="off"
               />
             </Field>
             <Field label="SKU">
@@ -608,6 +754,7 @@ function CatalogCreateScreen({
                 onChange={(event) => setSku(event.target.value)}
                 maxLength={160}
                 required
+                autoComplete="off"
               />
             </Field>
             <Field label="NDC" hint="Optional for non-medication supplies.">
@@ -615,6 +762,8 @@ function CatalogCreateScreen({
                 value={ndc}
                 onChange={(event) => setNdc(event.target.value)}
                 maxLength={30}
+                readOnly={Boolean(selectedNdc)}
+                autoComplete="off"
               />
             </Field>
             <Field label="Generic name" hint="Optional display metadata.">
@@ -622,6 +771,8 @@ function CatalogCreateScreen({
                 value={genericName}
                 onChange={(event) => setGenericName(event.target.value)}
                 maxLength={500}
+                readOnly={Boolean(selectedNdc)}
+                autoComplete="off"
               />
             </Field>
             <Field
@@ -632,6 +783,8 @@ function CatalogCreateScreen({
                 value={dosageForm}
                 onChange={(event) => setDosageForm(event.target.value)}
                 maxLength={500}
+                readOnly={Boolean(selectedNdc)}
+                autoComplete="off"
               />
             </Field>
             <Field label="Package description">
@@ -640,6 +793,8 @@ function CatalogCreateScreen({
                 onChange={(event) => setPackageDescription(event.target.value)}
                 maxLength={4000}
                 placeholder="100 tablets per bottle"
+                readOnly={Boolean(selectedNdc)}
+                autoComplete="off"
               />
             </Field>
             <Field label="Stock unit">
@@ -674,6 +829,7 @@ function CatalogCreateScreen({
                 value={packageSize}
                 onChange={(event) => setPackageSize(event.target.value)}
                 required
+                autoComplete="off"
               />
             </Field>
             <Field label="Quantity precision">
@@ -701,6 +857,7 @@ function CatalogCreateScreen({
                 maxLength={500}
                 required={requiresUnitReference}
                 placeholder="Manufacturer package specification"
+                autoComplete="off"
               />
             </Field>
             <Field label="Reorder point" hint={`Base ${stockUnit} units.`}>
@@ -712,6 +869,7 @@ function CatalogCreateScreen({
                 value={reorderPoint}
                 onChange={(event) => setReorderPoint(event.target.value)}
                 required
+                autoComplete="off"
               />
             </Field>
             <div className="inventory-form-actions">
@@ -908,7 +1066,9 @@ function PurchaseOrderCreateScreen({
             <Field label="Currency" hint="Three-letter ISO currency code.">
               <input
                 value={currency}
-                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+                onChange={(event) =>
+                  setCurrency(event.target.value.toUpperCase())
+                }
                 maxLength={3}
                 placeholder="USD"
                 required
@@ -1137,26 +1297,41 @@ export function InventoryApp({ path }: { path: string }) {
   const load = async () => {
     setLoading(true);
     setError("");
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 10_000);
-    try {
-      const payload = await api<{ data: InventoryData }>(
-        "/api/clinic/inventory/bootstrap",
-        { signal: controller.signal },
-      );
-      setData(payload.data);
-    } catch (reason) {
-      setError(
-        reason instanceof DOMException && reason.name === "AbortError"
-          ? "Inventory took too long to respond. Check your clinic session and try again."
-          : reason instanceof Error
-            ? reason.message
-            : "Unable to load inventory.",
-      );
-    } finally {
-      window.clearTimeout(timeout);
-      setLoading(false);
+    let lastReason: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 10_000);
+      try {
+        const payload = await api<{ data: InventoryData }>(
+          "/api/clinic/inventory/bootstrap",
+          { signal: controller.signal },
+        );
+        if (!payload.data)
+          throw new Error(
+            "The inventory service returned an incomplete response.",
+          );
+        setData(payload.data);
+        setLoading(false);
+        return;
+      } catch (reason) {
+        lastReason = reason;
+        if (
+          !(reason instanceof DOMException && reason.name === "AbortError") ||
+          attempt === 1
+        )
+          break;
+      } finally {
+        window.clearTimeout(timeout);
+      }
     }
+    setError(
+      lastReason instanceof DOMException && lastReason.name === "AbortError"
+        ? "Inventory is taking longer than expected. The page retried once; try again when the clinic API is ready."
+        : lastReason instanceof Error
+          ? lastReason.message
+          : "Unable to load inventory.",
+    );
+    setLoading(false);
   };
   useEffect(() => {
     void load();
@@ -1269,9 +1444,7 @@ export function InventoryApp({ path }: { path: string }) {
             </div>
             <div className="inventory-header-actions">
               <Chip
-                label={
-                  "Persisted clinic data"
-                }
+                label={"Persisted clinic data"}
                 size="small"
                 variant="outlined"
                 sx={{
@@ -1346,12 +1519,17 @@ export function InventoryApp({ path }: { path: string }) {
             </nav>
             {data.configuration?.status !== "configured" && (
               <div className="inventory-warning strong" role="status">
-                <strong>Inventory setup is required before posting stock.</strong>
+                <strong>
+                  Inventory setup is required before posting stock.
+                </strong>
                 <p>
                   Existing records remain viewable. Configure this practice to
                   create catalog, purchasing, receiving, and adjustment records.
                 </p>
-                <a className="inventory-button outline" href="/clinic/inventory/configure">
+                <a
+                  className="inventory-button outline"
+                  href="/clinic/inventory/configure"
+                >
                   Configure inventory
                 </a>
               </div>
@@ -1472,7 +1650,8 @@ function CatalogScreen({
       <Card title="Product catalog">
         <p className="inventory-lead">
           No catalog items yet. Add the first product definition to begin
-          purchasing and receiving stock.
+          purchasing and receiving stock. No inventory records are currently
+          available.
         </p>
         {data.configuration?.status === "configured" &&
           capability(data, "inventory.catalog") && (
@@ -1931,7 +2110,9 @@ function ReplenishmentScreen({
           <Field label="Currency" hint="Three-letter ISO currency code.">
             <input
               value={currency}
-              onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+              onChange={(event) =>
+                setCurrency(event.target.value.toUpperCase())
+              }
               maxLength={3}
               placeholder="USD"
               required
@@ -1999,7 +2180,10 @@ function ReplenishmentScreen({
           {validDecimal(unitPrice, true) && (
             <DataPoint
               label="Estimated subtotal"
-              value={money(decimalMultiply(quantity || "0", unitPrice), currency)}
+              value={money(
+                decimalMultiply(quantity || "0", unitPrice),
+                currency,
+              )}
             />
           )}
         </div>
@@ -2418,7 +2602,9 @@ function PurchasingScreen({
             {next && (
               <ConfirmButton
                 tone="outline"
-                disabled={busy || !capability(data, next[2]) || !actionReason.trim()}
+                disabled={
+                  busy || !capability(data, next[2]) || !actionReason.trim()
+                }
                 onConfirm={transition}
               >
                 {next[1]}
@@ -2531,8 +2717,14 @@ function PurchasingScreen({
               value={money(order.subtotal, line.currency)}
             />
             <DataPoint label="Tax" value={money(order.tax, line.currency)} />
-            <DataPoint label="Shipping" value={money(order.shipping, line.currency)} />
-            <DataPoint label="Total" value={money(order.total, line.currency)} />
+            <DataPoint
+              label="Shipping"
+              value={money(order.shipping, line.currency)}
+            />
+            <DataPoint
+              label="Total"
+              value={money(order.total, line.currency)}
+            />
             {shipment && (
               <p className="inventory-info">
                 Shipment {shipment.supplier_reference} delivered{" "}

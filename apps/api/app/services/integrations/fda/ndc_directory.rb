@@ -9,12 +9,13 @@ module Integrations
 
       def self.search(query)
         value = query.to_s.strip
-        raise ArgumentError, "Use 2–80 characters: a public drug name or an NDC." unless value.length.between?(2, 80) && value.match?(/\A[a-zA-Z0-9 '\-.,()\/]+\z/)
+        raise ArgumentError, "Use 3–80 characters: a public drug name or an NDC." unless value.length.between?(3, 80) && value.match?(/\A[a-zA-Z0-9 '\-.,()\/]+\z/)
         ndcs = ndc_candidates(value)
         expression = if ndcs
           ndcs.flat_map { |ndc| [ "packaging.package_ndc:\"#{ndc}\"", "product_ndc:\"#{ndc}\"" ] }.join(" OR ")
         else
-          %w[brand_name generic_name active_ingredients.name].map { |field| "#{field}:\"#{value}\"" }.join(" OR ")
+          name_term = value.match?(/\A[a-zA-Z0-9]+\z/) ? "#{value}*" : "\"#{value}\""
+          %w[brand_name generic_name active_ingredients.name].map { |field| "#{field}:#{name_term}" }.join(" OR ")
         end
         uri = URI(ENDPOINT)
         uri.query = URI.encode_www_form(search: "(#{expression})", limit: 8)

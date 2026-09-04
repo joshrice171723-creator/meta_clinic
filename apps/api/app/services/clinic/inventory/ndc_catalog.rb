@@ -14,7 +14,7 @@ module Clinic
         end
       end
 
-      def import(token)
+      def import(token, operational_attributes: {})
         Access.with(@practice.id, @actor, "catalog") do
           reference = verifier.verified(token.to_s, purpose: "ndc_import")
           unless reference && reference["practice_id"] == @practice.id && reference["user_id"] == @actor.id
@@ -22,9 +22,18 @@ module Clinic
           end
           attributes = reference.fetch("attributes")
           products = PharmacyProduct.where(practice_id: @practice.id)
-          products.find_or_create_by!(ndc: attributes.fetch("ndc")) do |product|
-            product.assign_attributes(attributes.merge(sku: "NDC-#{attributes.fetch('ndc')}", source: "openfda", imported_at: Time.current))
+          product = products.find_or_initialize_by(ndc: attributes.fetch("ndc"))
+          if product.new_record?
+            product.assign_attributes(
+              attributes.merge(
+                "sku" => "NDC-#{attributes.fetch('ndc')}",
+                "source" => "openfda",
+                "imported_at" => Time.current,
+              ).merge(operational_attributes.stringify_keys),
+            )
+            product.save!
           end
+          product
         end
       end
 

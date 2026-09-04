@@ -24,12 +24,18 @@ module Clinic
 
       def import
         product = ndc_catalog.import(params[:reference_token])
-        render json: { id: product.id }, status: :created
+        render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user), id: product.id }, status: :created
       end
 
       def create
-        @product = products.new(params.require(:clinic_pharmacy_product).permit(:name, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
-        Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") { @product.save! }
+        attributes = params.require(:clinic_pharmacy_product).permit(:name, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference)
+        @product = if params[:reference_token].present?
+          ndc_catalog.import(params[:reference_token], operational_attributes: attributes.slice(:sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
+        else
+          products.new(attributes).tap do |product|
+            Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") { product.save! }
+          end
+        end
         render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user), id: @product.id }, status: :created
       end
 

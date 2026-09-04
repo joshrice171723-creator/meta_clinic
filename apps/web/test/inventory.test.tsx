@@ -81,7 +81,9 @@ describe("inventory integration", () => {
       "utf8",
     );
     expect(source).toContain("No movements recorded");
-    expect(source).toContain("Clear the filter to review the full movement ledger.");
+    expect(source).toContain(
+      "Clear the filter to review the full movement ledger.",
+    );
     expect(source).toContain("Inventory movement ledger");
   });
   it("renders a loading state before the Rails wire is available", () => {
@@ -116,8 +118,13 @@ describe("inventory integration", () => {
     }
     expect(source).toContain('"/api/clinic/inventory/bootstrap"');
     expect(source).toContain('"/api/clinic/pharmacy"');
+    expect(source).toContain('"/api/clinic/pharmacy/lookup"');
     expect(source).toContain('"/api/clinic/inventory/shipments"');
     expect(source).toContain("Create item and continue");
+    expect(source).toContain("Choose exact FDA package");
+    expect(source).toContain("Select a package");
+    expect(source).toContain("Search begins automatically after 3 characters.");
+    expect(source).not.toContain("Search directory");
     expect(source).toContain("No catalog items yet");
     expect(source).toContain("Mark delivered → Receiving");
     expect(source).toContain('"/api/clinic/inventory_configuration"');
@@ -141,6 +148,7 @@ describe("inventory integration", () => {
     for (const text of [
       "No inventory records",
       "Unable to load inventory",
+      "page retried once",
       "permission",
       "Draft created",
     ]) {

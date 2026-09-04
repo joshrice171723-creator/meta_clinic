@@ -89,6 +89,18 @@ export type InventoryProduct = {
   on_hand_units: Decimal;
   low_stock: boolean;
 };
+export type NdcResult = {
+  name: string;
+  generic_name?: string;
+  product_ndc?: string;
+  ingredients?: string;
+  dosage_form?: string;
+  route?: string;
+  package_description?: string;
+  labeler?: string;
+  ndc: string;
+  reference_token: string;
+};
 export type InventoryPackage = {
   id: string;
   product_id: string;
