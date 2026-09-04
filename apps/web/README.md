@@ -26,7 +26,7 @@ npm run build
 npm audit --audit-level=high
 ```
 
-Dev binds to 127.0.0.1:3000 and proxies `/api` to 127.0.0.1:3001, preserving Host/Origin. `APPLY_API_PORT` allows a different local API port for isolated checks. Repository-root `bin/dev` starts both apps; `bin/verify-web` runs synthetic native-HTTP integration with its own database and processes.
+Dev defaults to 127.0.0.1:3000 and proxies `/api` to 127.0.0.1:3001, preserving Host/Origin. `APPLY_WEB_PORT` and `APPLY_API_PORT` support isolated checkouts. Repository-root `bin/dev` is the canonical combined lifecycle; package-level `npm run dev` remains a frontend-only component command. `bin/verify-web` runs synthetic native-HTTP integration with its own database and processes.
 
 The build outputs only static assets. Docker builds independently and serves them as an unprivileged nginx user on 8080, with strict same-origin CSP and no application secrets. The trusted edge in `ops/aws/ec2/nginx.conf` sends API requests directly to Rails. No cross-origin credential configuration is necessary.
 

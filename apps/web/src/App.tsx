@@ -360,7 +360,12 @@ export function App() {
       .catch(() => {});
   }, []);
   const path = window.location.pathname.replace(/\/$/, "") || "/";
-  const publicPage = ["/", "/contact", "/login", "/patient-portal/activate"].includes(path);
+  const publicPage = [
+    "/",
+    "/contact",
+    "/login",
+    "/patient-portal/activate",
+  ].includes(path);
   const [session, setSession] = useState<{
     user?: User | null;
     error?: string;

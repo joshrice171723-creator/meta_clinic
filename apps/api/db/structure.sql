@@ -93,6 +93,33 @@ $$;
 
 
 --
+-- Name: clinic_invoice_line_editable_draft(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_invoice_line_editable_draft() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  old_status text;
+  new_status text;
+BEGIN
+  SELECT status INTO old_status FROM clinic_invoices WHERE id = OLD.invoice_id;
+  IF old_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'This record is append-only';
+  END IF;
+  IF TG_OP = 'UPDATE' THEN
+    SELECT status INTO new_status FROM clinic_invoices WHERE id = NEW.invoice_id;
+    IF OLD.invoice_id IS DISTINCT FROM NEW.invoice_id OR new_status IS DISTINCT FROM 'draft' THEN
+      RAISE EXCEPTION 'This record is append-only';
+    END IF;
+    RETURN NEW;
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+
+--
 -- Name: erd_preserve_identity(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10181,10 +10208,10 @@ CREATE TRIGGER clinic_inventory_transfers_immutable BEFORE DELETE OR UPDATE ON p
 
 
 --
--- Name: clinic_invoice_lines clinic_invoice_lines_immutable; Type: TRIGGER; Schema: public; Owner: -
+-- Name: clinic_invoice_lines clinic_invoice_lines_editable_draft; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER clinic_invoice_lines_immutable BEFORE DELETE OR UPDATE ON public.clinic_invoice_lines FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+CREATE TRIGGER clinic_invoice_lines_editable_draft BEFORE DELETE OR UPDATE ON public.clinic_invoice_lines FOR EACH ROW EXECUTE FUNCTION public.clinic_invoice_line_editable_draft();
 
 
 --
@@ -13554,3 +13581,72 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 --
 
 \unrestrict LLdRfxwJwCGylHGgJcbLRaIwazOovqohyQyZLhqmd1472AYNSGsDz05dcFGWtyb
+
+SET search_path TO "$user", public;
+
+INSERT INTO "schema_migrations" (version) VALUES
+('20260903001400'),
+('20260903001300'),
+('20260903001230'),
+('20260903001220'),
+('20260903001210'),
+('20260903001100'),
+('20260903001000'),
+('20260903000900'),
+('20260903000800'),
+('20260903000700'),
+('20260903000600'),
+('20260903000500'),
+('20260903000400'),
+('20260903000300'),
+('20260903000200'),
+('20260903000100'),
+('20260902010000'),
+('20260902009903'),
+('20260902009902'),
+('20260902009901'),
+('20260902009900'),
+('20260902002800'),
+('20260902002700'),
+('20260902002600'),
+('20260902002500'),
+('20260902002400'),
+('20260902002300'),
+('20260902002200'),
+('20260902002100'),
+('20260902002000'),
+('20260902001800'),
+('20260902001700'),
+('20260902001600'),
+('20260902001500'),
+('20260902001400'),
+('20260902001300'),
+('20260902001200'),
+('20260902001100'),
+('20260902001000'),
+('20260902000900'),
+('20260902000800'),
+('20260902000500'),
+('20260902000400'),
+('20260902000300'),
+('20260902000200'),
+('20260902000100'),
+('20260901000200'),
+('20260901000100'),
+('20260831001100'),
+('20260831001000'),
+('20260831000900'),
+('20260831000800'),
+('20260831000700'),
+('20260831000400'),
+('20260831000300'),
+('20260831000200'),
+('20260831000100'),
+('20260830000800'),
+('20260830000700'),
+('20260830000600'),
+('20260830000500'),
+('20260830000400'),
+('20260830000300'),
+('20260830000200'),
+('20260830000100');

@@ -98,7 +98,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 ## Navigation and configuration
 
-[[00 Home]] is the current-position dashboard; this note is the full note index. Obsidian configuration is local UI state, not business evidence: [app](.obsidian/app.json), [appearance](.obsidian/appearance.json), [core plugins](.obsidian/core-plugins.json), [graph](.obsidian/graph.json), [workspace](.obsidian/workspace.json). Read it only for relevant configuration work and preserve it unless changes are requested. Sync being enabled does not establish approved synchronization.
+[[00 Home]] is the current-position dashboard; this note is the full note index. Durable Obsidian configuration is local UI state, not business evidence: [app](.obsidian/app.json), [appearance](.obsidian/appearance.json), [core plugins](.obsidian/core-plugins.json), and [graph](.obsidian/graph.json). The workspace layout is intentionally untracked local state. Read configuration only for relevant work and preserve it unless changes are requested. Sync being enabled does not establish approved synchronization.
 
 The founder removed retired `reference/` on 2026-08-31. Runtime source remains in `apps/`, delivery in `ops/aws/`, and the canonical schema in `apps/api/db/structure.sql` with its migrations. Historical reference files are recoverable from Git, not required reading or active dependencies.
 

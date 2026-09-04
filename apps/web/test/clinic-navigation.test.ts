@@ -60,9 +60,7 @@ describe("clinic-local navigation", () => {
   });
 
   it("preserves the authenticated shell while switching clinic history routes", () => {
-    const app = readSource(
-      new URL("../src/App.tsx", import.meta.url),
-    );
+    const app = readSource(new URL("../src/App.tsx", import.meta.url));
     const workspace = readSource(
       new URL("../src/features/clinic/Workspace.tsx", import.meta.url),
     );
@@ -95,9 +93,7 @@ describe("clinic-local navigation", () => {
     const careFlow = readSource(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
     );
-    const app = readSource(
-      new URL("../src/App.tsx", import.meta.url),
-    );
+    const app = readSource(new URL("../src/App.tsx", import.meta.url));
     expect(careFlow).toContain("registerBlocker(");
     expect(careFlow).toContain("unsaved changes. Leave the chart");
     expect(careFlow).toContain('window.location.replace("/login")');

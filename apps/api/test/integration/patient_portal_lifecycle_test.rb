@@ -157,7 +157,3 @@ class PatientPortalStepUpControllerTest < ActionController::TestCase
       response.parsed_body.fetch("error")
   end
 end
-
-
-
-

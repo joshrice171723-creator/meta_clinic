@@ -32,54 +32,47 @@ The founder removed the retired `reference/` folder on 2026-08-31 after its usef
 
 ## Develop locally
 
-Use Ruby/Bundler versions from `apps/api`, Node 24 and PostgreSQL 18 client tools. First-time setup:
+Use the Ruby/Bundler versions from `apps/api`, Node 24, Docker, PostgreSQL 18 client tools, and `lsof` on macOS/Linux for strict listener ownership checks. The repository has one public local-development interface. From the repository root, first-time setup is:
 
 ```sh
-cd apps/api
-bundle install
-bin/postgres start
-bin/postgres exec pg_isready -d postgres
+bin/dev setup
+bin/dev start
 ```
 
-Wait for PostgreSQL to report accepting connections, then continue:
+Normal lifecycle commands are:
 
 ```sh
-bin/postgres exec bin/rails db:prepare db:seed
-cd ../web
-npm ci --ignore-scripts
-cd ../..
-APP_DEVELOPMENT_LOGIN=1 bin/dev
+bin/dev start
+bin/dev restart
+bin/dev status
+bin/dev stop
 ```
 
-From the repository root, use the checked-in lifecycle entry point; no installer or PATH change is required:
+`start` is non-destructive: it never runs Git commands, installs dependencies or resets data. It verifies pinned runtimes and locked dependencies, starts PostgreSQL, migrates the guarded local development database, launches Rails and Vite in the background, and returns success only after strict process, migration, database and HTTP readiness checks pass.
+
+Use the explicit maintenance commands only for their named jobs:
 
 ```sh
-./dev_server_startup start
-./dev_server_startup restart
-./dev_server_startup stop
-./dev_server_startup status
+bin/dev refresh
+bin/dev reset-data --yes
 ```
 
-With no command, `./dev_server_startup` performs `start`. On Windows, invoke the same file through Ruby:
+`refresh` requires a clean named branch, fetches its configured remote, fast-forwards only when behind, reconciles locked dependencies, and restarts. It never auto-merges, rebases, stashes, pushes or resets data; divergence stops before service, dependency or database mutation. `reset-data --yes` is the only destructive lifecycle action and replants only the guarded loopback `apply*_development` database with wholly synthetic data.
+
+On Windows, invoke the same canonical Ruby entry point:
 
 ```powershell
-ruby .\dev_server_startup start
-ruby .\dev_server_startup restart
+ruby .\bin\dev setup
+ruby .\bin\dev start
 ```
 
-`start` and `restart` launch the local Docker/PostgreSQL dependency, Rails API, and Vite frontend in the background, but return success only after all three are ready. Startup failures propagate to the command, and occupied ports are accepted only when their recorded processes belong to this checkout. `stop` stops only APPly-owned development processes and the named local PostgreSQL container; it never deletes the persistent volume or database. The lower-level `bin/apply` implementation remains repository-owned, but developers do not need to install its optional global launcher.
+Every command writes an incremental metadata-only JSON trace and self-contained SVG timeline under ignored `tmp/task-traces/`, with phase durations printed at completion. Logs rotate at 10 MiB. `APPLY_WEB_PORT`, `APPLY_API_PORT`, `APPLY_POSTGRES_CONTAINER`, `APPLY_DEVELOPMENT_DATABASE` and `PGPORT` support isolated checkouts while preserving the local-only guards.
 
-In Codex, invoke the explicit `$startdev` repository skill for a full local refresh: its checked-in `bin/startdev-refresh` helper requires a clean branch, fetches its configured upstream, fast-forwards when behind and merges the upstream automatically when clean local work has diverged, then stops the managed stack, replants the guarded loopback development database with rich synthetic seeds, and starts and verifies PostgreSQL, Rails and Vite. A merge conflict still stops for resolution. When the skill finds uncommitted changes, it pauses, shows the scope, and offers one local commit; it proceeds only after explicit confirmation of that scope and commit message. For a missing locked Bundler dependency, it likewise pauses and identifies the exact gem/version, registry, checksum provenance and use before offering a frozen install. It accepts only an unchanged lockfile or removal of Bundler's own checksum entry as expected metadata normalization; any dependency-resolution change still stops the workflow. Clean ahead-only local commits are retained without pushing. This intentionally deletes all records and manual edits in that local development database. Detached and no-upstream checkouts stop for human reconciliation; the skill never stashes, resets, rebases, pushes or deletes the PostgreSQL volume. Its `stop`/`down` and `status`/`doctor` subcommands remain non-resetting. Select it through `/skills`; Codex does not currently register repository skills as arbitrary slash aliases.
+In Codex, use `$startdev` for the canonical lifecycle and `$task-trace` to profile observable work. The task trace reports activity after trace initialization, not private reasoning or a CPU profile. Select repository skills through `/skills`; Codex does not currently register arbitrary repository-defined slash aliases. `dev_server_startup`, `bin/apply`, `bin/start-dev`, `bin/start-dev.ps1`, `bin/doctor`, `bin/doctor.ps1` and `bin/startdev-refresh` are deprecated compatibility shims that delegate to `bin/dev`; do not use them in new documentation or tooling.
 
-The platform-specific `bin/start-dev` and `bin/start-dev.ps1` files are implementation details used by the root command. Run them directly only when diagnosing that lifecycle layer; the ordinary developer interface remains `dev_server_startup`.
+The VS Code workspace tasks call `bin/dev` directly on every platform.
 
-Pass `--seed` to `dev_server_startup start` or `restart` only when synthetic seed data is intentionally needed, or pass `--no-browser` when the browser should not open. Use `dev_server_startup status` for a concise environment diagnosis. The existing `bin/dev` remains available as the lower-level foreground launcher after PostgreSQL has already been started.
-
-For the daily reset workflow, run `ruby .\bin\apply up --no-browser` on Windows or `ruby bin/apply up --no-browser` on macOS/Linux. `apply up` refreshes the CSV-backed dev database once per local calendar day, then starts Rails and Vite. The reset is hard-walled to the configured `apply_development` database and requires the internal refresh flag; `--no-seed-refresh` skips it for that startup. `--seed` keeps the existing explicit seed path instead of the daily refresh.
-
-The VS Code workspace tasks select the Windows PowerShell or macOS/Linux launcher automatically.
-
-Open [local login](http://127.0.0.1:3000/login). The optional flag enables only the loopback synthetic walkthrough. Frontend runs on 3000, API on 3001. No signup, patient data, live integrations or development tunnels. Omit the flag for ordinary provisioned accounts.
+Open [local login](http://127.0.0.1:3000/login). The managed lifecycle enables only the loopback synthetic walkthrough. Frontend defaults to 3000 and API to 3001. No signup, patient data, live integrations or development tunnels.
 
 - [Frontend ownership and commands](apps/web/README.md)
 - [API, database and security boundaries](apps/api/README.md)

@@ -95,7 +95,9 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       assert_equal true, response.parsed_body.fetch("clinic_available")
       get "/api/clinic/context"
       assert_response :success
-      assert response.parsed_body.fetch("capabilities").values.all?
+      capabilities = response.parsed_body.fetch("capabilities")
+      assert capabilities.except("billing_cash_reconcile").values.all?
+      assert_equal false, capabilities.fetch("billing_cash_reconcile")
       get "/api/inquiries"
       assert_response :forbidden
       assert_difference "Clinic::Care::Patient.count", 1 do

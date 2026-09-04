@@ -10,24 +10,13 @@ export type ScribeEncounterStatus =
   | "deleted";
 
 export type ScribeSourceStatus =
-  | "ready"
-  | "incomplete"
-  | "pending_deletion"
-  | "deleted";
+  "ready" | "incomplete" | "pending_deletion" | "deleted";
 
 export type ScribeDraftStatus =
-  | "draft"
-  | "in_review"
-  | "approved"
-  | "superseded"
-  | "exported"
-  | "deleted";
+  "draft" | "in_review" | "approved" | "superseded" | "exported" | "deleted";
 
 export type ScribeSectionStatus =
-  | "needs_review"
-  | "accepted"
-  | "edited"
-  | "rejected";
+  "needs_review" | "accepted" | "edited" | "rejected";
 
 export type ScribeExportStatus = "exported" | "failed";
 
@@ -121,7 +110,3 @@ export type ScribeEncounter = {
     created_at: string;
   }>;
 };
-
-
-
-

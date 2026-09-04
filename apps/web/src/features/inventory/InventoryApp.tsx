@@ -2365,9 +2365,13 @@ function ActivityScreen({ data }: { data: InventoryData }) {
               <tbody>
                 {rows.map((item) => (
                   <tr key={item.id}>
-                    <td>{inventoryDateTime(item.occurred_at, data.timezone)}</td>
                     <td>
-                      <Badge tone={item.direction === "out" ? "warning" : "blue"}>
+                      {inventoryDateTime(item.occurred_at, data.timezone)}
+                    </td>
+                    <td>
+                      <Badge
+                        tone={item.direction === "out" ? "warning" : "blue"}
+                      >
                         {item.type}
                       </Badge>
                     </td>
