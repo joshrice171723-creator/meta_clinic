@@ -5,7 +5,7 @@ updated: 2026-09-03
 ---
 # Cash-Pay Billing Implementation Package
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Status: [[Roadmap and Tasks]] · Architecture: [[Software Architecture]] · Data boundary: [[Data Modeling]] · Test plan: [[Cash-Pay Billing Test Plan]] · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Architecture: [[Software Architecture]] · Data boundary: [[Data Modeling]] · Test plan: [[Cash-Pay Billing Test Plan]] · Evidence: [[Progress Log]]
 
 ## Purpose and authority
 
@@ -260,7 +260,7 @@ The adjacent receivables work was reviewed under the same rule: Luna found and r
 
 The package-specific verification procedure and Luna-only bounded repair rules live in [[Cash-Pay Billing Test Plan]]. Update that matrix and [[Progress Log]] after every gate; never convert an unavailable browser/API or unapproved production contract into a pass.
 
-1. Read this package, [[CICD]], [[Software Architecture]], [[Working Agreement]], current [[Roadmap and Tasks]], and the closest `AGENTS.md` files before editing.
+1. Read this package, [[CICD]], [[Software Architecture]], [[Working Agreement]], current [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap), and the closest `AGENTS.md` files before editing.
 2. Pull and inspect the current branch; preserve unrelated changes. Locate existing billing contracts/tests before adding a migration or UI abstraction.
 3. Recheck the whole-milestone status table and select only an unblocked remaining phase. State its accepted inputs, non-goals, failure hypothesis, source files, and exit evidence.
 4. Implement Rails authority first: migration/model constraints, authorization, transaction/locking/idempotency, serializer/query, route, and focused negative/concurrency tests.

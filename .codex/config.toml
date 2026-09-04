@@ -1,0 +1,11 @@
+# Project-scoped MCP connections selected for APPly.
+# Credentials, when required, are stored by Codex outside this repository.
+[mcp_servers.shortcut]
+url = "https://mcp.shortcut.com/mcp"
+scopes = ["read", "story-write", "comment-write"]
+
+# Official Material UI documentation and published component examples.
+[mcp_servers.mui-mcp]
+command = "npx"
+args = ["-y", "@mui/mcp@latest"]
+startup_timeout_sec = 60

@@ -7,7 +7,7 @@ canonical_for: clinic-domain-and-data-boundaries
 ---
 # Clinic Domain and Data Boundaries
 
-Home: [[00 Home]] · Product: [[Clinic Workspace]] · Developer architecture: [software architecture](../../docs/architecture/software-architecture.md) · Target design: [clinic ERD](../../docs/architecture/clinic-target-state-erd.md) · Status: [[Roadmap and Tasks]]
+Home: [[00 Home]] · Product: [[Clinic Workspace]] · Developer architecture: [software architecture](../../docs/architecture/software-architecture.md) · Target design: [clinic ERD](../../docs/architecture/clinic-target-state-erd.md) · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
 
 ## Purpose and authority
 

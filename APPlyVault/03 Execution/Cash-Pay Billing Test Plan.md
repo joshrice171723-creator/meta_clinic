@@ -5,7 +5,7 @@ updated: 2026-09-03
 ---
 # Cash-Pay Billing Test Plan
 
-Home: [[00 Home]] · Package: [[Cash-Pay Billing Implementation Package]] · Status: [[Roadmap and Tasks]] · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Package: [[Cash-Pay Billing Implementation Package]] · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Evidence: [[Progress Log]]
 
 ## Purpose and test boundary
 

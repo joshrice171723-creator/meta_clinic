@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "coordination_workflow": "agent-harness/workflows/shortcut-task.md",
   "fallback": {
     "name": "default",
     "workflows": ["agent-harness/workflows/code-change.md"],
@@ -91,6 +92,104 @@
       "checks": ["bin/agent-check"]
     },
     {
+      "name": "react-frontend-clinic",
+      "patterns": ["apps/web/src/features/clinic", "apps/web/src/features/clinic/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "docs/architecture/clinic-frontend-backend-contract.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Design.md",
+        "APPlyVault/03 Execution/Clinic Workspace.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-inventory",
+      "patterns": ["apps/web/src/features/inventory", "apps/web/src/features/inventory/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
+        "APPlyVault/03 Execution/Inventory Integration Handoff.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-launch",
+      "patterns": ["apps/web/src/features/launch", "apps/web/src/features/launch/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Website MVP.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-patient-portal",
+      "patterns": [
+        "apps/web/src/features/patientPortal",
+        "apps/web/src/features/patientPortal/**"
+      ],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Client Access Workflow.md",
+        "APPlyVault/03 Execution/Risks and Assumptions.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-identity-shared",
+      "patterns": [
+        "apps/web/src/features/identity",
+        "apps/web/src/features/identity/**",
+        "apps/web/src/shared",
+        "apps/web/src/shared/**",
+        "apps/web/src/api",
+        "apps/web/src/api/**"
+      ],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
       "name": "react-frontend",
       "patterns": ["apps/web", "apps/web/**"],
       "workflows": ["agent-harness/workflows/code-change.md"],
@@ -123,7 +222,7 @@
       ],
       "vault_context": [
         "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
-        "APPlyVault/03 Execution/Roadmap and Tasks.md"
+        "APPlyVault/03 Execution/Risks and Assumptions.md"
       ],
       "checks": ["bin/agent-check"]
     },

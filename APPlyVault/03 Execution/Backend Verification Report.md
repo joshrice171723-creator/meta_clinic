@@ -7,7 +7,7 @@ canonical_for: dated-backend-verification-pointer
 ---
 # Backend Verification Report
 
-Home: [[00 Home]] · Target: [[Target-State Clinic ERD]] · Current source audit: [dated verification record](../../records/verification/2026-08-31-backend-verification.md) · Status: [[Roadmap and Tasks]]
+Home: [[00 Home]] · Target: [[Target-State Clinic ERD]] · Current source audit: [dated verification record](../../records/verification/2026-08-31-backend-verification.md) · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
 
 ## Scope, authority and acceptance
 

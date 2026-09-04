@@ -18,10 +18,11 @@ Use read-only investigation to reach an implementation-ready plan. This skill is
 ## APPly planning sequence
 
 1. Read root and nearest nested `AGENTS.md`, then run `bin/agent-preflight --path <target>` for every major area.
-2. Use `APPlyVault/01 Table of Contents.md` to select only the current product knowledge, decisions, task rows, risks and evidence needed. Do not load the full vault by default.
-3. Inspect the current source and tests so dated notes are not mistaken for executable truth.
-4. Resolve the observable outcome, boundaries, dependencies, principal failure and meaningful alternatives. Ask only for a choice that would materially alter the solution or authority.
-5. Present a concise, ordered plan with affected areas, verification, stop conditions and any remaining human decision.
+2. Inspect the Shortcut Roadmap and Agent Workspace read-only for the relevant Epic/Stories, current state and overlapping claims. Do not create, claim, comment on or update a Story while planning.
+3. Use `APPlyVault/01 Table of Contents.md` to select only the current product knowledge, decisions, risks and evidence needed. Do not load the full vault by default or create a Vault task list.
+4. Inspect the current source and tests so dated notes are not mistaken for executable truth.
+5. Resolve the observable outcome, boundaries, dependencies, principal failure and meaningful alternatives. Ask only for a choice that would materially alter the solution or authority.
+6. Present a concise, ordered plan with affected areas, verification, stop conditions and any remaining human decision.
 
 End after presenting the plan. Do not switch modes or begin implementation in the same turn. Implementation starts only after a later explicit Act request or normal implementation instruction. An original request to plan is not approval to act.
 

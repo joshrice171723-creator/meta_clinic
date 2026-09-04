@@ -7,11 +7,11 @@ For cleanup, archival or cross-boundary moves, also load [`knowledge-maintenance
 
 ## Procedure
 
-1. Read `APPlyVault/AGENTS.md`, Home and the TOC. Select the complete relevant sections, task rows, decisions, risks and dated evidence.
+1. Read `APPlyVault/AGENTS.md`, Home and the TOC. Select the complete relevant sections, decisions, risks and dated evidence; retrieve task scope/status from Shortcut instead.
 2. State the review scope and any missing, stale, contradictory or inaccessible sources before writing.
 3. Decide the correct record type:
    - coherent current state → the owning note;
-   - task/status → Roadmap and Tasks;
+   - roadmap/task scope/acceptance/status → Shortcut Agent Workspace, not the vault;
    - explicit decision/authority → Decisions;
    - uncertainty → Risks and Assumptions;
    - dated outcome → Progress Log;

@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
+
+Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
 ## 2026-09-03 — Billing package consolidated to Luna-only execution
 
 **Audit:** reconciled the package and test plan with the current source and recent commits `d0e9923`, `b6c03b6`, and `e490f4b`. The check/OCR slice is accurately limited to a metadata-only, fail-closed adapter boundary; provider execution, image custody and payment handoff remain blocked. The card slice is accurately recorded as a synthetic provider-neutral intent/signature/event boundary only; its focused Rails test passed 8 runs / 41 assertions, but no Stripe account, credentials, webhook route, or APPly ledger application is enabled. Cash receipt HTML remains locally implemented, while the approved production receipt/PDF/version/reissue/delivery contract remains blocked.
@@ -166,6 +170,10 @@ Archived: [full dated entry](<../../records/progress/2026-09.md#2026-09-03%20%E2
 Archived: [full dated entry](<../../records/progress/2026-09.md#2026-09-03%20%E2%80%94%20Startdev%20refresh%20skill%20added>) · IDs: D-057.
 
 ## 2026-09-03 — Material UI-first harness and host correction
+
+## 2026-09-03 — MUI MCP and Vault authority reconciliation
+
+The project-scoped configuration selects the official Material UI MCP as an upstream documentation/example source. Local source, installed types, architecture, tests and executable behavior remain implementation truth; Shortcut remains the roadmap and coordination plane. Read-only verification resolved `@mui/mcp` 0.1.4 with `fetchDocs` and `generateReactCode`; the documented `useMuiDocs` tool was unavailable. Code generation credentials were not configured or requested. Detailed evidence: [record](../../records/progress/2026/09/2026-09-03-mui-mcp-and-vault-authority-reconciliation.md).
 
 Archived: [full dated entry](<../../records/progress/2026-09.md#2026-09-03%20%E2%80%94%20Material%20UI-first%20harness%20and%20host%20correction>) · IDs: D-054, D-056.
 

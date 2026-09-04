@@ -5,7 +5,7 @@ updated: 2026-08-30
 ---
 # Knowledge Bank and Mentorship
 
-Home: [[00 Home]] · Boundaries: [[Entity and Product Boundary]] · Tasks: [[Roadmap and Tasks]]
+Home: [[00 Home]] · Boundaries: [[Entity and Product Boundary]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
 
 Kevin wants to develop a video knowledge bank with mentorship as another service, per the founder's latest answers. This records the concept; no video inventory, released library, selling entity, pricing, or capacity has been established.
 

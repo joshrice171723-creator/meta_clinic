@@ -18,11 +18,12 @@ Implement the current scoped request or the most recently approved plan. This sk
 
 ## APPly execution sequence
 
-1. Run `git status --short` and `bin/agent-preflight --path <target>` before the first write.
-2. State the reviewed scope, gaps, intended change and principal failure.
+1. Run `git status --short`, inspect Shortcut Agent Workspace for the same outcome and overlapping claims, then reuse or create and claim one bounded Story before the first write.
+2. Run `bin/agent-preflight --story sc-<id> --path <target>` and state the reviewed scope, gaps, intended change and principal failure.
 3. Implement within the accepted boundary, using only synthetic data and local or explicitly authorized targets.
 4. Run `bin/agent-check`, the selected checks and any focused negative/recovery check the risk requires.
-5. Update canonical vault state only when direction, task status, evidence or a decision actually changed.
-6. Report changed behavior, checks and outcomes, unrun checks, remaining gates and required decisions.
+5. Update canonical vault state only when direction, requirements, risks, evidence or a decision actually changed; keep roadmap/task state in Shortcut.
+6. Add the result, checks, evidence and residual risks to the Story; move it to In Review or Done as warranted.
+7. Report changed behavior, checks and outcomes, unrun checks, remaining gates and required decisions.
 
 Adapted from Cline's Plan/Act mode concepts; provenance and differences are recorded in `agent-harness/THIRD_PARTY_NOTICES.md`.
