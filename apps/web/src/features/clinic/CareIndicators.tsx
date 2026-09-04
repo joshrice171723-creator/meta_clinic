@@ -1,4 +1,10 @@
-import { useState, type ElementType, type ReactNode } from "react";
+import {
+  forwardRef,
+  useState,
+  type AnchorHTMLAttributes,
+  type ElementType,
+  type ReactNode,
+} from "react";
 import {
   Badge,
   Box,
@@ -94,6 +100,20 @@ function recordedOn(value: string | null | undefined, timezone: string) {
 
 function detail(primary: string, secondary?: string | null): CareDetail {
   return { primary, ...(secondary ? { secondary } : {}) };
+}
+
+export function careIndicatorControlLabel(
+  group: Pick<CareIndicatorGroup, "label" | "details">,
+  patientLabel: string,
+  unavailable = false,
+) {
+  if (unavailable) return `${group.label} for ${patientLabel}. Show details`;
+  const summary = group.details
+    .map((item) =>
+      item.secondary ? `${item.primary}: ${item.secondary}` : item.primary,
+    )
+    .join(" · ");
+  return `${summary}. Show details for ${patientLabel}`;
 }
 
 function reviewDetails(summary: PatientCareSummary, timezone: string) {
@@ -275,24 +295,33 @@ export function careIndicatorGroups(
   return groups;
 }
 
-export function CareSummaryTrigger({
-  href,
-  actionLabel,
-  children,
-}: {
+type CareSummaryTriggerProps = {
   state: CareSummaryLoadState;
   patientLabel: string;
   timezone?: string;
   href: string;
   actionLabel: string;
   children: ReactNode;
-}) {
-  return (
-    <a href={href} className="tracking-chart-action" aria-label={actionLabel}>
-      {children}
-    </a>
-  );
-}
+} & Omit<
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  "children" | "href" | "aria-label"
+>;
+
+export const CareSummaryTrigger = forwardRef<
+  HTMLAnchorElement,
+  CareSummaryTriggerProps
+>(({ href, actionLabel, children, className, ...anchorProps }, ref) => (
+  <a
+    {...anchorProps}
+    ref={ref}
+    href={href}
+    className={`tracking-chart-action${className ? ` ${className}` : ""}`}
+    aria-label={actionLabel}
+  >
+    {children}
+  </a>
+));
+CareSummaryTrigger.displayName = "CareSummaryTrigger";
 
 export function CareIndicators({
   state,
@@ -328,9 +357,11 @@ export function CareIndicators({
       {groups.map((group) => {
         const Icon = group.icon;
         const expanded = open?.group.key === group.key;
-        const controlLabel = unavailable
-          ? `${group.label} for ${patientLabel}. Show details`
-          : `${group.label}: ${group.details.length}. Show details for ${patientLabel}`;
+        const controlLabel = careIndicatorControlLabel(
+          group,
+          patientLabel,
+          unavailable,
+        );
         return (
           <Tooltip key={group.key} title={controlLabel}>
             <IconButton
@@ -364,12 +395,7 @@ export function CareIndicators({
       >
         {open && (
           <>
-            <DialogTitle id={popoverId}>
-              {open.group.label}
-              <Typography variant="body2" color="text.secondary">
-                {patientLabel}
-              </Typography>
-            </DialogTitle>
+            <DialogTitle id={popoverId}>{patientLabel}</DialogTitle>
             <DialogContent>
               <Box component="ul" sx={{ m: 0, pl: 2.25 }}>
                 {open.group.details.map((item, index) => (

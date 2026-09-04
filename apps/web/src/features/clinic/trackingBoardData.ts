@@ -40,6 +40,7 @@ export const VISIT_STAGES = [
 export type VisitStage = (typeof VISIT_STAGES)[number]["id"];
 export type OperationalState =
   "upcoming" | "on_time" | "late" | "waiting_room" | "unrecorded";
+export type BoardChartStatus = "unopened" | "draft" | "signed" | "unavailable";
 export type BoardVitalStatus = "above" | "within" | "below" | "unassessed";
 export type BoardClinician = {
   id: string;
@@ -53,6 +54,7 @@ export type BoardVisit = {
   id: string;
   patientId?: number | null;
   encounterId?: number | null;
+  chartStatus: BoardChartStatus;
   patientDisplayName?: string | null;
   patientReference?: string | null;
   firstName: string;

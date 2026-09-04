@@ -55,6 +55,7 @@ import {
   waitingMinutes,
   type BoardClinician,
   type BoardVisit,
+  type BoardChartStatus,
   type BoardVitalStatus,
 } from "./trackingBoardData";
 import {
@@ -64,6 +65,27 @@ import {
 } from "./trackingBoardApi";
 
 const EMPTY_CARE_SUMMARY_STATES: Record<string, CareSummaryLoadState> = {};
+
+type ChartActionTone = BoardChartStatus;
+
+export function chartActionPresentation(
+  status: BoardChartStatus,
+  fallback: "open" | "patient" | "select",
+): { label: string; tone: ChartActionTone } {
+  if (status === "unopened") return { label: "Start new Chart", tone: status };
+  if (status === "draft") return { label: "Open Draft", tone: status };
+  if (status === "signed") return { label: "Open Chart", tone: status };
+
+  return {
+    label:
+      fallback === "open"
+        ? "Open chart"
+        : fallback === "patient"
+          ? "View patient"
+          : "Select chart",
+    tone: status,
+  };
+}
 
 function fallbackCareSummaryState(visit: BoardVisit): CareSummaryLoadState {
   return visit.encounterId == null
@@ -213,6 +235,25 @@ export function formatClockTime(value: string, timezone: string) {
       minute: "2-digit",
       timeZone: "UTC",
     });
+  }
+}
+
+export function formatBoardDate(value: string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: timezone,
+  };
+  try {
+    return new Intl.DateTimeFormat("en-US", options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat("en-US", {
+      ...options,
+      timeZone: "UTC",
+    }).format(date);
   }
 }
 
@@ -403,11 +444,22 @@ const initialColumns: ColumnKey[] = [
   "patient",
   "action",
   "reason",
+  "triage",
   "care",
   "provider",
   "wait",
 ];
 const trackingBoardColumnsStorageKey = "apply.tracking-board.columns.v2";
+
+export function filterVisitsForClinician(
+  visits: readonly BoardVisit[],
+  clinicianId: string | null | undefined,
+) {
+  return clinicianId
+    ? visits.filter((visit) => visit.assignedClinicianId === clinicianId)
+    : [];
+}
+
 function storedTrackingBoardColumns(): ColumnKey[] {
   if (typeof window === "undefined") return initialColumns;
   try {
@@ -425,7 +477,7 @@ function storedTrackingBoardColumns(): ColumnKey[] {
   }
 }
 const initialColumnWidths: Record<ColumnKey, number> = {
-  patient: 240,
+  patient: 180,
   stage: 175,
   wait: 130,
   location: 120,
@@ -433,17 +485,6 @@ const initialColumnWidths: Record<ColumnKey, number> = {
   reason: 160,
   care: 180,
   triage: 150,
-  action: 120,
-};
-const columnMinimumWidths: Record<ColumnKey, number> = {
-  patient: 240,
-  stage: 175,
-  wait: 130,
-  location: 120,
-  provider: 140,
-  reason: 150,
-  care: 180,
-  triage: 145,
   action: 120,
 };
 const columnLabels: Record<ColumnKey, string> = {
@@ -528,11 +569,11 @@ function TrackingBoardRow({
     : hasPatient
       ? `/clinic/patients/${visit.patientId}`
       : openSoapHref(visit);
-  const primaryAction = hasEncounter
-    ? "Open chart"
-    : hasPatient
-      ? "View patient"
-      : "Select chart";
+  const chartAction = chartActionPresentation(
+    visit.chartStatus,
+    hasEncounter ? "open" : hasPatient ? "patient" : "select",
+  );
+  const primaryAction = chartAction.label;
   const openProviderEditor = () => {
     if (!providerEditable) return;
     setAssignmentError(
@@ -947,18 +988,21 @@ function TrackingBoardRow({
           </TableCell>
         ) : column === "action" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
-            <CareSummaryTrigger
-              state={careSummaryState}
-              patientLabel={label}
-              timezone={timezone}
-              href={primaryHref}
-              actionLabel={`${primaryAction} for ${label}`}
-            >
-              <NoteAltIcon fontSize="inherit" aria-hidden="true" />
-              <span className="tracking-chart-action-label">
-                {primaryAction}
-              </span>
-            </CareSummaryTrigger>
+            <Tooltip title={primaryAction} placement="top">
+              <CareSummaryTrigger
+                state={careSummaryState}
+                patientLabel={label}
+                timezone={timezone}
+                href={primaryHref}
+                actionLabel={`${primaryAction} for ${label}`}
+              >
+                <NoteAltIcon
+                  fontSize="inherit"
+                  className={`tracking-chart-action-icon tracking-chart-action-icon-${chartAction.tone}`}
+                  aria-hidden="true"
+                />
+              </CareSummaryTrigger>
+            </Tooltip>
           </TableCell>
         ) : (
           <TableCell key={column} data-label={columnLabels[column]}>
@@ -973,6 +1017,7 @@ export function TrackingBoardView({
   visits,
   now,
   timezone,
+  myClinicianId = null,
   truncated = false,
   stale = false,
   refreshError,
@@ -983,6 +1028,7 @@ export function TrackingBoardView({
   visits: readonly BoardVisit[];
   now: string;
   timezone: string;
+  myClinicianId?: string | null;
   truncated?: boolean;
   stale?: boolean;
   refreshError?: string;
@@ -996,6 +1042,7 @@ export function TrackingBoardView({
   clinicians?: readonly BoardClinician[];
 }) {
   const [stage, setStage] = useState("all");
+  const [patientFilter, setPatientFilter] = useState<"all" | "mine">("all");
   const [columns, setColumns] = useState<ColumnKey[]>(
     storedTrackingBoardColumns,
   );
@@ -1048,7 +1095,15 @@ export function TrackingBoardView({
     startX: number;
     startWidth: number;
   } | null>(null);
-  const filtered = filterVisits(visits, stage, "", "arrival", now);
+  const myPatients = filterVisitsForClinician(visits, myClinicianId);
+  const patientFilteredVisits = patientFilter === "mine" ? myPatients : visits;
+  const filtered = filterVisits(
+    patientFilteredVisits,
+    stage,
+    "",
+    "arrival",
+    now,
+  );
   const sorted = [...filtered].sort((left, right) => {
     const value = (visit: BoardVisit) => {
       if (sortBy === "patient")
@@ -1129,9 +1184,9 @@ export function TrackingBoardView({
   ) => {
     const current = resizeState.current;
     if (!current) return;
-    const nextWidth = Math.max(
-      columnMinimumWidths[current.column],
-      Math.min(600, current.startWidth + event.clientX - current.startX),
+    const nextWidth = Math.min(
+      600,
+      current.startWidth + event.clientX - current.startX,
     );
     setColumnWidths((widths) => ({
       ...widths,
@@ -1145,10 +1200,7 @@ export function TrackingBoardView({
   const resizeColumnWithKeyboard = (column: ColumnKey, delta: number) => {
     setColumnWidths((widths) => ({
       ...widths,
-      [column]: Math.max(
-        columnMinimumWidths[column],
-        Math.min(600, widths[column] + delta),
-      ),
+      [column]: Math.min(600, Math.max(0, widths[column] + delta)),
     }));
   };
   const tableWidth = columns.reduce(
@@ -1156,11 +1208,13 @@ export function TrackingBoardView({
     0,
   );
   const stageOptions = [{ id: "all", label: "All visits" }, ...VISIT_STAGES];
+  const boardDate = formatBoardDate(now, timezone);
   return (
     <section className="tracking-board" aria-label="Tracking Board">
       <header className="tracking-board-header">
         <div>
-          <h1>Today’s patient flow</h1>
+          <h1>Patient Flow</h1>
+          {boardDate && <p className="tracking-board-date">{boardDate}</p>}
         </div>
         <div className="tracking-freshness" role="status">
           <span className="tracking-freshness-dot" aria-hidden="true" />
@@ -1187,10 +1241,17 @@ export function TrackingBoardView({
           still shown.
         </p>
       )}
-      <div
-        className="tracking-stage-filters"
-        aria-label="Filter visits by stage"
-      >
+      <div className="tracking-stage-filters" aria-label="Filter visits">
+        <button
+          type="button"
+          aria-pressed={patientFilter === "mine"}
+          onClick={() =>
+            setPatientFilter((current) => (current === "mine" ? "all" : "mine"))
+          }
+        >
+          <span>My patients</span>
+          <strong>{myPatients.length}</strong>
+        </button>
         {stageOptions.map((s) => (
           <button
             type="button"
@@ -1201,8 +1262,8 @@ export function TrackingBoardView({
             <span>{s.label}</span>
             <strong>
               {s.id === "all"
-                ? visits.length
-                : visits.filter((v) => v.stage === s.id).length}
+                ? patientFilteredVisits.length
+                : patientFilteredVisits.filter((v) => v.stage === s.id).length}
             </strong>
           </button>
         ))}
@@ -1219,11 +1280,25 @@ export function TrackingBoardView({
               <option key={s.id} value={s.id}>
                 {s.label} (
                 {s.id === "all"
-                  ? visits.length
-                  : visits.filter((v) => v.stage === s.id).length}
+                  ? patientFilteredVisits.length
+                  : patientFilteredVisits.filter((v) => v.stage === s.id)
+                      .length}
                 )
               </option>
             ))}
+          </select>
+        </div>
+        <div className="tracking-patient-select">
+          <label htmlFor="board-patient-filter">Patient view</label>
+          <select
+            id="board-patient-filter"
+            value={patientFilter}
+            onChange={(event) =>
+              setPatientFilter(event.target.value as "all" | "mine")
+            }
+          >
+            <option value="all">All patients ({visits.length})</option>
+            <option value="mine">My patients ({myPatients.length})</option>
           </select>
         </div>
         <details className="tracking-column-selector">
@@ -1253,9 +1328,9 @@ export function TrackingBoardView({
           aria-label="Clinic patient tracking board"
           className="tracking-table"
           style={{
-            width: tableWidth,
+            width: "100%",
             minWidth: tableWidth,
-            tableLayout: "fixed",
+            tableLayout: "auto",
           }}
         >
           <colgroup>
@@ -1314,7 +1389,6 @@ export function TrackingBoardView({
                     role="separator"
                     aria-orientation="vertical"
                     aria-label={`Resize ${columnLabels[column]} column`}
-                    aria-valuemin={columnMinimumWidths[column]}
                     aria-valuemax={600}
                     aria-valuenow={columnWidths[column]}
                     tabIndex={0}
@@ -1503,6 +1577,11 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
       visits={visits}
       now={data.as_of}
       timezone={clinic.practice.timezone}
+      myClinicianId={
+        clinic.current_clinician_profile_id
+          ? `api-provider-${clinic.current_clinician_profile_id}`
+          : null
+      }
       truncated={data.truncated}
       stale={stale}
       refreshError={error}

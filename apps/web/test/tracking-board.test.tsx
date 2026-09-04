@@ -26,8 +26,11 @@ import {
   templateWouldOverwrite,
 } from "../src/features/clinic/CareFlow";
 import {
+  formatBoardDate,
   formatClockTime,
+  chartActionPresentation,
   OverviewView,
+  filterVisitsForClinician,
   providerAssignmentAttempt,
   providerAssignmentFailure,
   TrackingBoardView,
@@ -130,6 +133,7 @@ const context: ClinicWorkspaceContext = {
   user_id: 1,
   practice: clinic.practice,
   membership_id: 1,
+  current_clinician_profile_id: "profile-1",
   credentials: ["SYNTHETIC-NP"],
   policy_version: "clinic-authorization-v1",
   capabilities: contextCapabilities,
@@ -170,6 +174,10 @@ describe("tracking-board identities and waiting times", () => {
       formatClockTime("2026-09-02T15:00:00Z", "America/Los_Angeles"),
     ).toContain("8:00");
     expect(formatClockTime("invalid", "America/Chicago")).toBe("Scheduled");
+    expect(
+      formatBoardDate("2026-08-31T10:20:00-05:00", "America/Chicago"),
+    ).toBe("Monday, August 31");
+    expect(formatBoardDate("invalid", "America/Chicago")).toBeNull();
   });
   it("retains one provider request key while reconciling an uncertain attempt", () => {
     let generated = 0;
@@ -253,6 +261,10 @@ describe("tracking-board identities and waiting times", () => {
     const html = renderToStaticMarkup(
       <TestTrackingBoard visits={[EXAMPLE_VISITS[0]]} />,
     );
+    expect(html).toContain("<h1>Patient Flow</h1>");
+    expect(html).toContain(
+      '<p class="tracking-board-date">Monday, August 31</p>',
+    );
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
     expect(html).toContain("<span>Intake</span><strong>0</strong>");
     expect(
@@ -308,22 +320,52 @@ describe("tracking-board identities and waiting times", () => {
   });
 });
 describe("board and Operations presentation boundaries", () => {
+  it("matches chart actions to chart state", () => {
+    expect(chartActionPresentation("unopened", "open")).toEqual({
+      label: "Start new Chart",
+      tone: "unopened",
+    });
+    expect(chartActionPresentation("draft", "open")).toEqual({
+      label: "Open Draft",
+      tone: "draft",
+    });
+    expect(chartActionPresentation("signed", "open")).toEqual({
+      label: "Open Chart",
+      tone: "signed",
+    });
+    expect(chartActionPresentation("unavailable", "open")).toEqual({
+      label: "Open chart",
+      tone: "unavailable",
+    });
+  });
   it("renders a compact patient table without redundant workflow text", () => {
     const html = renderToStaticMarkup(<TestTrackingBoard />);
     for (const text of ["Non-member", "Timing", "Action"])
       expect(html).toContain(text);
     expect(html).toContain("Not verified");
+    expect(html).toContain("Start new Chart");
+    expect(html).toContain("Open Draft");
+    expect(html).toContain("Open Chart");
+    expect(html).toContain("tracking-chart-action-icon-draft");
+    expect(html).toContain("tracking-chart-action-icon-signed");
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
     expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain(">My patients<");
+    expect(html).toContain(">2<");
     expect(html).toContain('for="board-stage"');
+    expect(html).toContain('for="board-patient-filter"');
     expect(html).toContain("Clinic patient tracking board");
-    expect(html).toContain('tracking-chart-action-label">Select chart</span>');
-    expect(html).not.toContain("Above normal limits");
+    expect(html).not.toContain("tracking-chart-action-label");
+    const source = readSource("src/features/clinic/TrackingBoardPage.tsx");
+    expect(source).toContain('<Tooltip title={primaryAction} placement="top">');
+    expect(html).toContain("Above normal limits");
     expect(html).not.toContain("Synthetic display classifications");
     expect(html).toContain(">Provider<");
     expect(html).toContain(">Care<");
-    expect(html).toContain("Allergies: 1. Show details for A. Che");
-    expect(html).toContain("Review needed: 3. Show details for T. Ben");
+    expect(html).toContain("Amoxicillin: Localized rash");
+    expect(html).toContain(
+      "Allergies: Not reviewed · Medications: Not reviewed · Care needs: Not reviewed",
+    );
     expect(html).not.toContain("Care summary unavailable");
     expect(html).toContain("Assigned provider: Alex Morgan, NP");
     expect(html).toContain(">Assign</button>");
@@ -377,7 +419,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).not.toContain("tracking-status-copy");
     expect(html).toContain("Checked in");
     expect(html).toContain("Waiting room");
-    expect(html).toContain('tracking-chart-action-label">Open chart</span>');
+    expect(html).not.toContain("tracking-chart-action-label");
     const scheduledOnly = renderToStaticMarkup(
       <TestTrackingBoard visits={[scheduled]} now={EXAMPLE_CLOCK} />,
     );
@@ -387,20 +429,26 @@ describe("board and Operations presentation boundaries", () => {
     const html = renderToStaticMarkup(
       <TestTrackingBoard visits={EXAMPLE_VISITS} />,
     );
-    expect(html.match(/role="separator"/g)).toHaveLength(7);
+    expect(html.match(/role="separator"/g)).toHaveLength(8);
     expect(html).toContain('aria-label="Resize Patient column"');
+    expect(html).not.toContain('aria-valuemin="180"');
     expect(html).toContain('aria-label="Resize Room column"');
     expect(html).toContain('aria-label="Resize Timing column"');
     expect(html).toContain('aria-label="Resize Action column"');
     expect(html).not.toContain('aria-label="Resize Status column"');
-    expect(html).toContain(
-      'aria-label="Resize Care column" aria-valuemin="180"',
+    expect(html).not.toContain('aria-valuemin="180"');
+    expect(html).toContain('aria-label="Resize Vitals column"');
+    expect(html.indexOf('data-label="Reason"')).toBeLessThan(
+      html.indexOf('data-label="Vitals"'),
+    );
+    expect(html.indexOf('data-label="Vitals"')).toBeLessThan(
+      html.indexOf('data-label="Care"'),
     );
     expect(html).not.toContain('aria-label="Move Status column"');
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:1090px;min-width:1090px;table-layout:fixed"',
+      'style="width:100%;min-width:1180px;table-layout:auto"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
@@ -415,6 +463,11 @@ describe("board and Operations presentation boundaries", () => {
     expect(styles).toContain(
       ".tracking-patient strong {\n  display: block;\n  overflow: visible;\n  overflow-wrap: anywhere;\n  white-space: normal;",
     );
+    expect(styles).toContain("font-size: clamp(1.5rem, 2.4vw, 2rem)");
+    expect(styles).toContain("padding-bottom: 10px");
+    expect(styles).toContain("margin-bottom: 14px");
+    const frameStyles = readSource("src/features/clinic/clinicFrame.css");
+    expect(frameStyles).toContain("padding: 20px 12px 24px");
   });
   it("replaces the visit count with a recoverable column selector", () => {
     const html = renderToStaticMarkup(
@@ -501,6 +554,19 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("assigned patient-workspace users");
     expect(html).not.toContain("EX-001");
     expect(html).not.toContain("tracking-table-container");
+  });
+  it("filters the synthetic board to visits assigned to the current clinician", () => {
+    expect(
+      filterVisitsForClinician(EXAMPLE_VISITS, "example-clinician-am").map(
+        (visit) => visit.id,
+      ),
+    ).toEqual(["EX-003", "EX-006"]);
+    expect(filterVisitsForClinician(EXAMPLE_VISITS, null)).toEqual([]);
+    expect(
+      renderToStaticMarkup(
+        <TestTrackingBoard myClinicianId="example-clinician-am" />,
+      ),
+    ).toContain(">My patients<");
   });
   it("escapes example content without repeating unavailable demographics", () => {
     const html = renderToStaticMarkup(
@@ -872,7 +938,12 @@ describe("viewport-height clinic menu navigation", () => {
     expect(boardCss).toContain(".MuiTableSortLabel-icon");
     expect(boardCss).toContain("width: 18px");
     expect(boardCss).toContain("height: 18px");
-    expect(boardCss).toContain("font-size: 24px");
+    expect(boardCss).toContain("font-size: 30px");
+    expect(boardCss).toContain("tracking-chart-action-icon-draft");
+    expect(boardCss).toContain("tracking-chart-action-icon-signed");
+    expect(boardCss).toContain("var(--clinic-warning)");
+    expect(boardCss).toContain("var(--clinic-success)");
+    expect(boardCss).toContain("min-width: max-content");
     expect(boardCss).toContain("@media (max-width: 760px)");
     const source = readFileSync("src/features/clinic/Appearance.tsx", "utf8");
     expect(source.indexOf('import "./appearance.css"')).toBeLessThan(

@@ -56,6 +56,7 @@ const assessed = (
 export const EXAMPLE_VISITS: readonly BoardVisit[] = [
   {
     id: "EX-001",
+    chartStatus: "unopened",
     firstName: "Mara",
     lastName: "Rivera",
     age: 46,
@@ -77,6 +78,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
   },
   {
     id: "EX-002",
+    chartStatus: "draft",
     firstName: "Theo",
     lastName: "Bennett",
     age: 34,
@@ -106,6 +108,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
   },
   {
     id: "EX-003",
+    chartStatus: "signed",
     firstName: "Avery",
     lastName: "Chen",
     age: 61,
@@ -133,6 +136,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
   },
   {
     id: "EX-004",
+    chartStatus: "signed",
     firstName: "Jules",
     lastName: "Patel",
     age: 45,
@@ -160,6 +164,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
   },
   {
     id: "EX-005",
+    chartStatus: "draft",
     firstName: "Lena",
     lastName: "Morris",
     age: 28,
@@ -187,6 +192,7 @@ export const EXAMPLE_VISITS: readonly BoardVisit[] = [
   },
   {
     id: "EX-006",
+    chartStatus: "signed",
     firstName: "Eli",
     lastName: "Ross",
     age: 52,
