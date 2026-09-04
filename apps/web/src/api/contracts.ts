@@ -150,7 +150,12 @@ export type PatientReminder = {
   expires_at: string | null;
   endpoint: { type: string; label: string; masked_value: string };
   action_types: string[];
-  delivery_attempts?: { attempt_number: number; status: string; failure_class: string | null; retryable: boolean }[];
+  delivery_attempts?: {
+    attempt_number: number;
+    status: string;
+    failure_class: string | null;
+    retryable: boolean;
+  }[];
 };
 export type ReminderPreference = {
   channel: string;

@@ -81,7 +81,9 @@ describe("inventory integration", () => {
       "utf8",
     );
     expect(source).toContain("No movements recorded");
-    expect(source).toContain("Clear the filter to review the full movement ledger.");
+    expect(source).toContain(
+      "Clear the filter to review the full movement ledger.",
+    );
     expect(source).toContain("Inventory movement ledger");
   });
   it("renders a loading state before the Rails wire is available", () => {

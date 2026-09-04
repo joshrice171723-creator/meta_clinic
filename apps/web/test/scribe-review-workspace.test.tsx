@@ -102,9 +102,33 @@ const readyState: ScribeReviewState = {
         metadata: { fixture: true },
         content: "Synthetic transcript.",
         segments: [
-          { id: 101, sequence: 1, speaker: "patient", start_ms: 0, end_ms: 1500, content: "Synthetic subject report.", quality_flags: [] },
-          { id: 102, sequence: 2, speaker: "clinician", start_ms: 1500, end_ms: 3000, content: "Synthetic objective observation.", quality_flags: ["low_confidence"] },
-          { id: 103, sequence: 3, speaker: "unknown", start_ms: 3000, end_ms: 4500, content: "Synthetic statement with unknown speaker.", quality_flags: ["speaker_uncertain"] },
+          {
+            id: 101,
+            sequence: 1,
+            speaker: "patient",
+            start_ms: 0,
+            end_ms: 1500,
+            content: "Synthetic subject report.",
+            quality_flags: [],
+          },
+          {
+            id: 102,
+            sequence: 2,
+            speaker: "clinician",
+            start_ms: 1500,
+            end_ms: 3000,
+            content: "Synthetic objective observation.",
+            quality_flags: ["low_confidence"],
+          },
+          {
+            id: 103,
+            sequence: 3,
+            speaker: "unknown",
+            start_ms: 3000,
+            end_ms: 4500,
+            content: "Synthetic statement with unknown speaker.",
+            quality_flags: ["speaker_uncertain"],
+          },
         ],
       },
     ],
@@ -117,13 +141,17 @@ const readySource = readyState.encounter.sources[0] as ScribeSource;
 
 describe("synthetic AI scribe review workspace", () => {
   it("keeps source, generated, edited, unresolved, approval, and export states explicit", () => {
-    const html = renderToStaticMarkup(<ScribeReviewWorkspace state={readyState} />);
+    const html = renderToStaticMarkup(
+      <ScribeReviewWorkspace state={readyState} />,
+    );
 
     expect(html).toContain("Source transcript");
     expect(html).toContain("Generated draft");
     expect(html).toContain("Human-edited version");
     expect(html).toContain("Human-edited");
-    expect(html).toContain("Needs review: abstained · Reviewer decision required · Content not recorded");
+    expect(html).toContain(
+      "Needs review: abstained · Reviewer decision required · Content not recorded",
+    );
     expect(html).toContain("Approval and export");
     expect(html).toContain("Approve current draft");
     expect(html).toContain("Request separate export");
@@ -133,18 +161,28 @@ describe("synthetic AI scribe review workspace", () => {
 
   it("renders loading, error, empty, and unknown states with recovery or blocking language", () => {
     const render = (state: ScribeReviewState) =>
-      renderToStaticMarkup(<ScribeReviewWorkspace state={state} onRetry={() => undefined} />);
+      renderToStaticMarkup(
+        <ScribeReviewWorkspace state={state} onRetry={() => undefined} />,
+      );
 
     expect(render({ kind: "loading" })).toContain('role="status"');
     expect(render({ kind: "loading" })).toContain("Loading scribe review");
-    expect(render({ kind: "error", message: "Synthetic load failure." })).toContain('role="alert"');
-    expect(render({ kind: "error", message: "Synthetic load failure." })).toContain("Retry loading review");
+    expect(
+      render({ kind: "error", message: "Synthetic load failure." }),
+    ).toContain('role="alert"');
+    expect(
+      render({ kind: "error", message: "Synthetic load failure." }),
+    ).toContain("Retry loading review");
     expect(render({ kind: "empty" })).toContain("Nothing to review yet");
     expect(render({ kind: "unknown" })).toContain("unknown state");
   });
 
   it("derives approval readiness conservatively and never treats export as approval", () => {
-    expect(reviewStateSummary(draft)).toEqual({ unresolved: true, approved: false, exported: false });
+    expect(reviewStateSummary(draft)).toEqual({
+      unresolved: true,
+      approved: false,
+      exported: false,
+    });
     const resolvedDraft: ScribeDraft = {
       ...draft,
       sections: draft.sections.map((section) => ({
@@ -154,11 +192,29 @@ describe("synthetic AI scribe review workspace", () => {
         effective_content: "Resolved synthetic content.",
       })),
     };
-    expect(reviewStateSummary({ ...resolvedDraft, status: "approved" }, readySource)).toEqual({ unresolved: false, approved: true, exported: false });
-    expect(reviewStateSummary({ ...resolvedDraft, status: "exported", export_state: "exported" }, readySource)).toEqual({ unresolved: false, approved: true, exported: true });
-    expect(reviewStateSummary({ ...resolvedDraft, status: "approved" }, { ...readySource, status: "incomplete" })).toEqual({ unresolved: true, approved: true, exported: false });
-    expect(hasUnsavedDraftEdits(draft, { objective: "Reviewer-edited synthetic observation." })).toBe(false);
-    expect(hasUnsavedDraftEdits(draft, { subjective: "Unsaved reviewer change." })).toBe(true);
+    expect(
+      reviewStateSummary({ ...resolvedDraft, status: "approved" }, readySource),
+    ).toEqual({ unresolved: false, approved: true, exported: false });
+    expect(
+      reviewStateSummary(
+        { ...resolvedDraft, status: "exported", export_state: "exported" },
+        readySource,
+      ),
+    ).toEqual({ unresolved: false, approved: true, exported: true });
+    expect(
+      reviewStateSummary(
+        { ...resolvedDraft, status: "approved" },
+        { ...readySource, status: "incomplete" },
+      ),
+    ).toEqual({ unresolved: true, approved: true, exported: false });
+    expect(
+      hasUnsavedDraftEdits(draft, {
+        objective: "Reviewer-edited synthetic observation.",
+      }),
+    ).toBe(false);
+    expect(
+      hasUnsavedDraftEdits(draft, { subjective: "Unsaved reviewer change." }),
+    ).toBe(true);
   });
 
   it("exposes keyboard-reachable evidence controls and live action status", () => {
@@ -176,10 +232,7 @@ describe("synthetic AI scribe review workspace", () => {
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('aria-describedby="scribe-approval-help"');
     expect(html).toContain('aria-describedby="scribe-export-help"');
-    expect(html).toContain('grid-template-columns');
+    expect(html).toContain("grid-template-columns");
     expect(html).toContain("min-width:0");
   });
 });
-
-
-

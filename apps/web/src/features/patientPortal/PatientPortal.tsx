@@ -128,31 +128,97 @@ export function PatientPortal() {
               sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
               aria-labelledby="reminders-heading"
             >
-              <Typography id="reminders-heading" variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography
+                id="reminders-heading"
+                variant="h6"
+                sx={{ fontWeight: 700 }}
+              >
                 Patient reminders
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Operational reminders use minimum-content previews. Delivery is not a guarantee and this is not an emergency channel.
+                Operational reminders use minimum-content previews. Delivery is
+                not a guarantee and this is not an emergency channel.
               </Typography>
               {context.reminders.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 2 }}>No reminders are currently scheduled.</Typography>
-              ) : context.reminders.map((reminder) => (
-                <Box key={reminder.id} sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}>
-                  <Typography sx={{ fontWeight: 700 }}>{reminder.safe_preview}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {reminder.local_schedule_label} · {reminder.channel} · {reminder.status.replaceAll("_", " ")}
-                  </Typography>
-                  {reminder.status === "delivered" && (
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }}>
-                      <Form endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`} submit="Confirm" retryKey retryKeyField="reminder_action[request_key]" values={{ reminder_action: { action_type: "confirm" } }} onSuccess={resource.refresh} className="pharmacy-form-grid" />
-                      <Form endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`} submit="Request help" retryKey retryKeyField="reminder_action[request_key]" values={{ reminder_action: { action_type: "request_help" } }} onSuccess={resource.refresh} className="pharmacy-form-grid" />
-                    </Stack>
-                  )}
-                </Box>
-              ))}
-              <Typography variant="subtitle2" sx={{ mt: 3 }}>Communication preference</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Blocking a channel applies to future operational reminders and is recorded with a versioned change.</Typography>
-              <Form endpoint="/api/patient_portal/reminder_preferences" submit="Block portal reminders" retryKey values={{ preference: { channel: "portal", setting: "blocked", timezone: context.practice.timezone, locale: "en-US" } }} onSuccess={resource.refresh} className="pharmacy-form-grid" />
+                <Typography color="text.secondary" sx={{ mt: 2 }}>
+                  No reminders are currently scheduled.
+                </Typography>
+              ) : (
+                context.reminders.map((reminder) => (
+                  <Box
+                    key={reminder.id}
+                    sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
+                  >
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {reminder.safe_preview}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {reminder.local_schedule_label} · {reminder.channel} ·{" "}
+                      {reminder.status.replaceAll("_", " ")}
+                    </Typography>
+                    {reminder.status === "delivered" && (
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        sx={{ mt: 1.5 }}
+                      >
+                        <Form
+                          endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`}
+                          submit="Confirm"
+                          retryKey
+                          retryKeyField="reminder_action[request_key]"
+                          values={{
+                            reminder_action: { action_type: "confirm" },
+                          }}
+                          onSuccess={resource.refresh}
+                          className="pharmacy-form-grid"
+                        />
+                        <Form
+                          endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`}
+                          submit="Request help"
+                          retryKey
+                          retryKeyField="reminder_action[request_key]"
+                          values={{
+                            reminder_action: { action_type: "request_help" },
+                          }}
+                          onSuccess={resource.refresh}
+                          className="pharmacy-form-grid"
+                        />
+                      </Stack>
+                    )}
+                  </Box>
+                ))
+              )}
+              <Typography variant="subtitle2" sx={{ mt: 3 }}>
+                Communication preference
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
+              >
+                Blocking a channel applies to future operational reminders and
+                is recorded with a versioned change.
+              </Typography>
+              <Form
+                endpoint="/api/patient_portal/reminder_preferences"
+                submit="Block portal reminders"
+                retryKey
+                values={{
+                  preference: {
+                    channel: "portal",
+                    setting: "blocked",
+                    timezone: context.practice.timezone,
+                    locale: "en-US",
+                  },
+                }}
+                onSuccess={resource.refresh}
+                className="pharmacy-form-grid"
+              />
             </Paper>
 
             <Paper
