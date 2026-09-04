@@ -26,6 +26,13 @@ This record captures owner decisions made for the cash-pay billing roadmap. It d
 | --- | --- | --- |
 | First real release geography | United States only | Do not expand country, tax, privacy, currency, or provider scope without a separate decision. |
 
+## Stripe rollout scope
+
+| Decision | Owner approval | Boundary |
+| --- | --- | --- |
+| First-release card payments | Online card payments only | Use a hosted Checkout or Payment Element flow; no physical terminal is required for the first release. |
+| Card-present payments | Approved for a later increment | Defer implementation and acceptance until physical equipment is available for testing. |
+
 ## Working defaults adopted
 
 These defaults may guide implementation unless the owner later overrides them. They are not a substitute for qualified legal, accounting, privacy, security, accessibility, or professional review.
