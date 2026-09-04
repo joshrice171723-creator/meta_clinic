@@ -326,6 +326,8 @@ def main() -> int:
             'ENV.fetch("DATABASE_URL", "").empty?',
             'Rails.env.development?',
             'ActiveRecord::Base.connection_db_config',
+            '"db:create"',
+            '"db:migrate"',
             '"db:seed:replant"',
             '"APP_SYNTHETIC_SEEDS" => "1"',
             'File.join(ROOT, "dev_server_startup")',
@@ -335,6 +337,8 @@ def main() -> int:
         for forbidden in ("db:drop", "db:reset", "git reset", "docker volume rm"):
             if forbidden in implementation:
                 errors.append(f"bin/startdev-refresh: forbidden destructive fallback {forbidden!r}")
+        if '"db:prepare"' in implementation:
+            errors.append("bin/startdev-refresh: fresh-database path must migrate from source instead of loading db:prepare")
 
     for relative in REQUIRED_COMMANDS:
         path = ROOT / relative

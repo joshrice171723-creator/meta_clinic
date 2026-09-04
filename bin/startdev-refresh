@@ -108,7 +108,9 @@ local_environment = {
 
 puts "Starting the checkout-owned PostgreSQL container..."
 run!(RbConfig.ruby, "bin/postgres", "start", chdir: API_ROOT, environment: local_environment)
-run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:prepare",
+run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:create",
+  chdir: API_ROOT, environment: local_environment)
+run!(RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:migrate",
   chdir: API_ROOT, environment: local_environment)
 
 connection_guard = <<~'RUBY'
