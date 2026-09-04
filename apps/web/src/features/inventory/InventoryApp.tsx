@@ -237,6 +237,23 @@ function validDecimal(value: string, allowZero = false) {
   if (!/^-?\d+(?:\.\d+)?$/.test(value.trim())) return false;
   return decimalCompare(value, "0") >= (allowZero ? 0 : 1);
 }
+function inventoryUnitDefinition(unit: string, quantity: string) {
+  const labels: Record<string, string> = {
+    each: "unit",
+    tablet: "tablet",
+    capsule: "capsule",
+    vial: "vial",
+    mL: "mL",
+    g: "g",
+    package: "package",
+  };
+  const label = labels[unit] ?? "unit";
+  const plural =
+    ["mL", "g"].includes(unit) || decimalCompare(quantity, "1") === 0
+      ? label
+      : label + "s";
+  return decimalDisplay(quantity) + " " + plural + " per package";
+}
 function unitLabel(data: InventoryData, productId: string) {
   return product(data, productId)?.base_unit ?? "unavailable unit";
 }
@@ -552,7 +569,6 @@ function CatalogCreateScreen({
   const [stockUnit, setStockUnit] = useState("");
   const [packageSize, setPackageSize] = useState("1");
   const [quantityScale, setQuantityScale] = useState("0");
-  const [unitReference, setUnitReference] = useState("");
   const [reorderPoint, setReorderPoint] = useState("0");
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupResults, setLookupResults] = useState<NdcResult[]>([]);
@@ -561,6 +577,10 @@ function CatalogCreateScreen({
   const [selectedNdc, setSelectedNdc] = useState<NdcResult>();
   const lookupVersion = useRef(0);
   const requiresUnitReference = packageSize !== "1";
+  const unitReference =
+    stockUnit && packageSize
+      ? inventoryUnitDefinition(stockUnit, packageSize)
+      : "";
   const lookup = async (query: string) => {
     const version = ++lookupVersion.current;
     setLookupBusy(true);
@@ -848,17 +868,17 @@ function CatalogCreateScreen({
               </select>
             </Field>
             <Field
-              label="Unit definition"
-              hint="Required when a package contains more than one stock unit."
+              label="Inventory definition"
+              hint="Generated from the stock unit and units per package."
             >
-              <input
-                value={unitReference}
-                onChange={(event) => setUnitReference(event.target.value)}
-                maxLength={500}
-                required={requiresUnitReference}
-                placeholder="Manufacturer package specification"
-                autoComplete="off"
-              />
+              <output
+                className="inventory-info"
+                style={{ display: "block" }}
+                aria-live="polite"
+              >
+                {unitReference ||
+                  "Select a stock unit to generate the inventory definition."}
+              </output>
             </Field>
             <Field label="Reorder point" hint={`Base ${stockUnit} units.`}>
               <input
@@ -887,34 +907,13 @@ function CatalogCreateScreen({
                   !sku.trim() ||
                   !stockUnit ||
                   !packageSize ||
-                  (requiresUnitReference && !unitReference.trim())
+                  (requiresUnitReference && !unitReference)
                 }
               >
                 {busy ? "Creating…" : "Create item and continue →"}
               </button>
             </div>
           </form>
-        </Card>
-        <Card title="What happens next">
-          <div className="inventory-stack compact">
-            <DataPoint
-              label="Catalog status"
-              value="Active"
-              detail="Available for ordering"
-              tone="success"
-            />
-            <DataPoint
-              label="Opening stock"
-              value="0"
-              detail="Created by receiving, never by catalog setup"
-            />
-            <DataPoint
-              label="Next step"
-              value="Purchase order"
-              detail="You will continue directly to the order form"
-              tone="blue"
-            />
-          </div>
         </Card>
       </div>
     </div>
