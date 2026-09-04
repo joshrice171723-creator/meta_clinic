@@ -8,6 +8,7 @@ import type {
   Patient,
 } from "../src/api/contracts";
 import {
+  ChartQuickJump,
   closeFailureState,
   closeRequestKey,
   closeRequestBody,
@@ -528,6 +529,16 @@ describe("provider encounter workflow", () => {
     expect(html).not.toContain("SOAP editor");
   });
 
+  it("offers chart quick links to patient, HPI, and ROS anchors", () => {
+    const html = renderToStaticMarkup(<ChartQuickJump />);
+
+    expect(html).toContain('aria-label="Chart quick navigation"');
+    expect(html).toContain('href="#chart-patient"');
+    expect(html).toContain('href="#chart-hpi"');
+    expect(html).toContain('href="#chart-ros"');
+    expect(html).toContain("Quick jump");
+  });
+
   it("keeps SOAP save reconciliation inside the confirmed chart workspace", () => {
     const source = readFileSync(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
@@ -598,7 +609,7 @@ describe("provider encounter workflow", () => {
     );
     expect(html).not.toContain("Quick exam entry");
     expect(html).not.toContain("Personal macros");
-    expect(html).toContain("Start from a template");
+    expect(html).not.toContain("Apply starter text");
     expect(html).toContain("Save draft");
     expect(html).not.toContain("autosav");
   });

@@ -43,11 +43,15 @@ import {
   TableRow,
   TextField,
   Typography,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { Card, ErrorMessage, LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { CareIndicators, type CareSummaryLoadState } from "./CareIndicators";
 import { useClinicNavigation } from "./clinicNavigation";
+import { ReviewOfSystems } from "./ReviewOfSystems";
+import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 
 export function encounterDetailPath(
   patientId: string | number,
@@ -220,6 +224,40 @@ function siteLabel(context: ClinicWorkspaceContext, siteId: number | null) {
 
 function statusLabel(value: string) {
   return value.replaceAll("_", " ");
+}
+
+function chartStateLabel(
+  signed: boolean,
+  confirmed: boolean,
+  existing = false,
+) {
+  if (signed) return "Signed";
+  return confirmed || existing ? "In progress" : "Not started";
+}
+
+function patientAge(
+  dateOfBirth: string | null | undefined,
+  asOf: string | null,
+) {
+  if (!dateOfBirth || !asOf) return "Not recorded";
+  const birth = new Date(dateOfBirth);
+  const date = new Date(asOf);
+  if (!Number.isFinite(birth.valueOf()) || !Number.isFinite(date.valueOf()))
+    return "Not recorded";
+  let age = date.getUTCFullYear() - birth.getUTCFullYear();
+  const beforeBirthday =
+    date.getUTCMonth() < birth.getUTCMonth() ||
+    (date.getUTCMonth() === birth.getUTCMonth() &&
+      date.getUTCDate() < birth.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 0 ? String(age) : "Not recorded";
+}
+
+function observationByLabel(observations: Observation[], pattern: RegExp) {
+  const match = observations.find((observation) =>
+    pattern.test(observationLabel(observation.code)),
+  );
+  return match ? observationValue(match) : "Not recorded";
 }
 
 function localDateTimeValue(value: Date) {
@@ -889,7 +927,7 @@ function EncounterHistory({ patientId }: { patientId: number }) {
                 <span>{clinicDateTime(encounter.started_at, timezone)}</span>
               </div>
               <span className="care-status">
-                {statusLabel(encounter.status)}
+                {encounter.status === "open" ? "In progress" : "Completed"}
               </span>
               <a
                 href={`/clinic/patients/${patientId}/encounters/${encounter.id}`}
@@ -1030,16 +1068,15 @@ export function SoapNoteForm({
   const savedBody = note?.current_revision?.body;
   const initialSections = savedBody?.sections ?? EMPTY_SOAP_SECTIONS;
   const [sections, setSections] = useState<SoapNoteSections>(initialSections);
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    savedBody?.template_id ?? templates[0]?.id ?? "",
-  );
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
     version: number;
   } | null>(
     savedBody
       ? { id: savedBody.template_id, version: savedBody.template_version }
-      : null,
+      : templates[0]
+        ? { id: templates[0].id, version: templates[0].version }
+        : null,
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1051,12 +1088,12 @@ export function SoapNoteForm({
     ([key]) => sections[key] !== initialSections[key],
   );
   const signed = note?.signed || note?.current_revision?.signed || false;
-
+  const editorDisabled =
+    busy || !noteSaveAllowsMutation(saveState) || signed || !canWrite;
   useEffect(() => {
     if (saveAttemptRef.current) return;
     setSections(initialSections);
     if (savedBody) {
-      setSelectedTemplate(savedBody.template_id);
       setAppliedTemplate({
         id: savedBody.template_id,
         version: savedBody.template_version,
@@ -1085,34 +1122,6 @@ export function SoapNoteForm({
       ),
     [dirty, registerBlocker],
   );
-
-  const applyTemplate = () => {
-    const template = templates.find(
-      (candidate) => candidate.id === selectedTemplate,
-    );
-    if (!template) return;
-    if (
-      templateWouldOverwrite(sections, template) &&
-      !window.confirm(
-        "Replace the current SOAP sections with this template's starter text?",
-      )
-    )
-      return;
-    setSections(
-      (current) =>
-        Object.fromEntries(
-          SOAP_SECTION_LABELS.map(([key]) => [
-            key,
-            template.sections[key].trim()
-              ? template.sections[key]
-              : current[key],
-          ]),
-        ) as SoapNoteSections,
-    );
-    setAppliedTemplate({ id: template.id, version: template.version });
-    setNotice("");
-    setError("");
-  };
 
   const save = async () => {
     if (
@@ -1285,7 +1294,6 @@ export function SoapNoteForm({
     const body = reconciled.current_revision?.body;
     if (body) {
       setSections(body.sections);
-      setSelectedTemplate(body.template_id);
       setAppliedTemplate({
         id: body.template_id,
         version: body.template_version,
@@ -1379,59 +1387,8 @@ export function SoapNoteForm({
     setError("");
   };
 
-  const template = templates.find(
-    (candidate) => candidate.id === selectedTemplate,
-  );
   return (
     <Box className="soap-workspace">
-      {!note && (
-        <Paper variant="outlined" className="soap-template-panel">
-          <Typography variant="subtitle2">Start from a template</Typography>
-          <FormControl fullWidth size="small">
-            <InputLabel id="soap-template-label">Template</InputLabel>
-            <Select
-              labelId="soap-template-label"
-              label="Template"
-              value={selectedTemplate}
-              disabled={busy || !noteSaveAllowsMutation(saveState)}
-              onChange={(event) => setSelectedTemplate(event.target.value)}
-            >
-              {templates.map((option) => (
-                <MenuItem
-                  key={`${option.id}-${option.version}`}
-                  value={option.id}
-                >
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {template && (
-            <>
-              <Alert severity="warning">{template.caution}</Alert>
-              <Typography variant="caption" color="text.secondary">
-                Source: {template.source_label}. Prototype attribution only;
-                this does not establish clinical approval or reuse rights for
-                release.{" "}
-                <Link
-                  href={template.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Review source
-                </Link>
-              </Typography>
-            </>
-          )}
-          <Button
-            variant="outlined"
-            onClick={applyTemplate}
-            disabled={!template || !noteSaveAllowsMutation(saveState)}
-          >
-            Apply starter text
-          </Button>
-        </Paper>
-      )}
       {note && savedBody && (
         <Alert severity={signed ? "info" : "warning"}>
           {signed
@@ -1439,32 +1396,46 @@ export function SoapNoteForm({
             : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
-      <Stack spacing={2} className="soap-sections">
-        {SOAP_SECTION_LABELS.map(([key, label]) => (
-          <TextField
-            key={key}
-            name={key}
-            label={`${label} (${label.charAt(0)})`}
-            value={sections[key]}
-            onChange={(event) =>
-              setSections((current) => ({
-                ...current,
-                [key]: event.target.value,
-              }))
-            }
-            multiline
-            minRows={key === "objective" ? 10 : 4}
-            slotProps={{ htmlInput: { maxLength: 50_000 } }}
-            disabled={
-              busy || !noteSaveAllowsMutation(saveState) || signed || !canWrite
-            }
-            helperText={
-              key === "objective" && appliedTemplate && !signed
-                ? "Template text is editable and remains unverified until the author reviews it."
-                : undefined
-            }
-          />
-        ))}
+      <Stack spacing={1} className="soap-sections">
+        <HistoryOfPresentIllness
+          value={sections.subjective}
+          onChange={(subjective) =>
+            setSections((current) => ({ ...current, subjective }))
+          }
+          disabled={editorDisabled}
+        />
+        <ReviewOfSystems
+          value={sections.subjective}
+          onChange={(subjective) =>
+            setSections((current) => ({ ...current, subjective }))
+          }
+          disabled={editorDisabled}
+        />
+        {SOAP_SECTION_LABELS.filter(([key]) => key !== "subjective").map(
+          ([key, label]) => (
+            <TextField
+              key={key}
+              name={key}
+              label={`${label} (${label.charAt(0)})`}
+              value={sections[key]}
+              onChange={(event) =>
+                setSections((current) => ({
+                  ...current,
+                  [key]: event.target.value,
+                }))
+              }
+              multiline
+              minRows={key === "objective" ? 10 : 4}
+              slotProps={{ htmlInput: { maxLength: 50_000 } }}
+              disabled={editorDisabled}
+              helperText={
+                key === "objective" && appliedTemplate && !signed
+                  ? "Template text is editable and remains unverified until the author reviews it."
+                  : undefined
+              }
+            />
+          ),
+        )}
       </Stack>
       {!canWrite && !signed && (
         <Alert severity="info">
@@ -1595,6 +1566,48 @@ function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
   );
 }
 
+export function ChartQuickJump() {
+  const links = [
+    ["Patient", "#chart-patient"],
+    ["HPI", "#chart-hpi"],
+    ["ROS", "#chart-ros"],
+  ] as const;
+
+  return (
+    <Paper
+      component="nav"
+      variant="outlined"
+      className="chart-quick-jump"
+      aria-label="Chart quick navigation"
+    >
+      <Typography variant="overline" component="h2">
+        Quick jump
+      </Typography>
+      <Stack className="chart-quick-jump-links">
+        {links.map(([label, href]) => (
+          <Button
+            key={href}
+            href={href}
+            variant="text"
+            size="small"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              document.querySelector(href)?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+              window.history.replaceState(null, "", href);
+            }}
+          >
+            {label}
+          </Button>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
 export function ProviderEncounterWorkflow({
   patient,
   encounter,
@@ -1613,7 +1626,11 @@ export function ProviderEncounterWorkflow({
   onEncounterRefresh?: () => void;
 }) {
   const [chartConfirmed, setChartConfirmed] = useState(false);
+  const [chartType, setChartType] = useState("soap");
   const signedChart = encounterHasSignedSoapNote(encounter);
+  const existingChart = encounter.notes.some(
+    (note) => note.note_kind === "soap",
+  );
   const workspaceHeading = useRef<HTMLHeadingElement | null>(null);
   const observationTimes = new Set(
     observations.map((observation) => observation.recorded_at),
@@ -1629,22 +1646,133 @@ export function ProviderEncounterWorkflow({
 
   return (
     <Stack spacing={2} className="provider-encounter-workflow">
-      <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack spacing={1.5}>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            sx={{ justifyContent: "space-between", gap: 1 }}
-          >
-            <Box>
-              <Typography variant="subtitle2">Patient and visit</Typography>
-              <Typography variant="h6">{patient.display_name}</Typography>
+      <Paper
+        id="chart-patient"
+        variant="outlined"
+        sx={{ p: 2 }}
+        className="chart-anchor"
+      >
+        <Stack spacing={1}>
+          <Typography variant="subtitle2">Patient Demographics</Typography>
+          <TableContainer>
+            <Table size="small" className="patient-demographics-table">
+              <TableBody>
+                <TableRow>
+                  <TableCell component="th">MRN</TableCell>
+                  <TableCell>{patient.reference || "Not recorded"}</TableCell>
+                  <TableCell component="th">Date of Visit</TableCell>
+                  <TableCell>
+                    {clinicDateTime(encounter.started_at, timezone)}
+                  </TableCell>
+                  <TableCell component="th">Primary Care</TableCell>
+                  <TableCell>Not recorded</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell component="th">Last Name</TableCell>
+                  <TableCell>
+                    {patient.display_name.split(",")[0]?.trim() ||
+                      "Not recorded"}
+                  </TableCell>
+                  <TableCell component="th">Age</TableCell>
+                  <TableCell>
+                    {patientAge(
+                      patient.demographics?.date_of_birth,
+                      encounter.started_at,
+                    )}
+                  </TableCell>
+                  <TableCell component="th">Member</TableCell>
+                  <TableCell>Not recorded</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell component="th">First Name</TableCell>
+                  <TableCell>
+                    {patient.display_name.split(",")[1]?.trim() ||
+                      patient.display_name ||
+                      "Not recorded"}
+                  </TableCell>
+                  <TableCell component="th">Sex</TableCell>
+                  <TableCell>
+                    {patient.demographics?.sex || "Not recorded"}
+                  </TableCell>
+                  <TableCell component="th">Phone</TableCell>
+                  <TableCell>
+                    {patient.contacts?.find((contact) => contact.preferred)
+                      ?.contact_value ||
+                      patient.contacts?.[0]?.contact_value ||
+                      "Not recorded"}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell component="th">Birthdate</TableCell>
+                  <TableCell>
+                    {patient.demographics?.date_of_birth || "Not recorded"}
+                  </TableCell>
+                  <TableCell component="th">Heart Rate</TableCell>
+                  <TableCell>
+                    {observationByLabel(observations, /heart\s*rate/i)}
+                  </TableCell>
+                  <TableCell component="th">Blood Pressure</TableCell>
+                  <TableCell>
+                    {observationByLabel(observations, /blood\s*pressure/i)}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell component="th">Weight</TableCell>
+                  <TableCell>
+                    {observationByLabel(observations, /weight/i)}
+                  </TableCell>
+                  <TableCell component="th">Encounter</TableCell>
+                  <TableCell>#{encounter.id}</TableCell>
+                  <TableCell component="th">Chart Status</TableCell>
+                  <TableCell>
+                    {chartStateLabel(
+                      signedChart,
+                      chartConfirmed,
+                      existingChart,
+                    )}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {!chartConfirmed && (
+            <Box className="chart-type-picker">
+              <Typography variant="subtitle2">Choose a chart</Typography>
               <Typography variant="body2" color="text.secondary">
-                Reference {patient.reference} · Encounter #{encounter.id} ·
-                started {clinicDateTime(encounter.started_at, timezone)}
+                Select the type of chart to open for this encounter.
+              </Typography>
+              <ToggleButtonGroup
+                exclusive
+                value={chartType}
+                onChange={(_, value) => value && setChartType(value)}
+                aria-label="Chart type"
+                size="small"
+              >
+                <ToggleButton value="soap">SOAP</ToggleButton>
+                <ToggleButton value="chest-pain" disabled>
+                  Chest Pain
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Typography variant="caption" color="text.secondary">
+                Additional complaint-specific charts will appear as they are
+                implemented.
               </Typography>
             </Box>
+          )}
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", justifyContent: "flex-end" }}
+          >
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <Chip label={statusLabel(encounter.status)} variant="outlined" />
+              <Chip
+                label={chartStateLabel(
+                  signedChart,
+                  chartConfirmed,
+                  existingChart,
+                )}
+                variant="outlined"
+              />
               {chartConfirmed && (
                 <Button href="/clinic" variant="text" size="small">
                   Close chart
@@ -1656,113 +1784,127 @@ export function ProviderEncounterWorkflow({
             <Alert severity="warning">
               {signedChart
                 ? "Confirm this patient reference and encounter before viewing the signed chart. Viewing the chart does not accept a handoff or assign a provider."
-                : "Confirm this patient reference and encounter before opening the chart. Opening the chart does not accept a handoff or assign a provider."}
+                : existingChart
+                  ? "This encounter has an in-progress chart. Confirm the patient reference and encounter before opening it."
+                  : "Confirm this patient reference and encounter before opening the chart. Opening the chart does not accept a handoff or assign a provider."}
             </Alert>
           )}
           {!chartConfirmed && (
             <Button
               variant="contained"
-              onClick={() => setChartConfirmed(true)}
+              onClick={() => chartType === "soap" && setChartConfirmed(true)}
+              disabled={chartType !== "soap"}
               sx={{ alignSelf: "flex-start" }}
             >
               {signedChart
                 ? "Confirm and view signed chart"
-                : "Confirm and begin charting"}
+                : existingChart
+                  ? "Confirm and open chart"
+                  : "Confirm and begin charting"}
             </Button>
           )}
         </Stack>
       </Paper>
 
       {chartConfirmed && (
-        <>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={1.5}>
-              <Typography
-                ref={workspaceHeading}
-                tabIndex={-1}
-                variant="subtitle2"
-                component="h2"
-              >
-                Encounter context
-              </Typography>
-              <Box>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Recorded care details
+        <Box className="provider-chart-layout">
+          <ChartQuickJump />
+          <Stack spacing={2} className="provider-chart-content">
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography
+                  ref={workspaceHeading}
+                  tabIndex={-1}
+                  variant="subtitle2"
+                  component="h2"
+                >
+                  Encounter context
                 </Typography>
-                {careSummaryState.status === "loading" ? (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    role="status"
-                  >
-                    Loading recorded care details…
+                <Box>
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    Recorded care details
                   </Typography>
-                ) : careSummaryState.status === "error" ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Recorded care details could not be loaded.
-                  </Typography>
-                ) : (
-                  <CareIndicators
-                    state={careSummaryState}
-                    patientLabel={patient.display_name}
-                    timezone={timezone}
-                  />
-                )}
-              </Box>
-              <Divider />
-              <Box>
-                <Typography variant="subtitle2">Vital signs</Typography>
-                {observations.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No recorded observations are available for this encounter.
-                  </Typography>
-                ) : (
-                  <>
-                    {sharedObservationTime && (
-                      <Typography variant="caption" color="text.secondary">
-                        Recorded {sharedObservationTime}
-                      </Typography>
-                    )}
-                    <Box className="provider-vitals-grid">
-                      {observations.map((observation) => (
-                        <Box key={observation.id}>
-                          <Typography variant="caption" color="text.secondary">
-                            {observationLabel(observation.code)}
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {observationValue(observation)}
-                          </Typography>
-                          {!sharedObservationTime && (
+                  {careSummaryState.status === "loading" ? (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      role="status"
+                    >
+                      Loading recorded care details…
+                    </Typography>
+                  ) : careSummaryState.status === "error" ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Recorded care details could not be loaded.
+                    </Typography>
+                  ) : (
+                    <CareIndicators
+                      state={careSummaryState}
+                      patientLabel={patient.display_name}
+                      timezone={timezone}
+                    />
+                  )}
+                </Box>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2">Vital signs</Typography>
+                  {observations.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No recorded observations are available for this encounter.
+                    </Typography>
+                  ) : (
+                    <>
+                      {sharedObservationTime && (
+                        <Typography variant="caption" color="text.secondary">
+                          Recorded {sharedObservationTime}
+                        </Typography>
+                      )}
+                      <Box className="provider-vitals-grid">
+                        {observations.map((observation) => (
+                          <Box key={observation.id}>
                             <Typography
                               variant="caption"
                               color="text.secondary"
                             >
-                              {clinicDateTime(
-                                observation.recorded_at,
-                                timezone,
-                              )}
+                              {observationLabel(observation.code)}
                             </Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  </>
-                )}
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                Values are displayed as recorded. No review status is inferred
-                or stored here.
-              </Typography>
-            </Stack>
-          </Paper>
-          {noteWorkspace}
-          <VisitWrapUp
-            patient={patient}
-            encounter={encounter}
-            timezone={timezone}
-            onEncounterRefresh={onEncounterRefresh}
-          />
-        </>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {observationValue(observation)}
+                            </Typography>
+                            {!sharedObservationTime && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {clinicDateTime(
+                                  observation.recorded_at,
+                                  timezone,
+                                )}
+                              </Typography>
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    </>
+                  )}
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Values are displayed as recorded. No review status is inferred
+                  or stored here.
+                </Typography>
+              </Stack>
+            </Paper>
+            {noteWorkspace}
+            <VisitWrapUp
+              patient={patient}
+              encounter={encounter}
+              timezone={timezone}
+              onEncounterRefresh={onEncounterRefresh}
+            />
+          </Stack>
+        </Box>
       )}
     </Stack>
   );

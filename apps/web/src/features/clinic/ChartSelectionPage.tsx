@@ -135,6 +135,13 @@ export function ChartSelectionPage({
           encounters,
           selectedEncounter,
         };
+        if (selectedEncounter) {
+          navigate(
+            encounterHref(patientResponse.patient.id, selectedEncounter.id),
+            { replace: true },
+          );
+          return;
+        }
         setState({ status: "ready", value });
       })
       .catch((error: unknown) => {
