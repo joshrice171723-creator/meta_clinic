@@ -60,7 +60,7 @@ Both EC2 environments are running; see the [environment runbook](../../ops/aws/e
 
 ## Local PostgreSQL and conversion checks
 
-Install PostgreSQL 18 client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb`) and use the pinned Ruby/Bundler versions. On macOS `brew install libpq` supplies them; add its `bin` directory to PATH for the current shell. `bin/postgres start` creates a loopback-only PostgreSQL 18.6 container with a persistent named volume and a generated ignored mode-0600 local password file. `bin/postgres exec COMMAND...` passes the secret without printing it. Do not delete that file while retaining the database volume. This helper is local/synthetic only and never resets data.
+Use the pinned Ruby/Bundler versions. Local PostgreSQL 18 client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb`) are optional when commands run through `bin/postgres exec`: the helper routes child-process client calls through the local PostgreSQL container, including Windows hosts where `pg_dump` is not on PATH. On macOS, `brew install libpq` remains useful for direct client commands; add its `bin` directory to PATH for the current shell. `bin/postgres start` creates a loopback-only PostgreSQL 18.6 container with a persistent named volume and a generated ignored mode-0600 local password file. `bin/postgres exec COMMAND...` passes the secret without printing it. Do not delete that file while retaining the database volume. This helper is local/synthetic only and never resets data.
 
 ```sh
 # From the repository root:

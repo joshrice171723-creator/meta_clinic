@@ -18,9 +18,25 @@ databases = [prefix + suffix for suffix in ("_upgrade", "_restore", "_fresh")]
 environment = os.environ.copy()
 environment.update(PGHOST=os.environ.get("PGHOST", "127.0.0.1"), PGPORT=os.environ.get("PGPORT", "54329"), PGUSER=os.environ.get("PGUSER", "postgres"), RAILS_ENV="development")
 environment.pop("DATABASE_URL", None)
+postgres_clients = {"createdb", "dropdb", "psql", "pg_dump", "pg_restore", "pg_isready"}
+
+def platform_command(command):
+    if os.name != "nt":
+        return command
+    if command[0] in postgres_clients:
+        return ["ruby", str(root / "bin" / "pg-client.rb"), command[0], *command[1:]]
+    if command[0] == "bundle":
+        return ["ruby", "-S", "bundle", *command[1:]]
+    script = root / command[0]
+    shebang = script.open().readline() if script.is_file() else ""
+    if "ruby" in shebang:
+        return ["ruby", str(script), *command[1:]]
+    if "python" in shebang:
+        return ["python", str(script), *command[1:]]
+    return command
 
 def run(command, env=environment, data=None):
-    result = subprocess.run(command, cwd=root, env=env, input=data, capture_output=True, text=True)
+    result = subprocess.run(platform_command(command), cwd=root, env=env, input=data, capture_output=True, text=True)
     if result.returncode:
         # All fixture data is synthetic, but do not echo connection diagnostics.
         raise RuntimeError("Verification step failed: " + command[0] + " " + command[1])
@@ -104,7 +120,7 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         db.close()
         run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)])
         # Re-import is refused without changing the destination.
-        retry = subprocess.run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)], cwd=root, env=environment, capture_output=True)
+        retry = subprocess.run(platform_command(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)]), cwd=root, env=environment, capture_output=True)
         assert retry.returncode != 0
         run(["bin/rails", "db:migrate"])
         assert_receipt_digest_schema()
@@ -201,4 +217,4 @@ with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
         print("PASS: all migrations initialize a fresh PostgreSQL database", flush=True)
     finally:
         for name in reversed(created):
-            subprocess.run(["dropdb", "--if-exists", name], env=environment, capture_output=True)
+            subprocess.run(platform_command(["dropdb", "--if-exists", name]), env=environment, capture_output=True)

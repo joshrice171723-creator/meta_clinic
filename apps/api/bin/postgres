@@ -1,11 +1,23 @@
 #!/usr/bin/env ruby
 # Local synthetic development only. No hosted credentials and no automatic reset.
 require "fileutils"
+require "rbconfig"
 require "securerandom"
 root = File.expand_path("..", __dir__)
 path = File.join(root, "tmp", "postgres-password")
 name = ENV.fetch("APPLY_POSTGRES_CONTAINER", "apply-postgres-development")
 abort "Invalid container name" unless name.match?(/\Aapply-[a-z0-9-]+\z/)
+
+def command_available?(command)
+  if Gem.win_platform?
+    system("where", command, out: File::NULL, err: File::NULL)
+  else
+    ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |directory|
+      File.executable?(File.join(directory, command))
+    end
+  end
+end
+
 case ARGV.first
 when "start"
   FileUtils.mkdir_p(File.dirname(path))
@@ -26,15 +38,35 @@ when "exec"
   abort "Start PostgreSQL first" unless File.file?(path)
   abort "Supply a command" unless ARGV.length > 1
   command = ARGV.drop(1)
-  database_clients = %w[createdb dropdb psql pg_dump pg_restore]
-  if database_clients.include?(command.first) && (Gem.win_platform? || !system("where", command.first, out: File::NULL, err: File::NULL))
-    docker_args = [ "exec", "-i", name ]
+  if Gem.win_platform?
+    script = File.expand_path(command.first, root)
+    shebang = File.file?(script) ? File.open(script, &:gets).to_s : ""
+    interpreter = if shebang.include?("python")
+      "python"
+    elsif shebang.include?("ruby")
+      RbConfig.ruby
+    end
+    command = [ interpreter, script, *command.drop(1) ] if interpreter
+  end
+  database_clients = %w[createdb dropdb psql pg_dump pg_restore pg_isready]
+  client_wrapper = ENV["APPLY_POSTGRES_CLIENT_WRAPPER"] == "1"
+  if database_clients.include?(command.first) && (client_wrapper || !command_available?(command.first))
+    docker_args = [ "exec", "-i" ]
+    docker_args.push("-e", "PGUSER=postgres")
     %w[PGDATABASE PGOPTIONS].each do |key|
       docker_args.push("-e", "#{key}=#{ENV[key]}") if ENV[key]
     end
-    exec("docker", *docker_args, command.first, "-U", "postgres", *command.drop(1))
+    docker_args << name
+    exec("docker", *docker_args, command.first, *command.drop(1))
   end
-  exec({ "PGHOST" => "127.0.0.1", "PGPORT" => ENV.fetch("PGPORT", "54329"), "PGUSER" => "postgres", "PGPASSWORD" => File.read(path) }, *command)
+  environment = {
+    "PGHOST" => "127.0.0.1",
+    "PGPORT" => ENV.fetch("PGPORT", "54329"),
+    "PGUSER" => "postgres",
+    "PGPASSWORD" => File.read(path),
+    "PATH" => [ File.join(root, "bin"), ENV["PATH"] ].compact.join(File::PATH_SEPARATOR)
+  }
+  exec(environment, *command)
 when "stop"
   system("docker", "stop", name, exception: true, out: File::NULL)
 else

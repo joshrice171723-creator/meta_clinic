@@ -4,7 +4,7 @@ APPly is a React/Vite frontend backed by a Rails JSON API and local PostgreSQL. 
 
 ## Prerequisites
 
-Use the pinned versions in `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. Install Ruby/Bundler, Node 24, Docker, Python 3 and PostgreSQL 18 client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb`, `pg_isready`).
+Use the pinned versions in `apps/api/.ruby-version`, `apps/api/Gemfile.lock`, `apps/web/.node-version` and `apps/web/package-lock.json`. Install Ruby/Bundler, Node 24, Docker and Python 3. PostgreSQL 18 client tools are optional for commands run through `apps/api/bin/postgres exec`; its child-process shims route `psql`, `pg_dump`, `pg_restore`, `createdb`, `dropdb` and `pg_isready` through the local PostgreSQL container.
 
 ## First setup
 

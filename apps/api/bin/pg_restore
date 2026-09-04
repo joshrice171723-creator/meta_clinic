@@ -1,0 +1,3 @@
+#!/usr/bin/env ruby
+require "rbconfig"
+exec RbConfig.ruby, File.expand_path("pg-client.rb", __dir__), "pg_restore", *ARGV
