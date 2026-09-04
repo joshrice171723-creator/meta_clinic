@@ -20,6 +20,12 @@ This record captures owner decisions made for the cash-pay billing roadmap. It d
 | Superbills | Explicitly out of scope | Do not build, expose, or label receipts as superbills under this roadmap. |
 | PDF and email receipts | Approved | Requires an immutable document snapshot, delivery controls, retention, and reissue policy. |
 
+## Initial operating geography
+
+| Decision | Owner approval | Boundary |
+| --- | --- | --- |
+| First real release geography | United States only | Do not expand country, tax, privacy, currency, or provider scope without a separate decision. |
+
 ## Working defaults adopted
 
 These defaults may guide implementation unless the owner later overrides them. They are not a substitute for qualified legal, accounting, privacy, security, accessibility, or professional review.
