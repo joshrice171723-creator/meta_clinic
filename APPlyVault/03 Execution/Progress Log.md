@@ -41,7 +41,7 @@ Records in `records/progress/2026/09/` are the dated evidence index for current-
 
 **Limits / next gates:** this is a request intake queue, not chat delivery, prescribing, or refill approval. Staff triage/outbox integration, attachment policy, response SLA ownership, e-prescribing authority, invitation/step-up/recovery/revocation, Stripe/webhook reconciliation, intake signatures, authoritative booking/inventory holds, clinician release/PDF/superbill workflows, lab authority, browser acceptance, and production privacy/security/accessibility/operations approval remain open.
 
-Home: [[00 Home]] · Tasks: [[Roadmap and Tasks]] · Decisions: [[Decisions]]
+Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]]
 
 Newest entry first. Record actual changes and results, not projected achievements.
 
@@ -119,7 +119,7 @@ Newest entry first. Record actual changes and results, not projected achievement
 
 ## 2026-09-03 — Patient portal implementation roadmap prepared
 
-**Request and outcome:** translated the requested concierge/cash-pay patient portal into [[Patient Portal Implementation Roadmap]] and added proposed T-50. The plan sequences portal identity/lifecycle, ledger/Stripe and unapplied credit, intake/booking/inventory holds, clinician-released visit summaries and financial documents, then bounded messages/refills/results. It gives each slice explicit scope, likely blockers, failure cases, fallback, and exit evidence rather than assuming a 12-week build or a final compliance-polish phase.
+**Request and outcome:** translated the requested concierge/cash-pay patient portal into a preserved proposal record and Shortcut Roadmap Stories. The plan sequences portal identity/lifecycle, ledger/Stripe and unapplied credit, intake/booking/inventory holds, clinician-released visit summaries and financial documents, then bounded messages/refills/results. It gives each slice explicit scope, likely blockers, failure cases, fallback, and exit evidence rather than assuming a 12-week build or a final compliance-polish phase.
 
 **Evidence and limits:** the roadmap is grounded in the current synthetic staff-side clinic, cash-pay ledger, scheduling, inventory, and encounter-draft baseline, plus the existing access, operations, and workflow gates. It adds R-14 for the risk of treating patient portal work as ordinary frontend work. It does not select an identity vendor, processor, scribe/lab/e-prescribing integration, production environment, clinical content policy, payment/tax policy, or accepting reviewer; it neither implements features nor authorizes patient data, charges, clinical content, HIPAA/security acceptance, or release.
 
