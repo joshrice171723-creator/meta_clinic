@@ -104,6 +104,23 @@ Follow Shortcut's current
 [Codex setup guide](https://www.shortcut.com/help/integrations/codex-cli/) at
 the time of activation.
 
+When the configured Shortcut tools are missing or report expired OAuth, inspect
+`codex mcp get shortcut --json` and the checked-in project configuration first.
+If the enabled server, exact endpoint and narrow scopes still match, an agent is
+authorized to run `codex mcp login shortcut` once without a separate
+repository-level permission request. Codex stores the resulting credentials in
+host credential storage; agents must not handle tokens directly or broaden the
+configured scopes.
+
+Valid stored credentials may refresh without human input. A rejected refresh
+token requires a new OAuth grant, so any provider or client account-consent step
+still follows the host's confirmation policy and cannot be bypassed by a skill.
+After successful login, verify the current authenticated user and Agent
+Workspace team with the callable Shortcut tools. Resume or start a fresh local
+APPly task only when the current client does not refresh its tool catalog. A
+failed login or identity/team mismatch leaves repository-changing work blocked
+and permits read-only diagnosis only.
+
 ## Agent Story lifecycle
 
 1. Search Agent Workspace for the same outcome and inspect all active claims

@@ -21,6 +21,17 @@ Reject unknown actions rather than guessing. On Windows, invoke the root lifecyc
 
 The checked-in `bin/startdev-refresh` helper executes these phases in order from the repository root. Use it rather than reconstructing the destructive sequence ad hoc. Stop at the first failed guard; do not continue into database cleanup after an incomplete Git reconciliation.
 
+### 0. Restore Shortcut coordination access when needed
+
+Before a refresh performs any Git write, verify that the configured Shortcut MCP tools can identify the current user and APPly **Agent Workspace** team. If the tools are missing or a call reports that OAuth reauthorization is required:
+
+1. From the repository root, run `codex mcp get shortcut --json` and inspect `.codex/config.toml`. Continue only when `shortcut` is enabled, its URL is exactly `https://mcp.shortcut.com/mcp`, and the checked-in scopes remain exactly `read`, `story-write` and `comment-write`.
+2. Run `codex mcp login shortcut` once. The founder authorizes an agent running this skill to initiate recovery of this already-configured connection without a separate repository-level permission prompt. Do not add scopes, supply a token manually, inspect credential storage or repeat or persist the native client's authorization URL, callback parameters or tokens in source, notes, comments or user messages.
+3. If the provider or host presents an account-access consent step, follow the host's confirmation policy and hand off only that unavoidable consent. A skill cannot bypass an OAuth grant or change runtime approval rules.
+4. After the login command exits successfully, re-resolve the current task's tool catalog and verify the authenticated user plus Agent Workspace team through Shortcut MCP. If this client does not refresh the tools, resume or open a fresh local APPly task and verify again before writing.
+
+If the configuration differs, login fails, consent is not completed or verified Shortcut tools remain unavailable, stop repository mutation and continue only read-only diagnosis. This connection recovery is skill-mediated; `bin/startdev-refresh` does not handle credentials or invoke OAuth.
+
 ### 1. Inspect and reconcile Git
 
 1. Read root `AGENTS.md`, run `bin/agent-preflight --path .agents/skills/startdev`, and inspect `git status --short` before any mutation.
@@ -31,7 +42,7 @@ The checked-in `bin/startdev-refresh` helper executes these phases in order from
    - behind only and clean: run `git pull --ff-only`, then recheck the status and upstream comparison.
    - ahead only and clean: retain the local commits without pushing, then continue.
    - diverged and clean: run `git merge --no-edit @{upstream}` to incorporate upstream into the current development branch, then recheck the status and upstream comparison.
-5. When the checkout is dirty, pause before fetching, stopping services, or touching the database. Show `git status --short`, inspect the scoped diff and every untracked file, and run `git diff --check` for sensitive or unrelated material, then offer to create one local commit containing the displayed changes. Commit only after the user explicitly confirms both the exact scope and commit message; run `git add --all`, `git commit -m <user-approved message>`, and recheck the status before continuing. If the user declines, gives no confirmation, or the commit fails, stop without stashing, resetting, cleaning, merging, rebasing, force-updating, switching branches, deleting files, or pushing.
+5. When the checkout is dirty, pause before fetching, stopping services, or touching the database. Show `git status --short`, inspect the scoped diff and every untracked file, and run `git diff --check` for sensitive or unrelated material, then offer to create one local commit containing the displayed changes. Commit only after the user explicitly confirms both the exact scope and commit message. Before staging, use the verified Shortcut connection to reuse or create and claim one bounded Story for the displayed changes, then run `bin/agent-preflight --story sc-<id>` for the affected paths. Run `git add --all`, verify that the staged paths exactly match the approved scope, run `git commit -m <user-approved message>`, and recheck the status before continuing. If the user declines, gives no confirmation, the Story claim cannot be verified or the commit fails, stop without stashing, resetting, cleaning, merging, rebasing, force-updating, switching branches, deleting files, or pushing.
 6. Stop and report the exact state when the checkout is detached, lacks an upstream, cannot fetch, cannot fast-forward, a merge conflicts, or becomes dirty after synchronization. A direct `bin/startdev-refresh` invocation still refuses a dirty checkout; the commit offer is a skill-mediated action.
 
 Record the starting and final commit IDs and whether a fast-forward occurred. A remote fetch or pull does not authorize dependency updates, deployment, hosted access, external communication, or use of real/confidential data.

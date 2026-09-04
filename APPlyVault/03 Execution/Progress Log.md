@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-03 — Shortcut OAuth recovery added to agent coordination
+
+**Request and outcome:** after the configured Shortcut refresh token was rejected, the founder directed `/startdev` and shared coordination to reconnect agents as needed. The current host completed `codex mcp login shortcut`, refreshed the tool catalog in the same task, and verified the authenticated APPly user and Agent Workspace team. The `startdev` skill, Shortcut workflow and developer documentation now permit one bounded login attempt for the exact enabled endpoint and existing `read`, `story-write` and `comment-write` scopes before treating Shortcut as unavailable; harness checks preserve the command contract.
+
+**Verification and limits:** the component-selected harness, vault, audit and diff checks passed before this entry and are rerun after it. Valid credentials may refresh without human input, but a rejected refresh token still requires any OAuth account-consent step imposed by Shortcut, Codex or the active host; no skill may bypass that safeguard. Agents may not widen scopes, handle tokens directly, persist authorization material, accept a changed identity/team or write without a verified Story claim. This recovery adds no deployment, hosted-data, production, workspace-administration or professional authority. Decision: D-057.
+
 ## 2026-09-03 — Billing package consolidated to Luna-only execution
 
 **Audit:** reconciled the package and test plan with the current source and recent commits `d0e9923`, `b6c03b6`, and `e490f4b`. The check/OCR slice is accurately limited to a metadata-only, fail-closed adapter boundary; provider execution, image custody and payment handoff remain blocked. The card slice is accurately recorded as a synthetic provider-neutral intent/signature/event boundary only; its focused Rails test passed 8 runs / 41 assertions, but no Stripe account, credentials, webhook route, or APPly ledger application is enabled. Cash receipt HTML remains locally implemented, while the approved production receipt/PDF/version/reissue/delivery contract remains blocked.

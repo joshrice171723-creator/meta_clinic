@@ -12,6 +12,36 @@ The exact workspace, team, workflow and state IDs are recorded in
 Story coordinates execution; it cannot expand repository, data, release,
 clinical, contractual or spending authority.
 
+## Connection recovery
+
+Treat an expired configured OAuth session as recoverable before declaring
+Shortcut unavailable:
+
+1. When Shortcut tools are absent or a call reports reauthorization is needed,
+   run `codex mcp get shortcut --json` from the repository root and inspect the
+   project `.codex/config.toml`. Continue only when the server is enabled, its
+   URL is exactly `https://mcp.shortcut.com/mcp`, and its checked-in scopes are
+   exactly `read`, `story-write` and `comment-write`.
+2. Run `codex mcp login shortcut` once. The founder authorizes agents to
+   initiate recovery of this established connection without a separate
+   repository-level permission prompt. Never widen scopes, paste a token, read
+   credential storage or repeat or persist the native client's authorization
+   URL, callback parameters or tokens in source, notes, comments or user
+   messages.
+3. Provider or host account-consent requirements still apply. Follow the
+   active client's confirmation policy and hand off only the unavoidable
+   consent step; prompt instructions cannot silently grant account access or
+   weaken runtime safeguards.
+4. After the command exits successfully, re-resolve the task tool catalog and
+   verify both the authenticated user and Agent Workspace team through Shortcut
+   MCP. If the current client cannot refresh its catalog, resume or start a
+   fresh local APPly task and verify again before any repository write.
+
+Make only one login attempt per recovery. A configuration mismatch, failed or
+incomplete OAuth flow, unavailable command, identity/team mismatch or still
+uncallable tools makes Shortcut unavailable for the task: preserve the
+discrepancy and continue read-only only.
+
 ## Inspect and select
 
 1. Query Agent Workspace before editing. Search non-Done Stories by objective,

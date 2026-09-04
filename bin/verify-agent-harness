@@ -248,11 +248,13 @@ def main() -> int:
         "agent-harness/workflows/shortcut-task.md": (
             "before every repository-changing task",
             "overlapping paths",
+            "codex mcp login shortcut",
             "Done",
         ),
         "docs/development/shortcut.md": (
             "https://app.shortcut.com/apply-1/roadmap",
             "6a9a1399-c3ef-478b-ad87-4acd84f2b7fa",
+            "codex mcp login shortcut",
             "500000008",
             "500000010",
         ),
@@ -298,6 +300,8 @@ def main() -> int:
         lifecycle = startdev.read_text(encoding="utf-8")
         for command in (
             "bin/startdev-refresh",
+            "codex mcp get shortcut --json",
+            "codex mcp login shortcut",
             "git fetch",
             "git pull --ff-only",
             "./dev_server_startup stop",
