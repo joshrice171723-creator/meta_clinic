@@ -9,11 +9,19 @@ module Clinic
         VitalsBatch.new(encounters, practice_id: practice_id)
       end
 
+      def self.build_chart_status_batch(encounters, practice_id:, accessible_encounter_ids:)
+        ChartStatusBatch.new(
+          encounters,
+          practice_id: practice_id,
+          accessible_encounter_ids: accessible_encounter_ids
+        )
+      end
+
       def self.build_provider_batch(encounters, practice:, as_of:, eligible_site_ids: nil)
         ProviderBatch.new(encounters, practice: practice, as_of: as_of, eligible_site_ids: eligible_site_ids)
       end
 
-      def self.call(encounter, care_summary: nil, synthetic_scenario: nil, operational_state: "unrecorded", demographics: nil, vitals: nil, membership: "not_verified", provider: nil, provider_assignment_available: false)
+      def self.call(encounter, care_summary: nil, synthetic_scenario: nil, operational_state: "unrecorded", demographics: nil, vitals: nil, chart_status: "unavailable", membership: "not_verified", provider: nil, provider_assignment_available: false)
         appointment = encounter.appointment
         payload = {
           id: encounter.id,
@@ -21,6 +29,7 @@ module Clinic
           operational_state: operational_state,
           patient_id: encounter.patient_id,
           encounter_id: encounter.id,
+          chart_status: chart_status,
           provider_assignment_available: provider_assignment_available,
           patient: {
             id: encounter.patient.id,
@@ -58,13 +67,14 @@ module Clinic
         payload
       end
 
-      def self.call_scheduled(appointment, operational_state:, demographics: nil, membership: "not_verified")
+      def self.call_scheduled(appointment, operational_state:, demographics: nil, membership: "not_verified", chart_status: "unopened")
         {
           id: appointment.id,
           row_type: "appointment",
           operational_state: operational_state,
           patient_id: appointment.patient_id,
           encounter_id: nil,
+          chart_status: chart_status,
           provider_assignment_available: false,
           patient: {
             id: appointment.patient.id,
@@ -124,6 +134,28 @@ module Clinic
             heart_rate: values["vital-heart-rate"],
             weight: values["vital-weight"]
           }.compact
+        end
+      end
+
+      class ChartStatusBatch
+        def initialize(encounters, practice_id:, accessible_encounter_ids:)
+          @accessible_encounter_ids = accessible_encounter_ids.to_h { |id| [ id, true ] }
+          @by_encounter = {}
+          return if @accessible_encounter_ids.empty?
+
+          Clinic::EncounterNote.where(
+            practice_id: practice_id,
+            encounter_id: @accessible_encounter_ids.keys,
+            note_kind: "soap"
+          ).includes(:signatures).each do |note|
+            @by_encounter[note.encounter_id] = note.signatures.any? ? "signed" : "draft"
+          end
+        end
+
+        def call(encounter)
+          return "unavailable" unless @accessible_encounter_ids[encounter.id]
+
+          @by_encounter.fetch(encounter.id, "unopened")
         end
       end
 

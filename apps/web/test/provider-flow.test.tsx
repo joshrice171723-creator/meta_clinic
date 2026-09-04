@@ -330,6 +330,7 @@ describe("provider encounter workflow", () => {
       operational_state: "unrecorded",
       patient_id: 7,
       encounter_id: 14,
+      chart_status: "unopened",
       provider_assignment_available: true,
       patient: {
         id: 7,
@@ -425,6 +426,7 @@ describe("provider encounter workflow", () => {
       operational_state: "waiting_room",
       patient_id: 8,
       encounter_id: 15,
+      chart_status: "draft",
       provider_assignment_available: true,
       patient: {
         id: 8,
@@ -480,6 +482,7 @@ describe("provider encounter workflow", () => {
       operational_state: "late",
       patient_id: 9,
       encounter_id: null,
+      chart_status: "unopened",
       provider_assignment_available: false,
       patient: {
         id: 9,
