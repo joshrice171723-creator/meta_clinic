@@ -43,6 +43,7 @@ class CreateClinicScribeWorkflow < ActiveRecord::Migration[8.1]
       t.datetime :deleted_at
       t.timestamps
     end
+    add_index :clinic_scribe_sources, %i[practice_id id], unique: true, name: "clinic_scribe_sources_practice_id"
     add_index :clinic_scribe_sources, %i[practice_id encounter_id id], unique: true, name: "clinic_scribe_sources_scope"
     add_index :clinic_scribe_sources, %i[practice_id encounter_id status]
     add_foreign_key :clinic_scribe_sources, :clinic_practices, column: :practice_id
@@ -96,6 +97,7 @@ class CreateClinicScribeWorkflow < ActiveRecord::Migration[8.1]
       t.integer :lock_version, null: false, default: 0
       t.timestamps
     end
+    add_index :clinic_scribe_drafts, %i[practice_id id], unique: true, name: "clinic_scribe_drafts_practice_id"
     add_index :clinic_scribe_drafts, %i[practice_id encounter_id id], unique: true, name: "clinic_scribe_drafts_scope"
     add_index :clinic_scribe_drafts, %i[practice_id encounter_id status]
     add_foreign_key :clinic_scribe_drafts, :clinic_practices, column: :practice_id

@@ -12,6 +12,8 @@ class CreatePatientReminders < ActiveRecord::Migration[8.1]
       t.string :invalidation_reason
       t.timestamps
     end
+    add_index :clinic_communication_endpoints, [ :practice_id, :id ], unique: true,
+      name: "clinic_communication_endpoints_practice_id"
     add_foreign_key :clinic_communication_endpoints, :clinic_patients,
       column: [ :practice_id, :patient_id ], primary_key: [ :practice_id, :id ],
       name: "fk_communication_endpoints_patient"
@@ -72,6 +74,8 @@ class CreatePatientReminders < ActiveRecord::Migration[8.1]
       t.integer :lock_version, null: false, default: 0
       t.timestamps
     end
+    add_index :clinic_patient_reminders, [ :practice_id, :id ], unique: true,
+      name: "clinic_patient_reminders_practice_id"
     add_foreign_key :clinic_patient_reminders, :clinic_patients,
       column: [ :practice_id, :patient_id ], primary_key: [ :practice_id, :id ],
       name: "fk_patient_reminders_patient"

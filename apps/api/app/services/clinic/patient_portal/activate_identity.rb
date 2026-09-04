@@ -9,13 +9,13 @@ module Clinic
         identity = nil
         ApplicationRecord.transaction do
           identity = Identity.where(status: :invited, invitation_digest: Identity.digest_token(token)).lock.first
-          raise InvalidInvitation unless identity&.invitation_expires_at&.future?
+          raise InvalidInvitation unless identity&.invitation_expires_at && identity.invitation_expires_at > now
 
           identity.update!(status: :active, activated_at: now,
             accepted_terms_version: terms_version, accepted_terms_at: now,
             invitation_digest: nil, invitation_expires_at: nil)
           identity.user.member_sessions.delete_all
-          member_session = identity.user.member_sessions.create!(expires_at: MemberSession::MAX_DURATION.from_now)
+          member_session = identity.user.member_sessions.create!(expires_at: now + MemberSession::MAX_DURATION)
           session[:member_session_id] = member_session.id
           session[:patient_portal_identity_id] = identity.id
           Clinic::AuditRecorder.record!(practice: identity.practice, actor: identity.user,
