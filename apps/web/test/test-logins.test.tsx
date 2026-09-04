@@ -16,6 +16,7 @@ describe("local named test logins", () => {
     expect(html).toContain('name="profile"');
     expect(html).toContain("Use test login");
     expect(html).toContain("Continue as demo client");
+    expect(html).not.toContain("Synthetic Patient Portal");
     expect(html).not.toContain("Open synthetic patient portal");
     expect(html).toContain("Settings → Development view");
   });

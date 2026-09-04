@@ -75,7 +75,6 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
                 options={[
                   ["client-a", "Test Client A"],
                   ["client-b", "Test Client B"],
-                  ["patient", "Synthetic Patient Portal"],
                   ["admin", "Test Admin — inquiry inbox"],
                   ["disabled", "Test Disabled — expected sign-in denial"],
                 ]}
