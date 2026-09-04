@@ -4,7 +4,7 @@
 
 Verify that APPly cash-pay billing is financially correct, tenant-safe, privacy-preserving, understandable, accessible, observable, and ready for a controlled release. This is an implementation-readiness audit, not legal, tax, accounting, HIPAA, PCI, or professional certification.
 
-Use the [roadmap](ROADMAP.md), [build plan](CASH_PAY_BILLING_BUILD_PLAN.md), and live APPly [implementation package](../../APPly/APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md) as the connected source set.
+Use the [roadmap](ROADMAP.md), [build plan](CASH_PAY_BILLING_BUILD_PLAN.md), and live APPly [implementation package](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md) as the connected source set.
 
 ## Evidence rules
 
