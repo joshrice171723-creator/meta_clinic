@@ -42,6 +42,15 @@ This record captures owner decisions made for the cash-pay billing roadmap. It d
 | Receipt and billing-data retention | Applicable U.S., state, and clinic policy | Do not invent a universal retention period; configure the approved policy before real release. |
 | Accounting and tax boundary | APPly records payment facts; accounting system owns tax/GL | Do not build tax calculation or accounting export into the first release unless separately approved. |
 
+## Rollout and portal verification decisions
+
+| Decision | Owner approval | Boundary |
+| --- | --- | --- |
+| First-release rollout posture | Controlled U.S. pilot with one clinic | Prove the complete workflow in a bounded pilot before broader rollout. |
+| Portal verification access | Omni portal preview with patient switching | Omni may view what selected development patients would see using development seed data; the preview is read-only, clearly labeled, server-gated, and unavailable for real patient data or production impersonation. |
+
+Support and on-call ownership is intentionally deferred because it is not relevant to the current planning slice.
+
 ## Working defaults adopted
 
 These defaults may guide implementation unless the owner later overrides them. They are not a substitute for qualified legal, accounting, privacy, security, accessibility, or professional review.
