@@ -110,8 +110,8 @@
   padding: 6px;
   border: 1px solid var(--clinic-border);
   border-radius: 8px;
-  background: var(--clinic-surface);
-  color: var(--clinic-text);
+  background: var(--clinic-text);
+  color: var(--clinic-surface);
 }
 .clinic-theme .clinic-sidebar .practice-location-menu:focus {
   outline: 2px solid currentColor;
@@ -119,7 +119,7 @@
 }
 .clinic-theme .clinic-sidebar .practice-location-menu-heading {
   padding: 4px 8px 6px;
-  color: color-mix(in srgb, currentColor 72%, transparent);
+  color: var(--clinic-surface);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -136,7 +136,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: inherit;
+  color: var(--clinic-surface);
   font: inherit;
   line-height: 1.4;
   padding: 7px 8px;
@@ -152,8 +152,8 @@
 .clinic-theme .clinic-sidebar .practice-location-option:hover,
 .clinic-theme .clinic-sidebar .practice-location-option[data-highlighted="true"],
 .clinic-theme .clinic-sidebar .practice-location-option[aria-selected="true"] {
-  background: var(--clinic-soft);
-  color: var(--clinic-text);
+  background: var(--clinic-accent);
+  color: var(--clinic-on-accent);
 }
 .clinic-theme .clinic-sidebar .practice-location-option:focus-visible {
   outline: 2px solid currentColor;
@@ -166,6 +166,9 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.clinic-theme .clinic-sidebar .practice-location-option[aria-selected="true"] .practice-location-current {
+  color: var(--clinic-on-accent);
 }
 .clinic-theme .clinic-sidebar nav {
   display: grid;
