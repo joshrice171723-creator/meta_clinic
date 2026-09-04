@@ -66,7 +66,8 @@ module Development
           path = DATA_ROOT.join(file)
           raise "Missing bulk dev seed file: #{path}" unless File.file?(path)
 
-          [file, CSV.read(path, headers: true).map(&:to_h)]
+          csv = File.read(path).gsub("\r\n", "\n")
+          [file, CSV.parse(csv, headers: true).map(&:to_h)]
         end
       end
 
