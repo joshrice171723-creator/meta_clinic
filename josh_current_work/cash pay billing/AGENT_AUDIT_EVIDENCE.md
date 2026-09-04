@@ -25,30 +25,35 @@ The existing remainder route accepted only `invoice_id` and `amount`. Its alloca
 - Scoped whitespace check passed.
 - Commit scope passed: no `patient_ledger.rb`, concurrent migrations, or unrelated files were included.
 
-### Test coverage added but not yet executable
+### Test coverage and runtime execution
 
 `ClinicWorkspaceTest` now asserts synthetic denials for cross-practice, cross-patient, currency mismatch, draft, void, over-allocation, and excessive decimal precision. It also asserts billing read-only denial, one-write identical replay, conflicting replay, exact unapplied totals, one durable operation receipt, and no duplicate allocation.
 
-The assertions are **unverified** because the shared test DB had pending concurrent migrations. A separate clone avoided changing that shared DB, but current concurrent test-seed code requires `clinic_communication_endpoints`, which is not present in the clone. The clone migration attempt was blocked by unavailable `pg_dump`; no shared migration was run.
+The task-owned PostgreSQL database `apply_billing_acceptance_20260904` was loaded from the current schema and registered with all current migration versions. Focused billing checks passed: `payment_collection_boundary_test.rb` — 8 runs, 41 assertions; `check_intake_test.rb` — 4 runs, 16 assertions. The broader `clinic_workspace_test.rb` ran serially with 22 runs and 202 assertions, but exposed 1 failure and 1 error.
+
+### Current failures
+
+- **P1 / billing draft edit:** `ClinicWorkspaceTest#test_billing_draft_edits_stay_draft-only_and_payment_allocation_reports_unapplied_remainder` receives the append-only trigger error from `Clinic::Billing::UpdateDraftInvoice`.
+- **P1 / allocation validation:** `ClinicWorkspaceTest#test_remainder_allocation_is_scoped,_exact,_authorized,_and_safely_replayed` receives `201 Created` where the existing assertion expects `422 Unprocessable Entity` for the invalid replay case.
 
 ## Scope and authorization matrix
 
 | Boundary | Expected result | Current evidence |
 | --- | --- | --- |
-| Billing operator, same patient/currency, posted target, positive exact amount | One allocation and durable receipt | Source inspected; test added; runtime unverified |
-| Identical request key and payload | Same allocation, no second write | Source inspected; test added; runtime unverified |
-| Same key with changed invoice or amount | Conflict, unchanged ledger | Source inspected; test added; runtime unverified |
-| Read-only billing role | Forbidden before mutation | Existing capability gate plus test added; runtime unverified |
-| Foreign practice invoice | Not found through current-practice scope | Scoped lookup plus test added; runtime unverified |
-| Same-practice foreign-patient invoice | Unprocessable; service patient check | Service inspected plus test added; runtime unverified |
-| Currency mismatch, draft, or void target | Unprocessable; service state/currency checks | Service inspected plus test added; runtime unverified |
-| Over-allocation or unsupported precision | Unprocessable; exact-decimal and locked total checks | Service/controller inspected plus test added; runtime unverified |
+| Billing operator, same patient/currency, posted target, positive exact amount | One allocation and durable receipt | Source inspected; focused runtime checks pass |
+| Identical request key and payload | Same allocation, no second write | Source inspected; focused runtime checks pass |
+| Same key with changed invoice or amount | Conflict, unchanged ledger | Source inspected; broader integration assertion currently fails |
+| Read-only billing role | Forbidden before mutation | Existing capability gate plus focused runtime checks pass |
+| Foreign practice invoice | Not found through current-practice scope | Scoped lookup plus broader integration assertion runs with the two known failures |
+| Same-practice foreign-patient invoice | Unprocessable; service patient check | Service inspected; broader integration assertion runs with the two known failures |
+| Currency mismatch, draft, or void target | Unprocessable; service state/currency checks | Service inspected; broader integration assertion runs with the two known failures |
+| Over-allocation or unsupported precision | Unprocessable; exact-decimal and locked total checks | Service/controller inspected; broader integration assertion runs with the two known failures |
 | Browser/API context | No live mutation without available context | Browser evidence blocked |
 
 ## Open findings
 
-- **P1 / unverified:** execute the focused Rails assertions after the shared migration/schema state is repaired. Owner: APPly implementation agent. Retest: both focused integration files against a migrated task-owned database.
-- **P2 / inconclusive:** rerun targeted Prettier and record completion. Owner: APPly implementation agent. Retest: changed-file formatting check.
+- **P1 / open:** resolve the two billing regressions above in billing-owned code/tests, then rerun the focused and broader billing checks against a fresh task-owned database. Owner: APPly implementation agent.
+- **P2 / resolved:** focused billing formatting and diff checks were completed in the prior implementation run.
 - **P1 / blocked:** capture the real synthetic browser journey at desktop, tablet, and narrow widths after the API context leaves Loading. Owner: APPly runtime/UX agent. Retest: no mutation claims until the flow is visibly observed.
 
 These findings do not authorize live payment processing, processor credentials, check images, patient portal exposure, receipt PDF production, or deployment.
