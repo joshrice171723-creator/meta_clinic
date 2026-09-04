@@ -66,7 +66,7 @@ module Integrations
               end
             end
           end
-          return if code == "404"
+          return if %w[400 404].include?(code)
           raise Unavailable, "The FDA device directory is unavailable. Try again later." unless code == "200"
           JSON.parse(body)
         rescue Timeout::Error, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError, Net::HTTPBadResponse
