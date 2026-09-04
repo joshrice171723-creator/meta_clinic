@@ -1470,7 +1470,19 @@ function CatalogScreen({
   if (data.products.length === 0)
     return (
       <Card title="Product catalog">
-        <p className="inventory-lead">No inventory records.</p>
+        <p className="inventory-lead">
+          No catalog items yet. Add the first product definition to begin
+          purchasing and receiving stock.
+        </p>
+        {data.configuration?.status === "configured" &&
+          capability(data, "inventory.catalog") && (
+            <a
+              className="inventory-button outline"
+              href="/clinic/inventory/catalog/new"
+            >
+              Add catalog item
+            </a>
+          )}
       </Card>
     );
   return (

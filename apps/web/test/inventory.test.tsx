@@ -118,6 +118,7 @@ describe("inventory integration", () => {
     expect(source).toContain('"/api/clinic/pharmacy"');
     expect(source).toContain('"/api/clinic/inventory/shipments"');
     expect(source).toContain("Create item and continue");
+    expect(source).toContain("No catalog items yet");
     expect(source).toContain("Mark delivered → Receiving");
     expect(source).toContain('"/api/clinic/inventory_configuration"');
     expect(source).toContain("Initial clinic inventory setup");
