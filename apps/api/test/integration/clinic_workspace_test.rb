@@ -361,6 +361,37 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "receiving locations provide a verified address to purchase orders" do
+    product = @practice.pharmacy_products.create!(
+      name: "Addressable catalog item", sku: "ADDRESSABLE-001", stock_unit: "each",
+      quantity_scale: 0, package_size: 1, unit_reference: "One box"
+    )
+    submit "/api/clinic/inventory/locations", {
+      location: {
+        name: "Main Clinic", kind: "storage", address_line1: "100 Main Street",
+        city: "Austin", state: "TX", postal_code: "78701", country: "US"
+      }
+    }
+    assert_response :created
+    location = @practice.inventory_locations.find_by!(name: "Main Clinic")
+    assert_equal "100 Main Street\nAustin, TX 78701\nUS", location.formatted_address
+
+    submit "/api/clinic/inventory/purchase-orders", {
+      purchase_order: {
+        request_key: SecureRandom.uuid,
+        destination: "Should not be used",
+        destination_location_id: location.id,
+        reason: "Addressable purchase-order workflow",
+        lines: [ { product_id: product.id, quantity: "2", input_unit: "package", conversion_factor: "1", unit_price: "4.50", currency: "USD" } ]
+      }
+    }
+    assert_response :created
+    order = @practice.inventory_purchase_orders.order(id: :desc).first
+    assert_equal "Main Clinic", order.destination
+    assert_equal location.formatted_address, order.destination_address
+    assert_equal location.formatted_address, response.parsed_body.dig("data", "purchase_orders", 0, "destination_address")
+  end
+
   test "purchase-order generated numbers remain distinct within one second" do
     Development::InventoryScenario.populate!(practice: @practice, actor: @user)
     product = @practice.pharmacy_products.find_by!(sku: "SYN-ACET-500")
@@ -376,6 +407,71 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     end
     numbers = @practice.inventory_purchase_orders.order(id: :desc).limit(2).pluck(:number)
     assert_equal 2, numbers.uniq.size
+  end
+
+  test "catalog creation and delivered shipment intake support the purchasing handoff" do
+    submit "/api/clinic/pharmacy", {
+      clinic_pharmacy_product: {
+        name: "Manual catalog item",
+        sku: "MANUAL-CATALOG-001",
+        ndc: "00000-0000-01",
+        stock_unit: "tablet",
+        quantity_scale: 0,
+        package_size: 30,
+        unit_reference: "Bottle of 30 tablets",
+        reorder_point: 0
+      }
+    }
+    assert_response :created
+    product = @practice.pharmacy_products.find_by!(sku: "MANUAL-CATALOG-001")
+    assert_equal product.id, response.parsed_body.fetch("id")
+
+    submit "/api/clinic/inventory/purchase-orders", {
+      purchase_order: {
+        request_key: SecureRandom.uuid,
+        number: "PO-MANUAL-CATALOG-001",
+        destination: "Main Pharmacy",
+        reason: "Manual catalog workflow",
+        lines: [ { product_id: product.id, quantity: "2", unit_price: "4.50", currency: "USD" } ]
+      }
+    }
+    assert_response :created
+    order = @practice.inventory_purchase_orders.find_by!(number: "PO-MANUAL-CATALOG-001")
+    line = order.lines.sole
+    %w[submitted approved sent].each do |status|
+      submit "/api/clinic/inventory/purchase-orders/#{order.id}/transition", {
+        request_key: SecureRandom.uuid,
+        status: status,
+        reason: "Advance manual catalog workflow"
+      }
+      assert_response :success
+    end
+
+    shipment_payload = {
+      shipment: {
+        request_key: SecureRandom.uuid,
+        purchase_order_id: order.id,
+        purchase_order_line_id: line.id,
+        reference: "SHIP-MANUAL-CATALOG-001",
+        supplier_reference: "PACKING-SLIP-001",
+        package_count: "2"
+      }
+    }
+    assert_difference "Clinic::Inventory::Shipment.count", 1 do
+      submit "/api/clinic/inventory/shipments", shipment_payload
+      assert_response :created
+    end
+    shipment = order.shipments.find_by!(reference: "SHIP-MANUAL-CATALOG-001")
+    assert_equal "delivered", shipment.status
+    assert_equal 2, shipment.package_count
+    assert_equal 60, shipment.expected_units
+    assert_equal 2, shipment.shipment_lines.sole.expected_packages
+    assert_no_difference "Clinic::Inventory::Shipment.count" do
+      submit "/api/clinic/inventory/shipments", shipment_payload
+      assert_response :created
+    end
+    submit "/api/clinic/inventory/shipments", shipment_payload.deep_merge(shipment: { supplier_reference: "DIFFERENT-INTENT" })
+    assert_response :unprocessable_entity
   end
 
   test "purchase-order creation rejects forged package metadata and mixed currencies atomically" do

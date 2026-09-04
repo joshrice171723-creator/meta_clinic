@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../src/api/client";
 import {
   InventoryApp,
+  benchmarkPackagePrice,
   inferInventoryUnits,
   inventoryDate,
   inventoryDateTime,
@@ -54,6 +55,31 @@ describe("inventory integration", () => {
         package_description: "1 BOTTLE",
       }).stockUnit,
     ).toBe("package");
+  });
+
+  it("converts a compatible public unit benchmark into a package price", () => {
+    expect(
+      benchmarkPackagePrice(
+        { base_unit: "tablet", units_per_package: "100" },
+        {
+          ndc: "00063087621",
+          nadac_per_unit: "0.12345",
+          pricing_unit: "EA",
+          source_url: "https://example.test/nadac",
+        },
+      ),
+    ).toBe("12.345");
+    expect(
+      benchmarkPackagePrice(
+        { base_unit: "tablet", units_per_package: "100" },
+        {
+          ndc: "00063087621",
+          nadac_per_unit: "0.12345",
+          pricing_unit: "ML",
+          source_url: "https://example.test/nadac",
+        },
+      ),
+    ).toBeUndefined();
   });
 
   it("preserves exact fractional and large decimal values", () => {

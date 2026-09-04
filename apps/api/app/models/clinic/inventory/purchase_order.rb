@@ -12,6 +12,7 @@ module Clinic
       has_many :shipments, class_name: "Clinic::Inventory::Shipment", foreign_key: :purchase_order_id, dependent: :restrict_with_error
       has_many :receipts, class_name: "Clinic::Inventory::Receipt", foreign_key: :purchase_order_id, dependent: :restrict_with_error
       validates :number, :destination, :reason, :request_key, :payload_digest, presence: true
+      validates :destination_address, length: { maximum: 500 }, allow_blank: true
       validates :status, inclusion: { in: STATUSES }
 
       # PaperTrail exposes a `version` helper, so make this workflow's

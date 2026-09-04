@@ -40,6 +40,7 @@ type Screen =
   | "catalog"
   | "catalog_new"
   | "configure"
+  | "locations"
   | "replenishment"
   | "purchasing"
   | "purchase_order_new"
@@ -178,6 +179,7 @@ const screenDescriptions: Record<Screen, string> = {
   catalog_new: "Add a product definition before ordering or receiving stock.",
   configure:
     "Record the inventory operating configuration before posting stock.",
+  locations: "Save clinic receiving addresses for purchase orders.",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
   purchase_order_new:
@@ -198,10 +200,25 @@ const inventoryConfigurationReasons = [
   { value: "other", label: "Other" },
 ] as const;
 
+const purchaseOrderReasons = [
+  { value: "reorder_point", label: "Below reorder point" },
+  { value: "stockout_prevention", label: "Prevent stockout" },
+  { value: "initial_stock", label: "Initial stock for new catalog item" },
+  {
+    value: "replacement",
+    label: "Replace damaged, expired, or recalled stock",
+  },
+  { value: "approved_request", label: "Approved clinic request" },
+  { value: "other", label: "Other" },
+] as const;
+
+const purchaseOrderCurrency = "USD";
+
 function screenForPath(path: string): Screen {
   const value = path.replace(/\/$/, "");
   if (value === "/clinic/inventory/catalog/new") return "catalog_new";
   if (value === "/clinic/inventory/configure") return "configure";
+  if (value === "/clinic/inventory/locations") return "locations";
   if (value === "/clinic/inventory/purchasing/new") return "purchase_order_new";
   if (value === "/clinic/inventory/shipments/new") return "shipment_new";
   return links.find((link) => link.href === value)?.screen ?? "catalog";
@@ -212,6 +229,7 @@ function screenTitle(screen: Screen) {
       catalog: "Inventory overview",
       catalog_new: "Add catalog item",
       configure: "Configure inventory",
+      locations: "Receiving locations",
       replenishment: "Plan replenishment",
       purchasing: "Orders & delivery",
       purchase_order_new: "Create purchase order",
@@ -446,6 +464,28 @@ function recordedPackageTerms(
     ? { packagePrice: line.package_price, currency: line.currency }
     : undefined;
 }
+export function benchmarkPackagePrice(
+  item: Pick<InventoryData["products"][number], "base_unit" | "units_per_package">,
+  benchmark?: NadacBenchmark,
+): Decimal | undefined {
+  if (
+    !benchmark?.nadac_per_unit ||
+    !benchmark.pricing_unit ||
+    !validDecimal(benchmark.nadac_per_unit, true) ||
+    !validDecimal(item.units_per_package)
+  )
+    return undefined;
+  const unitKey = (value: string) => {
+    const normalized = value.trim().toLowerCase().replace(/[^a-z]/g, "");
+    if (["ea", "each", "tablet", "tablets", "capsule", "capsules", "vial", "vials", "package", "packages"].includes(normalized)) return "count";
+    if (["ml", "milliliter", "milliliters"].includes(normalized)) return "ml";
+    if (["g", "gm", "gram", "grams"].includes(normalized)) return "g";
+    return normalized;
+  };
+  if (unitKey(item.base_unit) !== unitKey(benchmark.pricing_unit))
+    return undefined;
+  return decimalMultiply(benchmark.nadac_per_unit, item.units_per_package);
+}
 function supplierProductFor(
   data: InventoryData,
   productId: string,
@@ -468,18 +508,50 @@ function supplierOffersFor(data: InventoryData, productId: string) {
       row.available !== false,
   );
 }
+function locationCanReceivePurchaseOrder(record: InventoryData["locations"][number]) {
+  return (
+    !["quarantine", "returns"].includes(record.kind ?? "") &&
+    Boolean(
+      record.address_line1?.trim() &&
+        record.city?.trim() &&
+        record.state?.trim() &&
+        record.postal_code?.trim() &&
+        record.country?.trim(),
+    )
+  );
+}
+function purchaseOrderLocations(data: InventoryData) {
+  return data.locations.filter(
+    (record) => !["quarantine", "returns"].includes(record.kind ?? ""),
+  );
+}
+function locationAddress(record?: InventoryData["locations"][number]) {
+  if (!record) return "";
+  return [
+    record.address_line1,
+    record.address_line2,
+    [record.city, record.state].filter(Boolean).join(", "),
+    record.postal_code,
+    record.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
 function purchaseOrderDestination(data: InventoryData, productId: string) {
+  const eligibleLocations = data.locations.filter(
+    locationCanReceivePurchaseOrder,
+  );
   const itemLocation = data.balances
     .filter((balance) => balance.product_id === productId)
     .map((balance) => location(data, balance.location_id))
     .find(
-      (record) => record && !["quarantine", "returns"].includes(record.kind ?? ""),
+      (record) => record && locationCanReceivePurchaseOrder(record),
     );
   return (
     itemLocation ??
-    data.locations.find((record) => record.kind === "storage") ??
-    data.locations.find((record) => record.kind === "controlled") ??
-    data.locations[0]
+    eligibleLocations.find((record) => record.kind === "storage") ??
+    eligibleLocations.find((record) => record.kind === "controlled") ??
+    eligibleLocations[0]
   );
 }
 
@@ -1349,10 +1421,14 @@ function PurchaseOrderCreateScreen({
     initialOffer?.wholesale_unit_cost ?? initialTerms?.packagePrice ?? "",
   );
   const [numberValue, setNumberValue] = useState("");
-  const [reason, setReason] = useState("");
-  const [currency, setCurrency] = useState(() => {
-    return initialOffer?.currency ?? initialTerms?.currency ?? "";
-  });
+  const [reasonSelection, setReasonSelection] = useState("");
+  const [reasonDetails, setReasonDetails] = useState("");
+  const selectedReason = purchaseOrderReasons.find(
+    (option) => option.value === reasonSelection,
+  );
+  const reason = [selectedReason?.label, reasonDetails.trim()]
+    .filter(Boolean)
+    .join(": ");
   const supplierProduct = item
     ? supplierProductFor(data, item.id, supplierId)
     : undefined;
@@ -1360,6 +1436,7 @@ function PurchaseOrderCreateScreen({
   const destination = data.locations.find(
     (record) => record.id === destinationId,
   );
+  const destinationOptions = purchaseOrderLocations(data);
   const selectProduct = (nextId: string) => {
     const next = data.products.find((record) => record.id === nextId);
     const nextSupplierId =
@@ -1375,8 +1452,52 @@ function PurchaseOrderCreateScreen({
       nextOffer?.wholesale_unit_cost ??
         (nextTerms?.packagePrice ?? ""),
     );
-    setCurrency(nextOffer?.currency ?? nextTerms?.currency ?? "");
   };
+  const [nadacBenchmark, setNadacBenchmark] = useState<NadacBenchmark>();
+  const [nadacBusy, setNadacBusy] = useState(false);
+  const [nadacError, setNadacError] = useState("");
+  const nadacVersion = useRef(0);
+  useEffect(() => {
+    const ndc = item?.ndc;
+    if (!ndc) {
+      nadacVersion.current += 1;
+      setNadacBenchmark(undefined);
+      setNadacBusy(false);
+      setNadacError("");
+      return;
+    }
+    const version = ++nadacVersion.current;
+    setNadacBusy(true);
+    setNadacBenchmark(undefined);
+    setNadacError("");
+    void api<{ benchmark?: NadacBenchmark }>("/api/clinic/pharmacy/nadac", {
+      method: "POST",
+      body: { ndc },
+    })
+      .then((payload) => {
+        if (nadacVersion.current === version)
+          setNadacBenchmark(payload.benchmark);
+      })
+      .catch((error) => {
+        if (nadacVersion.current !== version) return;
+        setNadacError(
+          error instanceof Error
+            ? error.message
+            : "The public cost benchmark could not be loaded.",
+        );
+      })
+      .finally(() => {
+        if (nadacVersion.current === version) setNadacBusy(false);
+      });
+  }, [item?.id, item?.ndc]);
+  useEffect(() => {
+    if (!item || supplierProduct || recordedPackageTerms(data, item.id)) return;
+    const price = benchmarkPackagePrice(item, nadacBenchmark);
+    if (price) setUnitPrice((current) => current || price);
+  }, [data, item, nadacBenchmark, supplierProduct]);
+  const benchmarkPrice = item
+    ? benchmarkPackagePrice(item, nadacBenchmark)
+    : undefined;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!item) return;
@@ -1386,7 +1507,9 @@ function PurchaseOrderCreateScreen({
         purchase_order: {
           ...(numberValue.trim() ? { number: numberValue.trim() } : {}),
           destination: destination?.name ?? "",
-          reason: reason.trim(),
+          destination_location_id: destination?.id ?? "",
+          destination_address: locationAddress(destination),
+          reason,
           ...(supplierId ? { supplier_id: supplierId } : {}),
           lines: [
             {
@@ -1395,7 +1518,7 @@ function PurchaseOrderCreateScreen({
               input_unit: packageInfo?.input_unit ?? "",
               conversion_factor: item.units_per_package,
               unit_price: unitPrice,
-              currency: currency.trim().toUpperCase(),
+              currency: purchaseOrderCurrency,
             },
           ],
         },
@@ -1428,6 +1551,22 @@ function PurchaseOrderCreateScreen({
             Order any active catalog item. This creates a draft only; stock is
             added after the delivery is recorded and received.
           </p>
+          {(!destinationOptions.length ||
+            !destinationOptions.some(locationCanReceivePurchaseOrder)) && (
+            <div className="inventory-warning" role="status">
+              <strong>Set up a clinic receiving location first.</strong>
+              <p>
+                A purchase order needs the clinic address where the supplier
+                should deliver. You only do this once per receiving location.
+              </p>
+              <a
+                className="inventory-button outline"
+                href={`/clinic/inventory/locations?return_to=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+              >
+                Add receiving location
+              </a>
+            </div>
+          )}
           <form className="inventory-form-grid" onSubmit={submit}>
             <Field label="Catalog item">
               <select
@@ -1461,13 +1600,10 @@ function PurchaseOrderCreateScreen({
                   const nextSupplierId = event.target.value;
                   const offer = supplierProductFor(data, item.id, nextSupplierId);
                   const terms = recordedPackageTerms(data, item.id);
-                  setSupplierId(nextSupplierId);
-                  setUnitPrice(
-                    offer?.wholesale_unit_cost ??
-                      terms?.packagePrice ??
-                      "",
-                  );
-                  setCurrency(offer?.currency ?? terms?.currency ?? "");
+                   setSupplierId(nextSupplierId);
+                   setUnitPrice(
+                     offer?.wholesale_unit_cost ?? terms?.packagePrice ?? "",
+                   );
                 }}
               >
                 <option value="">No supplier</option>
@@ -1483,7 +1619,13 @@ function PurchaseOrderCreateScreen({
               hint={
                 supplierProduct
                   ? `Supplier feed: ${supplierProduct.supplier_sku} · ${supplierProduct.contract_status} contract`
-                  : "Enter the supplier quote for this order."
+                  : benchmarkPrice
+                    ? "Prefilled from the CMS public cost benchmark. Review against the supplier quote."
+                    : nadacBusy
+                      ? "Checking the CMS public cost benchmark…"
+                      : nadacError
+                        ? `${nadacError} Enter the supplier quote manually.`
+                        : "Enter the supplier quote for this order."
               }
             >
               <input
@@ -1494,29 +1636,33 @@ function PurchaseOrderCreateScreen({
                 required
               />
             </Field>
-            <Field label="Currency" hint="Three-letter ISO currency code.">
-              <input
-                value={currency}
-                onChange={(event) =>
-                  setCurrency(event.target.value.toUpperCase())
-                }
-                maxLength={3}
-                placeholder="USD"
-                required
-              />
-            </Field>
             <Field label="Ship to">
               <select
                 value={destinationId}
                 onChange={(event) => setDestinationId(event.target.value)}
                 required
               >
-                {data.locations.map((record) => (
-                  <option key={record.id} value={record.id}>
+                <option value="">Select a receiving location</option>
+                {destinationOptions.map((record) => (
+                  <option
+                    key={record.id}
+                    value={record.id}
+                    disabled={!locationCanReceivePurchaseOrder(record)}
+                  >
                     {record.name}
+                    {!locationCanReceivePurchaseOrder(record)
+                      ? " · address incomplete"
+                      : ""}
                   </option>
                 ))}
               </select>
+              {destination && (
+                <small>
+                  {locationCanReceivePurchaseOrder(destination)
+                    ? `Delivery address: ${locationAddress(destination)}`
+                    : "Complete this location's address before ordering."}
+                </small>
+              )}
             </Field>
             <Field
               label="PO number"
@@ -1529,13 +1675,32 @@ function PurchaseOrderCreateScreen({
               />
             </Field>
             <Field label="Reason">
-              <input
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                maxLength={200}
+              <select
+                value={reasonSelection}
+                onChange={(event) => setReasonSelection(event.target.value)}
                 required
-              />
+              >
+                <option value="">Select a reason</option>
+                {purchaseOrderReasons.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </Field>
+            {reasonSelection === "other" && (
+              <Field
+                label="Reason details"
+                hint="Required when Other is selected."
+              >
+                <input
+                  value={reasonDetails}
+                  onChange={(event) => setReasonDetails(event.target.value)}
+                  maxLength={160}
+                  required
+                />
+              </Field>
+            )}
             <div className="inventory-form-actions">
               <PermissionNote
                 allowed={capability(data, "procurement.create")}
@@ -1548,8 +1713,8 @@ function PurchaseOrderCreateScreen({
                   !destination ||
                   !validDecimal(quantity) ||
                   !validDecimal(unitPrice, true) ||
-                  !/^[A-Z]{3}$/.test(currency.trim().toUpperCase()) ||
-                  !reason.trim()
+                  !reasonSelection ||
+                  (reasonSelection === "other" && !reasonDetails.trim())
                 }
                 onConfirm={() => {
                   const fake = new Event("submit") as unknown as FormEvent;
@@ -1562,6 +1727,173 @@ function PurchaseOrderCreateScreen({
           </form>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function InventoryLocationsScreen({
+  data,
+  busy,
+  run,
+}: {
+  data: InventoryData;
+  busy: boolean;
+  run: InventoryRun;
+}) {
+  const params = new URLSearchParams(window.location.search);
+  const requestedReturnTo = params.get("return_to") ?? "/clinic/inventory/purchasing/new";
+  const returnTo = requestedReturnTo.startsWith("/clinic/inventory")
+    ? requestedReturnTo
+    : "/clinic/inventory/purchasing/new";
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"storage" | "controlled">("storage");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("US");
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void run(
+      "/api/clinic/inventory/locations",
+      {
+        location: {
+          name: name.trim(),
+          kind,
+          address_line1: addressLine1.trim(),
+          address_line2: addressLine2.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          postal_code: postalCode.trim(),
+          country: country.trim().toUpperCase(),
+        },
+      },
+      "Receiving location saved",
+      `${name.trim()} is now available as a purchase-order destination.`,
+      () => window.location.assign(returnTo),
+    );
+  };
+  return (
+    <div className="inventory-stack">
+      <a className="inventory-back-link" href={returnTo}>
+        ← Back to purchase order
+      </a>
+      <Card title="Receiving locations">
+        <p className="inventory-lead">
+          Save the clinic addresses that suppliers can deliver to. Purchase
+          orders will use the selected location and copy its address into the
+          order automatically.
+        </p>
+        {data.locations.length > 0 && (
+          <div className="inventory-stack compact">
+            {data.locations.map((record) => (
+              <div className="inventory-muted-panel" key={record.id}>
+                <strong>{record.name}</strong>
+                <p>
+                  {locationAddress(record) || "Address not configured"}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <Card title="Add receiving location">
+        <form className="inventory-form-grid" onSubmit={submit}>
+          <Field label="Location name" hint="For example, Main clinic or North cabinet.">
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={100}
+              required
+              autoFocus
+            />
+          </Field>
+          <Field label="Location type">
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value as "storage" | "controlled")}
+            >
+              <option value="storage">Storage</option>
+              <option value="controlled">Controlled storage</option>
+            </select>
+          </Field>
+          <Field label="Address line 1">
+            <input
+              value={addressLine1}
+              onChange={(event) => setAddressLine1(event.target.value)}
+              maxLength={120}
+              autoComplete="address-line1"
+              required
+            />
+          </Field>
+          <Field label="Address line 2" hint="Optional suite or unit.">
+            <input
+              value={addressLine2}
+              onChange={(event) => setAddressLine2(event.target.value)}
+              maxLength={120}
+              autoComplete="address-line2"
+            />
+          </Field>
+          <Field label="City">
+            <input
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+              maxLength={120}
+              autoComplete="address-level2"
+              required
+            />
+          </Field>
+          <Field label="State">
+            <input
+              value={state}
+              onChange={(event) => setState(event.target.value.toUpperCase())}
+              maxLength={120}
+              autoComplete="address-level1"
+              required
+            />
+          </Field>
+          <Field label="Postal code">
+            <input
+              value={postalCode}
+              onChange={(event) => setPostalCode(event.target.value)}
+              maxLength={30}
+              autoComplete="postal-code"
+              required
+            />
+          </Field>
+          <Field label="Country">
+            <input
+              value={country}
+              onChange={(event) => setCountry(event.target.value.toUpperCase())}
+              maxLength={2}
+              autoComplete="country"
+              required
+            />
+          </Field>
+          <div className="inventory-form-actions">
+            <PermissionNote
+              allowed={capability(data, "inventory.configure")}
+              permission="inventory.configure"
+            />
+            <ConfirmButton
+              disabled={
+                busy ||
+                !capability(data, "inventory.configure") ||
+                !name.trim() ||
+                !addressLine1.trim() ||
+                !city.trim() ||
+                !state.trim() ||
+                !postalCode.trim() ||
+                !country.trim()
+              }
+              onConfirm={() => submit(new Event("submit") as unknown as FormEvent)}
+            >
+              Save location →
+            </ConfirmButton>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }
@@ -1939,6 +2271,9 @@ export function InventoryApp({ path }: { path: string }) {
             )}
             {screen === "configure" && (
               <InventoryConfigureScreen data={data} busy={busy} run={run} />
+            )}
+            {screen === "locations" && (
+              <InventoryLocationsScreen data={data} busy={busy} run={run} />
             )}
             {screen === "replenishment" && (
               <ReplenishmentScreen data={data} busy={busy} run={run} />
@@ -2327,9 +2662,10 @@ function ReplenishmentScreen({
   const [productId, setProductId] = useState(initialItem?.id ?? "");
   const item = candidates.find((product) => product.id === productId);
   const packageInfo = packageFor(data, item?.package_id);
-  const initialDestination =
-    data.locations.find((location) => location.kind === "storage") ??
-    data.locations[0];
+  const initialDestination = purchaseOrderDestination(
+    data,
+    initialItem?.id ?? "",
+  );
   const [destinationId, setDestinationId] = useState(
     initialDestination?.id ?? "",
   );
@@ -2394,6 +2730,8 @@ function ReplenishmentScreen({
       {
         purchase_order: {
           destination: destination?.name ?? "",
+          destination_location_id: destination?.id ?? "",
+          destination_address: locationAddress(destination),
           reason: reason.trim(),
           ...(supplierId ? { supplier_id: supplierId } : {}),
           lines: [
@@ -2481,6 +2819,22 @@ function ReplenishmentScreen({
           <strong>Projected replenishment</strong>
           <p>Available and inbound stock are below the reorder point.</p>
         </div>
+        {(!purchaseOrderLocations(data).length ||
+          !purchaseOrderLocations(data).some(locationCanReceivePurchaseOrder)) && (
+          <div className="inventory-warning" role="status">
+            <strong>Set up a clinic receiving location first.</strong>
+            <p>
+              Add the clinic delivery address once, then it will be available
+              for every purchase order.
+            </p>
+            <a
+              className="inventory-button outline"
+              href={`/clinic/inventory/locations?return_to=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+            >
+              Add receiving location
+            </a>
+          </div>
+        )}
         <form className="inventory-form-grid" onSubmit={submit}>
           <Field
             label={`Order quantity (${packageInfo?.input_unit ?? "unavailable unit"})`}
@@ -2501,7 +2855,10 @@ function ReplenishmentScreen({
                 onChange={(event) => {
                   const nextSupplierId = event.target.value;
                   const offer = supplierProductFor(data, item.id, nextSupplierId);
-                  setSupplierId(nextSupplierId);
+                setSupplierId(nextSupplierId);
+                setDestinationId(
+                  purchaseOrderDestination(data, event.target.value)?.id ?? "",
+                );
                   setUnitPrice(
                     offer?.wholesale_unit_cost ??
                       recordedPackagePrice(data, item.id) ??
@@ -2551,13 +2908,29 @@ function ReplenishmentScreen({
             <select
               value={destinationId}
               onChange={(event) => setDestinationId(event.target.value)}
+              required
             >
-              {data.locations.map((location) => (
-                <option key={location.id} value={location.id}>
+              <option value="">Select a receiving location</option>
+              {purchaseOrderLocations(data).map((location) => (
+                <option
+                  key={location.id}
+                  value={location.id}
+                  disabled={!locationCanReceivePurchaseOrder(location)}
+                >
                   {location.name}
+                  {!locationCanReceivePurchaseOrder(location)
+                    ? " · address incomplete"
+                    : ""}
                 </option>
               ))}
             </select>
+            {destination && (
+              <small>
+                {locationCanReceivePurchaseOrder(destination)
+                  ? `Delivery address: ${locationAddress(destination)}`
+                  : "Complete this location's address before ordering."}
+              </small>
+            )}
           </Field>
           <Field label="Reason">
             <input
@@ -3009,6 +3382,9 @@ function PurchasingScreen({
               {order.supplier} → {order.destination} · ordered{" "}
               {inventoryDateTime(order.ordered_at, data.timezone)}
             </p>
+            {order.destination_address && (
+              <p className="inventory-lead">Deliver to: {order.destination_address}</p>
+            )}
           </div>
           <Field label="Action reason">
             <input

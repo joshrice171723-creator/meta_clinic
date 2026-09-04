@@ -110,6 +110,11 @@
     "/api/clinic/inventory/catalog(.:format)"
   ],
   [
+    "api_clinic_inventory_management_locations",
+    "POST",
+    "/api/clinic/inventory/locations(.:format)"
+  ],
+  [
     "api_clinic_inventory_management_controlled",
     "GET",
     "/api/clinic/inventory/controlled(.:format)"
@@ -148,6 +153,11 @@
     "api_clinic_inventory_management_replenishment",
     "GET",
     "/api/clinic/inventory/replenishment(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_shipments",
+    "POST",
+    "/api/clinic/inventory/shipments(.:format)"
   ],
   [
     "api_clinic_invoice",

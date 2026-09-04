@@ -17,6 +17,13 @@ module Clinic
 
       def catalog = bootstrap
 
+      def create_location
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.configure")
+        input = params.require(:location).permit(:name, :kind, :address_line1, :address_line2, :city, :state, :postal_code, :country)
+        location = current_practice.inventory_locations.create!(input.merge(country: input[:country].presence || "US"))
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: location.id }, status: :created
+      end
+
       def update_product
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.catalog")
         product = current_practice.pharmacy_products.find(params[:id])
@@ -45,7 +52,7 @@ module Clinic
 
       def create_purchase_order
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
-        input = params.require(:purchase_order).permit(:number, :destination, :reason, :supplier_id, :request_key, :tax, :shipping, lines: %i[product_id quantity input_unit conversion_factor unit_price currency])
+        input = params.require(:purchase_order).permit(:number, :destination, :destination_location_id, :destination_address, :reason, :supplier_id, :request_key, :tax, :shipping, lines: %i[product_id quantity input_unit conversion_factor unit_price currency])
         request_key = input[:request_key].to_s
         validate_request_key!(request_key)
         payload_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
@@ -59,15 +66,25 @@ module Clinic
             rows = Array(input[:lines])
             raise ArgumentError, "A purchase order needs 1–100 lines." unless rows.size.between?(1, 100)
             supplier = input[:supplier_id].present? ? current_practice.inventory_suppliers.find(input[:supplier_id]) : nil
+            destination_location = if input[:destination_location_id].present?
+              current_practice.inventory_locations.find(input[:destination_location_id])
+            end
+            if destination_location
+              raise ArgumentError, "Purchase orders must ship to a storage or controlled location." if %w[quarantine returns].include?(destination_location.kind)
+              raise ArgumentError, "The selected receiving location needs a complete shipping address." unless destination_location.shipping_address?
+            end
+            destination = destination_location&.name || input[:destination].to_s
+            destination_address = destination_location&.formatted_address || input[:destination_address].presence
+            raise ArgumentError, "A shipping destination is required." if destination.blank?
             subtotal = BigDecimal("0")
             order_currency = nil
-            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: input.require(:destination), reason: input.require(:reason), request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
+            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: destination, destination_address: destination_address, reason: input.require(:reason), request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
             products = current_practice.pharmacy_products.where(id: rows.map { |row| row[:product_id] }).index_by { |product| product.id.to_s }
             rows.each do |row|
               product = products[row[:product_id].to_s] || raise(ActiveRecord::RecordNotFound)
               quantity = Quantity.parse(row[:quantity].presence || "0", scale: 0)
               package_factor = Quantity.parse(product.package_size.to_s, scale: product.quantity_scale, zero: false)
-              input_unit = row.require(:input_unit).to_s
+              input_unit = row[:input_unit].presence || InventoryWire::PACKAGE_INPUT_UNIT
               supplied_factor = row[:conversion_factor].presence && Quantity.parse(row[:conversion_factor], scale: product.quantity_scale, zero: false)
               raise ArgumentError, "Purchase orders must use the product's package unit." unless input_unit == InventoryWire::PACKAGE_INPUT_UNIT
               raise ArgumentError, "The package conversion factor does not match the catalog." if supplied_factor && supplied_factor != package_factor

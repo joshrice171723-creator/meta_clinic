@@ -165,6 +165,12 @@ export type InventoryLocation = {
   id: string;
   name: string;
   kind?: "storage" | "quarantine" | "returns" | "controlled";
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
   areas: string[];
 };
 export type InventoryLot = {
@@ -218,6 +224,7 @@ export type InventoryPurchaseOrder = {
   status: string;
   supplier: string | null;
   destination: string;
+  destination_address?: string | null;
   ordered_at: string;
   lines: InventoryPurchaseOrderLine[];
   subtotal: Decimal;
