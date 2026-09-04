@@ -40,7 +40,8 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     assert_equal "0.125", wire.fetch(:products).sole.fetch(:on_hand_units)
     assert_equal "0.125", wire.fetch(:balances).sole.fetch(:on_hand_units)
     assert_equal "0.125", wire.fetch(:movements).sole.fetch(:quantity_units)
-    assert_equal "0.1", wire.fetch(:cycle_counts).sole.fetch(:counted_units)
+    assert_equal "0.1", wire.fetch(:controlled_reconciliations).sole.fetch(:counted_units)
+    assert_nil wire[:cycle_counts]
     assert_equal "-0.025", wire.fetch(:controlled_reconciliations).sole.fetch(:variance_units)
   end
 

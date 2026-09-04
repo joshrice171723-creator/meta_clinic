@@ -13,7 +13,7 @@ module Clinic
           Clinic::Authorization.authorize!(actor: user, practice: practice, action: "inventory.#{action}")
           ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', #{ApplicationRecord.connection.quote("inventory.#{action}")}, true)")
           profile = practice.inventory_profiles.order(version: :desc).first
-          unless action == "configure" || (profile&.status == "synthetic" && profile.capabilities.include?("inventory"))
+          unless action == "configure" || (profile && %w[configured synthetic].include?(profile.status) && profile.capabilities.include?("inventory"))
             raise ArgumentError, "Inventory posting is suspended or not configured. History remains available."
           end
           yield profile

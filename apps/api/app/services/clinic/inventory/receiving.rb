@@ -30,8 +30,9 @@ module Clinic
             product = products.fetch(line[:product_id]) { raise ActiveRecord::RecordNotFound }
             raise ArgumentError, "Reactivate this product before adding stock." unless product.active?
             unit = line[:input_unit].presence || "package"
-            raise ArgumentError, "Choose package or #{product.stock_unit}." unless [ "package", product.stock_unit ].include?(unit)
-            factor = unit == "package" ? product.package_size : BigDecimal("1")
+            package_unit = InventoryWire::PACKAGE_INPUT_UNIT
+            raise ArgumentError, "Choose #{package_unit} or #{product.stock_unit}." unless [ package_unit, product.stock_unit ].include?(unit)
+            factor = unit == package_unit ? product.package_size : BigDecimal("1")
             amount = Quantity.parse(line[:amount], scale: unit == "package" ? 0 : product.quantity_scale)
             quantity = Quantity.parse((amount * factor).to_s("F"), scale: product.quantity_scale)
             expiry = Date.iso8601(line[:expires_on])
@@ -87,7 +88,7 @@ module Clinic
           allocation = allocations.fetch(line[:purchase_order_line_id].to_s) { raise ArgumentError, "The receipt line is not allocated to this shipment." }
           order_line = allocation.purchase_order_line
           raise ArgumentError, "The receipt product does not match its purchase-order allocation." unless order_line.product_id.to_s == line[:product_id].to_s
-          raise ArgumentError, "Shipment receipts must use package quantities." unless line[:input_unit] == "package"
+          raise ArgumentError, "Shipment receipts must use #{InventoryWire::PACKAGE_INPUT_UNIT} quantities." unless line[:input_unit] == InventoryWire::PACKAGE_INPUT_UNIT
           amount = Quantity.parse(line[:amount], scale: 0)
           raise ArgumentError, "The receipt exceeds its shipment allocation." if amount > allocation.expected_packages
           amount

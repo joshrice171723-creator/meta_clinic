@@ -93,7 +93,7 @@ export type InventoryPackage = {
   id: string;
   product_id: string;
   description: string;
-  package_unit: string;
+  input_unit: string;
   units_per_package: Decimal;
 };
 export type InventoryLocation = {
@@ -235,6 +235,12 @@ export type InventoryData = {
   schema_version: string;
   dataset_version: string;
   data_version: number;
+  configuration?: {
+    status: "draft" | "configured" | "synthetic" | "suspended" | "retired";
+    version: number;
+    reason: string;
+    operator_reference?: string | null;
+  };
   as_of: string;
   timezone: string;
   practice: { id: number; name: string; timezone: string };
@@ -254,29 +260,4 @@ export type InventoryData = {
   recalls: InventoryRecall[];
   controlled_reconciliations: InventoryReconciliation[];
   audit_events: InventoryAuditEvent[];
-  transfers?: {
-    id: string;
-    lot_id: string;
-    source_location_id: string;
-    destination_location_id: string;
-    quantity_units: Decimal;
-    status: string;
-  }[];
-  adjustments?: {
-    id: string;
-    lot_id: string;
-    location_id: string;
-    delta_units: Decimal;
-    reason: string;
-    status: string;
-  }[];
-  cycle_counts?: {
-    id: string;
-    lot_id: string;
-    location_id: string;
-    expected_units: Decimal;
-    counted_units: Decimal;
-    variance_units: Decimal;
-    status: string;
-  }[];
 };

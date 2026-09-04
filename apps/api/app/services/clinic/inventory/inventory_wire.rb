@@ -47,6 +47,7 @@ module Clinic
           schema_version: "inventory-wire-v1",
           dataset_version: "bulk_v3",
           data_version: practice.inventory_profiles.maximum(:version) || 0,
+          configuration: practice.inventory_profiles.order(version: :desc).first&.slice(:status, :version, :reason, :operator_reference),
           as_of: Time.current.iso8601,
           timezone: practice.timezone,
           practice: practice.as_json(only: %i[id name timezone]),
@@ -66,9 +67,6 @@ module Clinic
           recalls: recalls.map { |recall| recall_wire(recall, batches_by_lot, active_holds_by_batch) },
           controlled_reconciliations: counts.map { |count| count_wire(count) },
           audit_events: practice.audit_events.includes(:resource_manifests).order(occurred_at: :desc, id: :desc).limit(100).map { |event| audit_wire(event) },
-          transfers: Transfer.where(practice_id: practice.id).includes(:source_batch, :destination_batch).order(id: :desc).limit(100).map { |transfer| transfer_wire(transfer) },
-          adjustments: movements.select { |movement| movement.kind != "receipt" }.map { |movement| adjustment_wire(movement) },
-          cycle_counts: counts.map { |count| cycle_count_wire(count) }
         }
       end
 
@@ -93,7 +91,7 @@ module Clinic
       end
 
       def package_wire(product)
-        { id: "pkg_#{product.id}", product_id: product.id.to_s, description: product.package_description.presence, package_unit: PACKAGE_INPUT_UNIT, units_per_package: product.package_size.to_d.to_s("F") }
+        { id: "pkg_#{product.id}", product_id: product.id.to_s, description: product.package_description.presence, input_unit: PACKAGE_INPUT_UNIT, units_per_package: product.package_size.to_d.to_s("F") }
       end
 
       def lot_wire(lot, batches_by_lot, recalls, active_holds_by_batch)
@@ -152,18 +150,7 @@ module Clinic
         { id: event.id.to_s, action: event.action_code, actor_id: event.actor_session_reference.to_s.sub(/^user:/, ""), entity_id: event.resource_manifests.first&.protected_resource_version_ref, occurred_at: event.occurred_at.iso8601 }
       end
 
-      def transfer_wire(transfer)
-        { id: transfer.id.to_s, lot_id: transfer.source_batch.lot_id.to_s, source_location_id: transfer.source_batch.location_id.to_s, destination_location_id: transfer.destination_batch.location_id.to_s, quantity_units: transfer.quantity.to_d.to_s("F"), status: "posted" }
-      end
 
-      def adjustment_wire(movement)
-        { id: movement.id.to_s, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s, delta_units: movement.quantity.to_d.to_s("F"), reason: movement.reason, status: "posted" }
-      end
-
-      def cycle_count_wire(count)
-        expected = count.approval.present? ? count.observed_quantity.to_d : count.expected_quantity.to_d
-        { id: count.id.to_s, lot_id: count.batch.lot_id.to_s, location_id: count.batch.location_id.to_s, expected_units: expected.to_d.to_s("F"), counted_units: count.observed_quantity.to_d.to_s("F"), variance_units: (count.observed_quantity.to_d - expected).to_s("F"), status: count.approval ? "approved" : "posted" }
-      end
     end
   end
 end

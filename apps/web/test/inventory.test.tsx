@@ -101,8 +101,11 @@ describe("inventory integration", () => {
 
     for (const path of [
       "/clinic/inventory",
+      "/clinic/inventory/catalog/new",
       "/clinic/inventory/replenishment",
       "/clinic/inventory/purchasing",
+      "/clinic/inventory/purchasing/new",
+      "/clinic/inventory/shipments/new",
       "/clinic/inventory/receiving",
       "/clinic/inventory/lots",
       "/clinic/inventory/activity",
@@ -112,6 +115,14 @@ describe("inventory integration", () => {
       expect(source).toContain(path);
     }
     expect(source).toContain('"/api/clinic/inventory/bootstrap"');
+    expect(source).toContain('"/api/clinic/pharmacy"');
+    expect(source).toContain('"/api/clinic/inventory/shipments"');
+    expect(source).toContain("Create item and continue");
+    expect(source).toContain("Mark delivered → Receiving");
+    expect(source).toContain('"/api/clinic/inventory_configuration"');
+    expect(source).not.toContain('package_unit');
+    expect(source).not.toContain('currency: "USD"');
+    expect(source).not.toContain('reason: "Authorized certification"');
     expect(source).not.toContain('"/api/clinic/inventory/demo"');
     expect(source).not.toContain("history.pushState");
     expect(source).not.toContain('"popstate"');

@@ -78,7 +78,7 @@ module Clinic
 
       def configure
         Profile.revise!(practice: current_practice, actor: current_user, status: params[:status], reason: params[:reason], operator_reference: params[:operator_reference])
-        head :no_content
+        render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
       def demo

@@ -33,6 +33,7 @@ import "./inventory.css";
 type Screen =
   | "catalog"
   | "catalog_new"
+  | "configure"
   | "replenishment"
   | "purchasing"
   | "purchase_order_new"
@@ -175,6 +176,7 @@ const workflowLinks = [
 const screenDescriptions: Record<Screen, string> = {
   catalog: "Monitor availability, lot exceptions, and replenishment signals.",
   catalog_new: "Add a product definition before ordering or receiving stock.",
+  configure: "Record the inventory operating configuration before posting stock.",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
   purchase_order_new:
@@ -190,6 +192,7 @@ const screenDescriptions: Record<Screen, string> = {
 function screenForPath(path: string): Screen {
   const value = path.replace(/\/$/, "");
   if (value === "/clinic/inventory/catalog/new") return "catalog_new";
+  if (value === "/clinic/inventory/configure") return "configure";
   if (value === "/clinic/inventory/purchasing/new") return "purchase_order_new";
   if (value === "/clinic/inventory/shipments/new") return "shipment_new";
   return links.find((link) => link.href === value)?.screen ?? "catalog";
@@ -199,6 +202,7 @@ function screenTitle(screen: Screen) {
     {
       catalog: "Inventory overview",
       catalog_new: "Add catalog item",
+      configure: "Configure inventory",
       replenishment: "Plan replenishment",
       purchasing: "Orders & delivery",
       purchase_order_new: "Create purchase order",
@@ -223,13 +227,13 @@ function validDecimal(value: string, allowZero = false) {
   return decimalCompare(value, "0") >= (allowZero ? 0 : 1);
 }
 function unitLabel(data: InventoryData, productId: string) {
-  return product(data, productId)?.base_unit ?? "unit";
+  return product(data, productId)?.base_unit ?? "unavailable unit";
 }
 function packageFor(data: InventoryData, packageId?: string) {
   return data.packages.find((item) => item.id === packageId);
 }
-function money(value: Decimal) {
-  return `$${decimalMoney(value)}`;
+function money(value: Decimal, currency?: string) {
+  return `${currency ? `${currency} ` : ""}${decimalMoney(value)}`;
 }
 export function inventoryDate(value?: string, timezone?: string) {
   if (!value) return "—";
@@ -809,7 +813,7 @@ function PurchaseOrderCreateScreen({
             {
               product_id: item.id,
               quantity,
-              input_unit: packageInfo?.package_unit ?? "package",
+              input_unit: packageInfo?.input_unit ?? "",
               conversion_factor: item.units_per_package,
               unit_price: unitPrice,
               currency: currency.trim().toUpperCase(),
@@ -818,7 +822,7 @@ function PurchaseOrderCreateScreen({
         },
       },
       "Draft PO created",
-      `${number(quantity)} ${packageInfo?.package_unit ?? "package"} of ${item.name} is ready for review.`,
+      `${number(quantity)} ${packageInfo?.input_unit ?? "unavailable unit"} of ${item.name} is ready for review.`,
       () => window.location.assign("/clinic/inventory/purchasing"),
     );
   };
@@ -983,6 +987,74 @@ function PurchaseOrderCreateScreen({
           </div>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function InventoryConfigureScreen({
+  data,
+  busy,
+  run,
+}: {
+  data: InventoryData;
+  busy: boolean;
+  run: InventoryRun;
+}) {
+  const [reason, setReason] = useState("");
+  const [operatorReference, setOperatorReference] = useState("");
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void run(
+      "/api/clinic/inventory_configuration",
+      {
+        status: "configured",
+        reason: reason.trim(),
+        operator_reference: operatorReference.trim() || undefined,
+      },
+      "Inventory configured",
+      "Inventory writes are now enabled for this practice.",
+      () => window.location.assign("/clinic/inventory"),
+    );
+  };
+  return (
+    <div className="inventory-stack">
+      <Card title="Configure inventory">
+        <p className="inventory-lead">
+          Confirm the operating basis before creating stock records. This is a
+          practice configuration record, not seeded inventory.
+        </p>
+        <form className="inventory-form-grid" onSubmit={submit}>
+          <Field label="Configuration reason">
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              maxLength={200}
+              required
+              autoFocus
+              placeholder="Describe the approved inventory operating setup"
+            />
+          </Field>
+          <Field label="Operator reference" hint="Optional internal reference.">
+            <input
+              value={operatorReference}
+              onChange={(event) => setOperatorReference(event.target.value)}
+              maxLength={200}
+            />
+          </Field>
+          <div className="inventory-form-actions">
+            <PermissionNote
+              allowed={capability(data, "inventory.configure")}
+              permission="inventory.configure"
+            />
+            <ConfirmButton
+              disabled={busy || !capability(data, "inventory.configure") || !reason.trim()}
+              onConfirm={() => submit(new Event("submit") as unknown as FormEvent)}
+            >
+              Configure inventory →
+            </ConfirmButton>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }
@@ -1165,7 +1237,7 @@ export function InventoryApp({ path }: { path: string }) {
             <div className="inventory-header-actions">
               <Chip
                 label={
-                  import.meta.env.DEV ? "Development data" : "Clinic workspace"
+                  "Persisted clinic data"
                 }
                 size="small"
                 variant="outlined"
@@ -1239,6 +1311,18 @@ export function InventoryApp({ path }: { path: string }) {
                 </a>
               ))}
             </nav>
+            {data.configuration?.status !== "configured" && (
+              <div className="inventory-warning strong" role="status">
+                <strong>Inventory setup is required before posting stock.</strong>
+                <p>
+                  Existing records remain viewable. Configure this practice to
+                  create catalog, purchasing, receiving, and adjustment records.
+                </p>
+                <a className="inventory-button outline" href="/clinic/inventory/configure">
+                  Configure inventory
+                </a>
+              </div>
+            )}
             <Notice notice={notice} onClose={() => setNotice(null)} />
             {screen === "catalog" && (
               <CatalogScreen
@@ -1250,6 +1334,9 @@ export function InventoryApp({ path }: { path: string }) {
             )}
             {screen === "catalog_new" && (
               <CatalogCreateScreen data={data} busy={busy} run={run} />
+            )}
+            {screen === "configure" && (
+              <InventoryConfigureScreen data={data} busy={busy} run={run} />
             )}
             {screen === "replenishment" && (
               <ReplenishmentScreen data={data} busy={busy} run={run} />
@@ -1686,7 +1773,7 @@ function ReplenishmentScreen({
             {
               product_id: item.id,
               quantity,
-              input_unit: packageInfo?.package_unit ?? "package",
+              input_unit: packageInfo?.input_unit ?? "",
               conversion_factor: item.units_per_package,
               unit_price: unitPrice,
               currency: currency.trim().toUpperCase(),
@@ -1695,7 +1782,7 @@ function ReplenishmentScreen({
         },
       },
       "Draft created",
-      `${number(quantity)} ${packageInfo?.package_unit ?? "package"} (${number(decimalMultiply(quantity, item.units_per_package))} ${item.base_unit}) added.`,
+      `${number(quantity)} ${packageInfo?.input_unit ?? "unavailable unit"} (${number(decimalMultiply(quantity, item.units_per_package))} ${item.base_unit}) added.`,
     );
   };
   return (
@@ -1731,7 +1818,7 @@ function ReplenishmentScreen({
             <p className="inventory-lead">
               NDC {item.ndc || "not recorded"} ·{" "}
               {packageInfo?.description ??
-                `${number(item.units_per_package)} ${item.base_unit} per ${packageInfo?.package_unit ?? "package"}`}
+                `${number(item.units_per_package)} ${item.base_unit} per ${packageInfo?.input_unit ?? "unavailable unit"}`}
             </p>
           </div>
         </div>
@@ -1760,7 +1847,7 @@ function ReplenishmentScreen({
         </div>
         <form className="inventory-form-grid" onSubmit={submit}>
           <Field
-            label={`Order quantity (${packageInfo?.package_unit ?? "package"})`}
+            label={`Order quantity (${packageInfo?.input_unit ?? "unavailable unit"})`}
             hint={`${number(decimalMultiply(quantity || "0", item.units_per_package))} ${item.base_unit} · package multiple ${number(item.units_per_package)}`}
           >
             <input
@@ -1858,7 +1945,7 @@ function ReplenishmentScreen({
           />
           <DataPoint
             label="Draft quantity"
-            value={`${number(quantity || "0")} ${packageInfo?.package_unit ?? "package"}`}
+            value={`${number(quantity || "0")} ${packageInfo?.input_unit ?? "unavailable unit"}`}
           />
           <DataPoint
             label="Base-unit quantity"
@@ -1867,7 +1954,7 @@ function ReplenishmentScreen({
           {validDecimal(unitPrice, true) && (
             <DataPoint
               label="Estimated subtotal"
-              value={money(decimalMultiply(quantity || "0", unitPrice))}
+              value={money(decimalMultiply(quantity || "0", unitPrice), currency)}
             />
           )}
         </div>
@@ -2167,8 +2254,8 @@ function PurchasingScreen({
     );
   const item = product(data, line.product_id);
   const packageInfo = packageFor(data, line.package_id);
-  const packageUnit = packageInfo?.package_unit ?? "package";
-  const baseUnit = item?.base_unit ?? "unit";
+  const packageUnit = packageInfo?.input_unit ?? "unavailable unit";
+  const baseUnit = item?.base_unit ?? "unavailable unit";
   const [actionReason, setActionReason] = useState("");
   const shipment = data.shipments.find((record) => record.po_id === order.id);
   const cancelledPackages = order.cancelled_remaining_units
@@ -2381,7 +2468,7 @@ function PurchasingScreen({
                     </small>
                   </td>
                   <td className="numeric">
-                    {money(line.package_price)} / {packageUnit}
+                    {money(line.package_price, line.currency)} / {packageUnit}
                   </td>
                 </tr>
               </tbody>
@@ -2395,12 +2482,12 @@ function PurchasingScreen({
         <Card title="Order summary">
           <div className="inventory-stack compact">
             <DataPoint
-              label={`${number(line.ordered_packages)} ${packageUnit} × ${money(line.package_price)}`}
-              value={money(order.subtotal)}
+              label={`${number(line.ordered_packages)} ${packageUnit} × ${money(line.package_price, line.currency)}`}
+              value={money(order.subtotal, line.currency)}
             />
-            <DataPoint label="Tax" value={money(order.tax)} />
-            <DataPoint label="Shipping" value={money(order.shipping)} />
-            <DataPoint label="Total" value={money(order.total)} />
+            <DataPoint label="Tax" value={money(order.tax, line.currency)} />
+            <DataPoint label="Shipping" value={money(order.shipping, line.currency)} />
+            <DataPoint label="Total" value={money(order.total, line.currency)} />
             {shipment && (
               <p className="inventory-info">
                 Shipment {shipment.supplier_reference} delivered{" "}
@@ -2452,8 +2539,8 @@ function ReceivingScreen({
   );
   const item = line && product(data, line.product_id);
   const packageInfo = packageFor(data, line?.package_id);
-  const packageUnit = packageInfo?.package_unit ?? "package";
-  const baseUnit = item?.base_unit ?? "unit";
+  const packageUnit = packageInfo?.input_unit ?? "unavailable unit";
+  const baseUnit = item?.base_unit ?? "unavailable unit";
   const productLots = data.lots.filter(
     (record) => record.product_id === item?.id,
   );
@@ -3653,7 +3740,7 @@ function ControlledScreen({
               </span>
             </li>
             <li className={reconciliation.status === "certified" ? "done" : ""}>
-              <strong>Authorized certification</strong>
+              <strong>Certification</strong>
               <span>
                 {reconciliation.certified_at
                   ? `Certified ${inventoryDateTime(reconciliation.certified_at, data.timezone)}.`

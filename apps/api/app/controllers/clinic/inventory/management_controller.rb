@@ -69,7 +69,7 @@ module Clinic
               package_factor = Quantity.parse(product.package_size.to_s, scale: product.quantity_scale, zero: false)
               input_unit = row.require(:input_unit).to_s
               supplied_factor = row[:conversion_factor].presence && Quantity.parse(row[:conversion_factor], scale: product.quantity_scale, zero: false)
-              raise ArgumentError, "Purchase orders must use the product's package unit." unless input_unit == "package"
+              raise ArgumentError, "Purchase orders must use the product's package unit." unless input_unit == InventoryWire::PACKAGE_INPUT_UNIT
               raise ArgumentError, "The package conversion factor does not match the catalog." if supplied_factor && supplied_factor != package_factor
               factor = package_factor
               price = Quantity.parse(row[:unit_price].presence || "0", scale: 6, zero: true)
@@ -172,7 +172,7 @@ module Clinic
         elsif input[:recall_id].present?
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
-        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
+        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), receipt_id: receipt.id }
       end
 
