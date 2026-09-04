@@ -32,8 +32,11 @@ import "./inventory.css";
 
 type Screen =
   | "catalog"
+  | "catalog_new"
   | "replenishment"
   | "purchasing"
+  | "purchase_order_new"
+  | "shipment_new"
   | "receiving"
   | "lots"
   | "activity"
@@ -171,8 +174,12 @@ const workflowLinks = [
 
 const screenDescriptions: Record<Screen, string> = {
   catalog: "Monitor availability, lot exceptions, and replenishment signals.",
+  catalog_new: "Add a product definition before ordering or receiving stock.",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
+  purchase_order_new:
+    "Create a reviewed purchase order for any active catalog item.",
+  shipment_new: "Record a delivered shipment against a sent purchase order.",
   receiving: "Verify deliveries, lot details, and quarantine exceptions.",
   lots: "Review exact balances by lot and storage location.",
   activity: "Trace every stock movement to its source and operator.",
@@ -182,7 +189,27 @@ const screenDescriptions: Record<Screen, string> = {
 
 function screenForPath(path: string): Screen {
   const value = path.replace(/\/$/, "");
+  if (value === "/clinic/inventory/catalog/new") return "catalog_new";
+  if (value === "/clinic/inventory/purchasing/new") return "purchase_order_new";
+  if (value === "/clinic/inventory/shipments/new") return "shipment_new";
   return links.find((link) => link.href === value)?.screen ?? "catalog";
+}
+function screenTitle(screen: Screen) {
+  return (
+    {
+      catalog: "Inventory overview",
+      catalog_new: "Add catalog item",
+      replenishment: "Plan replenishment",
+      purchasing: "Orders & delivery",
+      purchase_order_new: "Create purchase order",
+      shipment_new: "Record delivered shipment",
+      receiving: "Receive & put away",
+      lots: "Stock by lot",
+      activity: "Movement ledger",
+      recalls: "Expiry & recalls",
+      controlled: "Controlled reconciliation",
+    } satisfies Record<Screen, string>
+  )[screen];
 }
 
 function number(value: number | string) {
@@ -483,6 +510,483 @@ function Notice({ notice, onClose }: { notice: Notice; onClose: () => void }) {
     </div>
   );
 }
+
+type InventoryRun = (
+  endpoint: string,
+  body: Record<string, unknown>,
+  successTitle: string,
+  successDetail: string,
+  afterSuccess?: (payload: { id?: number | string }) => void,
+) => Promise<void>;
+
+function CatalogCreateScreen({
+  data,
+  busy,
+  run,
+}: {
+  data: InventoryData;
+  busy: boolean;
+  run: InventoryRun;
+}) {
+  const [name, setName] = useState("");
+  const [sku, setSku] = useState("");
+  const [ndc, setNdc] = useState("");
+  const [genericName, setGenericName] = useState("");
+  const [dosageForm, setDosageForm] = useState("");
+  const [packageDescription, setPackageDescription] = useState("");
+  const [stockUnit, setStockUnit] = useState("");
+  const [packageSize, setPackageSize] = useState("1");
+  const [quantityScale, setQuantityScale] = useState("0");
+  const [unitReference, setUnitReference] = useState("");
+  const [reorderPoint, setReorderPoint] = useState("0");
+  const requiresUnitReference = packageSize !== "1";
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void run(
+      "/api/clinic/pharmacy",
+      {
+        clinic_pharmacy_product: {
+          name: name.trim(),
+          sku: sku.trim(),
+          ndc: ndc.trim() || undefined,
+          generic_name: genericName.trim() || undefined,
+          dosage_form: dosageForm.trim() || undefined,
+          package_description: packageDescription.trim() || undefined,
+          stock_unit: stockUnit,
+          package_size: packageSize,
+          quantity_scale: quantityScale,
+          unit_reference: unitReference.trim() || undefined,
+          reorder_point: reorderPoint,
+        },
+      },
+      "Catalog item created",
+      `${name.trim()} is ready for purchasing. Stock will remain at zero until a receipt is confirmed.`,
+      (payload) => {
+        if (payload.id !== undefined)
+          window.location.assign(
+            `/clinic/inventory/purchasing/new?product_id=${payload.id}`,
+          );
+      },
+    );
+  };
+  return (
+    <div className="inventory-stack">
+      <a className="inventory-back-link" href="/clinic/inventory">
+        ← Back to inventory overview
+      </a>
+      <div className="inventory-two-col wide-left">
+        <Card title="Product definition">
+          <p className="inventory-lead">
+            Add the item once. The catalog definition controls package
+            conversion, purchasing quantities, and receiving accuracy.
+          </p>
+          <form className="inventory-form-grid" onSubmit={submit}>
+            <Field label="Product name">
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={160}
+                required
+                autoFocus
+              />
+            </Field>
+            <Field label="SKU">
+              <input
+                value={sku}
+                onChange={(event) => setSku(event.target.value)}
+                maxLength={160}
+                required
+              />
+            </Field>
+            <Field label="NDC" hint="Optional for non-medication supplies.">
+              <input
+                value={ndc}
+                onChange={(event) => setNdc(event.target.value)}
+                maxLength={30}
+              />
+            </Field>
+            <Field label="Generic name" hint="Optional display metadata.">
+              <input
+                value={genericName}
+                onChange={(event) => setGenericName(event.target.value)}
+                maxLength={500}
+              />
+            </Field>
+            <Field
+              label="Dosage form"
+              hint="For example: tablet, vial, or supply."
+            >
+              <input
+                value={dosageForm}
+                onChange={(event) => setDosageForm(event.target.value)}
+                maxLength={500}
+              />
+            </Field>
+            <Field label="Package description">
+              <input
+                value={packageDescription}
+                onChange={(event) => setPackageDescription(event.target.value)}
+                maxLength={4000}
+                placeholder="100 tablets per bottle"
+              />
+            </Field>
+            <Field label="Stock unit">
+              <select
+                value={stockUnit}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setStockUnit(next);
+                  if (!["mL", "g"].includes(next)) setQuantityScale("0");
+                  if (next === "package") setPackageSize("1");
+                }}
+              >
+                <option value="">Select stock unit</option>
+                <option value="each">Each</option>
+                <option value="tablet">Tablet</option>
+                <option value="capsule">Capsule</option>
+                <option value="vial">Vial</option>
+                <option value="mL">mL</option>
+                <option value="g">g</option>
+                <option value="package">Package</option>
+              </select>
+            </Field>
+            <Field
+              label="Units per package"
+              hint="Use 1 when each purchased package is one stock unit."
+            >
+              <input
+                type="number"
+                min={1}
+                max={1000000}
+                step={stockUnit === "mL" || stockUnit === "g" ? "any" : 1}
+                value={packageSize}
+                onChange={(event) => setPackageSize(event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Quantity precision">
+              <select
+                value={quantityScale}
+                disabled={!["mL", "g"].includes(stockUnit)}
+                onChange={(event) => setQuantityScale(event.target.value)}
+              >
+                <option value="0">Whole units</option>
+                <option value="1">1 decimal place</option>
+                <option value="2">2 decimal places</option>
+                <option value="3">3 decimal places</option>
+                <option value="4">4 decimal places</option>
+                <option value="5">5 decimal places</option>
+                <option value="6">6 decimal places</option>
+              </select>
+            </Field>
+            <Field
+              label="Unit definition"
+              hint="Required when a package contains more than one stock unit."
+            >
+              <input
+                value={unitReference}
+                onChange={(event) => setUnitReference(event.target.value)}
+                maxLength={500}
+                required={requiresUnitReference}
+                placeholder="Manufacturer package specification"
+              />
+            </Field>
+            <Field label="Reorder point" hint={`Base ${stockUnit} units.`}>
+              <input
+                type="number"
+                min={0}
+                max={1000000}
+                step={1}
+                value={reorderPoint}
+                onChange={(event) => setReorderPoint(event.target.value)}
+                required
+              />
+            </Field>
+            <div className="inventory-form-actions">
+              <PermissionNote
+                allowed={capability(data, "inventory.catalog")}
+                permission="inventory.catalog"
+              />
+              <button
+                className="inventory-button primary"
+                type="submit"
+                disabled={
+                  busy ||
+                  !capability(data, "inventory.catalog") ||
+                  !name.trim() ||
+                  !sku.trim() ||
+                  !stockUnit ||
+                  !packageSize ||
+                  (requiresUnitReference && !unitReference.trim())
+                }
+              >
+                {busy ? "Creating…" : "Create item and continue →"}
+              </button>
+            </div>
+          </form>
+        </Card>
+        <Card title="What happens next">
+          <div className="inventory-stack compact">
+            <DataPoint
+              label="Catalog status"
+              value="Active"
+              detail="Available for ordering"
+              tone="success"
+            />
+            <DataPoint
+              label="Opening stock"
+              value="0"
+              detail="Created by receiving, never by catalog setup"
+            />
+            <DataPoint
+              label="Next step"
+              value="Purchase order"
+              detail="You will continue directly to the order form"
+              tone="blue"
+            />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function PurchaseOrderCreateScreen({
+  data,
+  busy,
+  run,
+}: {
+  data: InventoryData;
+  busy: boolean;
+  run: InventoryRun;
+}) {
+  const requestedProductId = new URLSearchParams(window.location.search).get(
+    "product_id",
+  );
+  const initialItem =
+    data.products.find((item) => item.id === requestedProductId) ??
+    data.products[0];
+  const [productId, setProductId] = useState(initialItem?.id ?? "");
+  const item = data.products.find((record) => record.id === productId);
+  const initialDestination =
+    data.locations.find((record) => record.kind === "storage") ??
+    data.locations[0];
+  const [destinationId, setDestinationId] = useState(
+    initialDestination?.id ?? "",
+  );
+  const [supplierId, setSupplierId] = useState(
+    initialItem?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+  );
+  const [quantity, setQuantity] = useState("1");
+  const [unitPrice, setUnitPrice] = useState(
+    initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : "",
+  );
+  const [numberValue, setNumberValue] = useState("");
+  const [reason, setReason] = useState("");
+  const [currency, setCurrency] = useState("");
+  const packageInfo = packageFor(data, item?.package_id);
+  const destination = data.locations.find(
+    (record) => record.id === destinationId,
+  );
+  const selectProduct = (nextId: string) => {
+    const next = data.products.find((record) => record.id === nextId);
+    setProductId(nextId);
+    setSupplierId(next?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "");
+    setUnitPrice(next ? (recordedPackagePrice(data, next.id) ?? "") : "");
+  };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!item) return;
+    void run(
+      "/api/clinic/inventory/purchase-orders",
+      {
+        purchase_order: {
+          ...(numberValue.trim() ? { number: numberValue.trim() } : {}),
+          destination: destination?.name ?? "",
+          reason: reason.trim(),
+          ...(supplierId ? { supplier_id: supplierId } : {}),
+          lines: [
+            {
+              product_id: item.id,
+              quantity,
+              input_unit: packageInfo?.package_unit ?? "package",
+              conversion_factor: item.units_per_package,
+              unit_price: unitPrice,
+              currency: currency.trim().toUpperCase(),
+            },
+          ],
+        },
+      },
+      "Draft PO created",
+      `${number(quantity)} ${packageInfo?.package_unit ?? "package"} of ${item.name} is ready for review.`,
+      () => window.location.assign("/clinic/inventory/purchasing"),
+    );
+  };
+  if (!item)
+    return (
+      <Card title="Create purchase order">
+        <p>No catalog items are available yet.</p>
+        <a
+          className="inventory-button outline"
+          href="/clinic/inventory/catalog/new"
+        >
+          Add catalog item
+        </a>
+      </Card>
+    );
+  return (
+    <div className="inventory-stack">
+      <a className="inventory-back-link" href="/clinic/inventory">
+        ← Back to inventory overview
+      </a>
+      <div className="inventory-two-col wide-left">
+        <Card title="Purchase order details">
+          <p className="inventory-lead">
+            Order any active catalog item. This creates a draft only; stock is
+            added after the delivery is recorded and received.
+          </p>
+          <form className="inventory-form-grid" onSubmit={submit}>
+            <Field label="Catalog item">
+              <select
+                value={productId}
+                onChange={(event) => selectProduct(event.target.value)}
+              >
+                {data.products.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.name} · {number(record.available_units)} available
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Order quantity (packages)"
+              hint={`${number(decimalMultiply(quantity || "0", item.units_per_package))} ${item.base_unit} total`}
+            >
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Supplier">
+              <select
+                value={supplierId}
+                onChange={(event) => setSupplierId(event.target.value)}
+              >
+                <option value="">No supplier</option>
+                {data.suppliers?.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Package price">
+              <input
+                inputMode="decimal"
+                value={unitPrice}
+                onChange={(event) => setUnitPrice(event.target.value)}
+                placeholder="0.00"
+                required
+              />
+            </Field>
+            <Field label="Currency" hint="Three-letter ISO currency code.">
+              <input
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+                maxLength={3}
+                placeholder="USD"
+                required
+              />
+            </Field>
+            <Field label="Ship to">
+              <select
+                value={destinationId}
+                onChange={(event) => setDestinationId(event.target.value)}
+                required
+              >
+                {data.locations.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="PO number"
+              hint="Optional. A number is generated when blank."
+            >
+              <input
+                value={numberValue}
+                onChange={(event) => setNumberValue(event.target.value)}
+                maxLength={80}
+              />
+            </Field>
+            <Field label="Reason">
+              <input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={200}
+                required
+              />
+            </Field>
+            <div className="inventory-form-actions">
+              <PermissionNote
+                allowed={capability(data, "procurement.create")}
+                permission="procurement.create"
+              />
+              <ConfirmButton
+                disabled={
+                  busy ||
+                  !capability(data, "procurement.create") ||
+                  !destination ||
+                  !validDecimal(quantity) ||
+                  !validDecimal(unitPrice, true) ||
+                  !/^[A-Z]{3}$/.test(currency.trim().toUpperCase()) ||
+                  !reason.trim()
+                }
+                onConfirm={() => {
+                  const fake = new Event("submit") as unknown as FormEvent;
+                  submit(fake);
+                }}
+              >
+                Create draft PO →
+              </ConfirmButton>
+            </div>
+          </form>
+        </Card>
+        <Card title="Order preview">
+          <div className="inventory-stack compact">
+            <DataPoint
+              label="Item"
+              value={item.name}
+              detail={`${number(item.units_per_package)} ${item.base_unit} per package`}
+            />
+            <DataPoint
+              label="Available now"
+              value={`${number(item.available_units)} ${item.base_unit}`}
+            />
+            <DataPoint
+              label="Incoming after draft"
+              value={`${number(decimalMultiply(quantity || "0", item.units_per_package))} ${item.base_unit}`}
+              tone="blue"
+            />
+            <DataPoint
+              label="Draft status"
+              value="Needs review"
+              detail="Submit, approve, then mark sent"
+              tone="warning"
+            />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function PermissionNote({
   allowed,
   permission,
@@ -558,6 +1062,7 @@ export function InventoryApp({ path }: { path: string }) {
     body: Record<string, unknown>,
     successTitle: string,
     successDetail: string,
+    afterSuccess?: (payload: { id?: number | string }) => void,
   ) => {
     const attempt = inventoryMutationAttempt(uncertainMutation, endpoint, body);
     if (!attempt) {
@@ -584,10 +1089,13 @@ export function InventoryApp({ path }: { path: string }) {
             requestBody[key] = { ...nested, request_key: requestKey };
         }
       });
-      const payload = await api<{ data: InventoryData }>(endpoint, {
-        method: "POST",
-        body: requestBody,
-      });
+      const payload = await api<{ data: InventoryData; id?: number | string }>(
+        endpoint,
+        {
+          method: "POST",
+          body: requestBody,
+        },
+      );
       setData(payload.data);
       setUncertainMutation(null);
       setNotice({
@@ -595,6 +1103,7 @@ export function InventoryApp({ path }: { path: string }) {
         title: successTitle,
         detail: successDetail,
       });
+      afterSuccess?.(payload);
     } catch (reason) {
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
@@ -648,11 +1157,7 @@ export function InventoryApp({ path }: { path: string }) {
         <div className="inventory-main">
           <header className="inventory-header">
             <div>
-              <h1>
-                {screen === "catalog"
-                  ? "Inventory overview"
-                  : links.find((link) => link.screen === screen)?.label}
-              </h1>
+              <h1>{screenTitle(screen)}</h1>
               <p className="inventory-header-description">
                 {screenDescriptions[screen]}
               </p>
@@ -743,11 +1248,20 @@ export function InventoryApp({ path }: { path: string }) {
                 onRefresh={load}
               />
             )}
+            {screen === "catalog_new" && (
+              <CatalogCreateScreen data={data} busy={busy} run={run} />
+            )}
             {screen === "replenishment" && (
               <ReplenishmentScreen data={data} busy={busy} run={run} />
             )}
             {screen === "purchasing" && (
               <PurchasingScreen data={data} busy={busy} run={run} />
+            )}
+            {screen === "purchase_order_new" && (
+              <PurchaseOrderCreateScreen data={data} busy={busy} run={run} />
+            )}
+            {screen === "shipment_new" && (
+              <ShipmentCreateScreen data={data} busy={busy} run={run} />
             )}
             {screen === "receiving" && (
               <ReceivingScreen data={data} busy={busy} run={run} />
@@ -849,6 +1363,19 @@ function CatalogScreen({
           </p>
         </div>
         <div className="inventory-catalog-actions">
+          <Button
+            variant="outlined"
+            href="/clinic/inventory/catalog/new"
+            sx={{
+              minHeight: 44,
+              borderColor: "var(--inventory-control)",
+              color: "var(--inventory-blue)",
+              textTransform: "none",
+              fontWeight: 700,
+            }}
+          >
+            Add catalog item
+          </Button>
           <Button
             variant="contained"
             startIcon={<MoveToInboxOutlinedIcon />}
@@ -990,6 +1517,11 @@ function CatalogScreen({
                     <a href={`/clinic/inventory/lots?product_id=${item.id}`}>
                       View lots
                     </a>
+                    <a
+                      href={`/clinic/inventory/purchasing/new?product_id=${item.id}`}
+                    >
+                      Create purchase order
+                    </a>
                     {item.low_stock && (
                       <a
                         href={`/clinic/inventory/replenishment?product_id=${item.id}`}
@@ -1125,6 +1657,7 @@ function ReplenishmentScreen({
     initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : "",
   );
   const [reason, setReason] = useState("");
+  const [currency, setCurrency] = useState("");
   if (!item)
     return (
       <Card title="Replenishment suggestions">
@@ -1156,7 +1689,7 @@ function ReplenishmentScreen({
               input_unit: packageInfo?.package_unit ?? "package",
               conversion_factor: item.units_per_package,
               unit_price: unitPrice,
-              currency: "USD",
+              currency: currency.trim().toUpperCase(),
             },
           ],
         },
@@ -1263,6 +1796,15 @@ function ReplenishmentScreen({
               placeholder="Enter price"
             />
           </Field>
+          <Field label="Currency" hint="Three-letter ISO currency code.">
+            <input
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+              maxLength={3}
+              placeholder="USD"
+              required
+            />
+          </Field>
           <Field label="Destination">
             <select
               value={destinationId}
@@ -1293,6 +1835,7 @@ function ReplenishmentScreen({
                 !capability(data, "procurement.create") ||
                 !validDecimal(quantity) ||
                 !validDecimal(unitPrice, true) ||
+                !/^[A-Z]{3}$/.test(currency.trim().toUpperCase()) ||
                 !destination ||
                 !reason.trim()
               }
@@ -1329,6 +1872,256 @@ function ReplenishmentScreen({
           )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function ShipmentCreateScreen({
+  data,
+  busy,
+  run,
+}: {
+  data: InventoryData;
+  busy: boolean;
+  run: InventoryRun;
+}) {
+  const openOrders = data.purchase_orders.filter((order) =>
+    ["sent", "partially_received"].includes(order.status),
+  );
+  const requestedOrderId = new URLSearchParams(window.location.search).get(
+    "purchase_order_id",
+  );
+  const initialOrder =
+    openOrders.find((order) => order.id === requestedOrderId) ?? openOrders[0];
+  const [orderId, setOrderId] = useState(initialOrder?.id ?? "");
+  const order = openOrders.find((record) => record.id === orderId);
+  const initialLine = order?.lines.find(
+    (line) =>
+      decimalCompare(
+        decimalSubtract(line.ordered_packages, line.received_packages),
+        "0",
+      ) > 0,
+  );
+  const [lineId, setLineId] = useState(initialLine?.id ?? "");
+  const line =
+    order?.lines.find((record) => record.id === lineId) ?? initialLine;
+  const remaining = line
+    ? nonNegative(
+        decimalSubtract(line.ordered_packages, line.received_packages),
+      )
+    : "0";
+  const [packages, setPackages] = useState(remaining);
+  const [reference, setReference] = useState("");
+  const [supplierReference, setSupplierReference] = useState("");
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!order || !line) return;
+    void run(
+      "/api/clinic/inventory/shipments",
+      {
+        shipment: {
+          purchase_order_id: order.id,
+          purchase_order_line_id: line.id,
+          reference: reference.trim(),
+          supplier_reference: supplierReference.trim(),
+          package_count: packages,
+        },
+      },
+      "Delivery recorded",
+      `${number(packages)} packages are ready for receiving and put-away.`,
+      () => window.location.assign("/clinic/inventory/receiving"),
+    );
+  };
+  if (!order || !line)
+    return (
+      <Card title="Record delivered shipment">
+        <p>No sent purchase order is ready for delivery intake.</p>
+        <div className="inventory-form-actions">
+          <a
+            className="inventory-button outline"
+            href="/clinic/inventory/purchasing/new"
+          >
+            Create purchase order
+          </a>
+          <a
+            className="inventory-button outline"
+            href="/clinic/inventory/purchasing"
+          >
+            Back to purchasing
+          </a>
+        </div>
+      </Card>
+    );
+  return (
+    <div className="inventory-stack">
+      <a className="inventory-back-link" href="/clinic/inventory/purchasing">
+        ← Back to orders & delivery
+      </a>
+      <div className="inventory-two-col wide-left">
+        <Card title="Delivery intake">
+          <p className="inventory-lead">
+            Record what arrived from the supplier. This marks the shipment
+            delivered; inventory is not available until Receiving confirms the
+            lot and put-away details.
+          </p>
+          <form className="inventory-form-grid" onSubmit={submit}>
+            <Field label="Purchase order">
+              <select
+                value={order.id}
+                onChange={(event) => {
+                  const nextOrder = openOrders.find(
+                    (record) => record.id === event.target.value,
+                  );
+                  const nextLine = nextOrder?.lines.find(
+                    (candidate) =>
+                      decimalCompare(
+                        decimalSubtract(
+                          candidate.ordered_packages,
+                          candidate.received_packages,
+                        ),
+                        "0",
+                      ) > 0,
+                  );
+                  setOrderId(event.target.value);
+                  setLineId(nextLine?.id ?? "");
+                  setPackages(
+                    nextLine
+                      ? nonNegative(
+                          decimalSubtract(
+                            nextLine.ordered_packages,
+                            nextLine.received_packages,
+                          ),
+                        )
+                      : "0",
+                  );
+                }}
+              >
+                {openOrders.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.number} · {record.status.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {order.lines.length > 1 && (
+              <Field label="Order line">
+                <select
+                  value={line.id}
+                  onChange={(event) => {
+                    const nextLine = order.lines.find(
+                      (record) => record.id === event.target.value,
+                    );
+                    setLineId(event.target.value);
+                    setPackages(
+                      nextLine
+                        ? nonNegative(
+                            decimalSubtract(
+                              nextLine.ordered_packages,
+                              nextLine.received_packages,
+                            ),
+                          )
+                        : "0",
+                    );
+                  }}
+                >
+                  {order.lines.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {product(data, record.product_id)?.name ?? record.id}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <Field label="Product">
+              <input
+                value={
+                  product(data, line.product_id)?.name ?? "Unknown catalog item"
+                }
+                readOnly
+              />
+            </Field>
+            <Field
+              label="Packages delivered"
+              hint={`${number(decimalMultiply(packages || "0", line.units_per_package))} ${unitLabel(data, line.product_id)} total · ${number(remaining)} remaining on PO`}
+            >
+              <input
+                type="number"
+                min={1}
+                max={Number(remaining)}
+                step={1}
+                value={packages}
+                onChange={(event) => setPackages(event.target.value)}
+                required
+              />
+            </Field>
+            <Field
+              label="Internal shipment reference"
+              hint="A unique receiving record, such as SHIP-2026-001."
+            >
+              <input
+                value={reference}
+                onChange={(event) => setReference(event.target.value)}
+                maxLength={80}
+                required
+              />
+            </Field>
+            <Field
+              label="Supplier delivery reference"
+              hint="Use the packing slip, tracking, or delivery number."
+            >
+              <input
+                value={supplierReference}
+                onChange={(event) => setSupplierReference(event.target.value)}
+                maxLength={120}
+                required
+              />
+            </Field>
+            <div className="inventory-form-actions">
+              <PermissionNote
+                allowed={capability(data, "inventory.receive")}
+                permission="inventory.receive"
+              />
+              <ConfirmButton
+                disabled={
+                  busy ||
+                  !capability(data, "inventory.receive") ||
+                  !validDecimal(packages) ||
+                  decimalCompare(packages || "0", remaining) > 0 ||
+                  !reference.trim() ||
+                  !supplierReference.trim()
+                }
+                onConfirm={() => {
+                  const fake = new Event("submit") as unknown as FormEvent;
+                  submit(fake);
+                }}
+              >
+                Mark delivered → Receiving
+              </ConfirmButton>
+            </div>
+          </form>
+        </Card>
+        <Card title="Delivery handoff">
+          <div className="inventory-stack compact">
+            <DataPoint
+              label="PO status"
+              value={order.status.replaceAll("_", " ")}
+              detail="Only sent orders can receive deliveries"
+              tone="blue"
+            />
+            <DataPoint
+              label="This shipment"
+              value={`${number(packages)} packages`}
+              detail={`${number(decimalMultiply(packages || "0", line.units_per_package))} ${unitLabel(data, line.product_id)}`}
+            />
+            <DataPoint
+              label="Next screen"
+              value="Receive & put away"
+              detail="Enter lot, expiry, and storage location"
+              tone="success"
+            />
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -1376,6 +2169,7 @@ function PurchasingScreen({
   const packageInfo = packageFor(data, line.package_id);
   const packageUnit = packageInfo?.package_unit ?? "package";
   const baseUnit = item?.base_unit ?? "unit";
+  const [actionReason, setActionReason] = useState("");
   const shipment = data.shipments.find((record) => record.po_id === order.id);
   const cancelledPackages = order.cancelled_remaining_units
     ? decimalCeilDivide(order.cancelled_remaining_units, line.units_per_package)
@@ -1408,7 +2202,7 @@ function PurchasingScreen({
       `/api/clinic/inventory/purchase-orders/${order.id}/transition`,
       {
         status: next[0],
-        reason: `User advanced purchase order to ${next[0]}.`,
+        reason: actionReason.trim(),
       },
       "Purchase order updated",
       `${order.number} is now ${next[0].replaceAll("_", " ")}.`,
@@ -1418,7 +2212,7 @@ function PurchasingScreen({
       `/api/clinic/inventory/purchase-orders/${order.id}/cancel-remainder`,
       {
         status: "cancelled",
-        reason: "User cancelled outstanding remainder",
+        reason: actionReason.trim(),
       },
       "Remainder cancelled",
       "The outstanding quantity was closed; received history remains unchanged.",
@@ -1471,11 +2265,28 @@ function PurchasingScreen({
               {inventoryDateTime(order.ordered_at, data.timezone)}
             </p>
           </div>
+          <Field label="Action reason">
+            <input
+              value={actionReason}
+              onChange={(event) => setActionReason(event.target.value)}
+              maxLength={200}
+              required
+            />
+          </Field>
           <div className="inventory-form-actions">
+            {["sent", "partially_received"].includes(order.status) &&
+              decimalCompare(remaining, "0") > 0 && (
+                <a
+                  className="inventory-button outline"
+                  href={`/clinic/inventory/shipments/new?purchase_order_id=${order.id}`}
+                >
+                  Record delivery
+                </a>
+              )}
             {next && (
               <ConfirmButton
                 tone="outline"
-                disabled={busy || !capability(data, next[2])}
+                disabled={busy || !capability(data, next[2]) || !actionReason.trim()}
                 onConfirm={transition}
               >
                 {next[1]}
@@ -1487,7 +2298,8 @@ function PurchasingScreen({
                 disabled={
                   busy ||
                   decimalCompare(remaining, "0") === 0 ||
-                  !capability(data, "procurement.submit")
+                  !capability(data, "procurement.submit") ||
+                  !actionReason.trim()
                 }
                 onConfirm={cancel}
               >
@@ -1682,7 +2494,7 @@ function ReceivingScreen({
     allocation?.expected_packages ?? "1",
   );
   const [temperature, setTemperature] = useState("");
-  const [reason, setReason] = useState("Shipment receipt");
+  const [reason, setReason] = useState("");
   const selectLot = (value: string, productId = item?.id) => {
     setLotNumber(value);
     const known = data.lots.find(
@@ -2002,7 +2814,7 @@ function LotsScreen({
       data.locations[0]?.id ??
       "",
   );
-  const [reason, setReason] = useState("Documented inventory correction");
+  const [reason, setReason] = useState("");
   const selected = balanceFor(data, selectedId);
   if (!selected)
     return (
@@ -2365,9 +3177,13 @@ function ActivityScreen({ data }: { data: InventoryData }) {
               <tbody>
                 {rows.map((item) => (
                   <tr key={item.id}>
-                    <td>{inventoryDateTime(item.occurred_at, data.timezone)}</td>
                     <td>
-                      <Badge tone={item.direction === "out" ? "warning" : "blue"}>
+                      {inventoryDateTime(item.occurred_at, data.timezone)}
+                    </td>
+                    <td>
+                      <Badge
+                        tone={item.direction === "out" ? "warning" : "blue"}
+                      >
                         {item.type}
                       </Badge>
                     </td>
@@ -2444,6 +3260,7 @@ function RecallScreen({
   const viewState = recallViewState(recall, Boolean(batch));
   const [quantity, setQuantity] = useState<Decimal>(batch?.held_units ?? "0");
   const [evidence, setEvidence] = useState("");
+  const [reason, setReason] = useState("");
   if (!recall || !item)
     return (
       <Card title="Recalls and disposition">
@@ -2461,7 +3278,7 @@ function RecallScreen({
           quantity_units: quantity,
           method: recall.required_disposition,
           evidence_reference: evidence,
-          reason: "Approved recall disposition",
+          reason: reason.trim(),
         },
       },
       "Disposition recorded",
@@ -2642,6 +3459,13 @@ function RecallScreen({
                 placeholder="Required supplier RMA or evidence reference"
               />
             </Field>
+            <Field label="Disposition reason">
+              <textarea
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                required
+              />
+            </Field>
             <PermissionNote
               allowed={capability(data, "recall.dispose")}
               permission="recall.dispose"
@@ -2652,6 +3476,7 @@ function RecallScreen({
                 busy ||
                 !capability(data, "recall.dispose") ||
                 !evidence.trim() ||
+                !reason.trim() ||
                 decimalCompare(quantity || "0", "0") <= 0 ||
                 decimalCompare(quantity || "0", batch.held_units) > 0
               }
@@ -2714,7 +3539,7 @@ function ControlledScreen({
   const certify = () =>
     void run(
       `/api/clinic/inventory/controlled/${reconciliation.count_id}/certify`,
-      { review: { reason: "Authorized certification" } },
+      { review: { reason: note.trim() } },
       "Reconciliation certified",
       "Reconciliation certified.",
     );
@@ -2886,6 +3711,7 @@ function ControlledScreen({
               disabled={
                 busy ||
                 !capability(data, "controlled.certify") ||
+                !note.trim() ||
                 reconciliation.status === "certified"
               }
               onConfirm={certify}

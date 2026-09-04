@@ -28,9 +28,9 @@ module Clinic
       end
 
       def create
-        @product = products.new(params.require(:clinic_pharmacy_product).permit(:name, :generic_name, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
+        @product = products.new(params.require(:clinic_pharmacy_product).permit(:name, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
         Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") { @product.save! }
-        render json: { id: @product.id }, status: :created
+        render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user), id: @product.id }, status: :created
       end
 
       def show
@@ -48,7 +48,7 @@ module Clinic
         product = products.find(params[:id])
         attributes = params.require(:batch).permit(:lot_number, :expires_on, :location, :supplier).to_h
         Clinic::Inventory::Receiving.call(practice: current_practice, actor: current_user, supplier: attributes.delete("supplier"), invoice_reference: params[:invoice_reference], reason: params[:reason], request_key: params[:request_key],
-          lines: [ attributes.merge(product_id: product.id, amount: params[:amount], input_unit: params[:input_unit].presence || "package", unit_cost: params[:unit_cost], currency: params[:currency]) ])
+          lines: [ attributes.merge(product_id: product.id, amount: params[:amount], input_unit: params.require(:input_unit), unit_cost: params[:unit_cost], currency: params[:currency]) ])
         head :no_content
       end
 

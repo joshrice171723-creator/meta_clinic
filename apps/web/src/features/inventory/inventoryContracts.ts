@@ -143,6 +143,7 @@ export type InventoryPurchaseOrderLine = {
   units_per_package: Decimal;
   ordered_units: Decimal;
   package_price: Decimal;
+  currency: string;
   received_units: Decimal;
   received_packages: Decimal;
 };
@@ -151,7 +152,6 @@ export type InventoryPurchaseOrder = {
   number: string;
   status: string;
   supplier: string | null;
-  ship_to_location_id: string;
   destination: string;
   ordered_at: string;
   lines: InventoryPurchaseOrderLine[];
@@ -230,9 +230,6 @@ export type InventoryAuditEvent = {
   actor_id: string;
   entity_id: string;
   occurred_at: string;
-  role?: string;
-  reason?: string;
-  correlation_id?: string;
 };
 export type InventoryData = {
   schema_version: string;

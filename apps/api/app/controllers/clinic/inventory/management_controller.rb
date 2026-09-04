@@ -61,19 +61,20 @@ module Clinic
             supplier = input[:supplier_id].present? ? current_practice.inventory_suppliers.find(input[:supplier_id]) : nil
             subtotal = BigDecimal("0")
             order_currency = nil
-            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: input.require(:destination), reason: input[:reason].presence || "Replenishment request", request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
+            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: input.require(:destination), reason: input.require(:reason), request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
             products = current_practice.pharmacy_products.where(id: rows.map { |row| row[:product_id] }).index_by { |product| product.id.to_s }
             rows.each do |row|
               product = products[row[:product_id].to_s] || raise(ActiveRecord::RecordNotFound)
               quantity = Quantity.parse(row[:quantity].presence || "0", scale: 0)
               package_factor = Quantity.parse(product.package_size.to_s, scale: product.quantity_scale, zero: false)
-              input_unit = row[:input_unit].presence || "package"
+              input_unit = row.require(:input_unit).to_s
               supplied_factor = row[:conversion_factor].presence && Quantity.parse(row[:conversion_factor], scale: product.quantity_scale, zero: false)
               raise ArgumentError, "Purchase orders must use the product's package unit." unless input_unit == "package"
               raise ArgumentError, "The package conversion factor does not match the catalog." if supplied_factor && supplied_factor != package_factor
               factor = package_factor
               price = Quantity.parse(row[:unit_price].presence || "0", scale: 6, zero: true)
-              currency = row[:currency].presence || "USD"
+              currency = row.require(:currency).to_s.upcase
+              raise ArgumentError, "Currency must be a three-letter ISO code." unless currency.match?(/\A[A-Z]{3}\z/)
               if order_currency && order_currency != currency
                 raise ArgumentError, "A purchase order cannot contain multiple currencies."
               end
@@ -98,6 +99,49 @@ module Clinic
 
       def cancel_remainder
         transition_purchase_order
+      end
+
+      def create_shipment
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.receive")
+        input = (params[:shipment].presence || params).permit(:purchase_order_id, :purchase_order_line_id, :reference, :supplier_reference, :package_count, :delivered_at, :request_key)
+        request_key = input.require(:request_key).to_s
+        validate_request_key!(request_key)
+        payload_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
+        shipment = Shipment.transaction do
+          Access.retry_lock(current_practice.id, request_key)
+          existing = current_practice.inventory_shipments.find_by(request_key: request_key)
+          if existing
+            raise ArgumentError, "This shipment form was already used for different data." unless existing.payload_digest == payload_digest
+            existing
+          else
+            order = purchase_orders_scope.find(input.require(:purchase_order_id))
+            raise ArgumentError, "Only sent or partially received purchase orders can receive a delivery." unless %w[sent partially_received].include?(order.status)
+            line = order.lines.where(practice_id: current_practice.id).find(input.require(:purchase_order_line_id))
+            packages = Integer(input.require(:package_count).to_s, 10)
+            raise ArgumentError, "Shipment quantity must be a positive whole number of packages." unless packages.positive?
+            raise ArgumentError, "Shipment quantity exceeds the remaining purchase-order quantity." if packages.to_d > line.remaining_quantity
+            reference = input.require(:reference).to_s.strip
+            supplier_reference = input.require(:supplier_reference).to_s.strip
+            raise ArgumentError, "Shipment reference is required." if reference.blank?
+            raise ArgumentError, "Supplier delivery reference is required." if supplier_reference.blank?
+            delivered_at = input[:delivered_at].present? ? Time.iso8601(input[:delivered_at].to_s) : Time.current
+            shipment = current_practice.inventory_shipments.create!(
+              actor: current_user,
+              purchase_order: order,
+              reference: reference,
+              supplier_reference: supplier_reference,
+              status: "delivered",
+              package_count: packages,
+              expected_units: packages * line.conversion_factor,
+              delivered_at: delivered_at,
+              request_key: request_key,
+              payload_digest: payload_digest
+            )
+            shipment.shipment_lines.create!(practice_id: current_practice.id, purchase_order_line: line, expected_packages: packages)
+            shipment
+          end
+        end
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: shipment.id }, status: :created
       end
 
       def create_receipt
@@ -128,7 +172,7 @@ module Clinic
         elsif input[:recall_id].present?
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
-        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input[:reason].presence || "Shipment receipt", request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
+        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: "package", area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), receipt_id: receipt.id }
       end
 
@@ -214,7 +258,7 @@ module Clinic
         input = params[:review].presence || params
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
-        ControlReview.record!(count: count, actor: current_user, kind: "certification", reason: input[:reason].presence || "Controlled reconciliation certified", request_key: request_key)
+        ControlReview.record!(count: count, actor: current_user, kind: "certification", reason: input.require(:reason), request_key: request_key)
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 

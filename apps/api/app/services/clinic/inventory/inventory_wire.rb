@@ -2,6 +2,7 @@ module Clinic
   module Inventory
     module InventoryWire
       module_function
+      PACKAGE_INPUT_UNIT = "package".freeze
 
       def call(practice:, actor:)
         products = PharmacyProduct.where(practice_id: practice.id).order(:name, :id).to_a
@@ -16,7 +17,7 @@ module Clinic
         batches_by_lot = batches.group_by(&:lot_id)
         inventory_date = practice.inventory_date
         lots = batches.map(&:lot).compact.uniq(&:id)
-        locations = batches.map(&:location_record).compact.uniq(&:id)
+        locations = practice.inventory_locations.order(:name, :id).to_a
         recalls = Recall.where(practice_id: practice.id).includes(
           :product,
           :dispositions,
@@ -44,7 +45,7 @@ module Clinic
         ).order(id: :desc).limit(200).to_a
         {
           schema_version: "inventory-wire-v1",
-          dataset_version: "1.0.0",
+          dataset_version: "bulk_v3",
           data_version: practice.inventory_profiles.maximum(:version) || 0,
           as_of: Time.current.iso8601,
           timezone: practice.timezone,
@@ -92,7 +93,7 @@ module Clinic
       end
 
       def package_wire(product)
-        { id: "pkg_#{product.id}", product_id: product.id.to_s, description: product.package_description.presence, package_unit: "package", units_per_package: product.package_size.to_d.to_s("F") }
+        { id: "pkg_#{product.id}", product_id: product.id.to_s, description: product.package_description.presence, package_unit: PACKAGE_INPUT_UNIT, units_per_package: product.package_size.to_d.to_s("F") }
       end
 
       def lot_wire(lot, batches_by_lot, recalls, active_holds_by_batch)
@@ -113,11 +114,11 @@ module Clinic
         quantity = movement.quantity.to_d
         receipt = movement.receipt_line&.receipt
         type = movement.kind
-        { id: movement.id.to_s, type: type, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s, quantity_units: quantity.abs.to_s("F"), direction: quantity.negative? ? "out" : "in", source_id: receipt ? "receipt_#{receipt.id}" : movement.request_key.to_s, occurred_at: movement.occurred_at.iso8601, actor_id: movement.actor_id&.to_s, reason: movement.reason, before_units: nil, after_units: nil }
+        { id: movement.id.to_s, type: type, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s, quantity_units: quantity.abs.to_s("F"), direction: quantity.negative? ? "out" : "in", source_id: receipt ? "receipt_#{receipt.id}" : movement.request_key.to_s, occurred_at: movement.occurred_at.iso8601, actor_id: movement.actor_id&.to_s, reason: movement.reason }
       end
 
       def purchase_order_wire(order)
-        { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, ship_to_location_id: order.destination, destination: order.destination, ordered_at: order.created_at.iso8601, lines: order.lines.map { |line| { id: line.id.to_s, product_id: line.product_id.to_s, package_id: package_wire(line.product)[:id], ordered_packages: line.ordered_quantity.to_d.to_s("F"), units_per_package: line.conversion_factor.to_d.to_s("F"), ordered_units: line.ordered_units.to_d.to_s("F"), package_price: line.unit_price.to_d.to_s("F"), received_units: line.received_units.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F") } }, subtotal: order.subtotal.to_d.to_s("F"), tax: order.tax.to_d.to_s("F"), shipping: order.shipping.to_d.to_s("F"), total: order.total.to_d.to_s("F"), cancelled_remaining_units: order.status == "cancelled" ? order.lines.sum { |line| line.remaining_quantity.to_d }.to_s("F") : "0" }
+        { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, destination: order.destination, ordered_at: order.created_at.iso8601, lines: order.lines.map { |line| { id: line.id.to_s, product_id: line.product_id.to_s, package_id: package_wire(line.product)[:id], ordered_packages: line.ordered_quantity.to_d.to_s("F"), units_per_package: line.conversion_factor.to_d.to_s("F"), ordered_units: line.ordered_units.to_d.to_s("F"), package_price: line.unit_price.to_d.to_s("F"), currency: line.currency, received_units: line.received_units.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F") } }, subtotal: order.subtotal.to_d.to_s("F"), tax: order.tax.to_d.to_s("F"), shipping: order.shipping.to_d.to_s("F"), total: order.total.to_d.to_s("F"), cancelled_remaining_units: order.status == "cancelled" ? order.lines.sum { |line| line.remaining_quantity.to_d }.to_s("F") : "0" }
       end
 
       def shipment_wire(shipment)
@@ -148,7 +149,7 @@ module Clinic
       end
 
       def audit_wire(event)
-        { id: event.id.to_s, action: event.action_code, actor_id: event.actor_session_reference.to_s.sub(/^user:/, ""), entity_id: event.resource_manifests.first&.protected_resource_version_ref || event.id.to_s, occurred_at: event.occurred_at.iso8601, role: nil, reason: nil, correlation_id: event.id.to_s }
+        { id: event.id.to_s, action: event.action_code, actor_id: event.actor_session_reference.to_s.sub(/^user:/, ""), entity_id: event.resource_manifests.first&.protected_resource_version_ref, occurred_at: event.occurred_at.iso8601 }
       end
 
       def transfer_wire(transfer)
