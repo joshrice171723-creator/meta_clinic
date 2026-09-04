@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import CloseIcon from "@mui/icons-material/Close";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LaunchIcon from "@mui/icons-material/Launch";
 import MenuIcon from "@mui/icons-material/Menu";
 import PublicIcon from "@mui/icons-material/Public";
@@ -35,7 +36,21 @@ export function ClinicFrame({
   const [collapsed, setCollapsed] = useState(compactNavigation);
   const tab = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
+  const locationMenu = useRef<HTMLDivElement>(null);
+  const locationTrigger = useRef<HTMLButtonElement>(null);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [highlightedLocation, setHighlightedLocation] = useState(0);
   const drawer = compact && !collapsed;
+  const selectedLocation = locations.find(
+    (site) => site.id === selectedLocationId,
+  );
+  const visibleLocationName =
+    locationName || selectedLocation?.name || selectedLocation?.code;
+  const selectLocation = (siteId: number) => {
+    setLocationMenuOpen(false);
+    onLocationChange?.(siteId);
+    locationTrigger.current?.focus();
+  };
   const close = () => {
     setCollapsed(true);
     tab.current?.focus();
@@ -62,6 +77,28 @@ export function ClinicFrame({
       document.body.style.overflow = previousOverflow;
     };
   }, [drawer]);
+  useEffect(() => {
+    const selectedIndex = locations.findIndex(
+      (site) => site.id === selectedLocationId,
+    );
+    setHighlightedLocation(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [locations, selectedLocationId]);
+  useEffect(() => {
+    if (locationMenuOpen) locationMenu.current?.focus();
+  }, [locationMenuOpen]);
+  useEffect(() => {
+    if (!locationMenuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (
+        !locationMenu.current?.parentElement?.contains(event.target as Node)
+      ) {
+        setLocationMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () =>
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [locationMenuOpen]);
   return (
     <div className="clinic-shell" data-collapsed={collapsed}>
       {drawer && (
@@ -140,23 +177,111 @@ export function ClinicFrame({
             <span className="practice-location">
               <small>Location</small>
               {locations.length > 1 ? (
-                <select
-                  aria-label="Current clinic location"
-                  value={selectedLocationId ?? ""}
-                  onChange={(event) => {
-                    if (event.target.value)
-                      onLocationChange?.(Number(event.target.value));
-                  }}
-                >
-                  <option value="">Select a location</option>
-                  {locations.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name || site.code}
-                    </option>
-                  ))}
-                </select>
+                <span className="practice-location-picker">
+                  <button
+                    ref={locationTrigger}
+                    type="button"
+                    className="practice-location-trigger"
+                    aria-controls="clinic-location-options"
+                    aria-expanded={locationMenuOpen}
+                    aria-haspopup="listbox"
+                    onClick={() => setLocationMenuOpen((open) => !open)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "ArrowDown" ||
+                        event.key === "ArrowUp" ||
+                        event.key === "Enter" ||
+                        event.key === " "
+                      ) {
+                        event.preventDefault();
+                        setHighlightedLocation(
+                          Math.max(
+                            0,
+                            locations.findIndex(
+                              (site) => site.id === selectedLocationId,
+                            ),
+                          ),
+                        );
+                        setLocationMenuOpen(true);
+                      }
+                    }}
+                  >
+                    <span className="practice-location-trigger-name">
+                      {visibleLocationName || "Select a location"}
+                    </span>
+                    <ExpandMoreIcon
+                      aria-hidden="true"
+                      className="practice-location-chevron"
+                      fontSize="small"
+                    />
+                  </button>
+                  {locationMenuOpen && (
+                    <div
+                      id="clinic-location-options"
+                      ref={locationMenu}
+                      className="practice-location-menu"
+                      role="listbox"
+                      aria-label="Current clinic location"
+                      tabIndex={-1}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setLocationMenuOpen(false);
+                          locationTrigger.current?.focus();
+                        } else if (event.key === "ArrowDown") {
+                          event.preventDefault();
+                          setHighlightedLocation(
+                            (highlightedLocation + 1) % locations.length,
+                          );
+                        } else if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          setHighlightedLocation(
+                            (highlightedLocation - 1 + locations.length) %
+                              locations.length,
+                          );
+                        } else if (event.key === "Home") {
+                          event.preventDefault();
+                          setHighlightedLocation(0);
+                        } else if (event.key === "End") {
+                          event.preventDefault();
+                          setHighlightedLocation(locations.length - 1);
+                        } else if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          const site = locations[highlightedLocation];
+                          if (site) selectLocation(site.id);
+                        }
+                      }}
+                    >
+                      <span className="practice-location-menu-heading">
+                        Switch location
+                      </span>
+                      {locations.map((site, index) => (
+                        <button
+                          key={site.id}
+                          type="button"
+                          role="option"
+                          aria-selected={site.id === selectedLocationId}
+                          className="practice-location-option"
+                          data-highlighted={index === highlightedLocation}
+                          tabIndex={-1}
+                          onMouseEnter={() => setHighlightedLocation(index)}
+                          onClick={() => selectLocation(site.id)}
+                        >
+                          <span>{site.name || site.code}</span>
+                          {site.id === selectedLocationId && (
+                            <span className="practice-location-current">
+                              Current
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </span>
               ) : (
-                <span>{locationName || "No location selected"}</span>
+                <span className="practice-location-value">
+                  {locationName || "No location selected"}
+                </span>
               )}
             </span>
           </div>
