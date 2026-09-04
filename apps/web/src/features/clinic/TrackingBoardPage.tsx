@@ -1020,10 +1020,10 @@ function ExampleVisitRow({
   );
 }
 export function TrackingBoardView({
-  visits = EXAMPLE_VISITS,
+  visits = [],
   now = EXAMPLE_CLOCK,
   timezone = "UTC",
-  synthetic = true,
+  synthetic = false,
   myClinicianId = null,
   truncated = false,
   stale = false,
@@ -1549,6 +1549,8 @@ export function OverviewView({
   return (
     <TrackingBoardView
       timezone={timezone}
+      visits={EXAMPLE_VISITS}
+      synthetic
       myClinicianId="example-clinician-am"
     />
   );
