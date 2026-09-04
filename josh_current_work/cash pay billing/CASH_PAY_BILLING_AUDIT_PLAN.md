@@ -25,7 +25,7 @@ Never label a synthetic adapter, offline gate, or passing unit test as a live pr
 
 - Source inspected: `Clinic::PatientPortal::BaseController`, `ContextController`, `DevelopmentPatientController`, the dormant-action controllers, the patient portal contracts/UI, and the integration test. The local implementation is billing-only, assigned-patient scoped for ordinary patients, practice-scoped/session-scoped/read-only for Omni, and denies dormant nonbilling actions.
 - Automated pass: `npm test` — 15 files / 163 tests; Ruby syntax, routes-contract JSON, vault, release-readiness, and whitespace checks pass.
-- Unresolved: the focused Rails portal run produced fixture deadlock/lock-wait errors; the isolated Omni run exposed and repaired the unavailable `requested_id!` helper in `e3e734d`, but a clean post-repair Rails completion is not available.
+- Automated pass: `ruby bin/postgres exec ruby bin/rails test test/integration/patient_portal_test.rb` — 4 runs / 39 assertions / 0 failures / 0 errors after repairing the unavailable `requested_id!` helper in `bd5fa6c`.
 - Blocked: web typecheck/build stop on unrelated missing staff-messaging and inventory symbols; browser/API evidence is unavailable; production identity, privacy/security, accessibility, document/payment, operations, deployment, and go/no-go gates remain blocked.
 
 ### Shipped locally and pushed

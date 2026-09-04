@@ -16,7 +16,7 @@ This checkpoint implements the owner-approved local billing-only patient portal 
 
 ## Verification status
 
-The focused Rails integration test and web checks are run after implementation and recorded in the final handoff. No browser acceptance or formal audit is claimed by this document.
+The focused Rails integration passed 4 runs / 39 assertions / 0 failures / 0 errors. Web Vitest passed 15 files / 163 tests. Web typecheck/build remain blocked by unrelated shared-workspace symbols, and no browser acceptance is claimed by this document. The parent closeout performed the formal consolidated audit after implementation.
 
 ## Remaining blocked gates
 

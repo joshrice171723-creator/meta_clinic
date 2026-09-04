@@ -18,6 +18,8 @@ Scope: owner-approved billing-only portal slice with Omni development preview
 
 `apps/api/test/integration/patient_portal_test.rb` covers billing-only projection omission, dormant-action denial, Omni patient switching, session isolation, invalid/cross-scope patient IDs, and ordinary-patient denial of the preview switch.
 
+Verification: the focused Rails integration passes 4 runs / 39 assertions / 0 failures / 0 errors. Web Vitest passes 15 files / 163 tests. Shared web typecheck/build remain blocked by unrelated missing staff-messaging and inventory symbols; browser acceptance remains unverified.
+
 ## Explicit exclusions and remaining gates
 
 No production identity provider, real data, production impersonation, payment collection, Stripe/provider integration, PDF/email delivery, checks/OCR, card-present equipment, Superbills, clinical release, appointment booking, intake, reminders, messaging/refills, deployment, or professional/security/finance/operations/accessibility acceptance was introduced.
