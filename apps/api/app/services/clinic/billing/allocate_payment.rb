@@ -5,8 +5,8 @@ module Clinic
         Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.payment_record", legacy_action: "billing.write")
         patient = practice.patients.find(patient.id)
         invoice = practice.invoices.find(invoice.id)
-        allocation_amount = Money.decimal(amount, name: "allocation", positive: true)
-        payment_amount = Money.decimal(payment_amount || amount, name: "payment", positive: true)
+        allocation_amount = Money.currency_amount(amount, name: "allocation", positive: true)
+        payment_amount = Money.currency_amount(payment_amount || amount, name: "payment", positive: true)
         raise ArgumentError, "The invoice must be posted before payment allocation." unless invoice.status == "posted"
         raise ArgumentError, "The invoice must belong to the selected patient." unless invoice.patient_id == patient.id
         raise ArgumentError, "Payment currency must match the invoice currency." unless currency.to_s == invoice.currency

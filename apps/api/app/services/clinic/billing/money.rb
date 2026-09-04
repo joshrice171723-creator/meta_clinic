@@ -19,6 +19,13 @@ module Clinic
         raise ArgumentError, "#{name} must be an exact decimal amount."
       end
 
+      def self.currency_amount(value, name: "amount", positive: false)
+        number = decimal(value, name: name, positive: positive)
+        raise ArgumentError, "#{name} must use no more than two decimal places." unless number == number.round(SCALE)
+
+        number
+      end
+
       def self.line_total(quantity:, unit_amount:)
         quantity = decimal(quantity, name: "quantity", positive: true)
         unit_amount = decimal(unit_amount, name: "unit amount")
