@@ -1,45 +1,55 @@
 # Roadmap coordination contract
 
-This directory is a living roadmap workspace for APPly-related capabilities. Its contents are intentionally fluid: capabilities, phases, build plans, audit plans, evidence, and handoffs may be added, revised, superseded, or removed over time.
+This directory is the living capability-roadmap workspace inside the APPly Git repository at `josh_current_work/`. Capabilities, phases, build plans, audit plans, evidence, and handoffs may be added, revised, superseded, renamed, or removed over time.
 
-## Scope and authority
+## What lives where
 
-- `ROADMAP_INDEX.md` is the current navigation map. It is not a permanent list of capabilities and must be rediscovered on every task.
-- Each capability's `ROADMAP.md` owns its sequencing and completion criteria.
-- Each capability's `*_BUILD_PLAN.md` describes proposed implementation slices.
-- Each capability's `*_AUDIT_PLAN.md` describes evidence and negative checks required for acceptance.
-- `AGENT_*_HANDOFF.md` and `AGENT_*_EVIDENCE.md` record agent results; they are not acceptance by themselves.
-- Actual implementation belongs in the owning application repository, especially `C:\Users\joshr\Desktop\Work\APPly` when the work is APPly work.
-- The owning application repository's `AGENTS.md`, source, tests, migrations, and runbooks are authoritative for implementation behavior and repository operations.
+- `ROADMAP_INDEX.md` is the current navigation map for this workspace. It is not a permanent list; rediscover the directory contents on every task.
+- Each capability's `ROADMAP.md` owns its sequencing, scope, dependencies, and completion criteria.
+- Each capability's `*_BUILD_PLAN.md` describes proposed implementation slices and boundaries.
+- Each capability's `*_AUDIT_PLAN.md` describes evidence, negative tests, and release gates.
+- `AGENT_*_HANDOFF.md` and `AGENT_*_EVIDENCE.md` record agent results. They are not acceptance by themselves.
+- The top-level `C:\Users\joshr\Desktop\Work\APPly\ROADMAP_PROGRESS.md` is the concise estimate view for developers. It is not a second task register and does not replace evidence.
+- APPlyVault owns durable APPly status, decisions, risks, and dated progress. Use `APPlyVault/03 Execution/Roadmap and Tasks.md` for task status, `Decisions.md` for explicit decisions, `Risks and Assumptions.md` for open uncertainty, and `Progress Log.md` for meaningful dated outcomes.
+- Actual implementation belongs in the owning application repository: `C:\Users\joshr\Desktop\Work\APPly`. The owning repository's source, tests, migrations, runbooks, root `AGENTS.md`, and nearest nested `AGENTS.md` are authoritative for implementation behavior.
 
-## Required discovery on every task
+## Required workflow
 
-1. Read this file and inspect the current directory tree; do not assume yesterday's files, capability list, or plan still exists.
-2. Read `ROADMAP_INDEX.md` if present, then verify every referenced path exists.
-3. Discover newly added capability folders and documents with the filesystem rather than relying only on the index.
-4. Identify removed, renamed, superseded, duplicate, or orphaned roadmap documents and report them explicitly.
-5. Read the relevant capability `ROADMAP.md`, build plan, audit plan, evidence, and handoff files that actually exist.
-6. If implementation is requested, inspect the owning application repository and its nearest `AGENTS.md` before making changes.
-7. Re-scan the workspace immediately before writing when concurrent edits are possible.
+1. Read this file and the APPly root `AGENTS.md`.
+2. Inspect the current directory tree and read `ROADMAP_INDEX.md` if present. Do not assume the capability list or any referenced file is unchanged.
+3. Verify index links and discover newly added, removed, renamed, superseded, duplicate, or orphaned documents.
+4. Read the relevant capability `ROADMAP.md`, build plan, audit plan, evidence, and handoff files that actually exist.
+5. If implementation is requested, run from the APPly repository root:
 
-## Adding and removing roadmap material
+   ```powershell
+   python3 -B bin/agent-preflight --path josh_current_work/<capability>
+   ```
 
-- Adding a capability is normal. Give it a clear folder and roadmap identity, add the documents that are applicable, and update `ROADMAP_INDEX.md` in the same change.
-- Removing or retiring a capability is normal. Update the index and mark or relocate historical material as superseded when practical; do not silently erase evidence or rewrite historical claims.
+6. Inspect the actual source and tests in the owning repository before trusting a planning path or agent claim.
+7. Before any write, check `git status --short`, preserve unrelated/concurrent changes, and re-scan when concurrent edits are possible.
+8. Use the owning APPly workflow and skill: `$plan` for read-only investigation and `$act` for an authorized implementation slice.
+9. Before handoff, run `python3 -B bin/agent-check` to list applicable checks, then run the selected checks with `python3 -B bin/agent-check --run`. Inspect `git diff --check` and the final diff.
+
+## Adding, removing, and changing roadmaps
+
+- Adding a capability is expected. Create the applicable roadmap/build/audit artifacts and update `ROADMAP_INDEX.md` in the same change.
+- Removing or retiring a capability is expected. Update the index and mark or relocate historical material as `superseded` or `retired` when practical; do not silently erase evidence.
 - Renaming or moving a capability requires repairing links and recording what changed.
-- An absent document is not evidence that a capability is complete, cancelled, or approved. Record the missing artifact and its effect on conclusions.
-- Do not maintain a second hidden task register or copy changing product status into this contract.
+- An absent document is not evidence of completion, cancellation, or approval. Report the missing artifact and its effect on the conclusion.
+- Update `ROADMAP_PROGRESS.md` after meaningful evidence or status changes, not after every wording or file-list change.
+- Update APPlyVault only when a roadmap change materially changes an APPly task status, decision, risk, or verified dated outcome. Do not duplicate the detailed roadmap set in the vault.
+- Keep changing status out of this `AGENTS.md`; this file should remain stable operating guidance.
 - Preserve unknowns as unknowns. Do not invent owners, dates, approvals, requirements, costs, sources, or completion.
 
 ## Parallel-agent rules
 
-- First produce a read-only execution matrix before dispatching work.
+- First produce a read-only execution matrix before dispatching implementation work.
 - Select no more than three independent slices at once unless a later review proves more parallelism is safe.
-- Give each agent one bounded roadmap task, an isolated branch/worktree in the owning code repository, explicit file ownership, exclusions, dependencies, and acceptance checks.
+- Give each agent one bounded roadmap task, an isolated APPly branch/worktree, explicit file ownership, exclusions, dependencies, and acceptance checks.
 - Never parallelize agents that modify the same files, migrations, shared contracts, shared roadmap/status documents, or the same mutable database/runtime.
-- Do not let parallel agents edit `ROADMAP_INDEX.md`, shared status, decisions, or progress records simultaneously. A coordinator updates those after reviewing evidence.
-- Use the owning repository's harness, workflows, skills, tests, and commit rules. This folder does not grant implementation, deployment, production, clinical, professional, financial, or external-communication authority.
-- Use synthetic/local data only. Do not use real patient or confidential applicant data, production access, external messages, purchases, or destructive operations without explicit authorization.
+- The coordinator owns `ROADMAP_INDEX.md`, top-level `ROADMAP_PROGRESS.md`, APPlyVault status/decision/progress updates, and integration of agent branches. Parallel agents must not edit those shared records simultaneously.
+- Use the owning repository's harness, workflows, skills, tests, and commit rules. This directory does not grant deployment, production, clinical, professional, financial, release, or external-communication authority.
+- Use synthetic/local data only. No real patient or confidential applicant data, production access, external messages, purchases, or destructive database actions without explicit authorization.
 
 ## Completion vocabulary
 
@@ -53,18 +63,18 @@ Keep these states distinct:
 - `backlog`: intentionally not started.
 - `superseded` or `retired`: no longer current; preserve the historical record where appropriate.
 
-Code completion, local verification, audit evidence, professional review, release approval, and production acceptance are separate events. Do not promote one into another.
+Code completion, local verification, audit evidence, professional review, release approval, and production acceptance are separate events. Do not promote one into another. The percentage estimates in `ROADMAP_PROGRESS.md` are coordination estimates, not acceptance decisions.
 
 ## Handoff and change discipline
 
 Every agent handoff should state:
 
 - requested outcome and explicit exclusions;
-- current roadmap/task identity and owning repository;
+- roadmap/task identity and owning repository;
 - files and behavior changed or documents added/removed;
 - dependencies, human decisions, and remaining gates;
 - commands and checks actually run, including checks not run;
 - branch/worktree, commit, and working-tree state;
 - evidence supporting the claimed status and the safest next action.
 
-After changing roadmap documents, inspect links, diff, and concurrent changes. Keep index updates, status changes, evidence links, and archival moves coherent. Do not claim completion from a plan, link, screenshot, build result, or agent summary alone.
+After changing roadmap documents, inspect links, `git diff --check`, the final diff, and concurrent changes. Keep index updates, status estimates, evidence links, and archival moves coherent. Do not claim completion from a plan, link, screenshot, build result, or agent summary alone.
