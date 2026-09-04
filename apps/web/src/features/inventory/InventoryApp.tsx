@@ -152,29 +152,6 @@ const links: {
   },
 ];
 
-const workflowLinks = [
-  {
-    label: "Check stock",
-    href: "/clinic/inventory",
-    screen: "catalog" as Screen,
-  },
-  {
-    label: "Plan an order",
-    href: "/clinic/inventory/replenishment",
-    screen: "replenishment" as Screen,
-  },
-  {
-    label: "Receive delivery",
-    href: "/clinic/inventory/receiving",
-    screen: "receiving" as Screen,
-  },
-  {
-    label: "Resolve exceptions",
-    href: "/clinic/inventory/recalls",
-    screen: "recalls" as Screen,
-  },
-];
-
 const screenDescriptions: Record<Screen, string> = {
   catalog: "Monitor availability, lot exceptions, and replenishment signals.",
   catalog_new: "Add a product definition before ordering or receiving stock.",
@@ -1076,7 +1053,7 @@ function PurchaseOrderCreateScreen({
       <a className="inventory-back-link" href="/clinic/inventory">
         ← Back to inventory overview
       </a>
-      <div className="inventory-two-col wide-left">
+      <div>
         <Card title="Purchase order details">
           <p className="inventory-lead">
             Order any active catalog item. This creates a draft only; stock is
@@ -1196,30 +1173,6 @@ function PurchaseOrderCreateScreen({
               </ConfirmButton>
             </div>
           </form>
-        </Card>
-        <Card title="Order preview">
-          <div className="inventory-stack compact">
-            <DataPoint
-              label="Item"
-              value={item.name}
-              detail={`${number(item.units_per_package)} ${item.base_unit} per package`}
-            />
-            <DataPoint
-              label="Available now"
-              value={`${number(item.available_units)} ${item.base_unit}`}
-            />
-            <DataPoint
-              label="Incoming after draft"
-              value={`${number(decimalMultiply(quantity || "0", item.units_per_package))} ${item.base_unit}`}
-              tone="blue"
-            />
-            <DataPoint
-              label="Draft status"
-              value="Needs review"
-              detail="Submit, approve, then mark sent"
-              tone="warning"
-            />
-          </div>
         </Card>
       </div>
     </div>
@@ -1567,22 +1520,6 @@ export function InventoryApp({ path }: { path: string }) {
                   </div>
                 ),
               )}
-            </nav>
-            <nav
-              className="inventory-workflow"
-              aria-label="Daily inventory flow"
-            >
-              <span className="inventory-workflow-label">Daily flow</span>
-              {workflowLinks.map((item, index) => (
-                <a
-                  href={item.href}
-                  key={item.screen}
-                  aria-current={screen === item.screen ? "step" : undefined}
-                >
-                  <span>{index + 1}</span>
-                  {item.label}
-                </a>
-              ))}
             </nav>
             {data.configuration?.status !== "configured" && (
               <div className="inventory-warning strong" role="status">
