@@ -5,6 +5,11 @@
     "/api/clinic/inventory/:id/adjust(.:format)"
   ],
   [
+    "allocations_api_clinic_payment_event",
+    "POST",
+    "/api/clinic/payment_events/:id/allocations(.:format)"
+  ],
+  [
     "api",
     "POST",
     "/api/materials/:material_id/start(.:format)"
@@ -23,6 +28,11 @@
     "api_clinic_billing",
     "GET",
     "/api/clinic/billing(.:format)"
+  ],
+  [
+    "api_clinic_cash_drawers",
+    "GET",
+    "/api/clinic/cash_drawers(.:format)"
   ],
   [
     "api_clinic_clinicians",
@@ -78,11 +88,6 @@
     "api_clinic_inventory_index",
     "GET",
     "/api/clinic/inventory(.:format)"
-  ],
-  [
-    "api_clinic_inventory_management",
-    "GET",
-    "/api/clinic/inventory/purchase-orders/:id(.:format)"
   ],
   [
     "api_clinic_inventory_management",
@@ -210,6 +215,16 @@
     "/api/clinic/patients/:patient_id/observations(.:format)"
   ],
   [
+    "api_clinic_patient_portal",
+    "POST",
+    "/api/clinic/patient_portal/identities/:id/revoke(.:format)"
+  ],
+  [
+    "api_clinic_patient_portal_invitations",
+    "POST",
+    "/api/clinic/patient_portal/invitations(.:format)"
+  ],
+  [
     "api_clinic_patients",
     "GET",
     "/api/clinic/patients(.:format)"
@@ -240,6 +255,16 @@
     "/api/clinic/pharmacy_batches/:id/movement(.:format)"
   ],
   [
+    "api_clinic_reminder",
+    "GET",
+    "/api/clinic/reminders/:id(.:format)"
+  ],
+  [
+    "api_clinic_reminders",
+    "GET",
+    "/api/clinic/reminders(.:format)"
+  ],
+  [
     "api_clinic_role_grants",
     "GET",
     "/api/clinic/role_grants(.:format)"
@@ -253,6 +278,16 @@
     "api_clinic_root",
     "GET",
     "/api/clinic(.:format)"
+  ],
+  [
+    "api_clinic_scribe_encounter",
+    "GET",
+    "/api/clinic/scribe/encounters/:id(.:format)"
+  ],
+  [
+    "api_clinic_scribe_encounters",
+    "POST",
+    "/api/clinic/scribe/encounters(.:format)"
   ],
   [
     "api_clinic_staff",
@@ -315,6 +350,51 @@
     "/api/paperworks(.:format)"
   ],
   [
+    "api_patient_portal",
+    "POST",
+    "/api/patient_portal/reminders/:id/actions(.:format)"
+  ],
+  [
+    "api_patient_portal_appointment_requests",
+    "GET",
+    "/api/patient_portal/appointment_requests(.:format)"
+  ],
+  [
+    "api_patient_portal_context",
+    "GET",
+    "/api/patient_portal/context(.:format)"
+  ],
+  [
+    "api_patient_portal_invitation_activate",
+    "POST",
+    "/api/patient_portal/invitation/activate(.:format)"
+  ],
+  [
+    "api_patient_portal_recovery",
+    "POST",
+    "/api/patient_portal/recovery(.:format)"
+  ],
+  [
+    "api_patient_portal_reminder_preferences",
+    "GET",
+    "/api/patient_portal/reminder_preferences(.:format)"
+  ],
+  [
+    "api_patient_portal_reminders",
+    "GET",
+    "/api/patient_portal/reminders(.:format)"
+  ],
+  [
+    "api_patient_portal_requests",
+    "GET",
+    "/api/patient_portal/requests(.:format)"
+  ],
+  [
+    "api_patient_portal_step_up",
+    "POST",
+    "/api/patient_portal/step_up(.:format)"
+  ],
+  [
     "api_session",
     "GET",
     "/api/session(.:format)"
@@ -325,9 +405,44 @@
     "/api/settings(.:format)"
   ],
   [
+    "approve_api_clinic_scribe_draft",
+    "POST",
+    "/api/clinic/scribe/drafts/:id/approve(.:format)"
+  ],
+  [
+    "billing_ledger_api_clinic_patient",
+    "GET",
+    "/api/clinic/patients/:id/billing_ledger(.:format)"
+  ],
+  [
+    "cancel_api_clinic_reminder",
+    "POST",
+    "/api/clinic/reminders/:id/cancel(.:format)"
+  ],
+  [
+    "cash_payments_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/cash_payments(.:format)"
+  ],
+  [
+    "cash_refunds_api_clinic_payment_event",
+    "POST",
+    "/api/clinic/payment_events/:id/cash_refunds(.:format)"
+  ],
+  [
+    "close_api_clinic_cash_drawer",
+    "POST",
+    "/api/clinic/cash_drawers/:id/close(.:format)"
+  ],
+  [
     "close_api_clinic_encounter",
     "POST",
     "/api/clinic/encounters/:id/close(.:format)"
+  ],
+  [
+    "consent_api_clinic_scribe_encounter",
+    "POST",
+    "/api/clinic/scribe/encounters/:id/consent(.:format)"
   ],
   [
     "delivery_events_api_clinic_message_intent",
@@ -335,14 +450,39 @@
     "/api/clinic/message_intents/:id/delivery_events(.:format)"
   ],
   [
+    "delivery_events_api_clinic_reminder",
+    "POST",
+    "/api/clinic/reminders/:id/delivery_events(.:format)"
+  ],
+  [
     "demo_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/demo(.:format)"
   ],
   [
+    "dispatch_api_clinic_reminder",
+    "POST",
+    "/api/clinic/reminders/:id/dispatch(.:format)"
+  ],
+  [
     "download_api_clinic_document",
     "GET",
     "/api/clinic/documents/:id/download(.:format)"
+  ],
+  [
+    "draft_api_clinic_invoice",
+    "PATCH",
+    "/api/clinic/invoices/:id/draft(.:format)"
+  ],
+  [
+    "export_api_clinic_scribe_draft",
+    "POST",
+    "/api/clinic/scribe/drafts/:id/export(.:format)"
+  ],
+  [
+    "generate_api_clinic_scribe_encounter",
+    "POST",
+    "/api/clinic/scribe/encounters/:id/generate(.:format)"
   ],
   [
     "import_api_clinic_pharmacy_index",
@@ -363,6 +503,11 @@
     "note_api_clinic_patient",
     "POST",
     "/api/clinic/patients/:id/note(.:format)"
+  ],
+  [
+    "pause_api_clinic_reminder",
+    "POST",
+    "/api/clinic/reminders/:id/pause(.:format)"
   ],
   [
     "payment_allocations_api_clinic_invoice",
@@ -390,6 +535,11 @@
     "/up(.:format)"
   ],
   [
+    "receipt_api_clinic_payment_event",
+    "GET",
+    "/api/clinic/payment_events/:id/receipt(.:format)"
+  ],
+  [
     "receipt_api_paperwork",
     "GET",
     "/api/paperworks/:id/receipt(.:format)"
@@ -398,6 +548,21 @@
     "receive_api_clinic_pharmacy",
     "POST",
     "/api/clinic/pharmacy/:id/receive(.:format)"
+  ],
+  [
+    "reconcile_api_clinic_cash_drawer",
+    "POST",
+    "/api/clinic/cash_drawers/:id/reconcile(.:format)"
+  ],
+  [
+    "retry_api_clinic_reminder",
+    "POST",
+    "/api/clinic/reminders/:id/retry(.:format)"
+  ],
+  [
+    "review_api_clinic_scribe_draft",
+    "POST",
+    "/api/clinic/scribe/drafts/:id/review(.:format)"
   ],
   [
     "revisions_api_clinic_note",
@@ -420,6 +585,11 @@
     "/api/clinic/notes/:id/signatures(.:format)"
   ],
   [
+    "sources_api_clinic_scribe_encounter",
+    "POST",
+    "/api/clinic/scribe/encounters/:id/sources(.:format)"
+  ],
+  [
     "start_api_paperwork",
     "POST",
     "/api/paperworks/:id/start(.:format)"
@@ -432,17 +602,22 @@
   [
     null,
     "DELETE",
+    "/api/clinic/scribe/encounters/:id(.:format)"
+  ],
+  [
+    null,
+    "DELETE",
     "/api/session(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/inventory/purchase-orders/:id(.:format)"
   ],
   [
     null,
     "PATCH",
     "/api/clinic/patients/:id(.:format)"
-  ],
-  [
-    null,
-    "PATCH",
-    "/api/clinic/inventory/products/:id(.:format)"
   ],
   [
     null,
@@ -458,6 +633,11 @@
     null,
     "POST",
     "/api/clinic/appointments(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/cash_drawers(.:format)"
   ],
   [
     null,
@@ -562,6 +742,11 @@
   [
     null,
     "POST",
+    "/api/clinic/reminders(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/role_grants(.:format)"
   ],
   [
@@ -573,6 +758,21 @@
     null,
     "POST",
     "/api/materials/:material_id/complete(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/appointment_requests(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/reminder_preferences(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/requests(.:format)"
   ],
   [
     null,

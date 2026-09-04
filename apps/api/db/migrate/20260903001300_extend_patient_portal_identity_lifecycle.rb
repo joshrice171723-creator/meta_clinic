@@ -1,4 +1,4 @@
-class ExtendClinicPatientPortalIdentityLifecycle < ActiveRecord::Migration[8.1]
+class ExtendPatientPortalIdentityLifecycle < ActiveRecord::Migration[8.1]
   def change
     add_column :clinic_patient_portal_identities, :invitation_digest, :string
     add_column :clinic_patient_portal_identities, :invitation_expires_at, :datetime
