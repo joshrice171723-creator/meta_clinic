@@ -11,7 +11,7 @@ This checkpoint implements the owner-approved local billing-only patient portal 
 - Normal patient sessions resolve one active portal identity and its assigned patient only.
 - The context projection contains billing data only: invoices, lines, balances, credits, payment history, allocations, refunds, and receipt-availability state.
 - Appointment, intake, clinical, reminder, messaging, refill, and request data are absent from the projection and their dormant endpoints return `patient_portal_billing_only` before any action executes.
-- Omni can enter through the local development login, see a session-scoped patient selector, and switch only among `SYN-OMNI-*` patients in Omni's assigned practice.
+- Omni can enter through the local development login, see a session-scoped patient selector, and switch among any patients in Omni's assigned practice.
 - Invalid IDs, another-practice IDs, ordinary patient sessions, nonlocal requests, and production requests do not gain preview access.
 
 ## Verification status

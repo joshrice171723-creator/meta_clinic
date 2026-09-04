@@ -47,10 +47,14 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
   end
 
-  test "Omni can preview only synthetic patients and keeps selection in its session" do
+  test "Omni can view any patient in its practice and keeps selection in its session" do
     previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     Development::TestAccounts.prepare!
+    omni = User.find_by!(email_address: "omni@test.com")
+    additional_patient = omni.clinic_membership.practice.patients.create!(
+      display_name: "Patient Outside Seed Prefix", reference: "PATIENT-001"
+    )
 
     post "/api/development_session", params: { profile: "omni" }, headers: local_csrf, as: :json
     assert_response :created
@@ -58,7 +62,7 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     assert_response :success
     first_context = response.parsed_body
     preview = first_context.fetch("development_preview")
-    assert_equal 30, preview.fetch("patients").length
+    assert_includes preview.fetch("patients").map { |patient| patient.fetch("id") }, additional_patient.id
     first_patient = preview.fetch("patients").first
     second_patient = preview.fetch("patients").second
     assert_equal first_patient.fetch("id"), preview.fetch("selected_patient_id")

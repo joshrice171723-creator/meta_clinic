@@ -15,13 +15,13 @@ Rails in `apps/api/` owns authentication, sessions/CSRF, practice and patient te
 
 Use only synthetic records until the Phase 0 owners, contracts, and release gates are accepted. A local development shortcut may create fixtures only when the explicit development flag and loopback boundary are present; it must be unavailable in production.
 
-The first release is billing-only. The ordinary patient path is bound to its assigned active portal identity. Omni's local preview is an additional read-only development path; Rails derives its practice from the Omni membership, accepts only `SYN-OMNI-*` patients, and stores the selected patient only in the current server session.
+The first release is billing-only. The ordinary patient path is bound to its assigned active portal identity. Omni's local preview is an additional read-only development path; Rails derives its practice from the Omni membership, accepts any patient in that practice, and stores the selected patient only in the current server session.
 
 ### In scope for the first release
 
 - Patient identity lifecycle and a narrow authenticated billing portal shell.
 - Read-only projections for invoices, invoice lines, balances, credits, payments, allocations, refunds, and receipt-availability state.
-- Omni's local development preview with a session-scoped synthetic-patient selector.
+- Omni's local development preview with a session-scoped patient selector.
 - Explicit server-side denial of dormant nonbilling portal routes.
 - Later gated appointment, intake, clinical-release, request, notification, document, payment, and prescribing integrations.
 

@@ -8,7 +8,7 @@ The implementation companion is [PATIENT_PORTAL_BUILD_PLAN.md](PATIENT_PORTAL_BU
 
 ## Current state
 
-The APPly repository contains a local development billing-only slice: a patient-to-portal identity binding, a dedicated development patient login, a no-store patient context projection, and read-only cash ledger data. Omni can enter the same portal through the local development login and switch among `SYN-OMNI-*` patients in the current server session. Dormant appointment, intake, clinical, reminder, and request actions are blocked at the API boundary.
+The APPly repository contains a local development billing-only slice: a patient-to-portal identity binding, a dedicated development patient login, a no-store patient context projection, and read-only cash ledger data. Omni can enter the same portal through the local development login and switch among any patients in the Omni-assigned practice within the current server session. Dormant appointment, intake, clinical, reminder, and request actions are blocked at the API boundary.
 
 The slice is not production-ready. The remaining work below is ordered by safety and dependency, not by the original calendar estimate.
 
@@ -19,11 +19,11 @@ The slice is not production-ready. The remaining work below is ordered by safety
 - Appointment requests are not bookings until the authoritative scheduling service confirms them. Refill requests are not prescriptions or approvals. Results are not diagnoses.
 - No public signup, shared account, unreviewed proxy/minor access, emergency channel, direct browser database access, browser-held tokens, or production shortcut login.
 - The first release is billing-only. Payment collection remains disabled; appointments, intake, clinical summaries/results/medications, reminders, messages/refills, and booking remain unavailable until separately authorized.
-- Omni preview is local-development-only, read-only, server-gated, session-scoped, and limited to synthetic patients in Omni's assigned development practice. It is not production impersonation.
+- Omni preview is local-development-only, read-only, server-gated, session-scoped, and limited to patients in Omni's assigned development practice. It is not production impersonation.
 
 ## Current owner-approved slice — 2026-09-04
 
-D-062 authorizes the billing-only patient portal first release and an Omni local development preview. The normal patient path uses the assigned active portal identity. The Omni path uses the existing local development login, derives the practice from Omni's membership, and stores only the selected synthetic patient ID in the current server session. No portal business mutation is available from either path.
+D-062 authorizes the billing-only patient portal first release and an Omni local development preview. The normal patient path uses the assigned active portal identity. The Omni path uses the existing local development login, derives the practice from Omni's membership, and stores only the selected patient ID in the current server session. No portal business mutation is available from either path.
 
 The current implementation is local development evidence, not release acceptance. Provider/Stripe, finance, privacy/security, accessibility, operations, document/PDF/email, real-data, and deployment gates remain open.
 

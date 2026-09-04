@@ -61,7 +61,7 @@ module Clinic
       end
 
       def development_omni_preview_patients
-        development_omni_practice&.patients&.where("reference LIKE ?", "SYN-OMNI-%")&.order(:id) || Clinic::Care::Patient.none
+        development_omni_practice&.patients&.order(:id) || Clinic::Care::Patient.none
       end
 
       def development_omni_preview_patient

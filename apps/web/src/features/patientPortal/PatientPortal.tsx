@@ -47,7 +47,7 @@ export function PatientPortal() {
       setPreviewError(
         error instanceof Error
           ? error.message
-          : "The development patient could not be changed.",
+          : "The patient could not be changed.",
       );
     } finally {
       setSwitchingPatient(false);
@@ -154,11 +154,11 @@ export function PatientPortal() {
                 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Development patient preview
+                  Patient view
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Omni can inspect each development patient&apos;s billing view.
-                  This selector is session-scoped and read-only.
+                  Omni can inspect any patient&apos;s billing view in this
+                  practice. This selector is session-scoped and read-only.
                 </Typography>
                 <Select
                   fullWidth
@@ -167,7 +167,7 @@ export function PatientPortal() {
                     void switchPreviewPatient(Number(event.target.value))
                   }
                   disabled={switchingPatient}
-                  inputProps={{ "aria-label": "Development patient" }}
+                  inputProps={{ "aria-label": "Patient" }}
                   sx={{ mt: 2, maxWidth: 520 }}
                 >
                   {context.development_preview.patients.map((patient) => (
