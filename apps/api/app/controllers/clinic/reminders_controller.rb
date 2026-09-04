@@ -1,7 +1,7 @@
 module Clinic
   class RemindersController < Clinic::BaseController
     before_action -> { require_capability("reminders.read") }, only: %i[index show]
-    before_action -> { require_capability("reminders.write") }, only: %i[create pause cancel retry dispatch record_delivery]
+    before_action -> { require_capability("reminders.write") }, only: %i[create pause cancel retry dispatch_reminder record_delivery]
 
     def index
       reminders = current_practice.patient_reminders.includes(:patient, :communication_endpoint, :outbox)
@@ -48,7 +48,7 @@ module Clinic
       render json: { reminder: PatientReminderSerializer.call(Clinic::Reminders::Dispatch.call(reminder: reminder, actor: current_user), detail: true) }
     end
 
-    def dispatch
+    def dispatch_reminder
       reminder = reminder_record
       render json: { reminder: PatientReminderSerializer.call(Clinic::Reminders::Dispatch.call(reminder: reminder, actor: current_user), detail: true) }
     end

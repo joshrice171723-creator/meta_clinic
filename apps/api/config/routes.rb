@@ -32,7 +32,7 @@ Rails.application.routes.draw do
       post :pause, on: :member
       post :cancel, on: :member
       post :retry, on: :member
-      post :dispatch, on: :member
+      post :dispatch, on: :member, action: :dispatch_reminder
       post :delivery_events, on: :member, action: :record_delivery
     end
       resources :invoices, controller: "billing/invoices", only: :show do
