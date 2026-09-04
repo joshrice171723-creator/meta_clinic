@@ -19,6 +19,8 @@ Completed and pushed in APPly's local synthetic scope:
 
 The branch is synchronized upstream. Browser acceptance is still unavailable because the local API context remains on Loading. Unrelated portal/inventory work remains outside this capability and must not be staged as billing work.
 
+Owner scope decisions and working defaults are recorded in [OWNER_DECISIONS.md](OWNER_DECISIONS.md). Superbills are explicitly out of scope; all other listed capabilities are approved for the roadmap subject to their implementation, review, and release gates.
+
 ## APPly handoff — 2026-09-03
 
 The unblocked receivables work from the APPly implementation package is now shipped upstream. The handoff includes guarded draft create/edit/post, server-owned ledger search/filter/sort/pagination and aging, invoice audit history, intentional unapplied payment totals, and a locked route for allocating an unapplied remainder to another posted invoice for the same patient and currency. The patient-ledger UI exposes the remainder and an explicit eligible-invoice allocation control.
@@ -103,3 +105,4 @@ Exit: zero open P0/P1 findings, reproducible release evidence, named on-call own
 - [APPly implementation package](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Implementation%20Package.md)
 - [APPly test plan](../../APPlyVault/03%20Execution/Cash-Pay%20Billing%20Test%20Plan.md)
 - [APPly progress log](../../APPlyVault/03%20Execution/Progress%20Log.md)
+- [Owner decisions](OWNER_DECISIONS.md)
