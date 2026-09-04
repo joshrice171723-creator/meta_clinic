@@ -3,7 +3,7 @@ module Clinic
     class PharmacyController < Clinic::BaseController
       before_action -> { require_capability(:inventory_access?) }
       before_action :require_inventory_action
-      rate_limit to: 12, within: 1.minute, by: -> { current_user.id }, only: :lookup,
+      rate_limit to: 12, within: 1.minute, by: -> { current_user.id }, only: %i[lookup device_lookup],
         with: -> { render_error("Too many FDA searches. Wait a minute before trying again.", :too_many_requests) }
       rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
         message = error.is_a?(ActiveRecord::RecordInvalid) ? error.record.errors.full_messages.to_sentence : error.message
@@ -22,6 +22,13 @@ module Clinic
         render_error(error.message.presence || "The FDA directory is unavailable. Try again later.", :unprocessable_entity)
       end
 
+      def device_lookup
+        result = gudid_catalog.lookup(params[:device_identifier].to_s.strip)
+        render json: { result: result && result.first.merge(reference_token: result.last) }
+      rescue ArgumentError, ::Integrations::Fda::Gudid::Unavailable => error
+        render_error(error.message.presence || "The FDA device directory is unavailable. Try again later.", :unprocessable_entity)
+      end
+
       def nadac
         render json: { benchmark: ::Integrations::Cms::Nadac.lookup(params[:ndc].to_s.strip) }
       rescue ArgumentError, ::Integrations::Cms::Nadac::Unavailable => error
@@ -34,9 +41,11 @@ module Clinic
       end
 
       def create
-        attributes = params.require(:clinic_pharmacy_product).permit(:name, :category, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference)
+        attributes = params.require(:clinic_pharmacy_product).permit(:name, :category, :generic_name, :ndc, :ingredients, :dosage_form, :package_description, :sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference, :device_identifier)
         @product = if params[:reference_token].present?
           ndc_catalog.import(params[:reference_token], operational_attributes: attributes.slice(:sku, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
+        elsif params[:device_reference_token].present?
+          gudid_catalog.import(params[:device_reference_token], operational_attributes: attributes.slice(:name, :category, :sku, :package_description, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
         else
           products.new(attributes).tap do |product|
             Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") { product.save! }
@@ -103,7 +112,7 @@ module Clinic
 
       def require_inventory_action
         action = case action_name
-        when "new", "lookup", "nadac", "import", "create", "update" then "catalog"
+        when "new", "lookup", "device_lookup", "nadac", "import", "create", "update" then "catalog"
         when "receive", "demo" then "receive"
         when "movement" then params[:kind] == "receipt" ? "receive" : "adjust"
         when "batch_status" then params[:status] == "active" ? "release" : "hold"
@@ -127,6 +136,10 @@ module Clinic
 
       def ndc_catalog
         NdcCatalog.new(practice: current_practice, actor: current_user)
+      end
+
+      def gudid_catalog
+        GudidCatalog.new(practice: current_practice, actor: current_user)
       end
     end
   end

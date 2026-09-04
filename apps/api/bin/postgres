@@ -38,6 +38,14 @@ when "exec"
   abort "Start PostgreSQL first" unless File.file?(path)
   abort "Supply a command" unless ARGV.length > 1
   command = ARGV.drop(1)
+  inline_environment = {}
+  if Gem.win_platform? && command.first == "env"
+    command.shift
+    while command.first&.match?(/\A[A-Za-z_][A-Za-z0-9_]*=/)
+      key, value = command.shift.split("=", 2)
+      inline_environment[key] = value
+    end
+  end
   if Gem.win_platform?
     script = File.expand_path(command.first, root)
     shebang = File.file?(script) ? File.open(script, &:gets).to_s : ""
@@ -65,7 +73,7 @@ when "exec"
     "PGUSER" => "postgres",
     "PGPASSWORD" => File.read(path),
     "PATH" => [ File.join(root, "bin"), ENV["PATH"] ].compact.join(File::PATH_SEPARATOR)
-  }
+  }.merge(inline_environment)
   exec(environment, *command)
 when "stop"
   system("docker", "stop", name, exception: true, out: File::NULL)

@@ -152,10 +152,14 @@ describe("inventory integration", () => {
     expect(source).toContain('"/api/clinic/inventory/bootstrap"');
     expect(source).toContain('"/api/clinic/pharmacy"');
     expect(source).toContain('"/api/clinic/pharmacy/lookup"');
+    expect(source).toContain('"/api/clinic/pharmacy/device_lookup"');
     expect(source).toContain('"/api/clinic/inventory/shipments"');
     expect(source).toContain("Create item and continue");
     expect(source).toContain("Item category");
-    expect(source).toContain("General inventory item");
+    expect(source).toContain("Use FDA device data (optional)");
+    expect(source).toContain("UDI-DI / GTIN");
+    expect(source).toContain("NDC / UDI-DI");
+    expect(source).toContain("device_identifier");
     expect(source).toContain("Choose exact FDA package");
     expect(source).toContain("Select a package");
     expect(source).toContain('"/api/clinic/pharmacy/nadac"');

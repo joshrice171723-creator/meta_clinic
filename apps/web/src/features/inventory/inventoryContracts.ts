@@ -87,6 +87,7 @@ export type InventoryProduct = {
   name: string;
   category: InventoryCategory;
   ndc: string;
+  device_identifier: string;
   schedule: string | null;
   package_id: string;
   base_unit: string;
@@ -108,6 +109,22 @@ export type NdcResult = {
   package_description?: string;
   labeler?: string;
   ndc: string;
+  reference_token: string;
+};
+export type GudidResult = {
+  device_identifier: string;
+  issuing_agency?: string;
+  brand_name?: string;
+  company_name?: string;
+  version_model_number?: string;
+  catalog_number?: string;
+  device_description?: string;
+  single_use?: boolean;
+  lot_batch?: boolean;
+  expiration_date?: boolean;
+  device_sterile?: boolean;
+  gmdn_name?: string;
+  source_url: string;
   reference_token: string;
 };
 export type NadacBenchmark = {

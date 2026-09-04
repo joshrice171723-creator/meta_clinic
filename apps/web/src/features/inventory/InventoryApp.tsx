@@ -21,6 +21,7 @@ import type {
   Decimal,
   InventorySupplierProduct,
   NadacBenchmark,
+  GudidResult,
   NdcResult,
 } from "./inventoryContracts";
 import {
@@ -445,6 +446,11 @@ function supplierProductFor(
     (row) => row.product_id === productId && row.supplier_id === supplierId,
   );
 }
+function supplierOffersFor(data: InventoryData, productId: string) {
+  return (data.supplier_products ?? []).filter(
+    (row) => row.product_id === productId && row.available !== false,
+  );
+}
 
 function Card({
   title,
@@ -622,6 +628,7 @@ function CatalogCreateScreen({
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [ndc, setNdc] = useState("");
+  const [deviceIdentifier, setDeviceIdentifier] = useState("");
   const [genericName, setGenericName] = useState("");
   const [dosageForm, setDosageForm] = useState("");
   const [packageDescription, setPackageDescription] = useState("");
@@ -634,6 +641,10 @@ function CatalogCreateScreen({
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupError, setLookupError] = useState("");
   const [selectedNdc, setSelectedNdc] = useState<NdcResult>();
+  const [deviceLookupResult, setDeviceLookupResult] = useState<GudidResult>();
+  const [deviceResult, setDeviceResult] = useState<GudidResult>();
+  const [deviceBusy, setDeviceBusy] = useState(false);
+  const [deviceError, setDeviceError] = useState("");
   const [nadacBenchmark, setNadacBenchmark] = useState<NadacBenchmark>();
   const [nadacBusy, setNadacBusy] = useState(false);
   const [nadacError, setNadacError] = useState("");
@@ -642,6 +653,7 @@ function CatalogCreateScreen({
   >("manual");
   const lookupVersion = useRef(0);
   const nadacVersion = useRef(0);
+  const deviceVersion = useRef(0);
   const requiresUnitReference = packageSize !== "1";
   const unitReference =
     stockUnit && packageSize
@@ -725,17 +737,97 @@ function CatalogCreateScreen({
         if (nadacVersion.current === version) setNadacBusy(false);
       });
   }, [category, selectedNdc?.ndc]);
+  const lookupDevice = async (identifier: string) => {
+    const version = ++deviceVersion.current;
+    setDeviceBusy(true);
+    setDeviceError("");
+    setDeviceLookupResult(undefined);
+    try {
+      const payload = await api<{ result?: GudidResult }>(
+        "/api/clinic/pharmacy/device_lookup",
+        { method: "POST", body: { device_identifier: identifier } },
+      );
+      if (deviceVersion.current !== version) return;
+      if (payload.result) setDeviceLookupResult(payload.result);
+      else setDeviceError("No FDA device record matched that identifier. You can enter the item manually.");
+    } catch (reason) {
+      if (deviceVersion.current !== version) return;
+      setDeviceError(
+        reason instanceof Error
+          ? reason.message
+          : "The FDA device directory could not be searched. You can enter the item manually.",
+      );
+    } finally {
+      if (deviceVersion.current === version) setDeviceBusy(false);
+    }
+  };
+  useEffect(() => {
+    const identifier = deviceIdentifier.trim();
+    if (deviceResult) return;
+    if (
+      category === "medication" ||
+      identifier.length < 6 ||
+      !capability(data, "inventory.catalog")
+    ) {
+      deviceVersion.current += 1;
+      setDeviceBusy(false);
+      setDeviceLookupResult(undefined);
+      setDeviceResult(undefined);
+      setDeviceError("");
+      return;
+    }
+    const timer = window.setTimeout(() => void lookupDevice(identifier), 450);
+    return () => window.clearTimeout(timer);
+  }, [category, data, deviceIdentifier, deviceResult]);
   const changeCategory = (next: InventoryCategory) => {
     setCategory(next);
-    if (next === "medication") return;
+    if (next === "medication") {
+      deviceVersion.current += 1;
+      setDeviceIdentifier("");
+      setDeviceLookupResult(undefined);
+      setDeviceResult(undefined);
+      setDeviceError("");
+      return;
+    }
     lookupVersion.current += 1;
     setLookupQuery("");
     setLookupResults([]);
     setLookupError("");
     setSelectedNdc(undefined);
+    setDeviceIdentifier("");
+    setDeviceLookupResult(undefined);
+    setDeviceResult(undefined);
+    setDeviceError("");
     setNdc("");
     setGenericName("");
     setDosageForm("");
+  };
+  const selectDevice = (result: GudidResult) => {
+    setDeviceResult(result);
+    setDeviceLookupResult(undefined);
+    setDeviceIdentifier(result.device_identifier);
+    setName(result.brand_name || result.device_description || "");
+    setPackageDescription(
+      [
+        result.device_description,
+        result.company_name,
+        result.version_model_number && `Model ${result.version_model_number}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    );
+    setStockUnit("each");
+    setPackageSize("1");
+    setQuantityScale("0");
+    setUnitDetectionSource("manual");
+    setDeviceError("");
+  };
+  const clearDeviceSelection = () => {
+    setDeviceLookupResult(undefined);
+    setDeviceResult(undefined);
+    setDeviceIdentifier("");
+    setDeviceError("");
+    deviceVersion.current += 1;
   };
   const selectNdc = (result: NdcResult) => {
     const inferredUnits = inferInventoryUnits(result);
@@ -764,11 +856,13 @@ function CatalogCreateScreen({
       "/api/clinic/pharmacy",
       {
         reference_token: selectedNdc?.reference_token,
+        device_reference_token: deviceResult?.reference_token,
         clinic_pharmacy_product: {
           name: name.trim(),
           category,
           sku: sku.trim(),
           ndc: ndc.trim() || undefined,
+          device_identifier: deviceIdentifier.trim() || undefined,
           generic_name: genericName.trim() || undefined,
           dosage_form: dosageForm.trim() || undefined,
           package_description: packageDescription.trim() || undefined,
@@ -933,11 +1027,59 @@ function CatalogCreateScreen({
             </div>
           ) : (
             <div className="inventory-info">
-              <strong>General inventory item</strong>
+              <strong>Use FDA device data (optional)</strong>
               <p>
-                No NDC is required. Track this item with your internal SKU,
-                package description, stock unit, and reorder point.
+                Scan or enter the UDI-DI/GTIN printed on a glove, supply, or
+                other device package. FDA data can identify the device; your
+                clinic still owns the SKU, stock unit, and reorder point.
               </p>
+              <form className="inventory-inline-form" autoComplete="off">
+                <Field label="UDI-DI / GTIN">
+                  <input
+                    value={deviceIdentifier}
+                    onChange={(event) => setDeviceIdentifier(event.target.value)}
+                    placeholder="Enter the identifier from the package"
+                    maxLength={200}
+                    disabled={!capability(data, "inventory.catalog")}
+                    autoComplete="off"
+                  />
+                </Field>
+                <small className="inventory-permission">
+                  {deviceBusy
+                    ? "Looking up AccessGUDID…"
+                    : "Lookup begins automatically after 6 characters."}
+                </small>
+              </form>
+              {deviceError && <p className="inventory-danger-text">{deviceError}</p>}
+              {deviceLookupResult && (
+                <div className="inventory-stack compact">
+                  <p className="inventory-success-line">
+                    {deviceLookupResult.brand_name || "FDA device record"} · {deviceLookupResult.device_identifier}
+                    {deviceLookupResult.company_name ? ` · ${deviceLookupResult.company_name}` : ""}
+                  </p>
+                  <button
+                    className="inventory-button outline"
+                    type="button"
+                    onClick={() => selectDevice(deviceLookupResult)}
+                  >
+                    Use this device record
+                  </button>
+                </div>
+              )}
+              {deviceResult && (
+                <div className="inventory-stack compact">
+                  <p className="inventory-success-line">
+                    Selected {deviceResult.brand_name || "FDA device record"} · {deviceResult.device_identifier}
+                  </p>
+                  <button
+                    className="inventory-button outline"
+                    type="button"
+                    onClick={clearDeviceSelection}
+                  >
+                    Clear device selection
+                  </button>
+                </div>
+              )}
             </div>
           )}
           <form
@@ -998,6 +1140,20 @@ function CatalogCreateScreen({
                   />
                 </Field>
               </>
+            )}
+            {category !== "medication" && (
+              <Field
+                label="UDI-DI / GTIN"
+                hint="Optional. Stored as the FDA device identifier when available."
+              >
+                <input
+                  value={deviceIdentifier}
+                  onChange={(event) => setDeviceIdentifier(event.target.value)}
+                  maxLength={200}
+                  readOnly={Boolean(deviceResult)}
+                  autoComplete="off"
+                />
+              </Field>
             )}
             <Field label="Package description">
               <input
@@ -1137,6 +1293,11 @@ function PurchaseOrderCreateScreen({
     data.products[0];
   const [productId, setProductId] = useState(initialItem?.id ?? "");
   const item = data.products.find((record) => record.id === productId);
+  const initialSupplierId =
+    initialItem?.preferred_supplier_id ??
+    supplierOffersFor(data, initialItem?.id ?? "")[0]?.supplier_id ??
+    data.suppliers?.[0]?.id ??
+    "";
   const initialDestination =
     data.locations.find((record) => record.kind === "storage") ??
     data.locations[0];
@@ -1144,7 +1305,7 @@ function PurchaseOrderCreateScreen({
     initialDestination?.id ?? "",
   );
   const [supplierId, setSupplierId] = useState(
-    initialItem?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+    initialSupplierId,
   );
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState(
@@ -1152,7 +1313,7 @@ function PurchaseOrderCreateScreen({
       ? (supplierProductFor(
           data,
           initialItem.id,
-          initialItem.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+          initialSupplierId,
         )?.wholesale_unit_cost ??
           recordedPackagePrice(data, initialItem.id) ??
         "")
@@ -1165,7 +1326,7 @@ function PurchaseOrderCreateScreen({
       ? supplierProductFor(
           data,
           initialItem.id,
-          initialItem.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "",
+          initialSupplierId,
         )
       : undefined;
     return offer?.currency ?? "";
@@ -1180,7 +1341,10 @@ function PurchaseOrderCreateScreen({
   const selectProduct = (nextId: string) => {
     const next = data.products.find((record) => record.id === nextId);
     const nextSupplierId =
-      next?.preferred_supplier_id ?? data.suppliers?.[0]?.id ?? "";
+      next?.preferred_supplier_id ??
+      supplierOffersFor(data, nextId)[0]?.supplier_id ??
+      data.suppliers?.[0]?.id ??
+      "";
     const nextOffer = supplierProductFor(data, nextId, nextSupplierId);
     setProductId(nextId);
     setSupplierId(nextSupplierId);
@@ -1992,7 +2156,7 @@ function CatalogScreen({
             <thead>
               <tr>
                 <th>Product / package</th>
-                <th>NDC</th>
+                <th>NDC / UDI-DI</th>
                 <th>Available</th>
                 <th>On hand</th>
                 <th>Reorder point</th>
@@ -2011,8 +2175,8 @@ function CatalogScreen({
                         "Package metadata not recorded"}
                     </small>
                   </td>
-                  <td data-label="NDC" className="mono">
-                    {item.ndc}
+                  <td data-label="NDC / UDI-DI" className="mono">
+                    {item.ndc || item.device_identifier || "Not recorded"}
                   </td>
                   <td data-label="Available" className="numeric">
                     {number(item.available_units)} {item.base_unit}s

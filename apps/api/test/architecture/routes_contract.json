@@ -465,6 +465,11 @@
     "/api/clinic/pharmacy/demo(.:format)"
   ],
   [
+    "device_lookup_api_clinic_pharmacy_index",
+    "POST",
+    "/api/clinic/pharmacy/device_lookup(.:format)"
+  ],
+  [
     "dispatch_api_clinic_reminder",
     "POST",
     "/api/clinic/reminders/:id/dispatch(.:format)"

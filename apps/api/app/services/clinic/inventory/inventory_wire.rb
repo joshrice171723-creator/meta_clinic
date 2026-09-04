@@ -89,7 +89,7 @@ module Clinic
         on_hand = product_batches.sum { |batch| batch.quantity.to_d }
         package = package_wire(product)
         supplier = product_batches.flat_map(&:receipt_lines).filter_map(&:receipt).max_by { |receipt| [ receipt.received_at, receipt.id ] }&.supplier
-        { id: product.id.to_s, name: product.name, category: product.category, ndc: product.ndc.to_s, schedule: product.dea_schedule, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
+        { id: product.id.to_s, name: product.name, category: product.category, ndc: product.ndc.to_s, device_identifier: product.device_identifier.to_s, schedule: product.dea_schedule, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
       end
 
       def package_wire(product)
