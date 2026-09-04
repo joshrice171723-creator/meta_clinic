@@ -180,7 +180,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       practice: @practice, actor: @user, patient: patient, currency: "EUR",
       lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic currency target" } ]
     )
-    [ first, second, currency_mismatch, cross_patient, draft, voided ].each { |invoice| Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user) }
+    [ first, second, currency_mismatch, cross_patient, voided ].each { |invoice| Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user) }
     voided.transition_to!("void")
     other_patient = @other.patients.first
     foreign_invoice = Clinic::Billing::DraftInvoice.call(
