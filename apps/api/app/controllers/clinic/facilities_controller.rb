@@ -96,14 +96,14 @@ module Clinic
       if input.key?(:operating_hours)
         rows = Array(input[:operating_hours]).map { |row| normalize_hour(row) }
         raise ArgumentError, "Operating hours must contain one row per day." unless rows.map { |row| row[:day_of_week] }.uniq.length == rows.length
-        site.operating_hours.delete_all
+        Clinic::SiteOperatingHour.where(practice_id: current_practice.id, site_id: site.id).delete_all
         rows.each { |row| site.operating_hours.create!(row.merge(practice_id: current_practice.id)) }
       end
       return unless input.key?(:hour_exceptions)
 
       rows = Array(input[:hour_exceptions]).map { |row| normalize_exception(row) }
       raise ArgumentError, "A facility can have only one exception per date." unless rows.map { |row| row[:date] }.uniq.length == rows.length
-      site.hour_exceptions.delete_all
+      Clinic::SiteHourException.where(practice_id: current_practice.id, site_id: site.id).delete_all
       rows.each { |row| site.hour_exceptions.create!(row.merge(practice_id: current_practice.id)) }
     end
 
