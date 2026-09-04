@@ -84,6 +84,8 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
             "bin/agent-check",
             "bin/agent-preflight",
             "bin/create-agent-skill",
+            "bin/dev",
+            "bin/task-trace",
             "bin/verify-agent-harness",
             "bin/verify-vault",
             "bin/vault-audit",
@@ -108,10 +110,17 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
     lifecycle_paths = {
         "dev_server_startup",
         "bin/apply",
+        "bin/dev",
+        "bin/lib/development_lifecycle.rb",
+        "bin/lib/task_trace.rb",
+        "bin/install-apply",
         "bin/start-dev",
         "bin/start-dev.ps1",
+        "bin/startdev-refresh",
+        "bin/task-trace",
         "bin/doctor",
         "bin/doctor.ps1",
+        "apps/api/bin/setup",
     }
     if paths & lifecycle_paths:
         checks.append(
@@ -123,12 +132,21 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
                     "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }",
                     "dev_server_startup",
                     "bin/apply",
+                    "bin/dev",
+                    "bin/lib/development_lifecycle.rb",
+                    "bin/lib/task_trace.rb",
+                    "bin/install-apply",
                     "bin/start-dev",
+                    "bin/startdev-refresh",
+                    "bin/task-trace",
                     "bin/doctor",
+                    "apps/api/bin/setup",
                 ),
             )
         )
-        checks.append(Check("local lifecycle help", ("ruby", "dev_server_startup", "--help")))
+        checks.append(Check("local lifecycle help", ("ruby", "bin/dev", "help")))
+        checks.append(Check("development lifecycle tests", ("ruby", "test/development/development_lifecycle_test.rb")))
+        checks.append(Check("task trace tests", ("ruby", "test/development/task_trace_test.rb")))
 
     api_changed = implementation_change(paths, "apps/api")
     web_changed = implementation_change(paths, "apps/web")

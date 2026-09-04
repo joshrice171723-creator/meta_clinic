@@ -1,37 +1,28 @@
 #!/usr/bin/env ruby
-# Repository-local entry point for the APPly development lifecycle.
+# frozen_string_literal: true
+
+# Compatibility shim. The canonical lifecycle is bin/dev.
 require "rbconfig"
 
 root = File.expand_path(__dir__)
-lifecycle = File.join(root, "bin", "apply")
+canonical = File.join(root, "bin", "dev")
 requested = ARGV.shift || "start"
-
 commands = {
-  "start" => "up",
-  "up" => "up",
-  "restart" => "restart",
-  "stop" => "down",
-  "down" => "down",
-  "status" => "doctor",
-  "doctor" => "doctor"
+  "start" => "start", "up" => "start", "restart" => "restart",
+  "stop" => "stop", "down" => "stop", "status" => "status", "doctor" => "status"
 }.freeze
 
-if %w[help --help -h].include?(requested)
-  puts <<~USAGE
-    Usage: ./dev_server_startup [start|restart|stop|status] [--seed] [--no-browser]
-
-    With no command, starts the local development stack. The script runs the
-    repository's lifecycle implementation directly; no global installation or
-    PATH change is required.
-  USAGE
-  exit 0
-end
-
+exec(RbConfig.ruby, canonical, "help", chdir: root) if %w[help --help -h].include?(requested)
 command = commands[requested]
-unless command
-  warn "Unknown command: #{requested}"
-  warn "Run ./dev_server_startup --help for usage."
-  exit 1
+abort "Unknown command: #{requested}. Run bin/dev help." unless command
+
+legacy_seed = ARGV.delete("--seed")
+ARGV.delete("--no-seed-refresh")
+if legacy_seed
+  success = system(RbConfig.ruby, canonical, "reset-data", "--yes", chdir: root)
+  exit 1 unless success
+  command = "start"
 end
 
-exec(RbConfig.ruby, lifecycle, command, *ARGV, chdir: root)
+warn "dev_server_startup is deprecated; use bin/dev #{command}."
+exec(RbConfig.ruby, canonical, command, *ARGV, chdir: root)
