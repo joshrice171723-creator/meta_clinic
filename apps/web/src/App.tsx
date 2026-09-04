@@ -20,6 +20,7 @@ import { Settings } from "./features/identity/Settings";
 import { Workspace } from "./features/clinic/Workspace";
 import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
+import { Facilities } from "./features/clinic/Facilities";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
 import { FrontDesk } from "./features/clinic/FrontDesk";
@@ -181,6 +182,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
   return path === "/clinic/operations" ? (
     <Operations />
+  ) : path === "/clinic/facilities" ? (
+    <Facilities />
   ) : path === "/clinic/chart-selection" ? (
     <ChartSelectionPage {...chartSelectionProps(search)} />
   ) : path === "/clinic/patients" ? (

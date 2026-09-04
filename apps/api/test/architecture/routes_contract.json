@@ -75,6 +75,16 @@
     "/api/clinic/facilities(.:format)"
   ],
   [
+    "api_clinic_facilities",
+    "PATCH",
+    "/api/clinic/facilities/:id(.:format)"
+  ],
+  [
+    "api_clinic_facilities",
+    "POST",
+    "/api/clinic/facilities(.:format)"
+  ],
+  [
     "api_clinic_inventory_configuration",
     "POST",
     "/api/clinic/inventory_configuration(.:format)"

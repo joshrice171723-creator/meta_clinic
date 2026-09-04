@@ -15,7 +15,7 @@ module Development
       }
     ].freeze
     DEFAULT_PERMISSIONS = %w[
-      patients.read patients.identity.read patients.write staff.read staff.write inventory.read
+      patients.read patients.identity.read patients.write staff.read staff.write facilities.read facilities.write inventory.read
       inventory.catalog inventory.receive inventory.adjust inventory.hold
       inventory.release inventory.count inventory.configure appointments.write
       inventory.transfer inventory.put_away procurement.read procurement.create

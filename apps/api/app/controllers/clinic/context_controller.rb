@@ -14,6 +14,8 @@ module Clinic
           patients_write: allowed?("patients.write"),
           staff: allowed?("staff.read"),
           staff_write: allowed?("staff.write"),
+          facilities_read: allowed?("facilities.read") || allowed?("appointments.book"),
+          facilities_write: allowed?("facilities.write") || allowed?("appointments.write"),
           inventory: allowed?("inventory.read"),
           appointments: allowed?("appointments.write"),
           appointments_read: allowed?("appointments.read"),

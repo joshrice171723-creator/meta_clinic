@@ -1,0 +1,61 @@
+.clinic-theme .facilities-page {
+  max-width: 1240px;
+}
+
+.clinic-theme .facilities-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.28fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.clinic-theme .facilities-list,
+.clinic-theme .facility-form {
+  padding: 24px;
+}
+
+.clinic-theme .facilities-list strong {
+  font-size: 15px;
+}
+
+.clinic-theme .facilities-list small {
+  color: var(--clinic-muted);
+  text-transform: capitalize;
+}
+
+.clinic-theme .facility-form h3 {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0 0 8px;
+}
+
+.clinic-theme .facility-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.clinic-theme .facility-hours-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-top: 1px solid var(--clinic-border);
+}
+
+.clinic-theme .facility-hours-row > .MuiFormControlLabel {
+  margin-right: 4px;
+}
+
+@media (max-width: 900px) {
+  .clinic-theme .facilities-layout,
+  .clinic-theme .facility-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-theme .facilities-list,
+  .clinic-theme .facility-form {
+    padding: 18px;
+  }
+}

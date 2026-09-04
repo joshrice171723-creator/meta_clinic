@@ -106,6 +106,7 @@ export function loginDestination(value: string | null): string {
     "/clinic/schedule",
     "/clinic/patients",
     "/clinic/operations",
+    "/clinic/facilities",
     "/clinic/inventory",
     "/clinic/staff",
     "/clinic/front-desk",

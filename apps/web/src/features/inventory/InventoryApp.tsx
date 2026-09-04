@@ -20,6 +20,7 @@ import type {
   InventoryCategory,
   Decimal,
   InventorySupplierProduct,
+  InventoryFacility,
   NadacBenchmark,
   GudidResult,
   NdcResult,
@@ -179,7 +180,7 @@ const screenDescriptions: Record<Screen, string> = {
   catalog_new: "Add a product definition before ordering or receiving stock.",
   configure:
     "Record the inventory operating configuration before posting stock.",
-  locations: "Save clinic receiving addresses for purchase orders.",
+  locations: "Manage stock storage, quarantine, returns, and controlled locations.",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
   purchase_order_new:
@@ -229,7 +230,7 @@ function screenTitle(screen: Screen) {
       catalog: "Inventory overview",
       catalog_new: "Add catalog item",
       configure: "Configure inventory",
-      locations: "Receiving locations",
+      locations: "Storage locations",
       replenishment: "Plan replenishment",
       purchasing: "Orders & delivery",
       purchase_order_new: "Create purchase order",
@@ -508,9 +509,9 @@ function supplierOffersFor(data: InventoryData, productId: string) {
       row.available !== false,
   );
 }
-function locationCanReceivePurchaseOrder(record: InventoryData["locations"][number]) {
+function facilityCanReceivePurchaseOrder(record: InventoryFacility) {
   return (
-    !["quarantine", "returns"].includes(record.kind ?? "") &&
+    record.status === "active" &&
     Boolean(
       record.address_line1?.trim() &&
         record.city?.trim() &&
@@ -520,12 +521,10 @@ function locationCanReceivePurchaseOrder(record: InventoryData["locations"][numb
     )
   );
 }
-function purchaseOrderLocations(data: InventoryData) {
-  return data.locations.filter(
-    (record) => !["quarantine", "returns"].includes(record.kind ?? ""),
-  );
+function purchaseOrderFacilities(data: InventoryData) {
+  return (data.sites ?? []).filter((record) => record.status === "active");
 }
-function locationAddress(record?: InventoryData["locations"][number]) {
+function facilityAddress(record?: InventoryFacility) {
   if (!record) return "";
   return [
     record.address_line1,
@@ -537,22 +536,8 @@ function locationAddress(record?: InventoryData["locations"][number]) {
     .filter(Boolean)
     .join(", ");
 }
-function purchaseOrderDestination(data: InventoryData, productId: string) {
-  const eligibleLocations = data.locations.filter(
-    locationCanReceivePurchaseOrder,
-  );
-  const itemLocation = data.balances
-    .filter((balance) => balance.product_id === productId)
-    .map((balance) => location(data, balance.location_id))
-    .find(
-      (record) => record && locationCanReceivePurchaseOrder(record),
-    );
-  return (
-    itemLocation ??
-    eligibleLocations.find((record) => record.kind === "storage") ??
-    eligibleLocations.find((record) => record.kind === "controlled") ??
-    eligibleLocations[0]
-  );
+function purchaseOrderDestination(data: InventoryData, _productId: string) {
+  return purchaseOrderFacilities(data).find(facilityCanReceivePurchaseOrder);
 }
 
 function Card({
@@ -1433,10 +1418,10 @@ function PurchaseOrderCreateScreen({
     ? supplierProductFor(data, item.id, supplierId)
     : undefined;
   const packageInfo = packageFor(data, item?.package_id);
-  const destination = data.locations.find(
+  const destination = data.sites?.find(
     (record) => record.id === destinationId,
   );
-  const destinationOptions = purchaseOrderLocations(data);
+  const destinationOptions = purchaseOrderFacilities(data);
   const selectProduct = (nextId: string) => {
     const next = data.products.find((record) => record.id === nextId);
     const nextSupplierId =
@@ -1507,8 +1492,8 @@ function PurchaseOrderCreateScreen({
         purchase_order: {
           ...(numberValue.trim() ? { number: numberValue.trim() } : {}),
           destination: destination?.name ?? "",
-          destination_location_id: destination?.id ?? "",
-          destination_address: locationAddress(destination),
+          receiving_site_id: destination?.id ?? "",
+          destination_address: facilityAddress(destination),
           reason,
           ...(supplierId ? { supplier_id: supplierId } : {}),
           lines: [
@@ -1552,18 +1537,18 @@ function PurchaseOrderCreateScreen({
             added after the delivery is recorded and received.
           </p>
           {(!destinationOptions.length ||
-            !destinationOptions.some(locationCanReceivePurchaseOrder)) && (
+            !destinationOptions.some(facilityCanReceivePurchaseOrder)) && (
             <div className="inventory-warning" role="status">
-              <strong>Set up a clinic receiving location first.</strong>
+              <strong>Set up a clinic facility first.</strong>
               <p>
                 A purchase order needs the clinic address where the supplier
-                should deliver. You only do this once per receiving location.
+                should deliver. Add it once in Operations → Facilities.
               </p>
               <a
                 className="inventory-button outline"
-                href={`/clinic/inventory/locations?return_to=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+                href="/clinic/facilities"
               >
-                Add receiving location
+                Set up facility
               </a>
             </div>
           )}
@@ -1642,15 +1627,15 @@ function PurchaseOrderCreateScreen({
                 onChange={(event) => setDestinationId(event.target.value)}
                 required
               >
-                <option value="">Select a receiving location</option>
+                <option value="">Select a clinic facility</option>
                 {destinationOptions.map((record) => (
                   <option
                     key={record.id}
                     value={record.id}
-                    disabled={!locationCanReceivePurchaseOrder(record)}
+                    disabled={!facilityCanReceivePurchaseOrder(record)}
                   >
                     {record.name}
-                    {!locationCanReceivePurchaseOrder(record)
+                    {!facilityCanReceivePurchaseOrder(record)
                       ? " · address incomplete"
                       : ""}
                   </option>
@@ -1658,8 +1643,8 @@ function PurchaseOrderCreateScreen({
               </select>
               {destination && (
                 <small>
-                  {locationCanReceivePurchaseOrder(destination)
-                    ? `Delivery address: ${locationAddress(destination)}`
+                  {facilityCanReceivePurchaseOrder(destination)
+                    ? `Delivery address: ${facilityAddress(destination)}`
                     : "Complete this location's address before ordering."}
                 </small>
               )}
@@ -1711,6 +1696,7 @@ function PurchaseOrderCreateScreen({
                   busy ||
                   !capability(data, "procurement.create") ||
                   !destination ||
+                  !facilityCanReceivePurchaseOrder(destination) ||
                   !validDecimal(quantity) ||
                   !validDecimal(unitPrice, true) ||
                   !reasonSelection ||
@@ -1747,12 +1733,6 @@ function InventoryLocationsScreen({
     : "/clinic/inventory/purchasing/new";
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"storage" | "controlled">("storage");
-  const [addressLine1, setAddressLine1] = useState("");
-  const [addressLine2, setAddressLine2] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [country, setCountry] = useState("US");
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void run(
@@ -1761,16 +1741,10 @@ function InventoryLocationsScreen({
         location: {
           name: name.trim(),
           kind,
-          address_line1: addressLine1.trim(),
-          address_line2: addressLine2.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          postal_code: postalCode.trim(),
-          country: country.trim().toUpperCase(),
         },
       },
-      "Receiving location saved",
-      `${name.trim()} is now available as a purchase-order destination.`,
+      "Storage location saved",
+      `${name.trim()} is now available for stock put-away and movement tracking.`,
       () => window.location.assign(returnTo),
     );
   };
@@ -1779,11 +1753,11 @@ function InventoryLocationsScreen({
       <a className="inventory-back-link" href={returnTo}>
         ← Back to purchase order
       </a>
-      <Card title="Receiving locations">
+      <Card title="Inventory storage locations">
         <p className="inventory-lead">
-          Save the clinic addresses that suppliers can deliver to. Purchase
-          orders will use the selected location and copy its address into the
-          order automatically.
+          Define the physical places where stock is stored, quarantined,
+          returned, or controlled. Supplier delivery addresses belong to the
+          clinic facility profile in Operations.
         </p>
         {data.locations.length > 0 && (
           <div className="inventory-stack compact">
@@ -1791,16 +1765,16 @@ function InventoryLocationsScreen({
               <div className="inventory-muted-panel" key={record.id}>
                 <strong>{record.name}</strong>
                 <p>
-                  {locationAddress(record) || "Address not configured"}
+                  {record.kind?.replace("_", " ") || "Storage"}
                 </p>
               </div>
             ))}
           </div>
         )}
       </Card>
-      <Card title="Add receiving location">
+      <Card title="Add storage location">
         <form className="inventory-form-grid" onSubmit={submit}>
-          <Field label="Location name" hint="For example, Main clinic or North cabinet.">
+          <Field label="Location name" hint="For example, Main cabinet or Medication room.">
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -1818,59 +1792,6 @@ function InventoryLocationsScreen({
               <option value="controlled">Controlled storage</option>
             </select>
           </Field>
-          <Field label="Address line 1">
-            <input
-              value={addressLine1}
-              onChange={(event) => setAddressLine1(event.target.value)}
-              maxLength={120}
-              autoComplete="address-line1"
-              required
-            />
-          </Field>
-          <Field label="Address line 2" hint="Optional suite or unit.">
-            <input
-              value={addressLine2}
-              onChange={(event) => setAddressLine2(event.target.value)}
-              maxLength={120}
-              autoComplete="address-line2"
-            />
-          </Field>
-          <Field label="City">
-            <input
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
-              maxLength={120}
-              autoComplete="address-level2"
-              required
-            />
-          </Field>
-          <Field label="State">
-            <input
-              value={state}
-              onChange={(event) => setState(event.target.value.toUpperCase())}
-              maxLength={120}
-              autoComplete="address-level1"
-              required
-            />
-          </Field>
-          <Field label="Postal code">
-            <input
-              value={postalCode}
-              onChange={(event) => setPostalCode(event.target.value)}
-              maxLength={30}
-              autoComplete="postal-code"
-              required
-            />
-          </Field>
-          <Field label="Country">
-            <input
-              value={country}
-              onChange={(event) => setCountry(event.target.value.toUpperCase())}
-              maxLength={2}
-              autoComplete="country"
-              required
-            />
-          </Field>
           <div className="inventory-form-actions">
             <PermissionNote
               allowed={capability(data, "inventory.configure")}
@@ -1880,16 +1801,11 @@ function InventoryLocationsScreen({
               disabled={
                 busy ||
                 !capability(data, "inventory.configure") ||
-                !name.trim() ||
-                !addressLine1.trim() ||
-                !city.trim() ||
-                !state.trim() ||
-                !postalCode.trim() ||
-                !country.trim()
+                !name.trim()
               }
               onConfirm={() => submit(new Event("submit") as unknown as FormEvent)}
             >
-              Save location →
+              Save storage location →
             </ConfirmButton>
           </div>
         </form>
@@ -2669,7 +2585,7 @@ function ReplenishmentScreen({
   const [destinationId, setDestinationId] = useState(
     initialDestination?.id ?? "",
   );
-  const destination = data.locations.find(
+  const destination = data.sites?.find(
     (location) => location.id === destinationId,
   );
   const [supplierId, setSupplierId] = useState(
@@ -2730,8 +2646,8 @@ function ReplenishmentScreen({
       {
         purchase_order: {
           destination: destination?.name ?? "",
-          destination_location_id: destination?.id ?? "",
-          destination_address: locationAddress(destination),
+          receiving_site_id: destination?.id ?? "",
+          destination_address: facilityAddress(destination),
           reason: reason.trim(),
           ...(supplierId ? { supplier_id: supplierId } : {}),
           lines: [
@@ -2819,19 +2735,19 @@ function ReplenishmentScreen({
           <strong>Projected replenishment</strong>
           <p>Available and inbound stock are below the reorder point.</p>
         </div>
-        {(!purchaseOrderLocations(data).length ||
-          !purchaseOrderLocations(data).some(locationCanReceivePurchaseOrder)) && (
+        {(!purchaseOrderFacilities(data).length ||
+          !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)) && (
           <div className="inventory-warning" role="status">
-            <strong>Set up a clinic receiving location first.</strong>
+            <strong>Set up a clinic facility first.</strong>
             <p>
               Add the clinic delivery address once, then it will be available
-              for every purchase order.
+              for every purchase order. Add it in Operations → Facilities.
             </p>
             <a
               className="inventory-button outline"
-              href={`/clinic/inventory/locations?return_to=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+              href="/clinic/facilities"
             >
-              Add receiving location
+              Set up facility
             </a>
           </div>
         )}
@@ -2910,15 +2826,15 @@ function ReplenishmentScreen({
               onChange={(event) => setDestinationId(event.target.value)}
               required
             >
-              <option value="">Select a receiving location</option>
-              {purchaseOrderLocations(data).map((location) => (
+              <option value="">Select a clinic facility</option>
+              {purchaseOrderFacilities(data).map((location) => (
                 <option
                   key={location.id}
                   value={location.id}
-                  disabled={!locationCanReceivePurchaseOrder(location)}
+                  disabled={!facilityCanReceivePurchaseOrder(location)}
                 >
                   {location.name}
-                  {!locationCanReceivePurchaseOrder(location)
+                  {!facilityCanReceivePurchaseOrder(location)
                     ? " · address incomplete"
                     : ""}
                 </option>
@@ -2926,8 +2842,8 @@ function ReplenishmentScreen({
             </select>
             {destination && (
               <small>
-                {locationCanReceivePurchaseOrder(destination)
-                  ? `Delivery address: ${locationAddress(destination)}`
+                {facilityCanReceivePurchaseOrder(destination)
+                  ? `Delivery address: ${facilityAddress(destination)}`
                   : "Complete this location's address before ordering."}
               </small>
             )}

@@ -2,7 +2,13 @@ import type { ClinicOverview } from "../../api/contracts";
 import { Card } from "../../shared/ui";
 import { useClinic, useClinicOverview } from "./Workspace";
 
-export function OperationsView({ clinic }: { clinic: ClinicOverview }) {
+export function OperationsView({
+  clinic,
+  facilitiesRead = false,
+}: {
+  clinic: ClinicOverview;
+  facilitiesRead?: boolean;
+}) {
   const c = clinic.capabilities;
   return (
     <>
@@ -70,6 +76,17 @@ export function OperationsView({ clinic }: { clinic: ClinicOverview }) {
                 </p>
               </li>
             )}
+            {facilitiesRead && (
+              <li>
+                <a className="text-link" href="/clinic/facilities">
+                  Facilities →
+                </a>
+                <p>
+                  Maintain each clinic site's identity, address, contacts and
+                  operating hours. Inventory storage locations stay separate.
+                </p>
+              </li>
+            )}
             <li>
               <a className="text-link" href="/clinic/settings">
                 My settings →
@@ -82,12 +99,16 @@ export function OperationsView({ clinic }: { clinic: ClinicOverview }) {
     </>
   );
 }
+
 export function Operations() {
   const context = useClinic();
   const overview = useClinicOverview();
   return (
     <>
-      <OperationsView clinic={overview} />
+      <OperationsView
+        clinic={overview}
+        facilitiesRead={context.capabilities.facilities_read === true}
+      />
       <Card title="Care workflow access">
         <ul className="clinic-feature-list">
           {context.capabilities.patients && (

@@ -14,6 +14,7 @@ import "./clinicFrame.css";
 import "./trackingBoard.css";
 import "./careFlow.css";
 import "./billing.css";
+import "./facilities.css";
 import {
   CLINIC_MODES,
   CLINIC_PALETTES,

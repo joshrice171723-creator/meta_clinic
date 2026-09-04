@@ -52,7 +52,7 @@ module Clinic
 
       def create_purchase_order
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
-        input = params.require(:purchase_order).permit(:number, :destination, :destination_location_id, :destination_address, :reason, :supplier_id, :request_key, :tax, :shipping, lines: %i[product_id quantity input_unit conversion_factor unit_price currency])
+        input = params.require(:purchase_order).permit(:number, :destination, :destination_location_id, :receiving_site_id, :destination_address, :reason, :supplier_id, :request_key, :tax, :shipping, lines: %i[product_id quantity input_unit conversion_factor unit_price currency])
         request_key = input[:request_key].to_s
         validate_request_key!(request_key)
         payload_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
@@ -66,19 +66,26 @@ module Clinic
             rows = Array(input[:lines])
             raise ArgumentError, "A purchase order needs 1–100 lines." unless rows.size.between?(1, 100)
             supplier = input[:supplier_id].present? ? current_practice.inventory_suppliers.find(input[:supplier_id]) : nil
-            destination_location = if input[:destination_location_id].present?
+            receiving_site = if input[:receiving_site_id].present?
+              current_practice.sites.find(input[:receiving_site_id])
+            end
+            if receiving_site
+              raise ArgumentError, "The selected facility must be active before it can receive a purchase order." unless receiving_site.status == "active"
+              raise ArgumentError, "The selected facility needs a complete shipping address." unless receiving_site.shipping_address?
+            end
+            destination_location = if input[:destination_location_id].present? && receiving_site.nil?
               current_practice.inventory_locations.find(input[:destination_location_id])
             end
             if destination_location
               raise ArgumentError, "Purchase orders must ship to a storage or controlled location." if %w[quarantine returns].include?(destination_location.kind)
               raise ArgumentError, "The selected receiving location needs a complete shipping address." unless destination_location.shipping_address?
             end
-            destination = destination_location&.name || input[:destination].to_s
-            destination_address = destination_location&.formatted_address || input[:destination_address].presence
+            destination = receiving_site&.name || receiving_site&.code || destination_location&.name || input[:destination].to_s
+            destination_address = receiving_site&.formatted_address || destination_location&.formatted_address || input[:destination_address].presence
             raise ArgumentError, "A shipping destination is required." if destination.blank?
             subtotal = BigDecimal("0")
             order_currency = nil
-            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: destination, destination_address: destination_address, reason: input.require(:reason), request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
+            order = purchase_orders_scope.create!(actor: current_user, supplier: supplier, receiving_site: receiving_site, number: input[:number].presence || "PO-#{SecureRandom.hex(12)}", status: "draft", destination: destination, destination_address: destination_address, reason: input.require(:reason), request_key: request_key, payload_digest: payload_digest, version: 1, tax: input[:tax].presence || 0, shipping: input[:shipping].presence || 0)
             products = current_practice.pharmacy_products.where(id: rows.map { |row| row[:product_id] }).index_by { |product| product.id.to_s }
             rows.each do |row|
               product = products[row[:product_id].to_s] || raise(ActiveRecord::RecordNotFound)

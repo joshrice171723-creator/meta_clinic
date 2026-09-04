@@ -1991,6 +1991,8 @@ CREATE TABLE public.clinic_inventory_purchase_orders (
     total numeric(20,6) DEFAULT 0.0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    destination_address text,
+    receiving_site_id bigint,
     CONSTRAINT inventory_purchase_order_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'approved'::character varying, 'rejected'::character varying, 'sent'::character varying, 'partially_received'::character varying, 'complete'::character varying, 'cancelled'::character varying])::text[])) AND (version > 0) AND (subtotal >= (0)::numeric) AND (tax >= (0)::numeric) AND (shipping >= (0)::numeric) AND (total >= (0)::numeric) AND ((length(TRIM(BOTH FROM number)) >= 1) AND (length(TRIM(BOTH FROM number)) <= 80)) AND ((length(TRIM(BOTH FROM destination)) >= 1) AND (length(TRIM(BOTH FROM destination)) <= 120)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
 );
 
@@ -4440,6 +4442,81 @@ ALTER SEQUENCE public.clinic_scribe_sources_id_seq OWNED BY public.clinic_scribe
 
 
 --
+-- Name: clinic_site_hour_exceptions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_site_hour_exceptions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    date date NOT NULL,
+    closed boolean DEFAULT false NOT NULL,
+    open_time time without time zone,
+    close_time time without time zone,
+    reason character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_site_hour_exceptions_values CHECK (((((closed = true) AND (open_time IS NULL) AND (close_time IS NULL)) OR ((closed = false) AND (open_time IS NOT NULL) AND (close_time IS NOT NULL) AND (open_time < close_time))) AND ((reason IS NULL) OR (length(TRIM(BOTH FROM reason)) <= 200))))
+);
+
+
+--
+-- Name: clinic_site_hour_exceptions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_site_hour_exceptions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_site_hour_exceptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_site_hour_exceptions_id_seq OWNED BY public.clinic_site_hour_exceptions.id;
+
+
+--
+-- Name: clinic_site_operating_hours; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_site_operating_hours (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    day_of_week integer NOT NULL,
+    closed boolean DEFAULT false NOT NULL,
+    open_time time without time zone,
+    close_time time without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_site_hours_values CHECK ((((day_of_week >= 0) AND (day_of_week <= 6)) AND (((closed = true) AND (open_time IS NULL) AND (close_time IS NULL)) OR ((closed = false) AND (open_time IS NOT NULL) AND (close_time IS NOT NULL) AND (open_time < close_time)))))
+);
+
+
+--
+-- Name: clinic_site_operating_hours_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_site_operating_hours_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_site_operating_hours_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_site_operating_hours_id_seq OWNED BY public.clinic_site_operating_hours.id;
+
+
+--
 -- Name: clinic_sites; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4450,7 +4527,19 @@ CREATE TABLE public.clinic_sites (
     timezone_override character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_sites_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0))
+    name character varying,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    address_line1 character varying,
+    address_line2 character varying,
+    city character varying,
+    state character varying,
+    postal_code character varying,
+    country character varying DEFAULT 'US'::character varying NOT NULL,
+    phone character varying,
+    contact_name character varying,
+    contact_email character varying,
+    CONSTRAINT clinic_sites_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0)),
+    CONSTRAINT clinic_sites_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'temporarily_closed'::character varying, 'retired'::character varying])::text[])))
 );
 
 
@@ -6157,6 +6246,20 @@ ALTER TABLE ONLY public.clinic_scribe_sources ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: clinic_site_hour_exceptions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_hour_exceptions ALTER COLUMN id SET DEFAULT nextval('public.clinic_site_hour_exceptions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_site_operating_hours id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_operating_hours ALTER COLUMN id SET DEFAULT nextval('public.clinic_site_operating_hours_id_seq'::regclass);
+
+
+--
 -- Name: clinic_sites id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -7166,6 +7269,22 @@ ALTER TABLE ONLY public.clinic_scribe_source_segments
 
 ALTER TABLE ONLY public.clinic_scribe_sources
     ADD CONSTRAINT clinic_scribe_sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_site_hour_exceptions clinic_site_hour_exceptions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_hour_exceptions
+    ADD CONSTRAINT clinic_site_hour_exceptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_site_operating_hours clinic_site_operating_hours_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_operating_hours
+    ADD CONSTRAINT clinic_site_operating_hours_pkey PRIMARY KEY (id);
 
 
 --
@@ -8500,6 +8619,20 @@ CREATE UNIQUE INDEX clinic_scribe_sources_scope ON public.clinic_scribe_sources 
 
 
 --
+-- Name: clinic_site_hour_exceptions_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_site_hour_exceptions_identity ON public.clinic_site_hour_exceptions USING btree (practice_id, site_id, date);
+
+
+--
+-- Name: clinic_site_hours_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_site_hours_identity ON public.clinic_site_operating_hours USING btree (practice_id, site_id, day_of_week);
+
+
+--
 -- Name: clinic_sites_practice_code; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9708,6 +9841,13 @@ CREATE INDEX inventory_purchase_order_line_order ON public.clinic_inventory_purc
 --
 
 CREATE UNIQUE INDEX inventory_purchase_order_retry ON public.clinic_inventory_purchase_orders USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_purchase_orders_receiving_site; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_purchase_orders_receiving_site ON public.clinic_inventory_purchase_orders USING btree (practice_id, receiving_site_id);
 
 
 --
@@ -11361,6 +11501,38 @@ ALTER TABLE ONLY public.clinic_rooms
 
 
 --
+-- Name: clinic_site_hour_exceptions fk_clinic_site_exceptions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_hour_exceptions
+    ADD CONSTRAINT fk_clinic_site_exceptions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_site_hour_exceptions fk_clinic_site_exceptions_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_hour_exceptions
+    ADD CONSTRAINT fk_clinic_site_exceptions_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_site_operating_hours fk_clinic_site_hours_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_operating_hours
+    ADD CONSTRAINT fk_clinic_site_hours_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_site_operating_hours fk_clinic_site_hours_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_operating_hours
+    ADD CONSTRAINT fk_clinic_site_hours_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_sites fk_clinic_sites_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11558,6 +11730,14 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 ALTER TABLE ONLY public.clinic_insurance_claims
     ADD CONSTRAINT fk_insurance_claims_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_purchase_orders fk_inventory_purchase_orders_receiving_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_orders
+    ADD CONSTRAINT fk_inventory_purchase_orders_receiving_site FOREIGN KEY (practice_id, receiving_site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --

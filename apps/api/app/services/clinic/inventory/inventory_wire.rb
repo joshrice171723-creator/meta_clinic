@@ -38,6 +38,7 @@ module Clinic
           { lines: { batch: [ :lot, :location_record ] } }
         ).order(id: :desc).limit(100).to_a
         suppliers = Supplier.where(practice_id: practice.id).order(:name, :id).to_a
+        sites = practice.sites.order(:name, :code, :id).to_a
         supplier_products = SupplierProduct.where(practice_id: practice.id).includes(:supplier).order(:ndc, :supplier_sku, :id).to_a
         area_by_location = ReceiptLine.where(practice_id: practice.id, batch_id: batches.map(&:id)).where.not(area_id: nil).includes(batch: :location_record).to_a.group_by { |line| line.batch.location_id }.transform_values { |lines| lines.map(&:area_id).compact.uniq }
         movements = PharmacyMovement.where(practice_id: practice.id).includes(
@@ -58,6 +59,7 @@ module Clinic
           products: products.map { |product| product_wire(product, batches, suppliers, active_holds_by_batch, inventory_date) },
           packages: products.map { |product| package_wire(product) },
           suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
+          sites: sites.map { |site| Clinic::FacilitySerializer.site(site) },
           supplier_products: supplier_products.map { |row| { id: row.id.to_s, supplier_id: row.supplier_id.to_s, supplier_name: row.supplier.name, product_id: row.product_id&.to_s, ndc: row.ndc, supplier_sku: row.supplier_sku, description: row.description, package_quantity: row.package_quantity.to_d.to_s("F"), wholesale_unit_cost: row.wholesale_unit_cost.to_d.to_s("F"), currency: row.currency, ordering_unit: row.ordering_unit, contract_status: row.contract_status, available: row.available, lead_time_days: row.lead_time_days, effective_date: row.effective_date&.iso8601, imported_at: row.imported_at.iso8601 } },
           locations: locations.map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, address_line1: location.address_line1, address_line2: location.address_line2, city: location.city, state: location.state, postal_code: location.postal_code, country: location.country, areas: area_by_location.fetch(location.id, []) } },
           lots: lots.map { |lot| lot_wire(lot, batches_by_lot, recalls, active_holds_by_batch) },
@@ -118,7 +120,7 @@ module Clinic
       end
 
       def purchase_order_wire(order)
-        { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, destination: order.destination, destination_address: order.destination_address, ordered_at: order.created_at.iso8601, lines: order.lines.map { |line| { id: line.id.to_s, product_id: line.product_id.to_s, package_id: package_wire(line.product)[:id], ordered_packages: line.ordered_quantity.to_d.to_s("F"), units_per_package: line.conversion_factor.to_d.to_s("F"), ordered_units: line.ordered_units.to_d.to_s("F"), package_price: line.unit_price.to_d.to_s("F"), currency: line.currency, received_units: line.received_units.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F") } }, subtotal: order.subtotal.to_d.to_s("F"), tax: order.tax.to_d.to_s("F"), shipping: order.shipping.to_d.to_s("F"), total: order.total.to_d.to_s("F"), cancelled_remaining_units: order.status == "cancelled" ? order.lines.sum { |line| line.remaining_quantity.to_d }.to_s("F") : "0" }
+        { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, destination: order.destination, receiving_site_id: order.receiving_site_id&.to_s, destination_address: order.destination_address, ordered_at: order.created_at.iso8601, lines: order.lines.map { |line| { id: line.id.to_s, product_id: line.product_id.to_s, package_id: package_wire(line.product)[:id], ordered_packages: line.ordered_quantity.to_d.to_s("F"), units_per_package: line.conversion_factor.to_d.to_s("F"), ordered_units: line.ordered_units.to_d.to_s("F"), package_price: line.unit_price.to_d.to_s("F"), currency: line.currency, received_units: line.received_units.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F") } }, subtotal: order.subtotal.to_d.to_s("F"), tax: order.tax.to_d.to_s("F"), shipping: order.shipping.to_d.to_s("F"), total: order.total.to_d.to_s("F"), cancelled_remaining_units: order.status == "cancelled" ? order.lines.sum { |line| line.remaining_quantity.to_d }.to_s("F") : "0" }
       end
 
       def shipment_wire(shipment)

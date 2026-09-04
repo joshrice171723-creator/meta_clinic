@@ -21,6 +21,8 @@ class Ability
     "patients.write" => { action: :create, subjects: [ Clinic::Care::Patient ], actions: %i[create update], scope: :practice },
     "staff.read" => { action: :read, subjects: [ Clinic::Staff::Member ], scope: :practice },
     "staff.write" => { action: :create, subjects: [ Clinic::Staff::Member ], actions: %i[create update], scope: :practice },
+    "facilities.read" => { action: :read, subjects: [ Clinic::Site ], scope: :practice },
+    "facilities.write" => { action: :create, subjects: [ Clinic::Site ], actions: %i[create update], scope: :practice },
     "inventory.read" => { action: :read, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyProduct, Clinic::Inventory::PharmacyBatch ], scope: :practice },
     "inventory.catalog" => { action: :create, subjects: [ Clinic::Inventory::Item, Clinic::Inventory::PharmacyProduct ], actions: %i[create update], scope: :practice },
     "inventory.receive" => { action: :receive, subjects: [ Clinic::Inventory::PharmacyBatch ], scope: :practice },

@@ -173,6 +173,18 @@ export type InventoryLocation = {
   country?: string | null;
   areas: string[];
 };
+export type InventoryFacility = {
+  id: number;
+  code: string;
+  name: string;
+  status: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+};
 export type InventoryLot = {
   id: string;
   product_id: string;
@@ -224,6 +236,7 @@ export type InventoryPurchaseOrder = {
   status: string;
   supplier: string | null;
   destination: string;
+  receiving_site_id?: string | null;
   destination_address?: string | null;
   ordered_at: string;
   lines: InventoryPurchaseOrderLine[];
@@ -324,6 +337,7 @@ export type InventoryData = {
   products: InventoryProduct[];
   packages: InventoryPackage[];
   locations: InventoryLocation[];
+  sites?: InventoryFacility[];
   lots: InventoryLot[];
   balances: InventoryBalance[];
   movements: InventoryMovement[];

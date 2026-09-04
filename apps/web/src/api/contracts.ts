@@ -101,7 +101,12 @@ export type PatientReminder = {
   expires_at: string | null;
   endpoint: { type: string; label: string; masked_value: string };
   action_types: string[];
-  delivery_attempts?: { attempt_number: number; status: string; failure_class: string | null; retryable: boolean }[];
+  delivery_attempts?: {
+    attempt_number: number;
+    status: string;
+    failure_class: string | null;
+    retryable: boolean;
+  }[];
 };
 export type ReminderPreference = {
   channel: string;
@@ -317,6 +322,8 @@ export type Pagination = {
   total_pages: number;
 };
 export type ClinicCapabilities = {
+  facilities_read?: boolean;
+  facilities_write?: boolean;
   patient_identity_read?: boolean;
   appointments_read?: boolean;
   appointments_book?: boolean;
@@ -503,7 +510,35 @@ export type CashPaymentResult = {
 export type ClinicSite = {
   id: number;
   code: string;
+  name?: string;
+  status?: "draft" | "active" | "temporarily_closed" | "retired";
   timezone_override: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  operating_hours?: SiteOperatingHour[];
+  hour_exceptions?: SiteHourException[];
+};
+export type SiteOperatingHour = {
+  id: number;
+  day_of_week: number;
+  closed: boolean;
+  open_time: string | null;
+  close_time: string | null;
+};
+export type SiteHourException = {
+  id: number;
+  date: string;
+  closed: boolean;
+  open_time: string | null;
+  close_time: string | null;
+  reason: string | null;
 };
 export type ClinicWorkspaceContext = {
   schema_version: "clinic-context-v1";
