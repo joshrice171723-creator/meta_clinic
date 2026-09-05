@@ -139,10 +139,6 @@ describe("inventory integration", () => {
       "src/features/inventory/InventoryApp.tsx",
       "utf8",
     );
-    const supplierSource = readFileSync(
-      "src/features/inventory/SupplierPricing.tsx",
-      "utf8",
-    );
     expect(source).toContain("No movements recorded");
     expect(source).toContain(
       "Clear the filter to review the full movement ledger.",
@@ -161,6 +157,10 @@ describe("inventory integration", () => {
   it("keeps every canonical inventory screen on the same APPly-backed surface", () => {
     const source = readFileSync(
       "src/features/inventory/InventoryApp.tsx",
+      "utf8",
+    );
+    const supplierSource = readFileSync(
+      "src/features/inventory/SupplierPricing.tsx",
       "utf8",
     );
 
