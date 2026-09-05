@@ -2996,11 +2996,20 @@ function PurchaseCartWorkspace({
   const queryProductId = new URLSearchParams(window.location.search).get("product_id");
   const [showAll, setShowAll] = useState(directEntry);
   const [search, setSearch] = useState("");
+  const [catalogPage, setCatalogPage] = useState(1);
   const [reason, setReason] = useState(data.purchase_cart?.reason ?? "");
   const [destinationId, setDestinationId] = useState(data.purchase_cart?.destination_site_id ?? "");
   const cart = data.purchase_cart;
   const destinations = purchaseOrderFacilities(data).filter(facilityCanReceivePurchaseOrder);
-  const products = data.products.filter((product) => product.active && (showAll || product.low_stock) && (!search.trim() || `${product.name} ${product.ndc} ${product.device_identifier}`.toLowerCase().includes(search.trim().toLowerCase())));
+  const products = data.products
+    .filter((product) => product.active && (showAll || product.low_stock) && (!search.trim() || `${product.name} ${product.ndc} ${product.device_identifier}`.toLowerCase().includes(search.trim().toLowerCase())))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const catalogPageSize = 20;
+  const catalogPageCount = Math.max(1, Math.ceil(products.length / catalogPageSize));
+  const visibleProducts = products.slice((catalogPage - 1) * catalogPageSize, catalogPage * catalogPageSize);
+  useEffect(() => {
+    setCatalogPage((current) => Math.min(current, catalogPageCount));
+  }, [catalogPageCount]);
   const suggestedQuantity = (product: InventoryProduct) => {
     const deficit = nonNegative(decimalSubtract(decimalSubtract(product.reorder_point_units, product.available_units), onOrderUnits(data, product.id)));
     return decimalCompare(deficit, "0") > 0 ? decimalCeilDivide(deficit, product.units_per_package) : "1";
@@ -3043,13 +3052,16 @@ function PurchaseCartWorkspace({
       <Card title={directEntry ? "Create purchase order" : "Plan replenishment"}>
         <div className="inventory-toolbar purchase-cart-toolbar">
           <div className="inventory-segmented" role="group" aria-label="Catalog scope">
-            <button type="button" className={!showAll ? "active" : ""} onClick={() => setShowAll(false)}>Needs replenishment</button>
-            <button type="button" className={showAll ? "active" : ""} onClick={() => setShowAll(true)}>All active catalog items</button>
+            <button type="button" className={!showAll ? "active" : ""} onClick={() => { setShowAll(false); setCatalogPage(1); }}>Needs replenishment</button>
+            <button type="button" className={showAll ? "active" : ""} onClick={() => { setShowAll(true); setCatalogPage(1); }}>All active catalog items</button>
           </div>
-          <input aria-label="Search active catalog" placeholder="Search name, NDC, or SKU" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <input aria-label="Search active catalog" placeholder="Search name, NDC, or SKU" value={search} onChange={(event) => { setSearch(event.target.value); setCatalogPage(1); }} />
         </div>
+        <p className="inventory-results-count" role="status">
+          Showing {products.length === 0 ? 0 : (catalogPage - 1) * catalogPageSize + 1}–{Math.min(catalogPage * catalogPageSize, products.length)} of {products.length} products.
+        </p>
         <div className="inventory-list purchase-catalog-list">
-          {products.map((product) => {
+          {visibleProducts.map((product) => {
             const offer = cartBestOffer(data, product);
             const preselected = product.id === queryProductId;
             return (
@@ -3066,6 +3078,13 @@ function PurchaseCartWorkspace({
           })}
           {products.length === 0 && <p className="inventory-empty">No matching catalog items.</p>}
         </div>
+        {catalogPageCount > 1 && (
+          <nav className="inventory-pagination" aria-label="Purchase catalog pagination">
+            <button className="inventory-button outline" type="button" disabled={catalogPage === 1} onClick={() => setCatalogPage((current) => current - 1)}>Previous</button>
+            <span aria-live="polite">Page {catalogPage} of {catalogPageCount}</span>
+            <button className="inventory-button outline" type="button" disabled={catalogPage === catalogPageCount} onClick={() => setCatalogPage((current) => current + 1)}>Next</button>
+          </nav>
+        )}
       </Card>
       <Card title="Draft purchase cart" className="purchase-cart-panel">
         <div className="inventory-form-grid compact">

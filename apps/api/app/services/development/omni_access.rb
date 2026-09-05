@@ -71,6 +71,7 @@ module Development
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
       BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI")
+      seed_purchase_supplier_mix!(membership.practice)
       retire_legacy_workflow!(membership)
       membership
     end
@@ -151,6 +152,25 @@ module Development
       membership
     end
     private_class_method :switch_locked!
+
+    def self.seed_purchase_supplier_mix!(practice)
+      suppliers = practice.inventory_suppliers.where("name LIKE 'Omni Supplier %'").order(:name).to_a
+      return unless suppliers.length == 5
+
+      practice.pharmacy_products.where("name LIKE 'Omni Item %'").find_each do |product|
+        item_number = product.name[/\d+\z/].to_i
+        cheapest_supplier = (item_number - 1) % suppliers.length
+        base_price = BigDecimal("6.10") + BigDecimal("0.75") * (item_number - 1)
+        product.supplier_products.each do |offer|
+          supplier_index = suppliers.index { |supplier| supplier.id == offer.supplier_id }
+          next unless supplier_index
+
+          offset = (supplier_index - cheapest_supplier) % suppliers.length
+          offer.update!(wholesale_unit_cost: base_price + BigDecimal("0.35") * offset)
+        end
+      end
+    end
+    private_class_method :seed_purchase_supplier_mix!
 
     def self.ensure_roles!
       PROFILES.each do |profile, settings|
