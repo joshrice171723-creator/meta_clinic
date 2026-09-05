@@ -165,6 +165,7 @@ describe("inventory integration", () => {
       "/clinic/inventory/catalog/new",
       "/clinic/inventory/replenishment",
       "/clinic/inventory/purchasing",
+      "/clinic/inventory/suppliers",
       "/clinic/inventory/purchasing/new",
       "/clinic/inventory/shipments/new",
       "/clinic/inventory/receiving",
@@ -180,6 +181,9 @@ describe("inventory integration", () => {
     expect(source).toContain('"/api/clinic/pharmacy/lookup"');
     expect(source).toContain('"/api/clinic/pharmacy/device_lookup"');
     expect(source).toContain('"/api/clinic/inventory/shipments"');
+    expect(source).toContain('"/api/clinic/inventory/suppliers/preview"');
+    expect(source).toContain("wholesale_cost");
+    expect(source).toContain("Preferred supplier by catalog item");
     expect(source).toContain("Create item and continue");
     expect(source).toContain("Item category");
     expect(source).toContain("Use FDA device data (optional)");
