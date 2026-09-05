@@ -97,6 +97,32 @@ module Development
       end
     end
 
+    def self.prepare_patient!
+      ensure_local!
+      User.transaction do
+        User.connection.execute("SELECT pg_advisory_xact_lock(20260831, 231)")
+        settings = PROFILES.fetch("patient")
+        user = User.find_by(email_address: settings.fetch(:email))
+        if user
+          unless user.active? && matches?(user, "patient") && user.authenticate(password_for("patient"))
+            raise Unavailable, "The assigned patient fixture conflicts with an existing account. No account was changed."
+          end
+        else
+          user = User.create!(email_address: settings.fetch(:email), admin: false, active: true, password: password_for("patient"))
+        end
+        # Reuse the established Omni clinic. A missing independently invented
+        # patient can be seeded without rebuilding inventory or historical roles.
+        omni = User.find_by!(email_address: PROFILES.fetch("omni").fetch(:email))
+        practice = omni.clinic_membership&.practice
+        raise Unavailable, "Prepare the local Omni clinic first." unless practice
+        unless practice.patients.where("reference LIKE ?", "SYN-OMNI-%").exists?
+          practice.patients.create!(display_name: "Dev seed subscription patient", reference: "SYN-OMNI-SUBSCRIPTION")
+        end
+        Development::PatientPortal.prepare!(user)
+        user
+      end
+    end
+
     def self.ensure_local!
       return if Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
       raise Unavailable, "Named test accounts require explicitly enabled local development."

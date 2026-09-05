@@ -125,7 +125,11 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                   .join(", ")}
               </Typography>
               <Typography variant="body2">
-                {s.terms.duration} {s.terms.duration_unit} ·{" "}
+                {s.terms.duration}{" "}
+                {s.terms.duration === 1
+                  ? s.terms.duration_unit.replace(/s$/, "")
+                  : s.terms.duration_unit}{" "}
+                ·{" "}
                 {s.terms.renewal === "manual"
                   ? "Renew manually after this term"
                   : "No automatic renewal"}

@@ -15,7 +15,6 @@ module Development
       }
     ].freeze
     DEFAULT_PERMISSIONS = %w[
-      subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review
       patients.read patients.identity.read patients.write staff.read staff.write facilities.read facilities.write inventory.read
       inventory.catalog inventory.receive inventory.adjust inventory.hold
       inventory.release inventory.count inventory.configure appointments.write
@@ -27,7 +26,11 @@ module Development
       documents.read billing.write billing.read billing.invoice_draft billing.invoice_post billing.payment_record roles.manage
     ].freeze
 
-    def self.create!(user, permissions: DEFAULT_PERMISSIONS)
+    # Omni's historical role versions reference DEFAULT_PERMISSIONS. New local
+    # clinic capabilities must not mutate those already-granted definitions.
+    SUBSCRIPTION_PERMISSIONS = %w[subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review].freeze
+
+    def self.create!(user, permissions: DEFAULT_PERMISSIONS + SUBSCRIPTION_PERMISSIONS)
       raise "Test clinics are only available in development and test." unless Rails.env.development? || Rails.env.test?
 
       User.transaction do
@@ -65,10 +68,9 @@ module Development
         RoleVersionPermission.find_or_create_by!(role_version: role, permission: permission)
         unless membership.role_grants.exists?(role_version: role, scope_kind: "practice")
           membership.role_grants.create!(practice: membership.practice, role_version: role, scope_kind: "practice",
-            # TestClinic bootstraps inside the same transaction that later
-            # posts opening stock; leave room for PostgreSQL's transaction
-            # timestamp to observe the grant as effective.
-            effective_from: 1.minute.ago, revision: 1)
+            # PostgreSQL authorization uses the transaction timestamp. A large
+            # fixture setup can take longer than any fixed wall-clock offset.
+            effective_from: Clinic::RoleGrant.connection.select_value("SELECT transaction_timestamp()"), revision: 1)
         end
       end
       membership

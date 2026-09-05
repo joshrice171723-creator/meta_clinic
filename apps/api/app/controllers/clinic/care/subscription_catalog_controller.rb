@@ -29,7 +29,10 @@ module Clinic
       def preview
         require_capability("subscription_catalog.read")
         package = SubscriptionPackage.where(practice: current_practice).find(params[:id])
-        render json: { id: nil, number: nil, terms: SubscriptionDefinition.build(package) }
+        terms = SubscriptionDefinition.build(package)
+        terms = SubscriptionDefinition.select(terms, params[:selections] || []) if params[:quote] == "1"
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "subscription_catalog.preview", outcome: :released)
+        render json: { id: nil, number: nil, terms: terms }
       end
 
       def publish
@@ -38,7 +41,7 @@ module Clinic
       end
 
       def retire
-        record = SubscriptionCatalog.retire(practice: current_practice, actor: current_user, kind: params[:kind], id: params[:id], reason: params[:reason])
+        record = SubscriptionCatalog.retire(practice: current_practice, actor: current_user, kind: params[:kind], id: params[:id])
         render json: { id: record.id, retired: record.retired }
       end
     end

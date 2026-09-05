@@ -988,7 +988,12 @@ export function BillingDashboard() {
           </p>
         </section>
       </div>
-      <SubscriptionBilling />
+      <SubscriptionBilling
+        onChanged={() => {
+          refresh();
+          detailResource.refresh();
+        }}
+      />
       <CashDrawerOperations
         invoice={selectedInvoice ?? null}
         onRecorded={() => {

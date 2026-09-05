@@ -1,4 +1,12 @@
 namespace :members do
+  desc "Prepare only the assigned development patient using the existing Omni clinic"
+  task prepare_patient_account: :environment do
+    Development::TestAccounts.prepare_patient!
+    puts "Assigned development patient is ready. Use Open assigned patient portal on the local login page."
+  rescue Development::TestAccounts::Unavailable => error
+    abort error.message
+  end
+
   desc "Prepare reusable local-only synthetic test logins without resetting progress or passwords"
   task prepare_test_accounts: :environment do
     accounts = Development::TestAccounts.prepare!

@@ -82,6 +82,12 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     assert_equal "active", response.parsed_body.fetch("state")
     get "/api/clinic/subscriptions", headers: @headers
     assert_equal "0.0", response.parsed_body.fetch("subscriptions").first.fetch("balance")
+    get "/api/clinic/subscriptions", params: { state: "active", search: "custom family" }, headers: @headers
+    assert_response :success
+    assert_equal [agreement_id], response.parsed_body.fetch("subscriptions").map { |item| item.fetch("id") }
+    get "/api/clinic/subscriptions", params: { state: "payment_failed" }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("subscriptions")
     sign_in(@user)
     get "/api/patient_portal/context", headers: @headers
     assert_response :success
@@ -107,5 +113,21 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     get "/api/patient_portal/subscriptions/999999/receipt", headers: @headers
     assert_response :not_found
+  end
+
+  test "another patient in the same practice cannot read a receipt or pay the purchase" do
+    version_id = publish_catalog
+    sign_in(@user)
+    submit "/api/patient_portal/subscriptions/checkout", { version_id: version_id, selections: [], request_key: "owned-purchase" }
+    assert_response :created
+    agreement_id = response.parsed_body.fetch("id")
+    other_patient = @practice.patients.create!(display_name: "Other dev seed patient", reference: "HTTP-SUB-2")
+    @identity.update!(patient: other_patient)
+    get "/api/patient_portal/subscriptions/#{agreement_id}/receipt", headers: @headers
+    assert_response :not_found
+    submit "/api/patient_portal/subscriptions/#{agreement_id}/pay", { request_key: "wrong-patient" }
+    assert_response :not_found
+    get "/api/patient_portal/subscriptions", headers: @headers
+    assert_empty response.parsed_body.fetch("subscriptions")
   end
 end

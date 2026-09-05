@@ -13,8 +13,28 @@ module Clinic
         records = records.where("snapshot ->> 'family_id' = ?", params[:family_id].to_s) if params[:family_id].present?
         records = records.where("snapshot ->> 'tier' = ?", params[:tier].to_s) if params[:tier].present?
         records = records.where("snapshot -> 'selected_components' @> ?::jsonb", [{ service_id: requested_id!(params[:service_id], :service_id) }].to_json) if params[:service_id].present?
+        if params[:search].present?
+          records = records.where("concat_ws(' ', snapshot ->> 'family_name', snapshot ->> 'package_name', snapshot ->> 'tier', snapshot -> 'selected_components') ILIKE ?",
+            "%#{ApplicationRecord.sanitize_sql_like(params[:search].to_s.first(160))}%")
+        end
+        if params[:state].present?
+          records = records.joins(<<~SQL)
+            LEFT JOIN LATERAL (
+              SELECT kind, details FROM clinic_subscription_events
+              WHERE agreement_id = clinic_subscription_agreements.id
+                AND practice_id = clinic_subscription_agreements.practice_id
+              ORDER BY id DESC LIMIT 1
+            ) subscription_latest ON true
+          SQL
+          records = records.where(<<~SQL, now: Time.current, state: params[:state].to_s)
+            CASE
+              WHEN subscription_latest.kind = 'active' AND (subscription_latest.details ->> 'ends_at')::timestamptz <= :now THEN 'expired'
+              WHEN subscription_latest.kind = 'canceled' AND (subscription_latest.details ->> 'effective_at')::timestamptz > :now THEN 'active'
+              ELSE COALESCE(subscription_latest.kind, 'pending_payment')
+            END = :state
+          SQL
+        end
         items = records.limit(201).map { |r| Care::SubscriptionProjection.agreement(r) }
-        items.select! { |r| r[:state] == params[:state] } if params[:state].present?
         ability = Ability.new(current_user, practice: current_practice)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "subscriptions.billing.read", outcome: :released)
         render json: { subscriptions: items.first(200), truncated: items.length > 200,

@@ -56,11 +56,15 @@ export function PackageCard({
           {terms.package_name}
         </Typography>
         <Typography>{terms.description}</Typography>
-        <Typography variant="h5">
+        <Typography variant="h5" component="p">
           {subscriptionMoney(terms.total || terms.amount, terms.currency)}
         </Typography>
         <Typography variant="body2">
-          {terms.duration} {terms.duration_unit} ·{" "}
+          {terms.duration}{" "}
+          {terms.duration === 1
+            ? terms.duration_unit.replace(/s$/, "")
+            : terms.duration_unit}{" "}
+          ·{" "}
           {terms.renewal === "manual"
             ? "Manual renewal; no automatic charge"
             : "No renewal"}
@@ -77,7 +81,10 @@ export function PackageCard({
           );
         })}
         <Box>
-          {(terms.selected_components || terms.components).map((c) => (
+          {(onSelect
+            ? terms.components
+            : terms.selected_components || terms.components
+          ).map((c) => (
             <Box key={c.service_id} sx={{ py: 0.5 }}>
               {onSelect && c.mode !== "included" ? (
                 <FormControlLabel

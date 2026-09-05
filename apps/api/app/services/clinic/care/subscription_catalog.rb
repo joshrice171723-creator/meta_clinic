@@ -41,9 +41,8 @@ module Clinic
         end
       end
 
-      def self.retire(practice:, actor:, kind:, id:, reason:)
+      def self.retire(practice:, actor:, kind:, id:)
         Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.publish")
-        SubscriptionDefinition.text(reason, 1000, required: true)
         model = { "family" => SubscriptionFamily, "service" => ServiceOption, "package" => SubscriptionPackage }.fetch(kind) { raise ArgumentError, "Unknown catalog item." }
         ApplicationRecord.transaction do
           record = model.where(practice: practice).lock.find(id)

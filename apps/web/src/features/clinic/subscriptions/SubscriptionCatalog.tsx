@@ -56,12 +56,12 @@ export function SubscriptionCatalog() {
     lock_version?: number;
   } | null>(null);
   const [preview, setPreview] = useState<PublishedPackage | null>(null);
+  const [previewSelections, setPreviewSelections] = useState<number[]>([]);
   const [retire, setRetire] = useState<{
     kind: string;
     id: number;
     name: string;
   } | null>(null);
-  const [reason, setReason] = useState("");
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
     setError("");
@@ -191,7 +191,9 @@ export function SubscriptionCatalog() {
           {data.packages.map((p) => (
             <Paper variant="outlined" key={p.id} sx={{ p: 2 }}>
               <Stack spacing={1}>
-                <Typography variant="h6">{p.name}</Typography>
+                <Typography variant="h6" component="h3">
+                  {p.name}
+                </Typography>
                 <Typography>
                   {p.retired
                     ? "Retired"
@@ -208,13 +210,14 @@ export function SubscriptionCatalog() {
                   <Button
                     disabled={busy}
                     onClick={() =>
-                      void run(async () =>
+                      void run(async () => {
+                        setPreviewSelections([]);
                         setPreview(
                           await api<PublishedPackage>(
                             `/api/clinic/subscription_catalog/packages/${p.id}/preview`,
                           ),
-                        ),
-                      )
+                        );
+                      })
                     }
                   >
                     Patient preview
@@ -417,7 +420,9 @@ export function SubscriptionCatalog() {
                   value={draft.terms || ""}
                   onChange={(e) => setDraft("terms", e.target.value)}
                 />
-                <Typography variant="h6">Service composition</Typography>
+                <Typography variant="h6" component="h3">
+                  Service composition
+                </Typography>
                 {(draft.components || []).map((c, index) => (
                   <Paper key={index} variant="outlined" sx={{ p: 2 }}>
                     <Stack spacing={2}>
@@ -618,10 +623,46 @@ export function SubscriptionCatalog() {
       >
         <DialogTitle id="catalog-preview-title">Patient preview</DialogTitle>
         <DialogContent>
-          {preview && <PackageCard terms={preview.terms} />}
+          {preview && (
+            <PackageCard
+              terms={preview.terms}
+              selections={previewSelections}
+              onSelect={(ids) => {
+                setPreviewSelections(ids);
+                setPreview({
+                  ...preview,
+                  terms: {
+                    ...preview.terms,
+                    total: undefined,
+                    selected_components: undefined,
+                  },
+                });
+              }}
+            />
+          )}
+          {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPreview(null)}>Close</Button>
+          <Button
+            disabled={busy}
+            onClick={() =>
+              preview &&
+              void run(async () => {
+                const query = new URLSearchParams({ quote: "1" });
+                previewSelections.forEach((id) =>
+                  query.append("selections[]", String(id)),
+                );
+                setPreview(
+                  await api<PublishedPackage>(
+                    `/api/clinic/subscription_catalog/packages/${preview.terms.package_id}/preview?${query}`,
+                  ),
+                );
+              })
+            }
+          >
+            Validate selections and price
+          </Button>
         </DialogActions>
       </Dialog>
       <Dialog
@@ -635,28 +676,24 @@ export function SubscriptionCatalog() {
           Retire {retire?.name}
         </DialogTitle>
         <DialogContent>
-          <TextField
-            fullWidth
-            label="Reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            sx={{ mt: 1 }}
-          />
+          <Typography>
+            Retirement prevents new use. Published terms and existing purchases
+            remain in history.
+          </Typography>
           {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRetire(null)}>Cancel</Button>
           <Button
-            disabled={busy || !reason.trim()}
+            disabled={busy}
             onClick={() =>
               retire &&
               void run(async () => {
                 await api(
                   `/api/clinic/subscription_catalog/${retire.kind}/${retire.id}/retire`,
-                  { method: "POST", body: { reason } },
+                  { method: "POST", body: {} },
                 );
                 setRetire(null);
-                setReason("");
               })
             }
           >
