@@ -123,6 +123,7 @@ begin
   login = request.call("Post", "/api/session", { email_address: actor.email_address, password: password }, csrf)
   raise "HTTP fixture login failed (#{login.code})" unless login.code == "200"
   csrf = JSON.parse(request.call("Get", "/api/csrf").body).fetch("csrf_token")
+  supplier.supplier_products.sole.update!(package_quantity: 5)
   added = request.call("Post", "/api/clinic/inventory/purchase-cart/items",
     { item: { product_id: product.id, requested_packages: "3", destination_site_id: site.id, reason: "HTTP fixture receipt plan", source: "manual" } }, csrf)
   raise "HTTP cart add failed (#{added.code})" unless added.code == "201"
@@ -133,6 +134,46 @@ begin
   raise "HTTP checkout or replay failed" unless checked_out.code == "201" && replay.code == "201"
   raise "HTTP retry returned different orders" unless JSON.parse(checked_out.body).fetch("purchase_order_ids") == JSON.parse(replay.body).fetch("purchase_order_ids")
   puts "PASS: live HTTP session + CSRF -> add cart item -> checkout -> idempotent replay"
+
+  Object.new.extend(AuthorizationHelpers).grant_permissions!(membership, "inventory.receive")
+  http_order = practice.inventory_purchase_orders.find(JSON.parse(checked_out.body).fetch("purchase_order_ids").first)
+  http_order.update!(status: "sent") # Fixture-only order; no supplier transmission.
+  http_line = http_order.lines.sole
+  location = practice.inventory_locations.create!(name: "Receiving fixture shelf", kind: "storage")
+  delivery = request.call("Post", "/api/clinic/inventory/shipments", { shipment: {
+    purchase_order_id: http_order.id, purchase_order_line_id: http_line.id,
+    reference: "HTTP-#{SecureRandom.hex(6)}", supplier_reference: "Fixture delivery", package_count: 2,
+    delivered_at: Time.current.iso8601, request_key: SecureRandom.uuid
+  } }, csrf)
+  raise "HTTP delivery failed (#{delivery.code})" unless delivery.code == "201"
+  receipt_payload = { receipt: {
+    purchase_order_id: http_order.id, purchase_order_line_id: http_line.id,
+    shipment_id: JSON.parse(delivery.body).fetch("id"), quantity_packages: 2,
+    lot_number: "HTTP-RECEIVE", expiration_date: "2099-01-01", destination_location: location.name,
+    reason: "Fixture supplier package check", request_key: SecureRandom.uuid
+  } }
+  received = request.call("Post", "/api/clinic/inventory/receipts", receipt_payload, csrf)
+  replayed = request.call("Post", "/api/clinic/inventory/receipts", receipt_payload, csrf)
+  raise "HTTP receipt or replay failed" unless received.code == "200" && replayed.code == "200"
+  receipt_id = JSON.parse(received.body).fetch("receipt_id")
+  raise "HTTP receipt retry changed identity" unless receipt_id == JSON.parse(replayed.body).fetch("receipt_id")
+  receipt_line = Clinic::Inventory::Receipt.find(receipt_id).lines.sole
+  raise "HTTP receipt used catalog conversion" unless receipt_line.quantity == 10 && receipt_line.conversion_factor == 5 && receipt_line.batch.reload.quantity == 10
+  raise "HTTP order remaining quantity incorrect" unless http_line.reload.received_quantity == 2 && http_line.remaining_quantity == 4
+  puts "PASS: live HTTP delivered shipment -> supplier-package receipt -> exact stock and PO remainder -> replay"
+  next_shipment = http_order.shipments.create!(practice: practice, actor: actor, reference: "RACE-#{SecureRandom.hex(6)}",
+    supplier_reference: "Fixture race delivery", status: "delivered", package_count: 2, expected_units: 10,
+    delivered_at: Time.current, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16))
+  next_shipment.shipment_lines.create!(practice: practice, purchase_order_line: http_line, expected_packages: 2)
+  receipt_key = SecureRandom.uuid
+  receipts = race do
+    Clinic::Inventory::Receiving.call(practice: practice, actor: actor, purchase_order: http_order, shipment: next_shipment,
+      lines: [ { product_id: product.id, purchase_order_line_id: http_line.id, lot_number: "HTTP-RECEIVE",
+        expires_on: "2099-01-01", location: location.name, amount: "2", input_unit: "package" } ],
+      reason: "Fixture receipt race", request_key: receipt_key)
+  end
+  raise "Concurrent receipt duplicated stock" unless receipts.map(&:id).uniq.one? && receipt_line.batch.reload.quantity == 20 && http_line.reload.received_quantity == 4
+  puts "PASS: independent connections receive the same shipment once with supplier package units"
 ensure
   Process.kill("KILL", server_pid) if server_pid
   Process.wait(server_pid) if server_pid

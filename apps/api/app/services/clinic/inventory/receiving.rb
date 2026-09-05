@@ -16,12 +16,18 @@ module Clinic
               raise ArgumentError, "This receipt form was already used for different data. Reload and try again." unless existing.payload_digest == digest
               return existing
             end
+            # Match shipment creation's order-before-shipment locking order.
+            purchase_order = practice.inventory_purchase_orders.lock.find(purchase_order.id) if purchase_order
+            if shipment
+              shipment = Shipment.where(practice_id: practice.id).find(shipment.id)
+            end
             shipment&.with_lock do
               validate_shipment!(shipment, purchase_order, normalized, practice)
               raise ArgumentError, "This shipment has already been received." if Clinic::Inventory::Receipt.where(practice_id: practice.id, shipment_id: shipment.id).exists?
             end
             # Fixed product order prevents deadlocks for multi-line shipments.
             products = Clinic::Inventory::PharmacyProduct.where(practice_id: practice.id, id: normalized.map { |line| line[:product_id] }).order(:id).lock.index_by { |product| product.id.to_s }
+            order_lines = purchase_order ? purchase_order.lines.where(practice_id: practice.id).order(:id).lock.index_by { |line| line.id.to_s } : {}
             vendor = if payload[:supplier].present?
               Clinic::Inventory::Supplier.create_or_find_by!(practice_id: practice.id, name: payload[:supplier])
             end
@@ -32,7 +38,14 @@ module Clinic
             unit = line[:input_unit].presence || "package"
             package_unit = InventoryWire::PACKAGE_INPUT_UNIT
             raise ArgumentError, "Choose #{package_unit} or #{product.stock_unit}." unless [ package_unit, product.stock_unit ].include?(unit)
-            factor = unit == package_unit ? product.package_size : BigDecimal("1")
+            purchase_line = if purchase_order || line[:purchase_order_line_id].present?
+              candidate = order_lines.fetch(line[:purchase_order_line_id]) { raise ArgumentError, "Choose a line from this receipt's purchase order." }
+              unless candidate.product_id == product.id && candidate.stock_unit == product.stock_unit && unit == package_unit && candidate.input_unit == package_unit
+                raise ArgumentError, "Receipt units and product must match the purchase-order line."
+              end
+              candidate
+            end
+            factor = unit == package_unit ? (purchase_line&.conversion_factor || product.package_size) : BigDecimal("1")
             amount = Quantity.parse(line[:amount], scale: unit == "package" ? 0 : product.quantity_scale)
             quantity = Quantity.parse((amount * factor).to_s("F"), scale: product.quantity_scale)
             expiry = Date.iso8601(line[:expires_on])
@@ -65,7 +78,6 @@ module Clinic
             end
             if purchase_order && line[:purchase_order_line_id].present?
               purchase_order.with_lock do
-                purchase_line = purchase_order.lines.where(practice_id: practice.id, id: line[:purchase_order_line_id]).lock.first || raise(ActiveRecord::RecordNotFound)
                 raise ArgumentError, "Receipt exceeds the remaining purchase-order quantity." if amount > purchase_line.remaining_quantity
                 purchase_line.update!(received_quantity: purchase_line.received_quantity + amount)
                 purchase_order.update!(status: purchase_order.lines.all? { |order_line| order_line.remaining_quantity.zero? } ? "complete" : "partially_received")

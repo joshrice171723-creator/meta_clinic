@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../src/api/client";
 import {
   InventoryApp,
+  ReceivingScreen,
   benchmarkPackagePrice,
   inferInventoryUnits,
   inventoryDate,
@@ -24,9 +25,111 @@ import {
   decimalMultiply,
   decimalSubtract,
 } from "../src/features/inventory/inventoryContracts";
-import type { InventoryPurchaseOrder } from "../src/features/inventory/inventoryContracts";
+import type {
+  InventoryData,
+  InventoryPurchaseOrder,
+} from "../src/features/inventory/inventoryContracts";
 
 describe("inventory integration", () => {
+  it("renders supplier-package receiving totals from the PO snapshot", () => {
+    const data: InventoryData = {
+      schema_version: "1",
+      dataset_version: "fixture",
+      data_version: 1,
+      as_of: "2026-09-05T12:00:00Z",
+      timezone: "UTC",
+      practice: { id: 1, name: "Fixture clinic", timezone: "UTC" },
+      users: [],
+      current_user_id: "1",
+      capabilities: { "inventory.receive": true },
+      products: [
+        {
+          id: "1",
+          name: "Fixture liquid",
+          category: "medication",
+          active: true,
+          ndc: "",
+          device_identifier: "",
+          schedule: null,
+          package_id: "pkg",
+          base_unit: "mL",
+          units_per_package: "10.5",
+          reorder_point_units: "0",
+          preferred_supplier: null,
+          available_units: "0",
+          on_hand_units: "0",
+          low_stock: false,
+        },
+      ],
+      packages: [
+        {
+          id: "pkg",
+          product_id: "1",
+          description: "Catalog 10.5 mL",
+          input_unit: "package",
+          units_per_package: "10.5",
+        },
+      ],
+      locations: [{ id: "1", name: "Shelf", kind: "storage", areas: [] }],
+      lots: [],
+      balances: [],
+      movements: [],
+      receipts: [],
+      recalls: [],
+      controlled_reconciliations: [],
+      audit_events: [],
+      purchase_orders: [
+        {
+          id: "po",
+          number: "Fixture PO",
+          status: "sent",
+          supplier: null,
+          destination: "Shelf",
+          created_at: "2026-09-05T12:00:00Z",
+          subtotal: "3",
+          tax: "0",
+          shipping: "0",
+          total: "3",
+          lines: [
+            {
+              id: "line",
+              product_id: "1",
+              package_id: "pkg",
+              ordered_packages: "3",
+              units_per_package: "7.25",
+              ordered_units: "21.75",
+              package_price: "1",
+              currency: "USD",
+              received_units: "0",
+              received_packages: "0",
+            },
+          ],
+        },
+      ],
+      shipments: [
+        {
+          id: "shipment",
+          po_id: "po",
+          supplier_reference: "Fixture delivery",
+          status: "delivered",
+          package_count: 2,
+          delivered_at: "2026-09-05T12:00:00Z",
+          expected_units: "14.5",
+          allocations: [
+            { purchase_order_line_id: "line", expected_packages: "2" },
+          ],
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <ReceivingScreen data={data} busy={false} run={async () => {}} />,
+    );
+    expect(html).toContain("7.25 mL per ordered package");
+    expect(html).toContain("2 package · 14.5 mL");
+    expect(html).not.toContain("21 mL");
+    expect(html).not.toContain("Catalog 10.5 mL");
+  });
+
   it("infers the stock unit and package quantity from FDA package text", () => {
     expect(
       inferInventoryUnits({

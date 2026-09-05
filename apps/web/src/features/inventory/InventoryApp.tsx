@@ -3745,7 +3745,7 @@ function PurchasingScreen({
   );
 }
 
-function ReceivingScreen({
+export function ReceivingScreen({
   data,
   busy,
   run,
@@ -3980,7 +3980,7 @@ function ReceivingScreen({
         <div className="inventory-data-grid two">
           <Field label="Product / package">
             <input
-              value={`${item.name} · ${packageInfo?.description ?? `${number(item.units_per_package)} ${baseUnit} per ${packageUnit}`}`}
+              value={`${item.name} · ${number(line.units_per_package)} ${baseUnit} per ordered ${packageUnit}`}
               readOnly
             />
           </Field>
@@ -3999,7 +3999,7 @@ function ReceivingScreen({
           </Field>
           <Field
             label={`Quantity (${packageUnit})`}
-            hint={`${number(decimalMultiply(packages || "0", item.units_per_package))} ${baseUnit}`}
+            hint={`${number(decimalMultiply(packages || "0", line.units_per_package))} ${baseUnit}`}
           >
             <input
               type="number"
@@ -4099,7 +4099,7 @@ function ReceivingScreen({
           />
           <DataPoint
             label="This receipt"
-            value={`${number(packages)} ${packageUnit} · ${number(decimalMultiply(packages || "0", item.units_per_package))} ${baseUnit}`}
+            value={`${number(packages)} ${packageUnit} · ${number(decimalMultiply(packages || "0", line.units_per_package))} ${baseUnit}`}
           />
           <DataPoint
             label="PO remaining"
