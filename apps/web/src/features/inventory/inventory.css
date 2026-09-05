@@ -107,6 +107,11 @@
   font-size: 11px;
   margin: 14px 0 0;
 }
+.inventory-card-description {
+  color: var(--inventory-muted);
+  font-size: 12px;
+  margin: 0 0 14px;
+}
 .inventory-stack {
   display: grid;
   gap: 18px;
@@ -482,6 +487,104 @@ code {
   color: var(--inventory-green);
   font-size: 14px;
 }
+.inventory-purchase-batches {
+  display: grid;
+  gap: 10px;
+}
+.inventory-purchase-batch {
+  overflow: hidden;
+  border: 1px solid var(--inventory-border);
+  border-radius: 9px;
+  background: var(--inventory-background);
+}
+.inventory-purchase-batch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  border: 0;
+  padding: 13px 14px;
+  color: var(--inventory-ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inventory-purchase-batch-header:hover,
+.inventory-purchase-batch-header:focus-visible {
+  background: var(--inventory-soft);
+}
+.inventory-purchase-batch-header:focus-visible,
+.inventory-purchase-order-option:focus-visible {
+  outline: 3px solid var(--inventory-soft);
+  outline-offset: -3px;
+}
+.inventory-purchase-batch-heading,
+.inventory-purchase-batch-summary,
+.inventory-purchase-order-option > span:first-child,
+.inventory-purchase-order-option-summary {
+  display: flex;
+  align-items: center;
+}
+.inventory-purchase-batch-heading,
+.inventory-purchase-order-option > span:first-child {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.inventory-purchase-batch-heading strong,
+.inventory-purchase-batch-heading small,
+.inventory-purchase-order-option strong,
+.inventory-purchase-order-option small {
+  display: block;
+}
+.inventory-purchase-batch-heading small,
+.inventory-purchase-order-option small {
+  margin-top: 4px;
+  color: var(--inventory-muted);
+  font-size: 10px;
+}
+.inventory-purchase-batch-summary,
+.inventory-purchase-order-option-summary {
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.inventory-purchase-batch-summary > strong,
+.inventory-purchase-order-option-summary > strong {
+  white-space: nowrap;
+}
+.inventory-purchase-batch-orders {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--inventory-border);
+  padding: 8px;
+}
+.inventory-purchase-order-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 10px;
+  color: var(--inventory-ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inventory-purchase-order-option:hover {
+  border-color: var(--inventory-control);
+  background: var(--inventory-surface);
+}
+.inventory-purchase-order-option.selected {
+  border-color: var(--inventory-control);
+  background: var(--inventory-soft);
+}
 .inventory-button {
   display: inline-flex;
   align-items: center;
@@ -823,6 +926,22 @@ code {
   .inventory-order-summary {
     width: 100%;
     flex-basis: auto;
+  }
+  .inventory-purchase-batch-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .inventory-purchase-batch-summary {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .inventory-purchase-order-option {
+    grid-template-columns: 1fr;
+  }
+  .inventory-purchase-order-option-summary {
+    justify-content: space-between;
+    width: 100%;
   }
   .inventory-form-actions .inventory-button {
     width: 100%;

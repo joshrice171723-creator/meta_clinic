@@ -35,6 +35,8 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     orders = @practice.inventory_purchase_orders.where(purchase_cart_id: cart.id).to_a
     assert_equal 2, orders.size
     assert_equal 1, orders.map(&:checkout_group_id).uniq.size
+    wire_orders = response.parsed_body.dig("data", "purchase_orders").select { |order| orders.map { |record| record.id.to_s }.include?(order["id"]) }
+    assert_equal 1, wire_orders.map { |order| order["checkout_group_id"] }.uniq.size
     assert orders.all? { |order| order.supplier_id.present? && order.lines.one? }
     assert orders.flat_map(&:lines).all? { |line| !line.attributes.key?("supplier_id") && line.price_snapshot_digest.present? }
   end

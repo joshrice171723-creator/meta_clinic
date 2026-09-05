@@ -22,6 +22,7 @@ import type {
   Decimal,
   InventorySupplierProduct,
   InventoryFacility,
+  InventoryPurchaseOrder,
   NadacBenchmark,
   GudidResult,
   NdcResult,
@@ -3366,6 +3367,68 @@ function ShipmentCreateScreen({
   );
 }
 
+export type InventoryPurchaseOrderGroup = {
+  id: string;
+  checkoutGroupId: string | null;
+  orders: InventoryPurchaseOrder[];
+};
+
+export function purchaseOrderGroups(
+  orders: InventoryPurchaseOrder[],
+): InventoryPurchaseOrderGroup[] {
+  const groups = new Map<string, InventoryPurchaseOrderGroup>();
+  orders.forEach((order) => {
+    const checkoutGroupId = order.checkout_group_id ?? null;
+    const id = checkoutGroupId ?? `order:${order.id}`;
+    const group = groups.get(id) ?? { id, checkoutGroupId, orders: [] };
+    group.orders.push(order);
+    groups.set(id, group);
+  });
+  return Array.from(groups.values()).sort((left, right) =>
+    (right.orders[0]?.created_at ?? "").localeCompare(
+      left.orders[0]?.created_at ?? "",
+    ),
+  );
+}
+
+function purchaseOrderStatusTone(
+  status: string,
+): "neutral" | "success" | "warning" | "danger" | "blue" {
+  if (status === "complete") return "success";
+  if (["cancelled", "rejected"].includes(status)) return "danger";
+  if (status === "draft") return "warning";
+  return "blue";
+}
+
+function purchaseOrderGroupStatus(
+  orders: InventoryPurchaseOrder[],
+): { label: string; tone: "neutral" | "success" | "warning" | "danger" | "blue" } {
+  const statuses = orders.map((order) => order.status);
+  if (statuses.every((status) => status === "complete"))
+    return { label: "Complete", tone: "success" };
+  if (statuses.every((status) => status === "cancelled"))
+    return { label: "Cancelled", tone: "danger" };
+  if (statuses.every((status) => status === "draft"))
+    return { label: "Needs review", tone: "warning" };
+  return { label: "In progress", tone: "blue" };
+}
+
+function purchaseOrderGroupTotal(group: InventoryPurchaseOrderGroup): string {
+  const currencies = Array.from(
+    new Set(
+      group.orders.flatMap((order) =>
+        order.lines.map((line) => line.currency),
+      ),
+    ),
+  );
+  return currencies.length === 1
+    ? money(
+        decimalSum(group.orders.map((order) => order.total)),
+        currencies[0],
+      )
+    : "Multiple currencies";
+}
+
 function PurchasingScreen({
   data,
   busy,
@@ -3380,7 +3443,15 @@ function PurchasingScreen({
     detail: string,
   ) => Promise<void>;
 }) {
+  const orderGroups = useMemo(
+    () => purchaseOrderGroups(data.purchase_orders),
+    [data.purchase_orders],
+  );
   const [orderId, setOrderId] = useState(data.purchase_orders[0]?.id ?? "");
+  const [expandedGroupId, setExpandedGroupId] = useState(
+    orderGroups[0]?.id ?? "",
+  );
+  const [actionReason, setActionReason] = useState("");
   const order =
     data.purchase_orders.find((record) => record.id === orderId) ??
     data.purchase_orders[0];
@@ -3402,7 +3473,6 @@ function PurchasingScreen({
         <p>This purchase order has no lines.</p>
       </Card>
     );
-  const [actionReason, setActionReason] = useState("");
   const shipment = data.shipments.find((record) => record.po_id === order.id);
   const hasRemaining = order.lines.some((record) =>
     decimalCompare(decimalSubtract(record.ordered_packages, record.received_packages), "0") > 0,
@@ -3453,23 +3523,89 @@ function PurchasingScreen({
     busy || !capability(data, permission) || !actionReason.trim();
   return (
     <div className="inventory-stack">
-      <Card>
-        <div className="inventory-card-heading">
-          <Field label="Purchase order">
-            <select
-              value={order.id}
-              onChange={(event) => {
-                setOrderId(event.target.value);
-              }}
-            >
-              {data.purchase_orders.map((record) => (
-                <option key={record.id} value={record.id}>
-                  {record.number}
-                </option>
-              ))}
-            </select>
-          </Field>
+      <Card title="Purchase batches">
+        <p className="inventory-card-description">
+          Each batch comes from one checkout. A separate purchase order is kept
+          for each supplier.
+        </p>
+        <div className="inventory-purchase-batches">
+          {orderGroups.map((group) => {
+            const groupStatus = purchaseOrderGroupStatus(group.orders);
+            const expanded = expandedGroupId === group.id;
+            const title = group.checkoutGroupId
+              ? `Purchase batch ${group.checkoutGroupId.slice(0, 8).toUpperCase()}`
+              : "Individual purchase order";
+            return (
+              <div
+                className={`inventory-purchase-batch ${expanded ? "expanded" : ""}`}
+                key={group.id}
+              >
+                <button
+                  className="inventory-purchase-batch-header"
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() =>
+                    setExpandedGroupId((current) =>
+                      current === group.id ? "" : group.id,
+                    )
+                  }
+                >
+                  <span className="inventory-purchase-batch-heading">
+                    <strong>{title}</strong>
+                    <small>
+                      {group.orders.length} supplier purchase order
+                      {group.orders.length === 1 ? "" : "s"} · created{" "}
+                      {inventoryDateTime(
+                        group.orders[0]?.created_at,
+                        data.timezone,
+                      )}
+                    </small>
+                  </span>
+                  <span className="inventory-purchase-batch-summary">
+                    <Badge tone={groupStatus.tone}>{groupStatus.label}</Badge>
+                    <strong>{purchaseOrderGroupTotal(group)}</strong>
+                  </span>
+                </button>
+                {expanded && (
+                  <div className="inventory-purchase-batch-orders">
+                    {group.orders.map((record) => (
+                      <button
+                        className={`inventory-purchase-order-option ${record.id === order.id ? "selected" : ""}`}
+                        type="button"
+                        key={record.id}
+                        aria-current={record.id === order.id ? "true" : undefined}
+                        onClick={() => setOrderId(record.id)}
+                      >
+                        <span>
+                          <strong>
+                            {record.supplier ?? "Supplier not recorded"}
+                          </strong>
+                          <small>
+                            {record.number} · {record.lines.length} line
+                            {record.lines.length === 1 ? "" : "s"}
+                          </small>
+                        </span>
+                        <span className="inventory-purchase-order-option-summary">
+                          <Badge tone={purchaseOrderStatusTone(record.status)}>
+                            {record.status.replaceAll("_", " ")}
+                          </Badge>
+                          <strong>
+                            {money(
+                              record.total,
+                              record.lines[0]?.currency ?? "USD",
+                            )}
+                          </strong>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+      </Card>
+      <Card title={`Purchase order ${order.number}`}>
         <div className="inventory-panel-heading">
           <div>
             <div className="inventory-title-row">

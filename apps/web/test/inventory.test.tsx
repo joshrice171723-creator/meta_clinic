@@ -11,6 +11,7 @@ import {
   inventoryMovementViewState,
   inventoryMutationAttempt,
   inventoryOutcomeUnconfirmed,
+  purchaseOrderGroups,
   recallSelectableBalances,
   recallViewState,
 } from "../src/features/inventory/InventoryApp";
@@ -23,6 +24,7 @@ import {
   decimalMultiply,
   decimalSubtract,
 } from "../src/features/inventory/inventoryContracts";
+import type { InventoryPurchaseOrder } from "../src/features/inventory/inventoryContracts";
 
 describe("inventory integration", () => {
   it("infers the stock unit and package quantity from FDA package text", () => {
@@ -152,6 +154,22 @@ describe("inventory integration", () => {
 
     expect(html).toContain("Loading…");
     expect(html).toContain('role="status"');
+  });
+
+  it("groups checkout-created purchase orders without merging standalone orders", () => {
+    const order = (id: string, checkout_group_id: string | null, created_at: string) =>
+      ({ id, checkout_group_id, created_at } as InventoryPurchaseOrder);
+
+    const groups = purchaseOrderGroups([
+      order("po-2", "checkout-1", "2027-07-31T12:00:00Z"),
+      order("po-3", "checkout-1", "2027-07-31T12:00:01Z"),
+      order("po-1", null, "2027-07-30T12:00:00Z"),
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].orders.map((record) => record.id)).toEqual(["po-2", "po-3"]);
+    expect(groups[1].orders.map((record) => record.id)).toEqual(["po-1"]);
+    expect(groups[1].checkoutGroupId).toBeNull();
   });
 
   it("keeps every canonical inventory screen on the same APPly-backed surface", () => {

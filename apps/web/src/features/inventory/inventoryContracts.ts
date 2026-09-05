@@ -239,6 +239,7 @@ export type InventoryPurchaseOrder = {
   number: string;
   status: string;
   supplier: string | null;
+  checkout_group_id?: string | null;
   destination: string;
   receiving_site_id?: string | null;
   destination_address?: string | null;
