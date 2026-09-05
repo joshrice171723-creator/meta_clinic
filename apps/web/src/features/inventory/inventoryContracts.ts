@@ -86,6 +86,7 @@ export type InventoryProduct = {
   id: string;
   name: string;
   category: InventoryCategory;
+  active: boolean;
   ndc: string;
   device_identifier: string;
   schedule: string | null;
@@ -249,6 +250,35 @@ export type InventoryPurchaseOrder = {
   total: Decimal;
   cancelled_remaining_units?: Decimal;
 };
+export type InventoryPurchaseCartItem = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  requested_packages: Decimal;
+  input_unit: string;
+  conversion_factor: Decimal;
+  supplier_id: string | null;
+  supplier: string | null;
+  supplier_product_id: string | null;
+  supplier_sku?: string | null;
+  package_quantity: Decimal;
+  supplier_packages?: Decimal;
+  unit_price: Decimal;
+  currency: string;
+  extended_cost: Decimal;
+  source: string;
+  price_snapshot_at?: string | null;
+  price_snapshot_digest?: string | null;
+};
+export type InventoryPurchaseCart = {
+  id: string;
+  status: string;
+  destination_site_id?: string | null;
+  reason?: string | null;
+  checkout_group_id?: string | null;
+  version: number;
+  items: InventoryPurchaseCartItem[];
+};
 export type InventoryShipment = {
   id: string;
   po_id: string;
@@ -345,6 +375,7 @@ export type InventoryData = {
   balances: InventoryBalance[];
   movements: InventoryMovement[];
   purchase_orders: InventoryPurchaseOrder[];
+  purchase_cart?: InventoryPurchaseCart | null;
   shipments: InventoryShipment[];
   receipts: InventoryReceipt[];
   recalls: InventoryRecall[];

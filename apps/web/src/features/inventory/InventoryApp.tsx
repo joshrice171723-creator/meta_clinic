@@ -16,6 +16,7 @@ import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type {
   InventoryBalance,
   InventoryData,
+  InventoryProduct,
   InventoryRecall,
   InventoryCategory,
   Decimal,
@@ -2268,13 +2269,13 @@ export function InventoryApp({ path }: { path: string }) {
               <SupplierPricingScreen data={data} onData={(next) => setData(next)} />
             )}
             {screen === "replenishment" && (
-              <ReplenishmentScreen data={data} busy={busy} run={run} />
+              <PurchaseCartWorkspace data={data} busy={busy} run={run} onRefresh={load} />
             )}
             {screen === "purchasing" && (
               <PurchasingScreen data={data} busy={busy} run={run} />
             )}
             {screen === "purchase_order_new" && (
-              <PurchaseOrderCreateScreen data={data} busy={busy} run={run} />
+              <PurchaseCartWorkspace data={data} busy={busy} run={run} onRefresh={load} directEntry />
             )}
             {screen === "shipment_new" && (
               <ShipmentCreateScreen data={data} busy={busy} run={run} />
@@ -2972,6 +2973,134 @@ function ReplenishmentScreen({
             />
           )}
         </div>
+      </Card>
+    </div>
+  );
+}
+
+function cartBestOffer(data: InventoryData, product: InventoryProduct) {
+  const offers = (data.supplier_products ?? [])
+    .filter((offer) => offer.product_id === product.id && offer.available !== false)
+    .filter((offer) => !offer.effective_date || offer.effective_date <= new Date().toISOString().slice(0, 10));
+  return offers.sort((left, right) => {
+    const leftCost = Number(left.wholesale_unit_cost) / Number(left.package_quantity);
+    const rightCost = Number(right.wholesale_unit_cost) / Number(right.package_quantity);
+    return leftCost - rightCost || (left.lead_time_days ?? 9999) - (right.lead_time_days ?? 9999) || left.id.localeCompare(right.id);
+  })[0];
+}
+
+function PurchaseCartWorkspace({
+  data,
+  busy,
+  run,
+  onRefresh,
+  directEntry = false,
+}: {
+  data: InventoryData;
+  busy: boolean;
+  run: InventoryRun;
+  onRefresh: () => Promise<void>;
+  directEntry?: boolean;
+}) {
+  const queryProductId = new URLSearchParams(window.location.search).get("product_id");
+  const [showAll, setShowAll] = useState(directEntry);
+  const [search, setSearch] = useState("");
+  const [reason, setReason] = useState(data.purchase_cart?.reason ?? "");
+  const [destinationId, setDestinationId] = useState(data.purchase_cart?.destination_site_id ?? "");
+  const cart = data.purchase_cart;
+  const destinations = purchaseOrderFacilities(data).filter(facilityCanReceivePurchaseOrder);
+  const products = data.products.filter((product) => product.active && (showAll || product.low_stock) && (!search.trim() || `${product.name} ${product.ndc} ${product.device_identifier}`.toLowerCase().includes(search.trim().toLowerCase())));
+  const suggestedQuantity = (product: InventoryProduct) => {
+    const deficit = nonNegative(decimalSubtract(decimalSubtract(product.reorder_point_units, product.available_units), onOrderUnits(data, product.id)));
+    return decimalCompare(deficit, "0") > 0 ? decimalCeilDivide(deficit, product.units_per_package) : "1";
+  };
+  const addItem = (product: InventoryProduct) => {
+    const offer = cartBestOffer(data, product);
+    if (!offer) return;
+    void run("/api/clinic/inventory/purchase-cart/items", {
+      item: {
+        product_id: product.id,
+        requested_packages: suggestedQuantity(product),
+        source: product.low_stock && !showAll ? "replenishment" : "manual",
+        destination_site_id: destinationId,
+        reason: reason.trim(),
+      },
+    }, "Added to draft", `${product.name} is in the draft cart using ${offer.supplier_name}.`);
+  };
+  const updateItem = async (id: string, requested_packages: string) => {
+    try {
+      await api(`/api/clinic/inventory/purchase-cart/items/${id}`, { method: "PATCH", body: { item: { requested_packages } } });
+      await onRefresh();
+    } catch {
+      await onRefresh();
+    }
+  };
+  const removeItem = async (id: string) => {
+    await api(`/api/clinic/inventory/purchase-cart/items/${id}`, { method: "DELETE" });
+    await onRefresh();
+  };
+  const subtotal = decimalSum((cart?.items ?? []).map((item) => item.extended_cost));
+  const supplierCount = new Set((cart?.items ?? []).map((item) => item.supplier_id).filter(Boolean)).size;
+  const selectedDestination = destinations.find((site) => String(site.id) === destinationId);
+  const checkout = async () => {
+    if (!cart) return;
+    await api("/api/clinic/inventory/purchase-cart", { method: "PATCH", body: { cart: { destination_site_id: destinationId, reason: reason.trim() } } });
+    await run("/api/clinic/inventory/purchase-cart/checkout", { checkout: { cart_id: cart.id } }, "Checkout complete", `${supplierCount} supplier purchase order${supplierCount === 1 ? "" : "s"} created.`);
+  };
+  return (
+    <div className="inventory-two-col purchase-cart-layout">
+      <Card title={directEntry ? "Create purchase order" : "Plan replenishment"}>
+        <div className="inventory-toolbar purchase-cart-toolbar">
+          <div className="inventory-segmented" role="group" aria-label="Catalog scope">
+            <button type="button" className={!showAll ? "active" : ""} onClick={() => setShowAll(false)}>Needs replenishment</button>
+            <button type="button" className={showAll ? "active" : ""} onClick={() => setShowAll(true)}>All active catalog items</button>
+          </div>
+          <input aria-label="Search active catalog" placeholder="Search name, NDC, or SKU" value={search} onChange={(event) => setSearch(event.target.value)} />
+        </div>
+        <div className="inventory-list purchase-catalog-list">
+          {products.map((product) => {
+            const offer = cartBestOffer(data, product);
+            const preselected = product.id === queryProductId;
+            return (
+              <div className={`inventory-list-row ${preselected ? "selected" : ""}`} key={product.id}>
+                <div>
+                  <strong>{product.name}</strong>
+                  <small>{product.ndc || product.device_identifier || "Identifier not recorded"} · {number(product.units_per_package)} {product.base_unit} per package</small>
+                  <small>Available {number(product.available_units)} · On order {number(onOrderUnits(data, product.id))} · Reorder point {number(product.reorder_point_units)}</small>
+                </div>
+                <div className="purchase-catalog-price">{offer ? money(offer.wholesale_unit_cost, offer.currency) : "No eligible offer"}<small>{offer?.supplier_name ?? ""}</small></div>
+                <Button variant="outlined" size="small" disabled={busy || !offer || !selectedDestination || !reason.trim()} onClick={() => addItem(product)}>Add</Button>
+              </div>
+            );
+          })}
+          {products.length === 0 && <p className="inventory-empty">No matching catalog items.</p>}
+        </div>
+      </Card>
+      <Card title="Draft purchase cart" className="purchase-cart-panel">
+        <div className="inventory-form-grid compact">
+          <Field label="Destination facility">
+            <select aria-label="Destination facility" value={destinationId} onChange={(event) => setDestinationId(event.target.value)}>
+              <option value="">Select a facility</option>
+              {destinations.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Reason"><input aria-label="Purchase reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this needed?" /></Field>
+        </div>
+        {!cart?.items.length ? <p className="inventory-muted-panel">Your draft is empty. Add any active catalog item; supplier routing happens automatically.</p> : (
+          <div className="purchase-cart-lines">
+            {cart.items.map((item) => <div className="purchase-cart-line" key={item.id}>
+              <div><strong>{item.product_name}</strong><small>{item.supplier ?? "Supplier unavailable"} · {item.requested_packages} catalog packages · {item.supplier_packages ?? item.requested_packages} supplier packages · {money(item.unit_price, item.currency)} / supplier package</small></div>
+              <input aria-label={`${item.product_name} package quantity`} type="number" min="1" step="1" value={item.requested_packages} onChange={(event) => void updateItem(item.id, event.target.value)} />
+              <strong>{money(item.extended_cost, item.currency)}</strong>
+              <button type="button" aria-label={`Remove ${item.product_name}`} onClick={() => void removeItem(item.id)}><ClearRoundedIcon fontSize="small" /></button>
+            </div>)}
+          </div>
+        )}
+        <div className="purchase-cart-summary">
+          <span>{cart?.items.length ?? 0} lines · {supplierCount} supplier purchase order{supplierCount === 1 ? "" : "s"}</span>
+          <strong>Estimated subtotal {money(subtotal, cart?.items[0]?.currency ?? "USD")}</strong>
+        </div>
+        <Button variant="contained" disabled={busy || !cart?.items.length || !destinationId || !reason.trim()} onClick={() => void checkout()}>Check out once</Button>
       </Card>
     </div>
   );

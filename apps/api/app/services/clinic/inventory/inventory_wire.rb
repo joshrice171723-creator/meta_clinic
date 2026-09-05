@@ -40,6 +40,7 @@ module Clinic
         suppliers = Supplier.where(practice_id: practice.id).order(:name, :id).to_a
         sites = practice.sites.order(:name, :code, :id).to_a
         supplier_products = SupplierProduct.where(practice_id: practice.id).includes(:supplier).order(:ndc, :supplier_sku, :id).to_a
+        cart = PurchaseCart.where(practice_id: practice.id, actor_id: actor.id, status: "draft").includes(items: [ :product, :selected_supplier, :selected_supplier_product ]).first
         area_by_location = ReceiptLine.where(practice_id: practice.id, batch_id: batches.map(&:id)).where.not(area_id: nil).includes(batch: :location_record).to_a.group_by { |line| line.batch.location_id }.transform_values { |lines| lines.map(&:area_id).compact.uniq }
         movements = PharmacyMovement.where(practice_id: practice.id).includes(
           { batch: %i[product lot location_record] },
@@ -66,6 +67,7 @@ module Clinic
           balances: batches.map { |batch| balance_wire(batch, active_holds_by_batch.fetch(batch.id, []), inventory_date) },
           movements: movements.map { |movement| movement_wire(movement) },
           purchase_orders: orders.map { |order| purchase_order_wire(order) },
+          purchase_cart: cart ? purchase_cart_wire(cart) : nil,
           shipments: orders.flat_map { |order| order.shipments.map { |shipment| shipment_wire(shipment) } },
           receipts: receipts.map { |receipt| receipt_wire(receipt) },
           recalls: recalls.map { |recall| recall_wire(recall, batches_by_lot, active_holds_by_batch) },
@@ -76,6 +78,27 @@ module Clinic
 
       def purchase_order(order)
         { data: purchase_order_wire(order) }
+      end
+
+      def purchase_cart_wire(cart)
+        {
+          id: cart.id.to_s, status: cart.status, destination_site_id: cart.destination_site_id&.to_s,
+          reason: cart.reason, checkout_group_id: cart.checkout_group_id, version: cart.version,
+          items: cart.items.where(status: "draft").map do |item|
+            offer = item.selected_supplier_product
+            {
+              id: item.id.to_s, product_id: item.product_id.to_s, product_name: item.product.name,
+              requested_packages: item.requested_packages.to_d.to_s("F"), input_unit: item.input_unit,
+              conversion_factor: item.conversion_factor.to_d.to_s("F"), supplier_id: item.selected_supplier_id&.to_s,
+              supplier: item.selected_supplier&.name, supplier_product_id: item.selected_supplier_product_id&.to_s,
+              supplier_sku: offer&.supplier_sku, package_quantity: item.selected_package_quantity.to_d.to_s("F"),
+              supplier_packages: (item.requested_packages.to_d * item.product.package_size.to_d / item.selected_package_quantity.to_d).ceil.to_s,
+              unit_price: item.selected_unit_price.to_d.to_s("F"), currency: item.selected_currency,
+              extended_cost: ((item.requested_packages.to_d * item.product.package_size.to_d / item.selected_package_quantity.to_d).ceil * item.selected_unit_price.to_d).to_s("F"),
+              source: item.source, price_snapshot_at: item.price_snapshot_at&.iso8601, price_snapshot_digest: item.price_snapshot_digest
+            }
+          end
+        }
       end
 
       def capabilities(practice, actor)
@@ -92,7 +115,7 @@ module Clinic
         on_hand = product_batches.sum { |batch| batch.quantity.to_d }
         package = package_wire(product)
         supplier = product.preferred_supplier || product_batches.flat_map(&:receipt_lines).filter_map(&:receipt).max_by { |receipt| [ receipt.received_at, receipt.id ] }&.supplier
-        { id: product.id.to_s, name: product.name, category: product.category, ndc: product.ndc.to_s, device_identifier: product.device_identifier.to_s, schedule: product.dea_schedule, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
+        { id: product.id.to_s, name: product.name, category: product.category, ndc: product.ndc.to_s, device_identifier: product.device_identifier.to_s, schedule: product.dea_schedule, active: product.active?, package_id: package[:id], base_unit: product.stock_unit, units_per_package: product.package_size.to_d.to_s("F"), reorder_point_units: product.reorder_point.to_d.to_s("F"), preferred_supplier: supplier&.name, preferred_supplier_id: supplier&.id&.to_s, available_units: available.to_d.to_s("F"), on_hand_units: on_hand.to_d.to_s("F"), low_stock: available <= product.reorder_point }
       end
 
       def package_wire(product)

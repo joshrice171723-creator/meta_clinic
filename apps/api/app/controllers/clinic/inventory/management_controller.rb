@@ -10,6 +10,9 @@ module Clinic
       rescue_from ActiveRecord::RecordNotFound do
         render_error("The requested inventory record was not found in this clinic.", :not_found)
       end
+      rescue_from PurchaseCartCheckout::OfferChanged do |error|
+        render json: { error: error.message, code: "cart_offer_changed" }, status: :conflict
+      end
 
       def bootstrap
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
@@ -32,6 +35,19 @@ module Clinic
       end
 
       def replenishment = bootstrap
+      def purchase_cart
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+      end
+
+      def update_purchase_cart
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
+        cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
+        input = params.require(:cart).permit(:destination_site_id, :reason)
+        site = input[:destination_site_id].present? ? current_practice.sites.find(input[:destination_site_id]) : nil
+        raise ArgumentError, "The selected facility must be active before checkout." if site && site.status != "active"
+        cart.update!(destination_site: site, reason: input[:reason].to_s.strip.presence)
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+      end
       def purchase_orders = bootstrap
       def receiving = bootstrap
       def lots = bootstrap
@@ -111,6 +127,53 @@ module Clinic
           end
         end
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: order.id }, status: :created
+      end
+
+      def add_purchase_cart_item
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
+        input = params.require(:item).permit(:product_id, :requested_packages, :source, :destination_site_id, :reason)
+        cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
+        product = current_practice.pharmacy_products.find(input.require(:product_id))
+        quantity = Quantity.parse(input.require(:requested_packages), scale: product.quantity_scale, zero: false)
+        offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
+        cart.with_lock do
+          cart.update!(destination_site_id: input[:destination_site_id].presence || cart.destination_site_id, reason: input[:reason].presence || cart.reason)
+          item = cart.items.find_or_initialize_by(practice_id: current_practice.id, product_id: product.id)
+          quantity += item.requested_packages.to_d if item.persisted?
+          item.assign_attributes(requested_packages: quantity, input_unit: "package", conversion_factor: offer.supplier_product.package_quantity,
+            selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier, selected_unit_price: offer.supplier_product.wholesale_unit_cost,
+            selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
+            price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest, source: input[:source].presence || "manual", status: "draft")
+          item.save!
+        end
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }, status: :created
+      end
+
+      def update_purchase_cart_item
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
+        item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
+        product = item.product
+        quantity = Quantity.parse(params.require(:item).require(:requested_packages), scale: product.quantity_scale, zero: false)
+        offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
+        item.update!(requested_packages: quantity, conversion_factor: offer.supplier_product.package_quantity, selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier,
+          selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
+          price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+      end
+
+      def remove_purchase_cart_item
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
+        item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
+        item.destroy!
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+      end
+
+      def checkout_purchase_cart
+        input = params.require(:checkout).permit(:cart_id, :request_key)
+        request_key = input.require(:request_key).to_s
+        validate_request_key!(request_key)
+        cart, orders = PurchaseCartCheckout.call(practice: current_practice, actor: current_user, cart_id: input.require(:cart_id), request_key: request_key)
+        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), checkout_group_id: cart.checkout_group_id, purchase_order_ids: orders.map(&:id) }, status: :created
       end
 
       def transition_purchase_order

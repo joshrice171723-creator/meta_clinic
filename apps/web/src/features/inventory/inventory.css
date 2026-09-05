@@ -1284,3 +1284,32 @@ code {
     width: 100%;
   }
 }
+.purchase-cart-layout { align-items: start; }
+.purchase-cart-layout > .purchase-cart-panel { position: sticky; top: 1rem; }
+.purchase-cart-toolbar { align-items: center; justify-content: space-between; gap: .75rem; }
+.purchase-cart-toolbar input { min-width: 15rem; }
+.inventory-segmented { display: inline-flex; gap: .25rem; padding: .25rem; border: 1px solid var(--clinic-border, #d8ddd8); border-radius: 999px; background: color-mix(in srgb, var(--clinic-surface, #fff) 88%, #dfe8e1); }
+.inventory-segmented button { border: 0; border-radius: 999px; background: transparent; padding: .45rem .8rem; color: inherit; cursor: pointer; }
+.inventory-segmented button.active { background: var(--clinic-accent, #1d5f4a); color: #fff; }
+.purchase-catalog-list { display: grid; gap: .55rem; }
+.purchase-catalog-list .inventory-list-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 1rem; }
+.purchase-catalog-list small, .purchase-cart-line small, .purchase-catalog-price small { display: block; color: var(--clinic-muted, #64746a); font-size: .78rem; }
+.purchase-catalog-price { min-width: 7rem; text-align: right; font-variant-numeric: tabular-nums; }
+.purchase-cart-lines { display: grid; gap: .65rem; margin: 1rem 0; }
+.purchase-cart-line { display: grid; grid-template-columns: minmax(0, 1fr) 5rem auto auto; gap: .6rem; align-items: center; border-bottom: 1px solid var(--clinic-border, #d8ddd8); padding-bottom: .6rem; }
+.purchase-cart-line input { width: 4.5rem; }
+.purchase-cart-line button { border: 0; background: transparent; color: inherit; cursor: pointer; }
+.purchase-cart-summary { display: flex; justify-content: space-between; gap: 1rem; margin: 1rem 0; font-size: .9rem; }
+@media (max-width: 900px) {
+  .purchase-cart-layout > .purchase-cart-panel { position: static; }
+  .purchase-cart-layout { display: flex; flex-direction: column; }
+  .purchase-cart-layout > .purchase-cart-panel { order: -1; }
+}
+@media (max-width: 640px) {
+  .purchase-cart-toolbar { align-items: stretch; flex-direction: column; }
+  .purchase-cart-toolbar input { min-width: 0; }
+  .purchase-catalog-list .inventory-list-row { grid-template-columns: 1fr auto; }
+  .purchase-catalog-price { text-align: left; }
+  .purchase-cart-line { grid-template-columns: minmax(0, 1fr) 4rem auto; }
+  .purchase-cart-line button { grid-column: 3; grid-row: 1; }
+}

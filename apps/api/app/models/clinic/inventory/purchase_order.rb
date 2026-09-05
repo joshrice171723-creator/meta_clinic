@@ -7,6 +7,7 @@ module Clinic
       include Clinic::Auditable
       belongs_to :supplier, class_name: "Clinic::Inventory::Supplier", optional: true
       belongs_to :receiving_site, class_name: "Clinic::Site", optional: true
+      belongs_to :purchase_cart, class_name: "Clinic::Inventory::PurchaseCart", optional: true
       belongs_to :actor, class_name: "User"
       has_many :lines, class_name: "Clinic::Inventory::PurchaseOrderLine", foreign_key: :purchase_order_id, dependent: :restrict_with_error
       has_many :events, class_name: "Clinic::Inventory::PurchaseOrderEvent", foreign_key: :purchase_order_id, dependent: :restrict_with_error
