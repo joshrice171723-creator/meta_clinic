@@ -43,9 +43,9 @@ module Clinic
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
         input = params.require(:cart).permit(:destination_site_id, :reason)
-        site = input[:destination_site_id].present? ? current_practice.sites.find(input[:destination_site_id]) : nil
-        raise ArgumentError, "The selected facility must be active before checkout." if site && site.status != "active"
-        cart.update!(destination_site: site, reason: input[:reason].to_s.strip.presence)
+        cart.with_draft_lock do
+          cart.update!(destination_site: cart_destination(input[:destination_site_id]), reason: input[:reason].to_s.strip.presence)
+        end
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
       def purchase_orders = bootstrap
@@ -133,13 +133,15 @@ module Clinic
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         input = params.require(:item).permit(:product_id, :requested_packages, :source, :destination_site_id, :reason)
         cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
-        product = current_practice.pharmacy_products.find(input.require(:product_id))
-        quantity = Quantity.parse(input.require(:requested_packages), scale: product.quantity_scale, zero: false)
-        offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
-        cart.with_lock do
-          cart.update!(destination_site_id: input[:destination_site_id].presence || cart.destination_site_id, reason: input[:reason].presence || cart.reason)
+        cart.with_draft_lock do
+          product = current_practice.pharmacy_products.lock("FOR SHARE").find(input.require(:product_id))
+          quantity = Quantity.parse(input.require(:requested_packages), scale: 0, zero: false)
+          cart.update!(destination_site: input[:destination_site_id].present? ? cart_destination(input[:destination_site_id]) : cart.destination_site, reason: input[:reason].presence || cart.reason)
           item = cart.items.find_or_initialize_by(practice_id: current_practice.id, product_id: product.id)
+          raise ArgumentError, "A purchase cart supports at most 100 products." if item.new_record? && cart.items.count >= 100
           quantity += item.requested_packages.to_d if item.persisted?
+          quantity = Quantity.parse(quantity.to_s("F"), scale: 0, zero: false)
+          offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
           item.assign_attributes(requested_packages: quantity, input_unit: "package", conversion_factor: offer.supplier_product.package_quantity,
             selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier, selected_unit_price: offer.supplier_product.wholesale_unit_cost,
             selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
@@ -152,19 +154,22 @@ module Clinic
       def update_purchase_cart_item
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
-        product = item.product
-        quantity = Quantity.parse(params.require(:item).require(:requested_packages), scale: product.quantity_scale, zero: false)
-        offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
-        item.update!(requested_packages: quantity, conversion_factor: offer.supplier_product.package_quantity, selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier,
-          selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
-          price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
+        item.cart.with_draft_lock do
+          item.reload
+          product = current_practice.pharmacy_products.lock("FOR SHARE").find(item.product_id)
+          quantity = Quantity.parse(params.require(:item).require(:requested_packages), scale: 0, zero: false)
+          offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
+          item.update!(requested_packages: quantity, conversion_factor: offer.supplier_product.package_quantity, selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier,
+            selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
+            price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
+        end
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
       def remove_purchase_cart_item
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
-        item.destroy!
+        item.cart.with_draft_lock { item.reload.destroy! }
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
@@ -353,6 +358,14 @@ module Clinic
 
       def purchase_orders_scope = PurchaseOrder.where(practice_id: current_practice.id)
       def batches_scope = PharmacyBatch.where(practice_id: current_practice.id)
+
+      def cart_destination(id)
+        return nil if id.blank?
+
+        site = current_practice.sites.lock("FOR SHARE").find(id)
+        raise ArgumentError, "The selected facility must be active before checkout." unless site.status == "active"
+        site
+      end
 
       def batch_for(input)
         if input[:batch_id].present?
