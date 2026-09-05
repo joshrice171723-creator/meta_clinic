@@ -40,7 +40,7 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     post "/api/clinic/inventory/suppliers/import", params: { supplier_id:, csv:, include_lines: [ 2 ] }, headers: csrf_headers, as: :json
     assert_response :success
     assert_equal 1, response.parsed_body.fetch("imported")
-    offer = @practice.inventory_supplier_products.find_by!(supplier_id:, supplier_sku: "ACME-001")
+    offer = Clinic::Inventory::SupplierProduct.where(practice_id: @practice.id).find_by!(supplier_id:, supplier_sku: "ACME-001")
     assert_equal @product.id, offer.product_id
     assert_equal "12.5", offer.wholesale_unit_cost.to_d.to_s("F")
 
