@@ -207,6 +207,7 @@ describe("inventory integration", () => {
     expect(source).toContain("Select a package");
     expect(source).toContain('"/api/clinic/pharmacy/nadac"');
     expect(source).toContain("Public cost benchmark");
+    expect(source).toContain("No public CMS NADAC benchmark was found for this exact NDC");
     expect(source).toContain("Inventory definition");
     expect(source).not.toContain("What happens next");
     expect(source).toContain("Search begins automatically after 3 characters.");

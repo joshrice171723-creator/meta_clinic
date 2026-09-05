@@ -1498,10 +1498,20 @@ function PurchaseOrderCreateScreen({
       setUnitPrice((current) =>
         !current || current === historicalPackagePrice ? price : current,
       );
-  }, [data, historicalPackagePrice, item, nadacBenchmark, supplierProduct]);
+  }, [
+    data,
+    historicalPackagePrice,
+    item,
+    nadacBenchmark,
+    supplierId,
+    supplierProduct,
+  ]);
   const benchmarkPrice = item
     ? benchmarkPackagePrice(item, nadacBenchmark)
     : undefined;
+  const selectedSupplierName = data.suppliers?.find(
+    (record) => record.id === supplierId,
+  )?.name;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!item) return;
@@ -1615,7 +1625,11 @@ function PurchaseOrderCreateScreen({
                         : "Checking the CMS public cost benchmark…"
                       : nadacError
                         ? `${nadacError} Enter the supplier quote manually.`
-                        : "Enter the supplier quote for this order."
+                        : `${
+                            supplierId
+                              ? `No imported price is loaded for ${selectedSupplierName ?? "the selected supplier"}. `
+                              : "No supplier quote is loaded. "
+                          }No public CMS NADAC benchmark was found for this exact NDC. Enter the package price manually.`
               }
             >
               <input
