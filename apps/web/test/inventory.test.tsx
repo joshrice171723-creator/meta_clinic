@@ -163,6 +163,10 @@ describe("inventory integration", () => {
       "src/features/inventory/SupplierPricing.tsx",
       "utf8",
     );
+    const facilitiesSource = readFileSync(
+      "src/features/clinic/Facilities.tsx",
+      "utf8",
+    );
 
     for (const path of [
       "/clinic/inventory",
@@ -181,6 +185,9 @@ describe("inventory integration", () => {
       expect(source).toContain(path);
     }
     expect(source).toContain('"/api/clinic/inventory/bootstrap"');
+    expect(source).toContain('window.location.replace("/clinic/facilities")');
+    expect(source).not.toContain("Set up a clinic facility first.");
+    expect(facilitiesSource).not.toContain("selected_only=true");
     expect(source).toContain('"/api/clinic/pharmacy"');
     expect(source).toContain('"/api/clinic/pharmacy/lookup"');
     expect(source).toContain('"/api/clinic/pharmacy/device_lookup"');

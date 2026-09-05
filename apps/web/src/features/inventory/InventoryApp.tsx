@@ -508,6 +508,7 @@ function supplierProductFor(
   return data.supplier_products?.find(
     (row) =>
       row.supplier_id === supplierId &&
+      row.available !== false &&
       (row.product_id === productId ||
         (row.product_id == null && Boolean(item?.ndc) && row.ndc === item?.ndc)),
   );
@@ -1456,7 +1457,7 @@ function PurchaseOrderCreateScreen({
   const nadacVersion = useRef(0);
   useEffect(() => {
     const ndc = item?.ndc;
-    if (!ndc) {
+    if (!ndc || supplierProduct) {
       nadacVersion.current += 1;
       setNadacBenchmark(undefined);
       setNadacBusy(false);
@@ -1486,12 +1487,18 @@ function PurchaseOrderCreateScreen({
       .finally(() => {
         if (nadacVersion.current === version) setNadacBusy(false);
       });
-  }, [item?.id, item?.ndc]);
+  }, [item?.id, item?.ndc, supplierProduct]);
+  const historicalPackagePrice = item
+    ? recordedPackageTerms(data, item.id)?.packagePrice
+    : undefined;
   useEffect(() => {
-    if (!item || supplierProduct || recordedPackageTerms(data, item.id)) return;
+    if (!item || supplierProduct) return;
     const price = benchmarkPackagePrice(item, nadacBenchmark);
-    if (price) setUnitPrice((current) => current || price);
-  }, [data, item, nadacBenchmark, supplierProduct]);
+    if (price)
+      setUnitPrice((current) =>
+        !current || current === historicalPackagePrice ? price : current,
+      );
+  }, [data, historicalPackagePrice, item, nadacBenchmark, supplierProduct]);
   const benchmarkPrice = item
     ? benchmarkPackagePrice(item, nadacBenchmark)
     : undefined;
@@ -1548,22 +1555,6 @@ function PurchaseOrderCreateScreen({
             Order any active catalog item. This creates a draft only; stock is
             added after the delivery is recorded and received.
           </p>
-          {(!destinationOptions.length ||
-            !destinationOptions.some(facilityCanReceivePurchaseOrder)) && (
-            <div className="inventory-warning" role="status">
-              <strong>Set up a clinic facility first.</strong>
-              <p>
-                A purchase order needs the clinic address where the supplier
-                should deliver. Add it once in Operations → Facilities.
-              </p>
-              <a
-                className="inventory-button outline"
-                href="/clinic/facilities"
-              >
-                Set up facility
-              </a>
-            </div>
-          )}
           <form className="inventory-form-grid" onSubmit={submit}>
             <Field label="Catalog item">
               <select
@@ -1619,7 +1610,9 @@ function PurchaseOrderCreateScreen({
                   : benchmarkPrice
                     ? "Prefilled from the CMS public cost benchmark. Review against the supplier quote."
                     : nadacBusy
-                      ? "Checking the CMS public cost benchmark…"
+                      ? historicalPackagePrice
+                        ? "Checking the CMS public cost benchmark; the last recorded package price is shown until it returns."
+                        : "Checking the CMS public cost benchmark…"
                       : nadacError
                         ? `${nadacError} Enter the supplier quote manually.`
                         : "Enter the supplier quote for this order."
@@ -1943,6 +1936,8 @@ export function InventoryApp({ path }: { path: string }) {
   const [uncertainMutation, setUncertainMutation] =
     useState<PendingInventoryMutation | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const needsPurchaseOrderFacility =
+    screen === "purchase_order_new" || screen === "replenishment";
 
   useEffect(() => {
     if (!uncertainMutation || typeof window === "undefined") return;
@@ -1960,6 +1955,12 @@ export function InventoryApp({ path }: { path: string }) {
       unregister();
     };
   }, [registerBlocker, uncertainMutation]);
+
+  useEffect(() => {
+    if (!data || !needsPurchaseOrderFacility) return;
+    if (purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)) return;
+    window.location.replace("/clinic/facilities");
+  }, [data, needsPurchaseOrderFacility]);
 
   const load = async () => {
     setLoading(true);
@@ -2093,6 +2094,16 @@ export function InventoryApp({ path }: { path: string }) {
       </div>
     );
   if (!data) return null;
+
+  if (
+    needsPurchaseOrderFacility &&
+    !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
+  )
+    return (
+      <div className="inventory-app">
+        <LoadState />
+      </div>
+    );
 
   const available = decimalSum(
     data.balances.map((item) => item.available_units),
@@ -2309,6 +2320,9 @@ function CatalogScreen({
     (item) => item.status !== "active",
   ).length;
   const lowStockProducts = data.products.filter((item) => item.low_stock);
+  const canCreatePurchaseOrder = purchaseOrderFacilities(data).some(
+    facilityCanReceivePurchaseOrder,
+  );
   if (data.products.length === 0)
     return (
       <Card title="Product catalog">
@@ -2493,17 +2507,21 @@ function CatalogScreen({
                     <a href={`/clinic/inventory/lots?product_id=${item.id}`}>
                       View lots
                     </a>
-                    <a
-                      href={`/clinic/inventory/purchasing/new?product_id=${item.id}`}
-                    >
-                      Create purchase order
-                    </a>
-                    {item.low_stock && (
+                    {canCreatePurchaseOrder && (
                       <a
-                        href={`/clinic/inventory/replenishment?product_id=${item.id}`}
+                        href={`/clinic/inventory/purchasing/new?product_id=${item.id}`}
                       >
-                        Start replenishment
+                        Create purchase order
                       </a>
+                    )}
+                    {item.low_stock && (
+                      canCreatePurchaseOrder && (
+                        <a
+                          href={`/clinic/inventory/replenishment?product_id=${item.id}`}
+                        >
+                          Start replenishment
+                        </a>
+                      )
                     )}
                     {capability(data, "inventory.catalog") && (
                       <ReorderPointEditor item={item} onSaved={onRefresh} />
@@ -2757,22 +2775,6 @@ function ReplenishmentScreen({
           <strong>Projected replenishment</strong>
           <p>Available and inbound stock are below the reorder point.</p>
         </div>
-        {(!purchaseOrderFacilities(data).length ||
-          !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)) && (
-          <div className="inventory-warning" role="status">
-            <strong>Set up a clinic facility first.</strong>
-            <p>
-              Add the clinic delivery address once, then it will be available
-              for every purchase order. Add it in Operations → Facilities.
-            </p>
-            <a
-              className="inventory-button outline"
-              href="/clinic/facilities"
-            >
-              Set up facility
-            </a>
-          </div>
-        )}
         <form className="inventory-form-grid" onSubmit={submit}>
           <Field
             label={`Order quantity (${packageInfo?.input_unit ?? "unavailable unit"})`}

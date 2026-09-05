@@ -97,7 +97,7 @@ function siteForm(site: ClinicSite): EditableSite {
 export function Facilities() {
   const { capabilities, current_site: currentSite } = useClinic();
   const { data, error, refresh } = useResource<{ sites: ClinicSite[] }>(
-    "/api/clinic/facilities?type=sites&detail=true&per_page=100&selected_only=true",
+    "/api/clinic/facilities?type=sites&detail=true&per_page=100",
   );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
