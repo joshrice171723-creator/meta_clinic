@@ -35,6 +35,7 @@ import {
   decimalSubtract,
   decimalSum,
 } from "./inventoryContracts";
+import { SupplierPricingScreen } from "./SupplierPricing";
 import "./inventory.css";
 
 type Screen =
@@ -42,6 +43,7 @@ type Screen =
   | "catalog_new"
   | "configure"
   | "locations"
+  | "supplier_pricing"
   | "replenishment"
   | "purchasing"
   | "purchase_order_new"
@@ -122,6 +124,13 @@ const links: {
     group: "Procure",
   },
   {
+    screen: "supplier_pricing",
+    href: "/clinic/inventory/suppliers",
+    label: "Suppliers & pricing",
+    short: "Suppliers",
+    group: "Procure",
+  },
+  {
     screen: "receiving",
     href: "/clinic/inventory/receiving",
     label: "Receive & put away",
@@ -181,6 +190,7 @@ const screenDescriptions: Record<Screen, string> = {
   configure:
     "Record the inventory operating configuration before posting stock.",
   locations: "Manage stock storage, quarantine, returns, and controlled locations.",
+  supplier_pricing: "Manage supplier offers and defaults for purchase orders.",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
   purchase_order_new:
@@ -220,6 +230,7 @@ function screenForPath(path: string): Screen {
   if (value === "/clinic/inventory/catalog/new") return "catalog_new";
   if (value === "/clinic/inventory/configure") return "configure";
   if (value === "/clinic/inventory/locations") return "locations";
+  if (value === "/clinic/inventory/suppliers") return "supplier_pricing";
   if (value === "/clinic/inventory/purchasing/new") return "purchase_order_new";
   if (value === "/clinic/inventory/shipments/new") return "shipment_new";
   return links.find((link) => link.href === value)?.screen ?? "catalog";
@@ -231,6 +242,7 @@ function screenTitle(screen: Screen) {
       catalog_new: "Add catalog item",
       configure: "Configure inventory",
       locations: "Storage locations",
+      supplier_pricing: "Suppliers & pricing",
       replenishment: "Plan replenishment",
       purchasing: "Orders & delivery",
       purchase_order_new: "Create purchase order",
@@ -2190,6 +2202,9 @@ export function InventoryApp({ path }: { path: string }) {
             )}
             {screen === "locations" && (
               <InventoryLocationsScreen data={data} busy={busy} run={run} />
+            )}
+            {screen === "supplier_pricing" && (
+              <SupplierPricingScreen data={data} onData={(next) => setData(next)} />
             )}
             {screen === "replenishment" && (
               <ReplenishmentScreen data={data} busy={busy} run={run} />
