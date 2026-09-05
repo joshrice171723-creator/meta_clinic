@@ -36,14 +36,8 @@ function supplierOffersFor(
   data: InventoryData,
   productId: string,
 ): InventorySupplierProduct[] {
-  const item = data.products.find((product) => product.id === productId);
   return (data.supplier_products ?? []).filter(
-    (offer) =>
-      (offer.product_id === productId ||
-        (offer.product_id == null &&
-          Boolean(item?.ndc) &&
-          offer.ndc === item?.ndc)) &&
-      offer.available !== false,
+    (offer) => offer.product_id === productId && offer.available !== false,
   );
 }
 
