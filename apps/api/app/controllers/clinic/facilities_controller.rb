@@ -90,6 +90,15 @@ module Clinic
       if !existing || input.key?(:country)
         attributes[:country] = optional_string(input[:country], field: :country, maximum: 2)&.upcase || "US"
       end
+      effective_address = %i[address_line1 city state postal_code country].to_h do |field|
+        [ field, attributes.key?(field) ? attributes[field] : existing&.public_send(field) ]
+      end
+      if !existing || attributes.fetch(:status, existing.status) == "active"
+        missing = effective_address.select { |_field, value| value.to_s.strip.blank? }.keys
+        unless missing.empty?
+          raise ArgumentError, "A facility requires an address line, city, state, postal code, and country before it can be saved."
+        end
+      end
       attributes
     end
 

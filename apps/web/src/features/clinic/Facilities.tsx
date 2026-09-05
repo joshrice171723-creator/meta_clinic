@@ -58,7 +58,7 @@ const emptySite = (): EditableSite => ({
   id: 0,
   code: "",
   name: "",
-  status: "draft",
+  status: "active",
   timezone_override: null,
   address_line1: null,
   address_line2: null,
@@ -339,6 +339,7 @@ export function Facilities() {
                     update({ address_line1: e.target.value || null })
                   }
                   autoComplete="address-line1"
+                  required
                 />
                 <TextField
                   label="Address line 2"
@@ -353,12 +354,14 @@ export function Facilities() {
                   value={draft.city ?? ""}
                   onChange={(e) => update({ city: e.target.value || null })}
                   autoComplete="address-level2"
+                  required
                 />
                 <TextField
                   label="State"
                   value={draft.state ?? ""}
                   onChange={(e) => update({ state: e.target.value || null })}
                   autoComplete="address-level1"
+                  required
                 />
                 <TextField
                   label="Postal code"
@@ -367,6 +370,7 @@ export function Facilities() {
                     update({ postal_code: e.target.value || null })
                   }
                   autoComplete="postal-code"
+                  required
                 />
                 <TextField
                   label="Country"
@@ -376,6 +380,7 @@ export function Facilities() {
                   }
                   slotProps={{ htmlInput: { maxLength: 2 } }}
                   autoComplete="country"
+                  required
                 />
                 <TextField
                   label="Main phone"

@@ -13,6 +13,15 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "facility creation requires a complete shipping address" do
+    post "/api/clinic/facilities", params: {
+      site: { code: "NO-ADDRESS", name: "Missing address", status: "active" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "requires an address"
+  end
+
   test "facility profiles include address, contact, hours, and exceptions" do
     post "/api/clinic/facilities", params: {
       site: {
