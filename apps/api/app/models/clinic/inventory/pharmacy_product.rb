@@ -7,6 +7,8 @@ module Clinic
       has_many :batches, class_name: "Clinic::Inventory::PharmacyBatch", foreign_key: :product_id, dependent: :restrict_with_error
       has_many :lots, class_name: "Clinic::Inventory::Lot", foreign_key: :product_id, dependent: :restrict_with_error
       has_many :catalog_events, class_name: "Clinic::Inventory::CatalogEvent", foreign_key: :product_id, dependent: :restrict_with_error
+      has_many :supplier_products, class_name: "Clinic::Inventory::SupplierProduct", foreign_key: :product_id, dependent: :restrict_with_error
+      belongs_to :preferred_supplier, class_name: "Clinic::Inventory::Supplier", optional: true
       validates :name, :sku, presence: true, length: { maximum: 160 }
       validates :sku, uniqueness: { scope: :practice_id }
       validates :ndc, uniqueness: { scope: :practice_id }, allow_nil: true
@@ -25,6 +27,9 @@ module Clinic
       validates :unit_reference, presence: true, if: -> { package_size != 1 }
       validates :unit_reference, length: { maximum: 500 }
       validate do
+        if preferred_supplier_id.present? && (!preferred_supplier || preferred_supplier.practice_id != practice_id)
+          errors.add(:preferred_supplier, "must belong to this clinic")
+        end
         errors.add(:quantity_scale, "must be zero for countable units") if !%w[mL g].include?(stock_unit) && quantity_scale != 0
         errors.add(:package_size, "must match the selected quantity precision") if package_size && quantity_scale && package_size != package_size.round(quantity_scale.clamp(0, 6))
         errors.add(:package_size, "must be one when stock is tracked as packages") if stock_unit == "package" && package_size != 1

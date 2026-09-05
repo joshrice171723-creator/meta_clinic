@@ -74,6 +74,11 @@ Rails.application.routes.draw do
     post "inventory_configuration", to: "inventory/pharmacy#configure", as: :inventory_configuration
     scope "inventory", as: "inventory_management" do
       get "bootstrap", to: "inventory/management#bootstrap"
+      post "suppliers", to: "inventory/supplier_pricing#create"
+      patch "suppliers/:id", to: "inventory/supplier_pricing#update"
+      post "suppliers/preview", to: "inventory/supplier_pricing#preview"
+      post "suppliers/import", to: "inventory/supplier_pricing#import"
+      patch "products/:id/preferred-supplier", to: "inventory/supplier_pricing#set_preferred_supplier"
       post "demo", to: "inventory/management#demo"
       get "catalog", to: "inventory/management#catalog"
       post "locations", to: "inventory/management#create_location"

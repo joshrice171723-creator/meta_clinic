@@ -5,45 +5,43 @@ module Clinic
   module Inventory
     class IngestPriceSheet
       MAX_ROWS = 50_000
+      MAX_BYTES = 50.megabytes
       REQUIRED_HEADERS = %w[ndc vendor_sku description package_qty wholesale_cost effective_date].freeze
 
-      def self.call(practice:, supplier:, actor:, path:)
-        new(practice:, supplier:, actor:, path:).call
+      def self.call(practice:, supplier:, actor:, path: nil, csv: nil, include_lines: nil)
+        new(practice:, supplier:, actor:, path:, csv:, include_lines:).call
+      end
+
+      def self.preview(practice:, supplier:, path: nil, csv: nil)
+        new(practice:, supplier:, path:, csv:).preview
       end
 
       def self.normalize_ndc(value)
         Integrations::Cms::Nadac.normalize_ndc(value)
       end
 
-      def initialize(practice:, supplier:, actor:, path:)
+      def initialize(practice:, supplier:, actor: nil, path: nil, csv: nil, include_lines: nil)
         @practice = practice
         @supplier = supplier
         @actor = actor
-        @path = path.to_s
+        @path = path.to_s.presence
+        @csv = csv
+        @include_lines = include_lines&.map { |line| Integer(line.to_s, 10) }
       end
 
       def call
-        raise ArgumentError, "The supplier feed file could not be found." unless File.file?(@path)
-        raise ArgumentError, "The supplier feed file is too large." if File.size(@path) > 50.megabytes
-        raise ArgumentError, "The supplier does not belong to this clinic." unless @supplier.practice_id == @practice.id
+        parsed = parsed_rows
+        raise ArgumentError, parsed[:errors].first[:message] if parsed[:errors].any? && @include_lines.nil?
+        selected = @include_lines ? parsed[:rows].select { |row| @include_lines.include?(row[:line]) } : parsed[:rows]
+        raise ArgumentError, "Choose at least one valid supplier price row." if @include_lines && selected.empty?
+        raise ArgumentError, "The supplier price import requires a catalog permission." unless @actor
 
-        products_by_ndc = PharmacyProduct.where(practice_id: @practice.id).where.not(ndc: nil).to_a.each_with_object({}) do |product, index|
-          normalized = self.class.normalize_ndc(product.ndc)
-          index[normalized] = product.id if normalized
-        end
         imported_at = Time.current
-        rows = []
-        unmatched_ndcs = []
-
-        CSV.foreach(@path, headers: true).with_index(2) do |row, line_number|
-          raise ArgumentError, "The supplier feed is limited to #{MAX_ROWS} rows." if rows.length >= MAX_ROWS
-          attributes = parse_row(row, line_number)
-          product_id = products_by_ndc[attributes[:ndc]]
-          unmatched_ndcs << attributes[:ndc] unless product_id
-          rows << attributes.merge(
+        attributes = selected.map do |row|
+          row[:attributes].merge(
             practice_id: @practice.id,
             supplier_id: @supplier.id,
-            product_id: product_id,
+            product_id: row[:product_id],
             currency: "USD",
             ordering_unit: "package",
             contract_status: "unknown",
@@ -52,18 +50,65 @@ module Clinic
             updated_at: imported_at,
           )
         end
-        raise ArgumentError, "The supplier feed must include a header row." if rows.empty? && CSV.read(@path, headers: true).headers.compact.empty?
-
         Access.with(@practice.id, @actor, "catalog") do
-          SupplierProduct.upsert_all(rows, unique_by: :inventory_supplier_product_identity) unless rows.empty?
+          SupplierProduct.upsert_all(attributes, unique_by: :inventory_supplier_product_identity) unless attributes.empty?
         end
-        Rails.logger.info("inventory_supplier_price_sheet_import practice_id=#{@practice.id} supplier_id=#{@supplier.id} rows=#{rows.length} unmatched_ndcs=#{unmatched_ndcs.uniq.length}")
-        { imported: rows.length, unmatched_ndcs: unmatched_ndcs.uniq }
+        Rails.logger.info("inventory_supplier_price_sheet_import practice_id=#{@practice.id} supplier_id=#{@supplier.id} rows=#{attributes.length} unmatched_ndcs=#{selected.count { |row| row[:product_id].nil? }}")
+        { imported: attributes.length, unmatched_ndcs: selected.filter_map { |row| row[:product_id].nil? ? row[:attributes][:ndc] : nil }.uniq }
+      end
+
+      def preview
+        parsed = parsed_rows
+        {
+          total_rows: parsed[:total_rows],
+          rows: parsed[:rows].map { |row| row.slice(:line, :product_id, :matched, :attributes).merge(row[:attributes]) },
+          errors: parsed[:errors],
+          unmatched_ndcs: parsed[:rows].filter_map { |row| row[:product_id].nil? ? row[:attributes][:ndc] : nil }.uniq
+        }
+      end
+
+      private
+
+      def parsed_rows
+        raise ArgumentError, "The supplier does not belong to this clinic." unless @supplier.practice_id == @practice.id
+        content = source_content
+        table = CSV.parse(content, headers: true)
+        headers = Array(table.headers).map(&:to_s)
+        missing_headers = REQUIRED_HEADERS - headers
+        raise ArgumentError, "The supplier feed is missing required columns: #{missing_headers.join(', ')}." if headers.empty? || missing_headers.any?
+
+        products_by_ndc = PharmacyProduct.where(practice_id: @practice.id).where.not(ndc: nil).to_a.each_with_object({}) do |product, index|
+          normalized = self.class.normalize_ndc(product.ndc)
+          index[normalized] = product.id if normalized
+        end
+        rows = []
+        errors = []
+        table.each.with_index(2) do |row, line_number|
+          raise ArgumentError, "The supplier feed is limited to #{MAX_ROWS} rows." if line_number - 1 > MAX_ROWS
+          begin
+            attributes = parse_row(row, line_number)
+            product_id = products_by_ndc[attributes[:ndc]]
+            rows << { line: line_number, product_id: product_id, matched: product_id.present?, attributes: attributes }
+          rescue ArgumentError => error
+            errors << { line: line_number, message: error.message }
+          end
+        end
+        { total_rows: rows.length + errors.length, rows:, errors: }
       rescue CSV::MalformedCSVError => error
         raise ArgumentError, "The supplier feed is not valid CSV: #{error.message}"
       end
 
-      private
+      def source_content
+        content = if @csv.is_a?(String)
+          @csv
+        elsif @path && File.file?(@path)
+          File.binread(@path)
+        else
+          raise ArgumentError, "The supplier feed file could not be found."
+        end
+        raise ArgumentError, "The supplier feed file is too large." if content.bytesize > MAX_BYTES
+        content
+      end
 
       def parse_row(row, line_number)
         values = REQUIRED_HEADERS.to_h { |header| [ header.to_sym, row[header].to_s.strip ] }
