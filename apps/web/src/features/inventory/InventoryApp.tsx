@@ -3384,7 +3384,6 @@ function PurchasingScreen({
   const order =
     data.purchase_orders.find((record) => record.id === orderId) ??
     data.purchase_orders[0];
-  const [lineId, setLineId] = useState(order?.lines[0]?.id ?? "");
   if (!order)
     return (
       <Card title="Purchasing">
@@ -3397,27 +3396,16 @@ function PurchasingScreen({
         </a>
       </Card>
     );
-  const line =
-    order.lines.find((record) => record.id === lineId) ?? order.lines[0];
-  if (!line)
+  if (order.lines.length === 0)
     return (
       <Card title="Purchasing">
         <p>This purchase order has no lines.</p>
       </Card>
     );
-  const item = product(data, line.product_id);
-  const packageUnit = line.input_unit ?? "package";
-  const baseUnit = line.stock_unit ?? item?.base_unit ?? "unavailable unit";
   const [actionReason, setActionReason] = useState("");
   const shipment = data.shipments.find((record) => record.po_id === order.id);
-  const cancelledPackages = order.cancelled_remaining_units
-    ? decimalCeilDivide(order.cancelled_remaining_units, line.units_per_package)
-    : "0";
-  const remaining = nonNegative(
-    decimalSubtract(
-      decimalSubtract(line.ordered_packages, line.received_packages),
-      cancelledPackages,
-    ),
+  const hasRemaining = order.lines.some((record) =>
+    decimalCompare(decimalSubtract(record.ordered_packages, record.received_packages), "0") > 0,
   );
   const next = (
     {
@@ -3474,11 +3462,7 @@ function PurchasingScreen({
             <select
               value={order.id}
               onChange={(event) => {
-                const selected = data.purchase_orders.find(
-                  (record) => record.id === event.target.value,
-                );
                 setOrderId(event.target.value);
-                setLineId(selected?.lines[0]?.id ?? "");
               }}
             >
               {data.purchase_orders.map((record) => (
@@ -3488,20 +3472,6 @@ function PurchasingScreen({
               ))}
             </select>
           </Field>
-          {order.lines.length > 1 && (
-            <Field label="Order line">
-              <select
-                value={line.id}
-                onChange={(event) => setLineId(event.target.value)}
-              >
-                {order.lines.map((record) => (
-                  <option key={record.id} value={record.id}>
-                    {record.product_name ?? product(data, record.product_id)?.name ?? record.id}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
         </div>
         <div className="inventory-panel-heading">
           <div>
@@ -3544,16 +3514,16 @@ function PurchasingScreen({
                 tone="danger"
                 disabled={
                   busy ||
-                  decimalCompare(remaining, "0") === 0 ||
+                  !hasRemaining ||
                   !capability(data, "procurement.submit")
                 }
-                confirmationTitle={`Cancel ${number(remaining)} ${packageUnit} remaining?`}
+                confirmationTitle="Cancel remaining quantities?"
                 confirmationContent={actionReasonField}
                 confirmDisabled={actionConfirmDisabled("procurement.submit")}
                 confirmLabel="Cancel remainder"
                 onConfirm={cancel}
               >
-                Cancel {number(remaining)} {packageUnit} remainder
+                Cancel remainder
               </ConfirmButton>
             )}
           </div>
@@ -3571,29 +3541,39 @@ function PurchasingScreen({
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>
-                    <strong>{line.product_name ?? item?.name}</strong>
-                    <small>
-                      {`${number(line.units_per_package)} ${baseUnit} / ${packageUnit}`} {" "}
-                      · NDC {item?.ndc}
-                    </small>
-                  </td>
-                  <td className="numeric">
-                    <strong>
-                      {number(line.ordered_packages)} {packageUnit} ordered
-                    </strong>
-                    <small>
-                      {number(line.received_packages)} received · {number(remaining)} remaining
-                    </small>
-                    <small>
-                      {number(line.ordered_units)} {baseUnit} total
-                    </small>
-                  </td>
-                  <td className="numeric">
-                    {money(line.package_price, line.currency)} / {packageUnit}
-                  </td>
-                </tr>
+                {order.lines.map((line) => {
+                  const item = product(data, line.product_id);
+                  const packageUnit = line.input_unit ?? "package";
+                  const baseUnit = line.stock_unit ?? item?.base_unit ?? "unavailable unit";
+                  const remaining = nonNegative(
+                    decimalSubtract(line.ordered_packages, line.received_packages),
+                  );
+                  return (
+                    <tr key={line.id}>
+                      <td>
+                        <strong>{line.product_name ?? item?.name}</strong>
+                        <small>
+                          {`${number(line.units_per_package)} ${baseUnit} / ${packageUnit}`} {" "}
+                          · NDC {item?.ndc}
+                        </small>
+                      </td>
+                      <td className="numeric">
+                        <strong>
+                          {number(line.ordered_packages)} {packageUnit} ordered
+                        </strong>
+                        <small>
+                          {number(line.received_packages)} received · {number(remaining)} remaining
+                        </small>
+                        <small>
+                          {number(line.ordered_units)} {baseUnit} total
+                        </small>
+                      </td>
+                      <td className="numeric">
+                        {money(line.package_price, line.currency)} / {packageUnit}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
