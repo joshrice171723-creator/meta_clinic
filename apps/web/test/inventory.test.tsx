@@ -139,6 +139,10 @@ describe("inventory integration", () => {
       "src/features/inventory/InventoryApp.tsx",
       "utf8",
     );
+    const supplierSource = readFileSync(
+      "src/features/inventory/SupplierPricing.tsx",
+      "utf8",
+    );
     expect(source).toContain("No movements recorded");
     expect(source).toContain(
       "Clear the filter to review the full movement ledger.",
@@ -181,9 +185,11 @@ describe("inventory integration", () => {
     expect(source).toContain('"/api/clinic/pharmacy/lookup"');
     expect(source).toContain('"/api/clinic/pharmacy/device_lookup"');
     expect(source).toContain('"/api/clinic/inventory/shipments"');
-    expect(source).toContain('"/api/clinic/inventory/suppliers/preview"');
-    expect(source).toContain("wholesale_cost");
-    expect(source).toContain("Preferred supplier by catalog item");
+    expect(supplierSource).toContain(
+      '"/api/clinic/inventory/suppliers/preview"',
+    );
+    expect(supplierSource).toContain("wholesale_cost");
+    expect(supplierSource).toContain("Preferred supplier by catalog item");
     expect(source).toContain("Create item and continue");
     expect(source).toContain("Item category");
     expect(source).toContain("Use FDA device data (optional)");
