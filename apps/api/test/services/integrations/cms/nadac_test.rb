@@ -16,24 +16,34 @@ class Integrations::Cms::NadacTest < ActiveSupport::TestCase
       "dataset" => [
         {
           "title" => "NADAC (National Average Drug Acquisition Cost) 2025",
+          "identifier" => "old-dataset",
           "modified" => "2025-12-31T00:00:00Z",
           "distribution" => [ { "format" => "csv", "downloadURL" => "https://download.medicaid.gov/data/old.csv" } ]
         },
         {
           "title" => "NADAC (National Average Drug Acquisition Cost) 2026",
+          "identifier" => "current-dataset",
           "modified" => "2026-09-02T00:00:00Z",
           "distribution" => [ { "format" => "csv", "downloadURL" => "https://download.medicaid.gov/data/current.csv" } ]
         }
       ]
     }
-    csv = <<~CSV
-      NDC,NDC Description,NADAC Per Unit,Effective Date,Pricing Unit
-      51655047451,IBUPROFEN 40 TABLET,0.12345,2026-09-02,EA
-    CSV
+    response = {
+      "results" => [
+        {
+          "ndc" => "51655047451",
+          "ndc_description" => "IBUPROFEN 40 TABLET",
+          "nadac_per_unit" => "0.12345",
+          "effective_date" => "2026-09-02",
+          "pricing_unit" => "EA"
+        }
+      ]
+    }.to_json
     calls = []
-    with_method(Integrations::Cms::Nadac, :fetch, lambda { |uri, accept|
-      calls << [ uri.to_s, accept ]
-      accept == "application/json" ? metadata.to_json : csv
+    with_method(Integrations::Cms::Nadac, :fetch, lambda { |uri, accept, options = {}|
+      body = options[:body]
+      calls << [ uri.to_s, accept, body ]
+      body ? response : metadata.to_json
     }) do
       Integrations::Cms::Nadac.reset_cache!
       benchmark = Integrations::Cms::Nadac.lookup("51655-474-51")
@@ -42,7 +52,12 @@ class Integrations::Cms::NadacTest < ActiveSupport::TestCase
       assert_equal "EA", benchmark[:pricing_unit]
       assert_equal "https://download.medicaid.gov/data/current.csv", benchmark[:source_url]
     end
-    assert_equal [ "https://data.medicaid.gov/data.json", "application/json" ], calls.first
-    assert_equal [ "https://download.medicaid.gov/data/current.csv", "text/csv" ], calls.second
+    assert_equal [ "https://data.medicaid.gov/data.json", "application/json", nil ], calls.first
+    assert_equal "https://data.medicaid.gov/api/1/datastore/query/current-dataset/0", calls.second.first
+    assert_equal "application/json", calls.second.second
+    assert_equal({
+      "conditions" => [ { "property" => "ndc", "value" => "51655047451", "operator" => "=" } ],
+      "limit" => 1
+    }, JSON.parse(calls.second.third))
   end
 end
