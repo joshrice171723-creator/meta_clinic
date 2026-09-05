@@ -222,6 +222,9 @@ export type InventoryPurchaseOrderLine = {
   id: string;
   product_id: string;
   package_id: string;
+  product_name?: string;
+  stock_unit?: string;
+  input_unit?: string;
   ordered_packages: Decimal;
   units_per_package: Decimal;
   ordered_units: Decimal;
@@ -238,7 +241,7 @@ export type InventoryPurchaseOrder = {
   destination: string;
   receiving_site_id?: string | null;
   destination_address?: string | null;
-  ordered_at: string;
+  created_at: string;
   lines: InventoryPurchaseOrderLine[];
   subtotal: Decimal;
   tax: Decimal;

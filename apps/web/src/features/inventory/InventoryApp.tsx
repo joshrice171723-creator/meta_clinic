@@ -641,11 +641,19 @@ function ConfirmButton({
   disabled,
   onConfirm,
   tone = "primary",
+  confirmationTitle = "Confirm this inventory action?",
+  confirmationContent,
+  confirmLabel = "Confirm action",
+  confirmDisabled = false,
 }: {
   children: ReactNode;
   disabled?: boolean;
   onConfirm: () => void;
   tone?: "primary" | "danger" | "outline";
+  confirmationTitle?: ReactNode;
+  confirmationContent?: ReactNode;
+  confirmLabel?: string;
+  confirmDisabled?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   if (confirming)
@@ -656,7 +664,8 @@ function ConfirmButton({
         aria-label="Confirm inventory action"
       >
         <div>
-          <strong>Confirm this inventory action?</strong>
+          <strong>{confirmationTitle}</strong>
+          {confirmationContent}
         </div>
         <div className="inventory-confirm-actions">
           <button
@@ -669,12 +678,13 @@ function ConfirmButton({
           <button
             className={`inventory-button ${tone}`}
             type="button"
+            disabled={confirmDisabled}
             onClick={() => {
               setConfirming(false);
               onConfirm();
             }}
           >
-            Confirm action
+            {confirmLabel}
           </button>
         </div>
       </div>
@@ -1389,9 +1399,12 @@ function PurchaseOrderCreateScreen({
   const requestedProductId = new URLSearchParams(window.location.search).get(
     "product_id",
   );
+  const requestedItem = data.products.find(
+    (item) => item.id === requestedProductId,
+  );
   const initialItem =
-    data.products.find((item) => item.id === requestedProductId) ??
-    data.products[0];
+    requestedItem ?? data.products[0];
+  const productIsLocked = Boolean(requestedItem);
   const [productId, setProductId] = useState(initialItem?.id ?? "");
   const item = data.products.find((record) => record.id === productId);
   const initialSupplierId =
@@ -1566,18 +1579,30 @@ function PurchaseOrderCreateScreen({
             added after the delivery is recorded and received.
           </p>
           <form className="inventory-form-grid" onSubmit={submit}>
-            <Field label="Catalog item">
-              <select
-                value={productId}
-                onChange={(event) => selectProduct(event.target.value)}
+            {productIsLocked ? (
+              <Field
+                label="Catalog item"
+                hint="Selected from the inventory item you chose."
               >
-                {data.products.map((record) => (
-                  <option key={record.id} value={record.id}>
-                    {record.name} · {number(record.available_units)} available
-                  </option>
-                ))}
-              </select>
-            </Field>
+                <input
+                  value={`${item.name} · ${number(item.available_units)} available`}
+                  readOnly
+                />
+              </Field>
+            ) : (
+              <Field label="Catalog item">
+                <select
+                  value={productId}
+                  onChange={(event) => selectProduct(event.target.value)}
+                >
+                  {data.products.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {record.name} · {number(record.available_units)} available
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <Field
               label="Order quantity (packages)"
               hint={`${number(decimalMultiply(quantity || "0", item.units_per_package))} ${item.base_unit} total`}
@@ -3242,9 +3267,8 @@ function PurchasingScreen({
       </Card>
     );
   const item = product(data, line.product_id);
-  const packageInfo = packageFor(data, line.package_id);
-  const packageUnit = packageInfo?.input_unit ?? "unavailable unit";
-  const baseUnit = item?.base_unit ?? "unavailable unit";
+  const packageUnit = line.input_unit ?? "package";
+  const baseUnit = line.stock_unit ?? item?.base_unit ?? "unavailable unit";
   const [actionReason, setActionReason] = useState("");
   const shipment = data.shipments.find((record) => record.po_id === order.id);
   const cancelledPackages = order.cancelled_remaining_units
@@ -3256,13 +3280,6 @@ function PurchasingScreen({
       cancelledPackages,
     ),
   );
-  const stages = [
-    "draft",
-    "submitted",
-    "approved",
-    "sent",
-    "partially received",
-  ];
   const next = (
     {
       draft: ["submitted", "Submit purchase order", "procurement.submit"],
@@ -3293,6 +3310,23 @@ function PurchasingScreen({
       "Remainder cancelled",
       "The outstanding quantity was closed; received history remains unchanged.",
     );
+  const actionReasonField = (
+    <Field label="Action reason" hint="Required for the audit record.">
+      <input
+        value={actionReason}
+        onChange={(event) => setActionReason(event.target.value)}
+        maxLength={200}
+        autoFocus
+        required
+      />
+    </Field>
+  );
+  const actionConfirmDisabled = (permission: string) =>
+    busy || !capability(data, permission) || !actionReason.trim();
+  const hasCostDetails =
+    order.lines.length > 1 ||
+    decimalCompare(order.tax, "0") !== 0 ||
+    decimalCompare(order.shipping, "0") !== 0;
   return (
     <div className="inventory-stack">
       <Card>
@@ -3323,7 +3357,7 @@ function PurchasingScreen({
               >
                 {order.lines.map((record) => (
                   <option key={record.id} value={record.id}>
-                    {product(data, record.product_id)?.name ?? record.id}
+                    {record.product_name ?? product(data, record.product_id)?.name ?? record.id}
                   </option>
                 ))}
               </select>
@@ -3333,25 +3367,16 @@ function PurchasingScreen({
         <div className="inventory-panel-heading">
           <div>
             <div className="inventory-title-row">
-              <h2>{order.number}</h2>
               <Badge tone="blue">{order.status.replaceAll("_", " ")}</Badge>
             </div>
             <p className="inventory-lead">
-              {order.supplier} → {order.destination} · ordered{" "}
-              {inventoryDateTime(order.ordered_at, data.timezone)}
+              {order.supplier ?? "Supplier not recorded"} → {order.destination} · created{" "}
+              {inventoryDateTime(order.created_at, data.timezone)}
             </p>
             {order.destination_address && (
               <p className="inventory-lead">Deliver to: {order.destination_address}</p>
             )}
           </div>
-          <Field label="Action reason">
-            <input
-              value={actionReason}
-              onChange={(event) => setActionReason(event.target.value)}
-              maxLength={200}
-              required
-            />
-          </Field>
           <div className="inventory-form-actions">
             {["sent", "partially_received"].includes(order.status) &&
               decimalCompare(remaining, "0") > 0 && (
@@ -3365,9 +3390,11 @@ function PurchasingScreen({
             {next && (
               <ConfirmButton
                 tone="outline"
-                disabled={
-                  busy || !capability(data, next[2]) || !actionReason.trim()
-                }
+                disabled={busy || !capability(data, next[2])}
+                confirmationTitle={`${next[1]}?`}
+                confirmationContent={actionReasonField}
+                confirmDisabled={actionConfirmDisabled(next[2])}
+                confirmLabel={next[1]}
                 onConfirm={transition}
               >
                 {next[1]}
@@ -3375,40 +3402,22 @@ function PurchasingScreen({
             )}
             {order.status !== "complete" && order.status !== "cancelled" && (
               <ConfirmButton
-                tone="outline"
+                tone="danger"
                 disabled={
                   busy ||
                   decimalCompare(remaining, "0") === 0 ||
-                  !capability(data, "procurement.submit") ||
-                  !actionReason.trim()
+                  !capability(data, "procurement.submit")
                 }
+                confirmationTitle={`Cancel ${number(remaining)} ${packageUnit} remaining?`}
+                confirmationContent={actionReasonField}
+                confirmDisabled={actionConfirmDisabled("procurement.submit")}
+                confirmLabel="Cancel remainder"
                 onConfirm={cancel}
               >
                 Cancel {number(remaining)} {packageUnit} remainder
               </ConfirmButton>
             )}
           </div>
-        </div>
-        <div className="inventory-timeline">
-          {stages.map((stage, index) => (
-            <div
-              key={stage}
-              className={
-                index <=
-                stages.indexOf(
-                  order.status.replace(
-                    "partially_received",
-                    "partially received",
-                  ),
-                )
-                  ? "done"
-                  : ""
-              }
-            >
-              <span>{index + 1}</span>
-              {stage}
-            </div>
-          ))}
         </div>
       </Card>
       <div className="inventory-two-col wide-left">
@@ -3418,47 +3427,28 @@ function PurchasingScreen({
               <thead>
                 <tr>
                   <th>Product / package</th>
-                  <th>Ordered</th>
-                  <th>Received</th>
-                  <th>Remaining</th>
+                  <th>Quantity</th>
                   <th>Price</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td>
-                    <strong>{item?.name}</strong>
+                    <strong>{line.product_name ?? item?.name}</strong>
                     <small>
-                      {item &&
-                        `${number(item.units_per_package)} ${baseUnit} / ${packageUnit}`}{" "}
+                      {`${number(line.units_per_package)} ${baseUnit} / ${packageUnit}`} {" "}
                       · NDC {item?.ndc}
                     </small>
                   </td>
                   <td className="numeric">
                     <strong>
-                      {number(line.ordered_packages)} {packageUnit}
+                      {number(line.ordered_packages)} {packageUnit} ordered
                     </strong>
                     <small>
-                      {number(line.ordered_units)} {baseUnit}
+                      {number(line.received_packages)} received · {number(remaining)} remaining
                     </small>
-                  </td>
-                  <td className="numeric">
-                    <strong>
-                      {number(line.received_packages)} {packageUnit}
-                    </strong>
                     <small>
-                      {number(line.received_units)} {baseUnit}
-                    </small>
-                  </td>
-                  <td className="numeric">
-                    <strong>
-                      {number(remaining)} {packageUnit}
-                    </strong>
-                    <small>
-                      {number(
-                        decimalMultiply(remaining, line.units_per_package),
-                      )}{" "}
-                      {baseUnit}
+                      {number(line.ordered_units)} {baseUnit} total
                     </small>
                   </td>
                   <td className="numeric">
@@ -3473,28 +3463,40 @@ function PurchasingScreen({
             permission="procurement.approve"
           />
         </Card>
-        <Card title="Order summary">
+        <Card title="Order total">
           <div className="inventory-stack compact">
-            <DataPoint
-              label={`${number(line.ordered_packages)} ${packageUnit} × ${money(line.package_price, line.currency)}`}
-              value={money(order.subtotal, line.currency)}
-            />
-            <DataPoint label="Tax" value={money(order.tax, line.currency)} />
-            <DataPoint
-              label="Shipping"
-              value={money(order.shipping, line.currency)}
-            />
             <DataPoint
               label="Total"
               value={money(order.total, line.currency)}
+              tone="success"
             />
+            {hasCostDetails && (
+              <details className="inventory-details inventory-cost-details">
+                <summary>Cost details</summary>
+                <div className="inventory-stack compact">
+                  <DataPoint
+                    label="Subtotal"
+                    value={money(order.subtotal, line.currency)}
+                  />
+                  {decimalCompare(order.tax, "0") !== 0 && (
+                    <DataPoint
+                      label="Tax"
+                      value={money(order.tax, line.currency)}
+                    />
+                  )}
+                  {decimalCompare(order.shipping, "0") !== 0 && (
+                    <DataPoint
+                      label="Shipping"
+                      value={money(order.shipping, line.currency)}
+                    />
+                  )}
+                </div>
+              </details>
+            )}
             {shipment && (
-              <p className="inventory-info">
-                Shipment {shipment.supplier_reference} delivered{" "}
-                {shipment.package_count} {packageUnit}. {number(remaining)}{" "}
-                {packageUnit}
-                remain on the purchase order.
-              </p>
+              <a className="inventory-info" href="/clinic/inventory/receiving">
+                Delivery {shipment.supplier_reference} recorded · View receiving
+              </a>
             )}
           </div>
         </Card>

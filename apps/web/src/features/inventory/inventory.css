@@ -784,6 +784,14 @@ code {
   border-radius: 12px;
   background: var(--inventory-amber-soft);
 }
+.inventory-confirm > div:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.inventory-confirm .inventory-field {
+  margin-top: 10px;
+  text-align: left;
+}
 .inventory-confirm p {
   margin: 4px 0 0;
   color: var(--inventory-muted);
@@ -794,6 +802,19 @@ code {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+.inventory-cost-details {
+  margin-top: 2px;
+}
+.inventory-cost-details[open] summary {
+  margin-bottom: 10px;
+}
+.inventory-info {
+  display: block;
+  text-decoration: none;
+}
+.inventory-info:hover {
+  text-decoration: underline;
 }
 
 /* Inventory operations pass: denser hierarchy, clearer actions, and mobile-safe records. */
