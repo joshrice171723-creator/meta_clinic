@@ -3491,8 +3491,8 @@ function PurchasingScreen({
               <thead>
                 <tr>
                   <th>Product / package</th>
-                  <th>Quantity</th>
-                  <th>Price</th>
+                  <th className="numeric">Status</th>
+                  <th className="numeric">Price</th>
                 </tr>
               </thead>
               <tbody>
@@ -3532,8 +3532,8 @@ function PurchasingScreen({
               </tbody>
             </table>
           </div>
-          <div className="inventory-form-actions">
-            <div className="inventory-confirm-actions">
+          <div className="inventory-order-footer">
+            <div className="inventory-order-actions">
               {["sent", "partially_received"].includes(order.status) &&
                 hasRemaining && (
                   <a
@@ -3545,7 +3545,7 @@ function PurchasingScreen({
                 )}
               {next && (
                 <ConfirmButton
-                  tone="outline"
+                  tone="primary"
                   disabled={busy || !capability(data, next[2])}
                   confirmationTitle={`${next[1]}?`}
                   confirmationContent={actionReasonField}
@@ -3557,41 +3557,42 @@ function PurchasingScreen({
                 </ConfirmButton>
               )}
               {order.status !== "complete" && order.status !== "cancelled" && (
-                <ConfirmButton
-                  tone="danger"
-                  disabled={
-                    busy ||
-                    !hasRemaining ||
-                    !capability(data, "procurement.submit")
-                  }
-                  confirmationTitle="Cancel remaining quantities?"
-                  confirmationContent={actionReasonField}
-                  confirmDisabled={actionConfirmDisabled("procurement.submit")}
-                  confirmLabel="Cancel remainder"
-                  onConfirm={cancel}
-                >
-                  Cancel remainder
-                </ConfirmButton>
+                <div className="inventory-order-cancel">
+                  <ConfirmButton
+                    tone="outline"
+                    disabled={
+                      busy ||
+                      !hasRemaining ||
+                      !capability(data, "procurement.submit")
+                    }
+                    confirmationTitle="Cancel remaining quantities?"
+                    confirmationContent={actionReasonField}
+                    confirmDisabled={actionConfirmDisabled("procurement.submit")}
+                    confirmLabel="Cancel remainder"
+                    onConfirm={cancel}
+                  >
+                    Cancel remainder
+                  </ConfirmButton>
+                </div>
               )}
             </div>
-            <div className="inventory-stack compact">
-              <DataPoint
-                label="Subtotal"
-                value={money(order.subtotal, orderCurrency)}
-              />
-              <DataPoint
-                label="Shipping"
-                value={money(order.shipping, orderCurrency)}
-              />
-              <DataPoint
-                label="Tax"
-                value={money(order.tax, orderCurrency)}
-              />
-              <DataPoint
-                label="Order total"
-                value={money(order.total, orderCurrency)}
-                tone="success"
-              />
+            <div className="inventory-order-summary" aria-label="Order total">
+              <div className="inventory-order-summary-row">
+                <span>Subtotal</span>
+                <strong>{money(order.subtotal, orderCurrency)}</strong>
+              </div>
+              <div className="inventory-order-summary-row">
+                <span>Shipping</span>
+                <strong>{money(order.shipping, orderCurrency)}</strong>
+              </div>
+              <div className="inventory-order-summary-row">
+                <span>Tax</span>
+                <strong>{money(order.tax, orderCurrency)}</strong>
+              </div>
+              <div className="inventory-order-summary-row total">
+                <span>Order total</span>
+                <strong>{money(order.total, orderCurrency)}</strong>
+              </div>
             </div>
           </div>
           {shipment && (

@@ -429,6 +429,59 @@ code {
   flex-wrap: wrap;
   grid-column: 1/-1;
 }
+.inventory-order-footer {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--inventory-border);
+}
+.inventory-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.inventory-order-cancel {
+  margin-left: auto;
+}
+.inventory-order-summary {
+  width: min(100%, 300px);
+  flex: 0 1 300px;
+  border: 1px solid var(--inventory-border);
+  border-radius: 9px;
+  background: var(--inventory-background);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.inventory-order-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 12px;
+  color: var(--inventory-muted);
+  font-size: 11px;
+}
+.inventory-order-summary-row + .inventory-order-summary-row {
+  border-top: 1px solid var(--inventory-border);
+}
+.inventory-order-summary-row strong {
+  color: var(--inventory-ink);
+  font-size: 12px;
+}
+.inventory-order-summary-row.total {
+  background: var(--inventory-green-soft);
+  color: var(--inventory-ink);
+  font-weight: 750;
+}
+.inventory-order-summary-row.total strong {
+  color: var(--inventory-green);
+  font-size: 14px;
+}
 .inventory-button {
   display: inline-flex;
   align-items: center;
@@ -752,6 +805,24 @@ code {
   .inventory-form-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+  .inventory-order-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .inventory-order-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .inventory-order-actions .inventory-button {
+    width: 100%;
+  }
+  .inventory-order-cancel {
+    margin-left: 0;
+  }
+  .inventory-order-summary {
+    width: 100%;
+    flex-basis: auto;
   }
   .inventory-form-actions .inventory-button {
     width: 100%;
