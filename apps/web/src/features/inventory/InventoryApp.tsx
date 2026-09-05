@@ -1629,7 +1629,11 @@ function PurchaseOrderCreateScreen({
                             supplierId
                               ? `No imported price is loaded for ${selectedSupplierName ?? "the selected supplier"}. `
                               : "No supplier quote is loaded. "
-                          }No public CMS NADAC benchmark was found for this exact NDC. Enter the package price manually.`
+                          }No public CMS NADAC benchmark was found for this exact NDC. ${
+                            historicalPackagePrice
+                              ? "The last recorded package price is shown; confirm or replace it."
+                              : "Enter the package price manually."
+                          }`
               }
             >
               <input
