@@ -2149,10 +2149,6 @@ export function InventoryApp({ path }: { path: string }) {
       </div>
     );
 
-  const available = decimalSum(
-    data.balances.map((item) => item.available_units),
-  );
-  const held = decimalSum(data.balances.map((item) => item.held_units));
   return (
     <div className="inventory-app">
       <div className="inventory-layout">
@@ -2251,8 +2247,6 @@ export function InventoryApp({ path }: { path: string }) {
             {screen === "catalog" && (
               <CatalogScreen
                 data={data}
-                available={available}
-                held={held}
                 onRefresh={load}
               />
             )}
@@ -2302,16 +2296,14 @@ export function InventoryApp({ path }: { path: string }) {
 
 function CatalogScreen({
   data,
-  available,
-  held,
   onRefresh,
 }: {
   data: InventoryData;
-  available: Decimal;
-  held: Decimal;
   onRefresh: () => Promise<void>;
 }) {
+  const pageSize = 20;
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<
     "all" | "attention" | "in_range"
   >("all");
@@ -2345,25 +2337,12 @@ function CatalogScreen({
       return decimalCompare(right.available_units, left.available_units);
     return left.name.localeCompare(right.name);
   });
+  const pageCount = Math.max(1, Math.ceil(products.length / pageSize));
+  const visibleProducts = products.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount));
+  }, [pageCount]);
   const activeFilter = normalizedQuery || statusFilter !== "all";
-  const availableUnits = decimalSum(
-    data.products.map((item) => item.available_units),
-  );
-  const incomingUnits = data.purchase_orders
-    .filter((order) => !["cancelled", "complete"].includes(order.status))
-    .flatMap((order) => order.lines)
-    .reduce<Decimal>(
-      (total, line) =>
-        decimalAdd(
-          total,
-          nonNegative(decimalSubtract(line.ordered_units, line.received_units)),
-        ),
-      "0",
-    );
-  const lotExceptions = data.lots.filter(
-    (item) => item.status !== "active",
-  ).length;
-  const lowStockProducts = data.products.filter((item) => item.low_stock);
   const canCreatePurchaseOrder = purchaseOrderFacilities(data).some(
     facilityCanReceivePurchaseOrder,
   );
@@ -2429,26 +2408,6 @@ function CatalogScreen({
       <p className="inventory-flow-note">
         Quantities are shown in base units unless a package unit is named.
       </p>
-      <div className="inventory-summary" aria-label="Inventory summary">
-        <DataPoint
-          label="Available units"
-          value={number(availableUnits)}
-          detail="Ready to dispense"
-          tone="success"
-        />
-        <DataPoint
-          label="Incoming units"
-          value={number(incomingUnits)}
-          detail="On open orders"
-          tone="blue"
-        />
-        <DataPoint
-          label="Low-stock products"
-          value={number(lowStockProducts.length)}
-          detail={`${number(lotExceptions)} lot exceptions`}
-          tone={lowStockProducts.length ? "danger" : "success"}
-        />
-      </div>
       <Card title="Catalog and lot traceability">
         <div className="inventory-card-heading">
           <div>
@@ -2462,16 +2421,20 @@ function CatalogScreen({
           <Field label="Search inventory">
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
               placeholder="Product, NDC, lot, supplier"
             />
           </Field>
           <Field label="Stock status">
             <select
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as typeof statusFilter)
-              }
+              onChange={(event) => {
+                setStatusFilter(event.target.value as typeof statusFilter);
+                setPage(1);
+              }}
             >
               <option value="all">All products</option>
               <option value="attention">Needs attention</option>
@@ -2481,7 +2444,10 @@ function CatalogScreen({
           <Field label="Sort by">
             <select
               value={sort}
-              onChange={(event) => setSort(event.target.value as typeof sort)}
+              onChange={(event) => {
+                setSort(event.target.value as typeof sort);
+                setPage(1);
+              }}
             >
               <option value="name">Product name</option>
               <option value="available_asc">Available: low to high</option>
@@ -2496,6 +2462,7 @@ function CatalogScreen({
                 setQuery("");
                 setStatusFilter("all");
                 setSort("name");
+                setPage(1);
               }}
             >
               Reset view
@@ -2503,7 +2470,8 @@ function CatalogScreen({
           )}
         </div>
         <p className="inventory-results-count" role="status">
-          Showing {products.length} of {data.products.length} products.
+          Showing {products.length === 0 ? 0 : (page - 1) * pageSize + 1}–
+          {Math.min(page * pageSize, products.length)} of {products.length} products.
         </p>
         <div className="inventory-table-wrap">
           <table>
@@ -2519,7 +2487,7 @@ function CatalogScreen({
               </tr>
             </thead>
             <tbody>
-              {products.map((item) => (
+              {visibleProducts.map((item) => (
                 <tr key={item.id}>
                   <td data-label="Product">
                     <strong>{item.name}</strong>
@@ -2576,6 +2544,29 @@ function CatalogScreen({
             </tbody>
           </table>
         </div>
+        {pageCount > 1 && (
+          <nav className="inventory-pagination" aria-label="Catalog pagination">
+            <button
+              className="inventory-button outline"
+              type="button"
+              disabled={page === 1}
+              onClick={() => setPage((current) => current - 1)}
+            >
+              Previous
+            </button>
+            <span aria-live="polite">
+              Page {page} of {pageCount}
+            </span>
+            <button
+              className="inventory-button outline"
+              type="button"
+              disabled={page === pageCount}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              Next
+            </button>
+          </nav>
+        )}
       </Card>
       <Card title="Attention queue">
         <ul className="inventory-list">
