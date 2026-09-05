@@ -190,7 +190,7 @@ const screenDescriptions: Record<Screen, string> = {
   configure:
     "Record the inventory operating configuration before posting stock.",
   locations: "Manage stock storage, quarantine, returns, and controlled locations.",
-  supplier_pricing: "Manage supplier offers and defaults for purchase orders.",
+  supplier_pricing: "",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
   purchase_order_new:
@@ -2105,9 +2105,11 @@ export function InventoryApp({ path }: { path: string }) {
           <header className="inventory-header">
             <div>
               <h1>{screenTitle(screen)}</h1>
-              <p className="inventory-header-description">
-                {screenDescriptions[screen]}
-              </p>
+              {screenDescriptions[screen] && (
+                <p className="inventory-header-description">
+                  {screenDescriptions[screen]}
+                </p>
+              )}
             </div>
             <div className="inventory-header-actions">
               <Chip

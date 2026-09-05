@@ -252,13 +252,7 @@ export function SupplierPricingScreen({
         </div>
       )}
       <div className="supplier-pricing-intro">
-        <div>
-          <h2>Supplier catalog</h2>
-          <p className="inventory-lead">
-            Keep clinic supplier offers separate from national benchmarks and
-            preserve the exact quote used on each purchase order.
-          </p>
-        </div>
+        <h2>Supplier catalog</h2>
         <div
           className="supplier-pricing-summary"
           aria-label="Supplier pricing summary"
@@ -285,9 +279,6 @@ export function SupplierPricingScreen({
           <div className="supplier-panel-heading">
             <div>
               <h2>Suppliers</h2>
-              <p className="inventory-lead">
-                The vendors your clinic can order from.
-              </p>
             </div>
             <span className="supplier-panel-count">
               {data.suppliers?.length ?? 0}
@@ -331,9 +322,6 @@ export function SupplierPricingScreen({
                 </div>
               );
             })}
-            {!data.suppliers?.length && (
-              <p className="supplier-empty">No suppliers are configured yet.</p>
-            )}
           </div>
           {canManage && (
             <form className="supplier-create-form" onSubmit={saveSupplier}>
@@ -380,9 +368,6 @@ export function SupplierPricingScreen({
           <div className="supplier-panel-heading">
             <div>
               <h2>Import price sheet</h2>
-              <p className="inventory-lead">
-                Preview first. Nothing is saved until you import selected rows.
-              </p>
             </div>
             <span className="supplier-contract-tag">Per package</span>
           </div>
@@ -414,17 +399,6 @@ export function SupplierPricingScreen({
                 disabled={!canManage}
               />
             </label>
-          </div>
-          <div className="supplier-contract-note">
-            <strong>Required columns</strong>
-            <code>
-              ndc, vendor_sku, description, package_qty, wholesale_cost,
-              effective_date
-            </code>
-            <p>
-              <strong>wholesale_cost</strong> means the supplier’s price for one
-              ordering package in USD.
-            </p>
           </div>
           <div className="supplier-import-actions">
             <span>{fileName || "No CSV selected"}</span>
@@ -541,10 +515,6 @@ export function SupplierPricingScreen({
         <div className="supplier-panel-heading supplier-defaults-heading">
           <div>
             <h2>Preferred supplier by catalog item</h2>
-            <p className="inventory-lead">
-              Only offers with a valid imported price can be selected. New POs
-              use this as their default.
-            </p>
           </div>
           <label className="supplier-search">
             <span className="sr-only">Search catalog</span>

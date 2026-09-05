@@ -120,6 +120,7 @@ class Ability
 
   def initialize(user, practice: nil, at: Time.current)
     @practice = practice
+    @at = at
     @membership = active_membership_for(user, practice)
     @omni_override = false
     return unless @membership
