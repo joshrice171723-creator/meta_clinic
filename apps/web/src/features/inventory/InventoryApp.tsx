@@ -2151,7 +2151,12 @@ export function InventoryApp({ path }: { path: string }) {
                     <span>{group}</span>
                     <div>
                       {links
-                        .filter((link) => link.group === group)
+                        .filter(
+                          (link) =>
+                            link.group === group &&
+                            (link.screen !== "supplier_pricing" ||
+                              data.capabilities.supplier_pricing === true),
+                        )
                         .map((link) => (
                           <a
                             key={link.screen}

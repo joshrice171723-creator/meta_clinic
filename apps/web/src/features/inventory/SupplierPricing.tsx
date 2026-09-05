@@ -58,7 +58,8 @@ export function SupplierPricingScreen({
   data: InventoryData;
   onData: (next: InventoryData) => void;
 }) {
-  const canManage = data.capabilities["inventory.catalog"] === true;
+  const canAccess = data.capabilities.supplier_pricing === true;
+  const canManage = canAccess;
   const [supplierId, setSupplierId] = useState(data.suppliers?.[0]?.id ?? "");
   const [supplierName, setSupplierName] = useState("");
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
@@ -214,6 +215,18 @@ export function SupplierPricingScreen({
       setBusy("");
     }
   };
+
+  if (!canAccess) {
+    return (
+      <div className="inventory-warning strong" role="alert">
+        <strong>Supplier pricing is restricted.</strong>
+        <p>
+          Only Admin, Omni Admin, and Inventory Coordinator roles can manage
+          suppliers and pricing.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="supplier-pricing-page">

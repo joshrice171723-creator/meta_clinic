@@ -1,6 +1,11 @@
 class Ability
   include CanCan::Ability
 
+  SUPPLIER_PRICING_ROLE_CODES = %w[
+    admin administrator omni_admin omni_administrator inventory
+    dev-seed-administrator development-omni-administrator dev-seed-inventory
+  ].freeze
+
   # Catalog-only action names for the future clinical workflow. They are not
   # rules, grants, or browser capabilities; until a reviewed subject contract
   # exists, Authorization deliberately denies them.
@@ -173,6 +178,13 @@ class Ability
   def practice_scope_for?(permission)
     scope = @permissions_by_scope&.[](self.class.normalize_permission(permission))
     scope&.fetch(:practice, false) == true
+  end
+
+  def role_code_allowed?(role_codes)
+    return false unless membership
+
+    membership.role_grants.active(at).joins(:role_version)
+      .where(role_versions: { role_code: Array(role_codes) }).exists?
   end
 
   def accessible_site_ids

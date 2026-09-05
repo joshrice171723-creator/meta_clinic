@@ -2,6 +2,7 @@ module Clinic
   module Inventory
     class SupplierPricingController < Clinic::BaseController
       before_action -> { require_capability(:inventory_access?) }
+      before_action :require_supplier_pricing_role
       before_action :require_catalog_access, only: %i[create update preview import set_preferred_supplier]
 
       rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
@@ -55,6 +56,13 @@ module Clinic
 
       def require_catalog_access
         require_capability(:catalog)
+      end
+
+      def require_supplier_pricing_role
+        ability = Ability.new(current_user, practice: current_practice)
+        return if ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)
+
+        raise Clinic::Authorization::Denied
       end
 
       def required_csv

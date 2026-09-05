@@ -9,6 +9,7 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "supplier-pricing-test@example.invalid", password: @password)
     @membership = Development::TestClinic.create!(@user)
     @practice = @membership.practice
+    grant_supplier_pricing_role!(@membership)
     @product = @practice.pharmacy_products.create!(
       name: "Supplier priced tablet", sku: "SUPPLIER-PRICE-001", ndc: "12345678901",
       stock_unit: "tablet", quantity_scale: 0, package_size: 90, unit_reference: "Bottle of 90 tablets"
@@ -59,6 +60,15 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     assert_equal "12.5", order.lines.sole.reload.unit_price.to_d.to_s("F")
   end
 
+  test "supplier pricing endpoints reject accounts outside the approved roles" do
+    grant = @membership.role_grants.joins(:role_version).find_by!(role_versions: { role_code: "dev-seed-inventory" })
+    grant.update!(revoked_at: Time.current, revision: grant.revision + 1)
+
+    post "/api/clinic/inventory/suppliers", params: { supplier: { name: "Blocked Supply" } }, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_not Clinic::Inventory::Supplier.exists?(practice_id: @practice.id, name: "Blocked Supply")
+  end
+
   private
 
   def csrf_headers
@@ -75,5 +85,14 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
       }
     }, headers: csrf_headers, as: :json
     assert_response :created
+  end
+
+  def grant_supplier_pricing_role!(membership)
+    role = RoleVersion.find_or_create_by!(role_code: "dev-seed-inventory", version: 1)
+    %w[inventory.read inventory.catalog].each do |action_code|
+      permission = Permission.find_or_create_by!(action_code: action_code)
+      RoleVersionPermission.find_or_create_by!(role_version: role, permission: permission)
+    end
+    membership.role_grants.create!(practice: membership.practice, role_version: role, scope_kind: "practice", effective_from: 1.minute.ago, revision: 1)
   end
 end

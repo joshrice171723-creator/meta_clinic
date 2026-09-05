@@ -80,9 +80,10 @@ module Clinic
 
       def capabilities(practice, actor)
         ability = Ability.new(actor, practice: practice)
-        %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure inventory.transfer inventory.put_away procurement.read procurement.create procurement.submit procurement.approve recall.read recall.lock recall.dispose controlled.read controlled.count controlled.certify].to_h do |permission|
+        permissions = %w[inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count inventory.configure inventory.transfer inventory.put_away procurement.read procurement.create procurement.submit procurement.approve recall.read recall.lock recall.dispose controlled.read controlled.count controlled.certify]
+        permissions.to_h do |permission|
           [ permission, ability.allowed_permission?(permission) ]
-        end
+        end.merge("supplier_pricing" => ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES))
       end
 
       def product_wire(product, batches, active_holds_by_batch, inventory_date)
