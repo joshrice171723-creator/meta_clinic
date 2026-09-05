@@ -108,6 +108,120 @@ class Clinic::Inventory::ReceivingTest < ActiveSupport::TestCase
     end
   end
 
+  test "short delivery posts accepted stock and retains missing PO packages" do
+    receipt = receive(input: @input.merge(amount: "1"), reconciliation: { missing_packages: "1", exception: "short_delivery" })
+    assert_equal BigDecimal("7.25"), receipt.lines.sole.batch.quantity
+    assert_equal BigDecimal("1"), @order_line.reload.received_quantity
+    assert_equal BigDecimal("2"), @order_line.remaining_quantity
+    assert_equal "reconciled_with_discrepancy", @shipment.reload.effective_status
+    assert_equal BigDecimal("1"), @shipment.reconciliation.missing_packages
+    assert_raises(ArgumentError) { receive }
+    wire = Clinic::Inventory::InventoryWire.shipment_wire(@shipment)
+    assert_equal "1.0", wire.dig(:reconciliation, :accepted_packages)
+    assert_equal "short_delivery", wire.dig(:reconciliation, :exception)
+    ApplicationRecord.connection.execute("SET CONSTRAINTS ALL IMMEDIATE")
+  end
+
+  test "all rejected packages preserve observations without inventing stock or a receipt" do
+    key = SecureRandom.uuid
+    input = @input.merge(amount: "0", lot_number: "UNEXPECTED-LOT", expires_on: "", location: "")
+    options = { input: input, key: key, reconciliation: { rejected_packages: "2", exception: "wrong_lot" } }
+    record = receive(**options)
+    assert_instance_of Clinic::Inventory::ShipmentReconciliation, record
+    assert_nil record.receipt_id
+    assert_equal "UNEXPECTED-LOT", record.observations.sole.fetch("lot_number")
+    assert_empty Clinic::Inventory::Receipt.where(practice_id: @practice.id)
+    assert_empty @product.batches
+    assert_empty Clinic::Inventory::Lot.where(practice_id: @practice.id)
+    assert_equal 0, @order_line.reload.received_quantity
+    assert_equal record.id, receive(**options).id
+    assert_raises(ArgumentError) { receive(**options.merge(reconciliation: { missing_packages: "2", exception: "short_delivery" })) }
+    assert_raises(ArgumentError) { receive(**options.merge(key: SecureRandom.uuid)) }
+    ApplicationRecord.connection.execute("SET CONSTRAINTS ALL IMMEDIATE")
+  end
+
+  test "damaged and excess packages are rejected while accepted packages post once" do
+    receipt = receive(input: @input.merge(amount: "1"), reconciliation: { rejected_packages: "1", excess_packages: "3", exception: "damaged" })
+    assert_equal BigDecimal("7.25"), receipt.lines.sole.batch.quantity
+    assert_equal BigDecimal("3"), @shipment.reload.reconciliation.excess_packages
+    assert_equal BigDecimal("2"), @order_line.reload.remaining_quantity
+    ApplicationRecord.connection.execute("SET CONSTRAINTS ALL IMMEDIATE")
+  end
+
+  test "unbalanced malformed and unexplained discrepancies roll back" do
+    [
+      { missing_packages: "2", exception: "short_delivery" },
+      { missing_packages: "0.5", exception: "short_delivery" },
+      { rejected_packages: "-1", exception: "damaged" },
+      { excess_packages: "1000001", exception: "excess" },
+      { missing_packages: "1", exception: "unknown" },
+      { exception: "other" }
+    ].each do |discrepancy|
+      assert_raises(ArgumentError) { receive(input: @input.merge(amount: "1"), reconciliation: discrepancy) }
+    end
+    assert_empty Clinic::Inventory::ShipmentReconciliation.where(practice_id: @practice.id)
+    assert_empty @product.batches
+  end
+
+  test "failed accepted lot validation rolls back reconciliation and posting together" do
+    receive(order: nil, shipment: nil, input: @input.except(:purchase_order_line_id))
+    assert_raises(ArgumentError) do
+      receive(input: @input.merge(amount: "1", expires_on: (Date.current + 91).iso8601), reconciliation: { rejected_packages: "1", exception: "expiry" })
+    end
+    assert_nil @shipment.reload.reconciliation
+    assert_empty @shipment.receipts
+    assert_equal BigDecimal("21"), @product.batches.sole.quantity
+    assert_equal 0, @order_line.reload.received_quantity
+  end
+
+  test "SQL preserves reconciliation and shipment history and refuses a later receipt" do
+    record = receive(input: @input.merge(amount: "0"), reconciliation: { missing_packages: "2", exception: "short_delivery" })
+    [ record, @shipment, @shipment.shipment_lines.sole ].each do |row|
+      assert_raises(ActiveRecord::StatementInvalid) do
+        ApplicationRecord.transaction(requires_new: true) { row.class.where(id: row.id).delete_all }
+      end
+    end
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      ApplicationRecord.transaction(requires_new: true) do
+        Clinic::Inventory::Receipt.create!(practice: @practice, actor: @actor, profile: @practice.inventory_profiles.sole,
+          purchase_order: @order, shipment: @shipment, status: "received", received_at: Time.current,
+          reason: "Rejected duplicate fixture", request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(32))
+      end
+    end
+    assert_match(/Shipment already reconciled/, error.message)
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      ApplicationRecord.transaction(requires_new: true) do
+        Clinic::Inventory::ShipmentReconciliation.insert_all!([ record.attributes.except("id").merge("missing_packages" => "1", "request_key" => SecureRandom.uuid) ])
+      end
+    end
+    assert_match(/balance the delivered shipment/, error.message)
+  end
+
+  test "SQL refuses reconciliation counts that disagree with receipt postings" do
+    receipt = receive
+    error = assert_raises(ActiveRecord::StatementInvalid) do
+      ApplicationRecord.transaction(requires_new: true) do
+        Clinic::Inventory::ShipmentReconciliation.create!(practice: @practice, shipment: @shipment, receipt: receipt,
+          actor: @actor, profile: @practice.inventory_profiles.sole, accepted_packages: 1, missing_packages: 1,
+          rejected_packages: 0, excess_packages: 0, exception: "short_delivery", reason: "Contradictory fixture counts",
+          observations: [ { product_id: @product.id.to_s } ], request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(32))
+        ApplicationRecord.connection.execute("SET CONSTRAINTS ALL IMMEDIATE")
+      end
+    end
+    assert_match(/accepted packages must match receipt postings/, error.message)
+    assert_nil @shipment.reload.reconciliation
+    assert_equal BigDecimal("14.5"), receipt.lines.sole.batch.quantity
+  end
+
+  test "zero stock reconciliation still requires an active authorized actor" do
+    @actor.update!(active: false)
+    assert_raises(ArgumentError) do
+      receive(input: @input.merge(amount: "0"), reconciliation: { rejected_packages: "2", exception: "temperature" })
+    end
+    assert_nil @shipment.reload.reconciliation
+    assert_empty @product.batches
+  end
+
   private
 
   def order_for(practice, actor: @actor)
@@ -116,8 +230,8 @@ class Clinic::Inventory::ReceivingTest < ActiveSupport::TestCase
       payload_digest: SecureRandom.hex(16), version: 1, subtotal: 3, tax: 0, shipping: 0, total: 3)
   end
 
-  def receive(order: @order, shipment: @shipment, input: @input, key: SecureRandom.uuid)
+  def receive(order: @order, shipment: @shipment, input: @input, key: SecureRandom.uuid, reconciliation: nil)
     Clinic::Inventory::Receiving.call(practice: @practice, actor: @actor, purchase_order: order,
-      shipment: shipment, lines: [ input ], reason: "Fixture delivery", request_key: key)
+      shipment: shipment, lines: [ input ], reason: "Fixture delivery", request_key: key, reconciliation: reconciliation)
   end
 end

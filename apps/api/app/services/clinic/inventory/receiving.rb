@@ -3,15 +3,23 @@ module Clinic
     class Receiving
       # One request is a delivery with one or more lot allocations. Costs are per
       # input unit, unknown remains null; this does not order goods or bill fees.
-      def self.call(practice:, actor:, lines:, reason:, request_key:, supplier: nil, invoice_reference: nil, purchase_order: nil, shipment: nil, status: "received", recall: nil, received_at: Time.current)
+      def self.call(practice:, actor:, lines:, reason:, request_key:, supplier: nil, invoice_reference: nil, purchase_order: nil, shipment: nil, status: "received", recall: nil, received_at: Time.current, reconciliation: nil)
         raise ArgumentError, "A receipt needs 1–100 lines." unless lines.is_a?(Array) && lines.size.between?(1, 100)
+        raise ArgumentError, "Choose received or recall quarantine." unless %w[received quarantined].include?(status.to_s)
+        raise ArgumentError, "Provide structured discrepancy counts." if reconciliation && !reconciliation.is_a?(Hash)
+        reconciliation = ShipmentReconciliation.normalize(reconciliation)
+        raise ArgumentError, "A discrepancy needs a delivered shipment." if reconciliation && !shipment
         normalized = lines.map { |line| line.symbolize_keys.slice(:product_id, :lot_number, :location, :expires_on, :amount, :input_unit, :unit_cost, :currency, :purchase_order_line_id, :area_id, :temperature_c, :exception, :disposition).transform_values { |value| value.to_s.strip } }
+        if reconciliation && normalized.any? { |line| line[:lot_number].to_s.length > 160 || line[:expires_on].to_s.length > 30 || line[:temperature_c].to_s.length > 30 }
+          raise ArgumentError, "Keep lot observations within 160 characters and expiry/temperature observations within 30 characters."
+        end
         payload = { purchase_order_id: purchase_order&.id, shipment_id: shipment&.id, recall_id: recall&.id, status: status.to_s, lines: normalized.map { |line| line.sort.to_h }, supplier: supplier.to_s.strip, invoice: invoice_reference.to_s.strip, reason: reason.to_s.strip, actor: actor.id }
+        payload[:reconciliation] = reconciliation if reconciliation
         digest = Digest::SHA256.hexdigest(JSON.generate(payload))
         Clinic::Inventory::Receipt.transaction do
           Access.with(practice.id, actor, "receive") do |profile|
             Access.retry_lock(practice.id, request_key)
-            existing = Clinic::Inventory::Receipt.find_by(practice_id: practice.id, request_key: request_key)
+            existing = Clinic::Inventory::Receipt.find_by(practice_id: practice.id, request_key: request_key) || ShipmentReconciliation.find_by(practice_id: practice.id, request_key: request_key)
             if existing
               raise ArgumentError, "This receipt form was already used for different data. Reload and try again." unless existing.payload_digest == digest
               return existing
@@ -22,9 +30,16 @@ module Clinic
               shipment = Shipment.where(practice_id: practice.id).find(shipment.id)
             end
             shipment&.with_lock do
-              validate_shipment!(shipment, purchase_order, normalized, practice)
-              raise ArgumentError, "This shipment has already been received." if Clinic::Inventory::Receipt.where(practice_id: practice.id, shipment_id: shipment.id).exists?
+              validate_shipment!(shipment, purchase_order, normalized, reconciliation)
+              raise ArgumentError, "This shipment has already been received or reconciled." if shipment.receipts.exists? || shipment.reconciliation.present?
             end
+            accepted_packages = normalized.sum { |line| Quantity.parse(line[:amount], scale: 0, zero: true) } if reconciliation
+            record_reconciliation = lambda do |receipt|
+              ShipmentReconciliation.create!(reconciliation.merge(practice: practice, shipment: shipment, receipt: receipt,
+                actor: actor, profile: profile, accepted_packages: accepted_packages, reason: payload[:reason], request_key: request_key, payload_digest: digest,
+                observations: normalized.map { |line| line.slice(:product_id, :lot_number, :expires_on, :temperature_c) }))
+            end
+            return record_reconciliation.call(nil) if reconciliation && accepted_packages.zero?
             # Fixed product order prevents deadlocks for multi-line shipments.
             products = Clinic::Inventory::PharmacyProduct.where(practice_id: practice.id, id: normalized.map { |line| line[:product_id] }).order(:id).lock.index_by { |product| product.id.to_s }
             order_lines = purchase_order ? purchase_order.lines.where(practice_id: practice.id).order(:id).lock.index_by { |line| line.id.to_s } : {}
@@ -32,7 +47,9 @@ module Clinic
               Clinic::Inventory::Supplier.create_or_find_by!(practice_id: practice.id, name: payload[:supplier])
             end
             receipt = Clinic::Inventory::Receipt.create!(practice_id: practice.id, actor_id: actor.id, profile_id: profile.id, supplier: vendor, purchase_order_id: purchase_order&.id, shipment_id: shipment&.id, status: status, received_at: received_at, invoice_reference: payload[:invoice].presence, reason: payload[:reason], request_key: request_key, payload_digest: digest, created_at: received_at, updated_at: received_at)
+            record_reconciliation.call(receipt) if reconciliation
             normalized.each_with_index do |line, index|
+            next if reconciliation && Quantity.parse(line[:amount], scale: 0, zero: true).zero?
             product = products.fetch(line[:product_id]) { raise ActiveRecord::RecordNotFound }
             raise ArgumentError, "Reactivate this product before adding stock." unless product.active?
             unit = line[:input_unit].presence || "package"
@@ -91,7 +108,7 @@ module Clinic
         raise ArgumentError, "Enter a valid lot expiry date."
       end
 
-      def self.validate_shipment!(shipment, purchase_order, lines, practice)
+      def self.validate_shipment!(shipment, purchase_order, lines, reconciliation)
         raise ArgumentError, "A receipt shipment must belong to its purchase order." unless purchase_order && shipment.purchase_order_id == purchase_order.id
         raise ArgumentError, "Only delivered shipments can be received." unless shipment.status == "delivered"
         allocations = shipment.shipment_lines.includes(purchase_order_line: :product).index_by { |line| line.purchase_order_line_id.to_s }
@@ -101,14 +118,21 @@ module Clinic
           order_line = allocation.purchase_order_line
           raise ArgumentError, "The receipt product does not match its purchase-order allocation." unless order_line.product_id.to_s == line[:product_id].to_s
           raise ArgumentError, "Shipment receipts must use #{InventoryWire::PACKAGE_INPUT_UNIT} quantities." unless line[:input_unit] == InventoryWire::PACKAGE_INPUT_UNIT
-          amount = Quantity.parse(line[:amount], scale: 0)
+          amount = Quantity.parse(line[:amount], scale: 0, zero: reconciliation.present?)
           raise ArgumentError, "The receipt exceeds its shipment allocation." if amount > allocation.expected_packages
           amount
         end
         expected_packages = allocations.values.sum(&:expected_packages)
         expected_units = allocations.values.sum { |allocation| allocation.expected_packages * allocation.purchase_order_line.conversion_factor }
         raise ArgumentError, "The shipment allocation does not match its recorded expected units." unless expected_units == shipment.expected_units
-        raise ArgumentError, "The received packages do not match the shipment allocation." unless package_total == expected_packages
+        if reconciliation
+          raise ArgumentError, "Choose a discrepancy reason." unless ShipmentReconciliation::KINDS.include?(reconciliation[:exception])
+          missing, rejected, excess = %i[missing_packages rejected_packages excess_packages].map { |key| reconciliation.fetch(key).to_d }
+          raise ArgumentError, "Record missing, rejected or excess packages for a discrepancy." unless missing + rejected + excess > 0
+          raise ArgumentError, "Accepted, missing and rejected packages must equal the shipment allocation." unless package_total + missing + rejected == expected_packages
+        else
+          raise ArgumentError, "The received packages do not match the shipment allocation." unless package_total == expected_packages
+        end
       end
       private_class_method :validate_shipment!
     end

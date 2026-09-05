@@ -9,7 +9,7 @@ import {
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
-import { Button, Chip } from "@mui/material";
+import { Alert, Button, Chip, MenuItem, TextField } from "@mui/material";
 import { api, ApiError } from "../../api/client";
 import { Form as InventoryForm, LoadState } from "../../shared/ui";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
@@ -3793,12 +3793,19 @@ export function ReceivingScreen({
   const [expirationDate, setExpirationDate] = useState(
     initialLot?.expiration_date ?? "",
   );
+  const recordedObservation = shipment?.reconciliation?.observations.find(
+    (record) => record.product_id === item?.id,
+  );
+  const displayedLot = shipment?.reconciliation
+    ? (recordedObservation?.lot_number ?? "")
+    : lotNumber;
   const selectedLot = productLots.find(
-    (record) => record.lot_number === lotNumber,
+    (record) => record.lot_number === displayedLot,
   );
   const recall = data.recalls.find(
     (record) =>
-      record.product_id === item?.id && record.lot_numbers.includes(lotNumber),
+      record.product_id === item?.id &&
+      record.lot_numbers.includes(displayedLot),
   );
   const eligibleLocations = recall
     ? data.locations.filter((record) => record.kind === "quarantine")
@@ -3820,7 +3827,21 @@ export function ReceivingScreen({
     (record) => record.lot_id === selectedLot?.id,
   );
   const [packages, setPackages] = useState(
-    allocation?.expected_packages ?? "1",
+    shipment?.reconciliation?.accepted_packages ??
+      allocation?.expected_packages ??
+      "1",
+  );
+  const [missingPackages, setMissingPackages] = useState(
+    shipment?.reconciliation?.missing_packages ?? "0",
+  );
+  const [rejectedPackages, setRejectedPackages] = useState(
+    shipment?.reconciliation?.rejected_packages ?? "0",
+  );
+  const [excessPackages, setExcessPackages] = useState(
+    shipment?.reconciliation?.excess_packages ?? "0",
+  );
+  const [exceptionKind, setExceptionKind] = useState(
+    shipment?.reconciliation?.exception ?? "short_delivery",
   );
   const [temperature, setTemperature] = useState("");
   const [reason, setReason] = useState("");
@@ -3854,6 +3875,27 @@ export function ReceivingScreen({
         <p>No open shipment is available.</p>
       </Card>
     );
+  const countsValid = [
+    packages,
+    missingPackages,
+    rejectedPackages,
+    excessPackages,
+  ].every(
+    (value) =>
+      /^\d+(?:\.0+)?$/.test(value) && decimalCompare(value, "1000000") <= 0,
+  );
+  const hasDiscrepancy =
+    countsValid &&
+    [missingPackages, rejectedPackages, excessPackages].some(
+      (value) => decimalCompare(value, "0") > 0,
+    );
+  const accepted = countsValid && decimalCompare(packages, "0") > 0;
+  const balanced =
+    countsValid &&
+    decimalCompare(
+      decimalSum([packages, missingPackages, rejectedPackages]),
+      allocation?.expected_packages ?? "0",
+    ) === 0;
   const confirm = () =>
     void run(
       "/api/clinic/inventory/receipts",
@@ -3868,7 +3910,7 @@ export function ReceivingScreen({
           destination_location: destination?.name,
           ...(areaId ? { area_id: areaId } : {}),
           ...(temperature ? { temperature_c: temperature } : {}),
-          ...(recall
+          ...(recall && accepted
             ? {
                 recall_id: recall.id,
                 exception: "recall_match",
@@ -3876,11 +3918,21 @@ export function ReceivingScreen({
                 status: "quarantined",
               }
             : { status: "received" }),
+          ...(hasDiscrepancy
+            ? {
+                reconciliation: {
+                  missing_packages: missingPackages,
+                  rejected_packages: rejectedPackages,
+                  excess_packages: excessPackages,
+                  exception: exceptionKind,
+                },
+              }
+            : {}),
           reason,
         },
       },
-      "Receipt recorded",
-      `${number(packages)} ${packageUnit} received into ${destination?.name}.`,
+      hasDiscrepancy ? "Delivery reconciled" : "Receipt recorded",
+      `${number(packages)} ${packageUnit} accepted${accepted ? ` into ${destination?.name}` : ""}.`,
     );
   return (
     <div className="inventory-two-col wide-left">
@@ -3912,11 +3964,26 @@ export function ReceivingScreen({
                 setLineId(selectedLine?.id ?? "");
                 selectLot(nextLot?.lot_number ?? "", selectedLine?.product_id);
                 setPackages(
-                  selectedAllocations.find(
-                    (entry) =>
-                      entry.purchase_order_line_id === selectedLine?.id,
-                  )?.expected_packages ?? "1",
+                  selected?.reconciliation?.accepted_packages ??
+                    selectedAllocations.find(
+                      (entry) =>
+                        entry.purchase_order_line_id === selectedLine?.id,
+                    )?.expected_packages ??
+                    "1",
                 );
+                setMissingPackages(
+                  selected?.reconciliation?.missing_packages ?? "0",
+                );
+                setRejectedPackages(
+                  selected?.reconciliation?.rejected_packages ?? "0",
+                );
+                setExcessPackages(
+                  selected?.reconciliation?.excess_packages ?? "0",
+                );
+                setExceptionKind(
+                  selected?.reconciliation?.exception ?? "short_delivery",
+                );
+                setReason("");
               }}
             >
               {data.shipments.map((record) => (
@@ -3968,10 +4035,21 @@ export function ReceivingScreen({
             </p>
           </div>
           <Badge tone={receipt?.status === "quarantined" ? "warning" : "blue"}>
-            {receipt?.status ?? shipment.status}
+            {shipment.reconciliation
+              ? "Reconciled with discrepancy"
+              : (receipt?.status ?? shipment.status)}
           </Badge>
         </div>
-        {recall && (
+        {shipment.reconciliation && (
+          <Alert severity="info">
+            {number(shipment.reconciliation.accepted_packages)} accepted,{" "}
+            {number(shipment.reconciliation.missing_packages)} missing,{" "}
+            {number(shipment.reconciliation.rejected_packages)} rejected and{" "}
+            {number(shipment.reconciliation.excess_packages)} excess packages
+            refused. {shipment.reconciliation.reason}
+          </Alert>
+        )}
+        {recall && accepted && (
           <div className="inventory-warning" role="alert">
             <strong>Recall match: {recall.reference}</strong>
             <p>This lot must be received into a quarantine location.</p>
@@ -3986,31 +4064,95 @@ export function ReceivingScreen({
           </Field>
           <Field label="Lot number">
             <input
-              value={lotNumber}
+              value={displayedLot}
+              readOnly={!!shipment.reconciliation}
               onChange={(event) => selectLot(event.target.value)}
             />
           </Field>
           <Field label="Expiration">
             <input
               type="date"
-              value={expirationDate}
+              value={
+                shipment.reconciliation
+                  ? (recordedObservation?.expires_on ?? "")
+                  : expirationDate
+              }
+              readOnly={!!shipment.reconciliation}
               onChange={(event) => setExpirationDate(event.target.value)}
             />
           </Field>
-          <Field
-            label={`Quantity (${packageUnit})`}
-            hint={`${number(decimalMultiply(packages || "0", line.units_per_package))} ${baseUnit}`}
-          >
-            <input
-              type="number"
-              min={1}
-              value={packages}
-              onChange={(event) => setPackages(event.target.value)}
-            />
-          </Field>
+          <TextField
+            size="small"
+            label={`Accepted (${packageUnit})`}
+            value={packages}
+            disabled={busy || !!receipt || !!shipment.reconciliation}
+            slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            onChange={(event) => setPackages(event.target.value)}
+            helperText={
+              countsValid
+                ? `${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit} will enter inventory`
+                : "Enter whole package counts."
+            }
+          />
+          <TextField
+            size="small"
+            label="Missing packages"
+            value={missingPackages}
+            disabled={busy || !!receipt || !!shipment.reconciliation}
+            slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            onChange={(event) => setMissingPackages(event.target.value)}
+          />
+          <TextField
+            size="small"
+            label="Rejected packages"
+            value={rejectedPackages}
+            disabled={busy || !!receipt || !!shipment.reconciliation}
+            slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            onChange={(event) => setRejectedPackages(event.target.value)}
+            helperText="Expected packages refused at receiving; no stock is added."
+          />
+          <TextField
+            size="small"
+            label="Excess packages refused"
+            value={excessPackages}
+            disabled={busy || !!receipt || !!shipment.reconciliation}
+            slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            onChange={(event) => setExcessPackages(event.target.value)}
+            helperText="Additional unaccepted packages beyond this delivery allocation."
+          />
+          {hasDiscrepancy && (
+            <TextField
+              select
+              size="small"
+              label="Discrepancy"
+              value={exceptionKind}
+              disabled={busy || !!receipt || !!shipment.reconciliation}
+              onChange={(event) => setExceptionKind(event.target.value)}
+            >
+              {[
+                ["short_delivery", "Short delivery"],
+                ["damaged", "Damaged goods"],
+                ["wrong_item", "Wrong item"],
+                ["wrong_lot", "Wrong lot"],
+                ["temperature", "Temperature exception"],
+                ["expiry", "Expiry exception"],
+                ["excess", "Excess delivery"],
+                ["other", "Other discrepancy"],
+              ].map(([value, label]) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <Field label="Temperature (°C)">
             <input
-              value={temperature}
+              value={
+                shipment.reconciliation
+                  ? (recordedObservation?.temperature_c ?? "")
+                  : temperature
+              }
+              readOnly={!!shipment.reconciliation}
               onChange={(event) => setTemperature(event.target.value)}
             />
           </Field>
@@ -4048,11 +4190,18 @@ export function ReceivingScreen({
           )}
           <Field label="Reason">
             <input
-              value={reason}
+              value={shipment.reconciliation?.reason ?? reason}
+              readOnly={!!shipment.reconciliation}
               onChange={(event) => setReason(event.target.value)}
             />
           </Field>
         </div>
+        {!balanced && (
+          <Alert severity="warning">
+            Accepted + missing + rejected packages must equal{" "}
+            {number(allocation?.expected_packages ?? "0")} expected packages.
+          </Alert>
+        )}
         <div className="inventory-form-actions">
           <PermissionNote
             allowed={capability(data, "inventory.receive")}
@@ -4062,21 +4211,37 @@ export function ReceivingScreen({
             disabled={
               busy ||
               !!receipt ||
+              !!shipment.reconciliation ||
               !capability(data, "inventory.receive") ||
-              !destination ||
-              !lotNumber.trim() ||
-              !expirationDate ||
+              (accepted &&
+                (!destination || !lotNumber.trim() || !expirationDate)) ||
               !reason.trim() ||
               !allocation ||
-              !validDecimal(packages) ||
-              decimalCompare(
-                packages || "0",
-                allocation?.expected_packages ?? "0",
-              ) !== 0
+              !balanced
             }
             onConfirm={confirm}
+            confirmationTitle={
+              hasDiscrepancy
+                ? "Reconcile this delivery?"
+                : "Confirm this receipt?"
+            }
+            confirmationContent={
+              <p>
+                {number(packages)} packages accepted; {number(missingPackages)}{" "}
+                missing; {number(rejectedPackages)} rejected;{" "}
+                {number(excessPackages)} excess refused. Only accepted packages
+                enter inventory. Missing and rejected packages remain
+                outstanding on the PO.
+              </p>
+            }
           >
-            {receipt ? "Receipt recorded" : "Confirm receipt"}
+            {shipment.reconciliation
+              ? "Delivery reconciled"
+              : receipt
+                ? "Receipt recorded"
+                : hasDiscrepancy
+                  ? "Reconcile delivery"
+                  : "Confirm receipt"}
           </ConfirmButton>
         </div>
         {receiptLine && (
@@ -4099,7 +4264,11 @@ export function ReceivingScreen({
           />
           <DataPoint
             label="This receipt"
-            value={`${number(packages)} ${packageUnit} · ${number(decimalMultiply(packages || "0", line.units_per_package))} ${baseUnit}`}
+            value={
+              countsValid
+                ? `${number(packages)} ${packageUnit} · ${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit}`
+                : "Enter whole package counts"
+            }
           />
           <DataPoint
             label="PO remaining"

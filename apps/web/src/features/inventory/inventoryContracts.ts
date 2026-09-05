@@ -288,6 +288,23 @@ export type InventoryShipment = {
   package_count: number;
   delivered_at: string;
   expected_units: Decimal;
+  reconciliation?: {
+    id: string;
+    accepted_packages: Decimal;
+    missing_packages: Decimal;
+    rejected_packages: Decimal;
+    excess_packages: Decimal;
+    exception: string;
+    reason: string;
+    observations: {
+      product_id: string;
+      lot_number?: string;
+      expires_on?: string;
+      temperature_c?: string;
+    }[];
+    actor_id: string;
+    recorded_at: string;
+  } | null;
   allocations?: {
     purchase_order_line_id: string;
     expected_packages: Decimal;

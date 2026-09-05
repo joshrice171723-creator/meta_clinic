@@ -174,6 +174,38 @@ begin
   end
   raise "Concurrent receipt duplicated stock" unless receipts.map(&:id).uniq.one? && receipt_line.batch.reload.quantity == 20 && http_line.reload.received_quantity == 4
   puts "PASS: independent connections receive the same shipment once with supplier package units"
+
+  deliver = lambda do |count|
+    request.call("Post", "/api/clinic/inventory/shipments", { shipment: {
+      purchase_order_id: http_order.id, purchase_order_line_id: http_line.id,
+      reference: "CHECK-#{SecureRandom.hex(6)}", supplier_reference: "Fixture discrepancy delivery", package_count: count,
+      delivered_at: Time.current.iso8601, request_key: SecureRandom.uuid
+    } }, csrf)
+  end
+  competing_deliveries = race { deliver.call(2) }
+  raise "Concurrent deliveries over-allocated the PO" unless competing_deliveries.map(&:code).sort == %w[201 422]
+  delivery = competing_deliveries.find { |result| result.code == "201" }
+  raise "Open delivery over-allocation accepted" unless deliver.call(1).code == "422"
+  delivery_id = JSON.parse(delivery.body).fetch("id")
+  all_missing = { receipt: { purchase_order_id: http_order.id, purchase_order_line_id: http_line.id,
+    shipment_id: delivery_id, quantity_packages: "0.0", reason: "Fixture packages absent at inspection", request_key: SecureRandom.uuid,
+    reconciliation: { missing_packages: "2", rejected_packages: "0", excess_packages: "0", exception: "short_delivery" } } }
+  rejected = request.call("Post", "/api/clinic/inventory/receipts", all_missing, csrf)
+  repeated = request.call("Post", "/api/clinic/inventory/receipts", all_missing, csrf)
+  raise "All-missing reconciliation/replay failed" unless rejected.code == "200" && repeated.code == "200" && JSON.parse(rejected.body).fetch("receipt_id").nil?
+  raise "Missing packages changed stock or order" unless receipt_line.batch.reload.quantity == 20 && http_line.reload.received_quantity == 4
+  raise "Missing delivery did not persist evidence" unless Clinic::Inventory::ShipmentReconciliation.where(shipment_id: delivery_id).count == 1
+  replacement = deliver.call(2)
+  raise "Replacement delivery remained incorrectly reserved" unless replacement.code == "201"
+  partial_payload = receipt_payload.deep_dup
+  partial_payload[:receipt].merge!(shipment_id: JSON.parse(replacement.body).fetch("id"), quantity_packages: "1.0", request_key: SecureRandom.uuid,
+    reconciliation: { missing_packages: "0", rejected_packages: "1", excess_packages: "1", exception: "damaged" })
+  partial = request.call("Post", "/api/clinic/inventory/receipts", partial_payload, csrf)
+  raise "Partial damaged/excess receipt failed" unless partial.code == "200"
+  raise "Rejected packages entered inventory" unless receipt_line.batch.reload.quantity == 25 && http_line.reload.received_quantity == 5 && http_line.remaining_quantity == 1
+  partial_wire = JSON.parse(partial.body).dig("data", "shipments").find { |row| row["id"] == partial_payload[:receipt][:shipment_id].to_s }
+  raise "Reconciliation wire omitted rejected packages" unless partial_wire.dig("reconciliation", "rejected_packages") == "1.0" && partial_wire.dig("reconciliation", "excess_packages") == "1.0"
+  puts "PASS: open delivery allocation limit -> zero-stock shortage/replay -> replacement -> partial damaged/excess rejection and exact wire"
 ensure
   Process.kill("KILL", server_pid) if server_pid
   Process.wait(server_pid) if server_pid

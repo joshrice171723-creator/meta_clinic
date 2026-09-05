@@ -13786,7 +13786,243 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 
 SET search_path TO "$user", public;
 
+--
+-- Name: inventory_receipt_open_shipment(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_receipt_open_shipment() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF NEW.shipment_id IS NOT NULL THEN
+          PERFORM 1 FROM clinic_inventory_shipments WHERE id=NEW.shipment_id FOR UPDATE;
+          IF EXISTS (SELECT 1 FROM clinic_inventory_shipment_reconciliations WHERE shipment_id=NEW.shipment_id)
+          THEN RAISE EXCEPTION 'Shipment already reconciled'; END IF;
+        END IF;
+        RETURN NEW;
+      END $$;
+
+
+
+--
+-- Name: inventory_reconciliation_complete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_reconciliation_complete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF NEW.receipt_id IS NOT NULL AND NEW.accepted_packages IS DISTINCT FROM
+          (SELECT sum(input_quantity) FROM clinic_inventory_receipt_lines WHERE receipt_id=NEW.receipt_id AND practice_id=NEW.practice_id AND input_unit='package')
+        THEN RAISE EXCEPTION 'Reconciliation accepted packages must match receipt postings'; END IF;
+        IF EXISTS (SELECT 1 FROM clinic_inventory_receipt_lines line WHERE line.receipt_id=NEW.receipt_id AND NOT EXISTS
+          (SELECT 1 FROM clinic_inventory_shipment_lines allocation WHERE allocation.shipment_id=NEW.shipment_id
+            AND allocation.practice_id=NEW.practice_id AND allocation.purchase_order_line_id=line.purchase_order_line_id))
+        THEN RAISE EXCEPTION 'Reconciliation receipt lines must match shipment allocation'; END IF;
+        RETURN NULL;
+      END $$;
+
+
+
+--
+-- Name: inventory_reconciliation_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_reconciliation_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      DECLARE delivery clinic_inventory_shipments%ROWTYPE;
+      BEGIN
+        NEW.profile_id := inventory_authorize(NEW.practice_id,NEW.actor_id,'receive',NEW.profile_id);
+        SELECT * INTO delivery FROM clinic_inventory_shipments WHERE id=NEW.shipment_id AND practice_id=NEW.practice_id FOR UPDATE;
+        IF NOT FOUND OR delivery.status<>'delivered' OR NEW.accepted_packages+NEW.missing_packages+NEW.rejected_packages<>delivery.package_count
+        THEN RAISE EXCEPTION 'Reconciliation must balance the delivered shipment'; END IF;
+        IF NOT EXISTS (SELECT 1 FROM clinic_inventory_shipment_lines allocation
+          JOIN clinic_inventory_purchase_order_lines line ON line.id=allocation.purchase_order_line_id AND line.practice_id=allocation.practice_id
+          WHERE allocation.shipment_id=delivery.id AND allocation.practice_id=delivery.practice_id
+            AND line.purchase_order_id=delivery.purchase_order_id AND allocation.expected_packages=delivery.package_count
+            AND allocation.expected_packages*line.conversion_factor=delivery.expected_units)
+        THEN RAISE EXCEPTION 'Reconciliation requires verified shipment allocation'; END IF;
+        IF NEW.receipt_id IS NULL THEN
+          IF EXISTS (SELECT 1 FROM clinic_inventory_receipts WHERE shipment_id=delivery.id)
+          THEN RAISE EXCEPTION 'Shipment already has a receipt'; END IF;
+        ELSIF NOT EXISTS (SELECT 1 FROM clinic_inventory_receipts WHERE id=NEW.receipt_id AND practice_id=NEW.practice_id AND shipment_id=delivery.id AND purchase_order_id=delivery.purchase_order_id AND actor_id=NEW.actor_id)
+        THEN RAISE EXCEPTION 'Reconciliation must match its receipt'; END IF;
+        RETURN NEW;
+      END $$;
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_shipment_reconciliations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    shipment_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    profile_id bigint NOT NULL,
+    receipt_id bigint,
+    accepted_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconcilia_accepted_packages_not_null NOT NULL,
+    missing_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconciliat_missing_packages_not_null NOT NULL,
+    rejected_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconcilia_rejected_packages_not_null NOT NULL,
+    excess_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconciliati_excess_packages_not_null NOT NULL,
+    exception character varying NOT NULL,
+    reason character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying CONSTRAINT clinic_inventory_shipment_reconciliatio_payload_digest_not_null NOT NULL,
+    observations jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_reconciliation_observations CHECK (((jsonb_typeof(observations) = 'array'::text) AND ((jsonb_array_length(observations) >= 1) AND (jsonb_array_length(observations) <= 100)) AND (octet_length((observations)::text) <= 64000))),
+    CONSTRAINT inventory_reconciliation_quantities CHECK ((((accepted_packages >= (0)::numeric) AND (accepted_packages <= (1000000)::numeric)) AND (accepted_packages = trunc(accepted_packages)) AND ((missing_packages >= (0)::numeric) AND (missing_packages <= (1000000)::numeric)) AND (missing_packages = trunc(missing_packages)) AND ((rejected_packages >= (0)::numeric) AND (rejected_packages <= (1000000)::numeric)) AND (rejected_packages = trunc(rejected_packages)) AND ((excess_packages >= (0)::numeric) AND (excess_packages <= (1000000)::numeric)) AND (excess_packages = trunc(excess_packages)))),
+    CONSTRAINT inventory_reconciliation_reason CHECK ((((exception)::text = ANY ((ARRAY['short_delivery'::character varying, 'damaged'::character varying, 'wrong_item'::character varying, 'wrong_lot'::character varying, 'temperature'::character varying, 'expiry'::character varying, 'excess'::character varying, 'other'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64))),
+    CONSTRAINT inventory_reconciliation_shape CHECK (((((missing_packages + rejected_packages) + excess_packages) > (0)::numeric) AND (((accepted_packages = (0)::numeric) AND (receipt_id IS NULL)) OR ((accepted_packages > (0)::numeric) AND (receipt_id IS NOT NULL)))))
+);
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_shipment_reconciliations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_shipment_reconciliations_id_seq OWNED BY public.clinic_inventory_shipment_reconciliations.id;
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_shipment_reconciliations_id_seq'::regclass);
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations clinic_inventory_shipment_reconciliations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT clinic_inventory_shipment_reconciliations_pkey PRIMARY KEY (id);
+
+
+
+--
+-- Name: inventory_shipment_reconciliation_once; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_shipment_reconciliation_once ON public.clinic_inventory_shipment_reconciliations USING btree (practice_id, shipment_id);
+
+
+
+--
+-- Name: inventory_shipment_reconciliation_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_shipment_reconciliation_retry ON public.clinic_inventory_shipment_reconciliations USING btree (practice_id, request_key);
+
+
+
+--
+-- Name: clinic_inventory_shipment_lines immutable_history; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipment_lines FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations immutable_history; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipment_reconciliations FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+
+--
+-- Name: clinic_inventory_shipments immutable_history; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipments FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+
+--
+-- Name: clinic_inventory_receipts inventory_receipt_open_shipment; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_receipt_open_shipment BEFORE INSERT ON public.clinic_inventory_receipts FOR EACH ROW EXECUTE FUNCTION public.inventory_receipt_open_shipment();
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations inventory_reconciliation_complete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_reconciliation_complete AFTER INSERT ON public.clinic_inventory_shipment_reconciliations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_reconciliation_complete();
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations inventory_reconciliation_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_reconciliation_guard BEFORE INSERT ON public.clinic_inventory_shipment_reconciliations FOR EACH ROW EXECUTE FUNCTION public.inventory_reconciliation_guard();
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_0a8145c02d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_0a8145c02d FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_470906eeb9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_470906eeb9 FOREIGN KEY (practice_id, shipment_id) REFERENCES public.clinic_inventory_shipments(practice_id, id);
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_69dc3f4896; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_69dc3f4896 FOREIGN KEY (practice_id, receipt_id) REFERENCES public.clinic_inventory_receipts(practice_id, id);
+
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_a38c793051; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_a38c793051 FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905010100'),
 ('20260905010000'),
 ('20260903001400'),
 ('20260903001300'),

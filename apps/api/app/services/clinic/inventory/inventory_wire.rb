@@ -28,7 +28,7 @@ module Clinic
           :supplier,
           :receipts,
           { lines: :product },
-          { shipments: [ :receipts, :shipment_lines ] }
+          { shipments: [ :receipts, :shipment_lines, :reconciliation ] }
         ).order(id: :desc).limit(100).to_a
         receipts = Receipt.where(practice_id: practice.id).includes(
           :actor,
@@ -148,7 +148,7 @@ module Clinic
       end
 
       def shipment_wire(shipment)
-        { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference, status: shipment.effective_status, package_count: shipment.package_count, delivered_at: shipment.delivered_at&.iso8601, expected_units: shipment.expected_units.to_d.to_s("F"), allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s, expected_packages: line.expected_packages.to_d.to_s("F") } } }
+        { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference, status: shipment.effective_status, package_count: shipment.package_count, delivered_at: shipment.delivered_at&.iso8601, expected_units: shipment.expected_units.to_d.to_s("F"), reconciliation: shipment.reconciliation&.then { |record| { id: record.id.to_s, accepted_packages: record.accepted_packages.to_d.to_s("F"), missing_packages: record.missing_packages.to_d.to_s("F"), rejected_packages: record.rejected_packages.to_d.to_s("F"), excess_packages: record.excess_packages.to_d.to_s("F"), exception: record.exception, reason: record.reason, observations: record.observations, actor_id: record.actor_id.to_s, recorded_at: record.created_at.iso8601 } }, allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s, expected_packages: line.expected_packages.to_d.to_s("F") } } }
       end
 
       def receipt_wire(receipt)

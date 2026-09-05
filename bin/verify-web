@@ -21,7 +21,8 @@ database = "apply_web_verify_#{SecureRandom.hex(6)}"
 environment = {
   "RAILS_ENV" => "development", "APPLY_DEVELOPMENT_DATABASE" => database,
   "APPLY_TEST_DATABASE" => database + "_test", "SKIP_TEST_DATABASE" => "1",
-  "DATABASE_URL" => nil, "APP_DEVELOPMENT_LOGIN" => "1"
+  "DATABASE_URL" => nil, "APP_DEVELOPMENT_LOGIN" => "1",
+  "SCHEMA" => File.join(api_root, "tmp", "#{database}-structure.sql")
 }
 ports = 2.times.map { socket = TCPServer.new("127.0.0.1", 0); port = socket.addr[1]; socket.close; port }
 children = []
@@ -35,14 +36,11 @@ begin
   # PostgreSQL CLI targets exactly this generated name, never Rails' companion DBs.
   command!(environment, api_root, *database_command, "createdb", database)
   created = true
-  schema = File.read(File.join(api_root, "db", "structure.sql"))
-  command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1", input: schema)
-  migration_versions = Dir[File.join(api_root, "db", "migrate", "*.rb")]
-    .map { |path| File.basename(path).split("_", 2).first }
-    .select { |version| version.match?(/\A\d{14}\z/) }
-  migration_rows = migration_versions.map { |version| "(#{version})" }.join(", ")
-  command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1",
-    input: "INSERT INTO schema_migrations (version) VALUES #{migration_rows} ON CONFLICT (version) DO NOTHING;")
+  # Initialize this empty scratch database through real migrations. Never mark
+  # unapplied migrations complete based on a snapshot. Keep its dump task-local.
+  phase = "scratch database migrations"
+  command!(environment, api_root, *database_command, *rails_command, "db:migrate")
+  phase = "development fixtures"
   command!(environment, api_root, *database_command, *rails_command, "db:seed")
   command!(environment, api_root, *database_command, *rails_command, "members:prepare_test_accounts")
   phase = "process startup"
@@ -153,4 +151,5 @@ ensure
     command!(environment, api_root, *database_command, "dropdb", database)
     puts "Removed only this run's synthetic scratch database and child processes."
   end
+  File.delete(environment.fetch("SCHEMA")) if File.file?(environment.fetch("SCHEMA"))
 end

@@ -8,8 +8,10 @@ module Clinic
       belongs_to :actor, class_name: "User"
       has_many :receipts, class_name: "Clinic::Inventory::Receipt", foreign_key: :shipment_id, dependent: :restrict_with_error
       has_many :shipment_lines, class_name: "Clinic::Inventory::ShipmentLine", foreign_key: :shipment_id, dependent: :restrict_with_error
+      has_one :reconciliation, class_name: "Clinic::Inventory::ShipmentReconciliation", foreign_key: :shipment_id, dependent: :restrict_with_error
 
       def effective_status
+        return "reconciled_with_discrepancy" if reconciliation
         receipts.exists? ? "received" : status
       end
     end

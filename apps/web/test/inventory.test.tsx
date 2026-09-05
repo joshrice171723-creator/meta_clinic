@@ -128,6 +128,37 @@ describe("inventory integration", () => {
     expect(html).toContain("2 package · 14.5 mL");
     expect(html).not.toContain("21 mL");
     expect(html).not.toContain("Catalog 10.5 mL");
+    expect(html).toContain("Missing packages");
+    expect(html).toContain("Excess packages refused");
+    data.shipments[0].reconciliation = {
+      id: "reconciliation",
+      accepted_packages: "0",
+      missing_packages: "2",
+      rejected_packages: "0",
+      excess_packages: "0",
+      exception: "short_delivery",
+      reason: "Fixture delivery missing both packages",
+      observations: [
+        {
+          product_id: "1",
+          lot_number: "OBSERVED-FIXTURE-LOT",
+          expires_on: "2099-01-02",
+          temperature_c: "8.1",
+        },
+      ],
+      actor_id: "1",
+      recorded_at: data.as_of,
+    };
+    const reconciled = renderToStaticMarkup(
+      <ReceivingScreen data={data} busy={false} run={async () => {}} />,
+    );
+    expect(reconciled).toContain("Delivery reconciled");
+    expect(reconciled).toContain("Fixture delivery missing both packages");
+    expect(reconciled).toContain("Reconciled with discrepancy");
+    expect(reconciled).toContain("0 package · 0 mL");
+    expect(reconciled).toContain('value="OBSERVED-FIXTURE-LOT"');
+    expect(reconciled).toContain('value="2099-01-02"');
+    expect(reconciled).toContain('value="8.1"');
   });
 
   it("infers the stock unit and package quantity from FDA package text", () => {
