@@ -45,6 +45,19 @@ Rails.application.routes.draw do
       post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
     end
     get "billing", to: "billing/dashboard#show"
+    get "subscription_catalog", to: "care/subscription_catalog#index"
+    post "subscription_catalog/:kind", to: "care/subscription_catalog#save"
+    patch "subscription_catalog/:kind/:id", to: "care/subscription_catalog#save"
+    get "subscription_catalog/packages/:id/preview", to: "care/subscription_catalog#preview"
+    post "subscription_catalog/packages/:id/publish", to: "care/subscription_catalog#publish"
+    post "subscription_catalog/:kind/:id/retire", to: "care/subscription_catalog#retire"
+    resources :subscriptions, controller: "billing/subscriptions", only: :index do
+      post :reconcile_ledger, on: :member
+      post :review, on: :member
+      post :reconcile, on: :member
+      post :cancel, on: :member
+      post :refund, on: :member
+    end
       resources :cash_drawers, controller: "billing/cash_drawers", only: %i[index create] do
         post :close, on: :member
         post :reconcile, on: :member
@@ -173,6 +186,13 @@ Rails.application.routes.draw do
   end
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do
+      resources :subscriptions, only: :index do
+        post :quote, on: :collection
+        post :checkout, on: :collection
+        post :pay, on: :member
+        post :cancel, on: :member
+        get :receipt, on: :member
+      end
       get "context", to: "context#show"
       get "reminders", to: "reminders#index"
       post "reminders/:id/actions", to: "reminders#action"

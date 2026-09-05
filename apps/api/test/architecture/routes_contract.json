@@ -15,6 +15,11 @@
     "/api/materials/:material_id/start(.:format)"
   ],
   [
+    "api_clinic",
+    "PATCH",
+    "/api/clinic/facilities/:id(.:format)"
+  ],
+  [
     "api_clinic_appointment",
     "GET",
     "/api/clinic/appointments/:id(.:format)"
@@ -75,16 +80,6 @@
     "/api/clinic/facilities(.:format)"
   ],
   [
-    "api_clinic_facilities",
-    "PATCH",
-    "/api/clinic/facilities/:id(.:format)"
-  ],
-  [
-    "api_clinic_facilities",
-    "POST",
-    "/api/clinic/facilities(.:format)"
-  ],
-  [
     "api_clinic_inventory_configuration",
     "POST",
     "/api/clinic/inventory_configuration(.:format)"
@@ -102,7 +97,7 @@
   [
     "api_clinic_inventory_management",
     "PATCH",
-    "/api/clinic/inventory/products/:id(.:format)"
+    "/api/clinic/inventory/suppliers/:id(.:format)"
   ],
   [
     "api_clinic_inventory_management_activity",
@@ -120,11 +115,6 @@
     "/api/clinic/inventory/catalog(.:format)"
   ],
   [
-    "api_clinic_inventory_management_locations",
-    "POST",
-    "/api/clinic/inventory/locations(.:format)"
-  ],
-  [
     "api_clinic_inventory_management_controlled",
     "GET",
     "/api/clinic/inventory/controlled(.:format)"
@@ -135,9 +125,29 @@
     "/api/clinic/inventory/demo(.:format)"
   ],
   [
+    "api_clinic_inventory_management_locations",
+    "POST",
+    "/api/clinic/inventory/locations(.:format)"
+  ],
+  [
     "api_clinic_inventory_management_lots",
     "GET",
     "/api/clinic/inventory/lots(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_purchase_cart",
+    "GET",
+    "/api/clinic/inventory/purchase-cart(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_purchase_cart_checkout",
+    "POST",
+    "/api/clinic/inventory/purchase-cart/checkout(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_purchase_cart_items",
+    "POST",
+    "/api/clinic/inventory/purchase-cart/items(.:format)"
   ],
   [
     "api_clinic_inventory_management_purchase_orders",
@@ -168,6 +178,21 @@
     "api_clinic_inventory_management_shipments",
     "POST",
     "/api/clinic/inventory/shipments(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_suppliers",
+    "POST",
+    "/api/clinic/inventory/suppliers(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_suppliers_import",
+    "POST",
+    "/api/clinic/inventory/suppliers/import(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_suppliers_preview",
+    "POST",
+    "/api/clinic/inventory/suppliers/preview(.:format)"
   ],
   [
     "api_clinic_invoice",
@@ -320,6 +345,41 @@
     "/api/clinic/staff(.:format)"
   ],
   [
+    "api_clinic_staff_messaging",
+    "GET",
+    "/api/clinic/staff-messaging/conversations/:id(.:format)"
+  ],
+  [
+    "api_clinic_staff_messaging_conversations",
+    "GET",
+    "/api/clinic/staff-messaging/conversations(.:format)"
+  ],
+  [
+    "api_clinic_staff_messaging_notifications",
+    "GET",
+    "/api/clinic/staff-messaging/notifications(.:format)"
+  ],
+  [
+    "api_clinic_staff_messaging_participants",
+    "GET",
+    "/api/clinic/staff-messaging/participants(.:format)"
+  ],
+  [
+    "api_clinic_staff_messaging_preferences",
+    "GET",
+    "/api/clinic/staff-messaging/preferences(.:format)"
+  ],
+  [
+    "api_clinic_subscription_catalog",
+    "GET",
+    "/api/clinic/subscription_catalog(.:format)"
+  ],
+  [
+    "api_clinic_subscriptions",
+    "GET",
+    "/api/clinic/subscriptions(.:format)"
+  ],
+  [
     "api_clinic_tracking_board",
     "GET",
     "/api/clinic/tracking_board(.:format)"
@@ -420,6 +480,11 @@
     "/api/patient_portal/step_up(.:format)"
   ],
   [
+    "api_patient_portal_subscriptions",
+    "GET",
+    "/api/patient_portal/subscriptions(.:format)"
+  ],
+  [
     "api_session",
     "GET",
     "/api/session(.:format)"
@@ -445,6 +510,16 @@
     "/api/clinic/reminders/:id/cancel(.:format)"
   ],
   [
+    "cancel_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/cancel(.:format)"
+  ],
+  [
+    "cancel_api_patient_portal_subscription",
+    "POST",
+    "/api/patient_portal/subscriptions/:id/cancel(.:format)"
+  ],
+  [
     "cash_payments_api_clinic_invoice",
     "POST",
     "/api/clinic/invoices/:id/cash_payments(.:format)"
@@ -453,6 +528,11 @@
     "cash_refunds_api_clinic_payment_event",
     "POST",
     "/api/clinic/payment_events/:id/cash_refunds(.:format)"
+  ],
+  [
+    "checkout_api_patient_portal_subscriptions",
+    "POST",
+    "/api/patient_portal/subscriptions/checkout(.:format)"
   ],
   [
     "close_api_clinic_cash_drawer",
@@ -545,6 +625,11 @@
     "/api/clinic/reminders/:id/pause(.:format)"
   ],
   [
+    "pay_api_patient_portal_subscription",
+    "POST",
+    "/api/patient_portal/subscriptions/:id/pay(.:format)"
+  ],
+  [
     "payment_allocations_api_clinic_invoice",
     "POST",
     "/api/clinic/invoices/:id/payment_allocations(.:format)"
@@ -565,6 +650,11 @@
     "/api/clinic/encounters/:id/provider_assignment(.:format)"
   ],
   [
+    "quote_api_patient_portal_subscriptions",
+    "POST",
+    "/api/patient_portal/subscriptions/quote(.:format)"
+  ],
+  [
     "rails_health_check",
     "GET",
     "/up(.:format)"
@@ -580,6 +670,11 @@
     "/api/paperworks/:id/receipt(.:format)"
   ],
   [
+    "receipt_api_patient_portal_subscription",
+    "GET",
+    "/api/patient_portal/subscriptions/:id/receipt(.:format)"
+  ],
+  [
     "receive_api_clinic_pharmacy",
     "POST",
     "/api/clinic/pharmacy/:id/receive(.:format)"
@@ -590,6 +685,21 @@
     "/api/clinic/cash_drawers/:id/reconcile(.:format)"
   ],
   [
+    "reconcile_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/reconcile(.:format)"
+  ],
+  [
+    "reconcile_ledger_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/reconcile_ledger(.:format)"
+  ],
+  [
+    "refund_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/refund(.:format)"
+  ],
+  [
     "retry_api_clinic_reminder",
     "POST",
     "/api/clinic/reminders/:id/retry(.:format)"
@@ -598,6 +708,11 @@
     "review_api_clinic_scribe_draft",
     "POST",
     "/api/clinic/scribe/drafts/:id/review(.:format)"
+  ],
+  [
+    "review_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/review(.:format)"
   ],
   [
     "revisions_api_clinic_note",
@@ -637,6 +752,11 @@
   [
     null,
     "DELETE",
+    "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
+  ],
+  [
+    null,
+    "DELETE",
     "/api/clinic/scribe/encounters/:id(.:format)"
   ],
   [
@@ -651,6 +771,41 @@
   ],
   [
     null,
+    "GET",
+    "/api/clinic/staff-messaging/attachments/:id/download(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/subscription_catalog/packages/:id/preview(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/context(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/products/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/products/:id/preferred-supplier(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/purchase-cart(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
+  ],
+  [
+    null,
     "PATCH",
     "/api/clinic/patients/:id(.:format)"
   ],
@@ -658,6 +813,16 @@
     null,
     "PATCH",
     "/api/clinic/pharmacy/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/staff-messaging/preferences(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/subscription_catalog/:kind/:id(.:format)"
   ],
   [
     null,
@@ -678,6 +843,11 @@
     null,
     "POST",
     "/api/clinic/encounters/:encounter_id/notes(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/facilities(.:format)"
   ],
   [
     null,
@@ -788,6 +958,66 @@
     null,
     "POST",
     "/api/clinic/staff(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/attachments/:id/complete(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/conversations(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/conversations/:id/messages(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/conversations/:id/read(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/messages/:id/acknowledge(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/messages/:message_id/attachments(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/notifications/:id/read(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/requests/:id/escalate(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/requests/:id/transition(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/subscription_catalog/:kind(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/subscription_catalog/:kind/:id/retire(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/subscription_catalog/packages/:id/publish(.:format)"
   ],
   [
     null,

@@ -15,6 +15,7 @@ module Development
       }
     ].freeze
     DEFAULT_PERMISSIONS = %w[
+      subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review
       patients.read patients.identity.read patients.write staff.read staff.write facilities.read facilities.write inventory.read
       inventory.catalog inventory.receive inventory.adjust inventory.hold
       inventory.release inventory.count inventory.configure appointments.write

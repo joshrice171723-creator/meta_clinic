@@ -1,32 +1,32 @@
-import { Field, Form, useResource } from "../../shared/ui";
-import type { PatientPortalContext } from "../../api/contracts";
+import { useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
-  Chip,
+  Button,
   CircularProgress,
+  MenuItem,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
-import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
-import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import type { PatientPortalContext } from "../../api/contracts";
+import { api } from "../../api/client";
+import { useResource } from "../../shared/ui";
+import { PatientSubscriptions } from "./PatientSubscriptions";
+import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 
 export function PatientPortal() {
   const resource = useResource<PatientPortalContext>(
     "/api/patient_portal/context",
   );
+  const [error, setError] = useState("");
+  const [switching, setSwitching] = useState(false);
   const context = resource.data;
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  tomorrow.setMinutes(0, 0, 0);
-  const localInput = (value: Date) => {
-    const offset = value.getTimezoneOffset();
-    return new Date(value.getTime() - offset * 60_000)
-      .toISOString()
-      .slice(0, 16);
-  };
-
   return (
     <Box
       component="main"
@@ -35,555 +35,188 @@ export function PatientPortal() {
         minHeight: "100vh",
         bgcolor: "#f5f7f6",
         color: "#17352f",
-        px: { xs: 2, sm: 4 },
-        py: { xs: 2, md: 5 },
+        p: { xs: 2, md: 4 },
       }}
     >
-      <Box sx={{ maxWidth: 1120, mx: "auto" }}>
+      <Stack spacing={3} sx={{ maxWidth: 1120, mx: "auto" }}>
         <Stack
-          direction={{ xs: "column", sm: "row" }}
-          sx={{
-            mb: 5,
-            gap: 2,
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
+          direction="row"
+          sx={{ justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}
         >
-          <Box>
-            <Typography
-              component="p"
-              variant="overline"
-              sx={{ letterSpacing: "0.12em", color: "#58756e" }}
-            >
-              APPly · Patient portal
-            </Typography>
-            <Typography
-              component="h1"
-              variant="h3"
-              sx={{ fontWeight: 700, letterSpacing: "-0.03em" }}
-            >
-              Your care, in one place.
-            </Typography>
-          </Box>
-          <Form
-            endpoint="/api/session"
-            method="DELETE"
-            submit="Sign out"
-            className="patient-portal-signout"
-            onSuccess={() => window.location.replace("/login")}
-          />
+          <Typography variant="h4" component="h1">
+            Patient portal
+          </Typography>
+          <Button
+            onClick={async () => {
+              await api("/api/session", { method: "DELETE" });
+              window.location.assign("/login");
+            }}
+          >
+            Sign out
+          </Button>
         </Stack>
-
         {!context && !resource.error && (
           <CircularProgress aria-label="Loading patient portal" />
         )}
-        {resource.error && <Alert severity="error">{resource.error}</Alert>}
+        {(resource.error || error) && (
+          <Alert severity="error">{resource.error || error}</Alert>
+        )}
         {context && (
-          <Stack spacing={3}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: { xs: 2.5, md: 4 },
-                border: "1px solid #d6e1dd",
-                borderRadius: 3,
-              }}
-            >
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                sx={{ gap: 2, justifyContent: "space-between" }}
-              >
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Signed in as
-                  </Typography>
-                  <Typography variant="h4" sx={{ mt: 0.5, fontWeight: 700 }}>
-                    {context.patient.display_name}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 0.5 }}
-                  >
-                    Patient reference · {context.patient.reference}
-                  </Typography>
-                </Box>
-                <Chip
-                  icon={<LockOutlinedIcon />}
-                  label="Private session"
-                  color="success"
-                  variant="outlined"
-                  sx={{ alignSelf: "flex-start" }}
-                />
-              </Stack>
-            </Paper>
-
-            {context.notices.map((notice) => (
-              <Alert key={notice} severity="info">
-                {notice}
-              </Alert>
-            ))}
-
-            <Paper
-              elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              aria-labelledby="reminders-heading"
-            >
-              <Typography
-                id="reminders-heading"
-                variant="h6"
-                sx={{ fontWeight: 700 }}
-              >
-                Patient reminders
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Operational reminders use minimum-content previews. Delivery is
-                not a guarantee and this is not an emergency channel.
-              </Typography>
-              {context.reminders.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 2 }}>
-                  No reminders are currently scheduled.
+          <>
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Stack spacing={2}>
+                <Typography variant="overline">
+                  {context.practice.name}
                 </Typography>
-              ) : (
-                context.reminders.map((reminder) => (
-                  <Box
-                    key={reminder.id}
-                    sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                  >
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {reminder.safe_preview}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 0.5 }}
-                    >
-                      {reminder.local_schedule_label} · {reminder.channel} ·{" "}
-                      {reminder.status.replaceAll("_", " ")}
-                    </Typography>
-                    {reminder.status === "delivered" && (
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
-                        sx={{ mt: 1.5 }}
-                      >
-                        <Form
-                          endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`}
-                          submit="Confirm"
-                          retryKey
-                          retryKeyField="reminder_action[request_key]"
-                          values={{
-                            reminder_action: { action_type: "confirm" },
-                          }}
-                          onSuccess={resource.refresh}
-                          className="pharmacy-form-grid"
-                        />
-                        <Form
-                          endpoint={`/api/patient_portal/reminders/${reminder.id}/actions`}
-                          submit="Request help"
-                          retryKey
-                          retryKeyField="reminder_action[request_key]"
-                          values={{
-                            reminder_action: { action_type: "request_help" },
-                          }}
-                          onSuccess={resource.refresh}
-                          className="pharmacy-form-grid"
-                        />
-                      </Stack>
-                    )}
-                  </Box>
-                ))
-              )}
-              <Typography variant="subtitle2" sx={{ mt: 3 }}>
-                Communication preference
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5 }}
-              >
-                Blocking a channel applies to future operational reminders and
-                is recorded with a versioned change.
-              </Typography>
-              <Form
-                endpoint="/api/patient_portal/reminder_preferences"
-                submit="Block portal reminders"
-                retryKey
-                values={{
-                  preference: {
-                    channel: "portal",
-                    setting: "blocked",
-                    timezone: context.practice.timezone,
-                    locale: "en-US",
-                  },
-                }}
-                onSuccess={resource.refresh}
-                className="pharmacy-form-grid"
-              />
-            </Paper>
-
-            <Paper
-              elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Intake &amp; care preferences
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Profile: {context.intake.status.replaceAll("_", " ")} ·
-                Emergency contacts on file:{" "}
-                {context.intake.emergency_contact_count} · Consent:{" "}
-                {context.intake.consent_status.replaceAll("_", " ")}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Intake forms and consent capture are staged for the next enabled
-                clinic workflow.
-              </Typography>
-            </Paper>
-
-            {(context.capabilities.messages_write ||
-              context.capabilities.refill_requests_write) && (
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Contact your care team
+                <Typography variant="h5" component="h2">
+                  {context.patient.display_name}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Send a non-urgent request. A request is not a diagnosis,
-                  prescription, or emergency service.
+                <Typography color="text.secondary">
+                  Patient reference · {context.patient.reference}
                 </Typography>
-                <Form
-                  endpoint="/api/patient_portal/requests"
-                  submit="Send request"
-                  retryKey
-                  retryKeyField="patient_portal_request[request_key]"
-                  onSuccess={resource.refresh}
-                >
-                  <Field
-                    name="patient_portal_request[request_type]"
-                    label="Request type"
-                    options={[
-                      ["message", "General question"],
-                      ...(context.capabilities.refill_requests_write
-                        ? [["refill", "Refill request"] as [string, string]]
-                        : []),
-                    ]}
-                  />
-                  <Field
-                    name="patient_portal_request[content]"
-                    label="What can we help with?"
-                    type="textarea"
-                    maxLength={10000}
-                  />
-                </Form>
-                {context.requests.length > 0 && (
-                  <Stack spacing={1} sx={{ mt: 3 }}>
-                    <Typography variant="subtitle2">Recent requests</Typography>
-                    {context.requests.slice(0, 5).map((request) => (
-                      <Typography
-                        key={request.id}
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        {request.request_type === "refill"
-                          ? "Refill request"
-                          : "General question"}{" "}
-                        · {request.status.replaceAll("_", " ")} ·{" "}
-                        {new Date(request.requested_at).toLocaleString()}
-                      </Typography>
-                    ))}
-                  </Stack>
-                )}
-              </Paper>
-            )}
-
-            {context.capabilities.appointment_requests_write && (
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Request an appointment
-                </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Choose a preferred two-hour window. The care team confirms
-                  availability before anything is booked.
-                </Typography>
-                <Form
-                  endpoint="/api/patient_portal/appointment_requests"
-                  submit="Send appointment request"
-                  retryKey
-                  onSuccess={resource.refresh}
-                  transform={(values) => ({
-                    ...values,
-                    starts_at: new Date(String(values.starts_at)).toISOString(),
-                    ends_at: new Date(String(values.ends_at)).toISOString(),
-                  })}
-                >
-                  <Field
-                    name="starts_at"
-                    label="Preferred start"
-                    type="datetime-local"
-                    value={localInput(tomorrow)}
-                  />
-                  <Field
-                    name="ends_at"
-                    label="Preferred end"
-                    type="datetime-local"
-                    value={localInput(
-                      new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
-                    )}
-                  />
-                </Form>
-                {context.appointment_requests.length > 0 && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 2 }}
-                  >
-                    Latest request: {context.appointment_requests[0].status} for{" "}
-                    {new Date(
-                      context.appointment_requests[0].starts_at,
-                    ).toLocaleString()}
-                    .
-                  </Typography>
-                )}
-              </Paper>
-            )}
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 3,
-              }}
-            >
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  sx={{ mb: 2, alignItems: "center" }}
-                >
-                  <EventAvailableOutlinedIcon color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Upcoming appointments
-                  </Typography>
-                </Stack>
-                {context.upcoming_appointments.length === 0 ? (
-                  <Typography color="text.secondary">
-                    No upcoming appointments are recorded.
-                  </Typography>
-                ) : (
-                  context.upcoming_appointments.map((appointment) => (
-                    <Box
-                      key={appointment.id}
-                      sx={{ py: 1.5, borderTop: "1px solid #e7eeeb" }}
-                    >
-                      <Typography>
-                        {new Date(appointment.starts_at).toLocaleString()}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {appointment.visit_type || "Visit"} ·{" "}
-                        {appointment.status}
-                      </Typography>
-                    </Box>
-                  ))
-                )}
-              </Paper>
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  sx={{ mb: 2, alignItems: "center" }}
-                >
-                  <AccountBalanceWalletOutlinedIcon color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Open balance
-                  </Typography>
-                </Stack>
-                {context.balances.length === 0 ? (
-                  <Typography color="text.secondary">
-                    No posted balance is recorded.
-                  </Typography>
-                ) : (
-                  context.balances.map((balance) => (
-                    <Typography
-                      key={balance.currency}
-                      variant="h4"
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {balance.currency} {balance.balance_amount}
-                    </Typography>
-                  ))
-                )}
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 1 }}
-                >
-                  Payment collection is not enabled in this development build.
-                </Typography>
-              </Paper>
-            </Box>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 3,
-              }}
-            >
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Visit summaries
-                </Typography>
-                {context.visit_summaries.length === 0 ? (
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    No signed visit summary is available yet.
-                  </Typography>
-                ) : (
-                  context.visit_summaries.map((summary) => (
-                    <Box
-                      key={summary.id}
-                      sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        Signed{" "}
-                        {summary.signed_at
-                          ? new Date(summary.signed_at).toLocaleString()
-                          : ""}
-                      </Typography>
-                      {summary.assessment && (
-                        <Typography sx={{ mt: 1 }}>
-                          {summary.assessment}
-                        </Typography>
-                      )}
-                      {summary.plan && (
-                        <Typography color="text.secondary" sx={{ mt: 1 }}>
-                          {summary.plan}
-                        </Typography>
-                      )}
-                    </Box>
-                  ))
-                )}
-              </Paper>
-              <Paper
-                elevation={0}
-                sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Results
-                </Typography>
-                {context.results.length === 0 ? (
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    No lab or test results are available yet.
-                  </Typography>
-                ) : (
-                  context.results.map((result) => (
-                    <Box
-                      key={result.id}
-                      sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                    >
-                      <Typography>{result.code}</Typography>
-                      <Typography color="text.secondary">
-                        {result.numeric_value ??
-                          result.text_value ??
-                          result.coded_value ??
-                          "Not recorded"}
-                        {result.unit_code ? ` ${result.unit_code}` : ""}
-                      </Typography>
-                    </Box>
-                  ))
-                )}
-              </Paper>
-            </Box>
-
-            <Paper
-              elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Medication regimen
-              </Typography>
-              {context.medications.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  No active medications are recorded.
-                </Typography>
-              ) : (
-                context.medications.map((medication) => (
-                  <Box
-                    key={medication.id}
-                    sx={{ mt: 2, pt: 2, borderTop: "1px solid #e7eeeb" }}
-                  >
-                    <Typography>
-                      {medication.medication || "Medication"}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {[medication.dose, medication.route, medication.frequency]
-                        .filter(Boolean)
-                        .join(" · ") || "Details not recorded"}
-                    </Typography>
-                  </Box>
-                ))
-              )}
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Refill requests will be enabled after provider messaging is
-                connected.
-              </Typography>
-            </Paper>
-
-            <Paper
-              elevation={0}
-              sx={{ p: 3, border: "1px solid #d6e1dd", borderRadius: 3 }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Billing history
-              </Typography>
-              {context.billing.invoices.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  No invoices are posted.
-                </Typography>
-              ) : (
-                context.billing.invoices.map((invoice) => (
-                  <Box
-                    key={invoice.id}
-                    sx={{
-                      mt: 2,
-                      pt: 2,
-                      borderTop: "1px solid #e7eeeb",
-                      display: "flex",
-                      flexDirection: { xs: "column", sm: "row" },
-                      justifyContent: "space-between",
-                      gap: 2,
+                {context.development_preview && (
+                  <TextField
+                    select
+                    label="Patient view"
+                    disabled={switching}
+                    value={context.development_preview.selected_patient_id}
+                    onChange={async (e) => {
+                      setSwitching(true);
+                      setError("");
+                      try {
+                        await api("/api/patient_portal/development_patient", {
+                          method: "PATCH",
+                          body: { patient_id: Number(e.target.value) },
+                        });
+                        resource.refresh();
+                      } catch (e) {
+                        setError(
+                          e instanceof Error
+                            ? e.message
+                            : "Unable to switch patient.",
+                        );
+                      } finally {
+                        setSwitching(false);
+                      }
                     }}
                   >
-                    <Box>
-                      <Typography>Invoice #{invoice.id}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {invoice.status} ·{" "}
-                        {new Date(invoice.created_at).toLocaleDateString()}
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {invoice.currency} {invoice.balance_amount} due
+                    {context.development_preview.patients.map((p) => (
+                      <MenuItem key={p.id} value={p.id}>
+                        {p.display_name} · {p.reference}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+              </Stack>
+            </Paper>
+            {!switching && (
+              <PatientSubscriptions
+                key={context.patient.id}
+                onChanged={resource.refresh}
+              />
+            )}
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Stack spacing={2}>
+                <Typography variant="h5" component="h2">
+                  Balances
+                </Typography>
+                {!context.balances.length && (
+                  <Typography>No billing activity yet.</Typography>
+                )}
+                {context.balances.map((b) => (
+                  <Box key={b.currency}>
+                    <Typography variant="h6">
+                      {subscriptionMoney(b.balance_amount, b.currency)}{" "}
+                      outstanding
+                    </Typography>
+                    <Typography variant="body2">
+                      Paid {subscriptionMoney(b.allocated_amount, b.currency)} ·
+                      Refunded{" "}
+                      {subscriptionMoney(b.refunded_amount, b.currency)}
                     </Typography>
                   </Box>
-                ))
-              )}
+                ))}
+              </Stack>
             </Paper>
-          </Stack>
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Stack spacing={2}>
+                <Typography variant="h5" component="h2">
+                  Billing history
+                </Typography>
+                {!context.billing.invoices.length && (
+                  <Typography>No invoices yet.</Typography>
+                )}
+                {context.billing.invoices.map((invoice) => (
+                  <Accordion key={invoice.id} variant="outlined" disableGutters>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography>
+                        Invoice #{invoice.id} · {invoice.status} ·{" "}
+                        {subscriptionMoney(
+                          invoice.balance_amount,
+                          invoice.currency,
+                        )}{" "}
+                        due
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Stack spacing={1}>
+                        {invoice.lines.map((line) => (
+                          <Typography key={line.id}>
+                            {line.description} ·{" "}
+                            {subscriptionMoney(
+                              line.posted_amount,
+                              invoice.currency,
+                            )}
+                          </Typography>
+                        ))}
+                        <Typography>
+                          Total{" "}
+                          {subscriptionMoney(
+                            invoice.total_amount,
+                            invoice.currency,
+                          )}{" "}
+                          · Allocated{" "}
+                          {subscriptionMoney(
+                            invoice.allocated_amount,
+                            invoice.currency,
+                          )}{" "}
+                          · Credits{" "}
+                          {subscriptionMoney(
+                            invoice.credit_amount,
+                            invoice.currency,
+                          )}
+                        </Typography>
+                      </Stack>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+                <Typography variant="h6" component="h3">
+                  Payments and refunds
+                </Typography>
+                {!context.billing.payments.length && (
+                  <Typography>No payments recorded.</Typography>
+                )}
+                {context.billing.payments.map((payment) => (
+                  <Box key={payment.id}>
+                    <Typography>
+                      Payment #{payment.id} ·{" "}
+                      {subscriptionMoney(payment.amount, payment.currency)} ·{" "}
+                      {new Date(payment.created_at).toLocaleDateString()}
+                    </Typography>
+                    {payment.refunds.map((refund) => (
+                      <Typography key={refund.id} variant="body2">
+                        Refund #{refund.id} ·{" "}
+                        {subscriptionMoney(refund.amount, payment.currency)} ·{" "}
+                        {new Date(refund.created_at).toLocaleDateString()}
+                      </Typography>
+                    ))}
+                  </Box>
+                ))}
+              </Stack>
+            </Paper>
+          </>
         )}
-      </Box>
+      </Stack>
     </Box>
   );
 }

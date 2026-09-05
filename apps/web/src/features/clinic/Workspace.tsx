@@ -113,6 +113,12 @@ export function ClinicNavigation({
       allowed: capabilities.billing_read === true,
     },
     {
+      href: "/clinic/subscriptions",
+      label: "Subscriptions",
+      Icon: ReceiptLongIcon,
+      allowed: capabilities.subscription_catalog_read === true,
+    },
+    {
       href: "/clinic/reminders",
       label: "Reminders",
       Icon: NotificationsNoneIcon,

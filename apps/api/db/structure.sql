@@ -693,7 +693,7 @@ CREATE TABLE public.clinic_billing_receipts (
     issued_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY ((ARRAY['cash_payment'::character varying, 'cash_refund'::character varying])::text[])))
+    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY ((ARRAY['cash_payment'::character varying, 'cash_refund'::character varying, 'subscription_payment'::character varying, 'subscription_refund'::character varying])::text[])))
 );
 
 
@@ -4442,6 +4442,40 @@ ALTER SEQUENCE public.clinic_scribe_sources_id_seq OWNED BY public.clinic_scribe
 
 
 --
+-- Name: clinic_service_options; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_service_options (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    name character varying NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    retired boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_service_options_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_service_options_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_service_options_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_service_options_id_seq OWNED BY public.clinic_service_options.id;
+
+
+--
 -- Name: clinic_site_hour_exceptions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5061,6 +5095,190 @@ CREATE SEQUENCE public.clinic_stock_movements_id_seq
 --
 
 ALTER SEQUENCE public.clinic_stock_movements_id_seq OWNED BY public.clinic_stock_movements.id;
+
+
+--
+-- Name: clinic_subscription_agreements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_agreements (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    version_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    snapshot jsonb NOT NULL,
+    amount numeric(20,6) NOT NULL,
+    currency character varying NOT NULL,
+    request_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT subscription_purchase_values CHECK (((amount > (0)::numeric) AND (amount = round(amount, 2)) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (jsonb_typeof(snapshot) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_subscription_agreements_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_agreements_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_agreements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_agreements_id_seq OWNED BY public.clinic_subscription_agreements.id;
+
+
+--
+-- Name: clinic_subscription_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    agreement_id bigint NOT NULL,
+    kind character varying NOT NULL,
+    request_key character varying NOT NULL,
+    details jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT subscription_event_values CHECK ((((kind)::text = ANY ((ARRAY['pending_review'::character varying, 'review_approved'::character varying, 'review_declined'::character varying, 'pending_payment'::character varying, 'processing'::character varying, 'payment_failed'::character varying, 'outcome_unknown'::character varying, 'active'::character varying, 'canceled'::character varying, 'refunded'::character varying, 'expired'::character varying])::text[])) AND (jsonb_typeof(details) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_subscription_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_events_id_seq OWNED BY public.clinic_subscription_events.id;
+
+
+--
+-- Name: clinic_subscription_families; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_families (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    name character varying NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    retired boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_subscription_families_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_families_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_families_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_families_id_seq OWNED BY public.clinic_subscription_families.id;
+
+
+--
+-- Name: clinic_subscription_packages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_packages (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    family_id bigint NOT NULL,
+    name character varying NOT NULL,
+    draft jsonb DEFAULT '{}'::jsonb NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    retired boolean DEFAULT false NOT NULL,
+    published_version_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_subscription_packages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_packages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_packages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_packages_id_seq OWNED BY public.clinic_subscription_packages.id;
+
+
+--
+-- Name: clinic_subscription_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    package_id bigint NOT NULL,
+    number integer NOT NULL,
+    snapshot jsonb NOT NULL,
+    request_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT subscription_version_values CHECK (((number > 0) AND (jsonb_typeof(snapshot) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_subscription_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_versions_id_seq OWNED BY public.clinic_subscription_versions.id;
 
 
 --
@@ -6246,6 +6464,13 @@ ALTER TABLE ONLY public.clinic_scribe_sources ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: clinic_service_options id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_options ALTER COLUMN id SET DEFAULT nextval('public.clinic_service_options_id_seq'::regclass);
+
+
+--
 -- Name: clinic_site_hour_exceptions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -6355,6 +6580,41 @@ ALTER TABLE ONLY public.clinic_staff_notifications ALTER COLUMN id SET DEFAULT n
 --
 
 ALTER TABLE ONLY public.clinic_stock_movements ALTER COLUMN id SET DEFAULT nextval('public.clinic_stock_movements_id_seq'::regclass);
+
+
+--
+-- Name: clinic_subscription_agreements id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_agreements_id_seq'::regclass);
+
+
+--
+-- Name: clinic_subscription_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_subscription_families id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_families ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_families_id_seq'::regclass);
+
+
+--
+-- Name: clinic_subscription_packages id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_packages_id_seq'::regclass);
+
+
+--
+-- Name: clinic_subscription_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_versions_id_seq'::regclass);
 
 
 --
@@ -7272,6 +7532,14 @@ ALTER TABLE ONLY public.clinic_scribe_sources
 
 
 --
+-- Name: clinic_service_options clinic_service_options_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_options
+    ADD CONSTRAINT clinic_service_options_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_site_hour_exceptions clinic_site_hour_exceptions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7397,6 +7665,46 @@ ALTER TABLE ONLY public.clinic_staff_notifications
 
 ALTER TABLE ONLY public.clinic_stock_movements
     ADD CONSTRAINT clinic_stock_movements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_agreements clinic_subscription_agreements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT clinic_subscription_agreements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_events clinic_subscription_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_events
+    ADD CONSTRAINT clinic_subscription_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_families clinic_subscription_families_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_families
+    ADD CONSTRAINT clinic_subscription_families_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_packages clinic_subscription_packages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages
+    ADD CONSTRAINT clinic_subscription_packages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_versions clinic_subscription_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_versions
+    ADD CONSTRAINT clinic_subscription_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -9627,6 +9935,13 @@ CREATE INDEX index_clinic_scribe_encounters_on_practice_id_and_status ON public.
 
 
 --
+-- Name: index_clinic_service_options_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_service_options_on_practice_id_and_id ON public.clinic_service_options USING btree (practice_id, id);
+
+
+--
 -- Name: index_clinic_staff_members_on_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9652,6 +9967,41 @@ CREATE INDEX index_clinic_stock_movements_on_item_id ON public.clinic_stock_move
 --
 
 CREATE UNIQUE INDEX index_clinic_stock_movements_on_item_id_and_request_key ON public.clinic_stock_movements USING btree (item_id, request_key);
+
+
+--
+-- Name: index_clinic_subscription_agreements_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_subscription_agreements_on_practice_id_and_id ON public.clinic_subscription_agreements USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_subscription_events_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_subscription_events_on_practice_id_and_id ON public.clinic_subscription_events USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_subscription_families_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_subscription_families_on_practice_id_and_id ON public.clinic_subscription_families USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_subscription_packages_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_subscription_packages_on_practice_id_and_id ON public.clinic_subscription_packages USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_subscription_versions_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_subscription_versions_on_practice_id_and_id ON public.clinic_subscription_versions USING btree (practice_id, id);
 
 
 --
@@ -9967,6 +10317,48 @@ CREATE UNIQUE INDEX scribe_exports_idempotency ON public.clinic_scribe_exports U
 --
 
 CREATE UNIQUE INDEX scribe_source_segments_order ON public.clinic_scribe_source_segments USING btree (practice_id, source_id, sequence);
+
+
+--
+-- Name: subscription_event_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_event_request ON public.clinic_subscription_events USING btree (practice_id, agreement_id, request_key);
+
+
+--
+-- Name: subscription_purchase_invoice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_purchase_invoice ON public.clinic_subscription_agreements USING btree (practice_id, invoice_id);
+
+
+--
+-- Name: subscription_purchase_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_purchase_request ON public.clinic_subscription_agreements USING btree (practice_id, patient_id, request_key);
+
+
+--
+-- Name: subscription_version_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_version_number ON public.clinic_subscription_versions USING btree (practice_id, package_id, number);
+
+
+--
+-- Name: subscription_version_package_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_version_package_identity ON public.clinic_subscription_versions USING btree (practice_id, package_id, id);
+
+
+--
+-- Name: subscription_version_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_version_request ON public.clinic_subscription_versions USING btree (practice_id, request_key);
 
 
 --
@@ -10548,6 +10940,27 @@ CREATE TRIGGER clinic_staff_address_versions_immutable BEFORE DELETE OR UPDATE O
 --
 
 CREATE TRIGGER clinic_staff_members_preserve_identity BEFORE UPDATE ON public.clinic_staff_members FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
+-- Name: clinic_subscription_agreements clinic_subscription_agreements_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_subscription_agreements_immutable BEFORE DELETE OR UPDATE ON public.clinic_subscription_agreements FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_subscription_events clinic_subscription_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_subscription_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_subscription_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_subscription_versions clinic_subscription_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_subscription_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_subscription_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -12229,6 +12642,14 @@ ALTER TABLE ONLY public.clinic_clinician_profiles
 
 
 --
+-- Name: clinic_subscription_packages fk_rails_031ea5adc0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages
+    ADD CONSTRAINT fk_rails_031ea5adc0 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_scribe_draft_sections fk_rails_0401b6e372; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12290,6 +12711,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
 
 ALTER TABLE ONLY public.clinic_inventory_transfers
     ADD CONSTRAINT fk_rails_13090eedc1 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_subscription_versions fk_rails_133849c302; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_versions
+    ADD CONSTRAINT fk_rails_133849c302 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -12373,6 +12802,14 @@ ALTER TABLE ONLY public.clinic_billing_receipts
 
 
 --
+-- Name: clinic_subscription_events fk_rails_27685432e5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_events
+    ADD CONSTRAINT fk_rails_27685432e5 FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
+
+
+--
 -- Name: clinic_scribe_encounters fk_rails_2779dfb925; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12394,6 +12831,14 @@ ALTER TABLE ONLY public.clinic_inventory_count_approvals
 
 ALTER TABLE ONLY public.clinic_inventory_holds
     ADD CONSTRAINT fk_rails_2878d75e47 FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_subscription_versions fk_rails_29f8406e39; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_versions
+    ADD CONSTRAINT fk_rails_29f8406e39 FOREIGN KEY (practice_id, package_id) REFERENCES public.clinic_subscription_packages(practice_id, id);
 
 
 --
@@ -12637,6 +13082,14 @@ ALTER TABLE ONLY public.clinic_inventory_catalog_events
 
 
 --
+-- Name: clinic_subscription_packages fk_rails_6025a8e95b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages
+    ADD CONSTRAINT fk_rails_6025a8e95b FOREIGN KEY (practice_id, family_id) REFERENCES public.clinic_subscription_families(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_locations fk_rails_6200766107; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12658,6 +13111,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
 
 ALTER TABLE ONLY public.clinic_scribe_drafts
     ADD CONSTRAINT fk_rails_62b14c25ce FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_subscription_agreements fk_rails_650da6ee4a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT fk_rails_650da6ee4a FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -12722,6 +13183,14 @@ ALTER TABLE ONLY public.identity_preferences
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
     ADD CONSTRAINT fk_rails_70745ee0a1 FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_service_options fk_rails_715983834e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_options
+    ADD CONSTRAINT fk_rails_715983834e FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -12834,6 +13303,14 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_lines
 
 ALTER TABLE ONLY public.clinic_patient_reminder_delivery_attempts
     ADD CONSTRAINT fk_rails_9135d9755e FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_subscription_events fk_rails_96eb5b3858; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_events
+    ADD CONSTRAINT fk_rails_96eb5b3858 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -13109,6 +13586,14 @@ ALTER TABLE ONLY public.clinic_inventory_holds
 
 
 --
+-- Name: clinic_subscription_agreements fk_rails_d80b6a2e93; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT fk_rails_d80b6a2e93 FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
 -- Name: clinic_memberships fk_rails_dad9512d92; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13138,6 +13623,14 @@ ALTER TABLE ONLY public.clinic_inventory_recalls
 
 ALTER TABLE ONLY public.clinic_inventory_receipts
     ADD CONSTRAINT fk_rails_e0cba62533 FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_subscription_agreements fk_rails_e3a732c444; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT fk_rails_e3a732c444 FOREIGN KEY (practice_id, version_id) REFERENCES public.clinic_subscription_versions(practice_id, id);
 
 
 --
@@ -13194,6 +13687,14 @@ ALTER TABLE ONLY public.clinic_inventory_shipments
 
 ALTER TABLE ONLY public.clinic_inventory_entries
     ADD CONSTRAINT fk_rails_efa7833c43 FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_subscription_families fk_rails_efc2999f57; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_families
+    ADD CONSTRAINT fk_rails_efc2999f57 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -13757,6 +14258,22 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 
 
 --
+-- Name: clinic_subscription_agreements subscription_agreement_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT subscription_agreement_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_subscription_packages subscription_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages
+    ADD CONSTRAINT subscription_current_version FOREIGN KEY (practice_id, id, published_version_id) REFERENCES public.clinic_subscription_versions(practice_id, package_id, id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -13765,6 +14282,7 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905000300'),
 ('20260903001400'),
 ('20260903001300'),
 ('20260903001230'),
