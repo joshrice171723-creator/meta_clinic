@@ -188,7 +188,7 @@ describe("inventory integration", () => {
     expect(supplierSource).toContain(
       '"/api/clinic/inventory/suppliers/preview"',
     );
-    expect(supplierSource).toContain("wholesale_cost");
+    expect(supplierSource).toContain("wholesale_unit_cost");
     expect(supplierSource).toContain("Preferred supplier by catalog item");
     expect(source).toContain("Create item and continue");
     expect(source).toContain("Item category");

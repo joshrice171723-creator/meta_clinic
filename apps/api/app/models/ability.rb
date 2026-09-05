@@ -184,7 +184,7 @@ class Ability
   def role_code_allowed?(role_codes)
     return false unless membership
 
-    membership.role_grants.active(at).joins(:role_version)
+    membership.role_grants.active(@at).joins(:role_version)
       .where(role_versions: { role_code: Array(role_codes) }).exists?
   end
 
