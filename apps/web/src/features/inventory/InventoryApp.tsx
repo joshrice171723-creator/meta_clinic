@@ -3407,6 +3407,7 @@ function PurchasingScreen({
   const hasRemaining = order.lines.some((record) =>
     decimalCompare(decimalSubtract(record.ordered_packages, record.received_packages), "0") > 0,
   );
+  const orderCurrency = order.lines[0]?.currency ?? "USD";
   const next = (
     {
       draft: ["submitted", "Submit purchase order", "procurement.submit"],
@@ -3586,7 +3587,7 @@ function PurchasingScreen({
           <div className="inventory-stack compact">
             <DataPoint
               label="Total"
-              value={money(order.total, line.currency)}
+              value={money(order.total, orderCurrency)}
               tone="success"
             />
             {hasCostDetails && (
@@ -3595,18 +3596,18 @@ function PurchasingScreen({
                 <div className="inventory-stack compact">
                   <DataPoint
                     label="Subtotal"
-                    value={money(order.subtotal, line.currency)}
+                    value={money(order.subtotal, orderCurrency)}
                   />
                   {decimalCompare(order.tax, "0") !== 0 && (
                     <DataPoint
                       label="Tax"
-                      value={money(order.tax, line.currency)}
+                      value={money(order.tax, orderCurrency)}
                     />
                   )}
                   {decimalCompare(order.shipping, "0") !== 0 && (
                     <DataPoint
                       label="Shipping"
-                      value={money(order.shipping, line.currency)}
+                      value={money(order.shipping, orderCurrency)}
                     />
                   )}
                 </div>
