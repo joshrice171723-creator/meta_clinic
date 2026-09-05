@@ -44,7 +44,7 @@ module Clinic
         supplier = if params[:supplier_id].present?
           current_practice.inventory_suppliers.find(requested_id!(params[:supplier_id], :supplier_id))
         end
-        if supplier && !supplier.supplier_products.where(product_id: product.id).where.not(available: false).exists?
+        if supplier && !supplier.supplier_products.where(product_id: product.id).where(available: [ true, nil ]).exists?
           raise ArgumentError, "The preferred supplier must have an available price for this catalog item."
         end
         product.update_catalog!({ preferred_supplier_id: supplier&.id }, actor: current_user)
