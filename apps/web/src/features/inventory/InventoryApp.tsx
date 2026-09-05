@@ -3451,10 +3451,6 @@ function PurchasingScreen({
   );
   const actionConfirmDisabled = (permission: string) =>
     busy || !capability(data, permission) || !actionReason.trim();
-  const hasCostDetails =
-    order.lines.length > 1 ||
-    decimalCompare(order.tax, "0") !== 0 ||
-    decimalCompare(order.shipping, "0") !== 0;
   return (
     <div className="inventory-stack">
       <Card>
@@ -3487,51 +3483,9 @@ function PurchasingScreen({
               <p className="inventory-lead">Deliver to: {order.destination_address}</p>
             )}
           </div>
-          <div className="inventory-form-actions">
-            {["sent", "partially_received"].includes(order.status) &&
-              decimalCompare(remaining, "0") > 0 && (
-                <a
-                  className="inventory-button outline"
-                  href={`/clinic/inventory/shipments/new?purchase_order_id=${order.id}`}
-                >
-                  Record delivery
-                </a>
-              )}
-            {next && (
-              <ConfirmButton
-                tone="outline"
-                disabled={busy || !capability(data, next[2])}
-                confirmationTitle={`${next[1]}?`}
-                confirmationContent={actionReasonField}
-                confirmDisabled={actionConfirmDisabled(next[2])}
-                confirmLabel={next[1]}
-                onConfirm={transition}
-              >
-                {next[1]}
-              </ConfirmButton>
-            )}
-            {order.status !== "complete" && order.status !== "cancelled" && (
-              <ConfirmButton
-                tone="danger"
-                disabled={
-                  busy ||
-                  !hasRemaining ||
-                  !capability(data, "procurement.submit")
-                }
-                confirmationTitle="Cancel remaining quantities?"
-                confirmationContent={actionReasonField}
-                confirmDisabled={actionConfirmDisabled("procurement.submit")}
-                confirmLabel="Cancel remainder"
-                onConfirm={cancel}
-              >
-                Cancel remainder
-              </ConfirmButton>
-            )}
-          </div>
         </div>
       </Card>
-      <div className="inventory-two-col wide-left">
-        <Card title="Order lines">
+      <Card title="Order lines">
           <div className="inventory-table-wrap">
             <table>
               <thead>
@@ -3578,49 +3532,78 @@ function PurchasingScreen({
               </tbody>
             </table>
           </div>
+          <div className="inventory-form-actions">
+            <div className="inventory-confirm-actions">
+              {["sent", "partially_received"].includes(order.status) &&
+                hasRemaining && (
+                  <a
+                    className="inventory-button outline"
+                    href={`/clinic/inventory/shipments/new?purchase_order_id=${order.id}`}
+                  >
+                    Record delivery
+                  </a>
+                )}
+              {next && (
+                <ConfirmButton
+                  tone="outline"
+                  disabled={busy || !capability(data, next[2])}
+                  confirmationTitle={`${next[1]}?`}
+                  confirmationContent={actionReasonField}
+                  confirmDisabled={actionConfirmDisabled(next[2])}
+                  confirmLabel={next[1]}
+                  onConfirm={transition}
+                >
+                  {next[1]}
+                </ConfirmButton>
+              )}
+              {order.status !== "complete" && order.status !== "cancelled" && (
+                <ConfirmButton
+                  tone="danger"
+                  disabled={
+                    busy ||
+                    !hasRemaining ||
+                    !capability(data, "procurement.submit")
+                  }
+                  confirmationTitle="Cancel remaining quantities?"
+                  confirmationContent={actionReasonField}
+                  confirmDisabled={actionConfirmDisabled("procurement.submit")}
+                  confirmLabel="Cancel remainder"
+                  onConfirm={cancel}
+                >
+                  Cancel remainder
+                </ConfirmButton>
+              )}
+            </div>
+            <div className="inventory-stack compact">
+              <DataPoint
+                label="Subtotal"
+                value={money(order.subtotal, orderCurrency)}
+              />
+              <DataPoint
+                label="Shipping"
+                value={money(order.shipping, orderCurrency)}
+              />
+              <DataPoint
+                label="Tax"
+                value={money(order.tax, orderCurrency)}
+              />
+              <DataPoint
+                label="Order total"
+                value={money(order.total, orderCurrency)}
+                tone="success"
+              />
+            </div>
+          </div>
+          {shipment && (
+            <a className="inventory-info" href="/clinic/inventory/receiving">
+              Delivery {shipment.supplier_reference} recorded · View receiving
+            </a>
+          )}
           <PermissionNote
             allowed={capability(data, "procurement.approve")}
             permission="procurement.approve"
           />
         </Card>
-        <Card title="Order total">
-          <div className="inventory-stack compact">
-            <DataPoint
-              label="Total"
-              value={money(order.total, orderCurrency)}
-              tone="success"
-            />
-            {hasCostDetails && (
-              <details className="inventory-details inventory-cost-details">
-                <summary>Cost details</summary>
-                <div className="inventory-stack compact">
-                  <DataPoint
-                    label="Subtotal"
-                    value={money(order.subtotal, orderCurrency)}
-                  />
-                  {decimalCompare(order.tax, "0") !== 0 && (
-                    <DataPoint
-                      label="Tax"
-                      value={money(order.tax, orderCurrency)}
-                    />
-                  )}
-                  {decimalCompare(order.shipping, "0") !== 0 && (
-                    <DataPoint
-                      label="Shipping"
-                      value={money(order.shipping, orderCurrency)}
-                    />
-                  )}
-                </div>
-              </details>
-            )}
-            {shipment && (
-              <a className="inventory-info" href="/clinic/inventory/receiving">
-                Delivery {shipment.supplier_reference} recorded · View receiving
-              </a>
-            )}
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }
