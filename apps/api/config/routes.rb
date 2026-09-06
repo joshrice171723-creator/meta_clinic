@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   scope path: "api", as: "api" do
+  post "stripe/connect/webhook", to: "stripe_webhooks#create"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"
@@ -45,6 +46,9 @@ Rails.application.routes.draw do
       post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
     end
     get "billing", to: "billing/dashboard#show"
+    get "stripe_connect", to: "billing/stripe_connect#show"
+    post "stripe_connect/onboard", to: "billing/stripe_connect#onboard"
+    post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"
     get "subscription_catalog", to: "care/subscription_catalog#index"
     post "subscription_catalog/:kind", to: "care/subscription_catalog#save"
     patch "subscription_catalog/:kind/:id", to: "care/subscription_catalog#save"
@@ -179,6 +183,7 @@ Rails.application.routes.draw do
         post :quote, on: :collection
         post :checkout, on: :collection
         post :pay, on: :member
+        post :reconcile, on: :member
         post :cancel, on: :member
         get :receipt, on: :member
       end

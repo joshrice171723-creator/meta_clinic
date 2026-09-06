@@ -27,7 +27,14 @@ module Clinic
             (snapshot["available_from"] && Time.iso8601(snapshot["available_from"]) > now) ||
             (snapshot["available_until"] && Time.iso8601(snapshot["available_until"]) <= now)
           purchases = SubscriptionAgreement.where(practice: practice, patient: patient).joins(:package_version).where(clinic_subscription_versions: { package_id: package.id })
-          occupied = purchases.count { |purchase| !%w[canceled expired review_declined refunded].include?(purchase.current_state) }
+          occupied = purchases.count do |purchase|
+            stripe = Clinic::Billing::StripeCheckout.find_by(practice: practice, agreement: purchase)
+            # Unpaid access expiry does not terminate a provider subscription.
+            provider_running = stripe && !%w[canceled incomplete_expired].include?(stripe.subscription_status) && stripe.session_status != "expired" &&
+              (stripe.session_status != "complete" || (purchase.snapshot["renewal"] == "automatic" &&
+                !%w[canceled incomplete_expired].include?(stripe.subscription_status)))
+            provider_running || !%w[canceled expired review_declined refunded].include?(purchase.current_state)
+          end
           raise ArgumentError, "You have reached this package's purchase limit." if occupied >= snapshot["max_per_patient"]
           invoice = practice.invoices.create!(patient: patient, currency: snapshot["currency"], status: "draft", rounding_policy_version: Clinic::Billing::Money::POLICY_VERSION)
           invoice.lines.create!(practice: practice, patient: patient, quantity: 1,

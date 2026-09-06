@@ -110,6 +110,8 @@ export function SubscriptionCatalog() {
   const draft = edit?.draft || emptyDraft;
   const setDraft = (field: string, value: unknown) =>
     setEdit(edit ? { ...edit, draft: { ...draft, [field]: value } } : null);
+  const setDraftFields = (fields: Partial<PackageTerms>) =>
+    setEdit(edit ? { ...edit, draft: { ...draft, ...fields } } : null);
   const componentChange = (index: number, field: string, value: unknown) =>
     setDraft(
       "components",
@@ -131,9 +133,25 @@ export function SubscriptionCatalog() {
   const editItem = (kind: string, item?: CatalogItem | DraftPackage) => {
     setError("");
     setEditorStep(0);
+    const normalizedItem =
+      item &&
+      kind === "package" &&
+      "draft" in item &&
+      item.draft.renewal === "automatic"
+        ? {
+            ...item,
+            draft: {
+              ...item.draft,
+              duration: 1,
+              duration_unit: "months" as const,
+              cancellation: "end_of_term" as const,
+              max_per_patient: 1,
+            },
+          }
+        : item;
     setEdit(
-      item
-        ? { kind, ...item }
+      normalizedItem
+        ? { kind, ...normalizedItem }
         : {
             kind,
             name: "",
@@ -600,8 +618,14 @@ export function SubscriptionCatalog() {
                           }
                           type="number"
                           value={draft.duration || 1}
+                          disabled={draft.renewal === "automatic"}
                           onChange={(e) =>
                             setDraft("duration", Number(e.target.value))
+                          }
+                          helperText={
+                            draft.renewal === "automatic"
+                              ? "Automatic memberships renew every month."
+                              : undefined
                           }
                         />
                         <TextField
@@ -613,6 +637,7 @@ export function SubscriptionCatalog() {
                             />
                           }
                           value={draft.duration_unit || "months"}
+                          disabled={draft.renewal === "automatic"}
                           onChange={(e) =>
                             setDraft("duration_unit", e.target.value)
                           }
@@ -635,20 +660,39 @@ export function SubscriptionCatalog() {
                                 help={
                                   {
                                     renewal:
-                                      "None means no renewal. Manual means the patient starts a new purchase; neither option charges automatically.",
+                                      "Automatic charges every month through Stripe until canceled and always ends after the paid period. Manual requires a new purchase.",
                                     cancellation:
                                       "Whether access ends immediately or at the end of the paid term.",
                                     refund_policy:
-                                      "Whether staff may issue a refund through the subscription workflow.",
+                                      "Manual review records clinic policy. Stripe refunds are handled in the connected Stripe Dashboard and reflected here after verification.",
                                   }[field]
                                 }
                               />
                             }
                             value={draft[field] || emptyDraft[field]}
-                            onChange={(e) => setDraft(field, e.target.value)}
+                            disabled={
+                              draft.renewal === "automatic" &&
+                              field === "cancellation"
+                            }
+                            onChange={(e) => {
+                              if (
+                                field === "renewal" &&
+                                e.target.value === "automatic"
+                              ) {
+                                setDraftFields({
+                                  renewal: "automatic",
+                                  duration: 1,
+                                  duration_unit: "months",
+                                  cancellation: "end_of_term",
+                                  max_per_patient: 1,
+                                });
+                              } else {
+                                setDraft(field, e.target.value);
+                              }
+                            }}
                           >
                             {{
-                              renewal: ["none", "manual"],
+                              renewal: ["none", "manual", "automatic"],
                               cancellation: ["immediate", "end_of_term"],
                               refund_policy: ["none", "manual_review"],
                             }[field].map((v) => (
@@ -667,8 +711,14 @@ export function SubscriptionCatalog() {
                           }
                           type="number"
                           value={draft.max_per_patient || 1}
+                          disabled={draft.renewal === "automatic"}
                           onChange={(e) =>
                             setDraft("max_per_patient", Number(e.target.value))
+                          }
+                          helperText={
+                            draft.renewal === "automatic"
+                              ? "One active or pending membership per patient prevents duplicate recurring subscriptions."
+                              : undefined
                           }
                         />
                         <TextField

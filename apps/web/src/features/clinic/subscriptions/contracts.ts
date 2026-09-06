@@ -23,7 +23,7 @@ export type PackageTerms = {
   currency: string;
   duration: number;
   duration_unit: "days" | "months";
-  renewal: "none" | "manual";
+  renewal: "none" | "manual" | "automatic";
   cancellation: "immediate" | "end_of_term";
   refund_policy: "none" | "manual_review";
   terms: string;
@@ -53,6 +53,13 @@ export type Subscription = {
   invoice_id: number;
   version_id: number;
   state: string;
+  processor?: "stripe" | "development_fixture";
+  checkout_status?: "open" | "expired" | "complete" | null;
+  renewal_status?: string | null;
+  renewal_canceled?: boolean;
+  last_synced_at?: string | null;
+  renewal_amount_due?: string | null;
+  renewal_invoice_status?: string | null;
   amount: string;
   currency: string;
   balance: string;
@@ -62,6 +69,16 @@ export type Subscription = {
   cancellation_effective_at: string | null;
   terms: PackageTerms;
   events: { kind: string; occurred_at: string }[];
+};
+export type SubscriptionReceipt = {
+  id: number;
+  invoice_id: number;
+  kind: string;
+  issued_at: string;
+  amount: string;
+  currency: string;
+  period_start: string | null;
+  period_end: string | null;
 };
 export type CatalogItem = {
   display_order?: number;
@@ -92,5 +109,24 @@ export function subscriptionMoney(amount: string, currency: string) {
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0")}`;
 }
 export function stateLabel(state: string) {
-  return state.replaceAll("_", " ");
+  const words = state.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+export function subscriptionDate(value: string, includeTime = false) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return "Date unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    ...(includeTime ? { timeStyle: "short" } : {}),
+  }).format(parsed);
+}
+
+export function membershipPeriod(terms: PackageTerms) {
+  if (terms.renewal === "automatic") return "Monthly";
+  const unit =
+    terms.duration === 1
+      ? terms.duration_unit.replace(/s$/, "")
+      : terms.duration_unit;
+  return `${terms.duration} ${unit}`;
 }

@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Local delivery only. This command never generates events or creates charges.
+require "json"
+require "open3"
+$stdout.sync = true
+
+root = File.expand_path("..", __dir__)
+path = File.join(root, "apps/api/tmp/stripe-sandbox.json")
+abort "Create the private apps/api/tmp/stripe-sandbox.json setup file first." unless File.file?(path)
+begin
+  settings = JSON.parse(File.read(path).sub(/\A\uFEFF/, ""))
+  key = ENV["STRIPE_SANDBOX_KEY"] || settings.fetch("STRIPE_SANDBOX_KEY")
+  abort "Save a new sandbox server key in the private setup file first." unless key.to_s.match?(/\A(?:rk|sk)_test_[a-zA-Z0-9]+\z/)
+  port = Integer(ENV.fetch("APPLY_API_PORT", "3001"))
+  abort "APPLY_API_PORT must be a valid local port." unless port.between?(1024, 65535)
+  bundled = File.join(root, "apps/api/tmp/stripe-cli/stripe.exe")
+  executable = File.file?(bundled) ? bundled : "stripe"
+  events = %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.async_payment_failed
+    checkout.session.expired invoice.paid invoice.payment_failed invoice.payment_action_required
+    customer.subscription.updated customer.subscription.deleted charge.refunded].join(",")
+  endpoint = "http://127.0.0.1:#{port}/stripe/connect/webhook"
+  puts "Starting sandbox Connect webhook delivery to #{endpoint}. Keep this terminal open."
+  Open3.popen2e({ "STRIPE_API_KEY" => key }, executable, "listen", "--events", events, "--forward-connect-to", endpoint) do |input, output, process|
+    input.close
+    output.each_line do |line|
+      if (secret = line[/whsec_[a-zA-Z0-9]+/])
+        # Preserve any independently edited settings; never print credentials.
+        current = JSON.parse(File.read(path).sub(/\A\uFEFF/, ""))
+        current["STRIPE_CONNECT_WEBHOOK_SECRET"] = secret
+        File.write(path, JSON.pretty_generate(current) + "\n")
+        puts "Listener ready. Signing secret saved privately. Refresh Stripe setup in APPly."
+      elsif (delivery = line.match(/\[([1-5][0-9]{2})\]\s+POST/))
+        puts "Webhook delivery HTTP #{delivery[1]}."
+      elsif line.match?(/error|failed|unauthorized|permission/i)
+        warn "Stripe listener reported an error. Check sandbox key permissions and the local API server."
+      end
+    end
+    exit process.value.exitstatus
+  end
+rescue JSON::ParserError, KeyError, TypeError, ArgumentError
+  abort "The private Stripe setup file or local port is invalid."
+rescue Errno::ENOENT
+  abort "Install the official Stripe CLI or place stripe.exe in apps/api/tmp/stripe-cli/."
+rescue Interrupt
+  puts "Sandbox listener stopped."
+end

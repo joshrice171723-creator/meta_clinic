@@ -10,6 +10,7 @@ gem "pg", "~> 1.6"
 gem "paper_trail", "~> 17.0"
 # Centralized, model-aware authorization for organization/practice capabilities.
 gem "cancancan"
+gem "stripe", "~> 19.4"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
