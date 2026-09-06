@@ -9,11 +9,16 @@ import {
   DialogTitle,
   Paper,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { PackageCard } from "../clinic/subscriptions/PackageCard";
+import { MembershipCatalog } from "./MembershipCatalog";
 import {
   stateLabel,
   subscriptionMoney,
@@ -23,6 +28,7 @@ import {
 } from "../clinic/subscriptions/contracts";
 
 export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
+  const phone = useMediaQuery("(max-width:599px)");
   const resource = useResource<{
     catalog: PublishedPackage[];
     subscriptions: Subscription[];
@@ -33,6 +39,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
   const [quote, setQuote] = useState<PackageTerms | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
   const [purchaseKey, setPurchaseKey] = useState("");
   const [receipts, setReceipts] = useState<
     | {
@@ -68,44 +75,34 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
     setError("");
   };
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+    <Box sx={{ minWidth: 0 }}>
       <Stack spacing={2}>
-        <Typography variant="h5" component="h2">
-          Clinic subscriptions
-        </Typography>
         {(!data || resource.error) && <LoadState error={resource.error} />}
-        {error && <Alert severity="error">{error}</Alert>}
-        {data && !data.catalog.length && (
-          <Typography color="text.secondary">
-            No subscription packages are currently available.
-          </Typography>
+        {error && !selected && <Alert severity="error">{error}</Alert>}
+        {notice && (
+          <Alert severity="success" onClose={() => setNotice("")}>
+            {notice}
+          </Alert>
         )}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2,minmax(0,1fr))" },
-            gap: 2,
-          }}
+        {data && (
+          <MembershipCatalog
+            catalog={data.catalog}
+            busy={busy}
+            canPurchase={data.can_purchase}
+            onChoose={choose}
+          />
+        )}
+        <Typography
+          variant="h2"
+          id="my-memberships"
+          sx={{ pt: 3, scrollMarginTop: 24 }}
         >
-          {data?.catalog.map((p) => (
-            <Stack key={p.id} spacing={1}>
-              <PackageCard terms={p.terms} />
-              <Button
-                variant="outlined"
-                disabled={!data.can_purchase || busy}
-                onClick={() => choose(p)}
-              >
-                Choose {p.terms.package_name}
-              </Button>
-            </Stack>
-          ))}
-        </Box>
-        <Typography variant="h6" component="h3">
-          Your subscriptions
+          Your memberships
         </Typography>
         {data && !data.subscriptions.length && (
           <Typography color="text.secondary">
-            Your purchases will appear here.
+            Once you join, your membership, payment status, and receipts will
+            appear here.
           </Typography>
         )}
         {data?.subscriptions.map((s) => (
@@ -237,13 +234,38 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
           onClose={() => !busy && setSelected(null)}
           maxWidth="sm"
           fullWidth
+          fullScreen={phone}
           aria-labelledby="subscription-confirm-title"
         >
           <DialogTitle id="subscription-confirm-title">
-            {quote ? "Confirm purchase terms" : "Choose your services"}
+            {quote
+              ? "Your membership, ready to review."
+              : "Make this membership yours."}
           </DialogTitle>
-          <DialogContent>
+          <DialogContent
+            sx={{ "& > .MuiStack-root > .MuiPaper-root": { border: 0, p: 0 } }}
+          >
             <Stack spacing={2}>
+              <Stepper activeStep={quote ? 1 : 0} sx={{ py: 1 }}>
+                <Step>
+                  <StepLabel>Personalize</StepLabel>
+                </Step>
+                <Step>
+                  <StepLabel>Review & confirm</StepLabel>
+                </Step>
+              </Stepper>
+              <Typography color="text.secondary">
+                {quote
+                  ? "Review your selected services, exact total, and membership terms below."
+                  : "Included services come with your plan. Choose any available extras below; you’ll review the exact total next."}
+              </Typography>
+              {data && !data.can_purchase && (
+                <Alert severity="info">
+                  You’re exploring a read-only patient view. You can compare
+                  services here; purchasing requires an authorized patient
+                  account.
+                </Alert>
+              )}
               {error && <Alert severity="error">{error}</Alert>}
               {selected && (
                 <PackageCard
@@ -276,7 +298,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
             </Button>
             <Button
               variant="contained"
-              disabled={busy}
+              disabled={busy || (!!quote && !data?.can_purchase)}
               onClick={() =>
                 selected &&
                 void run(async () => {
@@ -302,11 +324,18 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                       },
                     });
                     setSelected(null);
+                    setNotice(
+                      "Membership request received. Check Your memberships below for your payment or clinic review next step.",
+                    );
                   }
                 }, !!quote)
               }
             >
-              {quote ? "Confirm subscription" : "Review exact price"}
+              {busy
+                ? "Please wait…"
+                : quote
+                  ? "Confirm subscription"
+                  : "Review exact price"}
             </Button>
           </DialogActions>
         </Dialog>
@@ -345,6 +374,6 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
           </DialogActions>
         </Dialog>
       </Stack>
-    </Paper>
+    </Box>
   );
 }
