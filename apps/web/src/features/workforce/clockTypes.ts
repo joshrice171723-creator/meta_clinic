@@ -37,6 +37,8 @@ export type ClockChallenge = {
   expires_at: string;
   employee_label: string;
   allowed_transitions: PunchEvent[];
+  break_target_minutes: number | null;
+  break_reminder_due: boolean;
 };
 
 export type PunchResult = {
@@ -91,6 +93,11 @@ export type Timecard = {
   lock_version: number;
   submitted_at: string | null;
   approved_at: string | null;
+};
+
+export type TimecardEmployee = {
+  id: number;
+  name: string;
 };
 
 export type Adjustment = {

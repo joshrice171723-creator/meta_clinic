@@ -69,7 +69,7 @@ module Clinic
       def source_digest
         payload = {
           punches: punches.map { |p| [ p.id, p.site_id, p.event_type, p.occurred_at_utc.utc.iso8601(6) ] },
-          adjustments: effective_adjustments.map { |a| [ a.id, a.correction_type, a.proposed_changes, a.request_key ] },
+          adjustments: effective_adjustments.map { |adjustment| adjustment_source_tuple(adjustment) },
           settings: settings_sources,
           period: [ period_start.iso8601, period_end.iso8601 ]
         }
@@ -99,6 +99,15 @@ module Clinic
           records << pending_adjustment if pending_adjustment
           records
         end
+      end
+
+      def adjustment_source_tuple(adjustment)
+        [
+          adjustment.id,
+          adjustment.correction_type,
+          adjustment.proposed_changes.to_h.stringify_keys.sort.to_h,
+          adjustment.request_key
+        ]
       end
 
       def settings_sources
@@ -159,6 +168,12 @@ module Clinic
         punches.each do |punch|
           next if punch.occurred_at_utc >= period_bounds.last && state.nil?
 
+          resolved_at = resolved_open_punches[opened&.id]
+          if resolved_at && resolved_at <= punch.occurred_at_utc
+            state = nil
+            opened = nil
+          end
+
           case punch.event_type
           when "clock_in"
             if state
@@ -195,8 +210,21 @@ module Clinic
             end
           end
         end
+        if opened && resolved_open_punches.key?(opened.id)
+          state = nil
+          opened = nil
+        end
         exceptions << (state == :break ? "missing_break_end" : "missing_clock_out") if state
         [ intervals, exceptions ]
+      end
+
+      def resolved_open_punches
+        @resolved_open_punches ||= effective_adjustments.each_with_object({}) do |adjustment, resolved|
+          changes = adjustment.proposed_changes.to_h.stringify_keys
+          next if changes["resolves_open_punch_id"].blank? || changes["ended_at_utc"].blank?
+
+          resolved[changes["resolves_open_punch_id"].to_i] = Time.iso8601(changes["ended_at_utc"].to_s).utc
+        end
       end
 
       def interval(opened, closed, kind)

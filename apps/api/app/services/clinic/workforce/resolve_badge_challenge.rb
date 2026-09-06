@@ -2,7 +2,14 @@ module Clinic
   module Workforce
     class ResolveBadgeChallenge
       class Rejected < StandardError; end
-      Result = Data.define(:challenge, :token, :employee_label, :permitted_transitions)
+      Result = Data.define(
+        :challenge,
+        :token,
+        :employee_label,
+        :permitted_transitions,
+        :break_target_minutes,
+        :break_reminder_due
+      )
       LIFETIME = 60.seconds
 
       def self.call(kiosk_session:, badge_token:, pin: nil, input_method: "scanner", now: Time.current)
@@ -29,7 +36,16 @@ module Clinic
         end
 
         transitions = RecordPunch.allowed_transitions(employment: employment)
-        transitions -= %w[break_start break_end] unless values.fetch("break_tracking_enabled", false)
+        break_tracking_enabled = values.fetch("break_tracking_enabled", false)
+        transitions -= %w[break_start break_end] unless break_tracking_enabled
+        break_target_minutes = positive_minutes(values["break_duration_minutes"]) if break_tracking_enabled
+        reminder_minutes = positive_minutes(values["break_reminder_minutes"]) if break_tracking_enabled
+        last_work_start = if transitions.include?("break_start")
+          Punch.where(practice_id: employment.practice_id, employment_id: employment.id,
+            event_type: %w[clock_in break_end]).order(occurred_at_utc: :desc, id: :desc).pick(:occurred_at_utc)
+        end
+        break_reminder_due = reminder_minutes.present? && last_work_start.present? &&
+          last_work_start <= now - reminder_minutes.minutes
         token = SecureRandom.urlsafe_base64(32, false)
         challenge = PunchChallenge.create!(
           practice: kiosk_session.practice,
@@ -43,15 +59,22 @@ module Clinic
           challenge: challenge,
           token: token,
           employee_label: employment.staff_member.display_name,
-          permitted_transitions: transitions
+          permitted_transitions: transitions,
+          break_target_minutes: break_target_minutes,
+          break_reminder_due: break_reminder_due
         )
+      end
+
+      def self.positive_minutes(value)
+        minutes = Integer(value, exception: false)
+        minutes if minutes&.positive?
       end
 
       def self.reject_badge!
         BCrypt::Password.new(User::DUMMY_PASSWORD_DIGEST).is_password?(SecureRandom.hex(8))
         raise Rejected, "Badge could not be verified"
       end
-      private_class_method :reject_badge!
+      private_class_method :positive_minutes, :reject_badge!
     end
   end
 end

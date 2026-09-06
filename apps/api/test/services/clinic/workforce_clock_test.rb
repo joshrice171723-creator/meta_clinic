@@ -54,6 +54,11 @@ class WorkforceClockTest < ActiveSupport::TestCase
     assert_equal first.punch.id, replay.punch.id
     assert_equal 1, Clinic::Workforce::Punch.where(employment: @employment).count
     assert resolved.challenge.reload.consumed_at.present?
+
+    reminder = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk,
+      badge_token: badge.token, input_method: "manual", now: now + 61.minutes)
+    assert_equal 30, reminder.break_target_minutes
+    assert reminder.break_reminder_due
   end
 
   test "invalid transition and changed retry payload do not create another punch" do
@@ -70,6 +75,37 @@ class WorkforceClockTest < ActiveSupport::TestCase
     assert_equal 1, Clinic::Workforce::Punch.where(employment: @employment).count
   end
 
+  test "an approved missing clock-out correction permits the next clock-in" do
+    started_at = 2.hours.ago
+    local = started_at.in_time_zone(@site.timezone_override)
+    open_punch = Clinic::Workforce::Punch.create!(practice: @practice, site: @site, employment: @employment,
+      event_type: "clock_in", occurred_at_utc: started_at, time_zone: @site.timezone_override,
+      utc_offset_seconds: local.utc_offset, local_date: local.to_date, source: "manager_correction",
+      request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(32), correlation_id: SecureRandom.uuid,
+      received_at: started_at, result_snapshot: {}, created_at: started_at, updated_at: started_at)
+    period_start = Clinic::Workforce::CalculateTimecard.current_period_start(practice: @practice)
+    card = Clinic::Workforce::CalculateTimecard.call(employment: @employment, period_start: period_start,
+      actor_membership: @manager_membership)
+    Clinic::Workforce::AdjustmentRequest.create!(practice: @practice, employment: @employment,
+      timecard_version: card, status: "approved", correction_type: "add_segment",
+      proposed_changes: { "site_id" => @site.id, "started_at_utc" => started_at.utc.iso8601,
+        "ended_at_utc" => 1.hour.ago.utc.iso8601, "resolves_open_punch_id" => open_punch.id },
+      reason: "Manager verified the missing clock-out", requested_by_membership: @employee_membership,
+      requested_at: 30.minutes.ago, reviewed_by_membership: @manager_membership, reviewed_at: 20.minutes.ago,
+      decision_reason: "Verified against location records", request_key: SecureRandom.uuid,
+      payload_digest: SecureRandom.hex(32), source_lock_version: card.lock_version)
+
+    assert_equal [ "clock_in" ], Clinic::Workforce::RecordPunch.allowed_transitions(employment: @employment)
+    badge = Clinic::Workforce::IssueBadge.call(employment: @employment, actor_membership: @manager_membership)
+    resolved = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk,
+      badge_token: badge.token, input_method: "manual")
+    result = Clinic::Workforce::RecordPunch.call(kiosk_session: @kiosk, challenge_token: resolved.token,
+      event_type: "clock_in", request_key: SecureRandom.uuid)
+
+    assert_equal "clock_in", result.punch.event_type
+    assert_equal 2, Clinic::Workforce::Punch.where(employment: @employment).count
+  end
+
   private
 
   def settings
@@ -77,8 +113,8 @@ class WorkforceClockTest < ActiveSupport::TestCase
       "timezone" => "UTC", "workweek_start_day" => 0, "workweek_start_time" => "00:00",
       "kiosk_enabled" => true, "scanner_enabled" => true, "camera_enabled" => true,
       "manual_badge_entry_enabled" => true, "pin_required" => false,
-      "break_tracking_enabled" => true, "break_mode" => "manual", "break_duration_minutes" => nil,
-      "break_paid" => false, "break_reminder_minutes" => nil, "rounding_mode" => "nearest",
+      "break_tracking_enabled" => true, "break_mode" => "manual", "break_duration_minutes" => 30,
+      "break_paid" => false, "break_reminder_minutes" => 60, "rounding_mode" => "nearest",
       "rounding_increment_minutes" => 15, "daily_overtime_threshold_minutes" => 480,
       "weekly_overtime_threshold_minutes" => 2400, "overtime_precedence" => "daily_then_weekly",
       "approval_mode" => "manager_required", "schedule_enabled" => true,

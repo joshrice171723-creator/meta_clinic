@@ -45,11 +45,11 @@ module Clinic
           settings = EffectiveSettings.call(practice: kiosk_session.practice, site: kiosk_session.site, at: now).fetch(:values)
           raise Conflict, "Clock kiosk is unavailable." unless settings.fetch("kiosk_enabled", false)
 
-          allowed = allowed_transitions(employment: employment)
+          allowed = allowed_transitions(employment: employment, at: now)
           allowed -= %w[break_start break_end] unless settings.fetch("break_tracking_enabled", false)
           allowed &= challenge.transitions
           raise Conflict.new("That action is not valid for the employee's current clock state.", allowed_transitions: allowed) unless allowed.include?(event_type)
-          last = latest_punch(employment)
+          last = latest_effective_punch(employment, at: now)
           if last && last.created_at > now - DEBOUNCE_WINDOW
             raise Conflict.new("The prior clock action is still settling. Wait a moment and scan again.", allowed_transitions: allowed)
           end
@@ -92,13 +92,32 @@ module Clinic
         Result.new(punch: prior, replayed: true)
       end
 
-      def self.allowed_transitions(employment:)
-        next_transitions(latest_punch(employment)&.event_type)
+      def self.allowed_transitions(employment:, at: Time.current)
+        next_transitions(latest_effective_punch(employment, at: at)&.event_type)
       end
 
       def self.latest_punch(employment)
         Punch.where(practice_id: employment.practice_id, employment_id: employment.id)
           .order(occurred_at_utc: :desc, id: :desc).first
+      end
+
+      def self.latest_effective_punch(employment, at:)
+        punch = latest_punch(employment)
+        return unless punch
+
+        resolved = AdjustmentRequest.where(
+          practice_id: employment.practice_id,
+          employment_id: employment.id,
+          status: "approved"
+        ).any? do |adjustment|
+          changes = adjustment.proposed_changes.to_h.stringify_keys
+          next false unless changes["resolves_open_punch_id"].to_i == punch.id
+
+          Time.iso8601(changes.fetch("ended_at_utc").to_s).utc <= at
+        rescue ArgumentError, KeyError
+          false
+        end
+        resolved ? nil : punch
       end
 
       def self.next_transitions(last_event)
@@ -112,7 +131,7 @@ module Clinic
       def self.open_state?(event_type)
         %w[clock_in break_start break_end].include?(event_type)
       end
-      private_class_method :latest_punch, :next_transitions, :open_state?
+      private_class_method :latest_punch, :latest_effective_punch, :next_transitions, :open_state?
     end
   end
 end

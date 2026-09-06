@@ -90,6 +90,8 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
     assert_equal card.version_number + 1, successor.version_number
     assert_equal "approved", card.reload.status
     assert_equal original_punches, Clinic::Workforce::Punch.where(employment: @employment).pluck(:id, :occurred_at_utc)
+    assert_equal successor.source_digest, Clinic::Workforce::CalculateTimecard.current_source_digest(
+      employment: @employment, period_start: successor.period_start)
     assert_not card.update(status: "draft")
   end
 

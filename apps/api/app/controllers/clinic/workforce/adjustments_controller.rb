@@ -72,7 +72,8 @@ module Clinic
 
       def readable_adjustments
         own = workforce_access.own_employment
-        if own && !params[:employment_id].present?
+        if params[:view] == "self"
+          raise Clinic::Authorization::Denied unless own
           authorize_self_service!(own)
           return [ AdjustmentRequest.where(practice_id: current_practice.id, employment_id: own.id), nil ]
         end

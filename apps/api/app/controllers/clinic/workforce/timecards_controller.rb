@@ -3,9 +3,12 @@ module Clinic
     class TimecardsController < Clinic::Workforce::BaseController
       def index
         cards, site_id = readable_cards
+        employees = calculable_employments
         render json: {
           timecards: cards.includes(employment: :staff_member).order(period_start: :desc, version_number: :desc)
-            .map { |card| TimecardSerializer.call(card, site_id: site_id) }
+            .map { |card| TimecardSerializer.call(card, site_id: site_id) },
+          employees: employees.map { |employment| { id: employment.id, name: employment.staff_member.display_name } },
+          default_period_start: CalculateTimecard.current_period_start(practice: current_practice).iso8601
         }
       end
 
@@ -119,6 +122,19 @@ module Clinic
         workforce_access.authorize!("workforce.timecards.review", site: site)
         raise Clinic::Authorization::Denied unless employment.eligible_site?(site)
         employment
+      end
+
+      def calculable_employments
+        return [] if params[:site_id].blank?
+
+        site = current_practice.sites.find(requested_id!(params[:site_id], :site_id))
+        can_review = workforce_access.allow?("workforce.timecards.review") ||
+          workforce_access.allow?("workforce.timecards.review", site: site)
+        return [] unless can_review
+
+        Employment.where(practice_id: current_practice.id).includes(:staff_member).order(:id).select do |employment|
+          employment.active_for_work? && employment.eligible_site?(site)
+        end
       end
 
       def authorize_approval!(card)

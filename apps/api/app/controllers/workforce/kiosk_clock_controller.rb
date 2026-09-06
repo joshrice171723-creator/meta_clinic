@@ -62,7 +62,9 @@ module Workforce
         challenge: result.token,
         expires_at: result.challenge.expires_at.utc.iso8601(6),
         employee_label: result.employee_label,
-        allowed_transitions: result.permitted_transitions
+        allowed_transitions: result.permitted_transitions,
+        break_target_minutes: result.break_target_minutes,
+        break_reminder_due: result.break_reminder_due
       }, status: :created
     ensure
       params[:badge] = "[FILTERED]" if params.key?(:badge)

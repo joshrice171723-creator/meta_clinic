@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
-import type { Adjustment, Timecard } from "./clockTypes";
+import type { Adjustment, Timecard, TimecardEmployee } from "./clockTypes";
 import { AdjustmentDialog } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
 
@@ -21,6 +21,9 @@ export function TimecardReviewPage() {
     String(clinic.current_site?.id ?? clinic.sites[0]?.id ?? ""),
   );
   const [cards, setCards] = useState<Timecard[]>([]);
+  const [employees, setEmployees] = useState<TimecardEmployee[]>([]);
+  const [employmentId, setEmploymentId] = useState("");
+  const [periodStart, setPeriodStart] = useState("");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -37,10 +40,11 @@ export function TimecardReviewPage() {
     setError("");
     const query = `?site_id=${encodeURIComponent(siteId)}`;
     Promise.all([
-      api<{ timecards: Timecard[] }>(
-        `/api/clinic/workforce/timecards${query}`,
-        { signal: abort.signal },
-      ),
+      api<{
+        timecards: Timecard[];
+        employees: TimecardEmployee[];
+        default_period_start: string;
+      }>(`/api/clinic/workforce/timecards${query}`, { signal: abort.signal }),
       api<{ adjustments: Adjustment[] }>(
         `/api/clinic/workforce/adjustments${query}`,
         { signal: abort.signal },
@@ -49,6 +53,17 @@ export function TimecardReviewPage() {
       .then(([timecardData, adjustmentData]) => {
         if (!abort.signal.aborted) {
           setCards(timecardData.timecards);
+          setEmployees(timecardData.employees);
+          setEmploymentId((current) =>
+            timecardData.employees.some(
+              (employee) => String(employee.id) === current,
+            )
+              ? current
+              : String(timecardData.employees[0]?.id ?? ""),
+          );
+          setPeriodStart(
+            (current) => current || timecardData.default_period_start,
+          );
           setAdjustments(adjustmentData.adjustments);
         }
       })
@@ -71,6 +86,35 @@ export function TimecardReviewPage() {
     });
     return [...found.values()];
   }, [cards]);
+
+  async function calculate() {
+    if (!employmentId || !periodStart) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await api("/api/clinic/workforce/timecards/calculate", {
+        method: "POST",
+        body: {
+          employment_id: Number(employmentId),
+          site_id: Number(siteId),
+          period_start: periodStart,
+        },
+      });
+      setNotice(
+        "The employee timecard was calculated from saved workforce records.",
+      );
+      setRevision((value) => value + 1);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to calculate the employee timecard.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function approve(card: Timecard) {
     setBusy(true);
@@ -139,19 +183,58 @@ export function TimecardReviewPage() {
           current calculated versions.
         </Typography>
       </Box>
-      <TextField
-        select
-        label="Location"
-        value={siteId}
-        onChange={(event) => setSiteId(event.target.value)}
-        sx={{ maxWidth: 360 }}
-      >
-        {clinic.sites.map((site) => (
-          <MenuItem key={site.id} value={String(site.id)}>
-            {site.name || site.code}
-          </MenuItem>
-        ))}
-      </TextField>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={2}>
+          <Typography variant="h3">Calculate a timecard</Typography>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+            <TextField
+              select
+              label="Location"
+              value={siteId}
+              onChange={(event) => setSiteId(event.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              {clinic.sites.map((site) => (
+                <MenuItem key={site.id} value={String(site.id)}>
+                  {site.name || site.code}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Employee"
+              value={employmentId}
+              onChange={(event) => setEmploymentId(event.target.value)}
+              sx={{ minWidth: 240 }}
+            >
+              {employees.map((employee) => (
+                <MenuItem key={employee.id} value={String(employee.id)}>
+                  {employee.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Week starting"
+              type="date"
+              value={periodStart}
+              onChange={(event) => setPeriodStart(event.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              variant="contained"
+              disabled={busy || !employmentId || !periodStart}
+              onClick={() => void calculate()}
+            >
+              Calculate
+            </Button>
+          </Stack>
+          {!employees.length && (
+            <Typography variant="body2" color="text.secondary">
+              No eligible employees are available at this location.
+            </Typography>
+          )}
+        </Stack>
+      </Paper>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       {adjustments

@@ -447,6 +447,18 @@ export function KioskClockPage() {
                 Hello, {challenge.employee_label}
               </Typography>
               <Typography>Choose the action you intend to record.</Typography>
+              {challenge.break_reminder_due &&
+                challenge.allowed_transitions.includes("break_start") && (
+                  <Alert severity="info">
+                    Break reminder: consider starting your break when work
+                    allows. This reminder does not change your clock status.
+                  </Alert>
+                )}
+              {challenge.break_target_minutes && (
+                <Typography variant="body2" color="text.secondary">
+                  Break target: {challenge.break_target_minutes} minutes
+                </Typography>
+              )}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={2}
