@@ -36,8 +36,19 @@ module Clinic
       has_many :patient_portal_appointment_requests, class_name: "Clinic::PatientPortal::AppointmentRequest", dependent: :restrict_with_error
       has_many :patient_portal_requests, class_name: "Clinic::PatientPortal::Request", dependent: :restrict_with_error
       encrypts :display_name
+      before_validation :refresh_name_search_tokens, if: -> { will_save_change_to_display_name? || will_save_change_to_practice_id? }
       validates :display_name, presence: true, length: { maximum: 120 }
       validates :reference, presence: true, length: { maximum: 32 }, uniqueness: { scope: :practice_id }
+
+      private
+
+      def refresh_name_search_tokens
+        self.name_search_tokens = if practice_id.present? && display_name.present?
+          Clinic::Care::PatientNameSearch.tokens_for(practice_id:, name: display_name)
+        else
+          []
+        end
+      end
     end
   end
 end

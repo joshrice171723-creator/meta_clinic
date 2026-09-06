@@ -20,13 +20,11 @@ module Clinic
       # endpoint is deliberately separate from the patient detail surface.
       def lookup
         patients = current_practice.patients.accessible_by(current_ability, :read_identity)
-        # display_name is non-deterministically encrypted and cannot be safely
-        # searched with SQL. This administrative lookup intentionally supports
-        # reference search only until an approved blind-index design exists.
-        if params[:q].present?
-          escaped = Clinic::Care::Patient.sanitize_sql_like(params[:q].to_s)
-          patients = patients.where("reference ILIKE :query", query: "%#{escaped}%")
-        end
+        patients = Clinic::Care::PatientNameSearch.search(
+          scope: patients,
+          practice_id: current_practice.id,
+          query: query_param
+        )
         paginate(patients, key: :patients, serializer: ->(patient) { PatientSerializer.call(patient) },
           order: { reference: :asc, id: :asc }, maximum: 100)
       end

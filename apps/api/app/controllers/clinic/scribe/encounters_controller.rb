@@ -2,47 +2,45 @@ module Clinic
   module Scribe
     class EncountersController < Clinic::ApiController
       before_action -> { require_capability("scribe.read") }, only: %i[index show]
-      before_action -> { require_capability("scribe.write") }, only: %i[create consent sources generate]
+      before_action -> { require_capability("scribe.write") }, only: %i[create context consent sources generate]
       before_action -> { require_capability("scribe.delete") }, only: :destroy
 
       def index
+        scope = current_practice.scribe_encounters.accessible_by(current_ability, :read).includes(:patient)
+        if params[:q].present?
+          patients = Clinic::Care::PatientNameSearch.search(scope: current_practice.patients.where(id: scope.select(:patient_id)),
+            practice_id: current_practice.id, query: params[:q])
+          scope = scope.where(patient_id: patients.select(:id))
+        end
         encounters, pagination = paginated_records(
-          current_practice.scribe_encounters.accessible_by(current_ability, :read).includes(:patient),
+          scope,
           order: { updated_at: :desc, id: :desc }, default_per_page: 25, maximum: 50
         )
-        can_create = Clinic::Authorization.allowed?(
-          actor: current_user, practice: current_practice, action: "scribe.write", any_site: true
-        )
-        patient_page = bounded_integer!(params[:patient_page].presence || "1", field: :patient_page, min: 1, max: 100_000)
-        patient_per_page = 100
-        patient_scope = current_practice.patients.order(:reference, :id)
-        patient_total = can_create ? patient_scope.count : 0
-        patient_options = can_create ? patient_scope.limit(patient_per_page).offset((patient_page - 1) * patient_per_page) : []
         render json: {
-          encounters: encounters.map do |encounter|
-            Serializer.encounter(encounter, detail: false).merge(
-              patient: { id: encounter.patient.id, reference: encounter.patient.reference, display_name: encounter.patient.display_name }
-            )
-          end,
-          patient_options: patient_options.map do |patient|
-            { id: patient.id, reference: patient.reference, display_name: patient.display_name }
-          end,
-          patient_pagination: {
-            page: patient_page,
-            per_page: patient_per_page,
-            total: patient_total,
-            total_pages: patient_total.zero? ? 0 : (patient_total.to_f / patient_per_page).ceil
-          },
+          encounters: encounters.map { |encounter| Serializer.encounter(encounter, detail: false) },
+          patient_options: [],
+          patient_pagination: { page: 1, per_page: 0, total: 0, total_pages: 0 },
           pagination: pagination
         }
       end
 
       def create
-        input = parameter_hash!(:encounter, %i[patient_id site_id])
+        input = params.require(:encounter).permit(:patient_id, :site_id, context: %i[content source_type]).to_h.with_indifferent_access
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = input[:site_id].present? ? current_practice.sites.find(requested_id!(input[:site_id], :site_id)) : nil
-        encounter = Workflow.create_encounter(practice: current_practice, actor: current_user, patient: patient, site: site)
+        context = input[:context]&.with_indifferent_access
+        encounter = Workflow.create_encounter(practice: current_practice, actor: current_user, patient: patient, site: site,
+          context: context && { content: context[:content].to_s, source_type: context[:source_type].to_s })
         render json: { encounter: Serializer.encounter(encounter) }, status: :created
+      end
+
+      def context
+        encounter = scoped_encounter
+        input = parameter_hash!(:context, %i[content expected_version source_type])
+        updated = Workflow.save_context!(encounter: encounter, actor: current_user, content: input[:content],
+          source_type: input[:source_type].presence || "reviewer_authored",
+          expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647))
+        render json: { encounter: Serializer.encounter(updated) }
       end
 
       def show
@@ -71,8 +69,13 @@ module Clinic
 
       def generate
         encounter = scoped_encounter
-        draft = Workflow.generate_draft(encounter: encounter, actor: current_user)
-        render json: { draft: Serializer.draft(draft), encounter: Serializer.encounter(encounter.reload) }, status: :created
+        input = params[:generation].present? ? parameter_hash!(:generation, %i[template_id document_id expected_version]) : {}
+        draft, document = Workflow.generate_draft(encounter: encounter, actor: current_user,
+          template_id: input[:template_id].presence || Workflow::DEFAULT_TEMPLATE_ID,
+          document_id: input[:document_id].presence,
+          expected_version: input[:expected_version].nil? ? nil : bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647))
+        render json: { draft: Serializer.draft(draft), document: Serializer.document(document),
+          encounter: Serializer.encounter(encounter.reload) }, status: :created
       end
 
       def destroy

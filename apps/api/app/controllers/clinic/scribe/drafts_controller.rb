@@ -20,6 +20,22 @@ module Clinic
         render json: { draft: Serializer.draft(draft) }
       end
 
+      def sections
+        require_capability("scribe.write")
+        input = params.require(:revision).permit(:expected_version, sections: Workflow::SECTIONS).to_h.with_indifferent_access
+        draft = Workflow.save_sections!(draft: @draft, actor: current_user, sections: input[:sections],
+          expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647))
+        render json: { draft: Serializer.draft(draft), document: Serializer.document(draft.document.reload) }, status: :created
+      end
+
+      def restore
+        require_capability("scribe.write")
+        input = parameter_hash!(:restore, %i[expected_version])
+        draft = Workflow.restore!(draft: @draft, actor: current_user,
+          expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647))
+        render json: { draft: Serializer.draft(draft), document: Serializer.document(draft.document.reload) }, status: :created
+      end
+
       def export
         require_capability("scribe.export")
         input = parameter_hash!(:export, %i[destination idempotency_key confirmed expected_version])

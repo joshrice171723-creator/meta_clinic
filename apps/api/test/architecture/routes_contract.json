@@ -355,9 +355,24 @@
     "/api/clinic/scribe/encounters/:id(.:format)"
   ],
   [
+    "api_clinic_scribe_encounter_recordings",
+    "GET",
+    "/api/clinic/scribe/encounters/:encounter_id/recordings(.:format)"
+  ],
+  [
     "api_clinic_scribe_encounters",
     "GET",
     "/api/clinic/scribe/encounters(.:format)"
+  ],
+  [
+    "api_clinic_scribe_recording",
+    "GET",
+    "/api/clinic/scribe/recordings/:id(.:format)"
+  ],
+  [
+    "api_clinic_scribe_templates",
+    "GET",
+    "/api/clinic/scribe/templates(.:format)"
   ],
   [
     "api_clinic_staff",
@@ -675,6 +690,11 @@
     "/api/clinic/reminders/:id/cancel(.:format)"
   ],
   [
+    "cancel_api_clinic_scribe_recording",
+    "DELETE",
+    "/api/clinic/scribe/recordings/:id(.:format)"
+  ],
+  [
     "cancel_api_clinic_subscription",
     "POST",
     "/api/clinic/subscriptions/:id/cancel(.:format)"
@@ -705,6 +725,11 @@
     "/api/patient_portal/subscriptions/checkout(.:format)"
   ],
   [
+    "chunk_api_clinic_scribe_recording",
+    "POST",
+    "/api/clinic/scribe/recordings/:id/chunk(.:format)"
+  ],
+  [
     "close_api_clinic_cash_drawer",
     "POST",
     "/api/clinic/cash_drawers/:id/close(.:format)"
@@ -718,6 +743,11 @@
     "consent_api_clinic_scribe_encounter",
     "POST",
     "/api/clinic/scribe/encounters/:id/consent(.:format)"
+  ],
+  [
+    "context_api_clinic_scribe_encounter",
+    "PATCH",
+    "/api/clinic/scribe/encounters/:id/context(.:format)"
   ],
   [
     "decide_api_clinic_workforce_adjustment",
@@ -770,6 +800,11 @@
     "/api/clinic/scribe/drafts/:id/export(.:format)"
   ],
   [
+    "finalize_api_clinic_scribe_recording",
+    "POST",
+    "/api/clinic/scribe/recordings/:id/finalize(.:format)"
+  ],
+  [
     "generate_api_clinic_scribe_encounter",
     "POST",
     "/api/clinic/scribe/encounters/:id/generate(.:format)"
@@ -778,6 +813,11 @@
     "import_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/import(.:format)"
+  ],
+  [
+    "interrupt_api_clinic_scribe_recording",
+    "POST",
+    "/api/clinic/scribe/recordings/:id/interrupt(.:format)"
   ],
   [
     "lookup_api_clinic_patients",
@@ -900,6 +940,11 @@
     "/api/clinic/subscriptions/:id/refund(.:format)"
   ],
   [
+    "restore_api_clinic_scribe_draft",
+    "POST",
+    "/api/clinic/scribe/drafts/:id/restore(.:format)"
+  ],
+  [
     "retry_api_clinic_reminder",
     "POST",
     "/api/clinic/reminders/:id/retry(.:format)"
@@ -933,6 +978,11 @@
     "revoke_api_clinic_workforce_kiosk",
     "POST",
     "/api/clinic/workforce/kiosks/:id/revoke(.:format)"
+  ],
+  [
+    "sections_api_clinic_scribe_draft",
+    "POST",
+    "/api/clinic/scribe/drafts/:id/sections(.:format)"
   ],
   [
     "sign_api_paperwork",
@@ -1288,6 +1338,11 @@
     null,
     "POST",
     "/api/clinic/scribe/encounters(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/scribe/encounters/:encounter_id/recordings(.:format)"
   ],
   [
     null,

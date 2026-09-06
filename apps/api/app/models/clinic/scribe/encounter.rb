@@ -8,13 +8,18 @@ module Clinic
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :site, class_name: "Clinic::Site", optional: true
       belongs_to :created_by, class_name: "User"
+      belongs_to :context_authored_by, class_name: "User", optional: true
       has_many :sources, class_name: "Clinic::Scribe::Source", foreign_key: :encounter_id, dependent: :restrict_with_error
       has_many :drafts, class_name: "Clinic::Scribe::Draft", foreign_key: :encounter_id, dependent: :restrict_with_error
+      has_many :documents, class_name: "Clinic::Scribe::Document", foreign_key: :encounter_id, dependent: :restrict_with_error
       has_many :events, class_name: "Clinic::Scribe::Event", foreign_key: :encounter_id, dependent: :restrict_with_error
+
+      encrypts :context_content
 
       validates :status, inclusion: { in: %w[awaiting_consent consented source_ready in_review approved exported consent_declined consent_withdrawn deleted] }
       validates :consent_status, inclusion: { in: %w[not_recorded accepted declined withdrawn] }
       validates :template_id, :template_version, :retention_class, presence: true
+      validates :context_source_type, inclusion: { in: %w[reviewer_authored] }, allow_nil: true
       validate :patient_belongs_to_practice
       validate :site_belongs_to_practice
 

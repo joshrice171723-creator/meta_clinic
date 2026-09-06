@@ -5185,7 +5185,8 @@ CREATE TABLE public.clinic_patients (
     reference character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    primary_address_version_id bigint
+    primary_address_version_id bigint,
+    name_search_tokens text[] DEFAULT '{}'::text[] NOT NULL
 );
 
 
@@ -5724,6 +5725,45 @@ ALTER SEQUENCE public.clinic_rooms_id_seq OWNED BY public.clinic_rooms.id;
 
 
 --
+-- Name: clinic_scribe_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_scribe_documents (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    created_by_id bigint NOT NULL,
+    template_id character varying NOT NULL,
+    template_version integer NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    current_draft_id bigint,
+    CONSTRAINT scribe_documents_values CHECK (((template_version > 0) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'deleted'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_scribe_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_scribe_documents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_scribe_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_scribe_documents_id_seq OWNED BY public.clinic_scribe_documents.id;
+
+
+--
 -- Name: clinic_scribe_draft_sections; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5740,6 +5780,7 @@ CREATE TABLE public.clinic_scribe_draft_sections (
     edit_revision integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    provenance jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT scribe_draft_sections_values CHECK ((((section_key)::text = ANY ((ARRAY['subjective'::character varying, 'objective'::character varying, 'assessment'::character varying, 'plan'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['needs_review'::character varying, 'accepted'::character varying, 'edited'::character varying, 'rejected'::character varying])::text[])) AND (edit_revision >= 0)))
 );
 
@@ -5771,7 +5812,7 @@ CREATE TABLE public.clinic_scribe_drafts (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     encounter_id bigint NOT NULL,
-    source_id bigint NOT NULL,
+    source_id bigint,
     parent_id bigint,
     created_by_id bigint NOT NULL,
     status character varying DEFAULT 'draft'::character varying NOT NULL,
@@ -5791,6 +5832,11 @@ CREATE TABLE public.clinic_scribe_drafts (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    document_id bigint NOT NULL,
+    revision_number integer NOT NULL,
+    source_snapshot_digest character varying,
+    context_snapshot_digest character varying,
+    input_sources jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT scribe_drafts_state CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'in_review'::character varying, 'approved'::character varying, 'superseded'::character varying, 'exported'::character varying, 'deleted'::character varying])::text[])) AND ((export_state)::text = ANY ((ARRAY['not_exported'::character varying, 'exported'::character varying])::text[])) AND (template_version > 0)))
 );
 
@@ -5838,6 +5884,13 @@ CREATE TABLE public.clinic_scribe_encounters (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    context_content text,
+    context_digest character varying,
+    context_source_type character varying,
+    context_authored_by_id bigint,
+    context_updated_at timestamp(6) without time zone,
+    CONSTRAINT scribe_encounters_context_digest CHECK (((context_digest IS NULL) OR (length(TRIM(BOTH FROM context_digest)) = 64))),
+    CONSTRAINT scribe_encounters_context_source CHECK (((context_source_type IS NULL) OR ((context_source_type)::text = 'reviewer_authored'::text))),
     CONSTRAINT scribe_encounters_state CHECK ((((status)::text = ANY ((ARRAY['awaiting_consent'::character varying, 'consented'::character varying, 'source_ready'::character varying, 'in_review'::character varying, 'approved'::character varying, 'exported'::character varying, 'consent_declined'::character varying, 'consent_withdrawn'::character varying, 'deleted'::character varying])::text[])) AND ((consent_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])) AND (template_version > 0)))
 );
 
@@ -5936,6 +5989,131 @@ CREATE SEQUENCE public.clinic_scribe_exports_id_seq
 --
 
 ALTER SEQUENCE public.clinic_scribe_exports_id_seq OWNED BY public.clinic_scribe_exports.id;
+
+
+--
+-- Name: clinic_scribe_note_templates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_scribe_note_templates (
+    id bigint NOT NULL,
+    template_id character varying NOT NULL,
+    version integer NOT NULL,
+    label character varying NOT NULL,
+    note_kind character varying DEFAULT 'soap'::character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    disabled_reason character varying,
+    sections jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT scribe_note_templates_values CHECK (((version > 0) AND ((note_kind)::text = 'soap'::text) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'disabled'::character varying, 'legacy'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_scribe_note_templates_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_scribe_note_templates_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_scribe_note_templates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_scribe_note_templates_id_seq OWNED BY public.clinic_scribe_note_templates.id;
+
+
+--
+-- Name: clinic_scribe_recording_chunks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_scribe_recording_chunks (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    recording_id bigint NOT NULL,
+    sequence integer NOT NULL,
+    status character varying DEFAULT 'acknowledged'::character varying NOT NULL,
+    content text,
+    content_digest character varying NOT NULL,
+    byte_size integer NOT NULL,
+    acknowledged_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT scribe_recording_chunks_values CHECK (((sequence >= 0) AND (byte_size > 0) AND (length(TRIM(BOTH FROM content_digest)) = 64) AND ((((status)::text = 'acknowledged'::text) AND (content IS NOT NULL)) OR (((status)::text = 'scrubbed'::text) AND (content IS NULL)))))
+);
+
+
+--
+-- Name: clinic_scribe_recording_chunks_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_scribe_recording_chunks_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_scribe_recording_chunks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_scribe_recording_chunks_id_seq OWNED BY public.clinic_scribe_recording_chunks.id;
+
+
+--
+-- Name: clinic_scribe_recordings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_scribe_recordings (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    created_by_id bigint NOT NULL,
+    idempotency_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    status character varying DEFAULT 'recording'::character varying NOT NULL,
+    mime_type character varying NOT NULL,
+    consent_policy_version character varying NOT NULL,
+    consented_at timestamp(6) without time zone NOT NULL,
+    expected_encounter_version integer NOT NULL,
+    total_bytes bigint DEFAULT 0 NOT NULL,
+    total_chunks integer,
+    duration_ms bigint,
+    completed_at timestamp(6) without time zone,
+    interrupted_at timestamp(6) without time zone,
+    cancelled_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT scribe_recordings_values CHECK ((((status)::text = ANY ((ARRAY['recording'::character varying, 'interrupted'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((mime_type)::text = ANY ((ARRAY['audio/webm'::character varying, 'audio/ogg'::character varying, 'audio/mp4'::character varying])::text[])) AND (expected_encounter_version >= 0) AND (total_bytes >= 0) AND ((total_chunks IS NULL) OR (total_chunks >= 0)) AND ((duration_ms IS NULL) OR (duration_ms >= 0)) AND (length(TRIM(BOTH FROM request_digest)) = 64)))
+);
+
+
+--
+-- Name: clinic_scribe_recordings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_scribe_recordings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_scribe_recordings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_scribe_recordings_id_seq OWNED BY public.clinic_scribe_recordings.id;
 
 
 --
@@ -8207,6 +8385,13 @@ ALTER TABLE ONLY public.clinic_rooms ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: clinic_scribe_documents id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_documents_id_seq'::regclass);
+
+
+--
 -- Name: clinic_scribe_draft_sections id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -8239,6 +8424,27 @@ ALTER TABLE ONLY public.clinic_scribe_events ALTER COLUMN id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.clinic_scribe_exports ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_exports_id_seq'::regclass);
+
+
+--
+-- Name: clinic_scribe_note_templates id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_note_templates ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_note_templates_id_seq'::regclass);
+
+
+--
+-- Name: clinic_scribe_recording_chunks id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recording_chunks ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_recording_chunks_id_seq'::regclass);
+
+
+--
+-- Name: clinic_scribe_recordings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_recordings_id_seq'::regclass);
 
 
 --
@@ -9393,6 +9599,14 @@ ALTER TABLE ONLY public.clinic_rooms
 
 
 --
+-- Name: clinic_scribe_documents clinic_scribe_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT clinic_scribe_documents_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_scribe_draft_sections clinic_scribe_draft_sections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9430,6 +9644,30 @@ ALTER TABLE ONLY public.clinic_scribe_events
 
 ALTER TABLE ONLY public.clinic_scribe_exports
     ADD CONSTRAINT clinic_scribe_exports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_scribe_note_templates clinic_scribe_note_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_note_templates
+    ADD CONSTRAINT clinic_scribe_note_templates_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_scribe_recording_chunks clinic_scribe_recording_chunks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recording_chunks
+    ADD CONSTRAINT clinic_scribe_recording_chunks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_scribe_recordings clinic_scribe_recordings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT clinic_scribe_recordings_pkey PRIMARY KEY (id);
 
 
 --
@@ -11918,6 +12156,13 @@ CREATE INDEX index_clinic_patient_reminders_on_practice_id ON public.clinic_pati
 
 
 --
+-- Name: index_clinic_patients_on_name_search_tokens; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_patients_on_name_search_tokens ON public.clinic_patients USING gin (name_search_tokens);
+
+
+--
 -- Name: index_clinic_patients_on_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12639,6 +12884,20 @@ CREATE UNIQUE INDEX role_versions_code_version ON public.role_versions USING btr
 
 
 --
+-- Name: scribe_documents_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_documents_practice_id ON public.clinic_scribe_documents USING btree (practice_id, id);
+
+
+--
+-- Name: scribe_documents_scope; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_documents_scope ON public.clinic_scribe_documents USING btree (practice_id, encounter_id, id);
+
+
+--
 -- Name: scribe_draft_sections_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12646,10 +12905,66 @@ CREATE UNIQUE INDEX scribe_draft_sections_key ON public.clinic_scribe_draft_sect
 
 
 --
+-- Name: scribe_drafts_document_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_drafts_document_id ON public.clinic_scribe_drafts USING btree (practice_id, document_id, id);
+
+
+--
+-- Name: scribe_drafts_document_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_drafts_document_revision ON public.clinic_scribe_drafts USING btree (practice_id, document_id, revision_number);
+
+
+--
 -- Name: scribe_exports_idempotency; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX scribe_exports_idempotency ON public.clinic_scribe_exports USING btree (practice_id, idempotency_key);
+
+
+--
+-- Name: scribe_note_templates_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_note_templates_identity ON public.clinic_scribe_note_templates USING btree (template_id, version);
+
+
+--
+-- Name: scribe_recording_chunks_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_recording_chunks_sequence ON public.clinic_scribe_recording_chunks USING btree (practice_id, recording_id, sequence);
+
+
+--
+-- Name: scribe_recordings_encounter_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX scribe_recordings_encounter_status ON public.clinic_scribe_recordings USING btree (practice_id, encounter_id, status);
+
+
+--
+-- Name: scribe_recordings_idempotency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_recordings_idempotency ON public.clinic_scribe_recordings USING btree (practice_id, idempotency_key);
+
+
+--
+-- Name: scribe_recordings_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_recordings_practice_id ON public.clinic_scribe_recordings USING btree (practice_id, id);
+
+
+--
+-- Name: scribe_recordings_scope; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX scribe_recordings_scope ON public.clinic_scribe_recordings USING btree (practice_id, encounter_id, id);
 
 
 --
@@ -15667,6 +15982,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
 
 
 --
+-- Name: clinic_scribe_encounters fk_rails_22a1977aad; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_encounters
+    ADD CONSTRAINT fk_rails_22a1977aad FOREIGN KEY (context_authored_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_pharmacy_batch_events fk_rails_22ef15e821; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16595,6 +16918,14 @@ ALTER TABLE ONLY public.clinic_inventory_entries
 
 
 --
+-- Name: clinic_scribe_documents fk_rails_b8e12be982; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT fk_rails_b8e12be982 FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_inventory_count_approvals fk_rails_b8e7132e3c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16819,6 +17150,14 @@ ALTER TABLE ONLY public.clinic_inventory_count_approvals
 
 
 --
+-- Name: clinic_scribe_recordings fk_rails_e6b7ab814d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT fk_rails_e6b7ab814d FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_notes fk_rails_e6def732a1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16904,6 +17243,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_batches
 
 ALTER TABLE ONLY public.clinic_inventory_supplier_invoices
     ADD CONSTRAINT fk_rails_f43abf3317 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_scribe_recording_chunks fk_rails_f490485c3d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recording_chunks
+    ADD CONSTRAINT fk_rails_f490485c3d FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -17067,6 +17414,30 @@ ALTER TABLE ONLY public.clinic_rooms
 
 
 --
+-- Name: clinic_scribe_documents fk_scribe_documents_current_draft; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT fk_scribe_documents_current_draft FOREIGN KEY (practice_id, id, current_draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, document_id, id);
+
+
+--
+-- Name: clinic_scribe_documents fk_scribe_documents_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT fk_scribe_documents_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_drafts fk_scribe_drafts_document; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_drafts
+    ADD CONSTRAINT fk_scribe_drafts_document FOREIGN KEY (practice_id, encounter_id, document_id) REFERENCES public.clinic_scribe_documents(practice_id, encounter_id, id);
+
+
+--
 -- Name: clinic_scribe_drafts fk_scribe_drafts_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17120,6 +17491,22 @@ ALTER TABLE ONLY public.clinic_scribe_events
 
 ALTER TABLE ONLY public.clinic_scribe_exports
     ADD CONSTRAINT fk_scribe_exports_draft FOREIGN KEY (practice_id, draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_recording_chunks fk_scribe_recording_chunks_recording; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recording_chunks
+    ADD CONSTRAINT fk_scribe_recording_chunks_recording FOREIGN KEY (practice_id, recording_id) REFERENCES public.clinic_scribe_recordings(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_recordings fk_scribe_recordings_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT fk_scribe_recordings_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
 
 
 --
@@ -19519,11 +19906,27 @@ ALTER TABLE ONLY public.clinic_workforce_availability_versions
 
 
 --
+-- Name: clinic_scribe_documents fk_rails_61db680528; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT fk_rails_61db680528 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_workforce_settings_versions fk_rails_6fa8693b57; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_workforce_settings_versions
     ADD CONSTRAINT fk_rails_6fa8693b57 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_recordings fk_rails_7033134891; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT fk_rails_7033134891 FOREIGN KEY (created_by_id) REFERENCES public.users(id);
 
 
 --
@@ -19952,6 +20355,9 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906001720'),
+('20260906001710'),
+('20260906001700'),
 ('20260906001500'),
 ('20260906001400'),
 ('20260906001300'),

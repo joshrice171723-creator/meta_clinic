@@ -2,15 +2,22 @@ module Clinic
   module Scribe
     class Retention
       def self.scrub!(encounter)
+        RecordingCapture.scrub_for_encounter!(encounter)
         encounter.sources.find_each do |source|
-          source.update_columns(content: "deleted", status: "deleted", deleted_at: Time.current, updated_at: Time.current)
-          source.segments.update_all(content: "deleted", status: "deleted") if SourceSegment.column_names.include?("status")
-          source.segments.update_all(content: "deleted", updated_at: Time.current)
+          source.segments.find_each do |segment|
+            segment.update!(content: "deleted", status: "deleted")
+          end
+          source.update!(content: "deleted", status: "deleted", deleted_at: Time.current)
         end
         encounter.drafts.find_each do |draft|
-          draft.sections.update_all(generated_content: "deleted", human_content: nil, status: "rejected", warning_codes: ["deleted"], updated_at: Time.current)
-          draft.update_columns(status: "deleted", deleted_at: Time.current, updated_at: Time.current)
+          draft.sections.find_each do |section|
+            section.update!(generated_content: "deleted", human_content: nil, status: "rejected", warning_codes: ["deleted"])
+          end
+          draft.update!(status: "deleted", deleted_at: Time.current)
         end
+        encounter.documents.find_each { |document| document.update!(status: "deleted", current_draft: nil) }
+        encounter.update!(context_content: nil, context_digest: nil, context_source_type: nil,
+          context_authored_by: nil, context_updated_at: Time.current)
       end
     end
   end
