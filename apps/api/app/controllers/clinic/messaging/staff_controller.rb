@@ -6,7 +6,7 @@ module Clinic
       before_action -> { require_capability("staff_messaging.create_conversation", any_site: true) }, only: :create_conversation
       before_action -> { require_capability("staff_messaging.acknowledge", any_site: true) }, only: :acknowledge
       before_action -> { require_capability("staff_messaging.transition", any_site: true) }, only: :transition
-      before_action -> { require_capability("staff_messaging.escalate", any_site: true) }, only: :escalate
+      before_action -> { require_capability("staff_messaging.escalate", any_site: true) }, only: %i[escalate recover]
       before_action -> { require_capability("staff_messaging.attach", any_site: true) }, only: %i[presign_attachment complete_attachment download_attachment]
 
       def index
@@ -20,6 +20,16 @@ module Clinic
         paginate(conversations.includes(members: { membership: :user }), key: :conversations,
           serializer: ->(conversation) { StaffMessagingSerializer.conversation(conversation, actor_membership_id: member.id) },
           order: { last_message_at: :desc, id: :desc })
+      end
+
+      def recover
+        conversation = StaffPolicy.conversation_for!(practice: current_practice, actor: current_user,
+          id: requested_id!(params[:id], :id), action: "staff_messaging.escalate")
+        input = parameter_hash!(:recovery, %i[target_membership_id])
+        render json: RecoverJob.perform_now(
+          practice_id: current_practice.id, actor_id: current_user.id, conversation_id: conversation.id,
+          target_membership_id: optional_id(input[:target_membership_id], :target_membership_id)
+        )
       end
 
       def participants

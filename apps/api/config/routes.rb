@@ -174,6 +174,7 @@ Rails.application.routes.draw do
       get "conversations/:id", to: "messaging/staff#show"
       post "conversations/:id/messages", to: "messaging/staff#create_message"
       post "conversations/:id/read", to: "messaging/staff#mark_read"
+      post "conversations/:id/recover", to: "messaging/staff#recover"
       get "participants", to: "messaging/staff#participants"
       get "notifications", to: "messaging/staff#notifications"
       post "notifications/:id/read", to: "messaging/staff#read_notification"
