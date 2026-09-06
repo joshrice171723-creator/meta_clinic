@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict LLdRfxwJwCGylHGgJcbLRaIwazOovqohyQyZLhqmd1472AYNSGsDz05dcFGWtyb
+\restrict bFeyjp1uyqnmoRaML7gHArw3CNvODxWuh0N4dP5fZUjS3vRVQ0Z1yuARFPB3EVr
 
 -- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
 -- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
@@ -31,6 +31,35 @@ CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
 --
 
 COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
+
+
+--
+-- Name: clinic_invoice_line_editable_draft(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_invoice_line_editable_draft() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+  DECLARE
+    old_status text;
+    new_status text;
+  BEGIN
+    SELECT status INTO old_status FROM clinic_invoices WHERE id = OLD.invoice_id;
+    IF old_status IS DISTINCT FROM 'draft' THEN
+      RAISE EXCEPTION 'This record is append-only';
+    END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+      SELECT status INTO new_status FROM clinic_invoices WHERE id = NEW.invoice_id;
+      IF OLD.invoice_id IS DISTINCT FROM NEW.invoice_id OR new_status IS DISTINCT FROM 'draft' THEN
+        RAISE EXCEPTION 'This record is append-only';
+      END IF;
+      RETURN NEW;
+    END IF;
+
+    RETURN OLD;
+  END;
+  $$;
 
 
 --
@@ -93,33 +122,6 @@ $$;
 
 
 --
--- Name: clinic_invoice_line_editable_draft(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.clinic_invoice_line_editable_draft() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-  old_status text;
-  new_status text;
-BEGIN
-  SELECT status INTO old_status FROM clinic_invoices WHERE id = OLD.invoice_id;
-  IF old_status IS DISTINCT FROM 'draft' THEN
-    RAISE EXCEPTION 'This record is append-only';
-  END IF;
-  IF TG_OP = 'UPDATE' THEN
-    SELECT status INTO new_status FROM clinic_invoices WHERE id = NEW.invoice_id;
-    IF OLD.invoice_id IS DISTINCT FROM NEW.invoice_id OR new_status IS DISTINCT FROM 'draft' THEN
-      RAISE EXCEPTION 'This record is append-only';
-    END IF;
-    RETURN NEW;
-  END IF;
-  RETURN OLD;
-END;
-$$;
-
-
---
 -- Name: erd_preserve_identity(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -162,7 +164,7 @@ BEGIN
     RAISE EXCEPTION 'Inventory action not permitted';
   END IF;
   SELECT * INTO configuration FROM clinic_inventory_profiles WHERE practice_id = clinic ORDER BY version DESC LIMIT 1;
-  IF action <> 'configure' AND (configuration.id IS NULL OR configuration.status <> 'synthetic' OR NOT ('inventory' = ANY(configuration.capabilities)) OR (profile IS NOT NULL AND profile <> configuration.id)) THEN
+  IF action <> 'configure' AND (configuration.id IS NULL OR configuration.status NOT IN ('configured','synthetic') OR NOT ('inventory' = ANY(configuration.capabilities)) OR (profile IS NOT NULL AND profile <> configuration.id)) THEN
     RAISE EXCEPTION 'Inventory profile is unavailable or stale';
   END IF;
   RETURN configuration.id;
@@ -1792,6 +1794,12 @@ CREATE TABLE public.clinic_inventory_locations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     kind character varying,
+    address_line1 character varying,
+    address_line2 character varying,
+    city character varying,
+    state character varying,
+    postal_code character varying,
+    country character varying DEFAULT 'US'::character varying NOT NULL,
     CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY ((ARRAY['storage'::character varying, 'quarantine'::character varying, 'returns'::character varying, 'controlled'::character varying])::text[])))
 );
 
@@ -1866,7 +1874,7 @@ CREATE TABLE public.clinic_inventory_profiles (
     reason character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_profile_scope CHECK (((version > 0) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('synthetic'::character varying)::text, ('suspended'::character varying)::text, ('retired'::character varying)::text])) AND (capabilities <@ ARRAY['inventory'::character varying])))
+    CONSTRAINT inventory_profile_scope CHECK (((version > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'configured'::character varying, 'synthetic'::character varying, 'suspended'::character varying, 'retired'::character varying])::text[])) AND (capabilities <@ ARRAY['inventory'::character varying])))
 );
 
 
@@ -1887,6 +1895,92 @@ CREATE SEQUENCE public.clinic_inventory_profiles_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_profiles_id_seq OWNED BY public.clinic_inventory_profiles.id;
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_purchase_cart_items (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    cart_id bigint NOT NULL,
+    product_id bigint NOT NULL,
+    requested_packages numeric(20,6) CONSTRAINT clinic_inventory_purchase_cart_item_requested_packages_not_null NOT NULL,
+    input_unit character varying NOT NULL,
+    selected_currency character varying NOT NULL,
+    source character varying NOT NULL,
+    status character varying NOT NULL,
+    conversion_factor numeric(20,6) NOT NULL,
+    selected_unit_price numeric(20,6) CONSTRAINT clinic_inventory_purchase_cart_ite_selected_unit_price_not_null NOT NULL,
+    selected_package_quantity numeric(20,6) CONSTRAINT clinic_inventory_purchase_ca_selected_package_quantity_not_null NOT NULL,
+    selected_supplier_product_id bigint,
+    selected_supplier_id bigint,
+    price_snapshot_at timestamp(6) without time zone,
+    price_snapshot_digest character varying,
+    purchase_order_line_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_purchase_cart_item_values CHECK (((requested_packages > (0)::numeric) AND (conversion_factor > (0)::numeric) AND (selected_unit_price >= (0)::numeric) AND (selected_package_quantity > (0)::numeric) AND ((length(TRIM(BOTH FROM input_unit)) >= 1) AND (length(TRIM(BOTH FROM input_unit)) <= 40)) AND (length(TRIM(BOTH FROM selected_currency)) = 3) AND ((source)::text = ANY ((ARRAY['replenishment'::character varying, 'manual'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'checked_out'::character varying, 'removed'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_purchase_cart_items_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_purchase_cart_items_id_seq OWNED BY public.clinic_inventory_purchase_cart_items.id;
+
+
+--
+-- Name: clinic_inventory_purchase_carts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_purchase_carts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    destination_site_id bigint,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    reason character varying,
+    request_key character varying,
+    checkout_group_id character varying,
+    version integer DEFAULT 1 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_purchase_cart_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'checking_out'::character varying, 'checked_out'::character varying, 'abandoned'::character varying])::text[])) AND (version > 0) AND ((reason IS NULL) OR ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)))))
+);
+
+
+--
+-- Name: clinic_inventory_purchase_carts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_purchase_carts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_purchase_carts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_purchase_carts_id_seq OWNED BY public.clinic_inventory_purchase_carts.id;
 
 
 --
@@ -1946,6 +2040,12 @@ CREATE TABLE public.clinic_inventory_purchase_order_lines (
     currency character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    cart_item_id bigint,
+    supplier_product_id bigint,
+    supplier_sku character varying,
+    ordered_package_quantity numeric(20,6),
+    price_snapshot_at timestamp(6) without time zone,
+    price_snapshot_digest character varying,
     CONSTRAINT inventory_purchase_order_line_values CHECK (((ordered_quantity > (0)::numeric) AND ((received_quantity >= (0)::numeric) AND (received_quantity <= ordered_quantity)) AND (conversion_factor > (0)::numeric) AND (unit_price >= (0)::numeric) AND ((length(TRIM(BOTH FROM product_name)) >= 1) AND (length(TRIM(BOTH FROM product_name)) <= 160)) AND ((length(TRIM(BOTH FROM stock_unit)) >= 1) AND (length(TRIM(BOTH FROM stock_unit)) <= 20)) AND ((length(TRIM(BOTH FROM input_unit)) >= 1) AND (length(TRIM(BOTH FROM input_unit)) <= 20))))
 );
 
@@ -1993,6 +2093,10 @@ CREATE TABLE public.clinic_inventory_purchase_orders (
     updated_at timestamp(6) without time zone NOT NULL,
     destination_address text,
     receiving_site_id bigint,
+    purchase_cart_id bigint,
+    checkout_group_id character varying,
+    source_kind character varying,
+    currency character varying,
     CONSTRAINT inventory_purchase_order_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'approved'::character varying, 'rejected'::character varying, 'sent'::character varying, 'partially_received'::character varying, 'complete'::character varying, 'cancelled'::character varying])::text[])) AND (version > 0) AND (subtotal >= (0)::numeric) AND (tax >= (0)::numeric) AND (shipping >= (0)::numeric) AND (total >= (0)::numeric) AND ((length(TRIM(BOTH FROM number)) >= 1) AND (length(TRIM(BOTH FROM number)) <= 80)) AND ((length(TRIM(BOTH FROM destination)) >= 1) AND (length(TRIM(BOTH FROM destination)) <= 120)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
 );
 
@@ -2298,6 +2402,52 @@ CREATE SEQUENCE public.clinic_inventory_shipments_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_shipments_id_seq OWNED BY public.clinic_inventory_shipments.id;
+
+
+--
+-- Name: clinic_inventory_supplier_products; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_supplier_products (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    supplier_id bigint NOT NULL,
+    product_id bigint,
+    ndc character varying NOT NULL,
+    supplier_sku character varying NOT NULL,
+    description character varying NOT NULL,
+    ordering_unit character varying NOT NULL,
+    currency character varying NOT NULL,
+    contract_status character varying NOT NULL,
+    package_quantity numeric(20,6) NOT NULL,
+    wholesale_unit_cost numeric(20,6) NOT NULL,
+    available boolean,
+    lead_time_days integer,
+    effective_date date,
+    imported_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_supplier_product_values CHECK (((length(TRIM(BOTH FROM ndc)) = 11) AND ((ndc)::text ~ '^[0-9]{11}$'::text) AND ((length(TRIM(BOTH FROM supplier_sku)) >= 1) AND (length(TRIM(BOTH FROM supplier_sku)) <= 120)) AND ((length(TRIM(BOTH FROM description)) >= 1) AND (length(TRIM(BOTH FROM description)) <= 400)) AND ((length(TRIM(BOTH FROM ordering_unit)) >= 1) AND (length(TRIM(BOTH FROM ordering_unit)) <= 40)) AND (length(TRIM(BOTH FROM currency)) = 3) AND (package_quantity > (0)::numeric) AND (wholesale_unit_cost >= (0)::numeric) AND (wholesale_unit_cost = round(wholesale_unit_cost, 6)) AND ((lead_time_days IS NULL) OR ((lead_time_days >= 0) AND (lead_time_days <= 3650))) AND ((length(TRIM(BOTH FROM contract_status)) >= 1) AND (length(TRIM(BOTH FROM contract_status)) <= 40))))
+);
+
+
+--
+-- Name: clinic_inventory_supplier_products_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_supplier_products_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_supplier_products_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_supplier_products_id_seq OWNED BY public.clinic_inventory_supplier_products.id;
 
 
 --
@@ -3938,11 +4088,15 @@ CREATE TABLE public.clinic_pharmacy_products (
     package_size numeric DEFAULT 1.0 NOT NULL,
     unit_reference character varying,
     dea_schedule character varying,
+    category character varying DEFAULT 'medication'::character varying NOT NULL,
+    device_identifier character varying,
+    preferred_supplier_id bigint,
     CONSTRAINT inventory_package_unit CHECK ((((stock_unit)::text <> 'package'::text) OR (package_size = (1)::numeric))),
     CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY (ARRAY[('mL'::character varying)::text, ('g'::character varying)::text])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT inventory_unit_evidence CHECK (((package_size = (1)::numeric) OR ((unit_reference IS NOT NULL) AND (length(TRIM(BOTH FROM unit_reference)) > 0)))),
+    CONSTRAINT pharmacy_product_category CHECK (((category)::text = ANY ((ARRAY['medication'::character varying, 'clinical_supply'::character varying, 'lab_supply'::character varying, 'office_supply'::character varying, 'cleaning_supply'::character varying, 'equipment'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT pharmacy_product_dea_schedule CHECK (((dea_schedule IS NULL) OR ((dea_schedule)::text = ANY ((ARRAY['II'::character varying, 'III'::character varying, 'IV'::character varying, 'V'::character varying])::text[])))),
-    CONSTRAINT pharmacy_product_source CHECK (((source)::text = ANY (ARRAY[('manual'::character varying)::text, ('openfda'::character varying)::text, ('synthetic'::character varying)::text]))),
+    CONSTRAINT pharmacy_product_source CHECK (((source)::text = ANY ((ARRAY['manual'::character varying, 'openfda'::character varying, 'gudid'::character varying, 'synthetic'::character varying])::text[]))),
     CONSTRAINT pharmacy_reorder_range CHECK (((reorder_point >= 0) AND (reorder_point <= 1000000)))
 );
 
@@ -6027,6 +6181,20 @@ ALTER TABLE ONLY public.clinic_inventory_profiles ALTER COLUMN id SET DEFAULT ne
 
 
 --
+-- Name: clinic_inventory_purchase_cart_items id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_purchase_cart_items_id_seq'::regclass);
+
+
+--
+-- Name: clinic_inventory_purchase_carts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_carts ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_purchase_carts_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_purchase_order_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -6094,6 +6262,13 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_lines ALTER COLUMN id SET DEFA
 --
 
 ALTER TABLE ONLY public.clinic_inventory_shipments ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_shipments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_inventory_supplier_products id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_products ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_supplier_products_id_seq'::regclass);
 
 
 --
@@ -7032,6 +7207,22 @@ ALTER TABLE ONLY public.clinic_inventory_profiles
 
 
 --
+-- Name: clinic_inventory_purchase_cart_items clinic_inventory_purchase_cart_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT clinic_inventory_purchase_cart_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_purchase_carts clinic_inventory_purchase_carts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_carts
+    ADD CONSTRAINT clinic_inventory_purchase_carts_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_inventory_purchase_order_events clinic_inventory_purchase_order_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7109,6 +7300,14 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_lines
 
 ALTER TABLE ONLY public.clinic_inventory_shipments
     ADD CONSTRAINT clinic_inventory_shipments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_supplier_products clinic_inventory_supplier_products_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_products
+    ADD CONSTRAINT clinic_inventory_supplier_products_pkey PRIMARY KEY (id);
 
 
 --
@@ -9148,10 +9347,24 @@ CREATE INDEX idx_on_practice_id_booked_clinician_id_starts_at_9122dfc127 ON publ
 
 
 --
+-- Name: idx_on_practice_id_checkout_group_id_4eb1f0798f; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_checkout_group_id_4eb1f0798f ON public.clinic_inventory_purchase_orders USING btree (practice_id, checkout_group_id);
+
+
+--
 -- Name: idx_on_practice_id_clinician_profile_id_credential__de8ec8ea47; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_on_practice_id_clinician_profile_id_credential__de8ec8ea47 ON public.clinic_clinician_credentials USING btree (practice_id, clinician_profile_id, credential_type);
+
+
+--
+-- Name: idx_on_practice_id_device_identifier_90837c49a5; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_device_identifier_90837c49a5 ON public.clinic_pharmacy_products USING btree (practice_id, device_identifier);
 
 
 --
@@ -9201,6 +9414,13 @@ CREATE UNIQUE INDEX idx_on_practice_id_id_40231966ed ON public.clinic_inventory_
 --
 
 CREATE UNIQUE INDEX idx_on_practice_id_id_7365d3f122 ON public.clinic_inventory_purchase_order_lines USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_id_8c7258c8f9; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_8c7258c8f9 ON public.clinic_inventory_purchase_cart_items USING btree (practice_id, id);
 
 
 --
@@ -9278,6 +9498,20 @@ CREATE INDEX idx_on_practice_id_payment_collection_intent_id_187a194e26 ON publi
 --
 
 CREATE INDEX idx_on_practice_id_payment_event_id_59b16d70c4 ON public.clinic_payment_allocations USING btree (practice_id, payment_event_id);
+
+
+--
+-- Name: idx_on_practice_id_preferred_supplier_id_3c4636d552; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_preferred_supplier_id_3c4636d552 ON public.clinic_pharmacy_products USING btree (practice_id, preferred_supplier_id);
+
+
+--
+-- Name: idx_on_practice_id_product_id_d3fe7f24e8; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_product_id_d3fe7f24e8 ON public.clinic_inventory_supplier_products USING btree (practice_id, product_id);
 
 
 --
@@ -9624,6 +9858,13 @@ CREATE UNIQUE INDEX index_clinic_inventory_profiles_on_practice_id_and_version O
 
 
 --
+-- Name: index_clinic_inventory_purchase_carts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_inventory_purchase_carts_on_practice_id_and_id ON public.clinic_inventory_purchase_carts USING btree (practice_id, id);
+
+
+--
 -- Name: index_clinic_inventory_purchase_orders_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9670,6 +9911,13 @@ CREATE UNIQUE INDEX index_clinic_inventory_receipts_on_practice_id_and_id ON pub
 --
 
 CREATE UNIQUE INDEX index_clinic_inventory_shipments_on_practice_id_and_id ON public.clinic_inventory_shipments USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_inventory_supplier_products_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_inventory_supplier_products_on_practice_id_and_id ON public.clinic_inventory_supplier_products USING btree (practice_id, id);
 
 
 --
@@ -10170,6 +10418,34 @@ CREATE UNIQUE INDEX inventory_position_identity ON public.clinic_pharmacy_batche
 
 
 --
+-- Name: inventory_purchase_cart_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_purchase_cart_active ON public.clinic_inventory_purchase_carts USING btree (practice_id, actor_id) WHERE ((status)::text = 'draft'::text);
+
+
+--
+-- Name: inventory_purchase_cart_checkout_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_purchase_cart_checkout_group ON public.clinic_inventory_purchase_carts USING btree (practice_id, checkout_group_id) WHERE (checkout_group_id IS NOT NULL);
+
+
+--
+-- Name: inventory_purchase_cart_item_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_purchase_cart_item_identity ON public.clinic_inventory_purchase_cart_items USING btree (practice_id, cart_id, product_id);
+
+
+--
+-- Name: inventory_purchase_cart_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_purchase_cart_retry ON public.clinic_inventory_purchase_carts USING btree (practice_id, request_key) WHERE (request_key IS NOT NULL);
+
+
+--
 -- Name: inventory_purchase_order_event_retry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10181,6 +10457,13 @@ CREATE UNIQUE INDEX inventory_purchase_order_event_retry ON public.clinic_invent
 --
 
 CREATE UNIQUE INDEX inventory_purchase_order_identity ON public.clinic_inventory_purchase_orders USING btree (practice_id, number);
+
+
+--
+-- Name: inventory_purchase_order_line_cart_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_purchase_order_line_cart_item ON public.clinic_inventory_purchase_order_lines USING btree (practice_id, cart_item_id) WHERE (cart_item_id IS NOT NULL);
 
 
 --
@@ -10265,6 +10548,13 @@ CREATE UNIQUE INDEX inventory_shipment_line_identity ON public.clinic_inventory_
 --
 
 CREATE UNIQUE INDEX inventory_shipment_retry ON public.clinic_inventory_shipments USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_supplier_product_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_supplier_product_identity ON public.clinic_inventory_supplier_products USING btree (practice_id, supplier_id, ndc, supplier_sku);
 
 
 --
@@ -12614,6 +12904,14 @@ ALTER TABLE ONLY public.clinic_payment_processor_events
 
 
 --
+-- Name: clinic_pharmacy_products fk_pharmacy_products_preferred_supplier; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_pharmacy_products
+    ADD CONSTRAINT fk_pharmacy_products_preferred_supplier FOREIGN KEY (practice_id, preferred_supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
+
+
+--
 -- Name: clinic_practices fk_practices_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12659,6 +12957,14 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 ALTER TABLE ONLY public.clinic_scribe_draft_sections
     ADD CONSTRAINT fk_rails_0401b6e372 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_purchase_carts fk_rails_04945c9aa9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_carts
+    ADD CONSTRAINT fk_rails_04945c9aa9 FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
 
 
 --
@@ -12779,6 +13085,14 @@ ALTER TABLE ONLY public.clinic_patient_reminder_outbox
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
     ADD CONSTRAINT fk_rails_1dcd7a8add FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items fk_rails_22304a7fa5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT fk_rails_22304a7fa5 FOREIGN KEY (practice_id, cart_id) REFERENCES public.clinic_inventory_purchase_carts(practice_id, id);
 
 
 --
@@ -12958,6 +13272,14 @@ ALTER TABLE ONLY public.clinic_inventory_holds
 
 
 --
+-- Name: clinic_inventory_purchase_cart_items fk_rails_38d27f8544; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT fk_rails_38d27f8544 FOREIGN KEY (practice_id, selected_supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
+
+
+--
 -- Name: clinic_communication_endpoints fk_rails_38fc29fa5f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12971,6 +13293,14 @@ ALTER TABLE ONLY public.clinic_communication_endpoints
 
 ALTER TABLE ONLY public.clinic_inventory_transfers
     ADD CONSTRAINT fk_rails_3979f721e6 FOREIGN KEY (practice_id, source_batch_id) REFERENCES public.clinic_pharmacy_batches(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_purchase_carts fk_rails_39f6908f25; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_carts
+    ADD CONSTRAINT fk_rails_39f6908f25 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -12995,6 +13325,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_movements
 
 ALTER TABLE ONLY public.clinic_inventory_hold_releases
     ADD CONSTRAINT fk_rails_3cb4861c1b FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_supplier_products fk_rails_3cee723161; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_products
+    ADD CONSTRAINT fk_rails_3cee723161 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -13070,6 +13408,14 @@ ALTER TABLE ONLY public.clinic_cash_drawer_sessions
 
 
 --
+-- Name: clinic_inventory_purchase_order_lines fk_rails_5a2f2d239a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
+    ADD CONSTRAINT fk_rails_5a2f2d239a FOREIGN KEY (practice_id, supplier_product_id) REFERENCES public.clinic_inventory_supplier_products(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_recalls fk_rails_5c3a4539ae; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13115,6 +13461,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
 
 ALTER TABLE ONLY public.clinic_scribe_drafts
     ADD CONSTRAINT fk_rails_62b14c25ce FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items fk_rails_62d7a23a8c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT fk_rails_62d7a23a8c FOREIGN KEY (practice_id, purchase_order_line_id) REFERENCES public.clinic_inventory_purchase_order_lines(practice_id, id);
 
 
 --
@@ -13254,11 +13608,27 @@ ALTER TABLE ONLY public.clinic_inventory_transfers
 
 
 --
+-- Name: clinic_inventory_purchase_carts fk_rails_7afadccbc9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_carts
+    ADD CONSTRAINT fk_rails_7afadccbc9 FOREIGN KEY (destination_site_id) REFERENCES public.clinic_sites(id);
+
+
+--
 -- Name: clinic_inventory_counts fk_rails_7c1445f2e5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_counts
     ADD CONSTRAINT fk_rails_7c1445f2e5 FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_supplier_products fk_rails_7c70ba7382; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_products
+    ADD CONSTRAINT fk_rails_7c70ba7382 FOREIGN KEY (practice_id, supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
 
 
 --
@@ -13334,6 +13704,14 @@ ALTER TABLE ONLY public.clinic_patients
 
 
 --
+-- Name: clinic_inventory_purchase_cart_items fk_rails_9a2eaa91d6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT fk_rails_9a2eaa91d6 FOREIGN KEY (practice_id, product_id) REFERENCES public.clinic_pharmacy_products(practice_id, id);
+
+
+--
 -- Name: member_sessions fk_rails_9aa185dc67; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13347,6 +13725,14 @@ ALTER TABLE ONLY public.member_sessions
 
 ALTER TABLE ONLY public.clinic_inventory_transfers
     ADD CONSTRAINT fk_rails_9c2299c2ca FOREIGN KEY (practice_id, destination_batch_id) REFERENCES public.clinic_pharmacy_batches(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items fk_rails_9c8cf6563b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT fk_rails_9c8cf6563b FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -13411,6 +13797,22 @@ ALTER TABLE ONLY public.clinic_inventory_control_reviews
 
 ALTER TABLE ONLY public.clinic_staff_members
     ADD CONSTRAINT fk_rails_a6a2cb8cfb FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_supplier_products fk_rails_a7897acf61; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_products
+    ADD CONSTRAINT fk_rails_a7897acf61 FOREIGN KEY (practice_id, product_id) REFERENCES public.clinic_pharmacy_products(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_purchase_cart_items fk_rails_ab1336f6d5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
+    ADD CONSTRAINT fk_rails_ab1336f6d5 FOREIGN KEY (practice_id, selected_supplier_product_id) REFERENCES public.clinic_inventory_supplier_products(practice_id, id);
 
 
 --
@@ -13598,6 +14000,14 @@ ALTER TABLE ONLY public.clinic_subscription_agreements
 
 
 --
+-- Name: clinic_inventory_purchase_orders fk_rails_d9e8cb8ec2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_orders
+    ADD CONSTRAINT fk_rails_d9e8cb8ec2 FOREIGN KEY (practice_id, purchase_cart_id) REFERENCES public.clinic_inventory_purchase_carts(practice_id, id);
+
+
+--
 -- Name: clinic_memberships fk_rails_dad9512d92; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13715,6 +14125,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
 
 ALTER TABLE ONLY public.clinic_inventory_entries
     ADD CONSTRAINT fk_rails_f24eebfb52 FOREIGN KEY (recall_disposition_id) REFERENCES public.clinic_inventory_recall_dispositions(id);
+
+
+--
+-- Name: clinic_inventory_purchase_order_lines fk_rails_f2d2576329; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
+    ADD CONSTRAINT fk_rails_f2d2576329 FOREIGN KEY (practice_id, cart_item_id) REFERENCES public.clinic_inventory_purchase_cart_items(practice_id, id);
 
 
 --
@@ -14641,9 +15059,7 @@ ALTER TABLE ONLY public.clinic_stripe_checkouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LLdRfxwJwCGylHGgJcbLRaIwazOovqohyQyZLhqmd1472AYNSGsDz05dcFGWtyb
-
-SET search_path TO "$user", public;
+\unrestrict bFeyjp1uyqnmoRaML7gHArw3CNvODxWuh0N4dP5fZUjS3vRVQ0Z1yuARFPB3EVr
 
 INSERT INTO "schema_migrations" (version) VALUES
 ('20260906000400'),
@@ -14651,6 +15067,14 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260906000200'),
 ('20260906000100'),
 ('20260905000300'),
+('20260905000200'),
+('20260905000100'),
+('20260904000600'),
+('20260904000500'),
+('20260904000400'),
+('20260904000300'),
+('20260904000200'),
+('20260904000100'),
 ('20260903001400'),
 ('20260903001300'),
 ('20260903001230'),

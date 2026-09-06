@@ -112,6 +112,16 @@
   font-size: 12px;
   margin: 0 0 14px;
 }
+.inventory-back-link {
+  width: fit-content;
+  color: var(--inventory-blue);
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.inventory-back-link:hover {
+  text-decoration: underline;
+}
 .inventory-stack {
   display: grid;
   gap: 18px;
