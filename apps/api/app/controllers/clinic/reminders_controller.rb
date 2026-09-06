@@ -61,10 +61,12 @@ module Clinic
 
     def record_delivery
       reminder = reminder_record
-      input = parameter_hash!(:delivery, %i[provider_event_reference outcome])
+      input = parameter_hash!(:delivery, %i[provider_event_reference outcome delivery_attempt_id request_key])
       attempt = Clinic::Reminders::RecordDelivery.call(reminder: reminder, actor: current_user,
         provider_event_reference: required_string!(input[:provider_event_reference], field: :provider_event_reference, maximum: 120),
-        outcome: enum_param!(input[:outcome], field: :outcome, allowed: Clinic::Reminders::RecordDelivery::OUTCOMES))
+        outcome: enum_param!(input[:outcome], field: :outcome, allowed: Clinic::Reminders::RecordDelivery::OUTCOMES),
+        delivery_attempt_id: input[:delivery_attempt_id].present? ? requested_id!(input[:delivery_attempt_id], :delivery_attempt_id) : nil,
+        request_key: optional_string(input[:request_key], field: :request_key, maximum: 160))
       render json: { delivery_attempt: { id: attempt.id, reminder_id: reminder.id, status: attempt.status } }
     end
 
