@@ -719,6 +719,133 @@ export type InventoryRecallData = InventoryReadContext & {
   };
 };
 
+export type InventoryCountRead = {
+  q?: string;
+  count_status?: "open" | "overdue" | "all" | "completed" | "cancelled";
+  page?: number;
+  session_id?: string;
+  line_page?: number;
+  history_page?: number;
+};
+export type InventoryCountSession = {
+  id: string;
+  location_id: string;
+  location_path: string;
+  assignee_id: string;
+  assignee_name: string;
+  due_on: string;
+  blind: boolean;
+  status: "open" | "completed" | "cancelled";
+  reason: string;
+  created_at: string;
+  line_count: number;
+  observed_count: number;
+  skipped_count: number;
+  reconciled_count: number;
+};
+export type InventoryCountLine = {
+  id: string;
+  batch_id: string;
+  product_id: string;
+  product_name: string;
+  stock_unit: string;
+  lot_number: string;
+  location_path: string;
+  expires_on: string;
+  skipped: boolean;
+  skip_reason: string | null;
+  expected_units: Decimal | null;
+  latest_count: {
+    id: string;
+    expected_units: Decimal;
+    counted_units: Decimal;
+    variance_units: Decimal;
+    actor_id: string;
+    created_at: string;
+    approved: boolean;
+    stale: boolean;
+    can_approve: boolean;
+  } | null;
+  reconciled: boolean;
+};
+export type InventoryCountEvent = {
+  id: string;
+  kind: string;
+  line_id: string | null;
+  actor_id: string;
+  reason: string;
+  created_at: string;
+  assignee_id: string | null;
+  count: {
+    id: string;
+    expected_units: Decimal;
+    counted_units: Decimal;
+    variance_units: Decimal;
+  } | null;
+};
+export type InventoryCountData = InventoryReadContext & {
+  count_page: {
+    query: string;
+    status: NonNullable<InventoryCountRead["count_status"]>;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+    selected_id: string | null;
+  };
+  sessions: InventoryCountSession[];
+  selected_session: InventoryCountSession | null;
+  lines: InventoryCountLine[];
+  line_page: {
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+  };
+  events: InventoryCountEvent[];
+  history_page: {
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+  };
+  locations: { id: string; path: string }[];
+  assignees: { id: string; name: string }[];
+};
+
+export type InventoryControlledRead = {
+  q?: string;
+  control_status?: "all" | "pending" | "certified";
+  page?: number;
+};
+export type InventoryControlledData = InventoryReadContext & {
+  controlled_page: {
+    query: string;
+    status: NonNullable<InventoryControlledRead["control_status"]>;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+  };
+  products: Pick<
+    InventoryProduct,
+    "id" | "name" | "ndc" | "base_unit" | "schedule"
+  >[];
+  lots: Pick<
+    InventoryLot,
+    "id" | "product_id" | "lot_number" | "expiration_date"
+  >[];
+  locations: Pick<InventoryLocation, "id" | "name">[];
+  controlled_reconciliations: (InventoryReconciliation & {
+    can_investigate: boolean;
+    can_certify: boolean;
+    stale: boolean;
+    approved: boolean;
+  })[];
+};
+
 export type InventoryStockData = InventoryReadContext &
   Pick<
     InventoryData,

@@ -113,7 +113,49 @@ module Clinic
         filters[:lot_query] = filters.delete(:lot_q)
         render json: { data: InventoryWire.recall_cases(practice: current_practice, actor: current_user, **filters) }
       end
-      def controlled = bootstrap
+      def controlled
+        return bootstrap unless params[:view] == "queue"
+        render json: { data: InventoryWire.controlled_counts(practice: current_practice, actor: current_user, query: params[:q], status: params[:control_status], page: params[:page]) }
+      end
+
+      def count_sessions
+        render json: { data: InventoryWire.count_sessions(practice: current_practice, actor: current_user,
+          query: params[:q], status: params[:count_status], page: params[:page], session_id: params[:session_id], line_page: params[:line_page], history_page: params[:history_page]) }
+      end
+
+      def create_count_session
+        input = params.require(:session).permit(:location_id, :assignee_id, :due_on, :blind, :reason, :request_key)
+        record = CountProgram.create!(practice: current_practice, actor: current_user, location_id: input.require(:location_id), assignee_id: input.require(:assignee_id),
+          due_on: input.require(:due_on), blind: boolean_or_default(input[:blind], field: :blind, default: true), reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: record.id.to_s }, status: :created
+      end
+
+      def observe_session_line
+        line = CountSessionLine.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:count).permit(:counted_units, :reason, :request_key)
+        record = CountProgram.observe!(line: line, actor: current_user, observed: input.require(:counted_units), reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: record.id.to_s }, status: :created
+      end
+
+      def skip_session_line
+        change_session_line(:skip!)
+      end
+
+      def resume_session_line
+        change_session_line(:resume!)
+      end
+
+      def reassign_count_session
+        change_count_session(:reassign!)
+      end
+
+      def complete_count_session
+        change_count_session(:complete!)
+      end
+
+      def cancel_count_session
+        change_count_session(:cancel!)
+      end
 
       def demo
         raise ArgumentError, "Synthetic inventory demo data is only available in the local development session." unless development_demo?
@@ -374,7 +416,7 @@ module Clinic
         request_key = params.require(:request_key).to_s
         validate_request_key!(request_key)
         count.approve!(actor: current_user, request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def create_recall
@@ -423,7 +465,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         ControlReview.investigate!(count: count, actor: current_user, reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def certify_control
@@ -432,10 +474,26 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         ControlReview.record!(count: count, actor: current_user, kind: "certification", reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       private
+
+      def change_session_line(operation)
+        line = CountSessionLine.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:event).permit(:reason, :request_key)
+        CountProgram.public_send(operation, line: line, actor: current_user, reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: line.id.to_s }
+      end
+
+      def change_count_session(operation)
+        session = CountSession.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:event).permit(:assignee_id, :reason, :request_key)
+        arguments = { session: session, actor: current_user, reason: input.require(:reason), request_key: input.require(:request_key) }
+        arguments[:assignee_id] = input.require(:assignee_id) if operation == :reassign!
+        CountProgram.public_send(operation, **arguments)
+        render json: { acknowledged: true, id: session.id.to_s }
+      end
 
       def location_attributes
         params.require(:location).permit(:name, :kind, :site_id, :parent_location_id, :status, :address_line1, :address_line2, :city, :state, :postal_code, :country).to_h

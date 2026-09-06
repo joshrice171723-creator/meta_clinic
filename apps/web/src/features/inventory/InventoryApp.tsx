@@ -31,6 +31,10 @@ import type {
   InventoryException,
   InventoryRecallData,
   InventoryRecallRead,
+  InventoryCountData,
+  InventoryCountRead,
+  InventoryControlledData,
+  InventoryControlledRead,
   InventoryStockData,
   InventoryStockRead,
   InventoryOrderData,
@@ -61,6 +65,8 @@ import {
   decimalSum,
 } from "./inventoryContracts";
 import { SupplierPricingScreen } from "./SupplierPricing";
+import { CycleCountsScreen } from "./CycleCountsScreen";
+import { ControlledScreen } from "./ControlledScreen";
 import "./inventory.css";
 
 type Screen =
@@ -78,6 +84,7 @@ type Screen =
   | "activity"
   | "exceptions"
   | "recalls"
+  | "counts"
   | "controlled";
 type Notice = {
   tone: "success" | "error";
@@ -192,6 +199,13 @@ const links: {
     group: "Exceptions",
   },
   {
+    screen: "counts",
+    href: "/clinic/inventory/counts",
+    label: "Cycle counts",
+    short: "Counts",
+    group: "Operate",
+  },
+  {
     screen: "controlled",
     href: "/clinic/inventory/controlled",
     label: "Controlled reconciliation",
@@ -234,6 +248,7 @@ const screenDescriptions: Record<Screen, string> = {
   activity: "Trace every stock movement to its source and operator.",
   exceptions: "Assign and review expiry, stock, hold, and delivery exceptions.",
   recalls: "Keep affected lots held until disposition is recorded.",
+  counts: "Run assigned blind counts and reconcile every frozen bin position.",
   controlled: "Resolve count variances with an independent reviewer.",
 };
 
@@ -286,6 +301,7 @@ function screenTitle(screen: Screen) {
       activity: "Movement ledger",
       exceptions: "Exception queue",
       recalls: "Recall case management",
+      counts: "Cycle counts",
       controlled: "Controlled reconciliation",
     } satisfies Record<Screen, string>
   )[screen];
@@ -2382,6 +2398,8 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryLocationData
     | InventoryExceptionData
     | InventoryRecallData
+    | InventoryCountData
+    | InventoryControlledData
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
@@ -2424,6 +2442,8 @@ export function InventoryApp({ path }: { path: string }) {
       "location_page" in data ||
       "exception_page" in data ||
       "recall_page" in data ||
+      "count_page" in data ||
+      "controlled_page" in data ||
       "stock_page" in data ||
       "order_page" in data ||
       "delivery_page" in data ||
@@ -2442,6 +2462,8 @@ export function InventoryApp({ path }: { path: string }) {
       InventoryLocationRead &
       InventoryExceptionRead &
       InventoryRecallRead &
+      InventoryCountRead &
+      InventoryControlledRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null },
@@ -2452,6 +2474,8 @@ export function InventoryApp({ path }: { path: string }) {
       InventoryLocationRead &
       InventoryExceptionRead &
       InventoryRecallRead &
+      InventoryCountRead &
+      InventoryControlledRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null } = {
@@ -2501,6 +2525,21 @@ export function InventoryApp({ path }: { path: string }) {
                       lot_page: data.lot_page.page,
                       product_id: data.lot_page.product_id ?? undefined,
                     }
+                : screen === "counts" && data && "count_page" in data
+                  ? {
+                      q: data.count_page.query,
+                      count_status: data.count_page.status,
+                      page: data.count_page.page,
+                      session_id: data.count_page.selected_id ?? undefined,
+                      line_page: data.line_page.page,
+                      history_page: data.history_page.page,
+                    }
+                : screen === "controlled" && data && "controlled_page" in data
+                  ? {
+                      q: data.controlled_page.query,
+                      control_status: data.controlled_page.status,
+                      page: data.controlled_page.page,
+                    }
               : screen === "supplier_pricing" && data && "supplier_page" in data
                 ? {
                     q: data.supplier_page.query,
@@ -2546,6 +2585,8 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "locations") query.set("view", "tree");
         if (screen === "exceptions") query.set("view", "queue");
         if (screen === "recalls") query.set("view", "cases");
+        if (screen === "counts") query.set("view", "program");
+        if (screen === "controlled") query.set("view", "queue");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         if (read.delivery_status)
           query.set("delivery_status", read.delivery_status);
@@ -2558,6 +2599,11 @@ export function InventoryApp({ path }: { path: string }) {
         if (read.category) query.set("category", read.category);
         if (read.recall_status) query.set("recall_status", read.recall_status);
         if (read.recall_id) query.set("recall_id", read.recall_id);
+        if (read.count_status) query.set("count_status", read.count_status);
+        if (read.session_id) query.set("session_id", read.session_id);
+        if (read.line_page) query.set("line_page", String(read.line_page));
+        if (read.control_status)
+          query.set("control_status", read.control_status);
         if (read.position_page)
           query.set("position_page", String(read.position_page));
         if (read.history_page)
@@ -2598,15 +2644,19 @@ export function InventoryApp({ path }: { path: string }) {
                     ? `/api/clinic/inventory/exceptions?${query}`
                     : screen === "recalls"
                       ? `/api/clinic/inventory/recalls?${query}`
-                      : screen === "purchasing"
-                    ? `/api/clinic/inventory/purchase-orders?${query}`
-                    : screen === "supplier_pricing"
-                      ? `/api/clinic/inventory/supplier-pricing?${query}`
-                      : screen === "receiving"
-                        ? `/api/clinic/inventory/receiving?${query}`
-                        : needsPurchaseOrderFacility
-                          ? `/api/clinic/inventory/replenishment?${query}`
-                          : "/api/clinic/inventory/bootstrap";
+                      : screen === "counts"
+                        ? `/api/clinic/inventory/count-sessions?${query}`
+                        : screen === "controlled"
+                          ? `/api/clinic/inventory/controlled?${query}`
+                          : screen === "purchasing"
+                            ? `/api/clinic/inventory/purchase-orders?${query}`
+                            : screen === "supplier_pricing"
+                              ? `/api/clinic/inventory/supplier-pricing?${query}`
+                              : screen === "receiving"
+                                ? `/api/clinic/inventory/receiving?${query}`
+                                : needsPurchaseOrderFacility
+                                  ? `/api/clinic/inventory/replenishment?${query}`
+                                  : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
@@ -2617,6 +2667,8 @@ export function InventoryApp({ path }: { path: string }) {
             | InventoryLocationData
             | InventoryExceptionData
             | InventoryRecallData
+            | InventoryCountData
+            | InventoryControlledData
             | InventoryStockData
             | InventoryOrderData
             | InventoryDeliveryData;
@@ -2630,6 +2682,8 @@ export function InventoryApp({ path }: { path: string }) {
           (screen === "locations") !== "location_page" in payload.data ||
           (screen === "exceptions") !== "exception_page" in payload.data ||
           (screen === "recalls") !== "recall_page" in payload.data ||
+          (screen === "counts") !== "count_page" in payload.data ||
+          (screen === "controlled") !== "controlled_page" in payload.data ||
           needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
@@ -2716,6 +2770,8 @@ export function InventoryApp({ path }: { path: string }) {
           "purchase_order_new",
           "exceptions",
           "recalls",
+          "counts",
+          "controlled",
         ].includes(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
@@ -2733,6 +2789,8 @@ export function InventoryApp({ path }: { path: string }) {
           "purchase_order_new",
           "exceptions",
           "recalls",
+          "counts",
+          "controlled",
         ].includes(screen)
       ) {
         if (payload.acknowledged !== true)
@@ -2762,6 +2820,8 @@ export function InventoryApp({ path }: { path: string }) {
           "purchase_order_new",
           "exceptions",
           "recalls",
+          "counts",
+          "controlled",
         ].includes(screen)
       )
         await load();
@@ -2816,6 +2876,8 @@ export function InventoryApp({ path }: { path: string }) {
     !("location_page" in data) &&
     !("exception_page" in data) &&
     !("recall_page" in data) &&
+    !("count_page" in data) &&
+    !("controlled_page" in data) &&
     !("stock_page" in data) &&
     !("order_page" in data) &&
     !("delivery_page" in data) &&
@@ -2972,6 +3034,26 @@ export function InventoryApp({ path }: { path: string }) {
                 onRead={load}
                 run={run}
               />
+            ) : "count_page" in data ? (
+              <CycleCountsScreen
+                data={data}
+                loading={loading}
+                error={error}
+                busy={busy}
+                pendingMutation={uncertainMutation}
+                onRead={load}
+                run={run}
+              />
+            ) : "controlled_page" in data ? (
+              <ControlledScreen
+                data={data}
+                loading={loading}
+                error={error}
+                busy={busy}
+                pendingMutation={uncertainMutation}
+                onRead={load}
+                run={run}
+              />
             ) : "plan_page" in data ? (
               <PurchaseCartWorkspace
                 data={data}
@@ -3024,9 +3106,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "shipment_new" && (
                   <ShipmentCreateScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "controlled" && (
-                  <ControlledScreen data={data} busy={busy} run={run} />
                 )}
               </>
             )}
@@ -8003,237 +8082,6 @@ function RecallScreen({
               : "Create and contain recall"}
           </ConfirmButton>
         </div>
-      </Card>
-    </div>
-  );
-}
-
-function ControlledScreen({
-  data,
-  busy,
-  run,
-}: {
-  data: InventoryData;
-  busy: boolean;
-  run: (
-    endpoint: string,
-    body: Record<string, unknown>,
-    title: string,
-    detail: string,
-  ) => Promise<void>;
-}) {
-  const [reconciliationId, setReconciliationId] = useState(
-    data.controlled_reconciliations[0]?.id ?? "",
-  );
-  const reconciliation =
-    data.controlled_reconciliations.find(
-      (record) => record.id === reconciliationId,
-    ) ?? data.controlled_reconciliations[0];
-  const item = reconciliation && product(data, reconciliation.product_id);
-  const selectedLot = reconciliation && lot(data, reconciliation.lot_id);
-  const selectedLocation =
-    reconciliation && location(data, reconciliation.location_id);
-  const [note, setNote] = useState("");
-  if (!reconciliation || !item || !selectedLot || !selectedLocation)
-    return (
-      <Card title="Controlled reconciliation">
-        <p>No controlled count is available.</p>
-      </Card>
-    );
-  const unresolved =
-    reconciliation.status !== "resolved" &&
-    reconciliation.status !== "certified";
-  const investigate = () =>
-    void run(
-      `/api/clinic/inventory/controlled/${reconciliation.count_id}/investigate`,
-      { review: { reason: note } },
-      "Variance resolved",
-      "Variance resolved. A separate reviewer may now certify.",
-    );
-  const certify = () =>
-    void run(
-      `/api/clinic/inventory/controlled/${reconciliation.count_id}/certify`,
-      { review: { reason: note.trim() } },
-      "Reconciliation certified",
-      "Reconciliation certified.",
-    );
-  return (
-    <div className="inventory-two-col wide-left">
-      <div className="inventory-stack">
-        <Card>
-          {data.controlled_reconciliations.length > 1 && (
-            <div className="inventory-card-heading">
-              <Field label="Reconciliation">
-                <select
-                  value={reconciliation.id}
-                  onChange={(event) => {
-                    setReconciliationId(event.target.value);
-                    setNote("");
-                  }}
-                >
-                  {data.controlled_reconciliations.map((record) => (
-                    <option key={record.id} value={record.id}>
-                      {product(data, record.product_id)?.name} ·{" "}
-                      {lot(data, record.lot_id)?.lot_number}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          )}
-          <div className="inventory-panel-heading">
-            <div>
-              <div className="inventory-title-row">
-                {item.schedule && <Badge tone="danger">{item.schedule}</Badge>}
-                <Badge tone="blue">
-                  {reconciliation.status.replaceAll("_", " ")}
-                </Badge>
-              </div>
-              <h2>{item.name}</h2>
-              <p className="inventory-lead">
-                NDC {item.ndc} · lot {selectedLot.lot_number} ·{" "}
-                {selectedLocation.name}
-              </p>
-            </div>
-            <div className="inventory-date">
-              <small>Counted</small>
-              <strong>
-                {inventoryDateTime(reconciliation.counted_at, data.timezone)}
-              </strong>
-            </div>
-          </div>
-          <div className="inventory-data-grid three">
-            <DataPoint
-              label="Expected"
-              value={`${number(reconciliation.expected_units)} ${item.base_unit}`}
-            />
-            <DataPoint
-              label="Counted"
-              value={`${number(reconciliation.counted_units)} ${item.base_unit}`}
-            />
-            <DataPoint
-              label="Variance"
-              value={`${decimalCompare(reconciliation.variance_units, "0") > 0 ? "+" : ""}${number(reconciliation.variance_units)} ${item.base_unit}`}
-              tone={
-                decimalCompare(reconciliation.variance_units, "0") === 0
-                  ? "success"
-                  : "danger"
-              }
-            />
-          </div>
-          <div className="inventory-data-grid two">
-            <DataPoint
-              label="Counter"
-              value={
-                data.users.find((user) => user.id === reconciliation.counter_id)
-                  ?.name ?? "Recorded operator"
-              }
-            />
-          </div>
-        </Card>
-        {unresolved ? (
-          <div className="inventory-warning strong" role="alert">
-            <strong>
-              Certification blocked: unresolved{" "}
-              {number(reconciliation.variance_units)} {item.base_unit} variance
-            </strong>
-            <p>
-              An authorized reviewer must investigate and post an adjustment
-              before certification.
-            </p>
-          </div>
-        ) : (
-          <div className="inventory-success-box">
-            <strong>Variance resolved</strong>
-            <p>
-              Expected and counted quantities now agree. Certification is
-              available to a separate authorized reviewer.
-            </p>
-          </div>
-        )}
-        <Card title="Separation-of-duties trail">
-          <ol className="inventory-trail">
-            <li className="done">
-              <strong>Count recorded</strong>
-              <span>
-                {number(reconciliation.counted_units)} {item.base_unit} counted.
-              </span>
-            </li>
-            <li className={reconciliation.investigation_note ? "done" : ""}>
-              <strong>Variance investigated and adjusted</strong>
-              <span>
-                {reconciliation.investigation_note ??
-                  "Pending authorized investigation and adjustment."}
-              </span>
-            </li>
-            <li className={reconciliation.status === "certified" ? "done" : ""}>
-              <strong>Certification</strong>
-              <span>
-                {reconciliation.certified_at
-                  ? `Certified ${inventoryDateTime(reconciliation.certified_at, data.timezone)}.`
-                  : "Blocked until variance resolution and a separate reviewer."}
-              </span>
-            </li>
-          </ol>
-        </Card>
-      </div>
-      <Card title={unresolved ? "Resolve variance" : "Certify count"}>
-        {unresolved ? (
-          <div className="inventory-stack compact">
-            <Field label="Investigation findings">
-              <textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Required count/research findings"
-              />
-            </Field>
-            <PermissionNote
-              allowed={
-                capability(data, "inventory.count") &&
-                capability(data, "controlled.count")
-              }
-              permission="inventory.count + controlled.count"
-            />
-            <p className="inventory-info">
-              Resolution posts a {number(reconciliation.variance_units)}{" "}
-              {item.base_unit}
-              adjustment so the balance matches the physical count.
-            </p>
-            <ConfirmButton
-              disabled={
-                busy ||
-                !capability(data, "inventory.count") ||
-                !capability(data, "controlled.count") ||
-                !note.trim()
-              }
-              onConfirm={investigate}
-            >
-              Post variance resolution
-            </ConfirmButton>
-          </div>
-        ) : (
-          <div className="inventory-stack compact">
-            <DataPoint
-              label="Resolved expected"
-              value={`${number(reconciliation.counted_units)} ${item.base_unit}`}
-            />
-            <PermissionNote
-              allowed={capability(data, "controlled.certify")}
-              permission="controlled.certify"
-            />
-            <ConfirmButton
-              disabled={
-                busy ||
-                !capability(data, "controlled.certify") ||
-                !note.trim() ||
-                reconciliation.status === "certified"
-              }
-              onConfirm={certify}
-            >
-              Certify reconciliation
-            </ConfirmButton>
-          </div>
-        )}
       </Card>
     </div>
   );

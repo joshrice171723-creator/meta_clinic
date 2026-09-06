@@ -95,6 +95,90 @@ module Clinic
         { data: purchase_order_wire(order) }
       end
 
+      def count_sessions(practice:, actor:, **filters)
+        result = CountSessionsQuery.call(practice: practice, actor: actor, **filters)
+        context = context(practice: practice, actor: actor)
+        sessions = (result.sessions + [ result.selected ]).compact.uniq(&:id)
+        paths = location_paths(practice: practice, ids: sessions.map(&:location_id))
+        context.merge(
+          count_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count, page_size: CountSessionsQuery::PAGE_SIZE,
+            total_count: result.total_count, filtered_count: result.filtered_count, selected_id: result.selected&.id&.to_s },
+          sessions: result.sessions.map { |session| count_session_wire(session, paths) }, selected_session: result.selected && count_session_wire(result.selected, paths),
+          lines: result.lines.map do |line|
+            batch = line.batch
+            count = result.observations[line.id]
+            count.association(:batch).target = batch if count
+            event = result.line_events[line.id]
+            current = count && count_current?(count, result.cutoffs[batch.id])
+            observed = event&.kind == "observed" && event.count_id == count&.id
+            skipped = event&.kind == "skipped"
+            can_approve = count && current && observed && result.selected.status == "open" && count.approval.nil? && count.actor_id != actor.id && context[:capabilities]["inventory.count"] &&
+              (count.expected_quantity == count.observed_quantity || context[:capabilities]["inventory.adjust"])
+            { id: line.id.to_s, batch_id: batch.id.to_s, product_id: batch.product_id.to_s, product_name: batch.product.name, stock_unit: batch.product.stock_unit,
+              lot_number: batch.lot.number, location_path: paths[batch.location_id.to_s], expires_on: batch.expires_on.iso8601,
+              skipped: skipped, skip_reason: skipped ? event.reason : nil,
+              expected_units: result.selected.blind? ? (observed ? count.expected_quantity.to_d.to_s("F") : nil) : batch.quantity.to_s("F"),
+              latest_count: count && count_observation_wire(count).merge(actor_id: count.actor_id.to_s, created_at: count.created_at.iso8601,
+                approved: count.approval.present?, stale: !current || !observed, can_approve: !!can_approve),
+              reconciled: !!(observed && current && (count.approval.present? || count.observed_quantity == count.expected_quantity)) }
+          end,
+          line_page: { page: result.line_page, page_count: result.line_page_count, total_count: result.line_count, page_size: CountSessionsQuery::LINE_PAGE_SIZE },
+          history_page: { page: result.history_page, page_count: result.history_page_count, total_count: result.history_count, page_size: CountSessionsQuery::HISTORY_PAGE_SIZE },
+          events: result.events.map do |event|
+            { id: event.id.to_s, kind: event.kind, line_id: event.count_session_line_id&.to_s, actor_id: event.actor_id.to_s, assignee_id: event.assignee_id&.to_s,
+              reason: event.reason, created_at: event.created_at.iso8601, count: event.count && count_observation_wire(event.count) }
+          end,
+          locations: location_directory(practice: practice).select { |location| location[:stock_destination] }.map { |location| location.slice(:id, :path) },
+          assignees: Clinic::Membership.active.where(practice_id: practice.id).joins(:user).where(users: { active: true }).includes(:user).order(:user_id).select { |member| Ability.new(member.user, practice: practice).allowed_permission?("inventory.count") }.map do |member|
+            { id: member.user_id.to_s, name: member.user.email_address.split("@").first.tr("._-", " ").titleize }
+          end)
+      end
+
+      def count_session_wire(session, paths)
+        { id: session.id.to_s, location_id: session.location_id.to_s, location_path: paths[session.location_id.to_s], assignee_id: session.assignee_id.to_s,
+          assignee_name: session.assignee.email_address.split("@").first.tr("._-", " ").titleize, due_on: session.due_on.iso8601, blind: session.blind?, status: session.status,
+          reason: session.reason, created_at: session.created_at.iso8601, line_count: session[:line_count].to_i, observed_count: session[:observed_count].to_i,
+          skipped_count: session[:skipped_count].to_i, reconciled_count: session[:reconciled_count].to_i }
+      end
+
+      def count_observation_wire(count)
+        { id: count.id.to_s, expected_units: count.expected_quantity.to_d.to_s("F"), counted_units: count.observed_quantity.to_d.to_s("F"),
+          variance_units: (count.observed_quantity - count.expected_quantity).to_s("F") }
+      end
+
+      def controlled_counts(practice:, actor:, **filters)
+        result = ControlledCountsQuery.call(practice: practice, **filters)
+        context = context(practice: practice, actor: actor)
+        permissions = context[:capabilities]
+        batches = result.counts.map(&:batch).uniq(&:id)
+        paths = location_paths(practice: practice, ids: batches.map(&:location_id))
+        reviews = ControlReview.where(practice_id: practice.id, count_id: result.counts.map(&:id)).order(:id).to_a.group_by(&:count_id)
+        context.merge(
+          controlled_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count, total_count: result.total_count, filtered_count: result.filtered_count, page_size: ControlledCountsQuery::PAGE_SIZE },
+          products: batches.map(&:product).uniq(&:id).map { |product| { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, base_unit: product.stock_unit, schedule: product.dea_schedule } },
+          lots: batches.map(&:lot).uniq(&:id).map { |lot| { id: lot.id.to_s, product_id: lot.product_id.to_s, lot_number: lot.number, expiration_date: lot.expires_on.iso8601 } },
+          locations: batches.map(&:location_record).uniq(&:id).map { |location| { id: location.id.to_s, name: paths[location.id.to_s] } },
+          controlled_reconciliations: result.counts.map do |count|
+            history = reviews.fetch(count.id, [])
+            investigation = history.reverse.find { |review| review.kind == "investigation" }
+            certification = history.reverse.find { |review| review.kind == "certification" }
+            current = count_current?(count, result.cutoffs[count.batch_id]) && count[:session_current] == true
+            distinct_actor = count.actor_id != actor.id
+            approval_allowed = permissions["inventory.count"] && distinct_actor && (count.observed_quantity == count.expected_quantity || permissions["inventory.adjust"])
+            count_wire(count, reviews: history).merge(approved: count.approval.present?, stale: !current,
+              can_investigate: current && !investigation && approval_allowed && (count.approval.nil? || count.approval.actor_id == actor.id) && permissions["controlled.count"],
+              can_certify: current && investigation.present? && !certification && distinct_actor && investigation.actor_id != actor.id && permissions["controlled.certify"])
+          end)
+      end
+
+      def count_current?(count, cutoff)
+        if count.approval
+          count.batch.quantity == count.observed_quantity && cutoff == (count.approval.entry_id || count.cutoff_entry_id)
+        else
+          count.batch.quantity == count.expected_quantity && cutoff == count.cutoff_entry_id
+        end
+      end
+
       def recall_cases(practice:, actor:, **filters)
         result = RecallCasesQuery.call(practice: practice, **filters)
         paths = location_paths(practice: practice, ids: result.positions.map(&:location_id))
@@ -428,10 +512,11 @@ module Clinic
         active_holds.empty? && batch.expires_on >= inventory_date && batch.product.active? && batch.location_record.stock_destination?
       end
 
-      def count_wire(count)
-        investigation = ControlReview.where(count_id: count.id, kind: "investigation").order(id: :desc).first
-        certification = ControlReview.where(count_id: count.id, kind: "certification").order(id: :desc).first
-        settled_expected = count.approval.present? ? count.observed_quantity.to_d : count.expected_quantity.to_d
+      def count_wire(count, reviews: nil)
+        reviews ||= ControlReview.where(practice_id: count.practice_id, count_id: count.id).order(:id).to_a
+        investigation = reviews.reverse.find { |review| review.kind == "investigation" }
+        certification = reviews.reverse.find { |review| review.kind == "certification" }
+        settled_expected = count.expected_quantity.to_d
         variance = count.observed_quantity.to_d - settled_expected
         { id: "recon_#{count.id}", count_id: count.id.to_s, product_id: count.batch.product_id.to_s, lot_id: count.batch.lot_id.to_s, location_id: count.batch.location_id.to_s, status: certification ? "certified" : investigation ? "resolved" : "variance_review", expected_units: settled_expected.to_d.to_s("F"), counted_units: count.observed_quantity.to_d.to_s("F"), variance_units: variance.to_s("F"), counted_at: count.created_at.iso8601, counter_id: count.actor_id.to_s, investigation_required: variance.nonzero? && investigation.nil?, investigation_note: investigation&.reason, certified_at: certification&.created_at&.iso8601, certified_by: certification&.actor_id&.to_s }
       end
