@@ -22,7 +22,6 @@ export function ClinicFrame({
   selectedLocationId,
   onLocationChange,
   navigation,
-  focusMode = false,
   children,
 }: {
   practiceName: string;
@@ -31,13 +30,10 @@ export function ClinicFrame({
   selectedLocationId?: number | null;
   onLocationChange?: (siteId: number) => void;
   navigation: ReactNode;
-  focusMode?: boolean;
   children: ReactNode;
 }) {
   const [compact, setCompact] = useState(compactNavigation);
-  const [collapsed, setCollapsed] = useState(
-    () => compactNavigation() || focusMode,
-  );
+  const [collapsed, setCollapsed] = useState(compactNavigation);
   const tab = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
   const locationMenu = useRef<HTMLDivElement>(null);
@@ -73,9 +69,6 @@ export function ClinicFrame({
     return () => media.removeEventListener("change", change);
   }, []);
   useEffect(() => {
-    if (!compact) setCollapsed(focusMode);
-  }, [compact, focusMode]);
-  useEffect(() => {
     if (!drawer) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -107,11 +100,7 @@ export function ClinicFrame({
       document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [locationMenuOpen]);
   return (
-    <div
-      className="clinic-shell"
-      data-collapsed={collapsed}
-      data-focus-mode={focusMode}
-    >
+    <div className="clinic-shell" data-collapsed={collapsed}>
       {drawer && (
         <button
           type="button"

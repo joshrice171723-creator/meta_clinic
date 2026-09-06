@@ -327,7 +327,6 @@ export function Workspace({
                       homeView={homeView}
                     />
                   }
-                  focusMode={scribePage}
                 >
                   {!scribePage && (
                     <header

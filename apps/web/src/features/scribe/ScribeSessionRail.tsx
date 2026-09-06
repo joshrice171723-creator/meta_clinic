@@ -1,12 +1,10 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
-import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import {
   Avatar,
   Box,
   Button,
-  IconButton,
+  InputAdornment,
   List,
   ListItemAvatar,
   ListItemButton,
@@ -15,7 +13,6 @@ import {
   Tab,
   Tabs,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
@@ -44,7 +41,6 @@ type ScribeSessionRailProps = {
   onSelect: (id: number) => void;
   onNewSession: () => void;
   onLoadMore: () => void;
-  onRefresh?: () => void;
 };
 
 function sessionDay(value?: string | null) {
@@ -94,10 +90,8 @@ export function ScribeSessionRail({
   onSelect,
   onNewSession,
   onLoadMore,
-  onRefresh,
 }: ScribeSessionRailProps) {
   const [period, setPeriod] = useState<"today" | "past">("today");
-  const [searchOpen, setSearchOpen] = useState(false);
   const visible = useMemo(
     () =>
       summaries.filter((summary) =>
@@ -121,50 +115,6 @@ export function ScribeSessionRail({
         backgroundColor: "#fff",
       }}
     >
-      <Stack
-        direction="row"
-        sx={{ height: 54, px: 1.5, alignItems: "center", gap: 0.5 }}
-      >
-        <Button
-          size="small"
-          color="inherit"
-          startIcon={<PersonOutlineOutlinedIcon sx={{ fontSize: 16 }} />}
-          onClick={onNewSession}
-          disabled={disabled}
-          sx={{
-            minWidth: 0,
-            height: 30,
-            px: 1,
-            borderRadius: 5,
-            backgroundColor: "#f5f2ef",
-            color: "text.primary",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          Me
-        </Button>
-        <Box sx={{ flex: 1 }} />
-        <Tooltip title="Search sessions">
-          <IconButton
-            size="small"
-            aria-label="Search sessions"
-            onClick={() => setSearchOpen((open) => !open)}
-          >
-            <SearchOutlinedIcon sx={{ fontSize: 17 }} />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Refresh sessions">
-          <IconButton
-            size="small"
-            aria-label="Refresh sessions"
-            onClick={onRefresh}
-            disabled={!onRefresh || disabled}
-          >
-            <RefreshOutlinedIcon sx={{ fontSize: 17 }} />
-          </IconButton>
-        </Tooltip>
-      </Stack>
       <Tabs
         value={period}
         onChange={(_, value: "today" | "past") => setPeriod(value)}
@@ -185,25 +135,30 @@ export function ScribeSessionRail({
         <Tab value="today" label="Today" />
         <Tab value="past" label="Past" />
       </Tabs>
-      {searchOpen && (
-        <TextField
-          id="scribe-session-search"
-          autoFocus
-          disabled={disabled}
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search sessions"
-          size="small"
-          sx={{
-            mx: 1.25,
-            mt: 1,
-            "& .MuiInputBase-root": { height: 32, fontSize: 12 },
-          }}
-          slotProps={{
-            htmlInput: { "aria-label": "Search scribe sessions" },
-          }}
-        />
-      )}
+      <TextField
+        id="scribe-session-search"
+        disabled={disabled}
+        value={search}
+        onChange={(event) => onSearchChange(event.target.value)}
+        placeholder="Search sessions"
+        size="small"
+        sx={{
+          mx: 1.25,
+          mt: 1.25,
+          mb: 0.5,
+          "& .MuiInputBase-root": { height: 36, fontSize: 12 },
+        }}
+        slotProps={{
+          htmlInput: { "aria-label": "Search scribe sessions" },
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchOutlinedIcon sx={{ fontSize: 17 }} />
+              </InputAdornment>
+            ),
+          },
+        }}
+      />
       <Box sx={{ overflowY: "auto", minHeight: 0, flex: 1, px: 1.25, pb: 1.5 }}>
         {visible.length === 0 ? (
           <Typography

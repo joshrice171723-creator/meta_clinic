@@ -250,20 +250,6 @@
 .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-main {
   margin-left: 56px;
 }
-.clinic-theme .clinic-shell[data-focus-mode="true"] .clinic-menu-toggle {
-  display: flex;
-}
-.clinic-theme
-  .clinic-shell[data-focus-mode="true"][data-collapsed="true"]
-  .clinic-main {
-  margin-left: 44px;
-}
-.clinic-theme
-  .clinic-shell[data-focus-mode="true"][data-collapsed="true"]
-  .clinic-menu-toggle {
-  left: 6px;
-  width: 36px;
-}
 .clinic-theme .clinic-nav-backdrop {
   position: fixed;
   inset: 0;

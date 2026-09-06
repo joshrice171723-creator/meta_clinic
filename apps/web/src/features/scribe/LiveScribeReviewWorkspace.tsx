@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
-import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
@@ -10,7 +9,6 @@ import {
   Avatar,
   Box,
   Button,
-  ButtonGroup,
   Dialog,
   DialogActions,
   DialogContent,
@@ -927,7 +925,6 @@ export function LiveScribeReviewWorkspace() {
       onSelect={selectEncounter}
       onNewSession={beginNewSession}
       onLoadMore={() => void loadMore()}
-      onRefresh={() => void loadIndex(selectedEncounterId ?? undefined)}
     />
   );
 
@@ -1004,10 +1001,10 @@ export function LiveScribeReviewWorkspace() {
 
         <Stack
           component="header"
-          direction={{ xs: "column", sm: "row" }}
+          direction={{ xs: "column", lg: "row" }}
           sx={{
             minHeight: 94,
-            alignItems: { xs: "stretch", sm: "flex-start" },
+            alignItems: { xs: "stretch", lg: "flex-start" },
             justifyContent: "space-between",
             gap: 1.5,
             px: { xs: 1.5, sm: 2.25 },
@@ -1121,14 +1118,26 @@ export function LiveScribeReviewWorkspace() {
           ) : (
             <Stack
               spacing={0.65}
-              sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}
+              sx={{
+                width: { xs: "100%", lg: "auto" },
+                alignItems: { xs: "stretch", lg: "flex-end" },
+              }}
             >
-              <Stack direction="row" spacing={0.75}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  width: "100%",
+                  alignItems: "center",
+                  justifyContent: { xs: "flex-start", lg: "flex-end" },
+                }}
+              >
                 <FormControl
                   size="small"
                   sx={{
-                    width: 118,
-                    "& .MuiInputBase-root": { height: 36, fontSize: 11 },
+                    width: 148,
+                    flex: "0 1 148px",
+                    "& .MuiInputBase-root": { height: 40, fontSize: 12 },
                   }}
                   disabled={
                     !canWrite ||
@@ -1173,59 +1182,49 @@ export function LiveScribeReviewWorkspace() {
                   }
                   onClick={() => void generateDraft().catch(() => undefined)}
                   sx={{
-                    height: 36,
-                    minWidth: 84,
+                    height: 40,
+                    minWidth: 100,
                     bgcolor: "#3a252c",
                     color: "#fff",
                     borderRadius: 1,
-                    fontSize: 11,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
                     "&:hover": { bgcolor: "#2b1a20" },
                   }}
                 >
                   Create
                 </Button>
-                <ButtonGroup
+                <Button
                   variant="contained"
-                  aria-label="Transcription controls"
+                  startIcon={<MicNoneOutlinedIcon sx={{ fontSize: 18 }} />}
+                  disabled={
+                    !canWrite ||
+                    !encounter ||
+                    !processingAllowed ||
+                    hasUnsavedContext ||
+                    pendingAction !== null ||
+                    otherEncounterRecording
+                  }
+                  onClick={() =>
+                    sameEncounterRecordingActive
+                      ? recording.expand()
+                      : openRecordingDock(true)
+                  }
                   sx={{
-                    height: 36,
-                    "& .MuiButton-root": {
-                      bgcolor: "#13b85c",
-                      color: "#fff",
-                      borderColor: "#38c879",
-                      fontSize: 11,
-                      "&:hover": { bgcolor: "#0ca650" },
-                    },
+                    height: 40,
+                    minWidth: 136,
+                    borderRadius: 1,
+                    bgcolor: "#0eaa55",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    "&:hover": { bgcolor: "#0b9148" },
                   }}
                 >
-                  <Button
-                    startIcon={<MicNoneOutlinedIcon sx={{ fontSize: 16 }} />}
-                    disabled={
-                      !canWrite ||
-                      !encounter ||
-                      !processingAllowed ||
-                      hasUnsavedContext ||
-                      pendingAction !== null ||
-                      otherEncounterRecording
-                    }
-                    onClick={() =>
-                      sameEncounterRecordingActive
-                        ? recording.expand()
-                        : openRecordingDock(true)
-                    }
-                    sx={{ minWidth: 104 }}
-                  >
-                    {sameEncounterRecordingActive ? "Recording" : "Transcribe"}
-                  </Button>
-                  <Button
-                    aria-label="Open recording controls"
-                    onClick={() => openRecordingDock(false)}
-                    disabled={!encounter || otherEncounterRecording}
-                    sx={{ minWidth: 30, width: 30, px: 0 }}
-                  >
-                    <ExpandMoreOutlinedIcon sx={{ fontSize: 16 }} />
-                  </Button>
-                </ButtonGroup>
+                  {sameEncounterRecordingActive ? "Recording" : "Transcribe"}
+                </Button>
               </Stack>
               <Stack
                 direction="row"
@@ -1357,20 +1356,7 @@ export function LiveScribeReviewWorkspace() {
                   >
                     notes
                   </Typography>
-                  <Stack
-                    direction="row"
-                    spacing={0.5}
-                    sx={{ alignItems: "center" }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color={
-                        hasUnsavedContext ? "warning.main" : "text.secondary"
-                      }
-                      sx={{ fontSize: 10 }}
-                    >
-                      {hasUnsavedContext ? "Unsaved" : "Saved"}
-                    </Typography>
+                  <Stack direction="row" sx={{ alignItems: "center" }}>
                     <Button
                       size="small"
                       disabled={
@@ -1380,7 +1366,14 @@ export function LiveScribeReviewWorkspace() {
                         Boolean(outcomeUnknown)
                       }
                       onClick={() => void saveContext().catch(() => undefined)}
-                      sx={{ minWidth: 48, height: 28, fontSize: 10 }}
+                      variant="outlined"
+                      sx={{
+                        minWidth: 64,
+                        height: 32,
+                        borderRadius: 1,
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
                     >
                       {pendingAction === "context" ? "Saving…" : "Save"}
                     </Button>
@@ -1425,11 +1418,24 @@ export function LiveScribeReviewWorkspace() {
                     </Typography>
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
-                      spacing={0.75}
+                      spacing={1}
+                      useFlexGap
+                      sx={{
+                        flexWrap: "wrap",
+                        "& .MuiButton-root": {
+                          minHeight: 34,
+                          px: 1.5,
+                          borderRadius: 1,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap",
+                        },
+                      }}
                     >
                       {encounter.consent_status !== "accepted" && (
                         <Button
                           size="small"
+                          color="success"
                           variant="outlined"
                           disabled={pendingAction !== null || hasUnsavedContext}
                           onClick={() =>
@@ -1442,12 +1448,13 @@ export function LiveScribeReviewWorkspace() {
                             })
                           }
                         >
-                          Record accepted consent
+                          Accept consent
                         </Button>
                       )}
                       {encounter.consent_status !== "declined" && (
                         <Button
                           size="small"
+                          color="inherit"
                           variant="outlined"
                           disabled={pendingAction !== null || hasUnsavedContext}
                           onClick={() =>
@@ -1460,14 +1467,14 @@ export function LiveScribeReviewWorkspace() {
                             })
                           }
                         >
-                          Record declined consent
+                          Decline consent
                         </Button>
                       )}
                       {encounter.consent_status === "accepted" && (
                         <Button
                           size="small"
                           color="warning"
-                          variant="outlined"
+                          variant="text"
                           disabled={pendingAction !== null || hasUnsavedContext}
                           onClick={() =>
                             setConfirmation({
@@ -1497,7 +1504,7 @@ export function LiveScribeReviewWorkspace() {
                             })
                           }
                         >
-                          Delete session content
+                          Delete session
                         </Button>
                       )}
                     </Stack>

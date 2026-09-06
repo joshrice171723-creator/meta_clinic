@@ -27,7 +27,7 @@ describe("clinic shell composition", () => {
     expect(frame).toContain('window.location.replace("/login")');
     expect(frame).toContain('className="practice-location"');
     expect(frame).toContain('aria-label="Current clinic location"');
-    expect(frame).toContain("data-focus-mode={focusMode}");
+    expect(frame).not.toContain("data-focus-mode");
     expect(frame).toContain("Select a location");
     expect(frame).not.toContain("clinic-chart-tab");
   });

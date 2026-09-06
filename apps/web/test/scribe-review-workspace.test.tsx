@@ -303,13 +303,11 @@ describe("synthetic AI scribe review workspace", () => {
         onSelect={() => undefined}
         onNewSession={() => undefined}
         onLoadMore={() => undefined}
-        onRefresh={() => undefined}
       />,
     );
 
     expect(html).toContain("New session");
-    expect(html).toContain('aria-label="Search sessions"');
-    expect(html).toContain('aria-label="Refresh sessions"');
+    expect(html).toContain('aria-label="Search scribe sessions"');
     expect(html).toContain('aria-label="Session period"');
     expect(html).toContain("Today");
     expect(html).toContain("Past");
