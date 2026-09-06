@@ -1,9 +1,35 @@
 import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  Tab,
+  Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
+import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import {
+  BillingIncomeOutlook,
+  BillingPayments,
+  type BillingWorkspaceData,
+} from "./BillingInsights";
 import type {
-  BillingDashboard as BillingDashboardData,
   BillingInvoiceDetail,
   BillingInvoiceSummary,
-  Pagination,
 } from "../../api/contracts";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
@@ -23,11 +49,6 @@ export type BillingInvoiceFilter =
   | "age_91_plus";
 export type BillingInvoiceSort =
   "recent" | "oldest" | "balance_desc" | "total_desc";
-
-type AgedBillingInvoice = BillingInvoiceSummary & {
-  age_days: number;
-  age_bucket: string;
-};
 
 type AuditedBillingInvoiceDetail = BillingInvoiceDetail & {
   audit_timeline: {
@@ -141,8 +162,10 @@ export function sortedInvoices(
   });
 }
 
-function statusLabel(invoice: BillingInvoiceSummary) {
+function statusLabel(invoice: BillingInvoiceSummary & { credited?: string }) {
   const state = invoicePaymentState(invoice);
+  if (state === "paid" && invoice.credited && !isZeroDecimal(invoice.credited))
+    return "Settled";
   return state === "partial"
     ? "Partially paid"
     : state.charAt(0).toUpperCase() + state.slice(1);
@@ -255,21 +278,21 @@ function BillingConfirm({
         </p>
       </div>
       <div className="billing-confirm-actions">
-        <button
+        <Button
           className="billing-secondary-button"
           type="button"
           onClick={onCancel}
         >
           Go back
-        </button>
-        <button
+        </Button>
+        <Button
           className="billing-primary-button"
           type="button"
           onClick={onConfirm}
           disabled={busy}
         >
           {busy ? "Saving…" : isPost ? "Post invoice" : "Record payment"}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -277,16 +300,16 @@ function BillingConfirm({
 
 export function BillingDashboard() {
   const context = useClinic();
+  const [activeTab, setActiveTab] = useState("invoices");
+  const [cardsOpen, setCardsOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [currency, setCurrency] = useState("");
   const [invoicePage, setInvoicePage] = useState(1);
   const [filter, setFilter] = useState<BillingInvoiceFilter>("all");
   const [query, setQuery] = useState("");
+  const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<BillingInvoiceSort>("recent");
-  const { data, error, refresh } = useResource<
-    Omit<BillingDashboardData, "recent_invoices"> & {
-      recent_invoices: AgedBillingInvoice[];
-      invoice_pagination: Pagination;
-    }
-  >(
+  const { data, error, refresh } = useResource<BillingWorkspaceData>(
     `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
   );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
@@ -329,7 +352,9 @@ export function BillingDashboard() {
     );
 
   const primaryCurrency =
-    data.metrics.currencies.length === 1 ? data.metrics.currencies[0] : null;
+    data.metrics.currencies.find((item) => item.currency === currency) ??
+    data.metrics.currencies[0] ??
+    null;
   const primaryOpenInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
   const openQueueCount = totalOpenInvoiceCount(data.metrics.currencies);
   const clearActionState = () => {
@@ -452,555 +477,720 @@ export function BillingDashboard() {
     <div className="billing-page">
       <header className="billing-header">
         <div>
-          <h1>Billing workspace</h1>
-          {context.capabilities.patient_identity_read === true && (
-            <a href="/clinic/billing/patients">Patient balances</a>
-          )}
+          <h1>Billing</h1>
+          <p className="billing-subtitle">
+            Your collections, outstanding balances and next steps.
+          </p>
         </div>
         <div className="billing-header-actions">
-          <div className="billing-period" aria-label="Reporting period">
-            <span>Current period</span>
+          <Button
+            variant="outlined"
+            startIcon={<CreditCardOutlinedIcon />}
+            onClick={() => setCardsOpen(true)}
+          >
+            Cards & Stripe
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<PrintOutlinedIcon />}
+            onClick={() => setActiveTab("payments")}
+          >
+            Print a receipt
+          </Button>
+          {context.capabilities.patient_identity_read === true && (
+            <Button variant="contained" href="/clinic/billing/patients">
+              Patient payments
+            </Button>
+          )}
+        </div>
+      </header>
+      <section className="billing-overview" aria-label="Financial summary">
+        <div className="billing-overview-heading">
+          <div>
             <strong>
               {periodLabel(data.period.start, data.practice.timezone)}
             </strong>
+            <span>Collections this month · balances as of today</span>
           </div>
-          <button
-            className="billing-secondary-button"
-            type="button"
-            onClick={refresh}
-          >
-            Refresh ledger
-          </button>
+          <div className="billing-header-actions">
+            {data.metrics.currencies.length > 1 && (
+              <TextField
+                select
+                label="Summary currency"
+                size="small"
+                value={primaryCurrency?.currency ?? ""}
+                onChange={(event) => setCurrency(event.target.value)}
+              >
+                {data.metrics.currencies.map((item) => (
+                  <MenuItem value={item.currency} key={item.currency}>
+                    {item.currency}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <Button size="small" startIcon={<RefreshIcon />} onClick={refresh}>
+              Refresh
+            </Button>
+          </div>
         </div>
-      </header>
-
-      <div className="billing-metrics" aria-label="Revenue cycle summary">
-        <Metric
-          label="Charges posted"
-          value={
-            primaryCurrency
-              ? money(
-                  primaryCurrency.monthly_invoiced,
-                  primaryCurrency.currency,
-                )
-              : "—"
-          }
-        />
-        <Metric
-          label="Payments received"
-          value={
-            primaryCurrency
-              ? money(
-                  primaryCurrency.monthly_collected,
-                  primaryCurrency.currency,
-                )
-              : "—"
-          }
-          tone="positive"
-        />
-        <Metric
-          label="Open balance"
-          value={
-            primaryCurrency
-              ? money(primaryCurrency.outstanding, primaryCurrency.currency)
-              : "—"
-          }
-          detail={`${primaryOpenInvoiceCount} posted invoice${primaryOpenInvoiceCount === 1 ? "" : "s"} with a balance`}
-          tone="attention"
-        />
-        <Metric
-          label="Invoices in review"
-          value={String(data.metrics.draft_count)}
-          detail={`${data.metrics.void_count} void invoice${data.metrics.void_count === 1 ? "" : "s"} excluded from totals`}
-        />
-      </div>
-
-      <div className="billing-workspace-grid">
-        <section className="clinic-card billing-queue-card">
-          <div className="billing-section-heading">
-            <div>
-              <h2>What needs attention</h2>
-            </div>
-            <button
-              type="button"
-              className="billing-text-button"
-              onClick={() => setFilter("all")}
+        <div className="billing-metrics" aria-label="Revenue cycle summary">
+          <Metric
+            label="Net collected"
+            value={
+              primaryCurrency
+                ? money(
+                    primaryCurrency.monthly_net_collected,
+                    primaryCurrency.currency,
+                  )
+                : "—"
+            }
+            detail="Received this month, less refunds this month"
+            tone="positive"
+          />
+          <Metric
+            label="Payments received"
+            value={
+              primaryCurrency
+                ? money(
+                    primaryCurrency.monthly_received,
+                    primaryCurrency.currency,
+                  )
+                : "—"
+            }
+            detail={
+              primaryCurrency
+                ? `${money(primaryCurrency.monthly_refunded, primaryCurrency.currency)} refunded this month`
+                : "No recorded payments"
+            }
+          />
+          <Metric
+            label="Outstanding"
+            value={
+              primaryCurrency
+                ? money(primaryCurrency.outstanding, primaryCurrency.currency)
+                : "—"
+            }
+            detail={`${primaryOpenInvoiceCount} open invoices · credits deducted`}
+            tone="attention"
+          />
+          <Metric
+            label="Charges this month"
+            value={
+              primaryCurrency
+                ? money(
+                    primaryCurrency.monthly_invoiced,
+                    primaryCurrency.currency,
+                  )
+                : "—"
+            }
+            detail="Posted invoices created this month"
+          />
+        </div>
+        <div className="billing-attention-strip">
+          <strong>Follow up</strong>
+          {queueItems.map((item) => (
+            <Button
+              key={item.filter}
+              size="small"
+              onClick={() => {
+                setFilter(item.filter);
+                setInvoicePage(1);
+                setActiveTab("invoices");
+              }}
             >
-              View all ledger entries
-            </button>
-          </div>
-          <div className="billing-queue-list">
-            {queueItems.map((item) => (
-              <button
-                className={`billing-queue-item billing-queue-${item.tone}`}
-                type="button"
-                key={item.filter}
-                aria-pressed={filter === item.filter}
-                onClick={() => {
-                  setFilter(item.filter);
-                  setInvoicePage(1);
-                }}
-              >
-                <span className="billing-queue-count">{item.count}</span>
-                <span className="billing-queue-copy">
-                  <strong>{item.label}</strong>
-                </span>
-                <span className="billing-queue-arrow" aria-hidden="true">
-                  →
-                </span>
-              </button>
-            ))}
-          </div>
-          {queueItems.every((item) => item.count === 0) && (
-            <p className="billing-clear-state">
-              No draft invoices or posted balances require follow-up in this
-              ledger.
-            </p>
-          )}
-        </section>
-
-        <section className="clinic-card billing-currency-card">
-          <div className="billing-section-heading">
-            <div>
-              <h2>Currency totals</h2>
-            </div>
-          </div>
-          {data.metrics.currencies.length === 0 ? (
-            <p className="billing-clear-state">No ledger activity yet.</p>
-          ) : (
-            <div className="billing-currency-list">
-              {data.metrics.currencies.map((currency) => (
-                <div className="billing-currency" key={currency.currency}>
-                  <strong>{currency.currency}</strong>
-                  <span>
-                    <small>Posted this period</small>
-                    {money(currency.monthly_invoiced, currency.currency)}
-                  </span>
-                  <span>
-                    <small>Open balance</small>
-                    {money(currency.outstanding, currency.currency)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      <section className="clinic-card billing-ledger-card">
-        <div className="billing-section-heading billing-ledger-heading">
-          <div>
-            <h2>Recent invoice activity</h2>
-          </div>
-          <small className="billing-ledger-count">
-            Showing {visibleInvoices.length} of {data.metrics.invoice_count}
-          </small>
-          <div className="billing-filter-group" aria-label="Invoice filter">
-            {(
-              [
-                ["all", "All"],
-                ["draft", "Drafts"],
-                ["open", "Open balances"],
-                ["paid", "Paid"],
-                ["void", "Void"],
-                ["age_0_30", "0–30 days"],
-                ["age_31_60", "31–60 days"],
-                ["age_61_90", "61–90 days"],
-                ["age_91_plus", "91+ days"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={filter === value}
-                onClick={() => {
-                  setFilter(value);
-                  setInvoicePage(1);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+              {item.count}{" "}
+              {item.filter === "draft" ? "drafts to review" : "open invoices"}
+            </Button>
+          ))}
+          <Button
+            className="billing-outlook-link"
+            endIcon={<ArrowForwardIcon />}
+            onClick={() => setActiveTab("outlook")}
+          >
+            Look ahead at income
+          </Button>
         </div>
-
-        <div className="billing-ledger-toolbar">
-          <label className="billing-search-field">
-            <span>Search invoices</span>
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
+      </section>
+      <Tabs
+        className="billing-workspace-tabs"
+        value={activeTab}
+        onChange={(_event, value: string) => setActiveTab(value)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        aria-label="Billing workspace"
+      >
+        {[
+          ["invoices", "Invoices"],
+          ["payments", "Payments & receipts"],
+          ["outlook", "Income outlook"],
+          ["subscriptions", "Subscriptions"],
+          ["cash", "Cash drawer"],
+        ].map(([value, label]) => (
+          <Tab
+            key={value}
+            value={value}
+            label={label}
+            id={`billing-tab-${value}`}
+            aria-controls={`billing-panel-${value}`}
+          />
+        ))}
+      </Tabs>
+      <div
+        className="billing-panel"
+        role="tabpanel"
+        id="billing-panel-invoices"
+        aria-labelledby="billing-tab-invoices"
+        hidden={activeTab !== "invoices"}
+      >
+        <section className="clinic-card billing-ledger-card">
+          <div className="billing-section-heading billing-ledger-heading">
+            <div>
+              <h2>Invoice ledger</h2>
+              <p className="billing-subtitle">
+                Choose an invoice to review charges, record a payment or open
+                the patient ledger.
+              </p>
+            </div>
+          </div>
+          <div className="billing-ledger-toolbar">
+            <form
+              className="billing-search-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setQuery(searchText.trim());
                 setInvoicePage(1);
               }}
-              placeholder="Invoice number, status, currency on this page"
-            />
-          </label>
-          <label className="billing-sort-field">
-            <span>Sort by</span>
-            <select
+            >
+              <TextField
+                label="Search invoices"
+                size="small"
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Invoice number, status or currency"
+                fullWidth
+              />
+              <Button type="submit" variant="outlined">
+                Search
+              </Button>
+            </form>
+            <TextField
+              select
+              label="Invoice status or age"
+              size="small"
+              value={filter}
+              onChange={(event) => {
+                setFilter(event.target.value as BillingInvoiceFilter);
+                setInvoicePage(1);
+              }}
+            >
+              {(
+                [
+                  ["all", "All invoices"],
+                  ["draft", "Drafts"],
+                  ["open", "Open balances"],
+                  ["paid", "Settled"],
+                  ["void", "Void"],
+                  ["age_0_30", "Created 0–30 days ago"],
+                  ["age_31_60", "Created 31–60 days ago"],
+                  ["age_61_90", "Created 61–90 days ago"],
+                  ["age_91_plus", "Created 91+ days ago"],
+                ] as const
+              ).map(([value, label]) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Sort by"
+              size="small"
               value={sort}
               onChange={(event) => {
                 setSort(event.target.value as BillingInvoiceSort);
                 setInvoicePage(1);
               }}
             >
-              <option value="recent">Most recent</option>
-              <option value="oldest">Oldest first</option>
-              <option value="balance_desc">Largest balance</option>
-              <option value="total_desc">Largest total</option>
-            </select>
-          </label>
-          {(query || filter !== "all" || sort !== "recent") && (
-            <button
-              className="billing-text-button"
-              type="button"
-              onClick={() => {
-                setQuery("");
-                setFilter("all");
-                setSort("recent");
-                setInvoicePage(1);
-              }}
-            >
-              Reset view
-            </button>
-          )}
-        </div>
-        <p className="billing-results-count" role="status">
-          Showing {visibleInvoices.length} of {data.metrics.invoice_count}{" "}
-          invoices
-          {query ? ` matching “${query}”` : ""}.
-        </p>
-
-        {visibleInvoices.length === 0 ? (
-          <p className="billing-clear-state">
-            No invoices match this view. Choose another filter to review the
-            rest of the ledger.
-          </p>
-        ) : (
-          <div className="billing-table-wrap">
-            <table className="billing-ledger-table">
-              <thead>
-                <tr>
-                  <th scope="col">Invoice</th>
-                  <th scope="col">State</th>
-                  <th scope="col">Created</th>
-                  <th scope="col">Age</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Paid</th>
-                  <th scope="col">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleInvoices.map((invoice) => {
-                  const state = invoicePaymentState(invoice);
-                  const selected = selectedInvoice?.id === invoice.id;
-                  return (
-                    <tr key={invoice.id} data-selected={selected || undefined}>
-                      <th scope="row">
-                        <button
-                          type="button"
-                          className="billing-invoice-button"
-                          onClick={() => setSelectedInvoiceId(invoice.id)}
-                          aria-pressed={selected}
-                        >
-                          #{invoice.id}
-                        </button>
-                      </th>
-                      <td data-label="State">
-                        <span className={`billing-badge billing-${state}`}>
-                          {statusLabel(invoice)}
-                        </span>
-                      </td>
-                      <td data-label="Created">
-                        {date(invoice.created_at, data.practice.timezone)}
-                      </td>
-                      <td data-label="Age">
-                        <span title={invoice.age_bucket}>
-                          {invoice.age_days}d
-                        </span>
-                      </td>
-                      <td data-label="Total">
-                        {money(invoice.total, invoice.currency)}
-                      </td>
-                      <td data-label="Paid">
-                        {money(invoice.allocated, invoice.currency)}
-                      </td>
-                      <td data-label="Balance">
-                        {money(invoice.balance, invoice.currency)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              <MenuItem value="recent">Most recent</MenuItem>
+              <MenuItem value="oldest">Oldest first</MenuItem>
+              <MenuItem value="balance_desc">Largest balance</MenuItem>
+              <MenuItem value="total_desc">Largest total</MenuItem>
+            </TextField>
           </div>
-        )}
-        {data.invoice_pagination.total_pages > 1 && (
-          <div className="billing-pagination" aria-label="Invoice pages">
-            <button
-              className="billing-secondary-button"
-              type="button"
-              disabled={invoicePage <= 1}
-              onClick={() => {
-                setInvoicePage((page) => Math.max(1, page - 1));
-                setSelectedInvoiceId(null);
-              }}
-            >
-              Previous page
-            </button>
-            <span role="status">
-              Page {data.invoice_pagination.page} of{" "}
-              {data.invoice_pagination.total_pages}
-            </span>
-            <button
-              className="billing-secondary-button"
-              type="button"
-              disabled={invoicePage >= data.invoice_pagination.total_pages}
-              onClick={() => {
-                setInvoicePage((page) =>
-                  Math.min(data.invoice_pagination.total_pages, page + 1),
-                );
-                setSelectedInvoiceId(null);
-              }}
-            >
-              Next page
-            </button>
-          </div>
-        )}
-      </section>
-
-      <div className="billing-detail-grid">
-        <section className="clinic-card billing-invoice-detail">
-          <div className="billing-section-heading">
-            <div>
-              <h2>
-                {selectedInvoice
-                  ? `Invoice #${selectedInvoice.id}`
-                  : "Choose an invoice"}
-              </h2>
-            </div>
-            {selectedInvoice && (
-              <span
-                className={`billing-badge billing-${invoicePaymentState(selectedInvoice)}`}
+          <div className="billing-results-row">
+            <p className="billing-results-count" role="status">
+              Showing {visibleInvoices.length} of{" "}
+              {data.invoice_pagination.total} matching invoices
+              {query ? ` for “${query}”` : ""}.
+            </p>
+            {(query || filter !== "all" || sort !== "recent") && (
+              <Button
+                size="small"
+                onClick={() => {
+                  setQuery("");
+                  setSearchText("");
+                  setFilter("all");
+                  setSort("recent");
+                  setInvoicePage(1);
+                }}
               >
-                {statusLabel(selectedInvoice)}
-              </span>
+                Reset filters
+              </Button>
             )}
           </div>
-          {selectedInvoice ? (
-            <>
-              <div className="billing-detail-meta">
-                <span>
-                  Linked patient record · #{selectedDetail?.patient_id ?? "—"}
-                </span>
-                <span>
-                  Created{" "}
-                  {date(selectedInvoice.created_at, data.practice.timezone)}
-                </span>
-              </div>
-              <div className="billing-invoice-detail-values">
-                <div>
-                  <span>Total</span>
-                  <strong>
-                    {money(selectedInvoice.total, selectedInvoice.currency)}
-                  </strong>
-                </div>
-                <div>
-                  <span>Payments allocated</span>
-                  <strong>
-                    {money(selectedInvoice.allocated, selectedInvoice.currency)}
-                  </strong>
-                </div>
-                <div>
-                  <span>Remaining balance</span>
-                  <strong>
-                    {money(selectedInvoice.balance, selectedInvoice.currency)}
-                  </strong>
-                </div>
-              </div>
-              {detailResource.error ? (
-                <p className="billing-inline-error" role="alert">
-                  Invoice line detail is unavailable for this account. The
-                  ledger summary remains available.
-                </p>
-              ) : selectedDetail ? (
-                <>
-                  <DetailLineItems detail={selectedDetail} />
-                  <InvoiceAuditTimeline detail={selectedDetail} />
-                </>
-              ) : (
-                <p className="billing-loading-detail" role="status">
-                  Loading invoice detail…
-                </p>
-              )}
-              {selectedInvoice.status === "draft" &&
-                context.capabilities.billing && (
-                  <div className="billing-action-row">
-                    {confirmAction === "post" ? (
-                      <BillingConfirm
-                        action="post"
-                        invoice={selectedInvoice}
-                        onCancel={clearActionState}
-                        onConfirm={() => void postInvoice()}
-                        busy={busyAction === "post"}
-                      />
-                    ) : (
-                      <button
-                        className="billing-primary-button"
-                        type="button"
-                        onClick={() => {
-                          setActionError("");
-                          setConfirmAction("post");
-                        }}
+          {visibleInvoices.length === 0 ? (
+            <p className="billing-clear-state">
+              No invoices match this view. Choose another filter to review the
+              rest of the ledger.
+            </p>
+          ) : (
+            <TableContainer className="billing-table-wrap">
+              <Table
+                className="billing-ledger-table"
+                size="small"
+                aria-label="Invoice ledger"
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Invoice</TableCell>
+                    <TableCell>State</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell>Age</TableCell>
+                    <TableCell>Total</TableCell>
+                    <TableCell>Paid</TableCell>
+                    <TableCell>Balance</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {visibleInvoices.map((invoice) => {
+                    const state = invoicePaymentState(invoice);
+                    const selected = selectedInvoice?.id === invoice.id;
+                    return (
+                      <TableRow
+                        key={invoice.id}
+                        data-selected={selected || undefined}
                       >
-                        Post invoice to ledger
-                      </button>
-                    )}
+                        <TableCell component="th" scope="row">
+                          <Button
+                            type="button"
+                            className="billing-invoice-button"
+                            onClick={() => {
+                              setSelectedInvoiceId(invoice.id);
+                              setInvoiceOpen(true);
+                              clearActionState();
+                              setPaymentReference("");
+                              setPaymentAmount("");
+                              setPaymentEventAmount("");
+                              setActionMessage("");
+                            }}
+                            aria-pressed={selected}
+                          >
+                            #{invoice.id}
+                          </Button>
+                        </TableCell>
+                        <TableCell data-label="State">
+                          <span className={`billing-badge billing-${state}`}>
+                            {statusLabel(invoice)}
+                          </span>
+                        </TableCell>
+                        <TableCell data-label="Created">
+                          {date(invoice.created_at, data.practice.timezone)}
+                        </TableCell>
+                        <TableCell data-label="Age">
+                          <span title={invoice.age_bucket}>
+                            {invoice.age_days}d
+                          </span>
+                        </TableCell>
+                        <TableCell data-label="Total">
+                          {money(invoice.total, invoice.currency)}
+                        </TableCell>
+                        <TableCell data-label="Paid">
+                          {money(invoice.allocated, invoice.currency)}
+                        </TableCell>
+                        <TableCell data-label="Balance">
+                          {money(invoice.balance, invoice.currency)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {data.invoice_pagination.total_pages > 1 && (
+            <div className="billing-pagination" aria-label="Invoice pages">
+              <Button
+                className="billing-secondary-button"
+                type="button"
+                disabled={invoicePage <= 1}
+                onClick={() => {
+                  setInvoicePage((page) => Math.max(1, page - 1));
+                  setSelectedInvoiceId(null);
+                }}
+              >
+                Previous page
+              </Button>
+              <span role="status">
+                Page {data.invoice_pagination.page} of{" "}
+                {data.invoice_pagination.total_pages}
+              </span>
+              <Button
+                className="billing-secondary-button"
+                type="button"
+                disabled={invoicePage >= data.invoice_pagination.total_pages}
+                onClick={() => {
+                  setInvoicePage((page) =>
+                    Math.min(data.invoice_pagination.total_pages, page + 1),
+                  );
+                  setSelectedInvoiceId(null);
+                }}
+              >
+                Next page
+              </Button>
+            </div>
+          )}
+        </section>
+      </div>
+      <Dialog
+        disablePortal
+        open={invoiceOpen && Boolean(selectedInvoice)}
+        onClose={() => {
+          if (!busyAction) setInvoiceOpen(false);
+        }}
+        fullWidth
+        maxWidth="md"
+        slotProps={{ paper: { className: "billing-invoice-dialog" } }}
+        aria-labelledby="billing-invoice-dialog-title"
+      >
+        <DialogTitle id="billing-invoice-dialog-title">
+          Invoice details
+        </DialogTitle>
+        <DialogContent dividers>
+          <section className="clinic-card billing-invoice-detail">
+            <div className="billing-section-heading">
+              <div>
+                <h2>
+                  {selectedInvoice
+                    ? `Invoice #${selectedInvoice.id}`
+                    : "Choose an invoice"}
+                </h2>
+              </div>
+              {selectedInvoice && (
+                <span
+                  className={`billing-badge billing-${invoicePaymentState(selectedInvoice)}`}
+                >
+                  {statusLabel(selectedInvoice)}
+                </span>
+              )}
+            </div>
+            {selectedInvoice ? (
+              <>
+                <div className="billing-detail-meta">
+                  <span>
+                    Linked patient record · #{selectedDetail?.patient_id ?? "—"}
+                  </span>
+                  <span>
+                    Created{" "}
+                    {date(selectedInvoice.created_at, data.practice.timezone)}
+                  </span>
+                </div>
+                <div className="billing-invoice-detail-values">
+                  <div>
+                    <span>Total</span>
+                    <strong>
+                      {money(selectedInvoice.total, selectedInvoice.currency)}
+                    </strong>
                   </div>
+                  <div>
+                    <span>Payments allocated</span>
+                    <strong>
+                      {money(
+                        selectedInvoice.allocated,
+                        selectedInvoice.currency,
+                      )}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Remaining balance</span>
+                    <strong>
+                      {money(selectedInvoice.balance, selectedInvoice.currency)}
+                    </strong>
+                  </div>
+                </div>
+                {detailResource.error ? (
+                  <p className="billing-inline-error" role="alert">
+                    Invoice line detail is unavailable for this account. The
+                    ledger summary remains available.
+                  </p>
+                ) : selectedDetail ? (
+                  <>
+                    <DetailLineItems detail={selectedDetail} />
+                    <InvoiceAuditTimeline detail={selectedDetail} />
+                  </>
+                ) : (
+                  <p className="billing-loading-detail" role="status">
+                    Loading invoice detail…
+                  </p>
                 )}
-              {selectedInvoice.status === "posted" &&
-                !isZeroDecimal(selectedInvoice.balance) && (
-                  <form
-                    className="billing-payment-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const validation = validatePayment();
-                      if (validation) {
-                        setActionError(validation);
-                        setConfirmAction(null);
-                      } else {
-                        setActionError("");
-                        setConfirmAction("payment");
-                      }
-                    }}
-                  >
-                    <div>
-                      <h3>Record an external payment</h3>
-                      <p>
-                        Use the processor or bank event reference. Enter the
-                        amount to apply now and, when needed, a larger payment
-                        total to retain as unapplied balance. The server
-                        validates currency, balance, and replay safety.
-                      </p>
+                {selectedInvoice.status === "draft" &&
+                  (context.capabilities.billing_invoice_post === true ||
+                    context.capabilities.billing) && (
+                    <div className="billing-action-row">
+                      {confirmAction === "post" ? (
+                        <BillingConfirm
+                          action="post"
+                          invoice={selectedInvoice}
+                          onCancel={clearActionState}
+                          onConfirm={() => void postInvoice()}
+                          busy={busyAction === "post"}
+                        />
+                      ) : (
+                        <Button
+                          className="billing-primary-button"
+                          type="button"
+                          onClick={() => {
+                            setActionError("");
+                            setConfirmAction("post");
+                          }}
+                        >
+                          Post invoice to ledger
+                        </Button>
+                      )}
                     </div>
-                    <div className="billing-payment-fields">
-                      <label>
-                        <span>Event reference</span>
-                        <input
+                  )}
+                {selectedInvoice.status === "posted" &&
+                  !isZeroDecimal(selectedInvoice.balance) &&
+                  (context.capabilities.billing_payment_record === true ||
+                    context.capabilities.billing) && (
+                    <form
+                      className="billing-payment-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const validation = validatePayment();
+                        if (validation) {
+                          setActionError(validation);
+                          setConfirmAction(null);
+                        } else {
+                          setActionError("");
+                          setConfirmAction("payment");
+                        }
+                      }}
+                    >
+                      <div>
+                        <h3>Record an external payment</h3>
+                        <p>
+                          Use the processor or bank event reference. Enter the
+                          amount to apply now and, when needed, a larger payment
+                          total to retain as unapplied balance. Only record
+                          money already received; this does not charge a card.
+                        </p>
+                      </div>
+                      <div className="billing-payment-fields">
+                        <TextField
+                          label="Event reference"
+                          size="small"
                           value={paymentReference}
                           onChange={(event) =>
                             setPaymentReference(event.target.value)
                           }
-                          maxLength={255}
+                          slotProps={{ htmlInput: { maxLength: 255 } }}
                           required
                         />
-                      </label>
-                      <label>
-                        <span>Apply now ({selectedInvoice.currency})</span>
-                        <input
+                        <TextField
+                          label={`Apply now (${selectedInvoice.currency})`}
+                          size="small"
                           value={paymentAmount}
                           onChange={(event) =>
                             setPaymentAmount(event.target.value)
                           }
-                          inputMode="decimal"
-                          pattern="(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?"
+                          slotProps={{
+                            htmlInput: {
+                              inputMode: "decimal",
+                              pattern: "(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?",
+                            },
+                          }}
                           required
                         />
-                      </label>
-                      <label>
-                        <span>Payment total ({selectedInvoice.currency})</span>
-                        <input
+                        <TextField
+                          label={`Payment total (${selectedInvoice.currency})`}
+                          size="small"
                           value={paymentEventAmount}
                           onChange={(event) =>
                             setPaymentEventAmount(event.target.value)
                           }
-                          inputMode="decimal"
-                          pattern="(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?"
+                          slotProps={{
+                            htmlInput: {
+                              inputMode: "decimal",
+                              pattern: "(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?",
+                            },
+                          }}
                           placeholder="Same as amount applied"
                         />
-                      </label>
-                    </div>
-                    {confirmAction === "payment" && (
-                      <BillingConfirm
-                        action="payment"
-                        invoice={selectedInvoice}
-                        onCancel={clearActionState}
-                        onConfirm={() => void recordPayment()}
-                        busy={busyAction === "payment"}
-                      />
-                    )}
-                    {!confirmAction && (
-                      <button
-                        className="billing-secondary-button"
-                        type="submit"
-                      >
-                        Review payment
-                      </button>
-                    )}
-                  </form>
+                      </div>
+                      {confirmAction === "payment" && (
+                        <BillingConfirm
+                          action="payment"
+                          invoice={selectedInvoice}
+                          onCancel={clearActionState}
+                          onConfirm={() => void recordPayment()}
+                          busy={busyAction === "payment"}
+                        />
+                      )}
+                      {!confirmAction && (
+                        <Button
+                          className="billing-secondary-button"
+                          type="submit"
+                        >
+                          Review payment
+                        </Button>
+                      )}
+                    </form>
+                  )}
+                {actionError && (
+                  <p className="billing-inline-error" role="alert">
+                    {actionError}
+                  </p>
                 )}
-              {actionError && (
-                <p className="billing-inline-error" role="alert">
-                  {actionError}
-                </p>
-              )}
-              {actionMessage && (
-                <p className="billing-inline-success" role="status">
-                  {actionMessage}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="billing-clear-state">
-              Invoice detail will appear when the ledger has activity.
-            </p>
-          )}
-        </section>
-
-        <section className="clinic-card billing-payments-card">
-          <div className="billing-section-heading">
-            <div>
-              <h2>Recent allocations</h2>
-            </div>
-          </div>
-          {data.recent_payments.length === 0 ? (
-            <p className="billing-clear-state">
-              No payments have been allocated in the ledger yet.
-            </p>
-          ) : (
-            <ul className="billing-payment-list">
-              {data.recent_payments.map((payment) => (
-                <li key={`${payment.invoice_id}-${payment.created_at}`}>
-                  <span>
-                    <strong>Invoice #{payment.invoice_id}</strong>
-                    <small>
-                      {date(payment.created_at, data.practice.timezone, true)}
-                    </small>
-                  </span>
-                  <strong>{money(payment.amount, payment.currency)}</strong>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="billing-fine-print">
-            Payment collection is not configured in this local workspace.
-          </p>
-        </section>
+                {actionMessage && (
+                  <p className="billing-inline-success" role="status">
+                    {actionMessage}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="billing-clear-state">
+                Invoice detail will appear when the ledger has activity.
+              </p>
+            )}
+          </section>
+        </DialogContent>
+        <DialogActions>
+          {selectedDetail &&
+            context.capabilities.patient_identity_read === true && (
+              <Button
+                href={`/clinic/billing/patients?patient_id=${selectedDetail.patient_id}`}
+              >
+                Open patient ledger
+              </Button>
+            )}
+          {selectedInvoice?.status === "posted" &&
+            !isZeroDecimal(selectedInvoice.balance) &&
+            context.capabilities.billing_payment_record === true && (
+              <Button
+                onClick={() => {
+                  setInvoiceOpen(false);
+                  setActiveTab("cash");
+                }}
+              >
+                Record cash payment
+              </Button>
+            )}
+          <Button
+            disabled={Boolean(busyAction)}
+            onClick={() => setInvoiceOpen(false)}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <div
+        className="billing-panel"
+        role="tabpanel"
+        id="billing-panel-payments"
+        aria-labelledby="billing-tab-payments"
+        hidden={activeTab !== "payments"}
+      >
+        {activeTab === "payments" && (
+          <BillingPayments
+            data={data}
+            canOpenPatient={context.capabilities.patient_identity_read === true}
+          />
+        )}
       </div>
-      <SubscriptionBilling
-        onChanged={() => {
-          refresh();
-          detailResource.refresh();
-        }}
-      />
-      <CashDrawerOperations
-        invoice={selectedInvoice ?? null}
-        onRecorded={() => {
-          refresh();
-          detailResource.refresh();
-        }}
-      />
+      <div
+        className="billing-panel"
+        role="tabpanel"
+        id="billing-panel-outlook"
+        aria-labelledby="billing-tab-outlook"
+        hidden={activeTab !== "outlook"}
+      >
+        {activeTab === "outlook" && (
+          <BillingIncomeOutlook initial={data.income_outlook} />
+        )}
+      </div>
+      <div
+        className="billing-panel"
+        role="tabpanel"
+        id="billing-panel-subscriptions"
+        aria-labelledby="billing-tab-subscriptions"
+        hidden={activeTab !== "subscriptions"}
+      >
+        <SubscriptionBilling
+          onChanged={() => {
+            refresh();
+            detailResource.refresh();
+          }}
+        />
+      </div>
+      <div
+        className="billing-panel"
+        role="tabpanel"
+        id="billing-panel-cash"
+        aria-labelledby="billing-tab-cash"
+        hidden={activeTab !== "cash"}
+      >
+        <div className="billing-cash-context">
+          <Typography>
+            {selectedInvoice
+              ? `Selected invoice #${selectedInvoice.id} · balance ${money(selectedInvoice.balance, selectedInvoice.currency)}`
+              : "Choose a posted invoice from the invoice ledger to record cash."}
+          </Typography>
+          <Button onClick={() => setActiveTab("invoices")}>
+            Choose invoice
+          </Button>
+        </div>
+        <CashDrawerOperations
+          invoice={selectedInvoice ?? null}
+          onRecorded={() => {
+            refresh();
+            detailResource.refresh();
+          }}
+        />
+      </div>
+      <Dialog
+        open={cardsOpen}
+        onClose={() => setCardsOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="billing-cards-title"
+      >
+        <DialogTitle id="billing-cards-title">Cards & Stripe</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Connection required
+          </Alert>
+          <Typography sx={{ mb: 2 }}>{data.card_collection.reason}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            There is currently no connected Stripe page to enter a card or
+            manage saved cards. Card entry will need a Stripe-hosted or embedded
+            payment flow. No card information is collected here.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            Clinic patient payments and clinic service subscriptions belong to
+            this billing workspace. This is separate from paying for the APPly
+            software.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          {context.capabilities.patient_identity_read === true && (
+            <Button href="/clinic/billing/patients">
+              Open patient payments
+            </Button>
+          )}
+          <Button onClick={() => setCardsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
