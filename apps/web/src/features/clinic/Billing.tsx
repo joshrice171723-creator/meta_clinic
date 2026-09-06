@@ -24,7 +24,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BillingPatientLedger, Patient } from "../../api/contracts";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
@@ -441,6 +441,7 @@ function DraftInvoiceForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const requestKeyRef = useRef<string | null>(null);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -466,6 +467,8 @@ function DraftInvoiceForm({
     setBusy(true);
     setError("");
     setNotice("");
+    const retryKey = requestKeyRef.current || crypto.randomUUID();
+    requestKeyRef.current = retryKey;
     try {
       const result = await api<{ invoice: { id: number } }>(
         `/api/clinic/patients/${patientId}/invoices`,
@@ -474,6 +477,7 @@ function DraftInvoiceForm({
           body: {
             invoice: {
               currency,
+              request_key: retryKey,
               lines: [
                 {
                   quantity: quantity.trim(),
@@ -488,6 +492,7 @@ function DraftInvoiceForm({
       setDescription("");
       setQuantity("1");
       setUnitAmount("");
+      requestKeyRef.current = null;
       setNotice(`Draft invoice #${result.invoice.id} created.`);
       onCreated();
     } catch (reason) {

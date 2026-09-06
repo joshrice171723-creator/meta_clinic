@@ -20,7 +20,7 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:invoice, %i[currency], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
+        input = parameter_hash!(:invoice, %i[currency request_key], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
         lines = Array(input[:lines])
         raise Clinic::Api::RequestParameters::Invalid.new("lines must contain 1–100 entries.", field: :lines) unless lines.size.between?(1, 100)
         line_attributes = lines.map.with_index do |line, index|
@@ -37,20 +37,24 @@ module Clinic
           }
         end
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
+        request_key = input.key?(:request_key) ? required_string!(input[:request_key], field: :request_key, maximum: 160) : SecureRandom.uuid
         invoice = Clinic::Billing::DraftInvoice.call(
           practice: current_practice,
           actor: current_user,
           patient: patient,
           currency: required_string!(input[:currency], field: :currency, maximum: 3),
-          lines: line_attributes
+          lines: line_attributes,
+          request_key: request_key
         )
-        render json: { invoice: InvoiceSerializer.call(invoice, detail: true) }, status: :created
+        render json: { invoice: InvoiceSerializer.call(invoice, detail: true), request_key: request_key }, status: :created
       end
 
       def post
+        input = params[:invoice_post].present? ? parameter_hash!(:invoice_post, %i[request_key]) : {}
+        request_key = input.key?(:request_key) ? required_string!(input[:request_key], field: :request_key, maximum: 160) : SecureRandom.uuid
         invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
-        updated = Clinic::Billing::PostInvoice.call(invoice: invoice, actor: current_user)
-        render json: { invoice: InvoiceSerializer.call(updated, detail: true) }
+        updated = Clinic::Billing::PostInvoice.call(invoice: invoice, actor: current_user, request_key: request_key)
+        render json: { invoice: InvoiceSerializer.call(updated, detail: true), request_key: request_key }
       end
 
       def allocate_payment

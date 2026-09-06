@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -323,6 +323,10 @@ export function BillingDashboard() {
   const [busyAction, setBusyAction] = useState<"post" | "payment" | null>(null);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
+  const postAttemptRef = useRef<{
+    invoiceId: number;
+    requestKey: string;
+  } | null>(null);
   const visibleInvoices = data?.recent_invoices ?? [];
   const selectedInvoice =
     visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
@@ -365,10 +369,17 @@ export function BillingDashboard() {
     if (!selectedInvoice || busyAction) return;
     setBusyAction("post");
     setActionError("");
+    const attempt =
+      postAttemptRef.current?.invoiceId === selectedInvoice.id
+        ? postAttemptRef.current
+        : { invoiceId: selectedInvoice.id, requestKey: crypto.randomUUID() };
+    postAttemptRef.current = attempt;
     try {
       await api(`/api/clinic/invoices/${selectedInvoice.id}/post`, {
         method: "POST",
+        body: { invoice_post: { request_key: attempt.requestKey } },
       });
+      postAttemptRef.current = null;
       setActionMessage(
         `Invoice #${selectedInvoice.id} was posted to the ledger.`,
       );
