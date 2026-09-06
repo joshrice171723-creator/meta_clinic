@@ -370,6 +370,21 @@
     "/api/clinic/staff-messaging/preferences(.:format)"
   ],
   [
+    "api_clinic_stripe_connect",
+    "GET",
+    "/api/clinic/stripe_connect(.:format)"
+  ],
+  [
+    "api_clinic_stripe_connect_onboard",
+    "POST",
+    "/api/clinic/stripe_connect/onboard(.:format)"
+  ],
+  [
+    "api_clinic_stripe_connect_refresh",
+    "POST",
+    "/api/clinic/stripe_connect/refresh(.:format)"
+  ],
+  [
     "api_clinic_subscription_catalog",
     "GET",
     "/api/clinic/subscription_catalog(.:format)"
@@ -493,6 +508,11 @@
     "api_settings",
     "GET",
     "/api/settings(.:format)"
+  ],
+  [
+    "api_stripe_connect_webhook",
+    "POST",
+    "/api/stripe/connect/webhook(.:format)"
   ],
   [
     "approve_api_clinic_scribe_draft",
@@ -690,6 +710,11 @@
     "/api/clinic/subscriptions/:id/reconcile(.:format)"
   ],
   [
+    "reconcile_api_patient_portal_subscription",
+    "POST",
+    "/api/patient_portal/subscriptions/:id/reconcile(.:format)"
+  ],
+  [
     "reconcile_ledger_api_clinic_subscription",
     "POST",
     "/api/clinic/subscriptions/:id/reconcile_ledger(.:format)"
@@ -745,6 +770,11 @@
     "/api/paperworks/:id/start(.:format)"
   ],
   [
+    "stripe_connect_webhook",
+    "POST",
+    "/stripe/connect/webhook(.:format)"
+  ],
+  [
     "transition_api_clinic_appointment",
     "POST",
     "/api/clinic/appointments/:id/transition(.:format)"
@@ -763,6 +793,11 @@
     null,
     "DELETE",
     "/api/session(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/"
   ],
   [
     null,
