@@ -38,6 +38,7 @@ export type StaffMessage = {
   createdAt: string;
   acknowledgementRequired?: boolean;
   acknowledged?: boolean;
+  reminderId?: number;
   request?: {
     id: number;
     state: string;
@@ -45,6 +46,7 @@ export type StaffMessage = {
     due_at: string | null;
     resolved_at: string | null;
     resolution_code: string | null;
+    assignee_label?: string;
   } | null;
 };
 
@@ -288,6 +290,18 @@ function MessageCard({
         <Typography sx={{ lineHeight: 1.65, overflowWrap: "anywhere" }}>
           {message.body}
         </Typography>
+        {message.reminderId && (
+          <Button component="a" href={`/clinic/reminders?reminder_id=${message.reminderId}`} size="small" sx={{ alignSelf: "flex-start" }}>
+            Open source reminder
+          </Button>
+        )}
+        {request && (
+          <Typography variant="body2" color="text.secondary">
+            {request.state.replaceAll("_", " ")} · {request.assignee_label || "Assigned staff member unavailable"}
+            {request.due_at && ` · Due ${new Date(request.due_at).toLocaleString()}`}
+            {request.resolution_code && ` · ${request.resolution_code}`}
+          </Typography>
+        )}
         {message.acknowledgementRequired && (
           <Stack
             direction={{ xs: "column", sm: "row" }}
@@ -299,7 +313,7 @@ function MessageCard({
           >
             <Typography variant="body2" color="text.secondary">
               {message.acknowledged
-                ? "Acknowledged by the current staff member."
+                ? "Acknowledgement recorded."
                 : "Acknowledgement requested."}
             </Typography>
             {!message.acknowledged && canAcknowledge && (

@@ -6,7 +6,7 @@ import { StaffMessagingWorkspace, type StaffConversation, type StaffMessage, typ
 
 type ApiParticipant = { id: number; email: string; active: boolean };
 type ApiRequest = { id: number; state: string; assignee_membership_id: number | null; due_at: string | null; resolved_at: string | null; resolution_code: string | null };
-type ApiMessage = { id: number; sender_email: string; body: string; message_class: StaffMessage["messageClass"]; created_at: string; acknowledgement_required: boolean; acknowledged_at: string | null; request: ApiRequest | null };
+type ApiMessage = { id: number; sender_email: string; body: string; message_class: StaffMessage["messageClass"]; created_at: string; acknowledgement_required: boolean; acknowledged_at: string | null; request: ApiRequest | null; linked_object?: { type: string; id: number } | null };
 type ApiConversation = { id: number; title: string | null; kind: StaffConversation["kind"]; status: StaffConversation["status"]; unread: boolean; urgent: boolean; unresolved: boolean; participants: ApiParticipant[]; last_message_at: string | null; last_message_class: StaffMessage["messageClass"] | null };
 type Pagination = { page: number; per_page: number; total: number; total_pages: number };
 type ConversationIndex = { conversations: ApiConversation[]; pagination: Pagination };
@@ -37,7 +37,10 @@ function mapConversation(conversation: ApiConversation, messages: ApiMessage[] =
     participants: conversation.participants.map((participant) => participant.email),
     lastMessageAt: displayTime(conversation.last_message_at),
     lastMessageClass: conversation.last_message_class || "routine",
-    messages: messages.map((message) => ({ id: message.id, sender: message.sender_email, senderEmail: message.sender_email, body: message.body, messageClass: message.message_class, createdAt: displayTime(message.created_at), acknowledgementRequired: message.acknowledgement_required, acknowledged: message.acknowledged_at !== null, request: message.request })),
+    messages: messages.map((message) => ({ id: message.id, sender: message.sender_email, senderEmail: message.sender_email, body: message.body, messageClass: message.message_class, createdAt: displayTime(message.created_at), acknowledgementRequired: message.acknowledgement_required, acknowledged: message.acknowledged_at !== null,
+      request: message.request ? { ...message.request, assignee_label: conversation.participants.find((participant) => participant.id === message.request?.assignee_membership_id)?.email } : null,
+      reminderId: message.linked_object?.type === "patient_reminder" ? message.linked_object.id : undefined,
+    })),
     messagePage: pagination?.page,
     messageTotalPages: pagination?.total_pages,
   };
