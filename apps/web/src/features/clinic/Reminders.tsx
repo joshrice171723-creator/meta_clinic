@@ -748,37 +748,40 @@ export function Reminders() {
         >
           <Stack
             direction={{ xs: "column", md: "row" }}
-            sx={{ gap: 1.5, mb: 3 }}
+            sx={{ gap: 1, mb: 2.25 }}
           >
             {tab === 0 && (
               <>
                 <TextField
+                  size="small"
                   label="From"
                   type="date"
                   value={from}
                   onChange={(event) => setFrom(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
-                  sx={{ minWidth: 170 }}
+                  sx={{ width: { xs: "100%", md: 142 } }}
                   error={Boolean(rangeError)}
                 />
                 <TextField
+                  size="small"
                   label="Through"
                   type="date"
                   value={to}
                   onChange={(event) => setTo(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
-                  sx={{ minWidth: 170 }}
+                  sx={{ width: { xs: "100%", md: 142 } }}
                   error={Boolean(rangeError)}
                   helperText={rangeError || " "}
                 />
               </>
             )}
             <TextField
+              size="small"
               value={patientQuery}
               onChange={(event) => setPatientQuery(event.target.value)}
               label="Filter by patient"
               placeholder="Name or patient reference"
-              sx={{ flex: 1, maxWidth: 440 }}
+              sx={{ flex: 1, maxWidth: { md: 360 } }}
               slotProps={{
                 input: {
                   startAdornment: (
