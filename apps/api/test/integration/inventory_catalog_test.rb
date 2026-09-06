@@ -11,6 +11,7 @@ class InventoryCatalogTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "inventory.read", "inventory.receive", "inventory.hold", "inventory.release", "inventory.catalog")
     @product = @practice.pharmacy_products.create!(name: "Zulu liquid 100%", sku: "CATALOG", stock_unit: "mL", quantity_scale: 3, package_size: "1.25", unit_reference: "Fixture package")
+    %w[Needle Fixture].each { |prefix| @practice.inventory_locations.create!(name: "#{prefix} shelf", kind: "storage") }
     @receipt = Clinic::Inventory::Receiving.call(practice: @practice, actor: @actor, reason: "Catalog opening", request_key: SecureRandom.uuid, supplier: "Latest fixture supplier",
       lines: [ { product_id: @product.id, lot_number: "NEEDLE-LOT", location: "Needle shelf", expires_on: "2099-01-01", amount: "2", input_unit: "package" } ])
     get "/api/csrf", headers: @headers

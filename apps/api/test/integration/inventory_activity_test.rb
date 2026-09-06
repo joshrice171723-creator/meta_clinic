@@ -11,6 +11,7 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "inventory.read", "inventory.receive", "inventory.adjust")
     product = @practice.pharmacy_products.create!(name: "Activity fixture liquid", sku: "ACTIVITY", stock_unit: "mL", quantity_scale: 3, package_size: "1.25", unit_reference: "Fixture package")
+    @practice.inventory_locations.create!(name: "Fixture shelf", kind: "storage")
     receipt = Clinic::Inventory::Receiving.call(practice: @practice, actor: @actor, reason: "Old opening needle 100%", request_key: SecureRandom.uuid,
       lines: [ { product_id: product.id, lot_number: "ACTIVITY-LOT", location: "Fixture shelf", expires_on: "2099-01-01", amount: "2", input_unit: "package" } ])
     @receipt_id = receipt.id

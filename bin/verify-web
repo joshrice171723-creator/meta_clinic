@@ -123,10 +123,15 @@ begin
   response = post.call("/api/clinic/pharmacy", { clinic_pharmacy_product: { name: "Synthetic split verification", sku: "SPLIT-VERIFY", stock_unit: "mL", quantity_scale: 6, package_size: "0.000001", unit_reference: "Fictional package verification" } })
   raise "Catalog create failed" unless response.code == "201"
   id = JSON.parse(response.body).fetch("id")
+  phase = "inventory receiving destination"
+  location = post.call("/api/clinic/inventory/locations", { response: "ack", location: { name: "Example shelf", kind: "storage", status: "active" } })
+  raise "Receiving location fixture failed" unless location.code == "201"
+  phase = "inventory receipt and retry"
   receipt = { batch: { lot_number: "SYNTHETIC-LOT", location: "Example shelf", expires_on: "2099-01-01" }, amount: "0.000001", input_unit: "mL", reason: "Synthetic split test", request_key: SecureRandom.uuid }
   2.times { raise "Receipt/retry failed" unless post.call("/api/clinic/pharmacy/#{id}/receive", receipt).code == "204" }
   details = JSON.parse(request.call("/api/clinic/pharmacy/#{id}").body)
   raise "Decimal/retry wire contract failed" unless details.dig("product", "available_quantity") == "0.000001" && details.fetch("batches").length == 1 && details.fetch("batches").first.fetch("receipts").length == 1
+  phase = "inventory ledger and catalog contract"
   ledger = JSON.parse(request.call("/api/clinic/inventory/activity?view=ledger&q=split").body).fetch("data")
   raise "Bounded inventory ledger contract failed" unless ledger.dig("activity_page", "filtered_count") == 1 && ledger.fetch("movements").length == 1 && ledger.fetch("movements").first.fetch("quantity_units") == "0.000001" && !ledger.key?("products")
   catalog = JSON.parse(request.call("/api/clinic/inventory/catalog?view=table&q=SPLIT-VERIFY").body).fetch("data")

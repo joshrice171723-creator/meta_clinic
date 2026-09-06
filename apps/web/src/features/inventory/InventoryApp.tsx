@@ -68,6 +68,7 @@ import { SupplierPricingScreen } from "./SupplierPricing";
 import { CycleCountsScreen } from "./CycleCountsScreen";
 import { ControlledScreen } from "./ControlledScreen";
 import { InventoryScanInput } from "./InventoryScanInput";
+import { OrderReconciliation } from "./OrderReconciliation";
 import "./inventory.css";
 
 type Screen =
@@ -2458,6 +2459,7 @@ export function InventoryApp({ path }: { path: string }) {
   const [uncertainMutation, setUncertainMutation] =
     useState<PendingInventoryMutation | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const [reconciliationPending, setReconciliationPending] = useState(false);
   const needsPurchaseOrderFacility =
     screen === "purchase_order_new" || screen === "replenishment";
   const routeScope =
@@ -2980,7 +2982,7 @@ export function InventoryApp({ path }: { path: string }) {
                 size="medium"
                 startIcon={<RefreshRoundedIcon />}
                 type="button"
-                disabled={loading}
+                disabled={loading || reconciliationPending}
                 onClick={() => void load()}
                 sx={{
                   minHeight: 44,
@@ -3139,6 +3141,7 @@ export function InventoryApp({ path }: { path: string }) {
               <PurchasingScreen
                 data={data}
                 busy={busy}
+                onReconciliationBlocked={setReconciliationPending}
                 readBlocked={Boolean(uncertainMutation)}
                 run={run}
                 loading={loading}
@@ -4743,6 +4746,7 @@ function PurchasingScreen({
   error,
   onRead,
   run,
+  onReconciliationBlocked,
 }: {
   data: InventoryOrderData;
   busy: boolean;
@@ -4750,6 +4754,7 @@ function PurchasingScreen({
   loading: boolean;
   error: string;
   onRead: (read: InventoryOrderRead) => Promise<void>;
+  onReconciliationBlocked: (blocked: boolean) => void;
   run: (
     endpoint: string,
     body: Record<string, unknown>,
@@ -4761,7 +4766,12 @@ function PurchasingScreen({
   const [query, setQuery] = useState(page.query);
   useEffect(() => setQuery(page.query), [page.query]);
   const applied = { q: page.query, order_status: page.status, page: page.page };
-  const disabled = loading || busy || readBlocked;
+  const [reconciliationBlocked, setReconciliationBlocked] = useState(false);
+  useEffect(() => {
+    onReconciliationBlocked(reconciliationBlocked);
+    return () => onReconciliationBlocked(false);
+  }, [reconciliationBlocked, onReconciliationBlocked]);
+  const disabled = loading || busy || readBlocked || reconciliationBlocked;
   return (
     <div className="inventory-stack" aria-busy={loading}>
       <Card title="Find purchase batches">
@@ -4870,8 +4880,10 @@ function PurchasingScreen({
         <PurchaseOrderDetails
           key={`${page.page}:${page.query}:${page.status}`}
           data={data}
-          busy={busy}
+          busy={busy || reconciliationBlocked}
           run={run}
+          onChanged={() => void onRead(applied)}
+          onBlockedChange={setReconciliationBlocked}
         />
       ) : (
         <Card title="Purchasing">
@@ -4891,9 +4903,13 @@ function PurchaseOrderDetails({
   data,
   busy,
   run,
+  onChanged,
+  onBlockedChange,
 }: {
   data: InventoryOrderData;
   busy: boolean;
+  onChanged: () => void;
+  onBlockedChange: (blocked: boolean) => void;
   run: (
     endpoint: string,
     body: Record<string, unknown>,
@@ -5005,6 +5021,7 @@ function PurchaseOrderDetails({
                 <button
                   className="inventory-purchase-batch-header"
                   type="button"
+                  disabled={busy}
                   aria-expanded={expanded}
                   onClick={() =>
                     setExpandedGroupId((current) =>
@@ -5035,6 +5052,7 @@ function PurchaseOrderDetails({
                         className={`inventory-purchase-order-option ${record.id === order.id ? "selected" : ""}`}
                         type="button"
                         key={record.id}
+                        disabled={busy}
                         aria-current={
                           record.id === order.id ? "true" : undefined
                         }
@@ -5213,6 +5231,13 @@ function PurchaseOrderDetails({
         <PermissionNote
           allowed={capability(data, "procurement.approve")}
           permission="procurement.approve"
+        />
+        <OrderReconciliation
+          key={order.id}
+          order={order}
+          capabilities={data.capabilities}
+          onChanged={onChanged}
+          onBlockedChange={onBlockedChange}
         />
       </Card>
     </div>

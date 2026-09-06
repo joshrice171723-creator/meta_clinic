@@ -125,7 +125,8 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     assert_response :success
     @supplier_one.supplier_products.sole.update!(ordering_unit: "case")
     checkout(cart)
-    assert_response :conflict
+    assert_response :unprocessable_entity
+    assert_match(/No eligible supplier offer/, response.parsed_body.fetch("error"))
     assert_empty cart.purchase_orders
   end
 

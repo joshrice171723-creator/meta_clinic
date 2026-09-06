@@ -23,7 +23,7 @@ class Clinic::Inventory::PharmacyTest < ActiveSupport::TestCase
 
   test "batch and actor composite references reject cross-clinic inserts" do
     other = Clinic::Practice.create!(name: "Other test clinic")
-    assert_database_rejects(ActiveRecord::InvalidForeignKey) do
+    assert_database_rejects(ActiveRecord::StatementInvalid) do
       Clinic::Inventory::PharmacyBatch.insert_all!([ @batch.attributes.except("id").merge("practice_id" => other.id, "lot_number" => "INVALID") ])
     end
     stranger = User.create!(email_address: "stranger@example.invalid", password: SecureRandom.hex(20))

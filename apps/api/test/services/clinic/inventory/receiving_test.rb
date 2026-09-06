@@ -7,6 +7,7 @@ class Clinic::Inventory::ReceivingTest < ActiveSupport::TestCase
     membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(membership, "inventory.receive")
     @product = @practice.pharmacy_products.create!(name: "Fixture liquid", sku: "RECEIVE", stock_unit: "mL", quantity_scale: 3, package_size: "10.5", unit_reference: "Fixture catalog package")
+    @practice.inventory_locations.create!(name: "Shelf", kind: "storage")
     @order = order_for(@practice)
     @order_line = @order.lines.create!(practice: @practice, product: @product, product_name: @product.name,
       stock_unit: "mL", input_unit: "package", ordered_quantity: 3, received_quantity: 0,

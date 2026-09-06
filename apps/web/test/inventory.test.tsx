@@ -447,7 +447,7 @@ describe("inventory integration", () => {
     );
     expect(source).toContain("No movements recorded");
     expect(source).toContain(
-      "Clear the filter to review the full movement ledger.",
+      "Clear the search filter to review recorded movements.",
     );
     expect(source).toContain("Inventory movement ledger");
   });
@@ -524,7 +524,7 @@ describe("inventory integration", () => {
       '"/api/clinic/inventory/suppliers/preview"',
     );
     expect(supplierSource).toContain("wholesale_unit_cost");
-    expect(supplierSource).toContain("Preferred supplier by catalog item");
+    expect(supplierSource).toContain("preferred-supplier");
     expect(source).toContain("Create item and continue");
     expect(source).toContain("Item category");
     expect(source).toContain("Use FDA device data (optional)");
@@ -585,9 +585,9 @@ describe("inventory integration", () => {
     );
 
     expect(source).toContain("recallSelectableBalances(");
-    expect(source).toContain("No exact active hold for this recall");
-    expect(source).toContain("Choose another recall to review its exact");
-    expect(source).toContain("no disposition can be recorded here.");
+    expect(source).toContain("No eligible held position on this page");
+    expect(source).toContain("!selectedPosition");
+    expect(source).toContain("dispositionInvalid");
     expect(source).not.toContain("!recall || !item || !recalledLot || !batch");
   });
 

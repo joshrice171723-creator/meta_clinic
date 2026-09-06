@@ -124,7 +124,10 @@ rescue ArgumentError
   nil
 end
 Clinic::Inventory::RecallDisposition.execute!(recall: recall, actor: actor, batch_id: recalled_batch.id, quantity: 4000, method: "return_to_supplier", evidence_reference: "SYN-RMA-4000", reason: "Synthetic supplier return", request_key: SecureRandom.uuid)
-raise "Recall disposition did not close the held quantity" unless recall.reload.status == "disposition_complete"
+raise "Recall disposition did not exhaust the held stock" unless recalled_batch.reload.quantity.zero?
+raise "Recall was closed without explicit review" if recall.reload.closure.present?
+Clinic::Inventory::RecallCase.close!(recall: recall, actor: actor, reason: "Dev seed disposition reviewed", evidence_reference: "SYN-RMA-4000", request_key: SecureRandom.uuid)
+raise "Recall closure evidence was not recorded" unless recall.reload.closure.present?
 other_practice = Development::BackendSamples.call.last
 other_products = Clinic::Inventory::InventoryWire.call(practice: other_practice, actor: other_practice.memberships.joins(:user).find_by!(users: { email_address: "synthetic-review-b-admin@example.invalid" }).user).fetch(:products)
 first_practice_product_ids = practice.pharmacy_products.ids.map(&:to_s)

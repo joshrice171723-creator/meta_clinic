@@ -6,6 +6,7 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     @membership = Development::TestClinic.create!(@user)
     @practice = @membership.practice
     @product = Clinic::Inventory::PharmacyProduct.create!(practice: @practice, name: "Fictional liquid", sku: "LIQ", stock_unit: "mL", quantity_scale: 3, package_size: "10.5", unit_reference: "Synthetic package specification v1")
+    @practice.inventory_locations.create!(name: "Shelf", kind: "storage")
     @line = { product_id: @product.id, lot_number: "LOT", location: "Shelf", expires_on: (Date.current + 90).iso8601, amount: "2", input_unit: "package" }
   end
 
@@ -157,14 +158,17 @@ class Clinic::Inventory::FoundationTest < ActiveSupport::TestCase
     batch = @product.batches.sole
     batch.change_status!(status: "quarantined", reason: "Synthetic hold", actor: @user, request_key: SecureRandom.uuid)
     count = Clinic::Inventory::Count.observe!(batch: batch, actor: @user, observed: "20.125", reason: "Physical count", request_key: SecureRandom.uuid)
-    approval = count.approve!(actor: @user)
-    assert_equal approval, count.approve!(actor: @user)
+    reviewer = User.create!(email_address: "count-reviewer@example.invalid", password: SecureRandom.hex(20))
+    grant_permissions!(@practice.memberships.create!(user: reviewer), "inventory.count", "inventory.adjust")
+    assert_raises(ArgumentError) { count.approve!(actor: @user) }
+    approval = count.approve!(actor: reviewer)
+    assert_equal approval, count.approve!(actor: reviewer)
     assert_equal BigDecimal("20.125"), batch.reload.quantity
     assert_equal 0, @product.available_quantity
     assert_equal BigDecimal("-0.875"), batch.movements.find(approval.entry_id).quantity
     stale = Clinic::Inventory::Count.observe!(batch: batch, actor: @user, observed: "20", reason: "Another count", request_key: SecureRandom.uuid)
     batch.move!(kind: "adjustment_out", amount: "1", reason: "Synthetic loss", actor: @user, request_key: SecureRandom.uuid)
-    assert_raises(ArgumentError) { stale.approve!(actor: @user) }
+    assert_raises(ArgumentError) { stale.approve!(actor: reviewer) }
     ApplicationRecord.connection.execute("SET CONSTRAINTS ALL IMMEDIATE")
   end
 
