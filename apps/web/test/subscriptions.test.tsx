@@ -252,7 +252,9 @@ describe("subscription purchase presentation", () => {
       <PackageCard terms={{ ...terms, renewal: "automatic" }} />,
     );
     expect(html).toContain("Billed monthly until canceled.");
-    expect(html).toContain("Cancellation takes effect at the end of the current paid period.");
+    expect(html).toContain(
+      "Cancellation takes effect at the end of the current paid period.",
+    );
     expect(html).not.toContain("no automatic charge");
   });
   it("browsing offers labeled selectable components without claiming purchase", () => {

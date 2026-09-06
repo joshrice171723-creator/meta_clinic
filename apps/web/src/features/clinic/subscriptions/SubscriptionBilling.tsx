@@ -517,7 +517,9 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                           ((subscription.terms.renewal === "automatic" &&
                             (subscription.checkout_status === "open" ||
                               (subscription.renewal_status &&
-                                !["canceled", "incomplete_expired"].includes(subscription.renewal_status)))) ||
+                                !["canceled", "incomplete_expired"].includes(
+                                  subscription.renewal_status,
+                                )))) ||
                             ![
                               "processing",
                               "outcome_unknown",
