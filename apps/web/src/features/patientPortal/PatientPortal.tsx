@@ -20,6 +20,7 @@ import type { PatientPortalContext } from "../../api/contracts";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { PatientSubscriptions } from "./PatientSubscriptions";
+import { patientPortalLabel } from "./patientPortalLabels";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 
 const membershipTheme = createTheme({
@@ -213,10 +214,11 @@ export function PatientPortal() {
                 >
                   <Box>
                     <Typography sx={{ fontWeight: 600 }}>
-                      {context.patient.display_name}
+                      {patientPortalLabel(context.patient.display_name)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Patient reference · {context.patient.reference}
+                      Patient reference ·{" "}
+                      {patientPortalLabel(context.patient.reference)}
                     </Typography>
                   </Box>
                   {context.development_preview && (
@@ -249,7 +251,8 @@ export function PatientPortal() {
                     >
                       {context.development_preview.patients.map((p) => (
                         <MenuItem key={p.id} value={p.id}>
-                          {p.display_name} · {p.reference}
+                          {patientPortalLabel(p.display_name)} ·{" "}
+                          {patientPortalLabel(p.reference)}
                         </MenuItem>
                       ))}
                     </TextField>

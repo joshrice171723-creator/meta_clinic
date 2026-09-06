@@ -6,6 +6,10 @@ import {
   membershipPrice,
 } from "../src/features/patientPortal/MembershipCatalog";
 import {
+  patientPortalLabel,
+  patientPortalTerms,
+} from "../src/features/patientPortal/patientPortalLabels";
+import {
   subscriptionMoney,
   type PackageTerms,
   type ServiceComponent,
@@ -50,6 +54,23 @@ const terms: PackageTerms = {
 };
 
 describe("subscription purchase presentation", () => {
+  it("removes development fixture prefixes from patient-facing labels only", () => {
+    expect(patientPortalLabel("Dev seed Women's Wellness")).toBe(
+      "Women's Wellness",
+    );
+    expect(patientPortalLabel("Dev seed flexible services")).toBe(
+      "Flexible services",
+    );
+    expect(patientPortalLabel("SYN_Mercer, Alex")).toBe("Mercer, Alex");
+    expect(patientPortalLabel("SYN-BASE-001")).toBe("BASE-001");
+    expect(
+      patientPortalTerms({
+        ...terms,
+        family_name: "Dev seed Women's Wellness",
+      }).family_name,
+    ).toBe("Women's Wellness");
+    expect(terms.family_name).toBe("Any family");
+  });
   it("formats US storefront prices without losing cents or changing other currencies", () => {
     expect(membershipPrice("99999999999999.99", "USD")).toBe(
       "$99,999,999,999,999.99",

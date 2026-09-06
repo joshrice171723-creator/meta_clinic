@@ -20,6 +20,7 @@ import type {
 } from "../clinic/subscriptions/contracts";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import { PackageCard } from "../clinic/subscriptions/PackageCard";
+import { patientPortalLabel, patientPortalTerms } from "./patientPortalLabels";
 
 export const membershipPrice = (amount: string, currency: string) =>
   subscriptionMoney(amount, currency).replace(/^USD /, "$");
@@ -40,7 +41,10 @@ export function MembershipCatalog({
   const [familyId, setFamilyId] = useState<number | null>(null);
   const families = [
     ...new Map(
-      catalog.map((p) => [p.terms.family_id, p.terms.family_name]),
+      catalog.map((p) => [
+        p.terms.family_id,
+        patientPortalLabel(p.terms.family_name),
+      ]),
     ).entries(),
   ];
   // Start with the first program offering a tier comparison; keep every program accessible.
@@ -122,7 +126,7 @@ export function MembershipCatalog({
         }}
       >
         {plans.map((plan) => {
-          const t = plan.terms;
+          const t = patientPortalTerms(plan.terms);
           const included = t.components.filter((c) => c.mode === "included");
           const optional = t.components.filter((c) => c.mode === "optional");
           const groups = [

@@ -19,6 +19,7 @@ import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { PackageCard } from "../clinic/subscriptions/PackageCard";
 import { MembershipCatalog } from "./MembershipCatalog";
+import { patientPortalTerms } from "./patientPortalLabels";
 import {
   stateLabel,
   subscriptionMoney,
@@ -109,7 +110,8 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
           <Paper key={s.id} variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1}>
               <Typography sx={{ fontWeight: 600 }}>
-                {s.terms.family_name} / {s.terms.package_name}
+                {patientPortalTerms(s.terms).family_name} /{" "}
+                {patientPortalTerms(s.terms).package_name}
               </Typography>
               <Typography>
                 {stateLabel(s.state)} ·{" "}
@@ -117,8 +119,10 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                 {s.invoice_id}
               </Typography>
               <Typography variant="body2">
-                {s.terms.selected_components
-                  ?.map((c) => `${c.name} (${c.quantity}/${c.frequency})`)
+                {patientPortalTerms(s.terms)
+                  .selected_components?.map(
+                    (c) => `${c.name} (${c.quantity}/${c.frequency})`,
+                  )
                   .join(", ")}
               </Typography>
               <Typography variant="body2">
@@ -269,7 +273,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
               {error && <Alert severity="error">{error}</Alert>}
               {selected && (
                 <PackageCard
-                  terms={quote || selected.terms}
+                  terms={patientPortalTerms(quote || selected.terms)}
                   selections={selections}
                   onSelect={
                     quote
