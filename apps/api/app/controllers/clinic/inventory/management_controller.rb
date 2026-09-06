@@ -18,6 +18,12 @@ module Clinic
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
+      def scan
+        render json: { data: ScanResolver.call(practice: current_practice, actor: current_user,
+          scan_code: params.require(:scan_code), context: params.require(:context),
+          product_id: params[:product_id], session_id: params[:session_id], page: params[:page] || 1) }
+      end
+
       def catalog
         return bootstrap unless params[:view] == "table"
 

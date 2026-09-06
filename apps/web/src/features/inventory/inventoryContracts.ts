@@ -846,6 +846,32 @@ export type InventoryControlledData = InventoryReadContext & {
   })[];
 };
 
+export type InventoryScanContext = "receiving" | "transfer" | "count";
+export type InventoryScanMatch = {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  ndc: string | null;
+  device_identifier: string | null;
+  matched_fields: ("sku" | "ndc" | "device_identifier")[];
+  line_id?: string;
+  line_page?: number;
+  lot_number?: string;
+  expires_on?: string | null;
+  location_id?: string;
+  location_name?: string;
+};
+export type InventoryScanData = {
+  status: "matched" | "ambiguous" | "unmatched" | "too_many";
+  normalized_code: string;
+  message: string | null;
+  matches: InventoryScanMatch[];
+  page?: number;
+  page_count?: number;
+  total_count?: number;
+  page_size?: number;
+};
+
 export type InventoryStockData = InventoryReadContext &
   Pick<
     InventoryData,

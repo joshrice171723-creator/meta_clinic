@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Button, MenuItem, TextField } from "@mui/material";
 import type {
   Decimal,
@@ -7,6 +7,7 @@ import type {
   InventoryCountRead,
 } from "./inventoryContracts";
 import { decimalCompare, decimalDisplay } from "./inventoryContracts";
+import { InventoryScanInput } from "./InventoryScanInput";
 
 type PendingInventoryMutation = {
   endpoint: string;
@@ -128,6 +129,7 @@ export function CycleCountsScreen({
   const [lineActionReason, setLineActionReason] = useState("");
   const [nextAssigneeId, setNextAssigneeId] = useState("");
   const [sessionActionReason, setSessionActionReason] = useState("");
+  const scanTarget = useRef<{ sessionId: string; lineId: string } | null>(null);
   const selectedLine =
     data.lines.find((line) => line.id === lineId) ?? data.lines[0];
   const canConfigure = data.capabilities["inventory.configure"] === true;
@@ -137,7 +139,12 @@ export function CycleCountsScreen({
 
   useEffect(() => setQuery(queue.query), [queue.query]);
   useEffect(() => {
-    const first = data.lines[0];
+    const target =
+      scanTarget.current?.sessionId === session?.id
+        ? scanTarget.current.lineId
+        : "";
+    const first =
+      data.lines.find((line) => line.id === target) ?? data.lines[0];
     setLineId(first?.id ?? "");
     setCountedUnits("");
     setObservationReason("");
@@ -149,7 +156,12 @@ export function CycleCountsScreen({
         : "",
     );
     setSessionActionReason("");
+    if (target && first?.id === target) scanTarget.current = null;
+    if (scanTarget.current?.sessionId !== session?.id) scanTarget.current = null;
   }, [session?.id, data.line_page.page]);
+  useEffect(() => {
+    if (error) scanTarget.current = null;
+  }, [error]);
 
   const isSamePending = (endpoint: string, body: Record<string, unknown>) =>
     pendingMutation?.endpoint === endpoint &&
@@ -263,6 +275,7 @@ export function CycleCountsScreen({
     !session || !isOpen(session.status) || !sessionActionReason.trim();
 
   const selectLine = (line: InventoryCountLine) => {
+    scanTarget.current = null;
     setLineId(line.id);
     setCountedUnits("");
     setObservationReason("");
@@ -557,6 +570,40 @@ export function CycleCountsScreen({
               />
             </div>
             <p className="inventory-info">{session.reason}</p>
+            {isOpen(session.status) &&
+              session.assignee_id === data.current_user_id && (
+                <InventoryScanInput
+                  context="count"
+                  sessionId={session.id}
+                  disabled={formLocked}
+                  label="Scan a product in this count session"
+                  manualFallback="Select the exact frozen line manually."
+                  onMatch={(match) => {
+                    if (!match.line_id || !match.line_page) return;
+                    const current = data.lines.find(
+                      (line) => line.id === match.line_id,
+                    );
+                    if (current) {
+                      if (current.id !== selectedLine?.id) selectLine(current);
+                      return;
+                    }
+                    scanTarget.current = {
+                      sessionId: session.id,
+                      lineId: match.line_id,
+                    };
+                    void onRead({
+                      ...applied,
+                      line_page: match.line_page,
+                    });
+                  }}
+                />
+              )}
+            {isOpen(session.status) &&
+              session.assignee_id !== data.current_user_id && (
+                <Alert severity="info">
+                  Scanner selection is available to the assigned counter.
+                </Alert>
+              )}
           </Card>
 
           <div className="inventory-two-col wide-left">
@@ -652,12 +699,13 @@ export function CycleCountsScreen({
                   <Button
                     variant="outlined"
                     disabled={readDisabled || data.line_page.page === 1}
-                    onClick={() =>
+                    onClick={() => {
+                      scanTarget.current = null;
                       void onRead({
                         ...applied,
                         line_page: data.line_page.page - 1,
-                      })
-                    }
+                      });
+                    }}
                   >
                     Previous
                   </Button>
@@ -670,12 +718,13 @@ export function CycleCountsScreen({
                       readDisabled ||
                       data.line_page.page === data.line_page.page_count
                     }
-                    onClick={() =>
+                    onClick={() => {
+                      scanTarget.current = null;
                       void onRead({
                         ...applied,
                         line_page: data.line_page.page + 1,
-                      })
-                    }
+                      });
+                    }}
                   >
                     Next
                   </Button>

@@ -67,6 +67,7 @@ import {
 import { SupplierPricingScreen } from "./SupplierPricing";
 import { CycleCountsScreen } from "./CycleCountsScreen";
 import { ControlledScreen } from "./ControlledScreen";
+import { InventoryScanInput } from "./InventoryScanInput";
 import "./inventory.css";
 
 type Screen =
@@ -5308,6 +5309,7 @@ function ReceivingWorkspace({
           key={selected.id}
           data={data}
           busy={busy}
+          scanDisabled={disabled || Boolean(error)}
           run={run}
           lookupLot
         />
@@ -5319,12 +5321,14 @@ function ReceivingWorkspace({
 export function ReceivingScreen({
   data,
   busy,
+  scanDisabled = false,
   run,
   lookupLot = false,
 }: {
   data: InventoryReceivingDetail;
   lookupLot?: boolean;
   busy: boolean;
+  scanDisabled?: boolean;
   run: (
     endpoint: string,
     body: Record<string, unknown>,
@@ -5698,6 +5702,14 @@ export function ReceivingScreen({
               : (receipt?.status ?? shipment.status)}
           </Badge>
         </div>
+        <InventoryScanInput
+          context="receiving"
+          productId={item.id}
+          disabled={scanDisabled || busy}
+          label="Scan selected purchase-order product"
+          manualFallback="Select the purchase-order line manually and verify the product label."
+          onMatch={() => undefined}
+        />
         {shipment.reconciliation && (
           <Alert severity="info">
             {number(shipment.reconciliation.accepted_packages)} accepted,{" "}
@@ -6013,8 +6025,11 @@ function LotsScreen({
   const page = data.stock_page;
   const [query, setQuery] = useState(page.query);
   const applied = { q: page.query, stock_status: page.status, page: page.page };
+  const scanScoped =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("scan") === "1";
   const [selectedId, setSelectedId] = useState(
-    () => balanceFor(data)?.id ?? "",
+    () => (scanScoped ? "" : (balanceFor(data)?.id ?? "")),
   );
   const [action, setAction] = useState<"transfer" | "adjust" | "count">(
     "transfer",
@@ -6033,7 +6048,12 @@ function LotsScreen({
       "",
   );
   const [reason, setReason] = useState("");
-  const selected = balanceFor(data, selectedId);
+  const selected = selectedId
+    ? (data.balances.find((record) => record.id === selectedId) ??
+      (scanScoped ? undefined : balanceFor(data)))
+    : scanScoped
+      ? undefined
+      : balanceFor(data);
   const selectedLot = selected ? lot(data, selected.lot_id) : undefined;
   const selectedProduct = selected
     ? product(data, selected.product_id)
@@ -6107,6 +6127,17 @@ function LotsScreen({
   return (
     <div className="inventory-stack" aria-busy={loading}>
       <Card title="Find stock positions">
+        <InventoryScanInput
+          context="transfer"
+          disabled={loading || busy || readBlocked || Boolean(error)}
+          label="Scan a product for transfer"
+          manualFallback="Search for the product below, then select the exact lot and location."
+          onMatch={(match) =>
+            window.location.assign(
+              `/clinic/inventory/lots?product_id=${encodeURIComponent(match.product_id)}&scan=1`,
+            )
+          }
+        />
         {page.product_name && (
           <p>
             Product: {page.product_name}.{" "}
@@ -6229,7 +6260,7 @@ function LotsScreen({
                         }}
                         onClick={() => {
                           setSelectedId(balance.id);
-                          setQuantity("1");
+                          setQuantity(scanScoped ? "" : "1");
                           setReason("");
                         }}
                       >
