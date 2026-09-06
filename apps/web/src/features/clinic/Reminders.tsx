@@ -1,10 +1,282 @@
 import { useResource, Form, Field } from "../../shared/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useClinic } from "./Workspace";
 import type { PatientReminder } from "../../api/contracts";
-import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Chip,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 type ReminderResponse = { reminders: PatientReminder[] };
+type StaffConversation = {
+  id: number;
+  title: string | null;
+  kind: string;
+  status: string;
+  participants: { id: number; email: string; active: boolean }[];
+};
+type StaffConversationResponse = { conversations: StaffConversation[] };
+
+const HANDOFF_REASON_LABELS: Record<string, string> = {
+  delivery_failed: "Delivery failed",
+  delivery_unknown: "Delivery outcome uncertain",
+  retry_exhausted: "Retry limit reached",
+  request_help: "Help requested",
+  request_reschedule: "Reschedule requested",
+};
+
+function StaffHandoffControl({
+  reminder,
+  conversations,
+  onSuccess,
+}: {
+  reminder: PatientReminder;
+  conversations: StaffConversation[];
+  onSuccess: () => void;
+}) {
+  const activeConversations = conversations.filter(
+    (conversation) => conversation.status === "active",
+  );
+  const [conversationId, setConversationId] = useState(() =>
+    activeConversations[0] ? String(activeConversations[0].id) : "",
+  );
+  const selectedConversation = activeConversations.find(
+    (conversation) => String(conversation.id) === conversationId,
+  );
+  const activeParticipants =
+    selectedConversation?.participants.filter(
+      (participant) => participant.active,
+    ) || [];
+  const [assigneeId, setAssigneeId] = useState(() =>
+    activeParticipants[0] ? String(activeParticipants[0].id) : "",
+  );
+
+  useEffect(() => {
+    if (
+      activeConversations.length > 0 &&
+      !activeConversations.some(
+        (conversation) => String(conversation.id) === conversationId,
+      )
+    ) {
+      setConversationId(String(activeConversations[0].id));
+    }
+  }, [activeConversations, conversationId]);
+
+  useEffect(() => {
+    if (
+      activeParticipants.length > 0 &&
+      !activeParticipants.some(
+        (participant) => String(participant.id) === assigneeId,
+      )
+    ) {
+      setAssigneeId(String(activeParticipants[0].id));
+    }
+  }, [activeParticipants, assigneeId]);
+
+  if (!reminder.staff_handoff.eligible) return null;
+
+  if (activeConversations.length === 0) {
+    return (
+      <Alert severity="info" sx={{ mt: 1.5 }}>
+        Join an active staff conversation before creating this follow-up.
+      </Alert>
+    );
+  }
+
+  return (
+    <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid #e7eeeb" }}>
+      <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+        {HANDOFF_REASON_LABELS[reminder.staff_handoff.reason_code || ""] ||
+          "Staff follow-up available"}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Creates one redacted, assigned request in the selected staff
+        conversation. Reminder details stay in this worklist.
+      </Typography>
+      <Form
+        endpoint={`/api/clinic/reminders/${reminder.id}/staff_handoff`}
+        submit="Create staff follow-up"
+        onSuccess={onSuccess}
+      >
+        {reminder.staff_handoff.source_type === "action" && (
+          <input
+            type="hidden"
+            name="handoff[action_id]"
+            value={reminder.staff_handoff.source_id || ""}
+          />
+        )}
+        <TextField
+          select
+          required
+          fullWidth
+          size="small"
+          name="handoff[conversation_id]"
+          label="Staff conversation"
+          value={conversationId}
+          onChange={(event) => setConversationId(event.target.value)}
+        >
+          {activeConversations.map((conversation) => (
+            <MenuItem key={conversation.id} value={String(conversation.id)}>
+              {conversation.title ||
+                `${conversation.kind.replaceAll("_", " ")} conversation #${conversation.id}`}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          required
+          fullWidth
+          size="small"
+          name="handoff[assignee_membership_id]"
+          label="Assigned staff member"
+          value={assigneeId}
+          onChange={(event) => setAssigneeId(event.target.value)}
+        >
+          {activeParticipants.map((participant) => (
+            <MenuItem key={participant.id} value={String(participant.id)}>
+              {participant.email}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Form>
+    </Box>
+  );
+}
+
+function PersistedStaffHandoff({ reminder }: { reminder: PatientReminder }) {
+  const request = reminder.staff_handoff.request;
+  if (!request) return null;
+
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
+      <Chip
+        size="small"
+        variant="outlined"
+        label={`Staff follow-up: ${request.state.replaceAll("_", " ")}`}
+      />
+      <Typography variant="caption" color="text.secondary">
+        Assigned staff membership #{request.assignee_membership_id}
+      </Typography>
+    </Stack>
+  );
+}
+
+function ReminderRows({
+  reminders,
+  canRetry,
+  conversations,
+  onRefresh,
+}: {
+  reminders: PatientReminder[];
+  canRetry: boolean;
+  conversations?: StaffConversation[];
+  onRefresh: () => void;
+}) {
+  return (
+    <Stack spacing={1.5}>
+      {reminders.map((reminder) => (
+        <Box
+          key={reminder.id}
+          sx={{ borderTop: "1px solid #e7eeeb", pt: 1.5 }}
+        >
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            sx={{
+              gap: 1,
+              justifyContent: { xs: "flex-start", sm: "space-between" },
+            }}
+          >
+            <Box>
+              <Typography sx={{ fontWeight: 700 }}>
+                Reminder #{reminder.id} · {reminder.category.replaceAll("_", " ")}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {reminder.local_schedule_label} · {reminder.endpoint.masked_value} · patient #{reminder.patient_id}
+              </Typography>
+            </Box>
+            <Chip
+              size="small"
+              label={reminder.status.replaceAll("_", " ")}
+              color={
+                reminder.status === "delivered"
+                  ? "success"
+                  : reminder.status === "failed"
+                    ? "error"
+                    : "default"
+              }
+            />
+          </Stack>
+          {canRetry && reminder.status === "failed" && (
+            <Form
+              endpoint={`/api/clinic/reminders/${reminder.id}/retry`}
+              submit="Retry with policy check"
+              retryKey
+              className="pharmacy-form-grid"
+              onSuccess={onRefresh}
+            />
+          )}
+          <PersistedStaffHandoff reminder={reminder} />
+          {conversations && !reminder.staff_handoff.request && (
+            <StaffHandoffControl
+              reminder={reminder}
+              conversations={conversations}
+              onSuccess={onRefresh}
+            />
+          )}
+        </Box>
+      ))}
+    </Stack>
+  );
+}
+
+function HandoffEnabledReminderRows({
+  reminders,
+  canRetry,
+  onRefresh,
+}: {
+  reminders: PatientReminder[];
+  canRetry: boolean;
+  onRefresh: () => void;
+}) {
+  const conversations = useResource<StaffConversationResponse>(
+    "/api/clinic/staff-messaging/conversations?per_page=100",
+  );
+  if (!conversations.data && !conversations.error) {
+    return (
+      <>
+        <Typography color="text.secondary" role="status" sx={{ mb: 2 }}>
+          Loading staff conversations…
+        </Typography>
+        <ReminderRows
+          reminders={reminders}
+          canRetry={canRetry}
+          onRefresh={onRefresh}
+        />
+      </>
+    );
+  }
+  return (
+    <>
+      {conversations.error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Staff conversations are unavailable. {conversations.error}
+        </Alert>
+      )}
+      <ReminderRows
+        reminders={reminders}
+        canRetry={canRetry}
+        conversations={conversations.data?.conversations}
+        onRefresh={onRefresh}
+      />
+    </>
+  );
+}
 
 export function Reminders() {
   const { capabilities } = useClinic();
@@ -85,54 +357,21 @@ export function Reminders() {
             No reminders are scheduled.
           </Typography>
         )}
-        <Stack spacing={1.5}>
-          {reminders.map((reminder) => (
-            <Box
-              key={reminder.id}
-              sx={{ borderTop: "1px solid #e7eeeb", pt: 1.5 }}
-            >
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                sx={{
-                  gap: 1,
-                  justifyContent: { xs: "flex-start", sm: "space-between" },
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontWeight: 700 }}>
-                    Reminder #{reminder.id} ·{" "}
-                    {reminder.category.replaceAll("_", " ")}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {reminder.local_schedule_label} ·{" "}
-                    {reminder.endpoint.masked_value} · patient #
-                    {reminder.patient_id}
-                  </Typography>
-                </Box>
-                <Chip
-                  size="small"
-                  label={reminder.status.replaceAll("_", " ")}
-                  color={
-                    reminder.status === "delivered"
-                      ? "success"
-                      : reminder.status === "failed"
-                        ? "error"
-                        : "default"
-                  }
-                />
-              </Stack>
-              {capabilities.reminders_write && reminder.status === "failed" && (
-                <Form
-                  endpoint={`/api/clinic/reminders/${reminder.id}/retry`}
-                  submit="Retry with policy check"
-                  retryKey
-                  className="pharmacy-form-grid"
-                  onSuccess={resource.refresh}
-                />
-              )}
-            </Box>
-          ))}
-        </Stack>
+        {capabilities.reminders_write &&
+        capabilities.staff_messaging_read &&
+        capabilities.staff_messaging_send ? (
+          <HandoffEnabledReminderRows
+            reminders={reminders}
+            canRetry
+            onRefresh={resource.refresh}
+          />
+        ) : (
+          <ReminderRows
+            reminders={reminders}
+            canRetry={capabilities.reminders_write === true}
+            onRefresh={resource.refresh}
+          />
+        )}
       </Paper>
       {capabilities.reminders_write && <Paper
         elevation={0}

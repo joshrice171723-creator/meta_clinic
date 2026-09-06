@@ -101,6 +101,18 @@ export type PatientReminder = {
   expires_at: string | null;
   endpoint: { type: string; label: string; masked_value: string };
   action_types: string[];
+  staff_handoff: {
+    eligible: boolean;
+    source_type: "action" | "delivery" | null;
+    source_id: number | null;
+    reason_code: string | null;
+    request: {
+      id: number;
+      state: string;
+      assignee_membership_id: number | null;
+      due_at: string | null;
+    } | null;
+  };
   delivery_attempts?: {
     attempt_number: number;
     status: string;
