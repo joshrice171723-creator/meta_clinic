@@ -1,9 +1,33 @@
 module Clinic
   module Scribe
     class EncountersController < Clinic::ApiController
-      before_action -> { require_capability("scribe.read") }, only: :show
+      before_action -> { require_capability("scribe.read") }, only: %i[index show]
       before_action -> { require_capability("scribe.write") }, only: %i[create consent sources generate]
       before_action -> { require_capability("scribe.delete") }, only: :destroy
+
+      def index
+        encounters, pagination = paginated_records(
+          current_practice.scribe_encounters.accessible_by(current_ability, :read).includes(:patient),
+          order: { updated_at: :desc, id: :desc }, default_per_page: 25, maximum: 50
+        )
+        can_create = Clinic::Authorization.allowed?(
+          actor: current_user, practice: current_practice, action: "scribe.write", any_site: true
+        )
+        patient_scope = current_practice.patients.order(:reference, :id)
+        patient_options = can_create ? patient_scope.limit(101).to_a : []
+        render json: {
+          encounters: encounters.map do |encounter|
+            Serializer.encounter(encounter, detail: false).merge(
+              patient: { id: encounter.patient.id, reference: encounter.patient.reference, display_name: encounter.patient.display_name }
+            )
+          end,
+          patient_options: patient_options.first(100).map do |patient|
+            { id: patient.id, reference: patient.reference, display_name: patient.display_name }
+          end,
+          patient_options_capped: patient_options.length > 100,
+          pagination: pagination
+        }
+      end
 
       def create
         input = parameter_hash!(:encounter, %i[patient_id site_id])
@@ -66,6 +90,12 @@ module Clinic
 
       def authorize_encounter!(encounter, action)
         Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: action, site: encounter.site)
+      end
+
+      def sensitive_read_action
+        return "scribe.read" if %w[index show].include?(action_name)
+
+        super
       end
     end
   end

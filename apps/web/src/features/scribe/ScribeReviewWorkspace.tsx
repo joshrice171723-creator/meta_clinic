@@ -52,6 +52,20 @@ export type ScribeReviewWorkspaceProps = {
     content: string,
   ) => void;
   onEvidenceSelect?: (segmentId: number) => void;
+  onSaveSection?: (
+    draftId: number,
+    sectionKey: ScribeDraftSection["section_key"],
+    content: string,
+  ) => void | Promise<void>;
+  onAcceptSection?: (
+    draftId: number,
+    sectionKey: ScribeDraftSection["section_key"],
+  ) => void | Promise<void>;
+  onRejectSection?: (
+    draftId: number,
+    sectionKey: ScribeDraftSection["section_key"],
+  ) => void | Promise<void>;
+  pendingAction?: string | null;
 };
 
 const encounterStatusLabels: Record<ScribeEncounter["status"], string> = {
@@ -323,21 +337,32 @@ function EvidenceReferences({
 }
 
 function DraftSectionCard({
+  draftId,
   section,
   segments,
   editValue,
   selectedSegmentId,
   onEdit,
   onEvidenceSelect,
+  onSave,
+  onAccept,
+  onReject,
+  pendingAction,
 }: {
+  draftId: number;
   section: ScribeDraftSection;
   segments: ScribeSourceSegment[];
   editValue: string;
   selectedSegmentId: number | null;
   onEdit: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onEvidenceSelect: (segmentId: number) => void;
+  onSave?: (draftId: number, sectionKey: ScribeDraftSection["section_key"], content: string) => void | Promise<void>;
+  onAccept?: (draftId: number, sectionKey: ScribeDraftSection["section_key"]) => void | Promise<void>;
+  onReject?: (draftId: number, sectionKey: ScribeDraftSection["section_key"]) => void | Promise<void>;
+  pendingAction?: string | null;
 }) {
   const hasHumanEdit = Boolean(section.human_content) || editValue !== "";
+  const hasUnsavedSectionEdit = editValue !== (section.human_content ?? "");
   const sectionUnknown = ![
     "needs_review",
     "accepted",
@@ -412,17 +437,50 @@ function DraftSectionCard({
           fullWidth
           multiline
           minRows={3}
+          disabled={pendingAction !== null}
           label="Human-edited version"
           value={editValue}
           onChange={onEdit}
           placeholder="Add a reviewer edit only when needed. The generated draft stays visible above."
-          helperText="Edits are transient in this isolated slice until a server-authorized save is connected."
+          helperText={onSave ? "Save creates a new server revision; the generated text remains visible." : "Edits are transient in this isolated slice until a server-authorized save is connected."}
           slotProps={{
             input: {
               "aria-label": `${formatSectionLabel(section.section_key)} human-edited version`,
             },
           }}
         />
+        {(onSave || onAccept || onReject) && (
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            {onSave && (
+              <Button
+                variant="contained"
+                disabled={pendingAction !== null || !editValue.trim() || !hasUnsavedSectionEdit}
+                onClick={() => void onSave(draftId, section.section_key, editValue)}
+              >
+                Save reviewer edit
+              </Button>
+            )}
+            {onAccept && (
+              <Button
+                variant="outlined"
+                disabled={pendingAction !== null || hasUnsavedSectionEdit || section.warning_codes.length > 0 || !section.effective_content.trim()}
+                onClick={() => void onAccept(draftId, section.section_key)}
+              >
+                Accept section
+              </Button>
+            )}
+            {onReject && (
+              <Button
+                color="warning"
+                variant="outlined"
+                disabled={pendingAction !== null || hasUnsavedSectionEdit}
+                onClick={() => void onReject(draftId, section.section_key)}
+              >
+                Reject section
+              </Button>
+            )}
+          </Stack>
+        )}
         <EvidenceReferences
           section={section}
           segments={segments}
@@ -628,6 +686,10 @@ export function ScribeReviewWorkspace({
   onExport,
   onSectionChange,
   onEvidenceSelect,
+  onSaveSection,
+  onAcceptSection,
+  onRejectSection,
+  pendingAction = null,
 }: ScribeReviewWorkspaceProps) {
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(
     null,
@@ -957,6 +1019,7 @@ export function ScribeReviewWorkspace({
                       draft.sections.map((section) => (
                         <DraftSectionCard
                           key={section.id}
+                          draftId={draft.id}
                           section={section}
                           segments={source?.segments ?? []}
                           editValue={edits[section.section_key] ?? ""}
@@ -973,6 +1036,10 @@ export function ScribeReviewWorkspace({
                             setSelectedSegmentId(segmentId);
                             onEvidenceSelect?.(segmentId);
                           }}
+                          onSave={onSaveSection}
+                          onAccept={onAcceptSection}
+                          onReject={onRejectSection}
+                          pendingAction={pendingAction}
                         />
                       ))
                     ) : (
@@ -1048,7 +1115,7 @@ export function ScribeReviewWorkspace({
                   <Button
                     variant="contained"
                     startIcon={<CheckCircleOutlineOutlinedIcon />}
-                    disabled={approvalBlocked || approved}
+                    disabled={approvalBlocked || approved || pendingAction !== null}
                     onClick={() => draft && onApprove?.(draft.id)}
                     aria-describedby="scribe-approval-help"
                   >
@@ -1057,7 +1124,7 @@ export function ScribeReviewWorkspace({
                   <Button
                     variant="outlined"
                     startIcon={<FileDownloadOutlinedIcon />}
-                    disabled={exportBlocked}
+                    disabled={exportBlocked || pendingAction !== null}
                     onClick={() => draft && onExport?.(draft.id)}
                     aria-describedby="scribe-export-help"
                   >
