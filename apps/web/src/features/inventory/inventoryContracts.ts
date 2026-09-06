@@ -420,6 +420,8 @@ export type InventoryActivityData = InventoryReadContext & {
     query: string;
     total_count: number;
     filtered_count: number;
+    lot_id?: string | null;
+    lot_number?: string | null;
     before_cursor: string | null;
     next_cursor: string | null;
     page_size: number;
@@ -455,4 +457,33 @@ export type InventoryCatalogData = InventoryReadContext &
       InventoryLot,
       "id" | "product_id" | "lot_number" | "expiration_date" | "status"
     > & { product_name: string })[];
+  };
+
+export type InventoryStockRead = {
+  q?: string;
+  stock_status?: "all" | "available" | "held" | "expired";
+  page?: number;
+};
+export type InventoryStockData = InventoryReadContext &
+  Pick<
+    InventoryData,
+    "products" | "packages" | "lots" | "balances" | "locations"
+  > & {
+    stock_page: {
+      query: string;
+      status: NonNullable<InventoryStockRead["stock_status"]>;
+      product_id: string | null;
+      product_name: string | null;
+      page: number;
+      page_count: number;
+      page_size: number;
+      total_count: number;
+      filtered_count: number;
+    };
+    unit_totals: {
+      stock_unit: string;
+      on_hand_units: Decimal;
+      available_units: Decimal;
+      unavailable_units: Decimal;
+    }[];
   };

@@ -54,11 +54,15 @@ module Clinic
       end
       def purchase_orders = bootstrap
       def receiving = bootstrap
-      def lots = bootstrap
+      def lots
+        return bootstrap unless params[:view] == "positions"
+
+        render json: { data: InventoryWire.positions(practice: current_practice, actor: current_user, query: params[:q], status: params[:stock_status], product_id: params[:product_id], page: params[:page]) }
+      end
       def activity
         return bootstrap unless params[:view] == "ledger"
 
-        render json: { data: InventoryWire.activity(practice: current_practice, actor: current_user, query: params[:q], before: params[:before]) }
+        render json: { data: InventoryWire.activity(practice: current_practice, actor: current_user, query: params[:q], before: params[:before], lot_id: params[:lot_id]) }
       end
       def recalls = bootstrap
       def controlled = bootstrap
@@ -285,7 +289,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         TransferStock.call(practice: current_practice, actor: current_user, source_batch_id: input.require(:source_batch_id), destination_location_id: input.require(:destination_location_id), amount: input.require(:quantity), reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def create_adjustment
@@ -296,7 +300,7 @@ module Clinic
         reason = input.require(:reason).to_s
         raise ArgumentError, "Adjustment cannot be zero." if delta.zero?
         batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs, reason: reason, actor: current_user, request_key: input[:request_key].to_s)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def create_count
@@ -304,7 +308,7 @@ module Clinic
         validate_request_key!(input.require(:request_key).to_s)
         batch = batch_for(input)
         Count.observe!(batch: batch, actor: current_user, observed: input.require(:counted_units), reason: input.require(:reason), request_key: input[:request_key].to_s)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def approve_count

@@ -81,11 +81,11 @@ module Clinic
         }
       end
 
-      def activity(practice:, actor:, query: nil, before: nil)
-        result = ActivityQuery.call(practice: practice, query: query, before: before)
+      def activity(practice:, actor:, query: nil, before: nil, lot_id: nil)
+        result = ActivityQuery.call(practice: practice, query: query, before: before, lot_id: lot_id)
         context(practice: practice, actor: actor).merge(
           activity_page: { query: result.query, total_count: result.total_count, filtered_count: result.filtered_count,
-            before_cursor: result.before_cursor, next_cursor: result.next_cursor, page_size: ActivityQuery::PAGE_SIZE },
+            before_cursor: result.before_cursor, next_cursor: result.next_cursor, page_size: ActivityQuery::PAGE_SIZE, lot_id: result.lot&.id&.to_s, lot_number: result.lot&.number },
           movements: result.movements.map do |movement|
             movement_wire(movement).merge(lot_number: movement.batch.lot.number,
               location_name: movement.batch.location_record.name, stock_unit: movement.stock_unit)
@@ -94,6 +94,30 @@ module Clinic
 
       def purchase_order(order)
         { data: purchase_order_wire(order) }
+      end
+
+      def positions(practice:, actor:, **filters)
+        result = ProductDetailsQuery.positions(practice: practice, **filters)
+        batches = result.batches
+        holds = Hold.active.where(practice_id: practice.id, batch_id: batches.map(&:id)).to_a.group_by(&:batch_id)
+        lot_kinds = Hold.active.where(practice_id: practice.id).joins(:batch).where(clinic_pharmacy_batches: { lot_id: batches.map(&:lot_id) })
+          .group("clinic_pharmacy_batches.lot_id").pluck("clinic_pharmacy_batches.lot_id", Arel.sql("array_agg(DISTINCT clinic_inventory_holds.kind)")).to_h
+        products = PharmacyProduct.where(practice_id: practice.id, id: batches.map(&:product_id)).with_stock(practice.inventory_date).includes(:preferred_supplier).to_a
+        areas = ReceiptLine.where(practice_id: practice.id, batch_id: batches.map(&:id)).where.not(area_id: nil).joins(:batch)
+          .distinct.pluck("clinic_pharmacy_batches.location_id", :area_id).group_by(&:first).transform_values { |pairs| pairs.map(&:last) }
+        context(practice: practice, actor: actor).merge(
+          stock_page: { query: result.query, status: result.status, product_id: result.product&.id&.to_s, product_name: result.product&.name,
+            page: result.page, page_count: result.page_count, page_size: ProductDetailsQuery::POSITION_PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
+          unit_totals: result.unit_totals.map { |unit, physical, available| { stock_unit: unit, on_hand_units: physical.to_d.to_s("F"), available_units: available.to_d.to_s("F"), unavailable_units: (physical.to_d - available.to_d).to_s("F") } },
+          products: products.map { |product| product_summary_wire(product, available: product.available_quantity, on_hand: product.on_hand_quantity, supplier_name: product.preferred_supplier&.name, supplier_id: product.preferred_supplier_id) },
+          packages: products.map { |product| package_wire(product) },
+          lots: batches.map(&:lot).uniq(&:id).map do |lot|
+            kinds = lot_kinds.fetch(lot.id, [])
+            { id: lot.id.to_s, product_id: lot.product_id.to_s, package_id: "pkg_#{lot.product_id}", lot_number: lot.number, expiration_date: lot.expires_on.iso8601,
+              status: kinds.include?("recalled") ? "recalled" : kinds.any? ? "quarantined" : "active" }
+          end,
+          balances: batches.map { |batch| balance_wire(batch, holds.fetch(batch.id, []), practice.inventory_date) },
+          locations: practice.inventory_locations.order(:name, :id).map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, areas: areas.fetch(location.id, []) } })
       end
 
       def catalog(practice:, actor:, **filters)

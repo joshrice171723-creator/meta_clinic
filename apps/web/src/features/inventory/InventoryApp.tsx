@@ -19,6 +19,8 @@ import type {
   InventoryActivityData,
   InventoryCatalogData,
   InventoryCatalogRead,
+  InventoryStockData,
+  InventoryStockRead,
   InventoryProduct,
   InventoryRecall,
   InventoryCategory,
@@ -381,16 +383,16 @@ export function inventoryDateTime(value?: string, timezone?: string) {
 function capability(data: Pick<InventoryData, "capabilities">, key: string) {
   return data.capabilities[key] === true;
 }
-function product(data: InventoryData, id: string) {
+function product(data: Pick<InventoryData, "products">, id: string) {
   return data.products.find((item) => item.id === id);
 }
-function lot(data: InventoryData, id: string) {
+function lot(data: Pick<InventoryData, "lots">, id: string) {
   return data.lots.find((item) => item.id === id);
 }
-function location(data: InventoryData, id: string) {
+function location(data: Pick<InventoryData, "locations">, id: string) {
   return data.locations.find((item) => item.id === id);
 }
-function balanceFor(data: InventoryData, balanceId?: string) {
+function balanceFor(data: Pick<InventoryData, "balances">, balanceId?: string) {
   return (
     data.balances.find((item) => item.id === balanceId) ??
     data.balances.find(
@@ -1978,7 +1980,10 @@ export function InventoryApp({ path }: { path: string }) {
   const { registerBlocker } = useClinicNavigation();
   const screen = screenForPath(path);
   const [data, setData] = useState<
-    InventoryData | InventoryActivityData | InventoryCatalogData
+    | InventoryData
+    | InventoryActivityData
+    | InventoryCatalogData
+    | InventoryStockData
   >();
   const readVersion = useRef(0);
   const [error, setError] = useState("");
@@ -2012,6 +2017,7 @@ export function InventoryApp({ path }: { path: string }) {
       !data ||
       "activity_page" in data ||
       "catalog_page" in data ||
+      "stock_page" in data ||
       !needsPurchaseOrderFacility
     )
       return;
@@ -2021,18 +2027,26 @@ export function InventoryApp({ path }: { path: string }) {
   }, [data, needsPurchaseOrderFacility]);
 
   const load = async (
-    read: InventoryCatalogRead & { before?: string | null } = screen ===
-      "catalog" &&
-    data &&
-    "catalog_page" in data
-      ? {
-          q: data.catalog_page.query,
-          status: data.catalog_page.status,
-          sort: data.catalog_page.sort,
-          page: data.catalog_page.page,
-        }
-      : {},
+    requested?: InventoryCatalogRead &
+      InventoryStockRead & { before?: string | null },
   ) => {
+    const read: InventoryCatalogRead &
+      InventoryStockRead & { before?: string | null } =
+      requested ??
+      (screen === "catalog" && data && "catalog_page" in data
+        ? {
+            q: data.catalog_page.query,
+            status: data.catalog_page.status,
+            sort: data.catalog_page.sort,
+            page: data.catalog_page.page,
+          }
+        : screen === "lots" && data && "stock_page" in data
+          ? {
+              q: data.stock_page.query,
+              stock_status: data.stock_page.status,
+              page: data.stock_page.page,
+            }
+          : {});
     const version = ++readVersion.current;
     setLoading(true);
     setError("");
@@ -2044,6 +2058,13 @@ export function InventoryApp({ path }: { path: string }) {
         const query = new URLSearchParams();
         if (screen === "activity") query.set("view", "ledger");
         if (screen === "catalog") query.set("view", "table");
+        if (screen === "lots") query.set("view", "positions");
+        const routeQuery = new URLSearchParams(window.location.search);
+        if (screen === "lots" && routeQuery.get("product_id"))
+          query.set("product_id", routeQuery.get("product_id")!);
+        if (screen === "activity" && routeQuery.get("lot_id"))
+          query.set("lot_id", routeQuery.get("lot_id")!);
+        if (read.stock_status) query.set("stock_status", read.stock_status);
         if (read.status) query.set("status", read.status);
         if (read.sort) query.set("sort", read.sort);
         if (read.page) query.set("page", String(read.page));
@@ -2054,15 +2075,22 @@ export function InventoryApp({ path }: { path: string }) {
             ? `/api/clinic/inventory/activity?${query}`
             : screen === "catalog"
               ? `/api/clinic/inventory/catalog?${query}`
-              : "/api/clinic/inventory/bootstrap";
+              : screen === "lots"
+                ? `/api/clinic/inventory/lots?${query}`
+                : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
-          data: InventoryData | InventoryActivityData | InventoryCatalogData;
+          data:
+            | InventoryData
+            | InventoryActivityData
+            | InventoryCatalogData
+            | InventoryStockData;
         }>(endpoint, { signal: controller.signal });
         if (version !== readVersion.current) return;
         if (
           !payload.data ||
           (screen === "activity") !== "activity_page" in payload.data ||
-          (screen === "catalog") !== "catalog_page" in payload.data
+          (screen === "catalog") !== "catalog_page" in payload.data ||
+          (screen === "lots") !== "stock_page" in payload.data
         )
           throw new Error(
             "The inventory service returned an incomplete response.",
@@ -2132,14 +2160,24 @@ export function InventoryApp({ path }: { path: string }) {
             requestBody[key] = { ...nested, request_key: requestKey };
         }
       });
-      const payload = await api<{ data: InventoryData; id?: number | string }>(
-        endpoint,
-        {
-          method: "POST",
-          body: requestBody,
-        },
-      );
-      setData(payload.data);
+      const payload = await api<{
+        data?: InventoryData;
+        acknowledged?: boolean;
+        id?: number | string;
+      }>(screen === "lots" ? `${endpoint}?response=ack` : endpoint, {
+        method: "POST",
+        body: requestBody,
+      });
+      if (screen === "lots") {
+        if (payload.acknowledged !== true)
+          throw new Error("The stock action response could not be confirmed.");
+      } else {
+        if (!payload.data)
+          throw new Error(
+            "The inventory action response could not be confirmed.",
+          );
+        setData(payload.data);
+      }
       setUncertainMutation(null);
       setNotice({
         tone: "success",
@@ -2147,6 +2185,7 @@ export function InventoryApp({ path }: { path: string }) {
         detail: successDetail,
       });
       afterSuccess?.(payload);
+      if (screen === "lots") await load();
     } catch (reason) {
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
@@ -2194,6 +2233,7 @@ export function InventoryApp({ path }: { path: string }) {
     needsPurchaseOrderFacility &&
     !("activity_page" in data) &&
     !("catalog_page" in data) &&
+    !("stock_page" in data) &&
     !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
   )
     return (
@@ -2311,6 +2351,17 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "stock_page" in data ? (
+              <LotsScreen
+                key={`${data.stock_page.page}:${data.stock_page.query}:${data.stock_page.status}:${data.stock_page.product_id}`}
+                data={data}
+                busy={busy}
+                readBlocked={Boolean(uncertainMutation)}
+                run={run}
+                loading={loading}
+                error={error}
+                onRead={load}
+              />
             ) : (
               <>
                 {screen === "catalog_new" && (
@@ -2353,9 +2404,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "receiving" && (
                   <ReceivingScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "lots" && (
-                  <LotsScreen data={data} busy={busy} run={run} />
                 )}
                 {screen === "recalls" && (
                   <RecallScreen data={data} busy={busy} run={run} />
@@ -4376,8 +4424,16 @@ function LotsScreen({
   data,
   busy,
   run,
+  loading,
+  readBlocked,
+  error,
+  onRead,
 }: {
-  data: InventoryData;
+  data: InventoryStockData;
+  loading: boolean;
+  readBlocked: boolean;
+  error: string;
+  onRead: (read: InventoryStockRead) => Promise<void>;
   busy: boolean;
   run: (
     endpoint: string,
@@ -4386,6 +4442,9 @@ function LotsScreen({
     detail: string,
   ) => Promise<void>;
 }) {
+  const page = data.stock_page;
+  const [query, setQuery] = useState(page.query);
+  const applied = { q: page.query, stock_status: page.status, page: page.page };
   const [selectedId, setSelectedId] = useState(
     () => balanceFor(data)?.id ?? "",
   );
@@ -4400,17 +4459,16 @@ function LotsScreen({
   );
   const [reason, setReason] = useState("");
   const selected = balanceFor(data, selectedId);
-  if (!selected)
-    return (
-      <Card title="Inventory & lots">
-        <p>No lots are available.</p>
-      </Card>
-    );
-  const selectedLot = lot(data, selected.lot_id)!;
-  const selectedProduct = product(data, selected.product_id)!;
-  const selectedLocation = location(data, selected.location_id)!;
+  const selectedLot = selected ? lot(data, selected.lot_id) : undefined;
+  const selectedProduct = selected
+    ? product(data, selected.product_id)
+    : undefined;
+  const selectedLocation = selected
+    ? location(data, selected.location_id)
+    : undefined;
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!selected || !selectedProduct) return;
     if (action === "transfer")
       void run(
         `/api/clinic/inventory/lots/${selected.lot_id}/transfer`,
@@ -4455,40 +4513,102 @@ function LotsScreen({
       );
   };
   const blocked =
+    !selected ||
+    !selectedLot ||
     decimalCompare(selected.available_units, "0") === 0 ||
     selectedLot.status !== "active";
   return (
-    <div className="inventory-stack">
+    <div className="inventory-stack" aria-busy={loading}>
+      <Card title="Find stock positions">
+        {page.product_name && (
+          <p>
+            Product: {page.product_name}.{" "}
+            <a href="/clinic/inventory/lots">View all products</a>
+          </p>
+        )}
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!loading && !busy && !readBlocked)
+              void onRead({ ...applied, q: query.trim(), page: 1 });
+          }}
+        >
+          <TextField
+            label="Search stock"
+            size="small"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Product, lot, location"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            label="Stock status"
+            size="small"
+            value={page.status}
+            disabled={loading || busy || readBlocked}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                stock_status: event.target.value as typeof page.status,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="all">All positions</MenuItem>
+            <MenuItem value="available">Available stock</MenuItem>
+            <MenuItem value="held">Held stock</MenuItem>
+            <MenuItem value="expired">Expired stock</MenuItem>
+          </TextField>
+          <Button
+            type="submit"
+            variant="outlined"
+            disabled={loading || busy || readBlocked}
+          >
+            Search stock
+          </Button>
+          {(page.query || page.status !== "all") && (
+            <Button
+              type="button"
+              variant="outlined"
+              disabled={loading || busy || readBlocked}
+              onClick={() =>
+                void onRead({ q: "", stock_status: "all", page: 1 })
+              }
+            >
+              Reset filters
+            </Button>
+          )}
+        </form>
+        <p role="status">
+          {loading
+            ? "Loading stock…"
+            : `${data.balances.length} shown · ${page.filtered_count} matching of ${page.total_count} stock positions.`}
+        </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous stock page remains visible.
+          </Alert>
+        )}
+      </Card>
       <div className="inventory-metrics">
-        <Metric
-          label="On hand"
-          value={number(
-            decimalSum(data.balances.map((item) => item.on_hand_units)),
-          )}
-          detail="All locations"
-        />
-        <Metric
-          label="Available"
-          value={number(
-            decimalSum(data.balances.map((item) => item.available_units)),
-          )}
-          detail="After safety holds"
-        />
-        <Metric
-          label="Held"
-          value={number(
-            decimalSum(data.balances.map((item) => item.held_units)),
-          )}
-          detail="Safety holds"
-          tone="warning"
-        />
-        <Metric
-          label="As of"
-          value={inventoryDate(data.as_of, data.timezone)}
-          detail={data.timezone}
-        />
+        {data.unit_totals.map((total) => (
+          <Metric
+            key={total.stock_unit}
+            label={`${total.stock_unit} available`}
+            value={number(total.available_units)}
+            detail={`${number(total.on_hand_units)} on hand · ${number(total.unavailable_units)} unavailable across all matching positions`}
+          />
+        ))}
       </div>
       <Card title="Lot balances">
+        {data.balances.length === 0 && (
+          <p role="status">
+            No stock positions match this view. Change the filters or receive
+            stock.
+          </p>
+        )}
         <div className="inventory-table-wrap">
           <table>
             <thead>
@@ -4509,11 +4629,25 @@ function LotsScreen({
                 return (
                   <tr
                     key={balance.id}
-                    className={balance.id === selected.id ? "selected" : ""}
-                    onClick={() => setSelectedId(balance.id)}
+                    className={balance.id === selected?.id ? "selected" : ""}
                   >
                     <td>
-                      <strong>{item.name}</strong>
+                      <Button
+                        type="button"
+                        disabled={busy || loading || readBlocked}
+                        sx={{
+                          textTransform: "none",
+                          textAlign: "left",
+                          justifyContent: "flex-start",
+                        }}
+                        onClick={() => {
+                          setSelectedId(balance.id);
+                          setQuantity("1");
+                          setReason("");
+                        }}
+                      >
+                        {item.name}
+                      </Button>
                       <small>
                         Lot {lotItem.lot_number} · expires{" "}
                         {inventoryDate(lotItem.expiration_date, data.timezone)}
@@ -4550,146 +4684,176 @@ function LotsScreen({
           </table>
         </div>
       </Card>
-      <div className="inventory-two-col wide-left">
-        <Card title={`${selectedProduct.name} · Lot ${selectedLot.lot_number}`}>
-          <div className="inventory-data-grid four">
-            <DataPoint label="Location" value={selectedLocation.name} />
-            <DataPoint
-              label="On hand"
-              value={`${number(selected.on_hand_units)} ${selectedProduct.base_unit}s`}
-            />
-            <DataPoint
-              label="Held"
-              value={`${number(selected.held_units)} ${selectedProduct.base_unit}s`}
-              tone="warning"
-            />
-            <DataPoint
-              label="Expires"
-              value={inventoryDate(selectedLot.expiration_date, data.timezone)}
-            />
-          </div>
-          <div className="inventory-form-actions">
-            <button
-              className={`inventory-button ${action === "transfer" ? "primary" : "outline"}`}
-              type="button"
-              onClick={() => setAction("transfer")}
-            >
-              Transfer
-            </button>
-            <button
-              className={`inventory-button ${action === "adjust" ? "primary" : "outline"}`}
-              type="button"
-              onClick={() => setAction("adjust")}
-            >
-              Adjust
-            </button>
-            <button
-              className={`inventory-button ${action === "count" ? "primary" : "outline"}`}
-              type="button"
-              onClick={() => setAction("count")}
-            >
-              Cycle count
-            </button>
-          </div>
-          <form className="inventory-form-grid" onSubmit={submit}>
-            <Field
-              label={
-                action === "count"
-                  ? "Counted units"
-                  : `Quantity / delta (${selectedProduct.base_unit})`
-              }
-            >
-              <input
-                type="number"
-                min={action === "count" ? 0 : 1}
-                value={quantity}
-                step="any"
-                onChange={(event) => setQuantity(event.target.value)}
+      {page.page_count > 1 && (
+        <nav className="inventory-pagination" aria-label="Stock pagination">
+          <Button
+            variant="outlined"
+            disabled={loading || busy || readBlocked || page.page === 1}
+            onClick={() => void onRead({ ...applied, page: page.page - 1 })}
+          >
+            Previous
+          </Button>
+          <span>
+            Page {page.page} of {page.page_count}
+          </span>
+          <Button
+            variant="outlined"
+            disabled={
+              loading || busy || readBlocked || page.page === page.page_count
+            }
+            onClick={() => void onRead({ ...applied, page: page.page + 1 })}
+          >
+            Next
+          </Button>
+        </nav>
+      )}
+      {selected && selectedLot && selectedProduct && selectedLocation && (
+        <div className="inventory-two-col wide-left">
+          <Card
+            title={`${selectedProduct.name} · Lot ${selectedLot.lot_number}`}
+          >
+            <div className="inventory-data-grid four">
+              <DataPoint label="Location" value={selectedLocation.name} />
+              <DataPoint
+                label="On hand"
+                value={`${number(selected.on_hand_units)} ${selectedProduct.base_unit}`}
               />
-            </Field>
-            {action === "transfer" && (
-              <Field label="Destination">
-                <select
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                >
-                  {data.locations
-                    .filter((item) => item.id !== selected.location_id)
-                    .map((item) => (
-                      <option value={item.id} key={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                </select>
-              </Field>
-            )}
-            <Field label="Reason">
-              <input
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
+              <DataPoint
+                label="Held"
+                value={`${number(selected.held_units)} ${selectedProduct.base_unit}`}
+                tone="warning"
               />
-            </Field>
-            <div className="inventory-form-actions">
-              <PermissionNote
-                allowed={capability(
-                  data,
-                  action === "transfer"
-                    ? "inventory.transfer"
-                    : action === "count"
-                      ? "inventory.count"
-                      : "inventory.adjust",
+              <DataPoint
+                label="Expires"
+                value={inventoryDate(
+                  selectedLot.expiration_date,
+                  data.timezone,
                 )}
-                permission={
-                  action === "transfer"
-                    ? "inventory.transfer"
-                    : action === "count"
-                      ? "inventory.count"
-                      : "inventory.adjust"
-                }
               />
-              <ConfirmButton
-                disabled={
-                  busy ||
-                  (action === "transfer" && blocked) ||
-                  (action !== "count" &&
-                    decimalCompare(quantity || "0", "0") <= 0) ||
-                  !capability(
+            </div>
+            <div className="inventory-form-actions">
+              <button
+                className={`inventory-button ${action === "transfer" ? "primary" : "outline"}`}
+                type="button"
+                onClick={() => setAction("transfer")}
+              >
+                Transfer
+              </button>
+              <button
+                className={`inventory-button ${action === "adjust" ? "primary" : "outline"}`}
+                type="button"
+                onClick={() => setAction("adjust")}
+              >
+                Adjust
+              </button>
+              <button
+                className={`inventory-button ${action === "count" ? "primary" : "outline"}`}
+                type="button"
+                onClick={() => setAction("count")}
+              >
+                Cycle count
+              </button>
+            </div>
+            <form className="inventory-form-grid" onSubmit={submit}>
+              <Field
+                label={
+                  action === "count"
+                    ? "Counted units"
+                    : `Quantity / delta (${selectedProduct.base_unit})`
+                }
+              >
+                <input
+                  type="number"
+                  min={action === "count" ? 0 : 1}
+                  value={quantity}
+                  step="any"
+                  onChange={(event) => setQuantity(event.target.value)}
+                />
+              </Field>
+              {action === "transfer" && (
+                <Field label="Destination">
+                  <select
+                    value={destination}
+                    onChange={(event) => setDestination(event.target.value)}
+                  >
+                    {data.locations
+                      .filter((item) => item.id !== selected.location_id)
+                      .map((item) => (
+                        <option value={item.id} key={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+              )}
+              <Field label="Reason">
+                <input
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </Field>
+              <div className="inventory-form-actions">
+                <PermissionNote
+                  allowed={capability(
                     data,
                     action === "transfer"
                       ? "inventory.transfer"
                       : action === "count"
                         ? "inventory.count"
                         : "inventory.adjust",
-                  )
+                  )}
+                  permission={
+                    action === "transfer"
+                      ? "inventory.transfer"
+                      : action === "count"
+                        ? "inventory.count"
+                        : "inventory.adjust"
+                  }
+                />
+                <ConfirmButton
+                  disabled={
+                    busy ||
+                    (action === "transfer" && blocked) ||
+                    (action !== "count" &&
+                      decimalCompare(quantity || "0", "0") <= 0) ||
+                    !capability(
+                      data,
+                      action === "transfer"
+                        ? "inventory.transfer"
+                        : action === "count"
+                          ? "inventory.count"
+                          : "inventory.adjust",
+                    )
+                  }
+                  onConfirm={() => {
+                    const fake = new Event("submit") as unknown as FormEvent;
+                    submit(fake);
+                  }}
+                >
+                  Post {action}
+                </ConfirmButton>
+              </div>
+            </form>
+          </Card>
+          <Card title="Selected balance">
+            <div className="inventory-stack compact">
+              <DataPoint
+                label="Available"
+                value={`${number(selected.available_units)} ${selectedProduct.base_unit}`}
+              />
+              <p
+                className={
+                  blocked ? "inventory-danger-text" : "inventory-success-line"
                 }
-                onConfirm={() => {
-                  const fake = new Event("submit") as unknown as FormEvent;
-                  submit(fake);
-                }}
               >
-                Post {action}
-              </ConfirmButton>
+                {blocked
+                  ? "Action blocked: held, recalled, or unavailable stock cannot transfer."
+                  : "Available for transfer."}
+              </p>
             </div>
-          </form>
-        </Card>
-        <Card title="Selected balance">
-          <div className="inventory-stack compact">
-            <DataPoint
-              label="Available"
-              value={`${number(selected.available_units)} ${selectedProduct.base_unit}`}
-            />
-            <p
-              className={
-                blocked ? "inventory-danger-text" : "inventory-success-line"
-              }
-            >
-              {blocked
-                ? "Action blocked: held, recalled, or unavailable stock cannot transfer."
-                : "Available for transfer."}
-            </p>
-          </div>
-        </Card>
-      </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -4713,7 +4877,9 @@ export function ActivityScreen({
   const viewState =
     page.before_cursor && rows.length === 0 && page.filtered_count > 0
       ? "page_empty"
-      : inventoryMovementViewState(page.total_count, rows.length, page.query);
+      : page.lot_id && rows.length === 0 && !page.query
+        ? "lot_empty"
+        : inventoryMovementViewState(page.total_count, rows.length, page.query);
   const search = (event: FormEvent) => {
     event.preventDefault();
     if (!loading) void onRead({ q: filter.trim() });
@@ -4721,6 +4887,12 @@ export function ActivityScreen({
   return (
     <div className="inventory-stack" aria-busy={loading}>
       <Card title="Activity ledger">
+        {page.lot_number && (
+          <p>
+            Lot {page.lot_number}.{" "}
+            <a href="/clinic/inventory/activity">View full ledger</a>
+          </p>
+        )}
         <div className="inventory-card-heading inventory-ledger-toolbar">
           <form onSubmit={search}>
             <TextField
@@ -4825,13 +4997,15 @@ export function ActivityScreen({
             <strong>
               {viewState === "filtered_empty"
                 ? `No movements match “${page.query}”.`
-                : viewState === "page_empty"
-                  ? "No older movements"
-                  : "No movements recorded"}
+                : viewState === "lot_empty"
+                  ? "No movements recorded for this lot"
+                  : viewState === "page_empty"
+                    ? "No older movements"
+                    : "No movements recorded"}
             </strong>
             <p>
               {viewState === "filtered_empty"
-                ? "Clear the filter to review the full movement ledger."
+                ? "Clear the search filter to review recorded movements."
                 : viewState === "page_empty"
                   ? "Return to the newest movements to continue reviewing the ledger."
                   : "Recorded stock receipts, transfers, adjustments, and counts will appear here with their source."}
