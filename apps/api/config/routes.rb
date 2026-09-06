@@ -53,6 +53,7 @@ Rails.application.routes.draw do
     post "stripe_connect/onboard", to: "billing/stripe_connect#onboard"
     post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"
     get "subscription_catalog", to: "care/subscription_catalog#index"
+    get "subscription_catalog/storefront_preview", to: "care/subscription_catalog#storefront_preview"
     post "subscription_catalog/:kind", to: "care/subscription_catalog#save"
     patch "subscription_catalog/:kind/:id", to: "care/subscription_catalog#save"
     get "subscription_catalog/packages/:id/preview", to: "care/subscription_catalog#preview"

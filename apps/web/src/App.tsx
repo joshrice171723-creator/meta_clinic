@@ -29,6 +29,7 @@ import { FrontDesk } from "./features/clinic/FrontDesk";
 import { Billing } from "./features/clinic/Billing";
 import { BillingDashboard } from "./features/clinic/BillingDashboard";
 import { SubscriptionCatalog } from "./features/clinic/subscriptions/SubscriptionCatalog";
+import { PatientStorefrontPreview } from "./features/clinic/subscriptions/PatientStorefrontPreview";
 import { Reminders } from "./features/clinic/Reminders";
 import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
 import {
@@ -219,6 +220,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <BillingDashboard />
   ) : path === "/clinic/subscriptions" ? (
     <SubscriptionCatalog />
+  ) : path === "/clinic/subscriptions/patient-preview" ? (
+    <PatientStorefrontPreview />
   ) : path === "/clinic/reminders" ? (
     <Reminders />
   ) : path === "/clinic/messages" ? (

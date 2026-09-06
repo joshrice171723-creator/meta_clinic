@@ -35,6 +35,15 @@ module Clinic
         render json: { id: nil, number: nil, terms: terms }
       end
 
+      def storefront_preview
+        require_capability("subscription_catalog.read")
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "subscription_catalog.preview", outcome: :released)
+        render json: {
+          practice_name: current_practice.name,
+          catalog: Care::SubscriptionProjection.catalog(practice: current_practice)
+        }
+      end
+
       def publish
         version = SubscriptionCatalog.publish(practice: current_practice, actor: current_user, id: params[:id], request_key: params[:request_key], lock_version: params[:lock_version])
         render json: { id: version.id, number: version.number, terms: version.snapshot }

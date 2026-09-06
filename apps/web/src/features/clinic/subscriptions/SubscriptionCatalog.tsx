@@ -27,7 +27,6 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { api } from "../../../api/client";
 import { LoadState, useResource } from "../../../shared/ui";
-import { PackageCard } from "./PackageCard";
 import { membershipTheme } from "./membershipTheme";
 import { MembershipCard } from "./MembershipCard";
 import { draftMembershipTerms } from "./draftMembershipTerms";
@@ -112,7 +111,6 @@ export function SubscriptionCatalog() {
     lock_version?: number;
   } | null>(null);
   const [preview, setPreview] = useState<PublishedPackage | null>(null);
-  const [previewSelections, setPreviewSelections] = useState<number[]>([]);
   const [retire, setRetire] = useState<{
     kind: string;
     id: number;
@@ -516,7 +514,6 @@ export function SubscriptionCatalog() {
                             disabled={busy}
                             onClick={() =>
                               void run(async () => {
-                                setPreviewSelections([]);
                                 setPreview(
                                   await api<PublishedPackage>(
                                     `/api/clinic/subscription_catalog/packages/${p.id}/preview`,
@@ -525,7 +522,14 @@ export function SubscriptionCatalog() {
                               })
                             }
                           >
-                            Patient preview
+                            Preview patient card
+                          </Button>
+                          <Button
+                            component="a"
+                            href="/clinic/subscriptions/patient-preview"
+                            startIcon={<OpenInNewIcon />}
+                          >
+                            View patient storefront
                           </Button>
                           {data.capabilities.publish && !p.retired && (
                             <>
@@ -1255,48 +1259,17 @@ export function SubscriptionCatalog() {
         maxWidth="sm"
         aria-labelledby="catalog-preview-title"
       >
-        <DialogTitle id="catalog-preview-title">Patient preview</DialogTitle>
+        <DialogTitle id="catalog-preview-title">Patient card preview</DialogTitle>
         <DialogContent>
           {preview && (
-            <PackageCard
-              terms={preview.terms}
-              selections={previewSelections}
-              onSelect={(ids) => {
-                setPreviewSelections(ids);
-                setPreview({
-                  ...preview,
-                  terms: {
-                    ...preview.terms,
-                    total: undefined,
-                    selected_components: undefined,
-                  },
-                });
-              }}
-            />
+            <ThemeProvider theme={membershipTheme}>
+              <MembershipCard terms={preview.terms} canPurchase={false} />
+            </ThemeProvider>
           )}
           {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPreview(null)}>Close</Button>
-          <Button
-            disabled={busy}
-            onClick={() =>
-              preview &&
-              void run(async () => {
-                const query = new URLSearchParams({ quote: "1" });
-                previewSelections.forEach((id) =>
-                  query.append("selections[]", String(id)),
-                );
-                setPreview(
-                  await api<PublishedPackage>(
-                    `/api/clinic/subscription_catalog/packages/${preview.terms.package_id}/preview?${query}`,
-                  ),
-                );
-              })
-            }
-          >
-            Validate selections and price
-          </Button>
         </DialogActions>
       </Dialog>
       <Dialog
