@@ -354,6 +354,11 @@ export type ClinicCapabilities = {
   staff_messaging_escalate?: boolean;
   reminders?: boolean;
   reminders_write?: boolean;
+  scribe_read?: boolean;
+  scribe_write?: boolean;
+  scribe_approve?: boolean;
+  scribe_export?: boolean;
+  scribe_delete?: boolean;
   billing: boolean;
   roles: boolean;
 };
