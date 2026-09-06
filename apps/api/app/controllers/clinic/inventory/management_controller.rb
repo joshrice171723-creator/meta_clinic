@@ -51,7 +51,11 @@ module Clinic
       def purchase_orders = bootstrap
       def receiving = bootstrap
       def lots = bootstrap
-      def activity = bootstrap
+      def activity
+        return bootstrap unless params[:view] == "ledger"
+
+        render json: { data: InventoryWire.activity(practice: current_practice, actor: current_user, query: params[:q], before: params[:before]) }
+      end
       def recalls = bootstrap
       def controlled = bootstrap
 

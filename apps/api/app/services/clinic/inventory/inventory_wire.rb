@@ -46,17 +46,7 @@ module Clinic
           { batch: %i[product lot location_record] },
           { receipt_line: :receipt }
         ).order(id: :desc).limit(200).to_a
-        {
-          schema_version: "inventory-wire-v1",
-          dataset_version: "bulk_v3",
-          data_version: practice.inventory_profiles.maximum(:version) || 0,
-          configuration: practice.inventory_profiles.order(version: :desc).first&.slice(:status, :version, :reason, :operator_reference),
-          as_of: Time.current.iso8601,
-          timezone: practice.timezone,
-          practice: practice.as_json(only: %i[id name timezone]),
-          users: [ { id: actor.id.to_s, name: actor.email_address.split("@").first.tr("._-", " ").titleize } ],
-          current_user_id: actor.id.to_s,
-          capabilities: capabilities(practice, actor),
+        context(practice: practice, actor: actor).merge(
           products: products.map { |product| product_wire(product, batches, active_holds_by_batch, inventory_date) },
           packages: products.map { |product| package_wire(product) },
           suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
@@ -73,7 +63,33 @@ module Clinic
           recalls: recalls.map { |recall| recall_wire(recall, batches_by_lot, active_holds_by_batch) },
           controlled_reconciliations: counts.map { |count| count_wire(count) },
           audit_events: practice.audit_events.includes(:resource_manifests).order(occurred_at: :desc, id: :desc).limit(100).map { |event| audit_wire(event) },
+        )
+      end
+
+      def context(practice:, actor:)
+        {
+          schema_version: "inventory-wire-v1",
+          dataset_version: "bulk_v3",
+          data_version: practice.inventory_profiles.maximum(:version) || 0,
+          configuration: practice.inventory_profiles.order(version: :desc).first&.slice(:status, :version, :reason, :operator_reference),
+          as_of: Time.current.iso8601,
+          timezone: practice.timezone,
+          practice: practice.as_json(only: %i[id name timezone]),
+          users: [ { id: actor.id.to_s, name: actor.email_address.split("@").first.tr("._-", " ").titleize } ],
+          current_user_id: actor.id.to_s,
+          capabilities: capabilities(practice, actor)
         }
+      end
+
+      def activity(practice:, actor:, query: nil, before: nil)
+        result = ActivityQuery.call(practice: practice, query: query, before: before)
+        context(practice: practice, actor: actor).merge(
+          activity_page: { query: result.query, total_count: result.total_count, filtered_count: result.filtered_count,
+            before_cursor: result.before_cursor, next_cursor: result.next_cursor, page_size: ActivityQuery::PAGE_SIZE },
+          movements: result.movements.map do |movement|
+            movement_wire(movement).merge(lot_number: movement.batch.lot.number,
+              location_name: movement.batch.location_record.name, stock_unit: movement.stock_unit)
+          end)
       end
 
       def purchase_order(order)

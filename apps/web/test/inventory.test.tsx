@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../src/api/client";
 import {
   InventoryApp,
+  ActivityScreen,
   ReceivingScreen,
   benchmarkPackagePrice,
   inferInventoryUnits,
@@ -27,10 +28,79 @@ import {
 } from "../src/features/inventory/inventoryContracts";
 import type {
   InventoryData,
+  InventoryActivityData,
   InventoryPurchaseOrder,
 } from "../src/features/inventory/inventoryContracts";
 
 describe("inventory integration", () => {
+  it("renders server ledger totals, exact units, paging and read failures", () => {
+    const data: InventoryActivityData = {
+      schema_version: "inventory-wire-v1",
+      dataset_version: "fixture",
+      data_version: 1,
+      as_of: "2026-09-05T12:00:00Z",
+      timezone: "UTC",
+      practice: { id: 1, name: "Ledger fixture", timezone: "UTC" },
+      users: [],
+      current_user_id: "1",
+      capabilities: { "inventory.read": true },
+      activity_page: {
+        query: "older receipt",
+        total_count: 240,
+        filtered_count: 65,
+        before_cursor: "150",
+        next_cursor: "100",
+        page_size: 50,
+      },
+      movements: [
+        {
+          id: "120",
+          type: "receipt",
+          lot_id: "1",
+          location_id: "1",
+          quantity_units: "0.125",
+          direction: "in",
+          source_id: "receipt_1",
+          occurred_at: "2026-09-05T12:00:00Z",
+          reason: "Older receipt fixture",
+          lot_number: "OLD-LOT",
+          location_name: "Fixture shelf",
+          stock_unit: "mL",
+        },
+      ],
+    };
+    const render = (loading = false, error = "") =>
+      renderToStaticMarkup(
+        <ActivityScreen
+          data={data}
+          loading={loading}
+          error={error}
+          onRead={async () => {}}
+        />,
+      );
+    const html = render();
+    expect(html).toContain("1 shown · 65 matching of 240 recorded movements.");
+    expect(html).toContain("0.125 mL");
+    expect(html).toContain("OLD-LOT");
+    expect(html).toContain("Newest movements");
+    expect(html).toContain("Older movements");
+    expect(html).toContain("Clear filter");
+    expect(render(true)).toContain("Loading movements");
+    expect(render(false, "Request failed")).toContain(
+      "Request failed The previous ledger page remains visible.",
+    );
+    data.movements = [];
+    expect(render()).toContain("No older movements");
+    data.activity_page = {
+      ...data.activity_page,
+      before_cursor: null,
+      next_cursor: null,
+      filtered_count: 0,
+    };
+    expect(render()).toContain("No movements match");
+    data.activity_page = { ...data.activity_page, query: "", total_count: 0 };
+    expect(render()).toContain("No movements recorded");
+  });
   it("renders supplier-package receiving totals from the PO snapshot", () => {
     const data: InventoryData = {
       schema_version: "1",

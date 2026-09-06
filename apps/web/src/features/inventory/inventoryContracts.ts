@@ -400,3 +400,31 @@ export type InventoryData = {
   controlled_reconciliations: InventoryReconciliation[];
   audit_events: InventoryAuditEvent[];
 };
+
+export type InventoryActivityData = Pick<
+  InventoryData,
+  | "schema_version"
+  | "dataset_version"
+  | "data_version"
+  | "configuration"
+  | "as_of"
+  | "timezone"
+  | "practice"
+  | "users"
+  | "current_user_id"
+  | "capabilities"
+> & {
+  activity_page: {
+    query: string;
+    total_count: number;
+    filtered_count: number;
+    before_cursor: string | null;
+    next_cursor: string | null;
+    page_size: number;
+  };
+  movements: (InventoryMovement & {
+    lot_number: string;
+    location_name: string;
+    stock_unit: string;
+  })[];
+};

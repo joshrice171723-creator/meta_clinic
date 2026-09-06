@@ -16,6 +16,7 @@ import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type {
   InventoryBalance,
   InventoryData,
+  InventoryActivityData,
   InventoryProduct,
   InventoryRecall,
   InventoryCategory,
@@ -1974,7 +1975,8 @@ function PermissionNote({
 export function InventoryApp({ path }: { path: string }) {
   const { registerBlocker } = useClinicNavigation();
   const screen = screenForPath(path);
-  const [data, setData] = useState<InventoryData>();
+  const [data, setData] = useState<InventoryData | InventoryActivityData>();
+  const readVersion = useRef(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -2002,12 +2004,16 @@ export function InventoryApp({ path }: { path: string }) {
   }, [registerBlocker, uncertainMutation]);
 
   useEffect(() => {
-    if (!data || !needsPurchaseOrderFacility) return;
-    if (purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)) return;
+    if (!data || "activity_page" in data || !needsPurchaseOrderFacility) return;
+    if (purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder))
+      return;
     window.location.replace("/clinic/facilities");
   }, [data, needsPurchaseOrderFacility]);
 
-  const load = async () => {
+  const load = async (
+    activityRead: { q?: string; before?: string | null } = {},
+  ) => {
+    const version = ++readVersion.current;
     setLoading(true);
     setError("");
     let lastReason: unknown;
@@ -2015,11 +2021,22 @@ export function InventoryApp({ path }: { path: string }) {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 10_000);
       try {
-        const payload = await api<{ data: InventoryData }>(
-          "/api/clinic/inventory/bootstrap",
-          { signal: controller.signal },
-        );
-        if (!payload.data)
+        const query = new URLSearchParams();
+        if (screen === "activity") query.set("view", "ledger");
+        if (activityRead.q) query.set("q", activityRead.q);
+        if (activityRead.before) query.set("before", activityRead.before);
+        const endpoint =
+          screen === "activity"
+            ? `/api/clinic/inventory/activity?${query}`
+            : "/api/clinic/inventory/bootstrap";
+        const payload = await api<{
+          data: InventoryData | InventoryActivityData;
+        }>(endpoint, { signal: controller.signal });
+        if (version !== readVersion.current) return;
+        if (
+          !payload.data ||
+          (screen === "activity") !== "activity_page" in payload.data
+        )
           throw new Error(
             "The inventory service returned an incomplete response.",
           );
@@ -2027,6 +2044,7 @@ export function InventoryApp({ path }: { path: string }) {
         setLoading(false);
         return;
       } catch (reason) {
+        if (version !== readVersion.current) return;
         lastReason = reason;
         if (
           !(reason instanceof DOMException && reason.name === "AbortError") ||
@@ -2037,6 +2055,7 @@ export function InventoryApp({ path }: { path: string }) {
         window.clearTimeout(timeout);
       }
     }
+    if (version !== readVersion.current) return;
     setError(
       lastReason instanceof DOMException && lastReason.name === "AbortError"
         ? "Inventory is taking longer than expected. The page retried once; try again when the clinic API is ready."
@@ -2047,8 +2066,12 @@ export function InventoryApp({ path }: { path: string }) {
     setLoading(false);
   };
   useEffect(() => {
+    setData(undefined);
     void load();
-  }, []);
+    return () => {
+      readVersion.current += 1;
+    };
+  }, [screen]);
 
   const run = async (
     endpoint: string,
@@ -2142,6 +2165,7 @@ export function InventoryApp({ path }: { path: string }) {
 
   if (
     needsPurchaseOrderFacility &&
+    !("activity_page" in data) &&
     !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
   )
     return (
@@ -2245,48 +2269,69 @@ export function InventoryApp({ path }: { path: string }) {
               </div>
             )}
             <Notice notice={notice} onClose={() => setNotice(null)} />
-            {screen === "catalog" && (
-              <CatalogScreen
+            {"activity_page" in data ? (
+              <ActivityScreen
                 data={data}
-                onRefresh={load}
+                loading={loading}
+                error={error}
+                onRead={load}
               />
-            )}
-            {screen === "catalog_new" && (
-              <CatalogCreateScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "configure" && (
-              <InventoryConfigureScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "locations" && (
-              <InventoryLocationsScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "supplier_pricing" && (
-              <SupplierPricingScreen data={data} onData={(next) => setData(next)} />
-            )}
-            {screen === "replenishment" && (
-              <PurchaseCartWorkspace data={data} busy={busy} run={run} onRefresh={load} />
-            )}
-            {screen === "purchasing" && (
-              <PurchasingScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "purchase_order_new" && (
-              <PurchaseCartWorkspace data={data} busy={busy} run={run} onRefresh={load} directEntry />
-            )}
-            {screen === "shipment_new" && (
-              <ShipmentCreateScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "receiving" && (
-              <ReceivingScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "lots" && (
-              <LotsScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "activity" && <ActivityScreen data={data} />}
-            {screen === "recalls" && (
-              <RecallScreen data={data} busy={busy} run={run} />
-            )}
-            {screen === "controlled" && (
-              <ControlledScreen data={data} busy={busy} run={run} />
+            ) : (
+              <>
+                {screen === "catalog" && (
+                  <CatalogScreen data={data} onRefresh={load} />
+                )}
+                {screen === "catalog_new" && (
+                  <CatalogCreateScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "configure" && (
+                  <InventoryConfigureScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "locations" && (
+                  <InventoryLocationsScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "supplier_pricing" && (
+                  <SupplierPricingScreen
+                    data={data}
+                    onData={(next) => setData(next)}
+                  />
+                )}
+                {screen === "replenishment" && (
+                  <PurchaseCartWorkspace
+                    data={data}
+                    busy={busy}
+                    run={run}
+                    onRefresh={load}
+                  />
+                )}
+                {screen === "purchasing" && (
+                  <PurchasingScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "purchase_order_new" && (
+                  <PurchaseCartWorkspace
+                    data={data}
+                    busy={busy}
+                    run={run}
+                    onRefresh={load}
+                    directEntry
+                  />
+                )}
+                {screen === "shipment_new" && (
+                  <ShipmentCreateScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "receiving" && (
+                  <ReceivingScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "lots" && (
+                  <LotsScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "recalls" && (
+                  <RecallScreen data={data} busy={busy} run={run} />
+                )}
+                {screen === "controlled" && (
+                  <ControlledScreen data={data} busy={busy} run={run} />
+                )}
+              </>
             )}
           </div>
         </div>
@@ -4608,35 +4653,58 @@ function LotsScreen({
   );
 }
 
-function ActivityScreen({ data }: { data: InventoryData }) {
-  const [filter, setFilter] = useState("");
-  const normalizedFilter = filter.trim().toLowerCase();
-  const rows = data.movements.filter((item) =>
-    `${item.type} ${item.reason ?? ""} ${item.source_id}`
-      .toLowerCase()
-      .includes(normalizedFilter),
-  );
-  const viewState = inventoryMovementViewState(
-    data.movements.length,
-    rows.length,
-    filter,
-  );
+export function ActivityScreen({
+  data,
+  loading = false,
+  error = "",
+  onRead,
+}: {
+  data: InventoryActivityData;
+  loading?: boolean;
+  error?: string;
+  onRead: (query: { q?: string; before?: string | null }) => Promise<void>;
+}) {
+  const page = data.activity_page;
+  const [filter, setFilter] = useState(page.query);
+  useEffect(() => setFilter(page.query), [page.query]);
+  const normalizedFilter = page.query;
+  const rows = data.movements;
+  const viewState =
+    page.before_cursor && rows.length === 0 && page.filtered_count > 0
+      ? "page_empty"
+      : inventoryMovementViewState(page.total_count, rows.length, page.query);
+  const search = (event: FormEvent) => {
+    event.preventDefault();
+    if (!loading) void onRead({ q: filter.trim() });
+  };
   return (
-    <div className="inventory-stack">
+    <div className="inventory-stack" aria-busy={loading}>
       <Card title="Activity ledger">
         <div className="inventory-card-heading inventory-ledger-toolbar">
-          <Field label="Filter ledger">
-            <input
+          <form onSubmit={search}>
+            <TextField
+              size="small"
+              label="Filter ledger"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               placeholder="Type, reason, source"
+              slotProps={{ htmlInput: { maxLength: 100 } }}
             />
-          </Field>
+            <Button
+              sx={{ minHeight: 40, textTransform: "none" }}
+              type="submit"
+              variant="outlined"
+              disabled={loading}
+            >
+              Search ledger
+            </Button>
+          </form>
           <div className="inventory-ledger-summary">
             <p className="inventory-results-count" role="status">
-              {normalizedFilter
-                ? `Showing ${rows.length} of ${data.movements.length} movements.`
-                : `${data.movements.length} movement${data.movements.length === 1 ? "" : "s"} recorded.`}
+              {loading
+                ? "Loading movements…"
+                : `${rows.length} shown · ${page.filtered_count} matching of ${page.total_count} recorded movements.`}
+              {normalizedFilter && ` Search: ${normalizedFilter}.`}
             </p>
             {normalizedFilter && (
               <Button
@@ -4644,7 +4712,11 @@ function ActivityScreen({ data }: { data: InventoryData }) {
                 size="small"
                 startIcon={<ClearRoundedIcon />}
                 type="button"
-                onClick={() => setFilter("")}
+                disabled={loading}
+                onClick={() => {
+                  setFilter("");
+                  void onRead({ q: "" });
+                }}
                 sx={{
                   minHeight: 40,
                   borderColor: "var(--inventory-control)",
@@ -4659,6 +4731,11 @@ function ActivityScreen({ data }: { data: InventoryData }) {
             )}
           </div>
         </div>
+        {error && (
+          <Alert severity="error">
+            {error} The previous ledger page remains visible.
+          </Alert>
+        )}
         {viewState === "results" ? (
           <div className="inventory-table-wrap">
             <table>
@@ -4686,12 +4763,12 @@ function ActivityScreen({ data }: { data: InventoryData }) {
                       </Badge>
                     </td>
                     <td>
-                      <strong>Lot {lot(data, item.lot_id)?.lot_number}</strong>
-                      <small>{location(data, item.location_id)?.name}</small>
+                      <strong>Lot {item.lot_number}</strong>
+                      <small>{item.location_name}</small>
                     </td>
                     <td className="numeric">
                       {item.direction === "out" ? "−" : "+"}
-                      {number(item.quantity_units)}
+                      {number(item.quantity_units)} {item.stock_unit}
                     </td>
                     <td>
                       <span>{item.reason}</span>
@@ -4706,16 +4783,40 @@ function ActivityScreen({ data }: { data: InventoryData }) {
           <div className="inventory-empty-state" role="status">
             <strong>
               {viewState === "filtered_empty"
-                ? `No movements match “${filter.trim()}”.`
-                : "No movements recorded"}
+                ? `No movements match “${page.query}”.`
+                : viewState === "page_empty"
+                  ? "No older movements"
+                  : "No movements recorded"}
             </strong>
             <p>
               {viewState === "filtered_empty"
                 ? "Clear the filter to review the full movement ledger."
-                : "Recorded stock receipts, transfers, adjustments, and counts will appear here with their source."}
+                : viewState === "page_empty"
+                  ? "Return to the newest movements to continue reviewing the ledger."
+                  : "Recorded stock receipts, transfers, adjustments, and counts will appear here with their source."}
             </p>
           </div>
         )}
+        <div className="inventory-form-actions">
+          <Button
+            sx={{ minHeight: 40, textTransform: "none" }}
+            variant="outlined"
+            disabled={loading || !page.before_cursor}
+            onClick={() => void onRead({ q: page.query })}
+          >
+            Newest movements
+          </Button>
+          <Button
+            sx={{ minHeight: 40, textTransform: "none" }}
+            variant="outlined"
+            disabled={loading || !page.next_cursor}
+            onClick={() =>
+              void onRead({ q: page.query, before: page.next_cursor })
+            }
+          >
+            Older movements
+          </Button>
+        </div>
       </Card>
     </div>
   );
