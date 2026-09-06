@@ -72,6 +72,19 @@ module Clinic
             expiry = Date.iso8601(line[:expires_on])
             lot = Clinic::Inventory::Lot.find_or_create_by!(practice_id: practice.id, product_id: product.id, number: line[:lot_number]) { |record| record.expires_on = expiry }
             raise ArgumentError, "This lot has a different recorded expiry. Resolve the discrepancy before receiving." unless lot.expires_on == expiry
+            matching_recalls = open_recalls_for(practice, product, lot)
+            if matching_recalls.any?
+              raise ArgumentError, "Stock for an open recall must be received into recall quarantine." unless status.to_s == "quarantined"
+              unless recall && matching_recalls.any? { |record| record.id == recall.id }
+                raise ArgumentError, "Confirm one of the open recall cases for this lot before receiving."
+              end
+              Clinic::Authorization.authorize!(actor: actor, practice: practice, action: "recall.lock")
+            elsif Recall.where(practice_id: practice.id, product_id: product.id).joins(:recall_lots)
+              .exists?(clinic_inventory_recall_lots: { lot_id: lot.id })
+              raise ArgumentError, "This lot belongs to a closed recall. Open a new recall case before receiving it into quarantine."
+            elsif status.to_s == "quarantined"
+              raise ArgumentError, "A quarantined receipt needs an open recall record."
+            end
             location = resolve_location!(practice, line)
             restricted_kind = location.restricted_kind
             if status.to_s == "received" && %w[quarantine returns].include?(restricted_kind)
@@ -85,11 +98,12 @@ module Clinic
               record.location = location.name
               record.supplier = payload[:supplier].presence
             end
-            if status.to_s == "quarantined"
-              raise ArgumentError, "A quarantined receipt needs an explicit recall record." unless recall
-              raise ArgumentError, "The recall does not match this practice, product, or lot." unless recall.practice_id == practice.id && recall.product_id == product.id && recall.recall_lots.exists?(practice_id: practice.id, lot_id: lot.id)
-              batch.holds.create!(practice_id: practice.id, actor: actor, recall: recall, kind: "recalled",
-                reason: "Receipt held for recall: #{receipt.reason}", request_key: "#{request_key}:recall-hold")
+            matching_recalls.each do |matching_recall|
+              active_hold = batch.active_holds.find_by(kind: "recalled", recall_id: matching_recall.id)
+              next if active_hold
+
+              batch.holds.create!(practice_id: practice.id, actor: actor, recall: matching_recall, kind: "recalled",
+                reason: "Receipt held for recall: #{receipt.reason}", request_key: "#{request_key}:recall-hold:#{index + 1}:#{matching_recall.id}")
             end
             cost = line[:unit_cost].present? ? Quantity.parse(line[:unit_cost], scale: 6, zero: true) : nil
             currency = line[:currency].presence
@@ -140,6 +154,12 @@ module Clinic
         end
       end
 
+      def self.open_recalls_for(practice, product, lot)
+        ids = Recall.open_cases.where(practice_id: practice.id, product_id: product.id)
+          .joins(:recall_lots).where(clinic_inventory_recall_lots: { lot_id: lot.id }).order(:id).pluck(:id)
+        Recall.where(practice_id: practice.id, id: ids).order(:id).lock.to_a
+      end
+
       def self.resolve_location!(practice, line)
         if line[:location_id].present?
           location = Location.where(practice_id: practice.id).includes(:site, :children, :parent_location).lock.find(line[:location_id])
@@ -157,7 +177,7 @@ module Clinic
         end
         location.ensure_stock_destination!
       end
-      private_class_method :validate_shipment!, :resolve_location!
+      private_class_method :validate_shipment!, :open_recalls_for, :resolve_location!
     end
   end
 end

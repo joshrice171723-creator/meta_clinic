@@ -105,7 +105,14 @@ module Clinic
 
         render json: { data: InventoryWire.activity(practice: current_practice, actor: current_user, query: params[:q], before: params[:before], lot_id: params[:lot_id]) }
       end
-      def recalls = bootstrap
+      def recalls
+        return bootstrap unless params[:view] == "cases"
+        filters = params.permit(:q, :recall_status, :page, :recall_id, :position_page, :history_page, :lot_q, :lot_page, :product_id).to_h.symbolize_keys
+        filters[:query] = filters.delete(:q)
+        filters[:status] = filters.delete(:recall_status)
+        filters[:lot_query] = filters.delete(:lot_q)
+        render json: { data: InventoryWire.recall_cases(practice: current_practice, actor: current_user, **filters) }
+      end
       def controlled = bootstrap
 
       def demo
@@ -306,9 +313,9 @@ module Clinic
         reconciliation = input[:reconciliation]&.permit(:missing_packages, :rejected_packages, :excess_packages, :exception)&.to_h
         raise ArgumentError, "Receipt quantity must be a nonnegative whole number of packages." if packages.negative?
         product = line.product
-        lot = Lot.where(practice_id: current_practice.id, product_id: product.id).find_by(number: input[:lot_number])
+        lot = Lot.where(practice_id: current_practice.id, product_id: product.id).find_by(number: input[:lot_number].to_s.strip)
         matched_recall = if lot
-          current_practice.inventory_recalls.joins(:recall_lots)
+          current_practice.inventory_recalls.open_cases.joins(:recall_lots)
             .find_by(product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
         end
         recalled = matched_recall.present?
@@ -321,12 +328,12 @@ module Clinic
             matches.first
           end
         end
-        if packages.positive? && recalled && destination.kind != "quarantine"
+        if packages.positive? && recalled && destination.restricted_kind != "quarantine"
           raise ArgumentError, "Blocking recall match: this lot must be routed to a quarantine location."
         end
         recall = if recalled && packages.positive?
           Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
-          current_practice.inventory_recalls.joins(:recall_lots).find_by!(id: input.require(:recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
+          current_practice.inventory_recalls.open_cases.joins(:recall_lots).find_by!(id: requested_id!(input.require(:recall_id), :recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
         elsif input[:recall_id].present?
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
@@ -372,35 +379,42 @@ module Clinic
 
       def create_recall
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
-        input = params.require(:recall).permit(:request_key, :batch_id, :lot_id, :location_id, :reference, :reason, :required_disposition)
+        input = params.require(:recall).permit(:request_key, :batch_id, :lot_id, :location_id, :reference, :reason, :required_disposition, lot_ids: [])
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
-        expected_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
-        recall = Recall.transaction do
-          Access.retry_lock(current_practice.id, request_key)
-          existing = Recall.where(practice_id: current_practice.id).find_by(request_key: request_key)
-          if existing
-            raise ArgumentError, "This recall request key was already used for different data." unless existing.payload_digest == expected_digest
-            existing
-          else
-            batch = batch_for(input)
-            record = Recall.create!(practice_id: current_practice.id, product_id: batch.product_id, actor_id: current_user.id, reference: input.require(:reference), status: "inventory_locked", reason: input.require(:reason), required_disposition: input[:required_disposition].presence || "return_to_supplier", effective_on: Date.current, affected_units: batch.quantity, request_key: request_key, payload_digest: expected_digest)
-            record.recall_lots.create!(practice_id: current_practice.id, lot_id: batch.lot_id)
-            ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', 'recall.lock', true)")
-            batch.holds.create!(practice_id: current_practice.id, actor: current_user, recall: record, kind: "recalled", reason: record.reason, request_key: "#{request_key}:hold")
-            record
-          end
+        # Preserve replay of a receipt-era single-position recall request.
+        legacy = if !input.key?(:lot_ids)
+          digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
+          Recall.where(practice_id: current_practice.id, actor_id: current_user.id, request_key: request_key, payload_digest: digest).first
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: recall.id }, status: :created
+        recall = legacy || RecallCase.create!(practice: current_practice, actor: current_user,
+          lot_ids: input.key?(:lot_ids) ? input[:lot_ids] : [ batch_for(input).lot_id ],
+          reference: input.require(:reference), reason: input.require(:reason), required_disposition: input[:required_disposition].presence || "return_to_supplier", request_key: request_key)
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: recall.id.to_s), status: :created
+      end
+
+      def contain_recall
+        recall = Recall.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:containment).permit(:reason, :request_key)
+        RecallCase.contain!(recall: recall, actor: current_user, reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: recall.id.to_s }
+      end
+
+      def close_recall
+        recall = Recall.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:closure).permit(:reason, :evidence_reference, :request_key)
+        closure = RecallCase.close!(recall: recall, actor: current_user, reason: input.require(:reason), evidence_reference: input.require(:evidence_reference), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: closure.id.to_s }, status: :created
       end
 
       def create_disposition
-        recall = Recall.where(practice_id: current_practice.id).find(params[:id])
+        recall = Recall.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
         input = params[:disposition].presence || params
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         RecallDisposition.execute!(recall: recall, actor: current_user, batch_id: input.require(:batch_id), quantity: input.require(:quantity_units), method: input[:method].presence || "return_to_supplier", evidence_reference: input.require(:evidence_reference), reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def investigate_control

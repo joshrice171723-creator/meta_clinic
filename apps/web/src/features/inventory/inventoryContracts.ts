@@ -620,6 +620,105 @@ export type InventoryExceptionData = InventoryReadContext & {
   assignees: { id: string; name: string }[];
 };
 
+export type InventoryRecallRead = {
+  q?: string;
+  recall_status?: "open" | "closed" | "all";
+  page?: number;
+  recall_id?: string;
+  position_page?: number;
+  history_page?: number;
+  lot_q?: string;
+  lot_page?: number;
+  product_id?: string;
+};
+export type InventoryRecallSummary = {
+  id: string;
+  reference: string;
+  product_id: string;
+  product_name: string;
+  stock_unit: string;
+  status: "open" | "closed";
+  effective_at: string;
+  reason: string;
+  required_disposition: string;
+  affected_units: Decimal;
+  remaining_units: Decimal;
+  held_units: Decimal;
+  uncontained_units: Decimal;
+  disposition_units: Decimal;
+  lot_count: number;
+  closure: {
+    reason: string;
+    evidence_reference: string;
+    actor_id: string;
+    created_at: string;
+  } | null;
+};
+export type InventoryRecallPosition = {
+  batch_id: string;
+  lot_id: string;
+  lot_number: string;
+  location_id: string;
+  location_path: string;
+  expires_on: string;
+  on_hand_units: Decimal;
+  held_for_case: boolean;
+};
+export type InventoryRecallDisposition = {
+  id: string;
+  batch_id: string;
+  quantity_units: Decimal;
+  method: string;
+  evidence_reference: string;
+  reason: string;
+  actor_id: string;
+  created_at: string;
+};
+export type InventoryRecallData = InventoryReadContext & {
+  recall_page: {
+    query: string;
+    status: NonNullable<InventoryRecallRead["recall_status"]>;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+    selected_id: string | null;
+  };
+  recalls: InventoryRecallSummary[];
+  selected_recall: InventoryRecallSummary | null;
+  positions: InventoryRecallPosition[];
+  position_page: {
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+  };
+  dispositions: InventoryRecallDisposition[];
+  history_page: {
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+  };
+  lot_options: {
+    id: string;
+    product_id: string;
+    product_name: string;
+    stock_unit: string;
+    lot_number: string;
+    expires_on: string;
+  }[];
+  lot_page: {
+    query: string;
+    product_id: string | null;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+  };
+};
+
 export type InventoryStockData = InventoryReadContext &
   Pick<
     InventoryData,

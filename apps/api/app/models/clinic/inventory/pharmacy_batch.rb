@@ -124,6 +124,9 @@ module Clinic
             previous = self.status
             if status == "active"
               held = hold_id.present? ? active_holds.find(hold_id) : active_holds.sole
+              if held.recall_id.present?
+                raise ArgumentError, "Recall holds remain as evidence. Record disposition through the recall case."
+              end
               HoldRelease.create!(practice_id: practice_id, hold_id: held.id, actor_id: actor.id, reason: reason, request_key: request_key)
             else
               holds.create!(practice_id: practice_id, actor_id: actor.id, kind: status, reason: reason, request_key: request_key)

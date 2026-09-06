@@ -112,6 +112,8 @@ Rails.application.routes.draw do
       get "recalls", to: "inventory/management#recalls"
       post "recalls", to: "inventory/management#create_recall"
       post "recalls/:id/disposition", to: "inventory/management#create_disposition"
+      post "recalls/:id/contain", to: "inventory/management#contain_recall"
+      post "recalls/:id/close", to: "inventory/management#close_recall"
       get "controlled", to: "inventory/management#controlled"
       post "controlled/:id/investigate", to: "inventory/management#investigate_control"
       post "controlled/:id/certify", to: "inventory/management#certify_control"

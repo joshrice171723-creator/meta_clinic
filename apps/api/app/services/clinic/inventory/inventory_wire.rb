@@ -95,16 +95,51 @@ module Clinic
         { data: purchase_order_wire(order) }
       end
 
+      def recall_cases(practice:, actor:, **filters)
+        result = RecallCasesQuery.call(practice: practice, **filters)
+        paths = location_paths(practice: practice, ids: result.positions.map(&:location_id))
+        held_ids = result.selected ? Hold.active.where(practice_id: practice.id, recall_id: result.selected.id, batch_id: result.positions.map(&:id)).pluck(:batch_id) : []
+        context(practice: practice, actor: actor).merge(
+          recall_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count, page_size: RecallCasesQuery::PAGE_SIZE,
+            total_count: result.total_count, filtered_count: result.filtered_count, selected_id: result.selected&.id&.to_s },
+          recalls: result.cases.map { |record| recall_case_wire(record) }, selected_recall: result.selected && recall_case_wire(result.selected),
+          positions: result.positions.map do |batch|
+            { batch_id: batch.id.to_s, lot_id: batch.lot_id.to_s, lot_number: batch.lot.number, location_id: batch.location_id.to_s,
+              location_path: paths[batch.location_id.to_s], expires_on: batch.expires_on.iso8601, on_hand_units: batch.quantity.to_s("F"), held_for_case: held_ids.include?(batch.id) }
+          end,
+          position_page: { page: result.position_page, page_count: result.position_page_count, total_count: result.position_count, page_size: RecallCasesQuery::PAGE_SIZE },
+          dispositions: result.dispositions.map do |entry|
+            { id: entry.id.to_s, batch_id: entry.batch_id.to_s, quantity_units: entry.quantity.to_d.to_s("F"), method: entry.method,
+              evidence_reference: entry.evidence_reference, reason: entry.reason, actor_id: entry.actor_id.to_s, created_at: entry.created_at.iso8601 }
+          end,
+          history_page: { page: result.history_page, page_count: result.history_page_count, total_count: result.history_count, page_size: RecallCasesQuery::PAGE_SIZE },
+          lot_options: result.lot_options.map do |lot|
+            { id: lot.id.to_s, product_id: lot.product_id.to_s, product_name: lot.product.name, stock_unit: lot.product.stock_unit, lot_number: lot.number, expires_on: lot.expires_on.iso8601 }
+          end,
+          lot_page: { query: result.lot_query, product_id: result.product_id&.to_s, page: result.lot_page, page_count: result.lot_page_count, total_count: result.lot_count, page_size: RecallCasesQuery::PAGE_SIZE })
+      end
+
+      def recall_case_wire(recall)
+        closure = recall.closure
+        remaining = recall[:on_hand_units].to_d
+        held = recall[:held_units].to_d
+        { id: recall.id.to_s, reference: recall.reference, product_id: recall.product_id.to_s, product_name: recall.product.name, stock_unit: recall.product.stock_unit,
+          status: closure || recall.status == "closed" ? "closed" : "inventory_locked", effective_at: recall.effective_on.iso8601,
+          reason: recall.reason, required_disposition: recall.required_disposition, affected_units: recall.affected_units.to_d.to_s("F"), remaining_units: remaining.to_s("F"),
+          held_units: held.to_s("F"), uncontained_units: [ remaining - held, 0.to_d ].max.to_s("F"), disposition_units: recall[:disposed_units].to_d.to_s("F"), lot_count: recall[:linked_lot_count].to_i,
+          closure: closure && { reason: closure.reason, evidence_reference: closure.evidence_reference, actor_id: closure.actor_id.to_s, created_at: closure.created_at.iso8601 } }
+      end
+
       def exceptions(practice:, actor:, **filters)
         result = ExceptionQueueQuery.call(practice: practice, **filters)
-        location_paths = location_directory(practice: practice).to_h { |location| [ location[:id], location[:path] ] }
+        paths = location_paths(practice: practice, ids: result.rows.filter_map { |row| row["location_id"] })
         context(practice: practice, actor: actor).merge(
           exception_page: { query: result.query, status: result.status, category: result.category, page: result.page, page_count: result.page_count,
             page_size: ExceptionQueueQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
           exceptions: result.rows.map do |row|
             row.slice("source_kind", "category", "title", "product_name", "lot_number", "stock_unit", "details", "state", "reason", "evidence_reference").symbolize_keys.merge(
               id: [ row["source_kind"], row["source_id"], row["category"] ].join(":"), source_id: row["source_id"].to_s,
-              product_id: row["product_id"]&.to_s, location_id: row["location_id"]&.to_s, location_path: location_paths[row["location_id"]&.to_s],
+              product_id: row["product_id"]&.to_s, location_id: row["location_id"]&.to_s, location_path: paths[row["location_id"]&.to_s],
               expires_on: row["expires_on"]&.iso8601, quantity_units: row["quantity_units"]&.to_d&.to_s("F"), shipment_id: row["shipment_id"]&.to_s,
               assignee_id: row["assignee_id"]&.to_s, reviewed_at: row["reviewed_at"]&.iso8601, reviewed_by: row["reviewed_by"]&.to_s, review_id: row["review_id"]&.to_s)
           end,
@@ -122,6 +157,26 @@ module Clinic
             page_size: LocationQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
           locations: result.ids.filter_map { |id| by_id[id] }, location_options: directory,
           sites: practice.sites.order(:name, :id).map { |site| Clinic::FacilitySerializer.site(site) })
+      end
+
+      def location_paths(practice:, ids:)
+        return {} if ids.empty?
+        connection = ApplicationRecord.connection
+        practice_id = connection.quote(practice.id)
+        identifiers = ids.map { |id| connection.quote(id.to_i) }.uniq.join(",")
+        connection.select_all(<<~SQL).to_a.to_h { |row| [ row["source_id"].to_s, row["path"] ] }
+          WITH RECURSIVE paths(source_id, parent_id, site_id, path) AS (
+            SELECT id, parent_location_id, site_id, name::text FROM clinic_inventory_locations
+            WHERE practice_id=#{practice_id} AND id IN (#{identifiers})
+            UNION ALL
+            SELECT paths.source_id, parent.parent_location_id, paths.site_id, parent.name || ' / ' || paths.path
+            FROM paths JOIN clinic_inventory_locations parent ON parent.id=paths.parent_id
+            WHERE parent.practice_id=#{practice_id}
+          )
+          SELECT paths.source_id, concat_ws(' / ',site.name,paths.path) AS path FROM paths
+          LEFT JOIN clinic_sites site ON site.id=paths.site_id AND site.practice_id=#{practice_id}
+          WHERE paths.parent_id IS NULL
+        SQL
       end
 
       def location_directory(practice:, areas_by_location: {})
@@ -201,7 +256,10 @@ module Clinic
         return { lot: nil, recalls: [] } unless lot
 
         kinds = Hold.active.where(practice_id: practice.id).joins(:batch).where(clinic_pharmacy_batches: { lot_id: lot.id }).distinct.pluck(:kind)
-        recalls = Recall.where(practice_id: practice.id, product_id: product.id).joins(:recall_lots).where(clinic_inventory_recall_lots: { lot_id: lot.id }).order(id: :desc)
+        recalls = Recall.open_cases.where(practice_id: practice.id, product_id: product.id).joins(:recall_lots).where(clinic_inventory_recall_lots: { lot_id: lot.id }).order(id: :desc)
+        if recalls.empty? && Recall.where(practice_id: practice.id, product_id: product.id).joins(:recall_lots).where(clinic_inventory_recall_lots: { lot_id: lot.id }).exists?
+          raise ArgumentError, "This lot belongs to a closed recall. Open a new recall case before receiving it into quarantine."
+        end
         { lot: { id: lot.id.to_s, product_id: product.id.to_s, package_id: "pkg_#{product.id}", lot_number: lot.number, expiration_date: lot.expires_on.iso8601,
             status: kinds.include?("recalled") ? "recalled" : kinds.any? ? "quarantined" : "active" },
           recalls: recalls.map { |recall| { id: recall.id.to_s, product_id: product.id.to_s, lot_numbers: [ lot.number ], reference: recall.reference, required_disposition: recall.required_disposition } } }

@@ -29,6 +29,8 @@ import type {
   InventoryExceptionData,
   InventoryExceptionRead,
   InventoryException,
+  InventoryRecallData,
+  InventoryRecallRead,
   InventoryStockData,
   InventoryStockRead,
   InventoryOrderData,
@@ -185,7 +187,7 @@ const links: {
   {
     screen: "recalls",
     href: "/clinic/inventory/recalls",
-    label: "Expiry & recalls",
+    label: "Recall cases",
     short: "Recalls",
     group: "Exceptions",
   },
@@ -283,7 +285,7 @@ function screenTitle(screen: Screen) {
       lots: "Stock by lot",
       activity: "Movement ledger",
       exceptions: "Exception queue",
-      recalls: "Expiry & recalls",
+      recalls: "Recall case management",
       controlled: "Controlled reconciliation",
     } satisfies Record<Screen, string>
   )[screen];
@@ -2379,6 +2381,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventorySupplierData
     | InventoryLocationData
     | InventoryExceptionData
+    | InventoryRecallData
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
@@ -2420,6 +2423,7 @@ export function InventoryApp({ path }: { path: string }) {
       "supplier_page" in data ||
       "location_page" in data ||
       "exception_page" in data ||
+      "recall_page" in data ||
       "stock_page" in data ||
       "order_page" in data ||
       "delivery_page" in data ||
@@ -2437,6 +2441,7 @@ export function InventoryApp({ path }: { path: string }) {
       InventorySupplierRead &
       InventoryLocationRead &
       InventoryExceptionRead &
+      InventoryRecallRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null },
@@ -2446,6 +2451,7 @@ export function InventoryApp({ path }: { path: string }) {
       InventorySupplierRead &
       InventoryLocationRead &
       InventoryExceptionRead &
+      InventoryRecallRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null } = {
@@ -2483,6 +2489,18 @@ export function InventoryApp({ path }: { path: string }) {
                     category: data.exception_page.category,
                     page: data.exception_page.page,
                   }
+                : screen === "recalls" && data && "recall_page" in data
+                  ? {
+                      q: data.recall_page.query,
+                      recall_status: data.recall_page.status,
+                      page: data.recall_page.page,
+                      recall_id: data.recall_page.selected_id ?? undefined,
+                      position_page: data.position_page.page,
+                      history_page: data.history_page.page,
+                      lot_q: data.lot_page.query,
+                      lot_page: data.lot_page.page,
+                      product_id: data.lot_page.product_id ?? undefined,
+                    }
               : screen === "supplier_pricing" && data && "supplier_page" in data
                 ? {
                     q: data.supplier_page.query,
@@ -2527,6 +2545,7 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "supplier_pricing") query.set("view", "table");
         if (screen === "locations") query.set("view", "tree");
         if (screen === "exceptions") query.set("view", "queue");
+        if (screen === "recalls") query.set("view", "cases");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         if (read.delivery_status)
           query.set("delivery_status", read.delivery_status);
@@ -2537,6 +2556,15 @@ export function InventoryApp({ path }: { path: string }) {
         if (read.exception_status)
           query.set("exception_status", read.exception_status);
         if (read.category) query.set("category", read.category);
+        if (read.recall_status) query.set("recall_status", read.recall_status);
+        if (read.recall_id) query.set("recall_id", read.recall_id);
+        if (read.position_page)
+          query.set("position_page", String(read.position_page));
+        if (read.history_page)
+          query.set("history_page", String(read.history_page));
+        if (read.lot_q) query.set("lot_q", read.lot_q);
+        if (read.lot_page) query.set("lot_page", String(read.lot_page));
+        if (read.product_id) query.set("product_id", read.product_id);
         const routeQuery = new URLSearchParams(window.location.search);
         const shipmentId =
           read.shipment_id === undefined
@@ -2568,7 +2596,9 @@ export function InventoryApp({ path }: { path: string }) {
                   ? `/api/clinic/inventory/locations?${query}`
                   : screen === "exceptions"
                     ? `/api/clinic/inventory/exceptions?${query}`
-                    : screen === "purchasing"
+                    : screen === "recalls"
+                      ? `/api/clinic/inventory/recalls?${query}`
+                      : screen === "purchasing"
                     ? `/api/clinic/inventory/purchase-orders?${query}`
                     : screen === "supplier_pricing"
                       ? `/api/clinic/inventory/supplier-pricing?${query}`
@@ -2586,6 +2616,7 @@ export function InventoryApp({ path }: { path: string }) {
             | InventorySupplierData
             | InventoryLocationData
             | InventoryExceptionData
+            | InventoryRecallData
             | InventoryStockData
             | InventoryOrderData
             | InventoryDeliveryData;
@@ -2598,6 +2629,7 @@ export function InventoryApp({ path }: { path: string }) {
           (screen === "supplier_pricing") !== "supplier_page" in payload.data ||
           (screen === "locations") !== "location_page" in payload.data ||
           (screen === "exceptions") !== "exception_page" in payload.data ||
+          (screen === "recalls") !== "recall_page" in payload.data ||
           needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
@@ -2683,6 +2715,7 @@ export function InventoryApp({ path }: { path: string }) {
           "replenishment",
           "purchase_order_new",
           "exceptions",
+          "recalls",
         ].includes(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
@@ -2699,6 +2732,7 @@ export function InventoryApp({ path }: { path: string }) {
           "replenishment",
           "purchase_order_new",
           "exceptions",
+          "recalls",
         ].includes(screen)
       ) {
         if (payload.acknowledged !== true)
@@ -2727,6 +2761,7 @@ export function InventoryApp({ path }: { path: string }) {
           "replenishment",
           "purchase_order_new",
           "exceptions",
+          "recalls",
         ].includes(screen)
       )
         await load();
@@ -2780,6 +2815,7 @@ export function InventoryApp({ path }: { path: string }) {
     !("supplier_page" in data) &&
     !("location_page" in data) &&
     !("exception_page" in data) &&
+    !("recall_page" in data) &&
     !("stock_page" in data) &&
     !("order_page" in data) &&
     !("delivery_page" in data) &&
@@ -2926,6 +2962,16 @@ export function InventoryApp({ path }: { path: string }) {
                 onRead={load}
                 run={run}
               />
+            ) : "recall_page" in data ? (
+              <RecallScreen
+                data={data}
+                loading={loading}
+                error={error}
+                busy={busy}
+                pendingMutation={uncertainMutation}
+                onRead={load}
+                run={run}
+              />
             ) : "plan_page" in data ? (
               <PurchaseCartWorkspace
                 data={data}
@@ -2978,9 +3024,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "shipment_new" && (
                   <ShipmentCreateScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "recalls" && (
-                  <RecallScreen data={data} busy={busy} run={run} />
                 )}
                 {screen === "controlled" && (
                   <ControlledScreen data={data} busy={busy} run={run} />
@@ -5262,14 +5305,20 @@ export function ReceivingScreen({
   const selectedLot =
     (lookupMatches ? lotLookup?.data.lot : undefined) ??
     productLots.find((record) => record.lot_number === displayedLot.trim());
-  const recall = [
+  const matchingRecalls = [
     ...(lookupMatches ? (lotLookup?.data.recalls ?? []) : []),
     ...data.recalls,
-  ].find(
-    (record) =>
-      record.product_id === item?.id &&
-      record.lot_numbers.includes(displayedLot.trim()),
-  );
+  ]
+    .filter(
+      (record) =>
+        record.product_id === item?.id &&
+        record.lot_numbers.includes(displayedLot.trim()),
+    )
+    .filter(
+      (record, index, records) =>
+        records.findIndex((candidate) => candidate.id === record.id) === index,
+    );
+  const recall = matchingRecalls[0];
   const stockDestinations = data.locations.filter(
     (record) => record.status === "active" && record.stock_destination,
   );
@@ -5581,8 +5630,15 @@ export function ReceivingScreen({
         )}
         {recall && accepted && (
           <div className="inventory-warning" role="alert">
-            <strong>Recall match: {recall.reference}</strong>
-            <p>This lot must be received into a quarantine location.</p>
+            <strong>
+              Recall {matchingRecalls.length === 1 ? "match" : "matches"}:{" "}
+              {matchingRecalls.map((record) => record.reference).join(", ")}
+            </strong>
+            <p>
+              This lot matches {matchingRecalls.length} open recall{" "}
+              {matchingRecalls.length === 1 ? "case" : "cases"} and must be
+              received into a quarantine location.
+            </p>
           </div>
         )}
         <div className="inventory-data-grid two">
@@ -5838,8 +5894,13 @@ export function ReceivingScreen({
           />
           {recall && (
             <DataPoint
-              label="Disposition"
-              value={recall.required_disposition}
+              label="Open recall cases"
+              value={matchingRecalls
+                .map(
+                  (record) =>
+                    `${record.reference}: ${record.required_disposition.replaceAll("_", " ")}`,
+                )
+                .join(" · ")}
             />
           )}
         </div>
@@ -6902,270 +6963,1046 @@ export function ActivityScreen({
 
 function RecallScreen({
   data,
+  loading,
+  error,
   busy,
+  pendingMutation,
+  onRead,
   run,
 }: {
-  data: InventoryData;
+  data: InventoryRecallData;
+  loading: boolean;
+  error: string;
   busy: boolean;
-  run: (
+  pendingMutation: PendingInventoryMutation | null;
+  onRead: (read: InventoryRecallRead) => Promise<void>;
+  run: InventoryRun;
+}) {
+  const queue = data.recall_page;
+  const selectedRecall = data.selected_recall;
+  const applied: InventoryRecallRead = {
+    q: queue.query,
+    recall_status: queue.status,
+    page: queue.page,
+    recall_id: queue.selected_id ?? undefined,
+    position_page: data.position_page.page,
+    history_page: data.history_page.page,
+    lot_q: data.lot_page.query,
+    lot_page: data.lot_page.page,
+    product_id: data.lot_page.product_id ?? undefined,
+  };
+  const [query, setQuery] = useState(queue.query);
+  const [lotQuery, setLotQuery] = useState(data.lot_page.query);
+  const [selectedLots, setSelectedLots] = useState<
+    InventoryRecallData["lot_options"]
+  >([]);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  );
+  const [selectedProductName, setSelectedProductName] = useState("");
+  const [reference, setReference] = useState("");
+  const [createReason, setCreateReason] = useState("");
+  const [positionId, setPositionId] = useState("");
+  const [quantity, setQuantity] = useState<Decimal>("0");
+  const [dispositionEvidence, setDispositionEvidence] = useState("");
+  const [dispositionReason, setDispositionReason] = useState("");
+  const [containReason, setContainReason] = useState("");
+  const [closureReason, setClosureReason] = useState("");
+  const [closureEvidence, setClosureEvidence] = useState("");
+  const selectedLotIds = selectedLots.map((lot) => lot.id);
+  const canLock = capability(data, "recall.lock");
+  const canDispose = capability(data, "recall.dispose");
+  const closureActor = selectedRecall?.closure
+    ? data.users.find(
+        (user) => user.id === selectedRecall.closure?.actor_id,
+      )?.name
+    : undefined;
+  const readBlocked = Boolean(pendingMutation);
+  const readDisabled = loading || busy || readBlocked;
+  const formLocked = loading || busy || Boolean(error) || readBlocked;
+  const selectedPosition =
+    data.positions.find((position) => position.batch_id === positionId) ??
+    data.positions.find(
+      (position) =>
+        position.held_for_case &&
+        decimalCompare(position.on_hand_units, "0") > 0,
+    );
+
+  useEffect(() => setQuery(queue.query), [queue.query]);
+  useEffect(() => setLotQuery(data.lot_page.query), [data.lot_page.query]);
+  useEffect(() => {
+    const first = data.positions.find(
+      (position) =>
+        position.held_for_case &&
+        decimalCompare(position.on_hand_units, "0") > 0,
+    );
+    setPositionId(first?.batch_id ?? "");
+    setQuantity(first?.on_hand_units ?? "0");
+    setDispositionEvidence("");
+    setDispositionReason("");
+    setContainReason("");
+    setClosureReason("");
+    setClosureEvidence("");
+  }, [selectedRecall?.id, data.position_page.page]);
+
+  const isSamePending = (endpoint: string, body: Record<string, unknown>) =>
+    pendingMutation?.endpoint === endpoint &&
+    pendingMutation.intent === JSON.stringify({ endpoint, body });
+  const mutationDisabled = (
     endpoint: string,
     body: Record<string, unknown>,
-    title: string,
-    detail: string,
-  ) => Promise<void>;
-}) {
-  const [recallId, setRecallId] = useState(data.recalls[0]?.id ?? "");
-  const recall =
-    data.recalls.find((record) => record.id === recallId) ?? data.recalls[0];
-  const item = recall && product(data, recall.product_id);
-  const recallLotIds = recall
-    ? data.lots
-        .filter((record) => recall.lot_numbers.includes(record.lot_number))
-        .map((record) => record.id)
-    : [];
-  const recallBalances = recallSelectableBalances(
-    data.balances,
-    recall?.id ?? "",
-    recallLotIds,
-  );
-  const [balanceId, setBalanceId] = useState("");
-  const batch =
-    recallBalances.find((record) => record.id === balanceId) ??
-    recallBalances[0];
-  const recalledLot = batch && lot(data, batch.lot_id);
-  const batchLocation = batch && location(data, batch.location_id);
-  const viewState = recallViewState(recall, Boolean(batch));
-  const [quantity, setQuantity] = useState<Decimal>(batch?.held_units ?? "0");
-  const [evidence, setEvidence] = useState("");
-  const [reason, setReason] = useState("");
-  if (!recall || !item)
-    return (
-      <Card title="Recalls and disposition">
-        <p>No recall records are available.</p>
-      </Card>
-    );
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!batch) return;
-    void run(
-      `/api/clinic/inventory/recalls/${recall.id}/disposition`,
-      {
-        disposition: {
-          batch_id: batch.id.replace("bal_", ""),
-          quantity_units: quantity,
-          method: recall.required_disposition,
-          evidence_reference: evidence,
-          reason: reason.trim(),
-        },
-      },
-      "Disposition recorded",
-      `${number(quantity)} ${item.base_unit} recorded.`,
-    );
+    invalid: boolean,
+    allowed: boolean,
+  ) =>
+    loading ||
+    busy ||
+    Boolean(error) ||
+    invalid ||
+    !allowed ||
+    (readBlocked && !isSamePending(endpoint, body));
+
+  const createEndpoint = "/api/clinic/inventory/recalls";
+  const createBody = {
+    recall: {
+      lot_ids: [...selectedLotIds].sort(),
+      reference: reference.trim(),
+      reason: createReason.trim(),
+      required_disposition: "return_to_supplier",
+    },
   };
-  const stages = [
-    "identified",
-    "inventory locked",
-    "location sweep",
-    "isolated",
-    "disposition pending",
-    "disposition complete",
-    "closed",
-  ];
+  const createInvalid =
+    selectedLotIds.length < 1 ||
+    selectedLotIds.length > 100 ||
+    !selectedProductId ||
+    !reference.trim() ||
+    !createReason.trim();
+
+  const dispositionEndpoint = selectedRecall
+    ? `/api/clinic/inventory/recalls/${selectedRecall.id}/disposition`
+    : "/api/clinic/inventory/recalls/missing/disposition";
+  const dispositionBody = {
+    disposition: {
+      batch_id: selectedPosition?.batch_id ?? "",
+      quantity_units: quantity,
+      method: selectedRecall?.required_disposition ?? "return_to_supplier",
+      evidence_reference: dispositionEvidence.trim(),
+      reason: dispositionReason.trim(),
+    },
+  };
+  const dispositionInvalid =
+    !selectedRecall ||
+    selectedRecall.status === "closed" ||
+    !selectedPosition?.held_for_case ||
+    !dispositionEvidence.trim() ||
+    !dispositionReason.trim() ||
+    decimalCompare(quantity || "0", "0") <= 0 ||
+    decimalCompare(quantity || "0", selectedPosition?.on_hand_units ?? "0") > 0;
+
+  const containEndpoint = selectedRecall
+    ? `/api/clinic/inventory/recalls/${selectedRecall.id}/contain`
+    : "/api/clinic/inventory/recalls/missing/contain";
+  const containBody = { containment: { reason: containReason.trim() } };
+  const containInvalid =
+    !selectedRecall ||
+    selectedRecall.status === "closed" ||
+    decimalCompare(selectedRecall.uncontained_units, "0") <= 0 ||
+    !containReason.trim();
+
+  const closeEndpoint = selectedRecall
+    ? `/api/clinic/inventory/recalls/${selectedRecall.id}/close`
+    : "/api/clinic/inventory/recalls/missing/close";
+  const closeBody = {
+    closure: {
+      reason: closureReason.trim(),
+      evidence_reference: closureEvidence.trim(),
+    },
+  };
+  const closeInvalid =
+    !selectedRecall ||
+    selectedRecall.status === "closed" ||
+    decimalCompare(selectedRecall.remaining_units, "0") !== 0 ||
+    !closureReason.trim() ||
+    !closureEvidence.trim();
+
+  const resetCreate = () => {
+    setSelectedLots([]);
+    setSelectedProductId(null);
+    setSelectedProductName("");
+    setReference("");
+    setCreateReason("");
+  };
+  const toggleLot = (option: InventoryRecallData["lot_options"][number]) => {
+    if (formLocked) return;
+    const selected = selectedLotIds.includes(option.id);
+    if (selected) {
+      const next = selectedLots.filter((lot) => lot.id !== option.id);
+      setSelectedLots(next);
+      if (next.length === 0) {
+        setSelectedProductId(null);
+        setSelectedProductName("");
+        void onRead({ ...applied, product_id: undefined, lot_page: 1 });
+      }
+      return;
+    }
+    if (
+      selectedLotIds.length >= 100 ||
+      (selectedProductId && selectedProductId !== option.product_id)
+    )
+      return;
+    setSelectedLots([...selectedLots, option]);
+    if (!selectedProductId) {
+      setSelectedProductId(option.product_id);
+      setSelectedProductName(option.product_name);
+      void onRead({ ...applied, product_id: option.product_id, lot_page: 1 });
+    }
+  };
   return (
-    <div className="inventory-two-col wide-left">
-      <div className="inventory-stack">
-        <Card className="recall-card">
-          <div className="inventory-card-heading">
-            {data.recalls.length > 1 && (
-              <Field label="Recall">
-                <select
-                  value={recall.id}
-                  onChange={(event) => {
-                    const selected = data.recalls.find(
-                      (record) => record.id === event.target.value,
-                    );
-                    const lotIds = selected
-                      ? data.lots
-                          .filter((record) =>
-                            selected.lot_numbers.includes(record.lot_number),
-                          )
-                          .map((record) => record.id)
-                      : [];
-                    const selectedBalance = recallSelectableBalances(
-                      data.balances,
-                      event.target.value,
-                      lotIds,
-                    )[0];
-                    setRecallId(event.target.value);
-                    setBalanceId(selectedBalance?.id ?? "");
-                    setQuantity(selectedBalance?.held_units ?? "0");
-                    setEvidence("");
-                  }}
+    <div className="inventory-stack" aria-busy={loading}>
+      <Card title="Recall case queue">
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!readDisabled)
+              void onRead({
+                ...applied,
+                q: query.trim(),
+                recall_id: undefined,
+                page: 1,
+                position_page: 1,
+                history_page: 1,
+              });
+          }}
+        >
+          <TextField
+            size="small"
+            label="Search recall cases"
+            value={query}
+            disabled={readDisabled}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Reference, product, or lot"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            size="small"
+            label="Case status"
+            value={queue.status}
+            disabled={readDisabled}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                recall_status: event.target.value as typeof queue.status,
+                recall_id: undefined,
+                page: 1,
+                position_page: 1,
+                history_page: 1,
+              })
+            }
+          >
+            <MenuItem value="open">Open cases</MenuItem>
+            <MenuItem value="closed">Closed cases</MenuItem>
+            <MenuItem value="all">All cases</MenuItem>
+          </TextField>
+          <Button type="submit" variant="outlined" disabled={readDisabled}>
+            Search cases
+          </Button>
+        </form>
+        <p className="inventory-results-count" role="status">
+          {loading
+            ? "Loading recall cases…"
+            : `Showing ${queue.filtered_count === 0 ? 0 : (queue.page - 1) * queue.page_size + 1}–${Math.min(queue.page * queue.page_size, queue.filtered_count)} of ${queue.filtered_count} matching cases (${queue.total_count} total).`}
+        </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous recall view remains visible and case actions
+            are paused.
+          </Alert>
+        )}
+        <div className="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Product</th>
+                <th>Case totals</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.recalls.map((recall) => (
+                <tr
+                  key={recall.id}
+                  className={recall.id === queue.selected_id ? "selected" : ""}
                 >
-                  {data.recalls.map((record) => (
-                    <option key={record.id} value={record.id}>
-                      {record.reference}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-            {recallBalances.length > 1 && (
-              <Field label="Lot / location">
-                <select
-                  value={batch.id}
-                  onChange={(event) => {
-                    const selected = recallBalances.find(
-                      (record) => record.id === event.target.value,
-                    );
-                    setBalanceId(event.target.value);
-                    setQuantity(selected?.held_units ?? "0");
-                  }}
-                >
-                  {recallBalances.map((record) => (
-                    <option key={record.id} value={record.id}>
-                      {lot(data, record.lot_id)?.lot_number} ·{" "}
-                      {location(data, record.location_id)?.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-          </div>
-          <div className="inventory-panel-heading">
-            <div>
-              <Badge tone={viewState.showComplete ? "success" : "danger"}>
-                {recall.status.replaceAll("_", " ")}
-              </Badge>
-              <h2>{recall.reference}</h2>
-              <p className="inventory-lead">
-                {item.name} · lot{" "}
-                {recalledLot?.lot_number ?? "No exact held lot"}
-              </p>
+                  <td>
+                    <strong>{recall.reference}</strong>
+                    <small>
+                      Effective{" "}
+                      {inventoryDate(recall.effective_at, data.timezone)}
+                    </small>
+                  </td>
+                  <td>
+                    {recall.product_name}
+                    <small>
+                      {recall.lot_count}{" "}
+                      {recall.lot_count === 1 ? "lot" : "lots"}
+                    </small>
+                  </td>
+                  <td>
+                    {number(recall.remaining_units)} {recall.stock_unit}{" "}
+                    remaining
+                    <small>
+                      {number(recall.held_units)} held ·{" "}
+                      {number(recall.uncontained_units)} uncontained
+                    </small>
+                  </td>
+                  <td>
+                    <Badge
+                      tone={recall.status === "closed" ? "success" : "danger"}
+                    >
+                      {recall.status.replaceAll("_", " ")}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Button
+                      type="button"
+                      size="small"
+                      variant="outlined"
+                      disabled={readDisabled}
+                      onClick={() =>
+                        void onRead({
+                          ...applied,
+                          recall_id: recall.id,
+                          position_page: 1,
+                          history_page: 1,
+                        })
+                      }
+                    >
+                      Open case
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!data.recalls.length && <p>No recall cases match this view.</p>}
+        {queue.page_count > 1 && (
+          <nav className="inventory-pagination" aria-label="Recall pagination">
+            <Button
+              variant="outlined"
+              disabled={readDisabled || queue.page === 1}
+              onClick={() => void onRead({ ...applied, page: queue.page - 1 })}
+            >
+              Previous
+            </Button>
+            <span>
+              Page {queue.page} of {queue.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              disabled={readDisabled || queue.page === queue.page_count}
+              onClick={() => void onRead({ ...applied, page: queue.page + 1 })}
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </Card>
+      {selectedRecall && (
+        <>
+          <Card title={`Recall ${selectedRecall.reference}`}>
+            <div className="inventory-data-grid four">
+              <DataPoint label="Product" value={selectedRecall.product_name} />
+              <DataPoint
+                label="Stock when case opened"
+                value={`${number(selectedRecall.affected_units)} ${selectedRecall.stock_unit}`}
+              />
+              <DataPoint
+                label="Remaining"
+                value={`${number(selectedRecall.remaining_units)} ${selectedRecall.stock_unit}`}
+                tone={
+                  decimalCompare(selectedRecall.remaining_units, "0") === 0
+                    ? ""
+                    : "danger"
+                }
+              />
+              <DataPoint
+                label="Held"
+                value={`${number(selectedRecall.held_units)} ${selectedRecall.stock_unit}`}
+                tone="warning"
+              />
+              <DataPoint
+                label="Uncontained"
+                value={`${number(selectedRecall.uncontained_units)} ${selectedRecall.stock_unit}`}
+                tone={
+                  decimalCompare(selectedRecall.uncontained_units, "0") > 0
+                    ? "danger"
+                    : ""
+                }
+              />
+              <DataPoint
+                label="Recorded under this case"
+                value={`${number(selectedRecall.disposition_units)} ${selectedRecall.stock_unit}`}
+              />
+              <DataPoint
+                label="Lots"
+                value={String(selectedRecall.lot_count)}
+              />
+              <DataPoint
+                label="Required action"
+                value={selectedRecall.required_disposition.replaceAll("_", " ")}
+              />
             </div>
-            <div className="inventory-date">
-              <small>Effective</small>
-              <strong>
-                {inventoryDate(recall.effective_at, data.timezone)}
-              </strong>
-            </div>
-          </div>
-          <div className="inventory-data-grid four">
-            <DataPoint
-              label="Affected"
-              value={`${number(recall.affected_units)} ${item.base_unit}`}
-            />
-            <DataPoint
-              label="Held now"
-              value={
-                batch
-                  ? `${number(recall.held_units)} ${item.base_unit}`
-                  : "Not held for this recall"
-              }
-              tone="warning"
-            />
-            <DataPoint
-              label="Location"
-              value={batchLocation?.name ?? "Location not recorded"}
-            />
-            <DataPoint
-              label="Available"
-              value={
-                batch
-                  ? `${number(batch.available_units)} ${item.base_unit}`
-                  : "Not held"
-              }
-              tone={batch ? "danger" : ""}
-            />
-          </div>
-          <p className="inventory-info">
-            <strong>Required disposition:</strong>{" "}
-            {recall.required_disposition.replaceAll("_", " ")}
-            <br />
-            {recall.reason}
-          </p>
-        </Card>
-        <Card title="Recall workflow">
-          <div className="inventory-timeline recall">
-            {stages.map((stage, index) => (
-              <div
-                key={stage}
-                className={index <= viewState.workflowStage ? "done" : ""}
-              >
-                <span>{index + 1}</span>
-                {stage}
+            <p className="inventory-info">{selectedRecall.reason}</p>
+            {selectedRecall.closure && (
+              <Alert severity="success">
+                Closed{" "}
+                {inventoryDateTime(
+                  selectedRecall.closure.created_at,
+                  data.timezone,
+                )}
+                {closureActor ? ` by ${closureActor}` : ""}.{" "}
+                {selectedRecall.closure.reason} Evidence:{" "}
+                {selectedRecall.closure.evidence_reference}.{" "}
+                Closing preserves recall history; later receipts of these lots
+                require a new case.
+              </Alert>
+            )}
+          </Card>
+          <div className="inventory-two-col wide-left">
+            <Card title="Case stock positions">
+              <div className="inventory-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Lot</th>
+                      <th>Location</th>
+                      <th>On hand</th>
+                      <th>Containment</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.positions.map((position) => (
+                      <tr
+                        key={position.batch_id}
+                        className={
+                          position.batch_id === selectedPosition?.batch_id
+                            ? "selected"
+                            : ""
+                        }
+                      >
+                        <td>
+                          {position.lot_number}
+                          <small>
+                            Expires{" "}
+                            {inventoryDate(position.expires_on, data.timezone)}
+                          </small>
+                        </td>
+                        <td>{position.location_path}</td>
+                        <td>
+                          {number(position.on_hand_units)}{" "}
+                          {selectedRecall.stock_unit}
+                        </td>
+                        <td>
+                          <Badge
+                            tone={position.held_for_case ? "warning" : "danger"}
+                          >
+                            {position.held_for_case
+                              ? "Held for case"
+                              : "Not held"}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Button
+                            type="button"
+                            size="small"
+                            variant="outlined"
+                            disabled={
+                              formLocked ||
+                              !position.held_for_case ||
+                              decimalCompare(position.on_hand_units, "0") <= 0
+                            }
+                            onClick={() => {
+                              setPositionId(position.batch_id);
+                              setQuantity(position.on_hand_units);
+                            }}
+                          >
+                            Use position
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+              {!data.positions.length && (
+                <p>No stock positions are recorded for this case.</p>
+              )}
+              {data.position_page.page_count > 1 && (
+                <nav
+                  className="inventory-pagination"
+                  aria-label="Recall position pagination"
+                >
+                  <Button
+                    variant="outlined"
+                    disabled={readDisabled || data.position_page.page === 1}
+                    onClick={() =>
+                      void onRead({
+                        ...applied,
+                        position_page: data.position_page.page - 1,
+                      })
+                    }
+                  >
+                    Previous
+                  </Button>
+                  <span>
+                    Page {data.position_page.page} of{" "}
+                    {data.position_page.page_count}
+                  </span>
+                  <Button
+                    variant="outlined"
+                    disabled={
+                      readDisabled ||
+                      data.position_page.page === data.position_page.page_count
+                    }
+                    onClick={() =>
+                      void onRead({
+                        ...applied,
+                        position_page: data.position_page.page + 1,
+                      })
+                    }
+                  >
+                    Next
+                  </Button>
+                </nav>
+              )}
+            </Card>
+            <Card title="Record stock disposition">
+              <p>
+                Use an exact held position. Case totals above come from the full
+                case; this page is not used to calculate completion.
+              </p>
+              <form
+                onSubmit={(event) => event.preventDefault()}
+                className="inventory-form-grid"
+              >
+                <TextField
+                  size="small"
+                  label="Batch"
+                  value={
+                    selectedPosition
+                      ? `${selectedPosition.lot_number} · ${selectedPosition.location_path}`
+                      : "No eligible held position on this page"
+                  }
+                  disabled
+                />
+                <TextField
+                  size="small"
+                  type="number"
+                  label={`Quantity (${selectedRecall.stock_unit})`}
+                  value={quantity}
+                  disabled={formLocked || !selectedPosition}
+                  slotProps={{
+                    htmlInput: {
+                      min: 1,
+                      max: selectedPosition?.on_hand_units,
+                      step: "any",
+                    },
+                  }}
+                  onChange={(event) => setQuantity(event.target.value)}
+                />
+                <TextField
+                  size="small"
+                  label="Evidence / return reference"
+                  value={dispositionEvidence}
+                  disabled={formLocked}
+                  required
+                  onChange={(event) =>
+                    setDispositionEvidence(event.target.value)
+                  }
+                  slotProps={{ htmlInput: { maxLength: 200 } }}
+                />
+                <TextField
+                  size="small"
+                  label="Disposition reason"
+                  value={dispositionReason}
+                  disabled={formLocked}
+                  required
+                  multiline
+                  minRows={2}
+                  onChange={(event) => setDispositionReason(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 200 } }}
+                />
+                <PermissionNote
+                  allowed={canDispose}
+                  permission="recall.dispose"
+                />
+                <ConfirmButton
+                  tone="danger"
+                  disabled={mutationDisabled(
+                    dispositionEndpoint,
+                    dispositionBody,
+                    dispositionInvalid,
+                    canDispose,
+                  )}
+                  onConfirm={() =>
+                    void run(
+                      dispositionEndpoint,
+                      dispositionBody,
+                      "Disposition recorded",
+                      `${number(quantity)} ${selectedRecall.stock_unit} recorded for ${selectedRecall.reference}.`,
+                      () => {
+                        setDispositionEvidence("");
+                        setDispositionReason("");
+                      },
+                    )
+                  }
+                  confirmationTitle="Record this disposition?"
+                  confirmationContent={
+                    <p>
+                      This removes the entered quantity from the selected held
+                      stock position and records the supplied evidence.
+                    </p>
+                  }
+                >
+                  {isSamePending(dispositionEndpoint, dispositionBody)
+                    ? "Retry disposition"
+                    : "Approve and record disposition"}
+                </ConfirmButton>
+              </form>
+            </Card>
           </div>
-        </Card>
-      </div>
-      <Card title="Record disposition">
-        {!batch ? (
-          <div className="inventory-info">
-            <strong>No exact active hold for this recall</strong>
-            <p>
-              This recall is recorded, but no selectable balance is currently
-              held for it. Choose another recall to review its exact held
-              balance; no disposition can be recorded here.
-            </p>
-          </div>
-        ) : viewState.showComplete ? (
-          <div className="inventory-success-box">
-            <strong>Final disposition complete</strong>
-            <p>
-              No held units remain. Return evidence is recorded and this lot
-              remains unavailable.
-            </p>
-            <code>{recall.evidence_reference}</code>
-          </div>
-        ) : (
-          <form className="inventory-stack compact" onSubmit={submit}>
-            <Field label={`Quantity (${item.base_unit})`}>
-              <input
-                type="number"
-                min={1}
-                max={batch.held_units}
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </Field>
-            <Field label="Evidence / return reference">
-              <textarea
-                value={evidence}
-                onChange={(event) => setEvidence(event.target.value)}
-                placeholder="Required supplier RMA or evidence reference"
-              />
-            </Field>
-            <Field label="Disposition reason">
-              <textarea
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                required
-              />
-            </Field>
-            <PermissionNote
-              allowed={capability(data, "recall.dispose")}
-              permission="recall.dispose"
-            />
-            <ConfirmButton
-              tone="danger"
-              disabled={
-                busy ||
-                !capability(data, "recall.dispose") ||
-                !evidence.trim() ||
-                !reason.trim() ||
-                decimalCompare(quantity || "0", "0") <= 0 ||
-                decimalCompare(quantity || "0", batch.held_units) > 0
-              }
-              onConfirm={() => {
-                const fake = new Event("submit") as unknown as FormEvent;
-                submit(fake);
+          {decimalCompare(selectedRecall.uncontained_units, "0") > 0 &&
+            selectedRecall.status !== "closed" && (
+              <Card title="Contain legacy case stock">
+                <Alert severity="warning">
+                  {number(selectedRecall.uncontained_units)}{" "}
+                  {selectedRecall.stock_unit} remain outside this case hold.
+                  Containment adds the missing case holds; it does not backfill
+                  or alter receipt history.
+                </Alert>
+                <form
+                  onSubmit={(event) => event.preventDefault()}
+                  className="inventory-form-grid"
+                >
+                  <TextField
+                    size="small"
+                    label="Containment reason"
+                    value={containReason}
+                    disabled={formLocked}
+                    required
+                    multiline
+                    minRows={2}
+                    onChange={(event) => setContainReason(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 200 } }}
+                  />
+                  <PermissionNote allowed={canLock} permission="recall.lock" />
+                  <ConfirmButton
+                    tone="danger"
+                    disabled={mutationDisabled(
+                      containEndpoint,
+                      containBody,
+                      containInvalid,
+                      canLock,
+                    )}
+                    onConfirm={() =>
+                      void run(
+                        containEndpoint,
+                        containBody,
+                        "Recall stock contained",
+                        `Missing case holds were created for ${selectedRecall.reference}.`,
+                        () => setContainReason(""),
+                      )
+                    }
+                    confirmationTitle="Contain all remaining case stock?"
+                    confirmationContent={
+                      <p>
+                        This creates missing recall-case holds for current
+                        on-hand positions. It does not change inventory
+                        quantities.
+                      </p>
+                    }
+                  >
+                    {isSamePending(containEndpoint, containBody)
+                      ? "Retry containment"
+                      : "Contain remaining stock"}
+                  </ConfirmButton>
+                </form>
+              </Card>
+            )}
+          <Card title="Disposition history">
+            <div className="inventory-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Recorded</th>
+                    <th>Batch</th>
+                    <th>Quantity</th>
+                    <th>Method</th>
+                    <th>Evidence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.dispositions.map((record) => {
+                    const actor = data.users.find(
+                      (user) => user.id === record.actor_id,
+                    );
+                    return (
+                      <tr key={record.id}>
+                        <td>
+                          {inventoryDateTime(record.created_at, data.timezone)}
+                          <small>{actor?.name ?? "Clinic user"}</small>
+                        </td>
+                        <td>{record.batch_id}</td>
+                        <td>
+                          {number(record.quantity_units)}{" "}
+                          {selectedRecall.stock_unit}
+                        </td>
+                        <td>
+                          {record.method.replaceAll("_", " ")}
+                          <small>{record.reason}</small>
+                        </td>
+                        <td>{record.evidence_reference}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {!data.dispositions.length && (
+              <p>No dispositions have been recorded.</p>
+            )}
+            {data.history_page.page_count > 1 && (
+              <nav
+                className="inventory-pagination"
+                aria-label="Disposition history pagination"
+              >
+                <Button
+                  variant="outlined"
+                  disabled={readDisabled || data.history_page.page === 1}
+                  onClick={() =>
+                    void onRead({
+                      ...applied,
+                      history_page: data.history_page.page - 1,
+                    })
+                  }
+                >
+                  Previous
+                </Button>
+                <span>
+                  Page {data.history_page.page} of{" "}
+                  {data.history_page.page_count}
+                </span>
+                <Button
+                  variant="outlined"
+                  disabled={
+                    readDisabled ||
+                    data.history_page.page === data.history_page.page_count
+                  }
+                  onClick={() =>
+                    void onRead({
+                      ...applied,
+                      history_page: data.history_page.page + 1,
+                    })
+                  }
+                >
+                  Next
+                </Button>
+              </nav>
+            )}
+          </Card>
+          {selectedRecall.status !== "closed" && (
+            <Card title="Close recall case">
+              <Alert
+                severity={
+                  decimalCompare(selectedRecall.remaining_units, "0") === 0
+                    ? "info"
+                    : "warning"
+                }
+              >
+                {decimalCompare(selectedRecall.remaining_units, "0") === 0
+                  ? "The server reports zero remaining units. Closing records final review evidence; it does not release holds."
+                  : `${number(selectedRecall.remaining_units)} ${selectedRecall.stock_unit} remain. Complete disposition before closing this case.`}
+              </Alert>
+              <form
+                onSubmit={(event) => event.preventDefault()}
+                className="inventory-form-grid"
+              >
+                <TextField
+                  size="small"
+                  label="Closure reason"
+                  value={closureReason}
+                  disabled={formLocked}
+                  required
+                  multiline
+                  minRows={2}
+                  onChange={(event) => setClosureReason(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 200 } }}
+                />
+                <TextField
+                  size="small"
+                  label="Closure evidence"
+                  value={closureEvidence}
+                  disabled={formLocked}
+                  required
+                  onChange={(event) => setClosureEvidence(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 200 } }}
+                />
+                <PermissionNote
+                  allowed={canDispose}
+                  permission="recall.dispose"
+                />
+                <ConfirmButton
+                  tone="danger"
+                  disabled={mutationDisabled(
+                    closeEndpoint,
+                    closeBody,
+                    closeInvalid,
+                    canDispose,
+                  )}
+                  onConfirm={() =>
+                    void run(
+                      closeEndpoint,
+                      closeBody,
+                      "Recall case closed",
+                      `${selectedRecall.reference} was closed with final evidence.`,
+                      () => {
+                        setClosureReason("");
+                        setClosureEvidence("");
+                      },
+                    )
+                  }
+                  confirmationTitle="Close this recall case?"
+                  confirmationContent={
+                    <p>
+                      The server must confirm that no affected units remain.
+                      Closing does not release any hold.
+                    </p>
+                  }
+                >
+                  {isSamePending(closeEndpoint, closeBody)
+                    ? "Retry closure"
+                    : "Close recall case"}
+                </ConfirmButton>
+              </form>
+            </Card>
+          )}
+        </>
+      )}
+      <Card title="Create recall case">
+        <p>
+          Select 1–100 exact lots for one product. Creating the case places all
+          current stock for those lots on a case-specific recall hold.
+        </p>
+        <form
+          className="inventory-form-grid"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <TextField
+            size="small"
+            label="Recall reference"
+            value={reference}
+            disabled={formLocked}
+            required
+            onChange={(event) => setReference(event.target.value)}
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            size="small"
+            label="Recall reason"
+            value={createReason}
+            disabled={formLocked}
+            required
+            multiline
+            minRows={2}
+            onChange={(event) => setCreateReason(event.target.value)}
+            slotProps={{ htmlInput: { maxLength: 200 } }}
+          />
+          <TextField
+            size="small"
+            label="Required disposition"
+            value="Return to supplier"
+            disabled
+          />
+        </form>
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!readDisabled)
+              void onRead({
+                ...applied,
+                lot_q: lotQuery.trim(),
+                lot_page: 1,
+                product_id: selectedProductId ?? undefined,
+              });
+          }}
+        >
+          <TextField
+            size="small"
+            label="Find lots"
+            value={lotQuery}
+            disabled={readDisabled}
+            onChange={(event) => setLotQuery(event.target.value)}
+            placeholder="Product or lot number"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <Button type="submit" variant="outlined" disabled={readDisabled}>
+            Search lots
+          </Button>
+          {selectedLotIds.length > 0 && (
+            <Button
+              type="button"
+              variant="outlined"
+              disabled={formLocked}
+              onClick={() => {
+                setSelectedLots([]);
+                setSelectedProductId(null);
+                setSelectedProductName("");
+                void onRead({ ...applied, product_id: undefined, lot_page: 1 });
               }}
             >
-              Approve and record disposition
-            </ConfirmButton>
-          </form>
+              Clear selected lots
+            </Button>
+          )}
+        </form>
+        <p role="status">
+          {selectedLotIds.length} of 100 lots selected
+          {selectedProductName ? ` for ${selectedProductName}` : ""}.
+        </p>
+        {selectedLots.length > 0 && (
+          <div
+            className="inventory-form-actions"
+            aria-label="Selected recall lots"
+          >
+            {selectedLots.map((lot) => (
+              <Chip
+                key={lot.id}
+                label={`${lot.product_name} · lot ${lot.lot_number}`}
+                variant="outlined"
+                onDelete={formLocked ? undefined : () => toggleLot(lot)}
+              />
+            ))}
+          </div>
         )}
+        <div className="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Product</th>
+                <th>Lot</th>
+                <th>Expires</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.lot_options.map((option) => {
+                const checked = selectedLotIds.includes(option.id);
+                const incompatible = Boolean(
+                  selectedProductId && selectedProductId !== option.product_id,
+                );
+                return (
+                  <tr key={option.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={
+                          formLocked ||
+                          incompatible ||
+                          (!checked && selectedLotIds.length >= 100)
+                        }
+                        onChange={() => toggleLot(option)}
+                        aria-label={`Select lot ${option.lot_number}`}
+                      />
+                    </td>
+                    <td>
+                      {option.product_name}
+                      <small>{option.stock_unit}</small>
+                    </td>
+                    <td>{option.lot_number}</td>
+                    <td>{inventoryDate(option.expires_on, data.timezone)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!data.lot_options.length && <p>No lots match this picker.</p>}
+        {data.lot_page.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Recall lot picker pagination"
+          >
+            <Button
+              variant="outlined"
+              disabled={readDisabled || data.lot_page.page === 1}
+              onClick={() =>
+                void onRead({
+                  ...applied,
+                  lot_page: data.lot_page.page - 1,
+                  product_id: selectedProductId ?? undefined,
+                })
+              }
+            >
+              Previous
+            </Button>
+            <span>
+              Page {data.lot_page.page} of {data.lot_page.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              disabled={
+                readDisabled || data.lot_page.page === data.lot_page.page_count
+              }
+              onClick={() =>
+                void onRead({
+                  ...applied,
+                  lot_page: data.lot_page.page + 1,
+                  product_id: selectedProductId ?? undefined,
+                })
+              }
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+        <div className="inventory-form-actions">
+          <PermissionNote allowed={canLock} permission="recall.lock" />
+          <ConfirmButton
+            tone="danger"
+            disabled={mutationDisabled(
+              createEndpoint,
+              createBody,
+              createInvalid,
+              canLock,
+            )}
+            onConfirm={() =>
+              void run(
+                createEndpoint,
+                createBody,
+                "Recall case created",
+                `${selectedLotIds.length} exact ${selectedLotIds.length === 1 ? "lot was" : "lots were"} added to the case; current stock was placed under case hold.`,
+                resetCreate,
+              )
+            }
+            confirmationTitle="Create this recall case?"
+            confirmationContent={
+              <p>
+                This places current stock for the selected exact lots on a
+                recall hold. All lots must belong to the same product.
+              </p>
+            }
+          >
+            {isSamePending(createEndpoint, createBody)
+              ? "Retry recall creation"
+              : "Create and contain recall"}
+          </ConfirmButton>
+        </div>
       </Card>
     </div>
   );

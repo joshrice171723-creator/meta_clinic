@@ -627,6 +627,227 @@ END; $$;
 
 
 --
+-- Name: inventory_recall_closure_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_closure_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE case_record clinic_inventory_recalls%ROWTYPE;
+BEGIN
+  NEW.profile_id := inventory_authorize(NEW.practice_id, NEW.actor_id, 'recall.dispose', NEW.profile_id);
+  SELECT * INTO case_record FROM clinic_inventory_recalls
+   WHERE practice_id = NEW.practice_id AND id = NEW.recall_id;
+  IF NOT FOUND THEN RAISE foreign_key_violation USING MESSAGE = 'Recall closure must belong to the clinic case'; END IF;
+  PERFORM 1 FROM clinic_pharmacy_products
+   WHERE practice_id = NEW.practice_id AND id = case_record.product_id FOR UPDATE;
+  SELECT * INTO case_record FROM clinic_inventory_recalls
+   WHERE practice_id = NEW.practice_id AND id = NEW.recall_id FOR UPDATE;
+  IF case_record.status = 'closed' OR EXISTS (
+    SELECT 1 FROM clinic_inventory_recall_closures
+     WHERE practice_id = NEW.practice_id AND recall_id = NEW.recall_id
+  ) THEN
+    RAISE EXCEPTION 'Recall case is already closed';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+      FROM clinic_inventory_recall_lots link
+      JOIN clinic_pharmacy_batches batch ON batch.practice_id = link.practice_id AND batch.lot_id = link.lot_id
+     WHERE link.practice_id = NEW.practice_id AND link.recall_id = NEW.recall_id AND batch.on_hand > 0
+  ) THEN
+    RAISE EXCEPTION 'Every recalled stock position must reach zero before closure';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_containment_complete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_containment_complete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'clinic_pharmacy_batches' THEN
+    IF EXISTS (
+      SELECT 1
+        FROM clinic_pharmacy_batches batch
+        JOIN clinic_inventory_recall_lots link ON link.practice_id = batch.practice_id AND link.lot_id = batch.lot_id
+        JOIN clinic_inventory_recalls recall ON recall.practice_id = link.practice_id AND recall.id = link.recall_id
+       WHERE batch.practice_id = NEW.practice_id AND batch.id = NEW.id AND batch.on_hand > 0
+         AND recall.status <> 'closed'
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_recall_closures closure
+            WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_holds hold
+            WHERE hold.practice_id = batch.practice_id AND hold.batch_id = batch.id
+              AND hold.recall_id = recall.id AND hold.kind = 'recalled'
+              AND NOT EXISTS (
+                SELECT 1 FROM clinic_inventory_hold_releases release WHERE release.hold_id = hold.id
+              )
+         )
+    ) THEN
+      RAISE EXCEPTION 'Positive recalled inventory requires an active case-specific hold';
+    END IF;
+  ELSE
+    IF EXISTS (
+      SELECT 1
+        FROM clinic_inventory_recall_lots link
+        JOIN clinic_inventory_recalls recall ON recall.practice_id = link.practice_id AND recall.id = link.recall_id
+        JOIN clinic_pharmacy_batches batch ON batch.practice_id = link.practice_id AND batch.lot_id = link.lot_id
+       WHERE link.practice_id = NEW.practice_id AND link.id = NEW.id AND batch.on_hand > 0
+         AND recall.status <> 'closed'
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_recall_closures closure
+            WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_holds hold
+            WHERE hold.practice_id = batch.practice_id AND hold.batch_id = batch.id
+              AND hold.recall_id = recall.id AND hold.kind = 'recalled'
+              AND NOT EXISTS (
+                SELECT 1 FROM clinic_inventory_hold_releases release WHERE release.hold_id = hold.id
+              )
+         )
+    ) THEN
+      RAISE EXCEPTION 'Every positive recall position requires an active case-specific hold';
+    END IF;
+  END IF;
+  RETURN NULL;
+END $$;
+
+
+--
+-- Name: inventory_recall_hold_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_hold_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.recall_id IS NULL THEN RETURN NEW; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('inventory-recall-hold:' || NEW.recall_id::text || ':' || NEW.batch_id::text, 0));
+  IF NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_recalls recall
+      JOIN clinic_inventory_recall_lots link ON link.practice_id = recall.practice_id AND link.recall_id = recall.id
+      JOIN clinic_pharmacy_batches batch ON batch.practice_id = link.practice_id AND batch.lot_id = link.lot_id
+     WHERE recall.practice_id = NEW.practice_id
+       AND recall.id = NEW.recall_id
+       AND recall.status <> 'closed'
+       AND batch.id = NEW.batch_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_recall_closures closure
+          WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+       )
+  ) THEN
+    RAISE EXCEPTION 'Recall holds require an open matching recall lot';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM clinic_inventory_holds existing
+     WHERE existing.recall_id = NEW.recall_id AND existing.batch_id = NEW.batch_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_hold_releases release WHERE release.hold_id = existing.id
+       )
+  ) THEN
+    RAISE EXCEPTION 'This recall already has an active hold on the stock position';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_lot_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_lot_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE case_product_id bigint;
+BEGIN
+  SELECT product_id INTO case_product_id FROM clinic_inventory_recalls
+   WHERE practice_id = NEW.practice_id AND id = NEW.recall_id;
+  IF NOT FOUND THEN RAISE foreign_key_violation USING MESSAGE = 'Recall lot must belong to the clinic case'; END IF;
+  PERFORM 1 FROM clinic_pharmacy_products
+   WHERE practice_id = NEW.practice_id AND id = case_product_id FOR UPDATE;
+  IF NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_recalls recall
+      JOIN clinic_inventory_lots lot ON lot.practice_id = recall.practice_id
+     WHERE recall.practice_id = NEW.practice_id
+       AND recall.id = NEW.recall_id
+       AND recall.status <> 'closed'
+       AND lot.id = NEW.lot_id
+       AND lot.product_id = recall.product_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_recall_closures closure
+          WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+       )
+  ) THEN
+    RAISE EXCEPTION 'Recall lots must belong to the open recall product';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_release_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_release_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM clinic_inventory_holds hold
+     WHERE hold.practice_id = NEW.practice_id AND hold.id = NEW.hold_id AND hold.recall_id IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'Recall holds cannot be released directly';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_status_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_status_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'closed' THEN RAISE EXCEPTION 'A new recall cannot start closed'; END IF;
+  ELSE
+    IF (
+      NEW.practice_id, NEW.product_id, NEW.actor_id, NEW.reference, NEW.reason,
+      NEW.required_disposition, NEW.effective_on, NEW.affected_units,
+      NEW.request_key, NEW.payload_digest
+    ) IS DISTINCT FROM (
+      OLD.practice_id, OLD.product_id, OLD.actor_id, OLD.reference, OLD.reason,
+      OLD.required_disposition, OLD.effective_on, OLD.affected_units,
+      OLD.request_key, OLD.payload_digest
+    ) THEN
+      RAISE EXCEPTION 'Recall case identity and evidence are immutable';
+    END IF;
+    IF OLD.status <> 'closed' AND NEW.status = 'closed' AND NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_recall_closures closure
+       WHERE closure.practice_id = NEW.practice_id AND closure.recall_id = NEW.id
+    ) THEN
+      RAISE EXCEPTION 'A recall requires closure evidence before it can close';
+    END IF;
+    IF OLD.status = 'closed' AND NEW.status <> 'closed' THEN
+      RAISE EXCEPTION 'A closed recall cannot be reopened';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
 -- Name: inventory_receipt_check(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2288,6 +2509,45 @@ CREATE SEQUENCE public.clinic_inventory_purchase_orders_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_purchase_orders_id_seq OWNED BY public.clinic_inventory_purchase_orders.id;
+
+
+--
+-- Name: clinic_inventory_recall_closures; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_recall_closures (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    recall_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    profile_id bigint NOT NULL,
+    reason character varying NOT NULL,
+    evidence_reference character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_recall_closure_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_recall_closures_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_recall_closures_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_recall_closures_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_recall_closures_id_seq OWNED BY public.clinic_inventory_recall_closures.id;
 
 
 --
@@ -6107,6 +6367,13 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_orders ALTER COLUMN id SET DEF
 
 
 --
+-- Name: clinic_inventory_recall_closures id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_recall_closures_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_recall_dispositions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -7078,6 +7345,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_orders
     ADD CONSTRAINT clinic_inventory_purchase_orders_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_recall_closures clinic_inventory_recall_closures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT clinic_inventory_recall_closures_pkey PRIMARY KEY (id);
 
 
 --
@@ -10084,10 +10359,10 @@ CREATE INDEX inventory_expiry_worklist ON public.clinic_pharmacy_batches USING b
 
 
 --
--- Name: inventory_hold_recall_batch_once; Type: INDEX; Schema: public; Owner: -
+-- Name: inventory_hold_recall_batch_history; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX inventory_hold_recall_batch_once ON public.clinic_inventory_holds USING btree (recall_id, batch_id) WHERE (recall_id IS NOT NULL);
+CREATE INDEX inventory_hold_recall_batch_history ON public.clinic_inventory_holds USING btree (recall_id, batch_id, id) WHERE (recall_id IS NOT NULL);
 
 
 --
@@ -10172,6 +10447,27 @@ CREATE UNIQUE INDEX inventory_purchase_order_retry ON public.clinic_inventory_pu
 --
 
 CREATE INDEX inventory_purchase_orders_receiving_site ON public.clinic_inventory_purchase_orders USING btree (practice_id, receiving_site_id);
+
+
+--
+-- Name: inventory_recall_closure_once; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_recall_closure_once ON public.clinic_inventory_recall_closures USING btree (practice_id, recall_id);
+
+
+--
+-- Name: inventory_recall_closure_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_recall_closure_retry ON public.clinic_inventory_recall_closures USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_recall_closures_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_recall_closures_practice_id ON public.clinic_inventory_recall_closures USING btree (practice_id, id);
 
 
 --
@@ -11124,6 +11420,62 @@ CREATE TRIGGER inventory_office_balance BEFORE UPDATE ON public.clinic_items FOR
 --
 
 CREATE TRIGGER inventory_post BEFORE INSERT ON public.clinic_inventory_entries FOR EACH ROW EXECUTE FUNCTION public.inventory_entry_post();
+
+
+--
+-- Name: clinic_pharmacy_batches inventory_recall_batch_contained; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_recall_batch_contained AFTER INSERT OR UPDATE ON public.clinic_pharmacy_batches DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_containment_complete();
+
+
+--
+-- Name: clinic_inventory_recall_closures inventory_recall_closure_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_closure_guard BEFORE INSERT ON public.clinic_inventory_recall_closures FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_closure_guard();
+
+
+--
+-- Name: clinic_inventory_recall_closures inventory_recall_closure_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_closure_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_recall_closures FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_inventory_holds inventory_recall_hold_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_hold_guard BEFORE INSERT ON public.clinic_inventory_holds FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_hold_guard();
+
+
+--
+-- Name: clinic_inventory_recall_lots inventory_recall_lot_contained; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_recall_lot_contained AFTER INSERT ON public.clinic_inventory_recall_lots DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_containment_complete();
+
+
+--
+-- Name: clinic_inventory_recall_lots inventory_recall_lot_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_lot_guard BEFORE INSERT ON public.clinic_inventory_recall_lots FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_lot_guard();
+
+
+--
+-- Name: clinic_inventory_hold_releases inventory_recall_release_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_release_guard BEFORE INSERT ON public.clinic_inventory_hold_releases FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_release_guard();
+
+
+--
+-- Name: clinic_inventory_recalls inventory_recall_status_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_status_guard BEFORE INSERT OR UPDATE ON public.clinic_inventory_recalls FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_status_guard();
 
 
 --
@@ -12138,6 +12490,38 @@ ALTER TABLE ONLY public.clinic_inventory_locations
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_orders
     ADD CONSTRAINT fk_inventory_purchase_orders_receiving_site FOREIGN KEY (practice_id, receiving_site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_actor FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_profile FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_recall; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_recall FOREIGN KEY (practice_id, recall_id) REFERENCES public.clinic_inventory_recalls(practice_id, id);
 
 
 --
@@ -14400,6 +14784,7 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
 
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905010400'),
 ('20260905010300'),
 ('20260905010200'),
 ('20260905010100'),
