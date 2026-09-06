@@ -131,6 +131,12 @@ export function ClinicNavigation({
       allowed: capabilities.staff_messaging_read === true,
     },
     {
+      href: "/clinic/scribe",
+      label: "Scribe",
+      Icon: ReceiptLongIcon,
+      allowed: capabilities.scribe_read === true,
+    },
+    {
       href: "/clinic/settings",
       label: "Settings",
       Icon: SettingsIcon,

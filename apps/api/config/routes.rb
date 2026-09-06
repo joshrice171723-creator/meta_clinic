@@ -192,7 +192,7 @@ Rails.application.routes.draw do
       post "identities/:id/revoke", to: "identity_lifecycle#revoke"
     end
     namespace :scribe do
-      resources :encounters, controller: "encounters", only: %i[create show destroy] do
+      resources :encounters, controller: "encounters", only: %i[index create show destroy] do
         post :consent, on: :member
         post :sources, on: :member
         post :generate, on: :member
