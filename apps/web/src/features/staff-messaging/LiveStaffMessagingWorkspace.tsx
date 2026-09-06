@@ -456,7 +456,7 @@ export function LiveStaffMessagingWorkspace() {
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {actionError && <Alert severity="error">{actionError}</Alert>}
-            <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} inputProps={{ maxLength: 120 }} />
+            <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} inputProps={{ maxLength: 80 }} />
           </Stack>
         </DialogContent>
         <DialogActions><Button disabled={resolving} onClick={() => setResolution(null)}>Cancel</Button><Button disabled={resolving || !resolutionCode.trim()} onClick={() => void resolveRequest()}>{resolving ? "Resolving…" : "Resolve request"}</Button></DialogActions>
