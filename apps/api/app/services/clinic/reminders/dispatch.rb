@@ -50,7 +50,7 @@ module Clinic
             attempt = reminder.delivery_attempts.create!(
               practice: reminder.practice,
               attempt_number: attempt_number,
-              provider: "synthetic",
+              provider: provider_name,
               idempotency_key: "#{outbox.idempotency_key}:#{attempt_number}",
               status: "queued",
               masked_destination: reminder.communication_endpoint.masked_value,
@@ -140,11 +140,21 @@ module Clinic
       private_class_method :ready_to_send?
 
       def self.deliver(reminder:, attempt:)
-        Providers::Synthetic.send(reminder: reminder, idempotency_key: attempt.idempotency_key)
+        provider.send(reminder: reminder, idempotency_key: attempt.idempotency_key)
       rescue StandardError
         { status: :unknown, failure_class: "provider_outcome_unknown" }
       end
       private_class_method :deliver
+
+      def self.provider
+        provider_name == "twilio_test" ? Providers::TwilioTest : Providers::Synthetic
+      end
+      private_class_method :provider
+
+      def self.provider_name
+        ENV["APPLY_REMINDERS_PROVIDER"] == "twilio_test" ? "twilio_test" : "synthetic"
+      end
+      private_class_method :provider_name
 
       def self.finalize(reminder:, attempt:, actor:, result:, at:)
         ApplicationRecord.transaction do

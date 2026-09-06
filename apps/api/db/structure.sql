@@ -5109,6 +5109,7 @@ CREATE TABLE public.clinic_patient_reminders (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    content text NOT NULL,
     CONSTRAINT clinic_patient_reminders_values CHECK ((((category)::text = ANY ((ARRAY['appointment'::character varying, 'preparation'::character varying, 'medication'::character varying, 'follow_up'::character varying])::text[])) AND ((channel)::text = ANY ((ARRAY['portal'::character varying, 'sms'::character varying, 'email'::character varying])::text[])) AND (length(TRIM(BOTH FROM dedupe_key)) > 0) AND (lock_version >= 0)))
 );
 
@@ -20371,6 +20372,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906001900'),
 ('20260906001800'),
 ('20260906001720'),
 ('20260906001710'),

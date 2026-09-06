@@ -9,6 +9,7 @@ module Clinic
     has_one :outbox, class_name: "Clinic::PatientReminderOutbox", dependent: :restrict_with_error, foreign_key: :reminder_id
     has_many :delivery_attempts, class_name: "Clinic::PatientReminderDeliveryAttempt", dependent: :restrict_with_error, foreign_key: :reminder_id
     has_many :actions, class_name: "Clinic::PatientReminderAction", dependent: :restrict_with_error, foreign_key: :reminder_id
+    encrypts :content
 
     CATEGORIES = %w[appointment preparation medication follow_up].freeze
     CHANNELS = %w[portal sms email].freeze
@@ -25,8 +26,9 @@ module Clinic
       "suppressed" => [], "cancelled" => [], "actioned" => [], "expired" => []
     }.freeze
 
-    validates :source_type, :source_id, :category, :channel, :safe_preview, :scheduled_at,
+    validates :source_type, :source_id, :category, :channel, :content, :safe_preview, :scheduled_at,
       :timezone, :local_schedule_label, :status, :dedupe_key, presence: true
+    validates :content, length: { maximum: 480 }
     validates :category, inclusion: { in: CATEGORIES }
     validates :channel, inclusion: { in: CHANNELS }
     validates :lock_version, numericality: { only_integer: true, greater_than_or_equal_to: 0 }

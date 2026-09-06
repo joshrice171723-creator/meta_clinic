@@ -90,15 +90,25 @@ export type PatientPortalContext = {
 export type PatientReminder = {
   id: number;
   patient_id: number;
+  patient: Pick<Patient, "id" | "display_name" | "reference">;
   category: string;
   channel: string;
   safe_preview: string;
+  content?: string;
   scheduled_at: string;
   timezone: string;
   local_schedule_label: string;
   status: string;
   priority: string;
   expires_at: string | null;
+  created_at: string;
+  appointment?: {
+    id: number;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    site_id: number | null;
+  };
   endpoint: { type: string; label: string; masked_value: string };
   action_types: string[];
   staff_handoff: {
@@ -118,6 +128,11 @@ export type PatientReminder = {
     status: string;
     failure_class: string | null;
     retryable: boolean;
+    provider: string;
+    masked_destination: string;
+    queued_at: string | null;
+    accepted_at: string | null;
+    completed_at: string | null;
   }[];
 };
 export type ReminderPreference = {

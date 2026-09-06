@@ -6,9 +6,13 @@ module Clinic
       def self.evaluate(reminder:, at: Time.current)
         endpoint = reminder.communication_endpoint
         return deny("endpoint_unverified") unless endpoint&.verified_at.present? && endpoint.invalidated_at.blank?
-        return deny("endpoint_channel_mismatch") unless endpoint.endpoint_type == reminder.channel
+        expected_endpoint_type = reminder.channel == "sms" ? "phone" : reminder.channel
+        return deny("endpoint_channel_mismatch") unless endpoint.endpoint_type == expected_endpoint_type
         return deny("expired") if reminder.expires_at.present? && reminder.expires_at <= at
         return deny("source_cancelled") if source_cancelled?(reminder)
+        if reminder.category == "appointment" && reminder.patient.communication_preference&.appointment_reminders_consent != true
+          return deny("appointment_reminder_consent_missing")
+        end
 
         preference = Clinic::CommunicationPreference.where(
           practice_id: reminder.practice_id, patient_id: reminder.patient_id,

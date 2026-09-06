@@ -14,11 +14,25 @@ module Clinic
       reminders = reminders.where(id: requested_id!(params[:reminder_id], :reminder_id)) if params[:reminder_id].present?
       reminders = reminders.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
       reminders = reminders.where(status: required_string!(params[:status], field: :status, maximum: 40)) if params[:status].present?
-      records, pagination = paginated_records(reminders, order: { scheduled_at: :asc, id: :asc })
+      if params[:q].present?
+        matching_patients = Clinic::Care::PatientNameSearch.search(
+          scope: current_practice.patients,
+          practice_id: current_practice.id,
+          query: query_param
+        )
+        reminders = reminders.where(patient_id: matching_patients.select(:id))
+      end
+      history = enum_param!(params[:history], field: :history, allowed: %w[all sent]) if params[:history].present?
+      reminders = reminders.joins(:delivery_attempts).distinct if history == "sent"
+      order = history == "sent" ? { updated_at: :desc, id: :desc } : { scheduled_at: :asc, id: :asc }
+      records, pagination = paginated_records(reminders, order: order)
       records = records.to_a
+      appointment_ids = records.filter_map { |reminder| reminder.source_id if reminder.source_type == "Clinic::Appointment" }
+      appointments = current_practice.appointments.where(id: appointment_ids).index_by(&:id)
       handoffs = Clinic::Reminders::StaffHandoff.summaries(reminders: records, actor: current_user)
       render json: { reminders: records.map { |reminder|
-        PatientReminderSerializer.call(reminder, actor: current_user, staff_handoff: handoffs.fetch(reminder.id))
+        PatientReminderSerializer.call(reminder, detail: history == "sent", actor: current_user,
+          staff_handoff: handoffs.fetch(reminder.id), include_content: true, appointment: appointments[reminder.source_id])
       }, pagination: pagination }
     end
 
@@ -28,7 +42,7 @@ module Clinic
     end
 
     def create
-      input = parameter_hash!(:reminder, %i[request_key patient_id appointment_id category channel scheduled_at endpoint_id expires_at])
+      input = parameter_hash!(:reminder, %i[request_key patient_id appointment_id category channel scheduled_at endpoint_id expires_at content])
       appointment = input[:appointment_id].present? ? current_practice.appointments.find(requested_id!(input[:appointment_id], :appointment_id)) : nil
       reminder = Clinic::Reminders::Create.call(
         practice: current_practice, actor: current_user, patient: current_practice.patients.find(requested_id!(input[:patient_id], :patient_id)),
@@ -36,7 +50,8 @@ module Clinic
         category: enum_param!(input[:category], field: :category, allowed: PatientReminder::CATEGORIES),
         channel: enum_param!(input[:channel], field: :channel, allowed: PatientReminder::CHANNELS),
         scheduled_at: time_param!(input[:scheduled_at], field: :scheduled_at), endpoint_id: input[:endpoint_id].present? ? requested_id!(input[:endpoint_id], :endpoint_id) : nil,
-        appointment: appointment, expires_at: input[:expires_at].present? ? time_param!(input[:expires_at], field: :expires_at) : nil
+        appointment: appointment, expires_at: input[:expires_at].present? ? time_param!(input[:expires_at], field: :expires_at) : nil,
+        content: optional_string(input[:content], field: :content, maximum: 480)
       )
       render json: { id: reminder.id, reminder: PatientReminderSerializer.call(reminder, detail: true, actor: current_user) }, status: :created
     end

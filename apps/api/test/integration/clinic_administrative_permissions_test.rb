@@ -300,6 +300,26 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :created
   end
 
+  test "upcoming appointment search excludes past and cancelled schedule rows" do
+    other_patient = @practice.patients.create!(display_name: "SYN_Admin, Blair", reference: "SYN-ADMIN-002")
+    @practice.appointments.create!(patient: @patient, site: @site,
+      starts_at: 1.day.ago, ends_at: 1.day.ago + 30.minutes, status: "scheduled")
+    @practice.appointments.create!(patient: @patient, site: @site,
+      starts_at: 2.hours.from_now, ends_at: 150.minutes.from_now, status: "cancelled")
+    @practice.appointments.create!(patient: other_patient, site: @site,
+      starts_at: 3.hours.from_now, ends_at: 210.minutes.from_now, status: "confirmed")
+
+    get "/api/clinic/appointments", params: {
+      upcoming: "true",
+      from: 1.day.ago.iso8601,
+      to: 1.day.from_now.iso8601,
+      q: "Avery"
+    }, headers: @headers
+
+    assert_response :success
+    assert_equal [ @appointment.id ], response.parsed_body.fetch("appointments").map { |row| row.fetch("id") }
+  end
+
   test "billing actions are atomic and legacy billing write remains compatible" do
     reader = administrative_user("billing-reader", "patients.identity.read", "billing.read")
     login(reader)

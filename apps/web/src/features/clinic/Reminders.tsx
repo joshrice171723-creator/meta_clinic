@@ -1,20 +1,43 @@
-import { useResource, Form, Field } from "../../shared/ui";
-import { useEffect, useState } from "react";
+import { useResource, Form } from "../../shared/ui";
+import { api } from "../../api/client";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useClinic } from "./Workspace";
-import type { PatientReminder } from "../../api/contracts";
+import type { Appointment, PatientReminder } from "../../api/contracts";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined";
 import {
   Alert,
   Box,
   Button,
   Chip,
+  CircularProgress,
+  Divider,
+  InputAdornment,
   MenuItem,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 
-type ReminderResponse = { reminders: PatientReminder[]; pagination: { page: number; total_pages: number } };
+type Pagination = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+};
+type ReminderResponse = {
+  reminders: PatientReminder[];
+  pagination: Pagination;
+};
+type AppointmentResponse = {
+  appointments: Appointment[];
+  pagination: Pagination;
+};
 type StaffConversation = {
   id: number;
   title: string | null;
@@ -183,7 +206,7 @@ function PersistedStaffHandoff({ reminder }: { reminder: PatientReminder }) {
   if (!request) return null;
 
   return (
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
+    <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: "center" }}>
       <Chip
         size="small"
         variant="outlined"
@@ -210,10 +233,7 @@ function ReminderRows({
   return (
     <Stack spacing={1.5}>
       {reminders.map((reminder) => (
-        <Box
-          key={reminder.id}
-          sx={{ borderTop: "1px solid #e7eeeb", pt: 1.5 }}
-        >
+        <Box key={reminder.id} sx={{ borderTop: "1px solid #e7eeeb", pt: 1.5 }}>
           <Stack
             direction={{ xs: "column", sm: "row" }}
             sx={{
@@ -223,10 +243,13 @@ function ReminderRows({
           >
             <Box>
               <Typography sx={{ fontWeight: 700 }}>
-                Reminder #{reminder.id} · {reminder.category.replaceAll("_", " ")}
+                Reminder #{reminder.id} ·{" "}
+                {reminder.category.replaceAll("_", " ")}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {reminder.local_schedule_label} · {reminder.endpoint.masked_value} · patient #{reminder.patient_id}
+                {reminder.local_schedule_label} ·{" "}
+                {reminder.endpoint.masked_value} · patient #
+                {reminder.patient_id}
               </Typography>
             </Box>
             <Chip
@@ -302,8 +325,7 @@ function HandoffEnabledReminderRows({
         <Stack
           direction="row"
           spacing={1}
-          alignItems="center"
-          sx={{ mb: 2 }}
+          sx={{ mb: 2, alignItems: "center" }}
           aria-label="Staff conversation pages"
         >
           <Button
@@ -315,12 +337,15 @@ function HandoffEnabledReminderRows({
             Previous conversations
           </Button>
           <Typography variant="body2" color="text.secondary">
-            Page {conversations.data.pagination.page} of {conversations.data.pagination.total_pages}
+            Page {conversations.data.pagination.page} of{" "}
+            {conversations.data.pagination.total_pages}
           </Typography>
           <Button
             size="small"
             variant="outlined"
-            disabled={conversationPage >= conversations.data.pagination.total_pages}
+            disabled={
+              conversationPage >= conversations.data.pagination.total_pages
+            }
             onClick={() => setConversationPage((page) => page + 1)}
           >
             More conversations
@@ -337,10 +362,186 @@ function HandoffEnabledReminderRows({
   );
 }
 
-export function Reminders() {
+function dateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function rangeBoundary(value: string, addDay = false) {
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = valid ? new Date(`${value}T00:00:00`) : new Date();
+  if (addDay) date.setDate(date.getDate() + 1);
+  return date.toISOString();
+}
+
+function appointmentLabel(appointment: Appointment) {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(appointment.starts_at));
+}
+
+function dateTimeLabel(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function reminderStatus(status: string) {
+  const labels: Record<string, string> = {
+    provider_accepted: "Accepted by provider",
+    delivery_unknown: "Outcome needs review",
+    failed: "Delivery failed",
+    delivered: "Delivered",
+    queued: "Queued",
+    scheduled: "Scheduled",
+    suppressed: "Not sent",
+  };
+  return labels[status] || status.replaceAll("_", " ");
+}
+
+function MessageHistory({
+  query,
+  reminderId,
+}: {
+  query: string;
+  reminderId: string | null;
+}) {
   const { capabilities } = useClinic();
-  const [recoveryNotice, setRecoveryNotice] = useState("");
-  const [reminderPage, setReminderPage] = useState(1);
+  const [page, setPage] = useState(1);
+  const params = new URLSearchParams({
+    history: "sent",
+    per_page: "25",
+    page: String(page),
+  });
+  if (query.trim()) params.set("q", query.trim());
+  if (reminderId) params.set("reminder_id", reminderId);
+  const resource = useResource<ReminderResponse>(
+    `/api/clinic/reminders?${params}`,
+  );
+  const reminders = resource.data?.reminders || [];
+
+  useEffect(() => setPage(1), [query, reminderId]);
+
+  if (!resource.data && !resource.error) {
+    return (
+      <Stack direction="row" sx={{ gap: 1.5, alignItems: "center", py: 5 }}>
+        <CircularProgress size={20} />
+        <Typography>Loading message history…</Typography>
+      </Stack>
+    );
+  }
+  if (resource.error) return <Alert severity="error">{resource.error}</Alert>;
+  if (reminders.length === 0) {
+    return (
+      <Box sx={{ py: 7, textAlign: "center" }}>
+        <HistoryOutlinedIcon
+          sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
+        />
+        <Typography variant="h6">No sent messages found</Typography>
+        <Typography color="text.secondary">
+          Messages appear here after a delivery attempt is made.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Stack divider={<Divider flexItem />}>
+      {reminders.map((reminder) => {
+        const lastAttempt = reminder.delivery_attempts?.at(-1);
+        return (
+          <Box key={reminder.id} sx={{ py: 2.5 }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              sx={{ justifyContent: "space-between", gap: 1.5 }}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 700 }}>
+                  {reminder.patient.display_name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {reminder.patient.reference} ·{" "}
+                  {reminder.appointment
+                    ? dateTimeLabel(reminder.appointment.starts_at)
+                    : reminder.local_schedule_label}
+                </Typography>
+              </Box>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={reminderStatus(reminder.status)}
+                color={
+                  reminder.status === "delivered"
+                    ? "success"
+                    : reminder.status === "failed"
+                      ? "error"
+                      : "default"
+                }
+              />
+            </Stack>
+            <Typography
+              sx={{ mt: 1.5, maxWidth: "72ch", whiteSpace: "pre-wrap" }}
+            >
+              {reminder.content || reminder.safe_preview}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1 }}
+            >
+              {lastAttempt
+                ? `${lastAttempt.provider.replaceAll("_", " ")} · ${lastAttempt.masked_destination || reminder.endpoint.masked_value} · ${lastAttempt.completed_at ? new Date(lastAttempt.completed_at).toLocaleString() : "attempt in progress"}`
+                : reminder.endpoint.masked_value}
+            </Typography>
+            <PersistedStaffHandoff reminder={reminder} />
+            {capabilities.reminders_write && reminder.status === "failed" && (
+              <Form
+                endpoint={`/api/clinic/reminders/${reminder.id}/retry`}
+                submit="Retry with policy check"
+                retryKey
+                onSuccess={resource.refresh}
+              />
+            )}
+          </Box>
+        );
+      })}
+      {resource.data && resource.data.pagination.total_pages > 1 && (
+        <Stack direction="row" sx={{ alignItems: "center", gap: 1, pt: 2 }}>
+          <Button
+            variant="outlined"
+            disabled={page <= 1}
+            onClick={() => setPage((value) => value - 1)}
+          >
+            Previous
+          </Button>
+          <Typography variant="body2" color="text.secondary">
+            Page {page} of {resource.data.pagination.total_pages}
+          </Typography>
+          <Button
+            variant="outlined"
+            disabled={page >= resource.data.pagination.total_pages}
+            onClick={() => setPage((value) => value + 1)}
+          >
+            Next
+          </Button>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function Reminders() {
+  const clinic = useClinic();
   const reminderIdParam = new URLSearchParams(window.location.search).get(
     "reminder_id",
   );
@@ -348,181 +549,435 @@ export function Reminders() {
     reminderIdParam && /^[1-9]\d*$/.test(reminderIdParam)
       ? reminderIdParam
       : null;
-  useEffect(() => setReminderPage(1), [reminderId]);
-  const resource = useResource<ReminderResponse>(
-    reminderId
-      ? `/api/clinic/reminders?reminder_id=${reminderId}&per_page=50`
-      : `/api/clinic/reminders?per_page=50&page=${reminderPage}`,
+  const today = useMemo(() => new Date(), []);
+  const initialEnd = useMemo(() => {
+    const value = new Date();
+    value.setDate(value.getDate() + 14);
+    return value;
+  }, []);
+  const [tab, setTab] = useState(reminderId ? 1 : 0);
+  const [from, setFrom] = useState(dateInput(today));
+  const [to, setTo] = useState(dateInput(initialEnd));
+  const [patientQuery, setPatientQuery] = useState("");
+  const deferredQuery = useDeferredValue(patientQuery);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [message, setMessage] = useState("");
+  const [createdReminderId, setCreatedReminderId] = useState<number | null>(
+    null,
   );
-  const reminders = resource.data?.reminders || [];
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const rangeError =
+    !from || !to
+      ? "Choose both a From and Through date."
+      : from > to
+        ? "Through must be on or after From."
+        : "";
+
+  const appointmentParams = new URLSearchParams({
+    upcoming: "true",
+    per_page: "100",
+    from: rangeBoundary(from),
+    to: rangeBoundary(to, true),
+  });
+  if (deferredQuery.trim()) appointmentParams.set("q", deferredQuery.trim());
+  const appointmentsResource = useResource<AppointmentResponse>(
+    `/api/clinic/appointments?${appointmentParams}`,
+  );
+  const appointments = appointmentsResource.data?.appointments || [];
+  const selected =
+    appointments.find((appointment) => appointment.id === selectedId) || null;
+
+  useEffect(() => {
+    if (
+      selectedId &&
+      !appointments.some((appointment) => appointment.id === selectedId)
+    )
+      setSelectedId(null);
+  }, [appointments, selectedId]);
+
+  useEffect(() => {
+    if (!selected) return;
+    setMessage(
+      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected)}. Please reply to confirm or call us if you need to reschedule.`,
+    );
+    setNotice("");
+    setError("");
+    setCreatedReminderId(null);
+  }, [clinic.practice.name, selected]);
+
+  async function queueReminder() {
+    if (!selected || !message.trim() || rangeError) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    let savedThisAttempt = false;
+    try {
+      let reminderIdToDispatch = createdReminderId;
+      if (!reminderIdToDispatch) {
+        const created = await api<{ id: number }>("/api/clinic/reminders", {
+          method: "POST",
+          body: {
+            reminder: {
+              request_key: crypto.randomUUID(),
+              patient_id: selected.patient_id,
+              appointment_id: selected.id,
+              category: "appointment",
+              channel: "sms",
+              scheduled_at: new Date().toISOString(),
+              content: message.trim(),
+            },
+          },
+        });
+        reminderIdToDispatch = created.id;
+        savedThisAttempt = true;
+        setCreatedReminderId(created.id);
+      }
+      const dispatched = await api<{ reminder: PatientReminder }>(
+        `/api/clinic/reminders/${reminderIdToDispatch}/dispatch`,
+        { method: "POST" },
+      );
+      setNotice(
+        dispatched.reminder.status === "provider_accepted"
+          ? "The sandbox provider accepted this message. No real text was sent."
+          : "The reminder is queued. Delivery will stay gated until a test provider is configured.",
+      );
+      setCreatedReminderId(null);
+      setTab(1);
+    } catch (caught) {
+      setError(
+        createdReminderId || savedThisAttempt
+          ? `The reminder is saved, but sandbox delivery failed. Retry this same reminder. ${caught instanceof Error ? caught.message : ""}`
+          : caught instanceof Error
+            ? caught.message
+            : "The reminder could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Box sx={{ maxWidth: 1160, mx: "auto" }}>
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        sx={{
-          mb: 3,
-          gap: 2,
-          justifyContent: { xs: "flex-start", sm: "space-between" },
-        }}
-      >
-        <Box>
-          <Typography variant="overline" color="text.secondary">
-            Operational communication
-          </Typography>
-          <Typography component="h1" variant="h3" sx={{ fontWeight: 700 }}>
-            Patient reminders
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Delivery is simulated; external sending is disabled. Reminder bodies
-            never appear in operational diagnostics.
-          </Typography>
-        </Box>
-        <Paper
-          elevation={0}
-          sx={{ p: 2, border: "1px solid #d6e1dd", minWidth: 230 }}
+    <Box sx={{ maxWidth: 1280, mx: "auto" }}>
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          id="appointment-reminders-title"
+          component="h1"
+          variant="h3"
+          sx={{ fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          <Typography variant="body2" color="text.secondary">
-            Loaded reminders
-          </Typography>
-          <Typography variant="h6">
-            {
-              reminders.filter((r) =>
-                ["scheduled", "queued"].includes(r.status),
-              ).length
-            }{" "}
-            awaiting dispatch
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            External providers are gated in this build.
-          </Typography>
-        </Paper>
-      </Stack>
-      {resource.error && <Alert severity="error">{resource.error}</Alert>}
+          Appointment reminders
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: "72ch" }}>
+          Choose upcoming appointments from the schedule, tailor a concise text,
+          and review the complete context of earlier delivery attempts.
+        </Typography>
+      </Box>
+
       {reminderId && (
         <Alert
           severity="info"
           action={
             <Button color="inherit" size="small" href="/clinic/reminders">
-              Back to all reminders
+              Clear selection
             </Button>
           }
           sx={{ mb: 2 }}
         >
-          Showing the source reminder for a staff follow-up.
+          Showing the message linked to a staff follow-up.
         </Alert>
       )}
-      {recoveryNotice && <Alert severity="info" sx={{ mb: 2 }}>{recoveryNotice}</Alert>}
-      {capabilities.reminders_write && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Recover up to 50 due items. Uncertain delivery is held for review and is never automatically resent.
-          </Typography>
-          <Form endpoint="/api/clinic/reminders/recover" submit="Recover due reminders"
-            onSuccess={(result) => {
-              if (result) setRecoveryNotice(`Examined ${result.examined}; processed ${result.dispatched}; uncertain ${result.delivery_unknown}; retry limit reached ${result.retry_exhausted}; suppressed ${result.suppressed}; unchanged ${result.unchanged}; skipped ${result.skipped}.`);
-              resource.refresh();
-            }} />
-        </Box>
+      {notice && (
+        <Alert severity="success" onClose={() => setNotice("")} sx={{ mb: 2 }}>
+          {notice}
+        </Alert>
       )}
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2, md: 3 },
-          border: "1px solid #d6e1dd",
-          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          overflow: "hidden",
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-          Reminder worklist
-        </Typography>
-        {!reminderId && resource.data && resource.data.pagination.total_pages > 1 && (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-            <Button disabled={reminderPage <= 1} onClick={() => setReminderPage((page) => page - 1)}>Previous reminders</Button>
-            <Typography variant="body2">Page {resource.data.pagination.page} of {resource.data.pagination.total_pages}</Typography>
-            <Button disabled={reminderPage >= resource.data.pagination.total_pages} onClick={() => setReminderPage((page) => page + 1)}>More reminders</Button>
+        <Tabs
+          value={tab}
+          onChange={(_, value: number) => setTab(value)}
+          aria-label="Reminder workspace"
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            px: { xs: 1, md: 2 },
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Tab
+            id="reminders-upcoming-tab"
+            aria-controls="reminders-upcoming-panel"
+            icon={<CalendarMonthOutlinedIcon />}
+            iconPosition="start"
+            label="Upcoming appointments"
+          />
+          <Tab
+            id="reminders-history-tab"
+            aria-controls="reminders-history-panel"
+            icon={<HistoryOutlinedIcon />}
+            iconPosition="start"
+            label="Message history"
+          />
+        </Tabs>
+
+        <Box
+          role="tabpanel"
+          id={
+            tab === 0 ? "reminders-upcoming-panel" : "reminders-history-panel"
+          }
+          aria-labelledby={
+            tab === 0 ? "reminders-upcoming-tab" : "reminders-history-tab"
+          }
+          sx={{ p: { xs: 2, md: 3 } }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            sx={{ gap: 1.5, mb: 3 }}
+          >
+            {tab === 0 && (
+              <>
+                <TextField
+                  label="From"
+                  type="date"
+                  value={from}
+                  onChange={(event) => setFrom(event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  sx={{ minWidth: 170 }}
+                  error={Boolean(rangeError)}
+                />
+                <TextField
+                  label="Through"
+                  type="date"
+                  value={to}
+                  onChange={(event) => setTo(event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  sx={{ minWidth: 170 }}
+                  error={Boolean(rangeError)}
+                  helperText={rangeError || " "}
+                />
+              </>
+            )}
+            <TextField
+              value={patientQuery}
+              onChange={(event) => setPatientQuery(event.target.value)}
+              label="Filter by patient"
+              placeholder="Name or patient reference"
+              sx={{ flex: 1, maxWidth: 440 }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchOutlinedIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
           </Stack>
-        )}
-        {reminders.length === 0 && (
-          <Typography color="text.secondary">
-            No reminders are scheduled.
-          </Typography>
-        )}
-        {capabilities.reminders_write &&
-        capabilities.staff_messaging_read &&
-        capabilities.staff_messaging_send ? (
-          <HandoffEnabledReminderRows
-            reminders={reminders}
-            canRetry
-            onRefresh={resource.refresh}
-          />
-        ) : (
-          <ReminderRows
-            reminders={reminders}
-            canRetry={capabilities.reminders_write === true}
-            onRefresh={resource.refresh}
-          />
-        )}
+
+          {tab === 0 ? (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: selected ? "minmax(0, 1fr) minmax(320px, 0.72fr)" : "1fr",
+                },
+                gap: 3,
+              }}
+            >
+              <Box>
+                <Stack
+                  direction="row"
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    mb: 1.5,
+                  }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    On the schedule
+                  </Typography>
+                  {appointmentsResource.data && (
+                    <Typography variant="body2" color="text.secondary">
+                      {appointmentsResource.data.pagination.total} appointments
+                    </Typography>
+                  )}
+                </Stack>
+                {appointmentsResource.error && (
+                  <Alert severity="error">{appointmentsResource.error}</Alert>
+                )}
+                {!appointmentsResource.data && !appointmentsResource.error && (
+                  <Stack
+                    direction="row"
+                    sx={{ gap: 1.5, alignItems: "center", py: 5 }}
+                  >
+                    <CircularProgress size={20} />
+                    <Typography>Loading appointments…</Typography>
+                  </Stack>
+                )}
+                {appointmentsResource.data && appointments.length === 0 && (
+                  <Box sx={{ py: 7, textAlign: "center" }}>
+                    <CalendarMonthOutlinedIcon
+                      sx={{ fontSize: 42, color: "text.disabled", mb: 1 }}
+                    />
+                    <Typography variant="h6">
+                      No upcoming appointments in this range
+                    </Typography>
+                    <Typography color="text.secondary">
+                      Adjust the dates or clear the patient filter.
+                    </Typography>
+                  </Box>
+                )}
+                <Stack divider={<Divider flexItem />}>
+                  {appointments.map((appointment) => (
+                    <Button
+                      key={appointment.id}
+                      onClick={() => setSelectedId(appointment.id)}
+                      aria-pressed={selectedId === appointment.id}
+                      sx={{
+                        px: 1.5,
+                        py: 1.75,
+                        justifyContent: "space-between",
+                        textAlign: "left",
+                        color: "text.primary",
+                        borderRadius: 1,
+                        bgcolor:
+                          selectedId === appointment.id
+                            ? "action.selected"
+                            : "transparent",
+                        "&:hover": { bgcolor: "action.hover" },
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {appointment.patient?.display_name ||
+                            `Patient ${appointment.patient_id}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {appointment.patient?.reference} ·{" "}
+                          {appointmentLabel(appointment)}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={appointment.status}
+                        sx={{ ml: 2, flexShrink: 0 }}
+                      />
+                    </Button>
+                  ))}
+                </Stack>
+                {appointmentsResource.data &&
+                  appointmentsResource.data.pagination.total_pages > 1 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      This range has more than 100 appointments. Narrow the
+                      dates or patient filter to choose from the full schedule.
+                    </Alert>
+                  )}
+              </Box>
+
+              {selected && (
+                <Paper
+                  component="section"
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                    alignSelf: "start",
+                    position: { md: "sticky" },
+                    top: { md: 24 },
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    sx={{ alignItems: "center", gap: 1, mb: 0.75 }}
+                  >
+                    <SmsOutlinedIcon color="primary" />
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Compose text
+                    </Typography>
+                  </Stack>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    {selected.patient?.display_name}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    {selected.patient?.reference} · {appointmentLabel(selected)}
+                  </Typography>
+                  <TextField
+                    multiline
+                    minRows={6}
+                    fullWidth
+                    label="Message"
+                    value={message}
+                    disabled={busy || createdReminderId !== null}
+                    onChange={(event) => setMessage(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 480 } }}
+                    helperText={`${message.length}/480 characters · Avoid diagnoses, test results, or treatment details.`}
+                  />
+                  <Alert severity="warning" icon={false} sx={{ mt: 2 }}>
+                    Sandbox mode — no real SMS is sent. A verified mobile number
+                    and reminder consent are still rechecked by the server.
+                  </Alert>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="large"
+                    disabled={
+                      busy ||
+                      !message.trim() ||
+                      Boolean(rangeError) ||
+                      !clinic.capabilities.reminders_write
+                    }
+                    onClick={queueReminder}
+                    sx={{ mt: 2 }}
+                  >
+                    {busy
+                      ? "Sending…"
+                      : createdReminderId
+                        ? "Retry sandbox delivery"
+                        : "Send sandbox reminder"}
+                  </Button>
+                  {!clinic.capabilities.reminders_write && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 1 }}
+                    >
+                      Your role can review appointments but cannot send
+                      reminders.
+                    </Typography>
+                  )}
+                </Paper>
+              )}
+            </Box>
+          ) : (
+            <MessageHistory query={deferredQuery} reminderId={reminderId} />
+          )}
+        </Box>
       </Paper>
-      {capabilities.reminders_write && <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 2, md: 3 },
-          mt: 3,
-          border: "1px solid #d6e1dd",
-          borderRadius: 3,
-        }}
-      >
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          Schedule an appointment reminder
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mt: 1, mb: 2 }}
-        >
-          The server selects only a verified endpoint and generates
-          minimum-content copy from the approved category template.
-        </Typography>
-        <Form
-          endpoint="/api/clinic/reminders"
-          submit="Schedule reminder"
-          retryKey
-          retryKeyField="reminder[request_key]"
-          onSuccess={resource.refresh}
-        >
-          <Field
-            name="reminder[patient_id]"
-            label="Patient ID"
-            type="number"
-            min={1}
-          />
-          <Field
-            name="reminder[appointment_id]"
-            label="Appointment ID"
-            type="number"
-            min={1}
-          />
-          <Field
-            name="reminder[category]"
-            label="Purpose"
-            options={[
-              ["appointment", "Appointment"],
-              ["preparation", "Preparation"],
-              ["follow_up", "Follow-up"],
-            ]}
-          />
-          <Field
-            name="reminder[channel]"
-            label="Channel"
-            options={[["portal", "Private portal"]]}
-          />
-          <Field
-            name="reminder[scheduled_at]"
-            label="Scheduled time"
-            type="datetime-local"
-          />
-        </Form>
-      </Paper>}
     </Box>
   );
 }
