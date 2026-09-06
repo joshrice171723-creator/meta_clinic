@@ -28,7 +28,7 @@ module Clinic
       end
 
       def create_conversation
-        input = parameter_hash!(:conversation, %i[request_key kind site_id], arrays: [ :member_ids ])
+        input = parameter_hash!(:conversation, %i[request_key kind title site_id], arrays: [ :member_ids ])
         conversation = CreateStaffConversation.call(
           practice: current_practice, actor: current_user,
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
