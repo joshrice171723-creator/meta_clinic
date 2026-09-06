@@ -14278,6 +14278,366 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 
 --
+-- Name: guard_stripe_routing(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.guard_stripe_routing() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Stripe routing history cannot be deleted'; END IF;
+  IF TG_TABLE_NAME = 'clinic_stripe_connections' THEN
+    IF OLD.practice_id <> NEW.practice_id OR OLD.reference <> NEW.reference OR
+      (OLD.account_id IS NOT NULL AND OLD.account_id IS DISTINCT FROM NEW.account_id) THEN
+      RAISE EXCEPTION 'Stripe clinic routing cannot be changed';
+    END IF;
+  ELSE
+    IF (to_jsonb(OLD) - ARRAY['updated_at','session_id','subscription_id','subscription_status','cancel_at_period_end','last_synced_at','session_status','renewal_amount_due','renewal_invoice_status']) <>
+       (to_jsonb(NEW) - ARRAY['updated_at','session_id','subscription_id','subscription_status','cancel_at_period_end','last_synced_at','session_status','renewal_amount_due','renewal_invoice_status']) OR
+       (OLD.session_id IS NOT NULL AND OLD.session_id IS DISTINCT FROM NEW.session_id) OR
+       (OLD.subscription_id IS NOT NULL AND OLD.subscription_id IS DISTINCT FROM NEW.subscription_id) THEN
+      RAISE EXCEPTION 'Stripe checkout terms cannot be changed';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+--
+-- Name: clinic_stripe_checkouts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_stripe_checkouts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    connection_id bigint NOT NULL,
+    agreement_id bigint NOT NULL,
+    collection_intent_id bigint NOT NULL,
+    account_id character varying NOT NULL,
+    session_id character varying,
+    application_fee_cents integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    subscription_id character varying,
+    subscription_status character varying,
+    cancel_at_period_end boolean DEFAULT false NOT NULL,
+    last_synced_at timestamp(6) without time zone,
+    session_status character varying,
+    renewal_amount_due numeric(14,2),
+    renewal_invoice_status character varying,
+    CONSTRAINT stripe_checkout_fee_nonnegative CHECK ((application_fee_cents >= 0))
+);
+
+
+--
+-- Name: clinic_stripe_checkouts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_stripe_checkouts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_stripe_checkouts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_stripe_checkouts_id_seq OWNED BY public.clinic_stripe_checkouts.id;
+
+
+--
+-- Name: clinic_stripe_connections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_stripe_connections (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    connected_by_id bigint NOT NULL,
+    reference character varying NOT NULL,
+    account_id character varying,
+    charges_enabled boolean DEFAULT false NOT NULL,
+    payouts_enabled boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    last_synced_at timestamp(6) without time zone
+);
+
+
+--
+-- Name: clinic_stripe_connections_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_stripe_connections_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_stripe_connections_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_stripe_connections_id_seq OWNED BY public.clinic_stripe_connections.id;
+
+
+--
+-- Name: clinic_stripe_membership_cycles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_stripe_membership_cycles (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    checkout_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    provider_invoice_id character varying NOT NULL,
+    provider_payment_id character varying NOT NULL,
+    period_start timestamp(6) without time zone NOT NULL,
+    period_end timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT stripe_cycle_period CHECK ((period_end > period_start))
+);
+
+
+--
+-- Name: clinic_stripe_membership_cycles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_stripe_membership_cycles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_stripe_membership_cycles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_stripe_membership_cycles_id_seq OWNED BY public.clinic_stripe_membership_cycles.id;
+
+
+--
+-- Name: clinic_stripe_checkouts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_checkouts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_stripe_connections id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_connections_id_seq'::regclass);
+
+
+--
+-- Name: clinic_stripe_membership_cycles id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_membership_cycles_id_seq'::regclass);
+
+
+--
+-- Name: clinic_stripe_checkouts clinic_stripe_checkouts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT clinic_stripe_checkouts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_stripe_connections clinic_stripe_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections
+    ADD CONSTRAINT clinic_stripe_connections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_stripe_membership_cycles clinic_stripe_membership_cycles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles
+    ADD CONSTRAINT clinic_stripe_membership_cycles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_on_account_id_subscription_id_ff19119ce5; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_account_id_subscription_id_ff19119ce5 ON public.clinic_stripe_checkouts USING btree (account_id, subscription_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_account_id_and_session_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_account_id_and_session_id ON public.clinic_stripe_checkouts USING btree (account_id, session_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_agreement_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_agreement_id ON public.clinic_stripe_checkouts USING btree (agreement_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_collection_intent_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_collection_intent_id ON public.clinic_stripe_checkouts USING btree (collection_intent_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_practice_id_and_id ON public.clinic_stripe_checkouts USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_account_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_account_id ON public.clinic_stripe_connections USING btree (account_id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_connected_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_stripe_connections_on_connected_by_id ON public.clinic_stripe_connections USING btree (connected_by_id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_practice_id ON public.clinic_stripe_connections USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_practice_id_and_id ON public.clinic_stripe_connections USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_reference ON public.clinic_stripe_connections USING btree (reference);
+
+
+--
+-- Name: stripe_cycle_payment_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX stripe_cycle_payment_identity ON public.clinic_stripe_membership_cycles USING btree (checkout_id, provider_payment_id);
+
+
+--
+-- Name: stripe_cycle_provider_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX stripe_cycle_provider_identity ON public.clinic_stripe_membership_cycles USING btree (checkout_id, provider_invoice_id);
+
+
+--
+-- Name: clinic_stripe_checkouts stripe_checkout_routing; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER stripe_checkout_routing BEFORE DELETE OR UPDATE ON public.clinic_stripe_checkouts FOR EACH ROW EXECUTE FUNCTION public.guard_stripe_routing();
+
+
+--
+-- Name: clinic_stripe_connections stripe_connection_routing; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER stripe_connection_routing BEFORE DELETE OR UPDATE ON public.clinic_stripe_connections FOR EACH ROW EXECUTE FUNCTION public.guard_stripe_routing();
+
+
+--
+-- Name: clinic_stripe_membership_cycles stripe_cycles_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER stripe_cycles_immutable BEFORE DELETE OR UPDATE ON public.clinic_stripe_membership_cycles FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_stripe_checkouts fk_rails_36031bc572; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_36031bc572 FOREIGN KEY (practice_id, connection_id) REFERENCES public.clinic_stripe_connections(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_connections fk_rails_37e731ddae; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections
+    ADD CONSTRAINT fk_rails_37e731ddae FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_stripe_connections fk_rails_5cbcc34381; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections
+    ADD CONSTRAINT fk_rails_5cbcc34381 FOREIGN KEY (connected_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: clinic_stripe_membership_cycles fk_rails_77bf701067; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles
+    ADD CONSTRAINT fk_rails_77bf701067 FOREIGN KEY (practice_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_checkouts fk_rails_7b57f27555; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_7b57f27555 FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_checkouts fk_rails_99067e40f4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_99067e40f4 FOREIGN KEY (practice_id, collection_intent_id) REFERENCES public.clinic_payment_collection_intents(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_membership_cycles fk_rails_99bcd47e94; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles
+    ADD CONSTRAINT fk_rails_99bcd47e94 FOREIGN KEY (practice_id, checkout_id) REFERENCES public.clinic_stripe_checkouts(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_checkouts fk_rails_a725a2de24; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_a725a2de24 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -14286,6 +14646,9 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906000400'),
+('20260906000300'),
+('20260906000200'),
 ('20260906000100'),
 ('20260905000300'),
 ('20260903001400'),

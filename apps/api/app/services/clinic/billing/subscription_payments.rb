@@ -4,6 +4,7 @@ module Clinic
   module Billing
     class SubscriptionPayments
       def self.start(agreement:, actor:, request_key:)
+        raise ArgumentError, "Automatic memberships require Stripe Checkout." if agreement.snapshot["renewal"] == "automatic"
         Clinic::Care::SubscriptionAccess.authorize!(agreement: agreement, actor: actor)
         key = Clinic::Care::SubscriptionDefinition.request_key(request_key)
         ApplicationRecord.transaction do
@@ -96,6 +97,7 @@ module Clinic
       end
 
       def self.refund(agreement:, actor:, amount:, request_key:)
+        raise ArgumentError, "Stripe refunds must be reviewed in the clinic's Stripe sandbox Dashboard; APPly records confirmed provider refunds." if StripeCheckout.exists?(practice: agreement.practice, agreement: agreement)
         raise ArgumentError, "Fixture refunds are local development only." unless Rails.env.development? || Rails.env.test?
         Authorization.authorize_with_legacy!(practice: agreement.practice, actor: actor, action: "billing.payment_record", legacy_action: "billing.write")
         key = Care::SubscriptionDefinition.request_key(request_key)
@@ -125,6 +127,7 @@ module Clinic
       end
 
       def self.reconcile_ledger(agreement:, actor:, request_key:)
+        raise ArgumentError, "Recurring membership payments must be reconciled with Stripe." if agreement.snapshot["renewal"] == "automatic"
         Authorization.authorize_with_legacy!(practice: agreement.practice, actor: actor, action: "billing.payment_record", legacy_action: "billing.write")
         key = Care::SubscriptionDefinition.request_key(request_key)
         ApplicationRecord.transaction do

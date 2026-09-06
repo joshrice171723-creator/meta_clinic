@@ -13,13 +13,13 @@ import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
 import CheckRounded from "@mui/icons-material/CheckRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import type { PackageTerms } from "./contracts";
-import { subscriptionMoney } from "./contracts";
+import { membershipPeriod, subscriptionMoney } from "./contracts";
 import { PackageCard } from "./PackageCard";
 
 export const membershipPrice = (amount: string, currency: string) =>
   subscriptionMoney(amount, currency).replace(/^USD /, "$");
 export const membershipTerm = (terms: PackageTerms) =>
-  `${terms.duration} ${terms.duration === 1 ? terms.duration_unit.replace(/s$/, "") : terms.duration_unit}`;
+  membershipPeriod(terms).toLowerCase();
 
 /** The storefront and unsaved catalog preview intentionally share every card element. */
 export function MembershipCard({
@@ -108,8 +108,11 @@ export function MembershipCard({
               : membershipPrice(t.amount, t.currency)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {membershipTerm(t)} per membership term ·{" "}
-            {t.renewal === "manual" ? "manual renewal" : "no renewal"}
+            {t.renewal === "automatic"
+              ? "Billed monthly · renews automatically until canceled"
+              : t.renewal === "manual"
+                ? `${membershipTerm(t)} term · renew manually`
+                : `${membershipTerm(t)} term · no renewal`}
           </Typography>
         </Box>
         <Button

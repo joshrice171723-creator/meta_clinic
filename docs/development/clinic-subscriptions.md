@@ -33,6 +33,8 @@ When multiple agents are running, give each agent a separate development databas
 
 ## Verification and recovery
 
+For the Stripe membership continuation, Joshua has explicitly prohibited automated tests and verification helpers until personal acceptance and testing authorization. The commands below describe the earlier fixture workflow; do not run them during this gate. See [Stripe monthly membership setup](stripe-memberships.md).
+
 From `apps/api/`, using a prepared isolated test database:
 
 ```powershell
@@ -50,6 +52,6 @@ From `apps/web/`, run `npx vitest run test/subscriptions.test.tsx` and `npm run 
 
 ## Processor and release boundary
 
-The current provider is local `development_fixture` in test mode. There is no hosted card UI, production webhook endpoint, external charge or automatic renewal. The fixture uses the existing signature verifier and processor-event evidence model to rehearse succeeded, failed and unknown outcomes without card data or credentials. A browser redirect is never payment evidence.
+Fixed-term development purchases can still use the local `development_fixture` provider. [Stripe sandbox monthly memberships](stripe-memberships.md) add clinic Connect onboarding, hosted Checkout and verified recurring invoice reconciliation. Automatic plans require Stripe; they cannot be activated by fixture/manual payment. Stripe collection remains unavailable in production. A browser redirect is never payment evidence.
 
-Recurring renewal, proration, taxation, service-consumption tracking, real merchant onboarding and release require separate implementation and review. Finance, privacy/security, clinical eligibility, support/retention ownership and production approvals are not established by this local walkthrough.
+Stripe recurring source implementation and its manual acceptance gate are tracked in [sc-294](https://app.shortcut.com/apply-1/story/294). Proration, taxation, service-consumption tracking and production release remain outside this implementation. Finance, privacy/security, clinical eligibility, support/retention ownership and production approvals are not established by this local walkthrough.

@@ -1046,3 +1046,122 @@
     min-width: 540px;
   }
 }
+
+/* Membership collection stays operational: setup, records, then recovery. */
+.clinic-theme .billing-subscriptions {
+  padding-block: 24px;
+}
+.clinic-theme .billing-subscription-setup,
+.clinic-theme .billing-subscription-records {
+  border-color: var(--clinic-border);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 24px;
+}
+.clinic-theme .billing-stripe-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-stripe-status > div {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border-inline-start: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-stripe-status > div:first-child {
+  border-inline-start: 0;
+}
+.clinic-theme .billing-stripe-status span,
+.clinic-theme .billing-subscription-facts span {
+  color: var(--clinic-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.clinic-theme .billing-stripe-status strong,
+.clinic-theme .billing-subscription-facts strong {
+  color: var(--clinic-text);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.clinic-theme .billing-stripe-status .MuiChip-root {
+  justify-self: start;
+}
+.clinic-theme .billing-subscription-row {
+  border-color: var(--clinic-border);
+  border-radius: 8px;
+  box-shadow: none;
+  overflow: hidden;
+}
+.clinic-theme .billing-subscription-row::before {
+  display: none;
+}
+.clinic-theme .billing-subscription-row .MuiAccordionSummary-root {
+  min-height: 68px;
+  padding-inline: 18px;
+}
+.clinic-theme .billing-subscription-row .MuiAccordionDetails-root {
+  border-top: 1px solid var(--clinic-border);
+  padding: 20px;
+}
+.clinic-theme .billing-subscription-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-subscription-facts > div {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-inline-start: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-subscription-facts > div:nth-child(4n + 1) {
+  border-inline-start: 0;
+}
+.clinic-theme .billing-subscription-facts > div:nth-child(n + 5) {
+  border-top: 1px solid var(--clinic-border);
+}
+
+@media (max-width: 1024px) {
+  .clinic-theme .billing-stripe-status,
+  .clinic-theme .billing-subscription-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinic-theme .billing-stripe-status > div:nth-child(odd),
+  .clinic-theme .billing-subscription-facts > div:nth-child(odd) {
+    border-inline-start: 0;
+  }
+  .clinic-theme .billing-stripe-status > div:nth-child(n + 3),
+  .clinic-theme .billing-subscription-facts > div:nth-child(n + 3) {
+    border-top: 1px solid var(--clinic-border);
+  }
+}
+
+@media (max-width: 600px) {
+  .clinic-theme .billing-subscriptions {
+    padding-block: 18px;
+  }
+  .clinic-theme .billing-subscription-setup,
+  .clinic-theme .billing-subscription-records {
+    padding: 18px;
+  }
+  .clinic-theme .billing-stripe-status,
+  .clinic-theme .billing-subscription-facts {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-stripe-status > div,
+  .clinic-theme .billing-subscription-facts > div {
+    border-inline-start: 0;
+    border-top: 1px solid var(--clinic-border);
+  }
+  .clinic-theme .billing-stripe-status > div:first-child,
+  .clinic-theme .billing-subscription-facts > div:first-child {
+    border-top: 0;
+  }
+}

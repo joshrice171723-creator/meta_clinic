@@ -22,7 +22,7 @@ module Clinic
           "amount" => money(draft.fetch("amount")), "currency" => "USD",
           "duration" => integer(draft.fetch("duration"), 1..1200, "Duration"),
           "duration_unit" => choice(draft.fetch("duration_unit"), %w[days months], "Duration unit"),
-          "renewal" => choice(draft.fetch("renewal", "none"), %w[none manual], "Renewal"),
+          "renewal" => choice(draft.fetch("renewal", "none"), %w[none manual automatic], "Renewal"),
           "cancellation" => choice(draft.fetch("cancellation", "immediate"), %w[immediate end_of_term], "Cancellation"),
           "refund_policy" => choice(draft.fetch("refund_policy", "manual_review"), %w[none manual_review], "Refund policy"),
           "terms" => text(draft.fetch("terms"), 8000, required: true),
@@ -32,6 +32,11 @@ module Clinic
           "available_until" => timestamp(draft["available_until"])
         }
         raise ArgumentError, "Package price must be positive." unless BigDecimal(snapshot["amount"]).positive?
+        if snapshot["renewal"] == "automatic"
+          raise ArgumentError, "Automatic memberships renew every month, allow one enrollment, and cancel at the end of the paid period." unless
+            snapshot["cancellation"] == "end_of_term" && snapshot["duration_unit"] == "months" &&
+            snapshot["duration"] == 1 && snapshot["max_per_patient"] == 1
+        end
         if snapshot["available_from"] && snapshot["available_until"] && snapshot["available_from"] >= snapshot["available_until"]
           raise ArgumentError, "Availability must end after it starts."
         end

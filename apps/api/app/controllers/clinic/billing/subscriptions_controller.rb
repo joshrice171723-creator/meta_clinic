@@ -2,6 +2,12 @@ module Clinic
   module Billing
     class SubscriptionsController < Clinic::BaseController
       before_action -> { require_capability("billing.read") }
+      rescue_from StripeGateway::Unavailable do |error|
+        render json: { error: error.message }, status: :service_unavailable
+      end
+      rescue_from StripeGateway::Invalid do |error|
+        render json: { error: error.message }, status: :unprocessable_entity
+      end
       rescue_from ArgumentError do |error|
         render json: { error: error.message }, status: :unprocessable_entity
       end
@@ -49,11 +55,27 @@ module Clinic
 
       def reconcile
         head :not_found and return unless Rails.env.test? || DevelopmentAccess.allowed?(request)
+        checkout = StripeCheckout.find_by(practice: current_practice, agreement: agreement)
+        if checkout
+          require_capability_with_legacy("billing.payment_record", "billing.write")
+          record = if checkout.agreement.snapshot["renewal"] == "automatic"
+            StripeRecurringPayments.recover_history(checkout: checkout, actor: current_user)
+          else
+            StripeMembershipPayments.reconcile(checkout: checkout, actor: current_user)
+          end
+          render_agreement record
+          return
+        end
         render_agreement SubscriptionPayments.deliver_fixture(agreement: agreement, actor: current_user, outcome: params[:outcome], request_key: params[:request_key])
       end
 
       def cancel
         require_capability_with_legacy("billing.payment_record", "billing.write")
+        checkout = StripeCheckout.find_by(practice: current_practice, agreement: agreement)
+        if checkout && checkout.agreement.snapshot["renewal"] == "automatic"
+          render_agreement StripeRecurringPayments.cancel(checkout: checkout, actor: current_user)
+          return
+        end
         render_agreement Care::SubscriptionPurchase.cancel(agreement: agreement, actor: current_user, request_key: params[:request_key])
       end
 

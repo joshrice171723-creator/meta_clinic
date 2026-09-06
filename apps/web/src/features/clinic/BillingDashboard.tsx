@@ -301,7 +301,6 @@ function BillingConfirm({
 export function BillingDashboard() {
   const context = useClinic();
   const [activeTab, setActiveTab] = useState("invoices");
-  const [cardsOpen, setCardsOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [currency, setCurrency] = useState("");
   const [invoicePage, setInvoicePage] = useState(1);
@@ -486,9 +485,9 @@ export function BillingDashboard() {
           <Button
             variant="outlined"
             startIcon={<CreditCardOutlinedIcon />}
-            onClick={() => setCardsOpen(true)}
+            onClick={() => setActiveTab("subscriptions")}
           >
-            Cards & Stripe
+            Stripe setup
           </Button>
           <Button
             variant="outlined"
@@ -535,7 +534,7 @@ export function BillingDashboard() {
         </div>
         <div className="billing-metrics" aria-label="Revenue cycle summary">
           <Metric
-            label="Net collected"
+            label="Collected after refunds"
             value={
               primaryCurrency
                 ? money(
@@ -544,7 +543,7 @@ export function BillingDashboard() {
                   )
                 : "—"
             }
-            detail="Received this month, less refunds this month"
+            detail="Payments less verified refunds; excludes Stripe and APPly fees"
             tone="positive"
           />
           <Metric
@@ -1126,12 +1125,14 @@ export function BillingDashboard() {
         aria-labelledby="billing-tab-subscriptions"
         hidden={activeTab !== "subscriptions"}
       >
-        <SubscriptionBilling
-          onChanged={() => {
-            refresh();
-            detailResource.refresh();
-          }}
-        />
+        {activeTab === "subscriptions" && (
+          <SubscriptionBilling
+            onChanged={() => {
+              refresh();
+              detailResource.refresh();
+            }}
+          />
+        )}
       </div>
       <div
         className="billing-panel"
@@ -1158,39 +1159,6 @@ export function BillingDashboard() {
           }}
         />
       </div>
-      <Dialog
-        open={cardsOpen}
-        onClose={() => setCardsOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="billing-cards-title"
-      >
-        <DialogTitle id="billing-cards-title">Cards & Stripe</DialogTitle>
-        <DialogContent dividers>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Connection required
-          </Alert>
-          <Typography sx={{ mb: 2 }}>{data.card_collection.reason}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            There is currently no connected Stripe page to enter a card or
-            manage saved cards. Card entry will need a Stripe-hosted or embedded
-            payment flow. No card information is collected here.
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 2 }}>
-            Clinic patient payments and clinic service subscriptions belong to
-            this billing workspace. This is separate from paying for the APPly
-            software.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          {context.capabilities.patient_identity_read === true && (
-            <Button href="/clinic/billing/patients">
-              Open patient payments
-            </Button>
-          )}
-          <Button onClick={() => setCardsOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 }

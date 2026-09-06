@@ -133,7 +133,8 @@ export function BillingPayments({
           <h2>Payments & receipts</h2>
           <p className="billing-subtitle">
             Open a payment to review its invoices, refunds and printable
-            receipts.
+            receipts. Amounts after refunds do not subtract Stripe processing or
+            APPly application fees.
           </p>
         </div>
         {canOpenPatient && (
@@ -161,7 +162,7 @@ export function BillingPayments({
                   <TableCell>Method</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell align="right">Refunded</TableCell>
-                  <TableCell align="right">Net retained</TableCell>
+                  <TableCell align="right">After refunds</TableCell>
                   <TableCell>Receipt</TableCell>
                 </TableRow>
               </TableHead>
@@ -253,11 +254,13 @@ export function BillingPayments({
                 </Box>
                 <Typography>
                   Refunded {billingMoney(selected.refunded, selected.currency)}{" "}
-                  · Net retained{" "}
+                  · After verified refunds{" "}
                   {billingMoney(selected.net_amount, selected.currency)}
                 </Typography>
                 <Box>
-                  <Typography fontWeight={700}>Applied to invoices</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    Applied to invoices
+                  </Typography>
                   {selected.allocations.length ? (
                     selected.allocations.map((allocation, index) => (
                       <Typography
@@ -275,7 +278,7 @@ export function BillingPayments({
                   )}
                 </Box>
                 <Box>
-                  <Typography fontWeight={700}>Receipts</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>Receipts</Typography>
                   {selected.receipts.length ? (
                     selected.receipts.map((receipt) => (
                       <Stack
@@ -524,7 +527,7 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
             sx={{ mt: 3 }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography fontWeight={600}>
+              <Typography sx={{ fontWeight: 600 }}>
                 Forecast assumptions & historical basis
               </Typography>
             </AccordionSummary>
@@ -543,7 +546,8 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
                 unpriced appointments and automatic subscription renewals are
                 excluded. Existing subscription invoices are already in the
                 ledger and are not added again. Estimates are not profit or
-                guaranteed collections.
+                guaranteed collections. Collected amounts are before Stripe
+                processing and APPly application fees.
               </Typography>
               <TableContainer>
                 <Table size="small" aria-label="Recorded baseline history">
@@ -553,7 +557,9 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
                       <TableCell align="right">Net charges</TableCell>
                       <TableCell align="right">Received</TableCell>
                       <TableCell align="right">Refunded</TableCell>
-                      <TableCell align="right">Net collected</TableCell>
+                      <TableCell align="right">
+                        Collected after refunds
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>

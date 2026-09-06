@@ -8,7 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { PackageTerms } from "./contracts";
-import { subscriptionMoney, stateLabel } from "./contracts";
+import { membershipPeriod, subscriptionMoney, stateLabel } from "./contracts";
 
 export function PackageCard({
   terms,
@@ -65,14 +65,11 @@ export function PackageCard({
             : "Price unavailable"}
         </Typography>
         <Typography variant="body2">
-          {terms.duration}{" "}
-          {terms.duration === 1
-            ? terms.duration_unit.replace(/s$/, "")
-            : terms.duration_unit}{" "}
-          ·{" "}
-          {terms.renewal === "manual"
-            ? "Manual renewal; no automatic charge"
-            : "No renewal"}
+          {terms.renewal === "automatic"
+            ? "Billed monthly until canceled. Cancellation takes effect at the end of the current paid period."
+            : terms.renewal === "manual"
+              ? `${membershipPeriod(terms)} term. Renew manually; no automatic charge.`
+              : `${membershipPeriod(terms)} term. No renewal.`}
         </Typography>
         {groups.map((group) => {
           const component = terms.components.find(
@@ -134,8 +131,10 @@ export function PackageCard({
           />
         )}
         <Typography variant="body2">
-          Cancellation: {stateLabel(terms.cancellation)}. Refunds:{" "}
-          {stateLabel(terms.refund_policy)}.
+          Cancellation: {stateLabel(terms.cancellation)}. Refund policy:{" "}
+          {terms.refund_policy === "manual_review"
+            ? "Clinic review required"
+            : "No refunds"}
         </Typography>
         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
           {terms.terms}
