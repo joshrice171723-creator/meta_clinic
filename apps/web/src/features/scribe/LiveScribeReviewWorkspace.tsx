@@ -1344,8 +1344,8 @@ export function LiveScribeReviewWorkspace() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Record the session or import an authorized transcript as
-                    source evidence. Automated transcription is not available
-                    yet.
+                    source evidence. Finishing a recording creates a transcript
+                    and review-required SOAP draft when OpenRouter is available.
                   </Typography>
                 </Box>
                 {canWrite && encounter && (
@@ -1425,7 +1425,10 @@ export function LiveScribeReviewWorkspace() {
                     sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}
                   >
                     <Typography variant="caption" color="text.secondary">
-                      Imported source · {source.status.replaceAll("_", " ")}
+                      {source.metadata.provider === "openrouter"
+                        ? "Recorded transcript"
+                        : "Imported source"}{" "}
+                      · {source.status.replaceAll("_", " ")}
                     </Typography>
                     <Typography
                       sx={{ mt: 0.5, whiteSpace: "pre-wrap", lineHeight: 1.65 }}

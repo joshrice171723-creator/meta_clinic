@@ -245,6 +245,7 @@ Rails.application.routes.draw do
       resources :recordings, only: :show do
         post :chunk, on: :member
         post :finalize, on: :member
+        post :transcribe, on: :member
         post :interrupt, on: :member
         delete :cancel, on: :member, path: ""
       end

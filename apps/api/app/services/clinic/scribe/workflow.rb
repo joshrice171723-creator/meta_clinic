@@ -63,7 +63,7 @@ module Clinic
           encounter.reload
         end
 
-        def ingest_transcript(encounter:, actor:, content:, segments: [], metadata: {})
+        def ingest_transcript(encounter:, actor:, content:, segments: [], metadata: {}, trusted_metadata: {})
           authorize!(encounter, actor, "scribe.write")
           content = content.to_s.strip
           raise ArgumentError, "A transcript is required." if content.blank?
@@ -75,7 +75,8 @@ module Clinic
             source = encounter.sources.find_by(content_digest: digest, status: %w[ready incomplete])
             unless source
               source = encounter.sources.create!(practice: encounter.practice, imported_by: actor, source_type: "transcript",
-                status: "ready", content: content, content_digest: digest, source_metadata: safe_metadata(metadata))
+                status: "ready", content: content, content_digest: digest,
+                source_metadata: safe_metadata(metadata).merge(safe_trusted_metadata(trusted_metadata)))
               normalize_segments(segments, content).each do |segment|
                 source.segments.create!(practice: encounter.practice, sequence: segment[:sequence], speaker: segment[:speaker],
                   start_ms: segment[:start_ms], end_ms: segment[:end_ms], content: segment[:content], quality_flags: segment[:quality_flags])
@@ -107,6 +108,50 @@ module Clinic
                 template_id: template.template_id, template_version: template.version)
               draft = generate_for_document!(encounter, document, template, actor)
             end
+          end
+          [draft, document.reload]
+        end
+
+        def generate_provider_draft!(encounter:, actor:, source:, sections:, uncertain_sections:, provider:, model:,
+          model_version:, prompt_digest:, template_id: DEFAULT_TEMPLATE_ID)
+          authorize!(encounter, actor, "scribe.write")
+          template = TemplateCatalog.fetch_active!(template_id)
+          normalized = normalize_provider_sections(sections)
+          uncertain = Array(uncertain_sections).map(&:to_s) & SECTIONS
+          draft = document = nil
+          encounter.with_lock do
+            ensure_processing_allowed!(encounter)
+            raise ArgumentError, "The transcript source does not belong to this encounter." unless
+              source.encounter_id == encounter.id && source.practice_id == encounter.practice_id && source.status == "ready"
+            state = input_state(encounter, template_id: template.template_id, template_version: template.version)
+            raise ActiveRecord::StaleObjectError.new(source, "generate") unless state[:source]&.id == source.id
+            document = encounter.documents.create!(practice: encounter.practice, created_by: actor,
+              template_id: template.template_id, template_version: template.version)
+            evidence_ids = source.segments.order(:sequence).pluck(:id)
+            warnings = uncertain.map { |key| "provider_uncertainty_#{key}" }
+            draft = document.drafts.create!(practice: encounter.practice, encounter: encounter, source: source,
+              created_by: actor, status: "in_review", revision_number: next_revision(document),
+              template_id: template.template_id, template_version: template.version,
+              provider: provider.to_s, model: model.to_s, model_version: model_version.to_s,
+              prompt_digest: prompt_digest.to_s, input_digest: state[:digest], source_snapshot_digest: source.content_digest,
+              context_snapshot_digest: encounter.context_digest, input_sources: state[:sources],
+              output_digest: Digest::SHA256.hexdigest(SECTIONS.map { |key| normalized.fetch(key) }.join("\0")), warnings: warnings)
+            SECTIONS.each do |key|
+              section_warnings = []
+              section_warnings << "missing_source_evidence" if normalized.fetch(key).blank?
+              section_warnings << "provider_uncertainty" if uncertain.include?(key)
+              draft.sections.create!(practice: encounter.practice, section_key: key,
+                generated_content: normalized.fetch(key), status: "needs_review", warning_codes: section_warnings,
+                evidence_segment_ids: evidence_ids,
+                provenance: { "kind" => "provider_audio_transcription", "source_id" => source.id,
+                  "provider" => provider.to_s, "model" => model.to_s })
+            end
+            promote_revision!(document, nil, draft)
+            encounter.update!(status: "in_review", template_id: template.template_id, template_version: template.version)
+            record_event!(encounter, actor, "draft_generated", "Draft", draft.id,
+              draft_id: draft.id, document_id: document.id, revision_number: draft.revision_number,
+              provider: draft.provider, model: draft.model, model_version: draft.model_version,
+              input_digest: draft.input_digest, output_digest: draft.output_digest, template_version: draft.template_version)
           end
           [draft, document.reload]
         end
@@ -362,6 +407,23 @@ module Clinic
         def safe_metadata(metadata)
           value = metadata.respond_to?(:to_h) ? metadata.to_h : {}
           value.slice("filename", "locale", "duration_ms", "source_label").stringify_keys
+        end
+
+        def safe_trusted_metadata(metadata)
+          value = metadata.respond_to?(:to_h) ? metadata.to_h.stringify_keys : {}
+          value.slice("recording_id", "provider", "model", "model_version")
+        end
+
+        def normalize_provider_sections(sections)
+          values = sections.respond_to?(:to_h) ? sections.to_h.stringify_keys : {}
+          raise ArgumentError, "The provider must return all four SOAP sections." unless (values.keys & SECTIONS).sort == SECTIONS.sort
+          normalized = SECTIONS.to_h do |key|
+            value = values.fetch(key).to_s.strip
+            raise ArgumentError, "#{key.humanize} is too long." if value.bytesize > 50_000
+            [key, value]
+          end
+          raise ArgumentError, "The provider returned an empty SOAP draft." if normalized.values.all?(&:blank?)
+          normalized
         end
 
         def clone_draft!(draft, actor, current_inputs: false, preserve_review: true)

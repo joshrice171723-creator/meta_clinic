@@ -75,15 +75,24 @@ type Limits = {
   max_chunks: number;
   chunk_interval_ms: number;
 };
+type TranscriptionStatus =
+  "not_started" | "unavailable" | "processing" | "ready" | "failed";
+type Transcription = {
+  status: TranscriptionStatus;
+  message: string;
+  source_id?: number;
+  draft_id?: number;
+  code?: string;
+};
 type RecordingResponse = {
   recording: Recording;
   limits: Limits;
-  transcription: { status: "unavailable"; message: string };
+  transcription: Transcription;
 };
 type RecordingListResponse = {
   recordings: Recording[];
   limits: Limits;
-  transcription: { status: "unavailable"; message: string };
+  transcription: Transcription;
 };
 type ChunkResponse = RecordingResponse & {
   chunk: {
@@ -187,6 +196,9 @@ export function ScribeRecordingControls({
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [transcription, setTranscription] = useState<Transcription | null>(
+    null,
+  );
   const [unfinished, setUnfinished] = useState<Recording[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [recordingId, setRecordingId] = useState<number | null>(null);
@@ -363,11 +375,13 @@ export function ScribeRecordingControls({
       updatePhase("completed");
       if (mountedRef.current) {
         setRecordingId(response.recording.id);
+        setTranscription(response.transcription);
         setMessage(response.transcription.message);
         setUnfinished((current) =>
           current.filter((item) => item.id !== response.recording.id),
         );
-        completedRef.current?.(response.recording.id);
+        if (response.transcription.status === "ready")
+          completedRef.current?.(response.recording.id);
       }
     } catch (error) {
       updatePhase("upload_error");
@@ -379,6 +393,32 @@ export function ScribeRecordingControls({
         );
     }
   }, [drainQueue, updatePhase]);
+
+  const retryTranscription = async () => {
+    const recording = recordingRef.current;
+    if (!recording) return;
+    updatePhase("stopping");
+    setMessage("Sending the saved recording to OpenRouter…");
+    try {
+      const response = await api<RecordingResponse>(
+        `/api/clinic/scribe/recordings/${recording.id}/transcribe`,
+        { method: "POST" },
+      );
+      recordingRef.current = response.recording;
+      setTranscription(response.transcription);
+      setMessage(response.transcription.message);
+      updatePhase("completed");
+      if (response.transcription.status === "ready")
+        completedRef.current?.(response.recording.id);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "The saved recording could not be sent for transcription.",
+      );
+      updatePhase("completed");
+    }
+  };
 
   const handleStopped = useCallback(async () => {
     await dataTasksRef.current;
@@ -491,6 +531,7 @@ export function ScribeRecordingControls({
     updatePhase("requesting_permission");
     const attempt = ++startAttemptRef.current;
     setMessage(null);
+    setTranscription(null);
     pendingRef.current = [];
     uploadFailedRef.current = false;
     nextSequenceRef.current = 0;
@@ -934,13 +975,24 @@ export function ScribeRecordingControls({
               </Button>
             )}
             {phase === "completed" && (
-              <Button
-                variant="outlined"
-                startIcon={<FiberManualRecordOutlinedIcon />}
-                onClick={() => void start()}
-              >
-                Record again
-              </Button>
+              <>
+                {transcription?.status !== "ready" && (
+                  <Button
+                    variant="contained"
+                    startIcon={<ReplayOutlinedIcon />}
+                    onClick={() => void retryTranscription()}
+                  >
+                    Retry AI note
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  startIcon={<FiberManualRecordOutlinedIcon />}
+                  onClick={() => void start()}
+                >
+                  Record again
+                </Button>
+              </>
             )}
           </Stack>
         </Stack>
@@ -963,7 +1015,15 @@ export function ScribeRecordingControls({
           </Alert>
         )}
         {!compact && message && (
-          <Alert severity={phase === "completed" ? "info" : "error"}>
+          <Alert
+            severity={
+              transcription?.status === "ready"
+                ? "success"
+                : phase === "completed" && transcription?.status !== "failed"
+                  ? "info"
+                  : "error"
+            }
+          >
             {message}
           </Alert>
         )}

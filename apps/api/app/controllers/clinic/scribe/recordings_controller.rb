@@ -16,7 +16,7 @@ module Clinic
       def show
         recording = scoped_recording
         authorize_encounter!(recording.encounter, "scribe.read")
-        render json: payload(recording: serialize(recording))
+        render json: payload(recording: serialize(recording), transcription: RecordingProcessor.status(recording))
       end
 
       def create
@@ -52,7 +52,14 @@ module Clinic
             max: RecordingCapture::MAX_CHUNKS),
           duration_ms: bounded_integer!(input[:duration_ms], field: :duration_ms, min: 1,
             max: RecordingCapture::MAX_DURATION_MS))
-        render json: payload(recording: serialize(completed))
+        transcription = RecordingProcessor.process!(recording: completed, actor: current_user)
+        render json: payload(recording: serialize(completed.reload), transcription: transcription)
+      end
+
+      def transcribe
+        recording = scoped_recording
+        transcription = RecordingProcessor.process!(recording: recording, actor: current_user)
+        render json: payload(recording: serialize(recording.reload), transcription: transcription)
       end
 
       def interrupt
@@ -78,9 +85,8 @@ module Clinic
       end
 
       def payload(**values)
-        values.merge(limits: RecordingCapture.limits, transcription: {
-          status: "unavailable", message: "Transcription is unavailable until a transcription provider is configured."
-        })
+        values[:transcription] ||= RecordingProcessor.availability
+        values.merge(limits: RecordingCapture.limits)
       end
 
       def serialize(recording)
