@@ -20,20 +20,27 @@ import {
   ThemeProvider,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import AddIcon from "@mui/icons-material/Add";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { api } from "../../../api/client";
 import { LoadState, useResource } from "../../../shared/ui";
 import { PackageCard } from "./PackageCard";
 import { membershipTheme } from "./membershipTheme";
 import { MembershipCard } from "./MembershipCard";
 import { draftMembershipTerms } from "./draftMembershipTerms";
-import type {
-  AdminCatalog,
-  CatalogItem,
-  DraftPackage,
-  PackageTerms,
-  PublishedPackage,
-  ServiceComponent,
+import {
+  subscriptionMoney,
+  type AdminCatalog,
+  type CatalogItem,
+  type DraftPackage,
+  type PackageTerms,
+  type PublishedPackage,
+  type ServiceComponent,
 } from "./contracts";
+import "./subscriptionCatalog.css";
 
 const emptyDraft: Partial<PackageTerms> = {
   amount: "",
@@ -66,6 +73,23 @@ function HelpLabel({ label, help }: { label: string; help: string }) {
         />
       </Tooltip>
     </Stack>
+  );
+}
+
+function draftTerm(draft: Partial<PackageTerms>) {
+  if (draft.renewal === "automatic") return "Monthly";
+  const duration = draft.duration || 1;
+  const rawUnit = draft.duration_unit || "months";
+  const unit = duration === 1 ? rawUnit.replace(/s$/, "") : rawUnit;
+  return `${duration} ${unit}`;
+}
+
+function programHasDraftChanges(item: CatalogItem) {
+  if (!item.published_snapshot) return false;
+  return (
+    item.name !== item.published_snapshot.name ||
+    item.description !== item.published_snapshot.description ||
+    (item.display_order || 0) !== item.published_snapshot.display_order
   );
 }
 
@@ -166,37 +190,73 @@ export function SubscriptionCatalog() {
     edit?.kind === "package"
       ? draftMembershipTerms(edit, data?.families || [], data?.services || [])
       : null;
+  const activeFamilies = data?.families.filter((item) => !item.retired) || [];
+  const activeServices = data?.services.filter((item) => !item.retired) || [];
+  const publishedPackages =
+    data?.packages.filter(
+      (item) => !item.retired && item.published_version_id,
+    ) || [];
   return (
-    <Stack spacing={3} sx={{ p: { xs: 0, sm: 2, md: 3 }, minWidth: 0 }}>
-      <Stack
-        direction="row"
-        sx={{ justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}
-      >
-        <Box>
-          <Typography variant="h4" component="h1">
-            Subscription catalog
+    <Stack className="subscription-catalog" spacing={0}>
+      <header className="subscription-catalog__header">
+        <div>
+          <Typography component="h1" className="subscription-catalog__title">
+            Membership catalog
           </Typography>
-          <Typography color="text.secondary">
-            Create programs and membership tiers, then publish them to the
-            Patient Portal.
+          <Typography className="subscription-catalog__intro">
+            Build clinic programs, assemble their services, and control exactly
+            which membership terms patients can see.
           </Typography>
-        </Box>
-        <Button href="/clinic/billing">Billing workspace</Button>
-      </Stack>
+        </div>
+        <Button
+          href="/clinic/billing"
+          variant="outlined"
+          endIcon={<OpenInNewIcon />}
+        >
+          Open billing
+        </Button>
+      </header>
       {(!data || resource.error) && <LoadState error={resource.error} />}
       {error && <Alert severity="error">{error}</Alert>}
       {data && !edit && (
-        <>
+        <div className="subscription-catalog__workspace">
+          <section
+            className="subscription-catalog__flow"
+            aria-label="Membership publication workflow"
+          >
+            <div>
+              <span>Programs</span>
+              <strong>{activeFamilies.length} active</strong>
+            </div>
+            <ArrowForwardIcon aria-hidden="true" />
+            <div>
+              <span>Reusable services</span>
+              <strong>{activeServices.length} active</strong>
+            </div>
+            <ArrowForwardIcon aria-hidden="true" />
+            <div>
+              <span>Membership tiers</span>
+              <strong>
+                {data.packages.filter((item) => !item.retired).length} total
+              </strong>
+            </div>
+            <ArrowForwardIcon aria-hidden="true" />
+            <div className="subscription-catalog__flow-live">
+              <span>Published versions</span>
+              <strong>{publishedPackages.length} current</strong>
+            </div>
+          </section>
           <Tabs
+            className="subscription-catalog__tabs"
             value={catalogSection}
             onChange={(_, value: string) => setCatalogSection(value)}
             variant="scrollable"
             allowScrollButtonsMobile
             aria-label="Subscription catalog sections"
           >
-            <Tab value="package" label="Membership tiers" />
+            <Tab value="package" label="Tiers" />
             <Tab value="family" label="Programs" />
-            <Tab value="service" label="Service catalog" />
+            <Tab value="service" label="Services" />
           </Tabs>
           {(
             [
@@ -206,200 +266,316 @@ export function SubscriptionCatalog() {
           )
             .filter(([kind]) => kind === catalogSection)
             .map(([kind, label, items]) => (
-              <Paper key={kind} variant="outlined" sx={{ p: 2 }}>
-                <Stack spacing={2}>
-                  <Stack
-                    direction="row"
-                    sx={{ justifyContent: "space-between" }}
-                  >
-                    <Typography variant="h6" component="h2">
+              <section key={kind} className="subscription-catalog__section">
+                <div className="subscription-catalog__section-heading">
+                  <div>
+                    <Typography variant="h5" component="h2">
                       {label}
                     </Typography>
-                    {data.capabilities.write && (
-                      <Button onClick={() => editItem(kind)}>
-                        Add {kind === "family" ? "program" : "service"}
-                      </Button>
-                    )}
-                  </Stack>
-                  {!items.length && (
-                    <Typography color="text.secondary">
-                      No {label.toLowerCase()} yet.
+                    <Typography>
+                      {kind === "family"
+                        ? "Programs organize tiers into the tabs patients browse."
+                        : "Define services once, then reuse them across membership tiers."}
                     </Typography>
-                  )}
-                  {items.map((item) => (
-                    <Stack
-                      key={item.id}
-                      direction="row"
-                      sx={{ gap: 1, flexWrap: "wrap", alignItems: "center" }}
+                  </div>
+                  {data.capabilities.write && (
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => editItem(kind)}
                     >
-                      <Typography sx={{ flex: 1 }}>
-                        {item.name}
-                        {item.retired
-                          ? " · Retired"
-                          : kind === "family"
-                            ? item.published_snapshot
-                              ? " · Published"
-                              : " · Draft"
-                            : ""}
-                      </Typography>
-                      {data.capabilities.write && (
-                        <Button onClick={() => editItem(kind, item)}>
-                          Edit {item.name}
-                        </Button>
-                      )}
-                      {kind === "family" &&
-                        data.capabilities.write &&
-                        data.capabilities.publish && (
-                          <Button
-                            disabled={busy}
-                            onClick={() =>
-                              void run(async () => {
-                                await api(
-                                  `/api/clinic/subscription_catalog/family/${item.id}`,
-                                  {
-                                    method: "PATCH",
-                                    body: {
-                                      item: {
-                                        publish: true,
-                                        lock_version: item.lock_version,
-                                      },
-                                    },
-                                  },
-                                );
-                              })
-                            }
-                          >
-                            {item.retired ? "Publish again" : "Publish program"}
-                          </Button>
-                        )}
-                      {data.capabilities.publish && !item.retired && (
-                        <Button
-                          onClick={() =>
-                            setRetire({ kind, id: item.id, name: item.name })
-                          }
+                      Add {kind === "family" ? "program" : "service"}
+                    </Button>
+                  )}
+                </div>
+                {!items.length && (
+                  <div className="subscription-catalog__empty">
+                    <Typography component="h3">
+                      No {label.toLowerCase()} yet
+                    </Typography>
+                    <Typography>
+                      {kind === "family"
+                        ? "Create the first program to give your membership tiers a clear home."
+                        : "Add the services patients will receive through a membership."}
+                    </Typography>
+                  </div>
+                )}
+                {!!items.length && (
+                  <div className="subscription-catalog__list" role="list">
+                    {items.map((item) => {
+                      const status = item.retired
+                        ? "Retired"
+                        : kind === "family"
+                          ? item.published_snapshot
+                            ? programHasDraftChanges(item)
+                              ? "Published · draft changes"
+                              : "Published"
+                            : "Draft"
+                          : "Available";
+                      return (
+                        <div
+                          key={item.id}
+                          className="subscription-catalog__row"
+                          role="listitem"
                         >
-                          Retire
-                        </Button>
-                      )}
-                    </Stack>
-                  ))}
-                </Stack>
-              </Paper>
+                          <div className="subscription-catalog__row-main">
+                            <span
+                              className="subscription-catalog__status"
+                              data-status={
+                                status.includes("draft changes")
+                                  ? "changed"
+                                  : status.toLowerCase()
+                              }
+                            >
+                              {status}
+                            </span>
+                            <div>
+                              <Typography component="h3">
+                                {item.name}
+                              </Typography>
+                              <Typography>
+                                {item.description || "No description provided."}
+                              </Typography>
+                            </div>
+                          </div>
+                          <div className="subscription-catalog__actions">
+                            {data.capabilities.write && (
+                              <Button
+                                startIcon={<EditOutlinedIcon />}
+                                onClick={() => editItem(kind, item)}
+                                aria-label={`Edit ${item.name}`}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                            {kind === "family" &&
+                              data.capabilities.write &&
+                              data.capabilities.publish && (
+                                <Button
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void run(async () => {
+                                      await api(
+                                        `/api/clinic/subscription_catalog/family/${item.id}`,
+                                        {
+                                          method: "PATCH",
+                                          body: {
+                                            item: {
+                                              publish: true,
+                                              lock_version: item.lock_version,
+                                            },
+                                          },
+                                        },
+                                      );
+                                    })
+                                  }
+                                >
+                                  {item.retired
+                                    ? "Publish again"
+                                    : "Publish program"}
+                                </Button>
+                              )}
+                            {data.capabilities.publish && !item.retired && (
+                              <Button
+                                onClick={() =>
+                                  setRetire({
+                                    kind,
+                                    id: item.id,
+                                    name: item.name,
+                                  })
+                                }
+                              >
+                                Retire
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
             ))}
           {catalogSection === "package" && (
-            <>
-              <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                <Typography variant="h6" component="h2">
-                  Membership tiers
-                </Typography>
+            <section className="subscription-catalog__section">
+              <div className="subscription-catalog__section-heading">
+                <div>
+                  <Typography variant="h5" component="h2">
+                    Membership tiers
+                  </Typography>
+                  <Typography>
+                    Draft privately, preview the patient experience, then
+                    publish an immutable version.
+                  </Typography>
+                </div>
                 {data.capabilities.write && (
                   <Button
                     variant="contained"
+                    startIcon={<AddIcon />}
                     disabled={!data.families.some((f) => !f.retired)}
                     onClick={() => editItem("package")}
                   >
                     Create membership tier
                   </Button>
                 )}
-              </Stack>
+              </div>
               {!data.packages.length && (
-                <Typography color="text.secondary">
-                  Create a program in Programs and add services in Service
-                  catalog, then create a membership tier.
-                </Typography>
+                <div className="subscription-catalog__empty">
+                  <Typography component="h3">
+                    Your first tier starts with two building blocks
+                  </Typography>
+                  <Typography>
+                    Create a program and at least one reusable service, then
+                    return here to assemble the membership.
+                  </Typography>
+                </div>
               )}
-              {data.packages
-                .toSorted(
-                  (a, b) =>
-                    (a.draft.display_order || 0) -
-                      (b.draft.display_order || 0) || a.id - b.id,
-                )
-                .map((p) => (
-                  <Paper variant="outlined" key={p.id} sx={{ p: 2 }}>
-                    <Stack spacing={1}>
-                      <Typography variant="h6" component="h3">
-                        {p.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {
-                          data.families.find(
-                            (family) => family.id === p.family_id,
-                          )?.name
-                        }
-                      </Typography>
-                      <Typography>
-                        {p.retired
-                          ? "Retired"
-                          : p.published_version_id
-                            ? "Published; draft edits require a new version"
-                            : "Draft"}
-                      </Typography>
-                      <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
-                        {data.capabilities.write && (
-                          <Button onClick={() => editItem("package", p)}>
-                            Edit membership tier
+              {!!data.packages.length && (
+                <div className="subscription-catalog__tier-list" role="list">
+                  {data.packages
+                    .toSorted(
+                      (a, b) =>
+                        (a.draft.display_order || 0) -
+                          (b.draft.display_order || 0) || a.id - b.id,
+                    )
+                    .map((p) => (
+                      <article
+                        className="subscription-catalog__tier"
+                        key={p.id}
+                        role="listitem"
+                      >
+                        <div className="subscription-catalog__tier-summary">
+                          <span
+                            className="subscription-catalog__status"
+                            data-status={
+                              p.retired
+                                ? "retired"
+                                : p.published_version_id
+                                  ? "published"
+                                  : "draft"
+                            }
+                          >
+                            {p.retired
+                              ? "Retired"
+                              : p.published_version_id
+                                ? "Published + draft"
+                                : "Draft"}
+                          </span>
+                          <div>
+                            <Typography variant="h6" component="h3">
+                              {p.name}
+                            </Typography>
+                            <Typography>
+                              {data.families.find(
+                                (family) => family.id === p.family_id,
+                              )?.name || "Program not selected"}
+                            </Typography>
+                          </div>
+                        </div>
+                        <dl className="subscription-catalog__tier-facts">
+                          <div>
+                            <dt>Base price</dt>
+                            <dd>
+                              {p.draft.amount
+                                ? subscriptionMoney(
+                                    p.draft.amount,
+                                    p.draft.currency || "USD",
+                                  )
+                                : "Not set"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Term</dt>
+                            <dd>{draftTerm(p.draft)}</dd>
+                          </div>
+                          <div>
+                            <dt>Services</dt>
+                            <dd>{p.draft.components?.length || 0}</dd>
+                          </div>
+                          <div>
+                            <dt>Published version</dt>
+                            <dd>
+                              {p.published_version_id && !p.retired
+                                ? "Current"
+                                : "None"}
+                            </dd>
+                          </div>
+                        </dl>
+                        <div className="subscription-catalog__actions subscription-catalog__tier-actions">
+                          {data.capabilities.write && (
+                            <Button
+                              startIcon={<EditOutlinedIcon />}
+                              onClick={() => editItem("package", p)}
+                            >
+                              Edit tier
+                            </Button>
+                          )}
+                          <Button
+                            startIcon={<VisibilityOutlinedIcon />}
+                            disabled={busy}
+                            onClick={() =>
+                              void run(async () => {
+                                setPreviewSelections([]);
+                                setPreview(
+                                  await api<PublishedPackage>(
+                                    `/api/clinic/subscription_catalog/packages/${p.id}/preview`,
+                                  ),
+                                );
+                              })
+                            }
+                          >
+                            Patient preview
                           </Button>
-                        )}
-                        <Button
-                          disabled={busy}
-                          onClick={() =>
-                            void run(async () => {
-                              setPreviewSelections([]);
-                              setPreview(
-                                await api<PublishedPackage>(
-                                  `/api/clinic/subscription_catalog/packages/${p.id}/preview`,
-                                ),
-                              );
-                            })
-                          }
-                        >
-                          Patient preview
-                        </Button>
-                        {data.capabilities.publish && !p.retired && (
-                          <>
-                            <Button
-                              variant="outlined"
-                              disabled={busy}
-                              onClick={() =>
-                                void run(async () => {
-                                  await api(
-                                    `/api/clinic/subscription_catalog/packages/${p.id}/publish`,
-                                    {
-                                      method: "POST",
-                                      body: {
-                                        request_key: crypto.randomUUID(),
-                                        lock_version: p.lock_version,
+                          {data.capabilities.publish && !p.retired && (
+                            <>
+                              <Button
+                                variant="outlined"
+                                disabled={busy}
+                                onClick={() =>
+                                  void run(async () => {
+                                    await api(
+                                      `/api/clinic/subscription_catalog/packages/${p.id}/publish`,
+                                      {
+                                        method: "POST",
+                                        body: {
+                                          request_key: crypto.randomUUID(),
+                                          lock_version: p.lock_version,
+                                        },
                                       },
-                                    },
-                                  );
-                                })
-                              }
-                            >
-                              Publish version
-                            </Button>
-                            <Button
-                              onClick={() =>
-                                setRetire({
-                                  kind: "package",
-                                  id: p.id,
-                                  name: p.name,
-                                })
-                              }
-                            >
-                              Retire
-                            </Button>
-                          </>
-                        )}
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                ))}
-            </>
+                                    );
+                                  })
+                                }
+                              >
+                                Publish version
+                              </Button>
+                              <Button
+                                onClick={() =>
+                                  setRetire({
+                                    kind: "package",
+                                    id: p.id,
+                                    name: p.name,
+                                  })
+                                }
+                              >
+                                Retire
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                </div>
+              )}
+            </section>
           )}
-        </>
+        </div>
       )}
       {edit && (
-        <Box component="section" aria-labelledby="catalog-editor-title">
+        <Box
+          className="subscription-editor"
+          component="section"
+          aria-labelledby="catalog-editor-title"
+        >
           <Stack
             direction="row"
             sx={{
@@ -427,6 +603,7 @@ export function SubscriptionCatalog() {
             original terms.
           </Typography>
           <Box
+            className="subscription-editor__workspace"
             sx={{
               display: "grid",
               gridTemplateColumns: {

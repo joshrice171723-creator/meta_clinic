@@ -1,0 +1,400 @@
+.clinic-theme .subscription-catalog {
+  min-width: 0;
+  color: var(--clinic-ink, #17251f);
+  background: #f5f7f5;
+}
+
+.clinic-theme .subscription-catalog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding: clamp(28px, 4vw, 52px) clamp(20px, 4vw, 56px) 30px;
+  background: #fff;
+  border-bottom: 1px solid #dce3df;
+}
+
+.clinic-theme .subscription-catalog__title.MuiTypography-root {
+  max-width: 12ch;
+  margin: 0 0 10px;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 720;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+
+.clinic-theme .subscription-catalog__intro.MuiTypography-root {
+  max-width: 64ch;
+  color: #52615a;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.clinic-theme .subscription-catalog__workspace {
+  padding: 24px clamp(20px, 4vw, 56px) 64px;
+}
+
+.clinic-theme .subscription-catalog__flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr) 24px);
+  align-items: center;
+  overflow-x: auto;
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  background: #182d26;
+  color: #dce9e2;
+  border-radius: 14px;
+  scrollbar-color: #74877e transparent;
+}
+
+.clinic-theme .subscription-catalog__flow > div {
+  display: grid;
+  gap: 3px;
+  min-width: 140px;
+}
+
+.clinic-theme .subscription-catalog__flow > svg:last-of-type {
+  display: none;
+}
+
+.clinic-theme .subscription-catalog__flow > div:last-child {
+  grid-column: -3 / -1;
+}
+
+.clinic-theme .subscription-catalog__flow span {
+  color: #a9bab2;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.clinic-theme .subscription-catalog__flow strong {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.clinic-theme .subscription-catalog__flow svg {
+  color: #6f847a;
+  font-size: 17px;
+}
+
+.clinic-theme .subscription-catalog__flow-live strong {
+  color: #9ce0bd;
+}
+
+.clinic-theme .subscription-catalog__tabs {
+  min-height: 44px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #ccd6d0;
+}
+
+.clinic-theme .subscription-catalog__tabs .MuiTab-root {
+  min-height: 44px;
+  padding: 8px 18px;
+  color: #56645d;
+  font-weight: 680;
+  text-transform: none;
+}
+
+.clinic-theme .subscription-catalog__tabs .Mui-selected {
+  color: #123e2d;
+}
+
+.clinic-theme .subscription-catalog__tabs .MuiTabs-indicator {
+  height: 3px;
+  background: #1a6e4b;
+}
+
+.clinic-theme .subscription-catalog__section {
+  min-width: 0;
+}
+
+.clinic-theme .subscription-catalog__section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.clinic-theme .subscription-catalog__section-heading h2 {
+  margin-bottom: 5px;
+  color: #1b2d26;
+  font-weight: 720;
+  letter-spacing: -0.025em;
+}
+
+.clinic-theme .subscription-catalog__section-heading p {
+  max-width: 68ch;
+  color: #5b6962;
+}
+
+.clinic-theme .subscription-catalog__list,
+.clinic-theme .subscription-catalog__tier-list {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #d9e1dc;
+  border-radius: 14px;
+}
+
+.clinic-theme .subscription-catalog__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5ebe7;
+}
+
+.clinic-theme .subscription-catalog__row:last-child,
+.clinic-theme .subscription-catalog__tier:last-child {
+  border-bottom: 0;
+}
+
+.clinic-theme .subscription-catalog__row-main,
+.clinic-theme .subscription-catalog__tier-summary {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.clinic-theme .subscription-catalog__row h3,
+.clinic-theme .subscription-catalog__tier h3 {
+  margin-bottom: 3px;
+  color: #1c2d26;
+  font-weight: 700;
+}
+
+.clinic-theme .subscription-catalog__row-main p,
+.clinic-theme .subscription-catalog__tier-summary p {
+  overflow: hidden;
+  color: #66736d;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+}
+
+.clinic-theme .subscription-catalog__status {
+  display: inline-flex;
+  justify-content: center;
+  width: max-content;
+  min-width: 72px;
+  padding: 4px 9px;
+  color: #3d4d46;
+  background: #edf1ef;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.clinic-theme .subscription-catalog__status[data-status="published"],
+.clinic-theme .subscription-catalog__status[data-status="available"] {
+  color: #145338;
+  background: #e0f1e8;
+}
+
+.clinic-theme .subscription-catalog__status[data-status="changed"] {
+  min-width: 132px;
+  color: #654f19;
+  background: #f6edcd;
+}
+
+.clinic-theme .subscription-catalog__status[data-status="retired"] {
+  color: #705c51;
+  background: #f0e9e5;
+}
+
+.clinic-theme .subscription-catalog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.clinic-theme .subscription-catalog__actions .MuiButton-root {
+  min-width: auto;
+  padding-inline: 10px;
+  color: #245440;
+  font-weight: 680;
+  text-transform: none;
+}
+
+.clinic-theme .subscription-catalog__empty {
+  padding: 44px clamp(20px, 5vw, 64px);
+  text-align: center;
+  background: #fff;
+  border: 1px dashed #b8c6be;
+  border-radius: 14px;
+}
+
+.clinic-theme .subscription-catalog__empty h3 {
+  margin-bottom: 7px;
+  color: #20342b;
+  font-weight: 700;
+}
+
+.clinic-theme .subscription-catalog__empty p {
+  max-width: 58ch;
+  margin: 0 auto;
+  color: #64736b;
+}
+
+.clinic-theme .subscription-catalog__tier {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.05fr) minmax(400px, 1.5fr) auto;
+  gap: 28px;
+  align-items: center;
+  padding: 22px 20px;
+  border-bottom: 1px solid #e2e9e4;
+}
+
+.clinic-theme .subscription-catalog__tier-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(84px, 1fr));
+  gap: 20px;
+  margin: 0;
+}
+
+.clinic-theme .subscription-catalog__tier-facts div {
+  min-width: 0;
+}
+
+.clinic-theme .subscription-catalog__tier-facts dt {
+  margin-bottom: 4px;
+  color: #65726b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.clinic-theme .subscription-catalog__tier-facts dd {
+  overflow: hidden;
+  margin: 0;
+  color: #24362e;
+  font-size: 0.9rem;
+  font-weight: 660;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-theme .subscription-catalog__tier-actions {
+  max-width: 260px;
+}
+
+.clinic-theme .subscription-editor {
+  padding: clamp(28px, 4vw, 52px) clamp(20px, 4vw, 56px) 64px;
+  background: #f5f7f5;
+}
+
+.clinic-theme .subscription-editor > .MuiStack-root:first-child {
+  margin-bottom: 12px;
+}
+
+.clinic-theme .subscription-editor #catalog-editor-title {
+  color: #1b2d26;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  font-weight: 720;
+  letter-spacing: -0.03em;
+}
+
+.clinic-theme .subscription-editor__workspace {
+  padding-top: 8px;
+}
+
+.clinic-theme .subscription-editor__workspace > fieldset {
+  padding: 24px !important;
+  background: #fff;
+  border: 1px solid #d9e1dc !important;
+  border-radius: 14px !important;
+}
+
+.clinic-theme .subscription-editor__workspace aside {
+  padding: 22px;
+  background: #edf2ef;
+  border-radius: 14px;
+}
+
+.clinic-theme .subscription-catalog ::selection {
+  color: #fff;
+  background: #1a6e4b;
+}
+
+.clinic-theme .subscription-catalog :focus-visible,
+.clinic-theme .subscription-editor :focus-visible {
+  outline: 3px solid #68b58e;
+  outline-offset: 3px;
+}
+
+@media (max-width: 1180px) {
+  .clinic-theme .subscription-catalog__tier {
+    grid-template-columns: minmax(220px, 0.9fr) minmax(360px, 1.4fr);
+  }
+
+  .clinic-theme .subscription-catalog__tier-actions {
+    grid-column: 1 / -1;
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .clinic-theme .subscription-catalog__header,
+  .clinic-theme .subscription-catalog__section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clinic-theme .subscription-catalog__workspace {
+    padding-inline: 16px;
+  }
+
+  .clinic-theme .subscription-catalog__header {
+    padding-inline: 16px;
+  }
+
+  .clinic-theme .subscription-catalog__flow {
+    grid-template-columns: repeat(7, max-content);
+  }
+
+  .clinic-theme .subscription-catalog__flow > div:last-child {
+    grid-column: auto;
+  }
+
+  .clinic-theme .subscription-catalog__row,
+  .clinic-theme .subscription-catalog__tier {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .clinic-theme .subscription-catalog__row-main,
+  .clinic-theme .subscription-catalog__tier-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .clinic-theme .subscription-catalog__tier-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 14px 0;
+    border-block: 1px solid #e2e9e4;
+  }
+
+  .clinic-theme .subscription-catalog__actions,
+  .clinic-theme .subscription-catalog__tier-actions {
+    grid-column: auto;
+    justify-content: flex-start;
+  }
+
+  .clinic-theme .subscription-editor {
+    padding-inline: 16px;
+  }
+
+  .clinic-theme .subscription-editor__workspace > fieldset {
+    padding: 18px !important;
+  }
+}
