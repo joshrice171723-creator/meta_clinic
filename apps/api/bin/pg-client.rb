@@ -35,6 +35,14 @@ if client == "pg_dump"
     spawn_options[:out] = File.expand_path(output, Dir.pwd)
     arguments = forwarded
   end
+elsif client == "psql"
+  # Docker's psql cannot open a Windows host path supplied by Rails schema load.
+  # Keep the file option in place, but stream the local file to its stdin.
+  file_index = arguments.index("--file") || arguments.index("-f")
+  if file_index && arguments[file_index + 1] && File.file?(arguments[file_index + 1])
+    spawn_options[:in] = File.expand_path(arguments[file_index + 1], Dir.pwd)
+    arguments[file_index + 1] = "-"
+  end
 elsif client == "pg_restore" && arguments.last && File.file?(arguments.last)
   spawn_options[:in] = File.expand_path(arguments.pop, Dir.pwd)
 end

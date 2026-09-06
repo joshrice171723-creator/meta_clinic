@@ -21,7 +21,8 @@ database = "apply_web_verify_#{SecureRandom.hex(6)}"
 environment = {
   "RAILS_ENV" => "development", "APPLY_DEVELOPMENT_DATABASE" => database,
   "APPLY_TEST_DATABASE" => database + "_test", "SKIP_TEST_DATABASE" => "1",
-  "DATABASE_URL" => nil, "APP_DEVELOPMENT_LOGIN" => "1"
+  "DATABASE_URL" => nil, "APP_DEVELOPMENT_LOGIN" => "1",
+  "SCHEMA" => File.join(api_root, "tmp", "#{database}-structure.sql")
 }
 ports = 2.times.map { socket = TCPServer.new("127.0.0.1", 0); port = socket.addr[1]; socket.close; port }
 children = []
@@ -35,14 +36,11 @@ begin
   # PostgreSQL CLI targets exactly this generated name, never Rails' companion DBs.
   command!(environment, api_root, *database_command, "createdb", database)
   created = true
-  schema = File.read(File.join(api_root, "db", "structure.sql"))
-  command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1", input: schema)
-  migration_versions = Dir[File.join(api_root, "db", "migrate", "*.rb")]
-    .map { |path| File.basename(path).split("_", 2).first }
-    .select { |version| version.match?(/\A\d{14}\z/) }
-  migration_rows = migration_versions.map { |version| "(#{version})" }.join(", ")
-  command!(environment, api_root, *database_command, "psql", "--dbname", database, "--set", "ON_ERROR_STOP=1",
-    input: "INSERT INTO schema_migrations (version) VALUES #{migration_rows} ON CONFLICT (version) DO NOTHING;")
+  # Initialize this empty scratch database through real migrations. Never mark
+  # unapplied migrations complete based on a snapshot. Keep its dump task-local.
+  phase = "scratch database migrations"
+  command!(environment, api_root, *database_command, *rails_command, "db:migrate")
+  phase = "development fixtures"
   command!(environment, api_root, *database_command, *rails_command, "db:seed")
   command!(environment, api_root, *database_command, *rails_command, "members:prepare_test_accounts")
   phase = "process startup"
@@ -72,7 +70,7 @@ begin
     begin
       ready = request.call("/api/csrf").code == "200"
       break if ready
-    rescue Errno::ECONNREFUSED, EOFError, Net::ReadTimeout
+    rescue Errno::ECONNREFUSED, EOFError, Net::ReadTimeout, Net::OpenTimeout
       nil
     end
     sleep 0.2
@@ -129,6 +127,10 @@ begin
   2.times { raise "Receipt/retry failed" unless post.call("/api/clinic/pharmacy/#{id}/receive", receipt).code == "204" }
   details = JSON.parse(request.call("/api/clinic/pharmacy/#{id}").body)
   raise "Decimal/retry wire contract failed" unless details.dig("product", "available_quantity") == "0.000001" && details.fetch("batches").length == 1 && details.fetch("batches").first.fetch("receipts").length == 1
+  ledger = JSON.parse(request.call("/api/clinic/inventory/activity?view=ledger&q=split").body).fetch("data")
+  raise "Bounded inventory ledger contract failed" unless ledger.dig("activity_page", "filtered_count") == 1 && ledger.fetch("movements").length == 1 && ledger.fetch("movements").first.fetch("quantity_units") == "0.000001" && !ledger.key?("products")
+  catalog = JSON.parse(request.call("/api/clinic/inventory/catalog?view=table&q=SPLIT-VERIFY").body).fetch("data")
+  raise "Bounded inventory catalog contract failed" unless catalog.dig("catalog_page", "filtered_count") == 1 && catalog.fetch("products").length == 1 && catalog.fetch("products").first.fetch("available_units") == "0.000001" && !catalog.key?("movements")
   phase = "portal and logout"
   documents = JSON.parse(request.call("/api/paperworks").body).fetch("paperworks")
   raise "Unexpected assigned documents" unless documents.length == 1
@@ -153,4 +155,5 @@ ensure
     command!(environment, api_root, *database_command, "dropdb", database)
     puts "Removed only this run's synthetic scratch database and child processes."
   end
+  File.delete(environment.fetch("SCHEMA")) if File.file?(environment.fetch("SCHEMA"))
 end

@@ -1,12 +1,3 @@
---
--- PostgreSQL database dump
---
-
-\restrict bFeyjp1uyqnmoRaML7gHArw3CNvODxWuh0N4dP5fZUjS3vRVQ0Z1yuARFPB3EVr
-
--- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
--- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -141,6 +132,32 @@ $$;
 
 
 --
+-- Name: guard_stripe_routing(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.guard_stripe_routing() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Stripe routing history cannot be deleted'; END IF;
+  IF TG_TABLE_NAME = 'clinic_stripe_connections' THEN
+    IF OLD.practice_id <> NEW.practice_id OR OLD.reference <> NEW.reference OR
+      (OLD.account_id IS NOT NULL AND OLD.account_id IS DISTINCT FROM NEW.account_id) THEN
+      RAISE EXCEPTION 'Stripe clinic routing cannot be changed';
+    END IF;
+  ELSE
+    IF (to_jsonb(OLD) - ARRAY['updated_at','session_id','subscription_id','subscription_status','cancel_at_period_end','last_synced_at','session_status','renewal_amount_due','renewal_invoice_status']) <>
+       (to_jsonb(NEW) - ARRAY['updated_at','session_id','subscription_id','subscription_status','cancel_at_period_end','last_synced_at','session_status','renewal_amount_due','renewal_invoice_status']) OR
+       (OLD.session_id IS NOT NULL AND OLD.session_id IS DISTINCT FROM NEW.session_id) OR
+       (OLD.subscription_id IS NOT NULL AND OLD.subscription_id IS DISTINCT FROM NEW.subscription_id) THEN
+      RAISE EXCEPTION 'Stripe checkout terms cannot be changed';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+--
 -- Name: inventory_authorize(bigint, bigint, text, bigint); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -206,6 +223,436 @@ BEGIN
     IF actor IS NULL THEN RAISE EXCEPTION 'Catalog changes require actor attribution'; END IF;
     INSERT INTO clinic_inventory_catalog_events (practice_id,product_id,actor_id,changed_fields,created_at,updated_at) VALUES (NEW.practice_id,NEW.id,actor,fields,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
   END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_control_certification_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_control_certification_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE observation clinic_inventory_counts%ROWTYPE; stock numeric; cutoff bigint; schedule text; approval_entry bigint;
+  session_status text; latest_count bigint; latest_kind text; latest_event_count bigint;
+  member_id bigint; required_permission text;
+BEGIN
+  required_permission := CASE WHEN NEW.kind='certification' THEN 'controlled.certify' ELSE 'controlled.count' END;
+  PERFORM 1 FROM clinic_practices WHERE id=NEW.practice_id FOR SHARE;
+  SELECT membership.id INTO member_id
+    FROM clinic_memberships membership
+    JOIN users reviewer ON reviewer.id=membership.user_id
+   WHERE membership.practice_id=NEW.practice_id AND membership.user_id=NEW.actor_id
+     AND membership.active AND reviewer.active FOR SHARE OF membership,reviewer;
+  IF NOT FOUND OR NOT EXISTS (
+    SELECT 1 FROM clinic_role_grants grant_record
+    JOIN role_version_permissions role_permission ON role_permission.role_version_id=grant_record.role_version_id
+    JOIN permissions permission ON permission.id=role_permission.permission_id
+    WHERE grant_record.practice_id=NEW.practice_id AND grant_record.membership_id=member_id
+      AND grant_record.scope_kind='practice' AND grant_record.effective_from<=CURRENT_TIMESTAMP
+      AND (grant_record.effective_until IS NULL OR grant_record.effective_until>CURRENT_TIMESTAMP)
+      AND grant_record.revoked_at IS NULL AND permission.action_code=required_permission
+  ) THEN RAISE EXCEPTION 'Controlled review action not permitted'; END IF;
+  SELECT * INTO observation FROM clinic_inventory_counts
+   WHERE practice_id=NEW.practice_id AND id=NEW.count_id;
+  IF NOT FOUND OR observation.actor_id=NEW.actor_id THEN
+    RAISE EXCEPTION 'Controlled certification requires a separate clinic reviewer';
+  END IF;
+  IF observation.count_session_line_id IS NOT NULL THEN
+    SELECT session.status INTO session_status
+      FROM clinic_inventory_count_session_lines line
+     JOIN clinic_inventory_count_sessions session
+        ON session.practice_id=line.practice_id AND session.id=line.count_session_id
+     WHERE line.practice_id=NEW.practice_id AND line.id=observation.count_session_line_id
+       AND line.batch_id=observation.batch_id FOR UPDATE OF session;
+  END IF;
+  SELECT product.dea_schedule INTO schedule
+    FROM clinic_pharmacy_batches batch
+    JOIN clinic_pharmacy_products product ON product.id=batch.product_id AND product.practice_id=batch.practice_id
+   WHERE batch.practice_id=NEW.practice_id AND batch.id=observation.batch_id FOR SHARE OF product;
+  SELECT on_hand INTO stock FROM clinic_pharmacy_batches
+   WHERE practice_id=NEW.practice_id AND id=observation.batch_id FOR UPDATE;
+  IF schedule IS NULL THEN RAISE EXCEPTION 'Controlled review requires controlled inventory'; END IF;
+  IF NEW.kind='investigation' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_count_approvals approval
+       WHERE approval.practice_id=NEW.practice_id AND approval.count_id=observation.id
+         AND approval.actor_id=NEW.actor_id
+    ) THEN RAISE EXCEPTION 'Controlled investigation requires matching count approval evidence'; END IF;
+    RETURN NEW;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM clinic_inventory_control_reviews investigation
+     WHERE investigation.practice_id=NEW.practice_id AND investigation.count_id=NEW.count_id
+       AND investigation.kind='investigation' AND investigation.actor_id<>NEW.actor_id
+  ) THEN RAISE EXCEPTION 'Controlled certification requires a separate investigation'; END IF;
+  IF observation.count_session_line_id IS NOT NULL THEN
+    SELECT MAX(id) INTO latest_count FROM clinic_inventory_counts
+     WHERE practice_id=NEW.practice_id AND count_session_line_id=observation.count_session_line_id;
+    SELECT kind,count_id INTO latest_kind,latest_event_count
+      FROM clinic_inventory_count_session_events
+     WHERE practice_id=NEW.practice_id AND count_session_line_id=observation.count_session_line_id
+       AND kind IN ('observed','skipped','resumed') ORDER BY id DESC LIMIT 1;
+    IF session_status='cancelled' OR latest_count IS DISTINCT FROM observation.id OR
+      latest_kind IS DISTINCT FROM 'observed' OR latest_event_count IS DISTINCT FROM observation.id THEN
+      RAISE EXCEPTION 'Controlled certification requires the latest active session observation';
+    END IF;
+  END IF;
+  SELECT MAX(id) INTO cutoff FROM clinic_inventory_entries
+   WHERE practice_id=NEW.practice_id AND stock_type='pharmacy' AND batch_id=observation.batch_id;
+  SELECT entry_id INTO approval_entry FROM clinic_inventory_count_approvals
+   WHERE practice_id=NEW.practice_id AND count_id=observation.id;
+  IF stock<>observation.observed_quantity OR
+    (observation.expected_quantity=observation.observed_quantity AND cutoff IS DISTINCT FROM observation.cutoff_entry_id) OR
+    (observation.expected_quantity<>observation.observed_quantity AND (approval_entry IS NULL OR cutoff<>approval_entry)) THEN
+    RAISE EXCEPTION 'Controlled certification requires a current reconciled count';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_approval_authority(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_approval_authority() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE observation clinic_inventory_counts%ROWTYPE; session_status text; latest_count bigint; latest_kind text; latest_event_count bigint;
+BEGIN
+  SELECT * INTO observation FROM clinic_inventory_counts
+   WHERE practice_id=NEW.practice_id AND id=NEW.count_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Count approval must reference a clinic count'; END IF;
+  IF observation.actor_id=NEW.actor_id THEN RAISE EXCEPTION 'A counter cannot approve their own count'; END IF;
+  NEW.profile_id := inventory_authorize(NEW.practice_id,NEW.actor_id,'count',NEW.profile_id);
+  IF observation.expected_quantity<>observation.observed_quantity THEN
+    PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'adjust',NEW.profile_id);
+  END IF;
+  IF observation.count_session_line_id IS NOT NULL THEN
+    SELECT session.status INTO session_status
+      FROM clinic_inventory_count_session_lines line
+      JOIN clinic_inventory_count_sessions session
+        ON session.practice_id=line.practice_id AND session.id=line.count_session_id
+     WHERE line.practice_id=NEW.practice_id AND line.id=observation.count_session_line_id
+       AND line.batch_id=observation.batch_id FOR UPDATE OF session;
+    SELECT MAX(id) INTO latest_count FROM clinic_inventory_counts
+     WHERE practice_id=NEW.practice_id AND count_session_line_id=observation.count_session_line_id;
+    SELECT kind,count_id INTO latest_kind,latest_event_count
+      FROM clinic_inventory_count_session_events
+     WHERE practice_id=NEW.practice_id AND count_session_line_id=observation.count_session_line_id
+       AND kind IN ('observed','skipped','resumed') ORDER BY id DESC LIMIT 1;
+    IF latest_count IS DISTINCT FROM observation.id OR latest_kind IS DISTINCT FROM 'observed' OR latest_event_count IS DISTINCT FROM observation.id THEN
+      RAISE EXCEPTION 'Count approval must reference the latest active session observation';
+    END IF;
+    IF session_status IS DISTINCT FROM 'open' AND NOT (
+      session_status='completed' AND observation.expected_quantity=observation.observed_quantity
+    ) THEN RAISE EXCEPTION 'Count session no longer accepts this approval'; END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_correction_authority(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_correction_authority() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE observation clinic_inventory_counts%ROWTYPE;
+BEGIN
+  IF NEW.count_id IS NULL THEN RETURN NEW; END IF;
+  SELECT * INTO observation FROM clinic_inventory_counts
+   WHERE practice_id=NEW.practice_id AND id=NEW.count_id;
+  IF NOT FOUND OR NEW.actor_id=observation.actor_id THEN
+    RAISE EXCEPTION 'Count correction requires a separate clinic approver';
+  END IF;
+  PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'count',NEW.profile_id);
+  PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'adjust',NEW.profile_id);
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_session_delete_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_delete_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Count sessions are retained as inventory evidence';
+END $$;
+
+
+--
+-- Name: inventory_count_session_event_applied(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_event_applied() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE locked_session clinic_inventory_count_sessions%ROWTYPE; latest_header_event bigint;
+BEGIN
+  IF NEW.kind NOT IN ('reassigned','completed','cancelled') THEN RETURN NEW; END IF;
+  SELECT MAX(id) INTO latest_header_event FROM clinic_inventory_count_session_events
+   WHERE practice_id=NEW.practice_id AND count_session_id=NEW.count_session_id
+     AND kind IN ('reassigned','completed','cancelled');
+  IF latest_header_event<>NEW.id THEN RETURN NEW; END IF;
+  SELECT * INTO locked_session FROM clinic_inventory_count_sessions
+   WHERE practice_id=NEW.practice_id AND id=NEW.count_session_id;
+  IF NEW.kind='reassigned' AND locked_session.assignee_id IS DISTINCT FROM NEW.assignee_id THEN
+    RAISE EXCEPTION 'Count reassignment event was not applied to the session';
+  ELSIF NEW.kind IN ('completed','cancelled') AND locked_session.status IS DISTINCT FROM NEW.kind THEN
+    RAISE EXCEPTION 'Count lifecycle event was not applied to the session';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_session_event_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_event_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE locked_session clinic_inventory_count_sessions%ROWTYPE; prior_kind text;
+BEGIN
+  IF NEW.kind='observed' THEN
+    PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'count');
+  ELSE
+    PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'configure');
+  END IF;
+  SELECT * INTO locked_session FROM clinic_inventory_count_sessions
+   WHERE practice_id=NEW.practice_id AND id=NEW.count_session_id FOR UPDATE;
+  IF NOT FOUND OR locked_session.status<>'open' THEN RAISE EXCEPTION 'Count events require an open clinic count session'; END IF;
+
+  IF NEW.kind='observed' THEN
+    IF NEW.actor_id<>locked_session.assignee_id THEN RAISE EXCEPTION 'Only the assigned counter can observe a session line'; END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_count_session_lines line
+      JOIN clinic_inventory_counts observation
+        ON observation.practice_id=line.practice_id
+       AND observation.count_session_line_id=line.id
+       AND observation.batch_id=line.batch_id
+     WHERE line.practice_id=NEW.practice_id AND line.count_session_id=NEW.count_session_id
+       AND line.id=NEW.count_session_line_id AND observation.id=NEW.count_id
+       AND observation.actor_id=NEW.actor_id
+    ) THEN RAISE EXCEPTION 'Observed event must reference its session count'; END IF;
+    SELECT kind INTO prior_kind FROM clinic_inventory_count_session_events
+     WHERE practice_id=NEW.practice_id AND count_session_line_id=NEW.count_session_line_id
+       AND kind IN ('observed','skipped','resumed') ORDER BY id DESC LIMIT 1;
+    IF prior_kind='skipped' THEN RAISE EXCEPTION 'A skipped count line must be resumed before observation'; END IF;
+  ELSE
+    IF NEW.kind IN ('skipped','resumed') AND NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_count_session_lines
+       WHERE practice_id=NEW.practice_id AND count_session_id=NEW.count_session_id
+         AND id=NEW.count_session_line_id
+    ) THEN RAISE EXCEPTION 'Count line event must belong to its session'; END IF;
+    IF NEW.kind='resumed' THEN
+      SELECT kind INTO prior_kind FROM clinic_inventory_count_session_events
+       WHERE practice_id=NEW.practice_id AND count_session_line_id=NEW.count_session_line_id
+         AND kind IN ('observed','skipped','resumed') ORDER BY id DESC LIMIT 1;
+      IF prior_kind IS DISTINCT FROM 'skipped' THEN RAISE EXCEPTION 'Only a skipped count line can be resumed'; END IF;
+    ELSIF NEW.kind='reassigned' THEN
+      PERFORM inventory_authorize(NEW.practice_id,NEW.assignee_id,'count');
+    ELSIF NEW.kind='completed' THEN
+      PERFORM 1 FROM clinic_pharmacy_products product
+       WHERE product.practice_id=NEW.practice_id AND product.id IN (
+         SELECT batch.product_id FROM clinic_inventory_count_session_lines line
+         JOIN clinic_pharmacy_batches batch ON batch.practice_id=line.practice_id AND batch.id=line.batch_id
+          WHERE line.practice_id=NEW.practice_id AND line.count_session_id=NEW.count_session_id
+       ) ORDER BY product.id FOR UPDATE;
+      PERFORM 1 FROM clinic_pharmacy_batches batch
+       WHERE batch.practice_id=NEW.practice_id AND batch.id IN (
+         SELECT line.batch_id FROM clinic_inventory_count_session_lines line
+          WHERE line.practice_id=NEW.practice_id AND line.count_session_id=NEW.count_session_id
+       ) ORDER BY batch.id FOR UPDATE;
+      IF NOT inventory_count_session_ready(NEW.count_session_id,NEW.practice_id) THEN
+        RAISE EXCEPTION 'Count every session line or explicitly skip it before completion';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_session_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE latest_kind text; latest_assignee bigint;
+BEGIN
+  IF TG_OP='INSERT' THEN
+    PERFORM 1 FROM clinic_practices WHERE id=NEW.practice_id FOR UPDATE;
+    PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'configure');
+    IF NEW.status<>'open' THEN RAISE EXCEPTION 'A count session must start open'; END IF;
+  ELSE
+    IF (
+      NEW.practice_id,NEW.location_id,NEW.actor_id,NEW.due_on,NEW.blind,
+      NEW.reason,NEW.request_key,NEW.payload_digest,NEW.scope_transaction_id,NEW.created_at
+    ) IS DISTINCT FROM (
+      OLD.practice_id,OLD.location_id,OLD.actor_id,OLD.due_on,OLD.blind,
+      OLD.reason,OLD.request_key,OLD.payload_digest,OLD.scope_transaction_id,OLD.created_at
+    ) THEN
+      RAISE EXCEPTION 'Count session scope and evidence are immutable';
+    END IF;
+    IF OLD.status<>'open' AND (NEW.status,NEW.assignee_id) IS DISTINCT FROM (OLD.status,OLD.assignee_id) THEN
+      RAISE EXCEPTION 'A completed or cancelled count session cannot change';
+    END IF;
+    IF NEW.status IS DISTINCT FROM OLD.status THEN
+      SELECT kind INTO latest_kind FROM clinic_inventory_count_session_events
+       WHERE practice_id=NEW.practice_id AND count_session_id=NEW.id
+         AND kind IN ('reassigned','completed','cancelled') ORDER BY id DESC LIMIT 1;
+      IF NEW.status NOT IN ('completed','cancelled') OR latest_kind IS DISTINCT FROM NEW.status THEN
+        RAISE EXCEPTION 'Count session status needs matching event evidence';
+      END IF;
+    END IF;
+    IF NEW.assignee_id IS DISTINCT FROM OLD.assignee_id THEN
+      SELECT kind,assignee_id INTO latest_kind,latest_assignee
+        FROM clinic_inventory_count_session_events
+       WHERE practice_id=NEW.practice_id AND count_session_id=NEW.id
+         AND kind IN ('reassigned','completed','cancelled') ORDER BY id DESC LIMIT 1;
+      IF latest_kind IS DISTINCT FROM 'reassigned' OR latest_assignee IS DISTINCT FROM NEW.assignee_id THEN
+        RAISE EXCEPTION 'Count session assignment needs matching event evidence';
+      END IF;
+    END IF;
+  END IF;
+
+  IF TG_OP='INSERT' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_locations location
+       WHERE location.practice_id=NEW.practice_id AND location.id=NEW.location_id
+         AND location.status='active'
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_locations child
+            WHERE child.practice_id=location.practice_id AND child.parent_location_id=location.id
+         )
+         AND (location.site_id IS NULL OR EXISTS (
+           SELECT 1 FROM clinic_sites site
+            WHERE site.practice_id=location.practice_id AND site.id=location.site_id AND site.status='active'
+         ))
+    ) THEN RAISE EXCEPTION 'Count sessions require an active inventory bin at an active facility'; END IF;
+  END IF;
+  IF TG_OP='INSERT' OR NEW.assignee_id IS DISTINCT FROM OLD.assignee_id THEN
+    PERFORM inventory_authorize(NEW.practice_id,NEW.assignee_id,'count');
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_session_line_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_line_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE locked_session clinic_inventory_count_sessions%ROWTYPE; position_count integer;
+BEGIN
+  SELECT * INTO locked_session FROM clinic_inventory_count_sessions
+   WHERE practice_id=NEW.practice_id AND id=NEW.count_session_id FOR UPDATE;
+  IF NOT FOUND OR locked_session.status<>'open' THEN RAISE EXCEPTION 'Count lines require an open clinic count session'; END IF;
+  IF locked_session.scope_transaction_id<>txid_current() THEN
+    RAISE EXCEPTION 'Count session lines are fixed when the session starts';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM clinic_pharmacy_batches batch
+     WHERE batch.practice_id=NEW.practice_id AND batch.id=NEW.batch_id
+       AND batch.location_id=locked_session.location_id
+  ) THEN RAISE EXCEPTION 'Count line position must belong to the session inventory bin'; END IF;
+  SELECT COUNT(*) INTO position_count FROM clinic_inventory_count_session_lines
+   WHERE practice_id=NEW.practice_id AND count_session_id=NEW.count_session_id;
+  IF position_count>=500 THEN RAISE EXCEPTION 'A count session cannot contain more than 500 positions'; END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_count_session_ready(bigint, bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_ready(session bigint, clinic bigint) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM clinic_inventory_count_session_lines
+     WHERE practice_id=clinic AND count_session_id=session
+  ) AND NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_count_session_lines line
+      JOIN clinic_pharmacy_batches batch
+        ON batch.practice_id=line.practice_id AND batch.id=line.batch_id
+      LEFT JOIN LATERAL (
+        SELECT event.kind,event.count_id
+          FROM clinic_inventory_count_session_events event
+         WHERE event.practice_id=line.practice_id
+           AND event.count_session_line_id=line.id
+           AND event.kind IN ('observed','skipped','resumed')
+         ORDER BY event.id DESC LIMIT 1
+      ) latest_event ON true
+      LEFT JOIN LATERAL (
+        SELECT observation.*
+          FROM clinic_inventory_counts observation
+         WHERE observation.practice_id=line.practice_id
+           AND observation.count_session_line_id=line.id
+         ORDER BY observation.id DESC LIMIT 1
+      ) latest_count ON true
+      LEFT JOIN clinic_inventory_count_approvals approval
+        ON approval.practice_id=latest_count.practice_id AND approval.count_id=latest_count.id
+      LEFT JOIN LATERAL (
+        SELECT MAX(entry.id) AS cutoff
+          FROM clinic_inventory_entries entry
+         WHERE entry.practice_id=line.practice_id
+           AND entry.stock_type='pharmacy'
+           AND entry.batch_id=line.batch_id
+      ) movement ON true
+     WHERE line.practice_id=clinic AND line.count_session_id=session
+       AND NOT COALESCE(
+         latest_event.kind='skipped' OR (
+           latest_event.kind='observed'
+           AND latest_event.count_id=latest_count.id
+           AND batch.on_hand=latest_count.observed_quantity
+           AND (
+             (latest_count.expected_quantity=latest_count.observed_quantity
+               AND movement.cutoff IS NOT DISTINCT FROM latest_count.cutoff_entry_id)
+             OR
+             (latest_count.expected_quantity<>latest_count.observed_quantity
+               AND approval.entry_id IS NOT NULL AND movement.cutoff=approval.entry_id)
+           )
+         ), false
+       )
+  )
+$$;
+
+
+--
+-- Name: inventory_count_session_scope_complete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_count_session_scope_complete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE position_count integer; line_count integer;
+BEGIN
+  SELECT COUNT(*) INTO position_count FROM clinic_pharmacy_batches
+   WHERE practice_id=NEW.practice_id AND location_id=NEW.location_id;
+  SELECT COUNT(*) INTO line_count FROM clinic_inventory_count_session_lines
+   WHERE practice_id=NEW.practice_id AND count_session_id=NEW.id;
+  IF position_count NOT BETWEEN 1 AND 500 OR line_count<>position_count OR EXISTS (
+    SELECT 1 FROM clinic_pharmacy_batches batch
+     WHERE batch.practice_id=NEW.practice_id AND batch.location_id=NEW.location_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_count_session_lines line
+          WHERE line.practice_id=NEW.practice_id AND line.count_session_id=NEW.id
+            AND line.batch_id=batch.id
+       )
+  ) THEN RAISE EXCEPTION 'Count session must freeze every recorded position in its inventory bin'; END IF;
   RETURN NEW;
 END $$;
 
@@ -368,6 +815,55 @@ END; $$;
 
 
 --
+-- Name: inventory_exception_review_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_exception_review_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  NEW.profile_id := inventory_authorize(NEW.practice_id, NEW.actor_id, 'configure', NEW.profile_id);
+
+  IF NEW.assignee_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1
+      FROM clinic_memberships membership
+      JOIN users assignee ON assignee.id = membership.user_id
+     WHERE membership.practice_id = NEW.practice_id
+       AND membership.user_id = NEW.assignee_id
+       AND membership.active
+       AND assignee.active
+  ) THEN
+    RAISE foreign_key_violation USING MESSAGE = 'Exception assignee must be an active clinic member';
+  END IF;
+
+  IF NEW.source_kind = 'batch' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_pharmacy_batches
+       WHERE practice_id = NEW.practice_id AND id = NEW.source_id
+    ) THEN
+      RAISE foreign_key_violation USING MESSAGE = 'Exception batch must belong to the clinic';
+    END IF;
+  ELSIF NEW.source_kind = 'hold' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_holds
+       WHERE practice_id = NEW.practice_id AND id = NEW.source_id
+    ) THEN
+      RAISE foreign_key_violation USING MESSAGE = 'Exception hold must belong to the clinic';
+    END IF;
+  ELSIF NEW.source_kind = 'reconciliation' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_shipment_reconciliations
+       WHERE practice_id = NEW.practice_id AND id = NEW.source_id
+    ) THEN
+      RAISE foreign_key_violation USING MESSAGE = 'Exception reconciliation must belong to the clinic';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END $$;
+
+
+--
 -- Name: inventory_immutable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -375,6 +871,159 @@ CREATE FUNCTION public.inventory_immutable() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN RAISE EXCEPTION 'Inventory history is append-only'; END $$;
+
+
+--
+-- Name: inventory_location_delete_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_location_delete_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Inventory locations must be retired, not deleted';
+END; $$;
+
+
+--
+-- Name: inventory_location_hierarchy_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_location_hierarchy_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  parent clinic_inventory_locations%ROWTYPE;
+  site_status text;
+  cycle_found boolean;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('inventory-location:' || NEW.practice_id::text, 0));
+
+  IF NEW.site_id IS NOT NULL THEN
+    SELECT status INTO site_status
+      FROM clinic_sites
+     WHERE practice_id = NEW.practice_id AND id = NEW.site_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Inventory location facility must belong to the clinic';
+    END IF;
+    IF NEW.status = 'active' AND site_status <> 'active' THEN
+      RAISE EXCEPTION 'An active inventory location requires an active facility';
+    END IF;
+  END IF;
+
+  IF NEW.parent_location_id IS NOT NULL THEN
+    SELECT * INTO parent
+      FROM clinic_inventory_locations
+     WHERE practice_id = NEW.practice_id AND id = NEW.parent_location_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Inventory parent location must belong to the clinic';
+    END IF;
+    IF parent.status <> 'active' THEN
+      RAISE EXCEPTION 'Inventory parent location must be active';
+    END IF;
+    IF NEW.site_id IS DISTINCT FROM parent.site_id THEN
+      RAISE EXCEPTION 'Inventory child and parent locations must use the same facility';
+    END IF;
+    IF parent.kind IN ('quarantine','returns','controlled') AND NEW.kind IS DISTINCT FROM parent.kind THEN
+      RAISE EXCEPTION 'Inventory child location must preserve its restricted parent kind';
+    END IF;
+    IF EXISTS (SELECT 1 FROM clinic_pharmacy_batches WHERE practice_id = NEW.practice_id AND location_id = parent.id) THEN
+      RAISE EXCEPTION 'A location with inventory history cannot become a parent location';
+    END IF;
+
+    WITH RECURSIVE ancestors(id, parent_location_id) AS (
+      SELECT id, parent_location_id
+        FROM clinic_inventory_locations
+       WHERE practice_id = NEW.practice_id AND id = NEW.parent_location_id
+      UNION
+      SELECT location.id, location.parent_location_id
+        FROM clinic_inventory_locations location
+        JOIN ancestors ON location.id = ancestors.parent_location_id
+       WHERE location.practice_id = NEW.practice_id
+    )
+    SELECT EXISTS(SELECT 1 FROM ancestors WHERE id = NEW.id) INTO cycle_found;
+    IF cycle_found THEN
+      RAISE EXCEPTION 'Inventory location hierarchy cannot contain a cycle';
+    END IF;
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    IF (
+      NEW.name IS DISTINCT FROM OLD.name OR
+      NEW.kind IS DISTINCT FROM OLD.kind OR
+      NEW.site_id IS DISTINCT FROM OLD.site_id OR
+      NEW.parent_location_id IS DISTINCT FROM OLD.parent_location_id
+    ) AND EXISTS (SELECT 1 FROM clinic_pharmacy_batches WHERE practice_id = NEW.practice_id AND location_id = NEW.id) THEN
+      RAISE EXCEPTION 'A location with inventory history cannot change hierarchy identity';
+    END IF;
+
+    IF (
+      NEW.name IS DISTINCT FROM OLD.name OR
+      NEW.kind IS DISTINCT FROM OLD.kind OR
+      NEW.site_id IS DISTINCT FROM OLD.site_id OR
+      NEW.parent_location_id IS DISTINCT FROM OLD.parent_location_id
+    ) AND EXISTS (SELECT 1 FROM clinic_inventory_locations WHERE practice_id = NEW.practice_id AND parent_location_id = NEW.id) THEN
+      RAISE EXCEPTION 'A parent location cannot change hierarchy identity';
+    END IF;
+
+    IF NEW.status = 'retired' AND OLD.status IS DISTINCT FROM NEW.status THEN
+      IF EXISTS (SELECT 1 FROM clinic_pharmacy_batches WHERE practice_id = NEW.practice_id AND location_id = NEW.id AND on_hand > 0) THEN
+        RAISE EXCEPTION 'A location with on-hand inventory cannot be retired';
+      END IF;
+      IF EXISTS (SELECT 1 FROM clinic_inventory_locations WHERE practice_id = NEW.practice_id AND parent_location_id = NEW.id AND status = 'active') THEN
+        RAISE EXCEPTION 'A location with active children cannot be retired';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END; $$;
+
+
+--
+-- Name: inventory_location_stock_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_location_stock_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  validate_destination boolean;
+BEGIN
+  PERFORM pg_advisory_xact_lock_shared(hashtextextended('inventory-location:' || NEW.practice_id::text, 0));
+
+  IF TG_OP = 'INSERT' THEN
+    validate_destination := NEW.on_hand > 0;
+  ELSE
+    validate_destination := NEW.on_hand > 0 AND (
+      NEW.location_id IS DISTINCT FROM OLD.location_id OR NEW.on_hand > OLD.on_hand
+    );
+  END IF;
+
+  IF validate_destination AND NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_locations location
+     WHERE location.practice_id = NEW.practice_id
+       AND location.id = NEW.location_id
+       AND location.status = 'active'
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_locations child
+          WHERE child.practice_id = location.practice_id
+            AND child.parent_location_id = location.id
+       )
+       AND (
+         location.site_id IS NULL OR EXISTS (
+           SELECT 1 FROM clinic_sites site
+            WHERE site.practice_id = location.practice_id
+              AND site.id = location.site_id
+              AND site.status = 'active'
+         )
+       )
+  ) THEN
+    RAISE EXCEPTION 'On-hand inventory requires an active leaf location at an active facility';
+  END IF;
+  RETURN NEW;
+END; $$;
 
 
 --
@@ -427,16 +1076,367 @@ END; $$;
 
 
 --
+-- Name: inventory_recall_closure_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_closure_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE case_record clinic_inventory_recalls%ROWTYPE;
+BEGIN
+  NEW.profile_id := inventory_authorize(NEW.practice_id, NEW.actor_id, 'recall.dispose', NEW.profile_id);
+  SELECT * INTO case_record FROM clinic_inventory_recalls
+   WHERE practice_id = NEW.practice_id AND id = NEW.recall_id;
+  IF NOT FOUND THEN RAISE foreign_key_violation USING MESSAGE = 'Recall closure must belong to the clinic case'; END IF;
+  PERFORM 1 FROM clinic_pharmacy_products
+   WHERE practice_id = NEW.practice_id AND id = case_record.product_id FOR UPDATE;
+  SELECT * INTO case_record FROM clinic_inventory_recalls
+   WHERE practice_id = NEW.practice_id AND id = NEW.recall_id FOR UPDATE;
+  IF case_record.status = 'closed' OR EXISTS (
+    SELECT 1 FROM clinic_inventory_recall_closures
+     WHERE practice_id = NEW.practice_id AND recall_id = NEW.recall_id
+  ) THEN
+    RAISE EXCEPTION 'Recall case is already closed';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+      FROM clinic_inventory_recall_lots link
+      JOIN clinic_pharmacy_batches batch ON batch.practice_id = link.practice_id AND batch.lot_id = link.lot_id
+     WHERE link.practice_id = NEW.practice_id AND link.recall_id = NEW.recall_id AND batch.on_hand > 0
+  ) THEN
+    RAISE EXCEPTION 'Every recalled stock position must reach zero before closure';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_containment_complete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_containment_complete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'clinic_pharmacy_batches' THEN
+    IF EXISTS (
+      SELECT 1
+        FROM clinic_pharmacy_batches batch
+        JOIN clinic_inventory_recall_lots link ON link.practice_id = batch.practice_id AND link.lot_id = batch.lot_id
+        JOIN clinic_inventory_recalls recall ON recall.practice_id = link.practice_id AND recall.id = link.recall_id
+       WHERE batch.practice_id = NEW.practice_id AND batch.id = NEW.id AND batch.on_hand > 0
+         AND recall.status <> 'closed'
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_recall_closures closure
+            WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_holds hold
+            WHERE hold.practice_id = batch.practice_id AND hold.batch_id = batch.id
+              AND hold.recall_id = recall.id AND hold.kind = 'recalled'
+              AND NOT EXISTS (
+                SELECT 1 FROM clinic_inventory_hold_releases release WHERE release.hold_id = hold.id
+              )
+         )
+    ) THEN
+      RAISE EXCEPTION 'Positive recalled inventory requires an active case-specific hold';
+    END IF;
+  ELSE
+    IF EXISTS (
+      SELECT 1
+        FROM clinic_inventory_recall_lots link
+        JOIN clinic_inventory_recalls recall ON recall.practice_id = link.practice_id AND recall.id = link.recall_id
+        JOIN clinic_pharmacy_batches batch ON batch.practice_id = link.practice_id AND batch.lot_id = link.lot_id
+       WHERE link.practice_id = NEW.practice_id AND link.id = NEW.id AND batch.on_hand > 0
+         AND recall.status <> 'closed'
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_recall_closures closure
+            WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM clinic_inventory_holds hold
+            WHERE hold.practice_id = batch.practice_id AND hold.batch_id = batch.id
+              AND hold.recall_id = recall.id AND hold.kind = 'recalled'
+              AND NOT EXISTS (
+                SELECT 1 FROM clinic_inventory_hold_releases release WHERE release.hold_id = hold.id
+              )
+         )
+    ) THEN
+      RAISE EXCEPTION 'Every positive recall position requires an active case-specific hold';
+    END IF;
+  END IF;
+  RETURN NULL;
+END $$;
+
+
+--
+-- Name: inventory_recall_hold_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_hold_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.recall_id IS NULL THEN RETURN NEW; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('inventory-recall-hold:' || NEW.recall_id::text || ':' || NEW.batch_id::text, 0));
+  IF NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_recalls recall
+      JOIN clinic_inventory_recall_lots link ON link.practice_id = recall.practice_id AND link.recall_id = recall.id
+      JOIN clinic_pharmacy_batches batch ON batch.practice_id = link.practice_id AND batch.lot_id = link.lot_id
+     WHERE recall.practice_id = NEW.practice_id
+       AND recall.id = NEW.recall_id
+       AND recall.status <> 'closed'
+       AND batch.id = NEW.batch_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_recall_closures closure
+          WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+       )
+  ) THEN
+    RAISE EXCEPTION 'Recall holds require an open matching recall lot';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM clinic_inventory_holds existing
+     WHERE existing.recall_id = NEW.recall_id AND existing.batch_id = NEW.batch_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_hold_releases release WHERE release.hold_id = existing.id
+       )
+  ) THEN
+    RAISE EXCEPTION 'This recall already has an active hold on the stock position';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_lot_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_lot_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE case_product_id bigint;
+BEGIN
+  SELECT product_id INTO case_product_id FROM clinic_inventory_recalls
+   WHERE practice_id = NEW.practice_id AND id = NEW.recall_id;
+  IF NOT FOUND THEN RAISE foreign_key_violation USING MESSAGE = 'Recall lot must belong to the clinic case'; END IF;
+  PERFORM 1 FROM clinic_pharmacy_products
+   WHERE practice_id = NEW.practice_id AND id = case_product_id FOR UPDATE;
+  IF NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_recalls recall
+      JOIN clinic_inventory_lots lot ON lot.practice_id = recall.practice_id
+     WHERE recall.practice_id = NEW.practice_id
+       AND recall.id = NEW.recall_id
+       AND recall.status <> 'closed'
+       AND lot.id = NEW.lot_id
+       AND lot.product_id = recall.product_id
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_recall_closures closure
+          WHERE closure.practice_id = recall.practice_id AND closure.recall_id = recall.id
+       )
+  ) THEN
+    RAISE EXCEPTION 'Recall lots must belong to the open recall product';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_release_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_release_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM clinic_inventory_holds hold
+     WHERE hold.practice_id = NEW.practice_id AND hold.id = NEW.hold_id AND hold.recall_id IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'Recall holds cannot be released directly';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_recall_status_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_recall_status_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'closed' THEN RAISE EXCEPTION 'A new recall cannot start closed'; END IF;
+  ELSE
+    IF (
+      NEW.practice_id, NEW.product_id, NEW.actor_id, NEW.reference, NEW.reason,
+      NEW.required_disposition, NEW.effective_on, NEW.affected_units,
+      NEW.request_key, NEW.payload_digest
+    ) IS DISTINCT FROM (
+      OLD.practice_id, OLD.product_id, OLD.actor_id, OLD.reference, OLD.reason,
+      OLD.required_disposition, OLD.effective_on, OLD.affected_units,
+      OLD.request_key, OLD.payload_digest
+    ) THEN
+      RAISE EXCEPTION 'Recall case identity and evidence are immutable';
+    END IF;
+    IF OLD.status <> 'closed' AND NEW.status = 'closed' AND NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_recall_closures closure
+       WHERE closure.practice_id = NEW.practice_id AND closure.recall_id = NEW.id
+    ) THEN
+      RAISE EXCEPTION 'A recall requires closure evidence before it can close';
+    END IF;
+    IF OLD.status = 'closed' AND NEW.status <> 'closed' THEN
+      RAISE EXCEPTION 'A closed recall cannot be reopened';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
 -- Name: inventory_receipt_check(); Type: FUNCTION; Schema: public; Owner: -
 --
 
 CREATE FUNCTION public.inventory_receipt_check() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-DECLARE product clinic_pharmacy_products%ROWTYPE;
+DECLARE
+  product clinic_pharmacy_products%ROWTYPE;
+  receipt clinic_inventory_receipts%ROWTYPE;
+  order_line clinic_inventory_purchase_order_lines%ROWTYPE;
+  package_factor numeric;
 BEGIN
-  SELECT p.* INTO product FROM clinic_pharmacy_products p JOIN clinic_pharmacy_batches b ON b.product_id=p.id WHERE b.id=NEW.batch_id;
-  IF NEW.stock_unit<>product.stock_unit OR NEW.quantity<>round(NEW.quantity,product.quantity_scale) OR NOT ((NEW.input_unit='package' AND NEW.conversion_factor=product.package_size AND NEW.input_quantity=round(NEW.input_quantity,0)) OR (NEW.input_unit=product.stock_unit AND NEW.conversion_factor=1 AND NEW.input_quantity=round(NEW.input_quantity,product.quantity_scale))) THEN RAISE EXCEPTION 'Receipt conversion does not match verified product units'; END IF;
+  SELECT p.* INTO product FROM clinic_pharmacy_products p
+    JOIN clinic_pharmacy_batches b ON b.product_id=p.id AND b.practice_id=p.practice_id
+    WHERE b.id=NEW.batch_id AND b.practice_id=NEW.practice_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Receipt product must belong to its practice'; END IF;
+  SELECT * INTO receipt FROM clinic_inventory_receipts WHERE id=NEW.receipt_id AND practice_id=NEW.practice_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Receipt line must belong to its receipt practice'; END IF;
+  package_factor := product.package_size;
+  IF NEW.purchase_order_line_id IS NOT NULL OR receipt.purchase_order_id IS NOT NULL THEN
+    SELECT * INTO order_line FROM clinic_inventory_purchase_order_lines
+      WHERE id=NEW.purchase_order_line_id AND practice_id=NEW.practice_id
+        AND purchase_order_id=receipt.purchase_order_id AND product_id=product.id;
+    IF NOT FOUND OR order_line.stock_unit IS DISTINCT FROM product.stock_unit
+      OR order_line.input_unit IS DISTINCT FROM 'package' OR NEW.input_unit IS DISTINCT FROM 'package'
+    THEN RAISE EXCEPTION 'Receipt units and product must match the purchase-order line'; END IF;
+    package_factor := order_line.conversion_factor;
+  END IF;
+  IF NEW.stock_unit<>product.stock_unit OR NEW.quantity<>round(NEW.quantity,product.quantity_scale)
+    OR NOT ((NEW.input_unit='package' AND NEW.conversion_factor=package_factor AND NEW.input_quantity=round(NEW.input_quantity,0))
+      OR (NEW.input_unit<>'package' AND NEW.input_unit=product.stock_unit AND NEW.conversion_factor=1 AND NEW.input_quantity=round(NEW.input_quantity,product.quantity_scale)))
+  THEN RAISE EXCEPTION 'Receipt conversion does not match verified product or purchase-order units'; END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_receipt_open_shipment(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_receipt_open_shipment() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.shipment_id IS NOT NULL THEN
+    PERFORM 1 FROM clinic_inventory_shipments WHERE id=NEW.shipment_id FOR UPDATE;
+    IF EXISTS (SELECT 1 FROM clinic_inventory_shipment_reconciliations WHERE shipment_id=NEW.shipment_id)
+    THEN RAISE EXCEPTION 'Shipment already reconciled'; END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_reconciliation_complete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_reconciliation_complete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.receipt_id IS NOT NULL AND NEW.accepted_packages IS DISTINCT FROM
+    (SELECT sum(input_quantity) FROM clinic_inventory_receipt_lines WHERE receipt_id=NEW.receipt_id AND practice_id=NEW.practice_id AND input_unit='package')
+  THEN RAISE EXCEPTION 'Reconciliation accepted packages must match receipt postings'; END IF;
+  IF EXISTS (SELECT 1 FROM clinic_inventory_receipt_lines line WHERE line.receipt_id=NEW.receipt_id AND NOT EXISTS
+    (SELECT 1 FROM clinic_inventory_shipment_lines allocation WHERE allocation.shipment_id=NEW.shipment_id
+      AND allocation.practice_id=NEW.practice_id AND allocation.purchase_order_line_id=line.purchase_order_line_id))
+  THEN RAISE EXCEPTION 'Reconciliation receipt lines must match shipment allocation'; END IF;
+  RETURN NULL;
+END $$;
+
+
+--
+-- Name: inventory_reconciliation_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_reconciliation_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE delivery clinic_inventory_shipments%ROWTYPE;
+BEGIN
+  NEW.profile_id := inventory_authorize(NEW.practice_id,NEW.actor_id,'receive',NEW.profile_id);
+  SELECT * INTO delivery FROM clinic_inventory_shipments WHERE id=NEW.shipment_id AND practice_id=NEW.practice_id FOR UPDATE;
+  IF NOT FOUND OR delivery.status<>'delivered' OR NEW.accepted_packages+NEW.missing_packages+NEW.rejected_packages<>delivery.package_count
+  THEN RAISE EXCEPTION 'Reconciliation must balance the delivered shipment'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM clinic_inventory_shipment_lines allocation
+    JOIN clinic_inventory_purchase_order_lines line ON line.id=allocation.purchase_order_line_id AND line.practice_id=allocation.practice_id
+    WHERE allocation.shipment_id=delivery.id AND allocation.practice_id=delivery.practice_id
+      AND line.purchase_order_id=delivery.purchase_order_id AND allocation.expected_packages=delivery.package_count
+      AND allocation.expected_packages*line.conversion_factor=delivery.expected_units)
+  THEN RAISE EXCEPTION 'Reconciliation requires verified shipment allocation'; END IF;
+  IF NEW.receipt_id IS NULL THEN
+    IF EXISTS (SELECT 1 FROM clinic_inventory_receipts WHERE shipment_id=delivery.id)
+    THEN RAISE EXCEPTION 'Shipment already has a receipt'; END IF;
+  ELSIF NOT EXISTS (SELECT 1 FROM clinic_inventory_receipts WHERE id=NEW.receipt_id AND practice_id=NEW.practice_id AND shipment_id=delivery.id AND purchase_order_id=delivery.purchase_order_id AND actor_id=NEW.actor_id)
+  THEN RAISE EXCEPTION 'Reconciliation must match its receipt'; END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_session_count_event_required(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_session_count_event_required() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.count_session_line_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM clinic_inventory_count_session_events event
+     WHERE event.practice_id=NEW.practice_id AND event.count_id=NEW.id
+       AND event.count_session_line_id=NEW.count_session_line_id AND event.kind='observed'
+  ) THEN RAISE EXCEPTION 'Session count requires matching observed event evidence'; END IF;
+  RETURN NEW;
+END $$;
+
+
+--
+-- Name: inventory_session_count_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_session_count_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE locked_session clinic_inventory_count_sessions%ROWTYPE; prior_kind text;
+BEGIN
+  IF NEW.count_session_line_id IS NULL THEN RETURN NEW; END IF;
+  PERFORM inventory_authorize(NEW.practice_id,NEW.actor_id,'count',NEW.profile_id);
+  SELECT session.* INTO locked_session
+    FROM clinic_inventory_count_session_lines line
+    JOIN clinic_inventory_count_sessions session
+      ON session.practice_id=line.practice_id AND session.id=line.count_session_id
+   WHERE line.practice_id=NEW.practice_id AND line.id=NEW.count_session_line_id
+     AND line.batch_id=NEW.batch_id FOR UPDATE OF session;
+  IF NOT FOUND OR locked_session.status<>'open' THEN RAISE EXCEPTION 'Session count requires an open matching count line'; END IF;
+  IF NEW.actor_id<>locked_session.assignee_id THEN RAISE EXCEPTION 'Only the assigned counter can observe a session line'; END IF;
+  SELECT kind INTO prior_kind FROM clinic_inventory_count_session_events
+   WHERE practice_id=NEW.practice_id AND count_session_line_id=NEW.count_session_line_id
+     AND kind IN ('observed','skipped','resumed') ORDER BY id DESC LIMIT 1;
+  IF prior_kind='skipped' THEN RAISE EXCEPTION 'A skipped count line must be resumed before observation'; END IF;
   RETURN NEW;
 END $$;
 
@@ -780,7 +1780,7 @@ CREATE TABLE public.clinic_cash_tenders (
     recorded_by_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    request_key character varying DEFAULT ''::character varying NOT NULL,
+    request_key character varying NOT NULL,
     CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (change_amount >= (0)::numeric) AND (change_amount < tendered_amount))),
     CONSTRAINT cash_tender_request_key_present CHECK (((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100)))
 );
@@ -1614,6 +2614,125 @@ ALTER SEQUENCE public.clinic_inventory_count_approvals_id_seq OWNED BY public.cl
 
 
 --
+-- Name: clinic_inventory_count_session_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_count_session_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    count_session_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    count_session_line_id bigint,
+    count_id bigint,
+    assignee_id bigint,
+    kind character varying NOT NULL,
+    reason character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_count_session_event_kind CHECK (((kind)::text = ANY ((ARRAY['observed'::character varying, 'skipped'::character varying, 'resumed'::character varying, 'reassigned'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[]))),
+    CONSTRAINT inventory_count_session_event_shape CHECK (((((kind)::text = 'observed'::text) AND (count_session_line_id IS NOT NULL) AND (count_id IS NOT NULL) AND (assignee_id IS NULL)) OR (((kind)::text = ANY ((ARRAY['skipped'::character varying, 'resumed'::character varying])::text[])) AND (count_session_line_id IS NOT NULL) AND (count_id IS NULL) AND (assignee_id IS NULL)) OR (((kind)::text = 'reassigned'::text) AND (count_session_line_id IS NULL) AND (count_id IS NULL) AND (assignee_id IS NOT NULL)) OR (((kind)::text = ANY ((ARRAY['completed'::character varying, 'cancelled'::character varying])::text[])) AND (count_session_line_id IS NULL) AND (count_id IS NULL) AND (assignee_id IS NULL)))),
+    CONSTRAINT inventory_count_session_event_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_count_session_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_count_session_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_count_session_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_count_session_events_id_seq OWNED BY public.clinic_inventory_count_session_events.id;
+
+
+--
+-- Name: clinic_inventory_count_session_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_count_session_lines (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    count_session_id bigint NOT NULL,
+    batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_inventory_count_session_lines_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_count_session_lines_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_count_session_lines_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_count_session_lines_id_seq OWNED BY public.clinic_inventory_count_session_lines.id;
+
+
+--
+-- Name: clinic_inventory_count_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_count_sessions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    location_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    assignee_id bigint NOT NULL,
+    due_on date NOT NULL,
+    blind boolean DEFAULT true NOT NULL,
+    scope_transaction_id bigint DEFAULT txid_current() NOT NULL,
+    status character varying NOT NULL,
+    reason character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_count_session_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[]))),
+    CONSTRAINT inventory_count_session_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_count_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_count_sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_count_sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_count_sessions_id_seq OWNED BY public.clinic_inventory_count_sessions.id;
+
+
+--
 -- Name: clinic_inventory_counts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1630,7 +2749,8 @@ CREATE TABLE public.clinic_inventory_counts (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_count_values CHECK (((expected_quantity >= (0)::numeric) AND (expected_quantity <= (1000000)::numeric) AND ((observed_quantity >= (0)::numeric) AND (observed_quantity <= (1000000)::numeric)) AND (observed_quantity = round(observed_quantity, 6))))
+    count_session_line_id bigint,
+    CONSTRAINT inventory_count_values CHECK ((((expected_quantity >= (0)::numeric) AND (expected_quantity <= (1000000)::numeric)) AND ((observed_quantity >= (0)::numeric) AND (observed_quantity <= (1000000)::numeric)) AND (observed_quantity = round(observed_quantity, 6))))
 );
 
 
@@ -1680,8 +2800,8 @@ CREATE TABLE public.clinic_inventory_entries (
     transfer_id bigint,
     recall_disposition_id bigint,
     CONSTRAINT inventory_count_entry CHECK ((((kind)::text = 'count_correction'::text) = (count_id IS NOT NULL))),
-    CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY (ARRAY[('office_adjustment'::character varying)::text, ('count_correction'::character varying)::text, ('opening_balance'::character varying)::text])))),
-    CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY (ARRAY[('posted'::character varying)::text, ('legacy_movement'::character varying)::text, ('legacy_opening_balance'::character varying)::text])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
+    CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY ((ARRAY['receipt'::character varying, 'adjustment_in'::character varying])::text[])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY ((ARRAY['adjustment_out'::character varying, 'damaged'::character varying, 'expired'::character varying, 'return_to_supplier'::character varying])::text[])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY ((ARRAY['office_adjustment'::character varying, 'count_correction'::character varying, 'opening_balance'::character varying])::text[])))),
+    CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY ((ARRAY['posted'::character varying, 'legacy_movement'::character varying, 'legacy_opening_balance'::character varying])::text[])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
     CONSTRAINT inventory_entry_target CHECK (((((stock_type)::text = 'pharmacy'::text) AND (batch_id IS NOT NULL) AND (item_id IS NULL)) OR (((stock_type)::text = 'office'::text) AND (item_id IS NOT NULL) AND (batch_id IS NULL)))),
     CONSTRAINT inventory_entry_values CHECK (((quantity <> (0)::numeric) AND ((quantity >= ('-1000000'::integer)::numeric) AND (quantity <= (1000000)::numeric)) AND (quantity = round(quantity, 6)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 100))))
 );
@@ -1704,6 +2824,51 @@ CREATE SEQUENCE public.clinic_inventory_entries_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_entries_id_seq OWNED BY public.clinic_inventory_entries.id;
+
+
+--
+-- Name: clinic_inventory_exception_reviews; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_exception_reviews (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    source_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    profile_id bigint NOT NULL,
+    assignee_id bigint,
+    source_kind character varying NOT NULL,
+    category character varying NOT NULL,
+    state character varying NOT NULL,
+    reason character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    evidence_reference character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_exception_review_source_category CHECK (((((source_kind)::text = 'batch'::text) AND ((category)::text = ANY ((ARRAY['expiring'::character varying, 'expired'::character varying, 'inactive_product'::character varying, 'inactive_location'::character varying])::text[]))) OR (((source_kind)::text = 'hold'::text) AND ((category)::text = 'hold'::text)) OR (((source_kind)::text = 'reconciliation'::text) AND ((category)::text = 'delivery_discrepancy'::text)))),
+    CONSTRAINT inventory_exception_review_state CHECK (((state)::text = ANY ((ARRAY['open'::character varying, 'reviewed'::character varying])::text[]))),
+    CONSTRAINT inventory_exception_review_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((evidence_reference IS NULL) OR ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200))) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_exception_reviews_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_exception_reviews_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_exception_reviews_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_exception_reviews_id_seq OWNED BY public.clinic_inventory_exception_reviews.id;
 
 
 --
@@ -1760,7 +2925,7 @@ CREATE TABLE public.clinic_inventory_holds (
     profile_id bigint,
     transfer_id bigint,
     recall_id bigint,
-    CONSTRAINT inventory_hold_reason CHECK ((((kind)::text = ANY (ARRAY[('quarantined'::character varying)::text, ('recalled'::character varying)::text, ('temperature'::character varying)::text, ('damaged'::character varying)::text])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
+    CONSTRAINT inventory_hold_reason CHECK ((((kind)::text = ANY ((ARRAY['quarantined'::character varying, 'recalled'::character varying, 'temperature'::character varying, 'damaged'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
 );
 
 
@@ -1800,7 +2965,12 @@ CREATE TABLE public.clinic_inventory_locations (
     state character varying,
     postal_code character varying,
     country character varying DEFAULT 'US'::character varying NOT NULL,
-    CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY ((ARRAY['storage'::character varying, 'quarantine'::character varying, 'returns'::character varying, 'controlled'::character varying])::text[])))
+    site_id bigint,
+    parent_location_id bigint,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY ((ARRAY['storage'::character varying, 'quarantine'::character varying, 'returns'::character varying, 'controlled'::character varying])::text[]))),
+    CONSTRAINT inventory_location_not_self_parent CHECK (((parent_location_id IS NULL) OR (parent_location_id <> id))),
+    CONSTRAINT inventory_location_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'retired'::character varying])::text[])))
 );
 
 
@@ -1836,7 +3006,7 @@ CREATE TABLE public.clinic_inventory_lots (
     expiry_precision character varying DEFAULT 'day'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_expiry_precision CHECK (((expiry_precision)::text = ANY (ARRAY[('day'::character varying)::text, ('month'::character varying)::text])))
+    CONSTRAINT inventory_expiry_precision CHECK (((expiry_precision)::text = ANY ((ARRAY['day'::character varying, 'month'::character varying])::text[])))
 );
 
 
@@ -2121,6 +3291,45 @@ ALTER SEQUENCE public.clinic_inventory_purchase_orders_id_seq OWNED BY public.cl
 
 
 --
+-- Name: clinic_inventory_recall_closures; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_recall_closures (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    recall_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    profile_id bigint NOT NULL,
+    reason character varying NOT NULL,
+    evidence_reference character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_recall_closure_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_recall_closures_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_recall_closures_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_recall_closures_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_recall_closures_id_seq OWNED BY public.clinic_inventory_recall_closures.id;
+
+
+--
 -- Name: clinic_inventory_recall_dispositions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2360,6 +3569,54 @@ CREATE SEQUENCE public.clinic_inventory_shipment_lines_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_shipment_lines_id_seq OWNED BY public.clinic_inventory_shipment_lines.id;
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_shipment_reconciliations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    shipment_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    profile_id bigint NOT NULL,
+    receipt_id bigint,
+    accepted_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconcilia_accepted_packages_not_null NOT NULL,
+    missing_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconciliat_missing_packages_not_null NOT NULL,
+    rejected_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconcilia_rejected_packages_not_null NOT NULL,
+    excess_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconciliati_excess_packages_not_null NOT NULL,
+    exception character varying NOT NULL,
+    reason character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying CONSTRAINT clinic_inventory_shipment_reconciliatio_payload_digest_not_null NOT NULL,
+    observations jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_reconciliation_observations CHECK (((jsonb_typeof(observations) = 'array'::text) AND ((jsonb_array_length(observations) >= 1) AND (jsonb_array_length(observations) <= 100)) AND (octet_length((observations)::text) <= 64000))),
+    CONSTRAINT inventory_reconciliation_quantities CHECK ((((accepted_packages >= (0)::numeric) AND (accepted_packages <= (1000000)::numeric)) AND (accepted_packages = trunc(accepted_packages)) AND ((missing_packages >= (0)::numeric) AND (missing_packages <= (1000000)::numeric)) AND (missing_packages = trunc(missing_packages)) AND ((rejected_packages >= (0)::numeric) AND (rejected_packages <= (1000000)::numeric)) AND (rejected_packages = trunc(rejected_packages)) AND ((excess_packages >= (0)::numeric) AND (excess_packages <= (1000000)::numeric)) AND (excess_packages = trunc(excess_packages)))),
+    CONSTRAINT inventory_reconciliation_reason CHECK ((((exception)::text = ANY ((ARRAY['short_delivery'::character varying, 'damaged'::character varying, 'wrong_item'::character varying, 'wrong_lot'::character varying, 'temperature'::character varying, 'expiry'::character varying, 'excess'::character varying, 'other'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64))),
+    CONSTRAINT inventory_reconciliation_shape CHECK (((((missing_packages + rejected_packages) + excess_packages) > (0)::numeric) AND (((accepted_packages = (0)::numeric) AND (receipt_id IS NULL)) OR ((accepted_packages > (0)::numeric) AND (receipt_id IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_shipment_reconciliations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_shipment_reconciliations_id_seq OWNED BY public.clinic_inventory_shipment_reconciliations.id;
 
 
 --
@@ -3755,14 +5012,7 @@ CREATE TABLE public.clinic_patients (
     reference character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    primary_address_version_id bigint,
-    date_of_birth date,
-    sex character varying(40),
-    height_cm numeric(5,2),
-    weight_kg numeric(6,2),
-    CONSTRAINT clinic_patients_birth_date_not_future CHECK (((date_of_birth IS NULL) OR (date_of_birth <= CURRENT_DATE))),
-    CONSTRAINT clinic_patients_height_range CHECK (((height_cm IS NULL) OR ((height_cm >= (30)::numeric) AND (height_cm <= (300)::numeric)))),
-    CONSTRAINT clinic_patients_weight_range CHECK (((weight_kg IS NULL) OR ((weight_kg >= 0.1) AND (weight_kg <= (500)::numeric))))
+    primary_address_version_id bigint
 );
 
 
@@ -3998,7 +5248,7 @@ CREATE TABLE public.clinic_pharmacy_batches (
     location_id bigint NOT NULL,
     on_hand numeric DEFAULT 0.0 NOT NULL,
     CONSTRAINT inventory_position_balance CHECK (((on_hand >= (0)::numeric) AND (on_hand <= (1000000)::numeric))),
-    CONSTRAINT pharmacy_batch_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('quarantined'::character varying)::text, ('recalled'::character varying)::text])))
+    CONSTRAINT pharmacy_batch_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'quarantined'::character varying, 'recalled'::character varying])::text[])))
 );
 
 
@@ -4036,7 +5286,7 @@ CREATE TABLE public.clinic_pharmacy_movements (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT pharmacy_movement_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > 0)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < 0)))),
+    CONSTRAINT pharmacy_movement_direction CHECK (((((kind)::text = ANY ((ARRAY['receipt'::character varying, 'adjustment_in'::character varying])::text[])) AND (quantity > 0)) OR (((kind)::text = ANY ((ARRAY['adjustment_out'::character varying, 'damaged'::character varying, 'expired'::character varying, 'return_to_supplier'::character varying])::text[])) AND (quantity < 0)))),
     CONSTRAINT pharmacy_movement_range CHECK (((quantity <> 0) AND ((quantity >= '-1000000'::integer) AND (quantity <= 1000000))))
 );
 
@@ -4092,7 +5342,7 @@ CREATE TABLE public.clinic_pharmacy_products (
     device_identifier character varying,
     preferred_supplier_id bigint,
     CONSTRAINT inventory_package_unit CHECK ((((stock_unit)::text <> 'package'::text) OR (package_size = (1)::numeric))),
-    CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY (ARRAY[('mL'::character varying)::text, ('g'::character varying)::text])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
+    CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY ((ARRAY['package'::character varying, 'each'::character varying, 'tablet'::character varying, 'capsule'::character varying, 'vial'::character varying, 'mL'::character varying, 'g'::character varying])::text[])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY ((ARRAY['mL'::character varying, 'g'::character varying])::text[])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT inventory_unit_evidence CHECK (((package_size = (1)::numeric) OR ((unit_reference IS NOT NULL) AND (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT pharmacy_product_category CHECK (((category)::text = ANY ((ARRAY['medication'::character varying, 'clinical_supply'::character varying, 'lab_supply'::character varying, 'office_supply'::character varying, 'cleaning_supply'::character varying, 'equipment'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT pharmacy_product_dea_schedule CHECK (((dea_schedule IS NULL) OR ((dea_schedule)::text = ANY ((ARRAY['II'::character varying, 'III'::character varying, 'IV'::character varying, 'V'::character varying])::text[])))),
@@ -5252,6 +6502,126 @@ ALTER SEQUENCE public.clinic_stock_movements_id_seq OWNED BY public.clinic_stock
 
 
 --
+-- Name: clinic_stripe_checkouts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_stripe_checkouts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    connection_id bigint NOT NULL,
+    agreement_id bigint NOT NULL,
+    collection_intent_id bigint NOT NULL,
+    account_id character varying NOT NULL,
+    session_id character varying,
+    application_fee_cents integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    subscription_id character varying,
+    subscription_status character varying,
+    cancel_at_period_end boolean DEFAULT false NOT NULL,
+    last_synced_at timestamp(6) without time zone,
+    session_status character varying,
+    renewal_amount_due numeric(14,2),
+    renewal_invoice_status character varying,
+    CONSTRAINT stripe_checkout_fee_nonnegative CHECK ((application_fee_cents >= 0))
+);
+
+
+--
+-- Name: clinic_stripe_checkouts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_stripe_checkouts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_stripe_checkouts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_stripe_checkouts_id_seq OWNED BY public.clinic_stripe_checkouts.id;
+
+
+--
+-- Name: clinic_stripe_connections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_stripe_connections (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    connected_by_id bigint NOT NULL,
+    reference character varying NOT NULL,
+    account_id character varying,
+    charges_enabled boolean DEFAULT false NOT NULL,
+    payouts_enabled boolean DEFAULT false NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    last_synced_at timestamp(6) without time zone
+);
+
+
+--
+-- Name: clinic_stripe_connections_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_stripe_connections_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_stripe_connections_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_stripe_connections_id_seq OWNED BY public.clinic_stripe_connections.id;
+
+
+--
+-- Name: clinic_stripe_membership_cycles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_stripe_membership_cycles (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    checkout_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    provider_invoice_id character varying NOT NULL,
+    provider_payment_id character varying NOT NULL,
+    period_start timestamp(6) without time zone NOT NULL,
+    period_end timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT stripe_cycle_period CHECK ((period_end > period_start))
+);
+
+
+--
+-- Name: clinic_stripe_membership_cycles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_stripe_membership_cycles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_stripe_membership_cycles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_stripe_membership_cycles_id_seq OWNED BY public.clinic_stripe_membership_cycles.id;
+
+
+--
 -- Name: clinic_subscription_agreements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6132,6 +7502,27 @@ ALTER TABLE ONLY public.clinic_inventory_count_approvals ALTER COLUMN id SET DEF
 
 
 --
+-- Name: clinic_inventory_count_session_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_count_session_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_inventory_count_session_lines id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_lines ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_count_session_lines_id_seq'::regclass);
+
+
+--
+-- Name: clinic_inventory_count_sessions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_sessions ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_count_sessions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_counts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -6143,6 +7534,13 @@ ALTER TABLE ONLY public.clinic_inventory_counts ALTER COLUMN id SET DEFAULT next
 --
 
 ALTER TABLE ONLY public.clinic_inventory_entries ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_entries_id_seq'::regclass);
+
+
+--
+-- Name: clinic_inventory_exception_reviews id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_exception_reviews_id_seq'::regclass);
 
 
 --
@@ -6216,6 +7614,13 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_orders ALTER COLUMN id SET DEF
 
 
 --
+-- Name: clinic_inventory_recall_closures id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_recall_closures_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_recall_dispositions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -6255,6 +7660,13 @@ ALTER TABLE ONLY public.clinic_inventory_receipts ALTER COLUMN id SET DEFAULT ne
 --
 
 ALTER TABLE ONLY public.clinic_inventory_shipment_lines ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_shipment_lines_id_seq'::regclass);
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_shipment_reconciliations_id_seq'::regclass);
 
 
 --
@@ -6762,6 +8174,27 @@ ALTER TABLE ONLY public.clinic_stock_movements ALTER COLUMN id SET DEFAULT nextv
 
 
 --
+-- Name: clinic_stripe_checkouts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_checkouts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_stripe_connections id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_connections_id_seq'::regclass);
+
+
+--
+-- Name: clinic_stripe_membership_cycles id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_membership_cycles_id_seq'::regclass);
+
+
+--
 -- Name: clinic_subscription_agreements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -7151,6 +8584,30 @@ ALTER TABLE ONLY public.clinic_inventory_count_approvals
 
 
 --
+-- Name: clinic_inventory_count_session_events clinic_inventory_count_session_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT clinic_inventory_count_session_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_count_session_lines clinic_inventory_count_session_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_lines
+    ADD CONSTRAINT clinic_inventory_count_session_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_count_sessions clinic_inventory_count_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_sessions
+    ADD CONSTRAINT clinic_inventory_count_sessions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_inventory_counts clinic_inventory_counts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7164,6 +8621,14 @@ ALTER TABLE ONLY public.clinic_inventory_counts
 
 ALTER TABLE ONLY public.clinic_inventory_entries
     ADD CONSTRAINT clinic_inventory_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews clinic_inventory_exception_reviews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT clinic_inventory_exception_reviews_pkey PRIMARY KEY (id);
 
 
 --
@@ -7247,6 +8712,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_orders
 
 
 --
+-- Name: clinic_inventory_recall_closures clinic_inventory_recall_closures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT clinic_inventory_recall_closures_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_inventory_recall_dispositions clinic_inventory_recall_dispositions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7292,6 +8765,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipts
 
 ALTER TABLE ONLY public.clinic_inventory_shipment_lines
     ADD CONSTRAINT clinic_inventory_shipment_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations clinic_inventory_shipment_reconciliations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT clinic_inventory_shipment_reconciliations_pkey PRIMARY KEY (id);
 
 
 --
@@ -7868,6 +9349,30 @@ ALTER TABLE ONLY public.clinic_staff_notifications
 
 ALTER TABLE ONLY public.clinic_stock_movements
     ADD CONSTRAINT clinic_stock_movements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_stripe_checkouts clinic_stripe_checkouts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT clinic_stripe_checkouts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_stripe_connections clinic_stripe_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections
+    ADD CONSTRAINT clinic_stripe_connections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_stripe_membership_cycles clinic_stripe_membership_cycles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles
+    ADD CONSTRAINT clinic_stripe_membership_cycles_pkey PRIMARY KEY (id);
 
 
 --
@@ -9326,6 +10831,13 @@ CREATE UNIQUE INDEX clinic_visit_types_practice_id ON public.clinic_visit_types 
 
 
 --
+-- Name: idx_on_account_id_subscription_id_ff19119ce5; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_account_id_subscription_id_ff19119ce5 ON public.clinic_stripe_checkouts USING btree (account_id, subscription_id);
+
+
+--
 -- Name: idx_on_actor_session_reference_occurred_at_fc6d32a259; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9830,13 +11342,6 @@ CREATE UNIQUE INDEX index_clinic_inventory_locations_on_practice_id_and_id ON pu
 
 
 --
--- Name: index_clinic_inventory_locations_on_practice_id_and_name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_inventory_locations_on_practice_id_and_name ON public.clinic_inventory_locations USING btree (practice_id, name);
-
-
---
 -- Name: index_clinic_inventory_lots_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10222,6 +11727,69 @@ CREATE UNIQUE INDEX index_clinic_stock_movements_on_item_id_and_request_key ON p
 
 
 --
+-- Name: index_clinic_stripe_checkouts_on_account_id_and_session_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_account_id_and_session_id ON public.clinic_stripe_checkouts USING btree (account_id, session_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_agreement_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_agreement_id ON public.clinic_stripe_checkouts USING btree (agreement_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_collection_intent_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_collection_intent_id ON public.clinic_stripe_checkouts USING btree (collection_intent_id);
+
+
+--
+-- Name: index_clinic_stripe_checkouts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_practice_id_and_id ON public.clinic_stripe_checkouts USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_account_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_account_id ON public.clinic_stripe_connections USING btree (account_id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_connected_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_stripe_connections_on_connected_by_id ON public.clinic_stripe_connections USING btree (connected_by_id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_practice_id ON public.clinic_stripe_connections USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_practice_id_and_id ON public.clinic_stripe_connections USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_stripe_connections_on_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_stripe_connections_on_reference ON public.clinic_stripe_connections USING btree (reference);
+
+
+--
 -- Name: index_clinic_subscription_agreements_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10348,6 +11916,83 @@ CREATE UNIQUE INDEX inventory_count_retry ON public.clinic_inventory_counts USIN
 
 
 --
+-- Name: inventory_count_session_event_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_session_event_retry ON public.clinic_inventory_count_session_events USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_count_session_events_history; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_count_session_events_history ON public.clinic_inventory_count_session_events USING btree (practice_id, count_session_id, id DESC);
+
+
+--
+-- Name: inventory_count_session_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_session_events_practice_id ON public.clinic_inventory_count_session_events USING btree (practice_id, id);
+
+
+--
+-- Name: inventory_count_session_line_events; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_count_session_line_events ON public.clinic_inventory_count_session_events USING btree (practice_id, count_session_line_id, id DESC);
+
+
+--
+-- Name: inventory_count_session_line_scope; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_session_line_scope ON public.clinic_inventory_count_session_lines USING btree (practice_id, count_session_id, batch_id);
+
+
+--
+-- Name: inventory_count_session_lines_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_session_lines_practice_id ON public.clinic_inventory_count_session_lines USING btree (practice_id, id);
+
+
+--
+-- Name: inventory_count_session_lines_worklist; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_count_session_lines_worklist ON public.clinic_inventory_count_session_lines USING btree (practice_id, count_session_id, id);
+
+
+--
+-- Name: inventory_count_session_open_bin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_session_open_bin ON public.clinic_inventory_count_sessions USING btree (practice_id, location_id) WHERE ((status)::text = 'open'::text);
+
+
+--
+-- Name: inventory_count_session_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_session_retry ON public.clinic_inventory_count_sessions USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_count_sessions_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_count_sessions_practice_id ON public.clinic_inventory_count_sessions USING btree (practice_id, id);
+
+
+--
+-- Name: inventory_counts_session_line_history; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_counts_session_line_history ON public.clinic_inventory_counts USING btree (practice_id, count_session_line_id, id);
+
+
+--
 -- Name: inventory_disposition_retry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10376,6 +12021,27 @@ CREATE UNIQUE INDEX inventory_entry_transfer_once ON public.clinic_inventory_ent
 
 
 --
+-- Name: inventory_exception_review_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_exception_review_latest ON public.clinic_inventory_exception_reviews USING btree (practice_id, source_kind, source_id, category, id DESC);
+
+
+--
+-- Name: inventory_exception_review_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_exception_review_retry ON public.clinic_inventory_exception_reviews USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_exception_reviews_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_exception_reviews_practice_id ON public.clinic_inventory_exception_reviews USING btree (practice_id, id);
+
+
+--
 -- Name: inventory_expiry_worklist; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10383,10 +12049,10 @@ CREATE INDEX inventory_expiry_worklist ON public.clinic_pharmacy_batches USING b
 
 
 --
--- Name: inventory_hold_recall_batch_once; Type: INDEX; Schema: public; Owner: -
+-- Name: inventory_hold_recall_batch_history; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX inventory_hold_recall_batch_once ON public.clinic_inventory_holds USING btree (recall_id, batch_id) WHERE (recall_id IS NOT NULL);
+CREATE INDEX inventory_hold_recall_batch_history ON public.clinic_inventory_holds USING btree (recall_id, batch_id, id) WHERE (recall_id IS NOT NULL);
 
 
 --
@@ -10401,6 +12067,27 @@ CREATE UNIQUE INDEX inventory_hold_retry ON public.clinic_inventory_holds USING 
 --
 
 CREATE UNIQUE INDEX inventory_hold_transfer_once ON public.clinic_inventory_holds USING btree (transfer_id) WHERE (transfer_id IS NOT NULL);
+
+
+--
+-- Name: inventory_location_children; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_location_children ON public.clinic_inventory_locations USING btree (practice_id, parent_location_id, status, id);
+
+
+--
+-- Name: inventory_location_sibling_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_location_sibling_name ON public.clinic_inventory_locations USING btree (practice_id, site_id, parent_location_id, name) NULLS NOT DISTINCT;
+
+
+--
+-- Name: inventory_location_site_worklist; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_location_site_worklist ON public.clinic_inventory_locations USING btree (practice_id, site_id, status, id);
 
 
 --
@@ -10488,6 +12175,27 @@ CREATE INDEX inventory_purchase_orders_receiving_site ON public.clinic_inventory
 
 
 --
+-- Name: inventory_recall_closure_once; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_recall_closure_once ON public.clinic_inventory_recall_closures USING btree (practice_id, recall_id);
+
+
+--
+-- Name: inventory_recall_closure_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_recall_closure_retry ON public.clinic_inventory_recall_closures USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_recall_closures_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_recall_closures_practice_id ON public.clinic_inventory_recall_closures USING btree (practice_id, id);
+
+
+--
 -- Name: inventory_recall_identity; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10544,6 +12252,20 @@ CREATE UNIQUE INDEX inventory_shipment_line_identity ON public.clinic_inventory_
 
 
 --
+-- Name: inventory_shipment_reconciliation_once; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_shipment_reconciliation_once ON public.clinic_inventory_shipment_reconciliations USING btree (practice_id, shipment_id);
+
+
+--
+-- Name: inventory_shipment_reconciliation_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_shipment_reconciliation_retry ON public.clinic_inventory_shipment_reconciliations USING btree (practice_id, request_key);
+
+
+--
 -- Name: inventory_shipment_retry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10569,13 +12291,6 @@ CREATE UNIQUE INDEX inventory_transfer_retry ON public.clinic_inventory_transfer
 --
 
 CREATE UNIQUE INDEX permissions_action_code ON public.permissions USING btree (action_code);
-
-
---
--- Name: pharmacy_batch_identity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX pharmacy_batch_identity ON public.clinic_pharmacy_batches USING btree (product_id, lot_number, location);
 
 
 --
@@ -10611,6 +12326,20 @@ CREATE UNIQUE INDEX scribe_exports_idempotency ON public.clinic_scribe_exports U
 --
 
 CREATE UNIQUE INDEX scribe_source_segments_order ON public.clinic_scribe_source_segments USING btree (practice_id, source_id, sequence);
+
+
+--
+-- Name: stripe_cycle_payment_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX stripe_cycle_payment_identity ON public.clinic_stripe_membership_cycles USING btree (checkout_id, provider_payment_id);
+
+
+--
+-- Name: stripe_cycle_provider_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX stripe_cycle_provider_identity ON public.clinic_stripe_membership_cycles USING btree (checkout_id, provider_invoice_id);
 
 
 --
@@ -11272,6 +13001,41 @@ CREATE TRIGGER clinic_visit_types_preserve_identity BEFORE UPDATE ON public.clin
 
 
 --
+-- Name: clinic_inventory_control_reviews controlled_count_certification_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER controlled_count_certification_guard BEFORE INSERT ON public.clinic_inventory_control_reviews FOR EACH ROW EXECUTE FUNCTION public.inventory_control_certification_guard();
+
+
+--
+-- Name: clinic_inventory_count_approvals count_approval_separation; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER count_approval_separation BEFORE INSERT ON public.clinic_inventory_count_approvals FOR EACH ROW EXECUTE FUNCTION public.inventory_count_approval_authority();
+
+
+--
+-- Name: clinic_inventory_entries count_correction_authority; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER count_correction_authority BEFORE INSERT ON public.clinic_inventory_entries FOR EACH ROW EXECUTE FUNCTION public.inventory_count_correction_authority();
+
+
+--
+-- Name: clinic_inventory_counts count_session_event_required; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER count_session_event_required AFTER INSERT ON public.clinic_inventory_counts DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_session_count_event_required();
+
+
+--
+-- Name: clinic_inventory_counts count_session_scope; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER count_session_scope BEFORE INSERT ON public.clinic_inventory_counts FOR EACH ROW EXECUTE FUNCTION public.inventory_session_count_guard();
+
+
+--
 -- Name: role_version_permissions freeze_granted_role_permissions; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11349,6 +13113,27 @@ CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_invent
 
 
 --
+-- Name: clinic_inventory_shipment_lines immutable_history; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipment_lines FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations immutable_history; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipment_reconciliations FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_inventory_shipments immutable_history; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER immutable_history BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipments FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
 -- Name: clinic_notes immutable_history; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11381,6 +13166,62 @@ CREATE TRIGGER inventory_context BEFORE INSERT ON public.clinic_inventory_entrie
 --
 
 CREATE CONSTRAINT TRIGGER inventory_count_complete AFTER INSERT ON public.clinic_inventory_entries DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_evidence_complete();
+
+
+--
+-- Name: clinic_inventory_count_sessions inventory_count_session_delete_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_count_session_delete_guard BEFORE DELETE ON public.clinic_inventory_count_sessions FOR EACH ROW EXECUTE FUNCTION public.inventory_count_session_delete_guard();
+
+
+--
+-- Name: clinic_inventory_count_session_events inventory_count_session_event_applied; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_count_session_event_applied AFTER INSERT ON public.clinic_inventory_count_session_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_count_session_event_applied();
+
+
+--
+-- Name: clinic_inventory_count_session_events inventory_count_session_event_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_count_session_event_guard BEFORE INSERT ON public.clinic_inventory_count_session_events FOR EACH ROW EXECUTE FUNCTION public.inventory_count_session_event_guard();
+
+
+--
+-- Name: clinic_inventory_count_session_events inventory_count_session_event_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_count_session_event_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_count_session_events FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_inventory_count_sessions inventory_count_session_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_count_session_guard BEFORE INSERT OR UPDATE ON public.clinic_inventory_count_sessions FOR EACH ROW EXECUTE FUNCTION public.inventory_count_session_guard();
+
+
+--
+-- Name: clinic_inventory_count_session_lines inventory_count_session_line_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_count_session_line_guard BEFORE INSERT ON public.clinic_inventory_count_session_lines FOR EACH ROW EXECUTE FUNCTION public.inventory_count_session_line_guard();
+
+
+--
+-- Name: clinic_inventory_count_session_lines inventory_count_session_line_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_count_session_line_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_count_session_lines FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_inventory_count_sessions inventory_count_session_scope_complete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_count_session_scope_complete AFTER INSERT ON public.clinic_inventory_count_sessions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_count_session_scope_complete();
 
 
 --
@@ -11447,10 +13288,45 @@ CREATE TRIGGER inventory_evidence_link_guard BEFORE INSERT OR UPDATE ON public.c
 
 
 --
+-- Name: clinic_inventory_exception_reviews inventory_exception_review_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_exception_review_guard BEFORE INSERT ON public.clinic_inventory_exception_reviews FOR EACH ROW EXECUTE FUNCTION public.inventory_exception_review_guard();
+
+
+--
+-- Name: clinic_inventory_exception_reviews inventory_exception_review_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_exception_review_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_exception_reviews FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
 -- Name: clinic_inventory_receipt_lines inventory_line_complete; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE CONSTRAINT TRIGGER inventory_line_complete AFTER INSERT ON public.clinic_inventory_receipt_lines DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_evidence_complete();
+
+
+--
+-- Name: clinic_inventory_locations inventory_location_delete_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_location_delete_guard BEFORE DELETE ON public.clinic_inventory_locations FOR EACH ROW EXECUTE FUNCTION public.inventory_location_delete_guard();
+
+
+--
+-- Name: clinic_inventory_locations inventory_location_hierarchy_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_location_hierarchy_guard BEFORE INSERT OR UPDATE ON public.clinic_inventory_locations FOR EACH ROW EXECUTE FUNCTION public.inventory_location_hierarchy_guard();
+
+
+--
+-- Name: clinic_pharmacy_batches inventory_location_stock_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_location_stock_guard BEFORE INSERT OR UPDATE OF on_hand, location_id ON public.clinic_pharmacy_batches FOR EACH ROW EXECUTE FUNCTION public.inventory_location_stock_guard();
 
 
 --
@@ -11482,6 +13358,62 @@ CREATE TRIGGER inventory_post BEFORE INSERT ON public.clinic_inventory_entries F
 
 
 --
+-- Name: clinic_pharmacy_batches inventory_recall_batch_contained; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_recall_batch_contained AFTER INSERT OR UPDATE ON public.clinic_pharmacy_batches DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_containment_complete();
+
+
+--
+-- Name: clinic_inventory_recall_closures inventory_recall_closure_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_closure_guard BEFORE INSERT ON public.clinic_inventory_recall_closures FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_closure_guard();
+
+
+--
+-- Name: clinic_inventory_recall_closures inventory_recall_closure_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_closure_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_recall_closures FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
+
+
+--
+-- Name: clinic_inventory_holds inventory_recall_hold_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_hold_guard BEFORE INSERT ON public.clinic_inventory_holds FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_hold_guard();
+
+
+--
+-- Name: clinic_inventory_recall_lots inventory_recall_lot_contained; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_recall_lot_contained AFTER INSERT ON public.clinic_inventory_recall_lots DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_containment_complete();
+
+
+--
+-- Name: clinic_inventory_recall_lots inventory_recall_lot_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_lot_guard BEFORE INSERT ON public.clinic_inventory_recall_lots FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_lot_guard();
+
+
+--
+-- Name: clinic_inventory_hold_releases inventory_recall_release_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_release_guard BEFORE INSERT ON public.clinic_inventory_hold_releases FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_release_guard();
+
+
+--
+-- Name: clinic_inventory_recalls inventory_recall_status_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_recall_status_guard BEFORE INSERT OR UPDATE ON public.clinic_inventory_recalls FOR EACH ROW EXECUTE FUNCTION public.inventory_recall_status_guard();
+
+
+--
 -- Name: clinic_inventory_receipts inventory_receipt_complete; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11489,10 +13421,31 @@ CREATE CONSTRAINT TRIGGER inventory_receipt_complete AFTER INSERT ON public.clin
 
 
 --
+-- Name: clinic_inventory_receipts inventory_receipt_open_shipment; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_receipt_open_shipment BEFORE INSERT ON public.clinic_inventory_receipts FOR EACH ROW EXECUTE FUNCTION public.inventory_receipt_open_shipment();
+
+
+--
 -- Name: clinic_inventory_receipt_lines inventory_receipt_units; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER inventory_receipt_units BEFORE INSERT ON public.clinic_inventory_receipt_lines FOR EACH ROW EXECUTE FUNCTION public.inventory_receipt_check();
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations inventory_reconciliation_complete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER inventory_reconciliation_complete AFTER INSERT ON public.clinic_inventory_shipment_reconciliations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_reconciliation_complete();
+
+
+--
+-- Name: clinic_inventory_shipment_reconciliations inventory_reconciliation_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_reconciliation_guard BEFORE INSERT ON public.clinic_inventory_shipment_reconciliations FOR EACH ROW EXECUTE FUNCTION public.inventory_reconciliation_guard();
 
 
 --
@@ -11549,6 +13502,27 @@ CREATE TRIGGER role_version_permissions_immutable BEFORE DELETE OR UPDATE ON pub
 --
 
 CREATE TRIGGER role_versions_immutable BEFORE DELETE OR UPDATE ON public.role_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_stripe_checkouts stripe_checkout_routing; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER stripe_checkout_routing BEFORE DELETE OR UPDATE ON public.clinic_stripe_checkouts FOR EACH ROW EXECUTE FUNCTION public.guard_stripe_routing();
+
+
+--
+-- Name: clinic_stripe_connections stripe_connection_routing; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER stripe_connection_routing BEFORE DELETE OR UPDATE ON public.clinic_stripe_connections FOR EACH ROW EXECUTE FUNCTION public.guard_stripe_routing();
+
+
+--
+-- Name: clinic_stripe_membership_cycles stripe_cycles_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER stripe_cycles_immutable BEFORE DELETE OR UPDATE ON public.clinic_stripe_membership_cycles FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -12440,11 +14414,203 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 
 --
+-- Name: clinic_inventory_count_session_events fk_inventory_count_session_events_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT fk_inventory_count_session_events_actor FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_count_session_events fk_inventory_count_session_events_assignee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT fk_inventory_count_session_events_assignee FOREIGN KEY (practice_id, assignee_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_count_session_events fk_inventory_count_session_events_count; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT fk_inventory_count_session_events_count FOREIGN KEY (practice_id, count_id) REFERENCES public.clinic_inventory_counts(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_count_session_events fk_inventory_count_session_events_line; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT fk_inventory_count_session_events_line FOREIGN KEY (practice_id, count_session_line_id) REFERENCES public.clinic_inventory_count_session_lines(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_count_session_events fk_inventory_count_session_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT fk_inventory_count_session_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_count_session_events fk_inventory_count_session_events_session; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_events
+    ADD CONSTRAINT fk_inventory_count_session_events_session FOREIGN KEY (practice_id, count_session_id) REFERENCES public.clinic_inventory_count_sessions(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_count_session_lines fk_inventory_count_session_lines_batch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_lines
+    ADD CONSTRAINT fk_inventory_count_session_lines_batch FOREIGN KEY (practice_id, batch_id) REFERENCES public.clinic_pharmacy_batches(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_count_session_lines fk_inventory_count_session_lines_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_lines
+    ADD CONSTRAINT fk_inventory_count_session_lines_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_count_session_lines fk_inventory_count_session_lines_session; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_session_lines
+    ADD CONSTRAINT fk_inventory_count_session_lines_session FOREIGN KEY (practice_id, count_session_id) REFERENCES public.clinic_inventory_count_sessions(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_count_sessions fk_inventory_count_sessions_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_sessions
+    ADD CONSTRAINT fk_inventory_count_sessions_actor FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_count_sessions fk_inventory_count_sessions_assignee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_sessions
+    ADD CONSTRAINT fk_inventory_count_sessions_assignee FOREIGN KEY (practice_id, assignee_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_count_sessions fk_inventory_count_sessions_location; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_sessions
+    ADD CONSTRAINT fk_inventory_count_sessions_location FOREIGN KEY (practice_id, location_id) REFERENCES public.clinic_inventory_locations(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_count_sessions fk_inventory_count_sessions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_count_sessions
+    ADD CONSTRAINT fk_inventory_count_sessions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_counts fk_inventory_counts_session_line; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_counts
+    ADD CONSTRAINT fk_inventory_counts_session_line FOREIGN KEY (practice_id, count_session_line_id) REFERENCES public.clinic_inventory_count_session_lines(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_actor FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_assignee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_assignee FOREIGN KEY (practice_id, assignee_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_profile FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_locations fk_inventory_locations_parent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_locations
+    ADD CONSTRAINT fk_inventory_locations_parent FOREIGN KEY (practice_id, parent_location_id) REFERENCES public.clinic_inventory_locations(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_locations fk_inventory_locations_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_locations
+    ADD CONSTRAINT fk_inventory_locations_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_purchase_orders fk_inventory_purchase_orders_receiving_site; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_orders
     ADD CONSTRAINT fk_inventory_purchase_orders_receiving_site FOREIGN KEY (practice_id, receiving_site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_actor FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_profile FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_recall_closures fk_inventory_recall_closures_recall; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_closures
+    ADD CONSTRAINT fk_inventory_recall_closures_recall FOREIGN KEY (practice_id, recall_id) REFERENCES public.clinic_inventory_recalls(practice_id, id);
 
 
 --
@@ -12984,6 +15150,14 @@ ALTER TABLE ONLY public.clinic_patient_reminder_actions
 
 
 --
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_0a8145c02d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_0a8145c02d FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
 -- Name: clinic_inventory_purchase_orders fk_rails_0b69215dbe; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13264,6 +15438,22 @@ ALTER TABLE ONLY public.clinic_inventory_hold_releases
 
 
 --
+-- Name: clinic_stripe_checkouts fk_rails_36031bc572; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_36031bc572 FOREIGN KEY (practice_id, connection_id) REFERENCES public.clinic_stripe_connections(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_connections fk_rails_37e731ddae; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections
+    ADD CONSTRAINT fk_rails_37e731ddae FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_holds fk_rails_384dda0594; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13368,6 +15558,14 @@ ALTER TABLE ONLY public.clinic_inventory_recall_dispositions
 
 
 --
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_470906eeb9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_470906eeb9 FOREIGN KEY (practice_id, shipment_id) REFERENCES public.clinic_inventory_shipments(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_profiles fk_rails_4a6252adbd; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13421,6 +15619,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
 
 ALTER TABLE ONLY public.clinic_inventory_recalls
     ADD CONSTRAINT fk_rails_5c3a4539ae FOREIGN KEY (practice_id, product_id) REFERENCES public.clinic_pharmacy_products(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_connections fk_rails_5cbcc34381; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_connections
+    ADD CONSTRAINT fk_rails_5cbcc34381 FOREIGN KEY (connected_by_id) REFERENCES public.users(id);
 
 
 --
@@ -13504,6 +15710,14 @@ ALTER TABLE ONLY public.clinic_cash_drawer_sessions
 
 
 --
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_69dc3f4896; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_69dc3f4896 FOREIGN KEY (practice_id, receipt_id) REFERENCES public.clinic_inventory_receipts(practice_id, id);
+
+
+--
 -- Name: learning_progresses fk_rails_6ade58a529; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13584,6 +15798,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_batch_events
 
 
 --
+-- Name: clinic_stripe_membership_cycles fk_rails_77bf701067; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles
+    ADD CONSTRAINT fk_rails_77bf701067 FOREIGN KEY (practice_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_control_reviews fk_rails_7845ca3bcb; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13613,6 +15835,14 @@ ALTER TABLE ONLY public.clinic_inventory_transfers
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_carts
     ADD CONSTRAINT fk_rails_7afadccbc9 FOREIGN KEY (destination_site_id) REFERENCES public.clinic_sites(id);
+
+
+--
+-- Name: clinic_stripe_checkouts fk_rails_7b57f27555; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_7b57f27555 FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
 
 
 --
@@ -13704,6 +15934,22 @@ ALTER TABLE ONLY public.clinic_patients
 
 
 --
+-- Name: clinic_stripe_checkouts fk_rails_99067e40f4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_99067e40f4 FOREIGN KEY (practice_id, collection_intent_id) REFERENCES public.clinic_payment_collection_intents(practice_id, id);
+
+
+--
+-- Name: clinic_stripe_membership_cycles fk_rails_99bcd47e94; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_membership_cycles
+    ADD CONSTRAINT fk_rails_99bcd47e94 FOREIGN KEY (practice_id, checkout_id) REFERENCES public.clinic_stripe_checkouts(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_purchase_cart_items fk_rails_9a2eaa91d6; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13768,6 +16014,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_batches
 
 
 --
+-- Name: clinic_inventory_shipment_reconciliations fk_rails_a38c793051; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
+    ADD CONSTRAINT fk_rails_a38c793051 FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
+
+
+--
 -- Name: clinic_scribe_drafts fk_rails_a4a0a9b474; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13797,6 +16051,14 @@ ALTER TABLE ONLY public.clinic_inventory_control_reviews
 
 ALTER TABLE ONLY public.clinic_staff_members
     ADD CONSTRAINT fk_rails_a6a2cb8cfb FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_stripe_checkouts fk_rails_a725a2de24; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_stripe_checkouts
+    ADD CONSTRAINT fk_rails_a725a2de24 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -14696,376 +16958,22 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 
 --
--- Name: guard_stripe_routing(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.guard_stripe_routing() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Stripe routing history cannot be deleted'; END IF;
-  IF TG_TABLE_NAME = 'clinic_stripe_connections' THEN
-    IF OLD.practice_id <> NEW.practice_id OR OLD.reference <> NEW.reference OR
-      (OLD.account_id IS NOT NULL AND OLD.account_id IS DISTINCT FROM NEW.account_id) THEN
-      RAISE EXCEPTION 'Stripe clinic routing cannot be changed';
-    END IF;
-  ELSE
-    IF (to_jsonb(OLD) - ARRAY['updated_at','session_id','subscription_id','subscription_status','cancel_at_period_end','last_synced_at','session_status','renewal_amount_due','renewal_invoice_status']) <>
-       (to_jsonb(NEW) - ARRAY['updated_at','session_id','subscription_id','subscription_status','cancel_at_period_end','last_synced_at','session_status','renewal_amount_due','renewal_invoice_status']) OR
-       (OLD.session_id IS NOT NULL AND OLD.session_id IS DISTINCT FROM NEW.session_id) OR
-       (OLD.subscription_id IS NOT NULL AND OLD.subscription_id IS DISTINCT FROM NEW.subscription_id) THEN
-      RAISE EXCEPTION 'Stripe checkout terms cannot be changed';
-    END IF;
-  END IF;
-  RETURN NEW;
-END; $$;
-
-
---
--- Name: clinic_stripe_checkouts; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_stripe_checkouts (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    connection_id bigint NOT NULL,
-    agreement_id bigint NOT NULL,
-    collection_intent_id bigint NOT NULL,
-    account_id character varying NOT NULL,
-    session_id character varying,
-    application_fee_cents integer NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    subscription_id character varying,
-    subscription_status character varying,
-    cancel_at_period_end boolean DEFAULT false NOT NULL,
-    last_synced_at timestamp(6) without time zone,
-    session_status character varying,
-    renewal_amount_due numeric(14,2),
-    renewal_invoice_status character varying,
-    CONSTRAINT stripe_checkout_fee_nonnegative CHECK ((application_fee_cents >= 0))
-);
-
-
---
--- Name: clinic_stripe_checkouts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_stripe_checkouts_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_stripe_checkouts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_stripe_checkouts_id_seq OWNED BY public.clinic_stripe_checkouts.id;
-
-
---
--- Name: clinic_stripe_connections; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_stripe_connections (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    connected_by_id bigint NOT NULL,
-    reference character varying NOT NULL,
-    account_id character varying,
-    charges_enabled boolean DEFAULT false NOT NULL,
-    payouts_enabled boolean DEFAULT false NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    last_synced_at timestamp(6) without time zone
-);
-
-
---
--- Name: clinic_stripe_connections_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_stripe_connections_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_stripe_connections_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_stripe_connections_id_seq OWNED BY public.clinic_stripe_connections.id;
-
-
---
--- Name: clinic_stripe_membership_cycles; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_stripe_membership_cycles (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    checkout_id bigint NOT NULL,
-    invoice_id bigint NOT NULL,
-    provider_invoice_id character varying NOT NULL,
-    provider_payment_id character varying NOT NULL,
-    period_start timestamp(6) without time zone NOT NULL,
-    period_end timestamp(6) without time zone NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT stripe_cycle_period CHECK ((period_end > period_start))
-);
-
-
---
--- Name: clinic_stripe_membership_cycles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_stripe_membership_cycles_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_stripe_membership_cycles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_stripe_membership_cycles_id_seq OWNED BY public.clinic_stripe_membership_cycles.id;
-
-
---
--- Name: clinic_stripe_checkouts id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_checkouts ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_checkouts_id_seq'::regclass);
-
-
---
--- Name: clinic_stripe_connections id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_connections ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_connections_id_seq'::regclass);
-
-
---
--- Name: clinic_stripe_membership_cycles id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_membership_cycles ALTER COLUMN id SET DEFAULT nextval('public.clinic_stripe_membership_cycles_id_seq'::regclass);
-
-
---
--- Name: clinic_stripe_checkouts clinic_stripe_checkouts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_checkouts
-    ADD CONSTRAINT clinic_stripe_checkouts_pkey PRIMARY KEY (id);
-
-
---
--- Name: clinic_stripe_connections clinic_stripe_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_connections
-    ADD CONSTRAINT clinic_stripe_connections_pkey PRIMARY KEY (id);
-
-
---
--- Name: clinic_stripe_membership_cycles clinic_stripe_membership_cycles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_membership_cycles
-    ADD CONSTRAINT clinic_stripe_membership_cycles_pkey PRIMARY KEY (id);
-
-
---
--- Name: idx_on_account_id_subscription_id_ff19119ce5; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_on_account_id_subscription_id_ff19119ce5 ON public.clinic_stripe_checkouts USING btree (account_id, subscription_id);
-
-
---
--- Name: index_clinic_stripe_checkouts_on_account_id_and_session_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_account_id_and_session_id ON public.clinic_stripe_checkouts USING btree (account_id, session_id);
-
-
---
--- Name: index_clinic_stripe_checkouts_on_agreement_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_agreement_id ON public.clinic_stripe_checkouts USING btree (agreement_id);
-
-
---
--- Name: index_clinic_stripe_checkouts_on_collection_intent_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_collection_intent_id ON public.clinic_stripe_checkouts USING btree (collection_intent_id);
-
-
---
--- Name: index_clinic_stripe_checkouts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_checkouts_on_practice_id_and_id ON public.clinic_stripe_checkouts USING btree (practice_id, id);
-
-
---
--- Name: index_clinic_stripe_connections_on_account_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_connections_on_account_id ON public.clinic_stripe_connections USING btree (account_id);
-
-
---
--- Name: index_clinic_stripe_connections_on_connected_by_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_clinic_stripe_connections_on_connected_by_id ON public.clinic_stripe_connections USING btree (connected_by_id);
-
-
---
--- Name: index_clinic_stripe_connections_on_practice_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_connections_on_practice_id ON public.clinic_stripe_connections USING btree (practice_id);
-
-
---
--- Name: index_clinic_stripe_connections_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_connections_on_practice_id_and_id ON public.clinic_stripe_connections USING btree (practice_id, id);
-
-
---
--- Name: index_clinic_stripe_connections_on_reference; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_stripe_connections_on_reference ON public.clinic_stripe_connections USING btree (reference);
-
-
---
--- Name: stripe_cycle_payment_identity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX stripe_cycle_payment_identity ON public.clinic_stripe_membership_cycles USING btree (checkout_id, provider_payment_id);
-
-
---
--- Name: stripe_cycle_provider_identity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX stripe_cycle_provider_identity ON public.clinic_stripe_membership_cycles USING btree (checkout_id, provider_invoice_id);
-
-
---
--- Name: clinic_stripe_checkouts stripe_checkout_routing; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER stripe_checkout_routing BEFORE DELETE OR UPDATE ON public.clinic_stripe_checkouts FOR EACH ROW EXECUTE FUNCTION public.guard_stripe_routing();
-
-
---
--- Name: clinic_stripe_connections stripe_connection_routing; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER stripe_connection_routing BEFORE DELETE OR UPDATE ON public.clinic_stripe_connections FOR EACH ROW EXECUTE FUNCTION public.guard_stripe_routing();
-
-
---
--- Name: clinic_stripe_membership_cycles stripe_cycles_immutable; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER stripe_cycles_immutable BEFORE DELETE OR UPDATE ON public.clinic_stripe_membership_cycles FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
-
-
---
--- Name: clinic_stripe_checkouts fk_rails_36031bc572; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_checkouts
-    ADD CONSTRAINT fk_rails_36031bc572 FOREIGN KEY (practice_id, connection_id) REFERENCES public.clinic_stripe_connections(practice_id, id);
-
-
---
--- Name: clinic_stripe_connections fk_rails_37e731ddae; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_connections
-    ADD CONSTRAINT fk_rails_37e731ddae FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-
-
---
--- Name: clinic_stripe_connections fk_rails_5cbcc34381; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_connections
-    ADD CONSTRAINT fk_rails_5cbcc34381 FOREIGN KEY (connected_by_id) REFERENCES public.users(id);
-
-
---
--- Name: clinic_stripe_membership_cycles fk_rails_77bf701067; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_membership_cycles
-    ADD CONSTRAINT fk_rails_77bf701067 FOREIGN KEY (practice_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, id);
-
-
---
--- Name: clinic_stripe_checkouts fk_rails_7b57f27555; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_checkouts
-    ADD CONSTRAINT fk_rails_7b57f27555 FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
-
-
---
--- Name: clinic_stripe_checkouts fk_rails_99067e40f4; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_checkouts
-    ADD CONSTRAINT fk_rails_99067e40f4 FOREIGN KEY (practice_id, collection_intent_id) REFERENCES public.clinic_payment_collection_intents(practice_id, id);
-
-
---
--- Name: clinic_stripe_membership_cycles fk_rails_99bcd47e94; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_membership_cycles
-    ADD CONSTRAINT fk_rails_99bcd47e94 FOREIGN KEY (practice_id, checkout_id) REFERENCES public.clinic_stripe_checkouts(practice_id, id);
-
-
---
--- Name: clinic_stripe_checkouts fk_rails_a725a2de24; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_stripe_checkouts
-    ADD CONSTRAINT fk_rails_a725a2de24 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bFeyjp1uyqnmoRaML7gHArw3CNvODxWuh0N4dP5fZUjS3vRVQ0Z1yuARFPB3EVr
+SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
 ('20260906000400'),
 ('20260906000300'),
 ('20260906000200'),
 ('20260906000100'),
+('20260905010500'),
+('20260905010400'),
+('20260905010300'),
+('20260905010200'),
+('20260905010100'),
+('20260905010000'),
 ('20260905000300'),
 ('20260905000200'),
 ('20260905000100'),
@@ -15140,3 +17048,4 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260830000300'),
 ('20260830000200'),
 ('20260830000100');
+

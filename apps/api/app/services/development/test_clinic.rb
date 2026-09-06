@@ -61,6 +61,7 @@ module Development
     def self.grant_access!(membership, permissions)
       return membership unless membership
 
+      effective_from = membership.class.connection.select_value("SELECT CURRENT_TIMESTAMP")
       permissions.each do |action_code|
         role_code = "test-#{action_code.tr('.', '-')}"
         role = RoleVersion.find_or_create_by!(role_code: role_code, version: 1)
@@ -68,9 +69,9 @@ module Development
         RoleVersionPermission.find_or_create_by!(role_version: role, permission: permission)
         unless membership.role_grants.exists?(role_version: role, scope_kind: "practice")
           membership.role_grants.create!(practice: membership.practice, role_version: role, scope_kind: "practice",
-            # PostgreSQL authorization uses the transaction timestamp. A large
-            # fixture setup can take longer than any fixed wall-clock offset.
-            effective_from: Clinic::RoleGrant.connection.select_value("SELECT transaction_timestamp()"), revision: 1)
+            # Opening stock is posted in this transaction. Use its database
+            # clock even when fixture preparation takes several minutes.
+            effective_from: effective_from, revision: 1)
         end
       end
       membership

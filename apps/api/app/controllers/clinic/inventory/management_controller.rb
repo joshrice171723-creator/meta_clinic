@@ -18,13 +18,43 @@ module Clinic
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
-      def catalog = bootstrap
+      def catalog
+        return bootstrap unless params[:view] == "table"
+
+        render json: { data: InventoryWire.catalog(practice: current_practice, actor: current_user, query: params[:q], status: params[:status], sort: params[:sort], page: params[:page]) }
+      end
+
+      def supplier_pricing
+        ability = Ability.new(current_user, practice: current_practice)
+        raise Clinic::Authorization::Denied unless ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)
+
+        render json: { data: InventoryWire.supplier_pricing(practice: current_practice, actor: current_user, query: params[:q], supplier_id: params[:supplier_id], page: params[:page]) }
+      end
+
+      def exceptions
+        render json: { data: InventoryWire.exceptions(practice: current_practice, actor: current_user, query: params[:q], status: params[:exception_status], category: params[:category], page: params[:page]) }
+      end
+
+      def review_exception
+        input = params.require(:review).permit(:source_kind, :source_id, :category, :assignee_id, :state, :reason, :evidence_reference, :request_key)
+        review = ExceptionReview.record!(practice: current_practice, actor: current_user, **input.to_h.symbolize_keys)
+        render json: { acknowledged: true, id: review.id.to_s }, status: :created
+      end
+
+      def locations
+        render json: { data: InventoryWire.locations(practice: current_practice, actor: current_user, query: params[:q], status: params[:location_status], page: params[:page]) }
+      end
 
       def create_location
-        Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.configure")
-        input = params.require(:location).permit(:name, :kind, :address_line1, :address_line2, :city, :state, :postal_code, :country)
-        location = current_practice.inventory_locations.create!(input.merge(country: input[:country].presence || "US"))
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: location.id }, status: :created
+        location = ManageLocation.call(practice: current_practice, actor: current_user, attributes: location_attributes)
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: location.id.to_s), status: :created
+      end
+
+      def update_location
+        location = ManageLocation.call(practice: current_practice, actor: current_user, location_id: params[:id], attributes: location_attributes)
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: location.id.to_s)
       end
 
       def update_product
@@ -34,7 +64,11 @@ module Clinic
         head :no_content
       end
 
-      def replenishment = bootstrap
+      def replenishment
+        return bootstrap unless params[:view] == "plan"
+
+        render json: { data: InventoryWire.replenishment(practice: current_practice, actor: current_user, query: params[:q], mode: params[:plan_mode], page: params[:page], product_id: params[:product_id]) }
+      end
       def purchase_cart
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
@@ -43,17 +77,85 @@ module Clinic
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
         input = params.require(:cart).permit(:destination_site_id, :reason)
-        site = input[:destination_site_id].present? ? current_practice.sites.find(input[:destination_site_id]) : nil
-        raise ArgumentError, "The selected facility must be active before checkout." if site && site.status != "active"
-        cart.update!(destination_site: site, reason: input[:reason].to_s.strip.presence)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        cart.with_draft_lock do
+          cart.update!(destination_site: cart_destination(input[:destination_site_id]), reason: input[:reason].to_s.strip.presence)
+        end
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
-      def purchase_orders = bootstrap
-      def receiving = bootstrap
-      def lots = bootstrap
-      def activity = bootstrap
-      def recalls = bootstrap
-      def controlled = bootstrap
+      def purchase_orders
+        return bootstrap unless params[:view] == "batches"
+
+        render json: { data: InventoryWire.purchasing(practice: current_practice, actor: current_user, query: params[:q], status: params[:order_status], page: params[:page]) }
+      end
+      def receiving
+        return bootstrap unless params[:view] == "deliveries"
+
+        render json: { data: InventoryWire.receiving(practice: current_practice, actor: current_user, query: params[:q], status: params[:delivery_status], page: params[:page], shipment_id: params[:shipment_id]) }
+      end
+      def lots
+        if params[:view] == "receiving_lookup"
+          return render json: { data: InventoryWire.receiving_lot(practice: current_practice, product_id: params.require(:product_id), number: params[:lot_number]) }
+        end
+        return bootstrap unless params[:view] == "positions"
+
+        render json: { data: InventoryWire.positions(practice: current_practice, actor: current_user, query: params[:q], status: params[:stock_status], product_id: params[:product_id], page: params[:page]) }
+      end
+      def activity
+        return bootstrap unless params[:view] == "ledger"
+
+        render json: { data: InventoryWire.activity(practice: current_practice, actor: current_user, query: params[:q], before: params[:before], lot_id: params[:lot_id]) }
+      end
+      def recalls
+        return bootstrap unless params[:view] == "cases"
+        filters = params.permit(:q, :recall_status, :page, :recall_id, :position_page, :history_page, :lot_q, :lot_page, :product_id).to_h.symbolize_keys
+        filters[:query] = filters.delete(:q)
+        filters[:status] = filters.delete(:recall_status)
+        filters[:lot_query] = filters.delete(:lot_q)
+        render json: { data: InventoryWire.recall_cases(practice: current_practice, actor: current_user, **filters) }
+      end
+      def controlled
+        return bootstrap unless params[:view] == "queue"
+        render json: { data: InventoryWire.controlled_counts(practice: current_practice, actor: current_user, query: params[:q], status: params[:control_status], page: params[:page]) }
+      end
+
+      def count_sessions
+        render json: { data: InventoryWire.count_sessions(practice: current_practice, actor: current_user,
+          query: params[:q], status: params[:count_status], page: params[:page], session_id: params[:session_id], line_page: params[:line_page], history_page: params[:history_page]) }
+      end
+
+      def create_count_session
+        input = params.require(:session).permit(:location_id, :assignee_id, :due_on, :blind, :reason, :request_key)
+        record = CountProgram.create!(practice: current_practice, actor: current_user, location_id: input.require(:location_id), assignee_id: input.require(:assignee_id),
+          due_on: input.require(:due_on), blind: boolean_or_default(input[:blind], field: :blind, default: true), reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: record.id.to_s }, status: :created
+      end
+
+      def observe_session_line
+        line = CountSessionLine.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:count).permit(:counted_units, :reason, :request_key)
+        record = CountProgram.observe!(line: line, actor: current_user, observed: input.require(:counted_units), reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: record.id.to_s }, status: :created
+      end
+
+      def skip_session_line
+        change_session_line(:skip!)
+      end
+
+      def resume_session_line
+        change_session_line(:resume!)
+      end
+
+      def reassign_count_session
+        change_count_session(:reassign!)
+      end
+
+      def complete_count_session
+        change_count_session(:complete!)
+      end
+
+      def cancel_count_session
+        change_count_session(:cancel!)
+      end
 
       def demo
         raise ArgumentError, "Synthetic inventory demo data is only available in the local development session." unless development_demo?
@@ -133,39 +235,44 @@ module Clinic
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         input = params.require(:item).permit(:product_id, :requested_packages, :source, :destination_site_id, :reason)
         cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
-        product = current_practice.pharmacy_products.find(input.require(:product_id))
-        quantity = Quantity.parse(input.require(:requested_packages), scale: product.quantity_scale, zero: false)
-        offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
-        cart.with_lock do
-          cart.update!(destination_site_id: input[:destination_site_id].presence || cart.destination_site_id, reason: input[:reason].presence || cart.reason)
+        cart.with_draft_lock do
+          product = current_practice.pharmacy_products.lock("FOR SHARE").find(input.require(:product_id))
+          quantity = Quantity.parse(input.require(:requested_packages), scale: 0, zero: false)
+          cart.update!(destination_site: input[:destination_site_id].present? ? cart_destination(input[:destination_site_id]) : cart.destination_site, reason: input[:reason].presence || cart.reason)
           item = cart.items.find_or_initialize_by(practice_id: current_practice.id, product_id: product.id)
+          raise ArgumentError, "A purchase cart supports at most 100 products." if item.new_record? && cart.items.count >= 100
           quantity += item.requested_packages.to_d if item.persisted?
+          quantity = Quantity.parse(quantity.to_s("F"), scale: 0, zero: false)
+          offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
           item.assign_attributes(requested_packages: quantity, input_unit: "package", conversion_factor: offer.supplier_product.package_quantity,
             selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier, selected_unit_price: offer.supplier_product.wholesale_unit_cost,
             selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
             price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest, source: input[:source].presence || "manual", status: "draft")
           item.save!
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }, status: :created
+        render json: params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }, status: :created
       end
 
       def update_purchase_cart_item
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
-        product = item.product
-        quantity = Quantity.parse(params.require(:item).require(:requested_packages), scale: product.quantity_scale, zero: false)
-        offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
-        item.update!(requested_packages: quantity, conversion_factor: offer.supplier_product.package_quantity, selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier,
-          selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
-          price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        item.cart.with_draft_lock do
+          item.reload
+          product = current_practice.pharmacy_products.lock("FOR SHARE").find(item.product_id)
+          quantity = Quantity.parse(params.require(:item).require(:requested_packages), scale: 0, zero: false)
+          offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
+          item.update!(requested_packages: quantity, conversion_factor: offer.supplier_product.package_quantity, selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier,
+            selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
+            price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
+        end
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def remove_purchase_cart_item
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
-        item.destroy!
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        item.cart.with_draft_lock { item.reload.destroy! }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def checkout_purchase_cart
@@ -173,7 +280,8 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         cart, orders = PurchaseCartCheckout.call(practice: current_practice, actor: current_user, cart_id: input.require(:cart_id), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), checkout_group_id: cart.checkout_group_id, purchase_order_ids: orders.map(&:id) }, status: :created
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(checkout_group_id: cart.checkout_group_id, purchase_order_ids: orders.map(&:id)), status: :created
       end
 
       def transition_purchase_order
@@ -181,7 +289,7 @@ module Clinic
         request_key = params.require(:request_key).to_s
         validate_request_key!(request_key)
         order.transition!(to: params.require(:status), actor: current_user, reason: params.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def cancel_remainder
@@ -194,19 +302,22 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         payload_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
-        shipment = Shipment.transaction do
+        shipment = Access.with(current_practice.id, current_user, "receive") do |_profile|
           Access.retry_lock(current_practice.id, request_key)
           existing = current_practice.inventory_shipments.find_by(request_key: request_key)
           if existing
             raise ArgumentError, "This shipment form was already used for different data." unless existing.payload_digest == payload_digest
             existing
           else
-            order = purchase_orders_scope.find(input.require(:purchase_order_id))
+            order = purchase_orders_scope.lock.find(input.require(:purchase_order_id))
             raise ArgumentError, "Only sent or partially received purchase orders can receive a delivery." unless %w[sent partially_received].include?(order.status)
-            line = order.lines.where(practice_id: current_practice.id).find(input.require(:purchase_order_line_id))
+            line = order.lines.where(practice_id: current_practice.id).lock.find(input.require(:purchase_order_line_id))
             packages = Integer(input.require(:package_count).to_s, 10)
             raise ArgumentError, "Shipment quantity must be a positive whole number of packages." unless packages.positive?
-            raise ArgumentError, "Shipment quantity exceeds the remaining purchase-order quantity." if packages.to_d > line.remaining_quantity
+            open_packages = ShipmentLine.where(practice_id: current_practice.id, purchase_order_line_id: line.id)
+              .where.not(shipment_id: Receipt.where(practice_id: current_practice.id).where.not(shipment_id: nil).select(:shipment_id))
+              .where.not(shipment_id: ShipmentReconciliation.where(practice_id: current_practice.id).select(:shipment_id)).sum(:expected_packages)
+            raise ArgumentError, "Shipment quantity exceeds the unallocated purchase-order quantity." if packages.to_d > line.remaining_quantity - open_packages
             reference = input.require(:reference).to_s.strip
             supplier_reference = input.require(:supplier_reference).to_s.strip
             raise ArgumentError, "Shipment reference is required." if reference.blank?
@@ -239,28 +350,38 @@ module Clinic
         order = purchase_orders_scope.find(input.require(:purchase_order_id))
         shipment = Shipment.where(practice_id: current_practice.id, purchase_order_id: order.id).find(input.require(:shipment_id))
         line = order.lines.find(input.require(:purchase_order_line_id))
-        packages = Integer(input.require(:quantity_packages).to_s, 10)
-        raise ArgumentError, "Receipt quantity must be a positive whole number of packages." unless packages.positive?
-        raise ArgumentError, "The delivered shipment must be received as exactly #{shipment.package_count} packages." unless packages == shipment.package_count
+        packages = Quantity.parse(input.require(:quantity_packages).to_s, scale: 0, zero: true).to_i
+        raise ArgumentError, "Provide structured discrepancy counts." unless input[:reconciliation].nil? || input[:reconciliation].is_a?(ActionController::Parameters)
+        reconciliation = input[:reconciliation]&.permit(:missing_packages, :rejected_packages, :excess_packages, :exception)&.to_h
+        raise ArgumentError, "Receipt quantity must be a nonnegative whole number of packages." if packages.negative?
         product = line.product
-        lot = Lot.where(practice_id: current_practice.id, product_id: product.id).find_by(number: input.require(:lot_number))
+        lot = Lot.where(practice_id: current_practice.id, product_id: product.id).find_by(number: input[:lot_number].to_s.strip)
         matched_recall = if lot
-          current_practice.inventory_recalls.joins(:recall_lots)
+          current_practice.inventory_recalls.open_cases.joins(:recall_lots)
             .find_by(product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
         end
         recalled = matched_recall.present?
-        destination = current_practice.inventory_locations.find_by!(name: input.require(:destination_location))
-        if recalled && destination.kind != "quarantine"
+        destination = if packages.positive?
+          if input[:destination_location_id].present?
+            current_practice.inventory_locations.find(input[:destination_location_id])
+          else
+            matches = current_practice.inventory_locations.where(name: input.require(:destination_location)).limit(2).to_a
+            raise ArgumentError, "Select an exact destination location." unless matches.one?
+            matches.first
+          end
+        end
+        if packages.positive? && recalled && destination.restricted_kind != "quarantine"
           raise ArgumentError, "Blocking recall match: this lot must be routed to a quarantine location."
         end
-        recall = if recalled
+        recall = if recalled && packages.positive?
           Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
-          current_practice.inventory_recalls.joins(:recall_lots).find_by!(id: input.require(:recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
+          current_practice.inventory_recalls.open_cases.joins(:recall_lots).find_by!(id: requested_id!(input.require(:recall_id), :recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
         elsif input[:recall_id].present?
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
-        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, status: recalled ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input.require(:lot_number), location: destination.name, expires_on: input.require(:expiration_date), amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), receipt_id: receipt.id }
+        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, reconciliation: reconciliation, status: recall ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input[:lot_number], location_id: input[:destination_location_id].present? ? destination&.id : nil, location: destination&.name, expires_on: input[:expiration_date], amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(receipt_id: receipt.is_a?(Receipt) ? receipt.id : nil)
       end
 
       def create_transfer
@@ -268,7 +389,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         TransferStock.call(practice: current_practice, actor: current_user, source_batch_id: input.require(:source_batch_id), destination_location_id: input.require(:destination_location_id), amount: input.require(:quantity), reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def create_adjustment
@@ -279,7 +400,7 @@ module Clinic
         reason = input.require(:reason).to_s
         raise ArgumentError, "Adjustment cannot be zero." if delta.zero?
         batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs, reason: reason, actor: current_user, request_key: input[:request_key].to_s)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def create_count
@@ -287,7 +408,7 @@ module Clinic
         validate_request_key!(input.require(:request_key).to_s)
         batch = batch_for(input)
         Count.observe!(batch: batch, actor: current_user, observed: input.require(:counted_units), reason: input.require(:reason), request_key: input[:request_key].to_s)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def approve_count
@@ -295,40 +416,47 @@ module Clinic
         request_key = params.require(:request_key).to_s
         validate_request_key!(request_key)
         count.approve!(actor: current_user, request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def create_recall
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
-        input = params.require(:recall).permit(:request_key, :batch_id, :lot_id, :location_id, :reference, :reason, :required_disposition)
+        input = params.require(:recall).permit(:request_key, :batch_id, :lot_id, :location_id, :reference, :reason, :required_disposition, lot_ids: [])
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
-        expected_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
-        recall = Recall.transaction do
-          Access.retry_lock(current_practice.id, request_key)
-          existing = Recall.where(practice_id: current_practice.id).find_by(request_key: request_key)
-          if existing
-            raise ArgumentError, "This recall request key was already used for different data." unless existing.payload_digest == expected_digest
-            existing
-          else
-            batch = batch_for(input)
-            record = Recall.create!(practice_id: current_practice.id, product_id: batch.product_id, actor_id: current_user.id, reference: input.require(:reference), status: "inventory_locked", reason: input.require(:reason), required_disposition: input[:required_disposition].presence || "return_to_supplier", effective_on: Date.current, affected_units: batch.quantity, request_key: request_key, payload_digest: expected_digest)
-            record.recall_lots.create!(practice_id: current_practice.id, lot_id: batch.lot_id)
-            ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', 'recall.lock', true)")
-            batch.holds.create!(practice_id: current_practice.id, actor: current_user, recall: record, kind: "recalled", reason: record.reason, request_key: "#{request_key}:hold")
-            record
-          end
+        # Preserve replay of a receipt-era single-position recall request.
+        legacy = if !input.key?(:lot_ids)
+          digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
+          Recall.where(practice_id: current_practice.id, actor_id: current_user.id, request_key: request_key, payload_digest: digest).first
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: recall.id }, status: :created
+        recall = legacy || RecallCase.create!(practice: current_practice, actor: current_user,
+          lot_ids: input.key?(:lot_ids) ? input[:lot_ids] : [ batch_for(input).lot_id ],
+          reference: input.require(:reference), reason: input.require(:reason), required_disposition: input[:required_disposition].presence || "return_to_supplier", request_key: request_key)
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: recall.id.to_s), status: :created
+      end
+
+      def contain_recall
+        recall = Recall.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:containment).permit(:reason, :request_key)
+        RecallCase.contain!(recall: recall, actor: current_user, reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: recall.id.to_s }
+      end
+
+      def close_recall
+        recall = Recall.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:closure).permit(:reason, :evidence_reference, :request_key)
+        closure = RecallCase.close!(recall: recall, actor: current_user, reason: input.require(:reason), evidence_reference: input.require(:evidence_reference), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: closure.id.to_s }, status: :created
       end
 
       def create_disposition
-        recall = Recall.where(practice_id: current_practice.id).find(params[:id])
+        recall = Recall.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
         input = params[:disposition].presence || params
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         RecallDisposition.execute!(recall: recall, actor: current_user, batch_id: input.require(:batch_id), quantity: input.require(:quantity_units), method: input[:method].presence || "return_to_supplier", evidence_reference: input.require(:evidence_reference), reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def investigate_control
@@ -337,7 +465,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         ControlReview.investigate!(count: count, actor: current_user, reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def certify_control
@@ -346,13 +474,41 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         ControlReview.record!(count: count, actor: current_user, kind: "certification", reason: input.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       private
 
+      def change_session_line(operation)
+        line = CountSessionLine.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:event).permit(:reason, :request_key)
+        CountProgram.public_send(operation, line: line, actor: current_user, reason: input.require(:reason), request_key: input.require(:request_key))
+        render json: { acknowledged: true, id: line.id.to_s }
+      end
+
+      def change_count_session(operation)
+        session = CountSession.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
+        input = params.require(:event).permit(:assignee_id, :reason, :request_key)
+        arguments = { session: session, actor: current_user, reason: input.require(:reason), request_key: input.require(:request_key) }
+        arguments[:assignee_id] = input.require(:assignee_id) if operation == :reassign!
+        CountProgram.public_send(operation, **arguments)
+        render json: { acknowledged: true, id: session.id.to_s }
+      end
+
+      def location_attributes
+        params.require(:location).permit(:name, :kind, :site_id, :parent_location_id, :status, :address_line1, :address_line2, :city, :state, :postal_code, :country).to_h
+      end
+
       def purchase_orders_scope = PurchaseOrder.where(practice_id: current_practice.id)
       def batches_scope = PharmacyBatch.where(practice_id: current_practice.id)
+
+      def cart_destination(id)
+        return nil if id.blank?
+
+        site = current_practice.sites.lock("FOR SHARE").find(id)
+        raise ArgumentError, "The selected facility must be active before checkout." unless site.status == "active"
+        site
+      end
 
       def batch_for(input)
         if input[:batch_id].present?

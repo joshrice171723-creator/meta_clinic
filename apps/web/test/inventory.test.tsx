@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../src/api/client";
 import {
   InventoryApp,
+  ActivityScreen,
+  CatalogScreen,
+  ReceivingScreen,
   benchmarkPackagePrice,
   inferInventoryUnits,
   inventoryDate,
@@ -24,9 +27,298 @@ import {
   decimalMultiply,
   decimalSubtract,
 } from "../src/features/inventory/inventoryContracts";
-import type { InventoryPurchaseOrder } from "../src/features/inventory/inventoryContracts";
+import type {
+  InventoryData,
+  InventoryActivityData,
+  InventoryCatalogData,
+  InventoryPurchaseOrder,
+} from "../src/features/inventory/inventoryContracts";
 
 describe("inventory integration", () => {
+  it("renders catalog counts, exact stock, attention totals and failed reads", () => {
+    const data: InventoryCatalogData = {
+      schema_version: "inventory-wire-v1",
+      dataset_version: "bulk_v3",
+      data_version: 1,
+      as_of: "2026-09-05T12:00:00Z",
+      timezone: "America/Chicago",
+      practice: { id: 1, name: "Catalog fixture", timezone: "America/Chicago" },
+      users: [],
+      current_user_id: "1",
+      capabilities: {},
+      configuration: { status: "configured", version: 1, reason: "Fixture" },
+      catalog_page: {
+        query: "",
+        status: "all",
+        sort: "name",
+        page: 2,
+        page_count: 3,
+        page_size: 20,
+        total_count: 45,
+        filtered_count: 45,
+      },
+      products: [
+        {
+          id: "21",
+          name: "Catalog fixture liquid",
+        schedule: null,
+        preferred_supplier: null,
+          category: "medication",
+          ndc: "",
+          device_identifier: "",
+          active: true,
+          package_id: "pkg_21",
+          base_unit: "mL",
+          units_per_package: "1.25",
+          reorder_point_units: "1",
+          available_units: "2.5",
+          on_hand_units: "2.5",
+          low_stock: false,
+        },
+      ],
+      packages: [],
+      can_create_purchase_order: true,
+      attention_count: 25,
+      attention: [
+        {
+          id: "1",
+          product_id: "21",
+          product_name: "Catalog fixture liquid",
+          lot_number: "HELD-FIXTURE",
+          expiration_date: "2099-01-01",
+          status: "quarantined",
+        },
+      ],
+    };
+    const render = (extra = {}) =>
+      renderToStaticMarkup(
+        <CatalogScreen data={data} onRead={async () => {}} {...extra} />,
+      );
+    const html = render();
+    expect(html).toContain("45 total");
+    expect(html).toContain("2.5");
+    expect(html).not.toContain("mLs");
+    expect(html).toContain("HELD-FIXTURE");
+    expect(html).toContain("25");
+    expect(html).toContain("Catalog pagination");
+    expect(html).toContain("product_id=21");
+    expect(render({ error: "Read failed" })).toContain(
+      "The previous catalog page remains visible.",
+    );
+    expect(render({ loading: true })).toContain("Loading catalog");
+    data.products = [];
+    data.catalog_page = {
+      ...data.catalog_page,
+      query: "no match",
+      filtered_count: 0,
+      page: 1,
+      page_count: 1,
+    };
+    expect(render()).toContain("No products match this view");
+    expect(render()).toContain("Reset view");
+    data.catalog_page.total_count = 0;
+    expect(render()).toContain("No catalog items yet");
+  });
+
+  it("renders server ledger totals, exact units, paging and read failures", () => {
+    const data: InventoryActivityData = {
+      schema_version: "inventory-wire-v1",
+      dataset_version: "fixture",
+      data_version: 1,
+      as_of: "2026-09-05T12:00:00Z",
+      timezone: "UTC",
+      practice: { id: 1, name: "Ledger fixture", timezone: "UTC" },
+      users: [],
+      current_user_id: "1",
+      capabilities: { "inventory.read": true },
+      activity_page: {
+        query: "older receipt",
+        total_count: 240,
+        filtered_count: 65,
+        before_cursor: "150",
+        next_cursor: "100",
+        page_size: 50,
+      },
+      movements: [
+        {
+          id: "120",
+          type: "receipt",
+          lot_id: "1",
+          location_id: "1",
+          quantity_units: "0.125",
+          direction: "in",
+          source_id: "receipt_1",
+          occurred_at: "2026-09-05T12:00:00Z",
+          reason: "Older receipt fixture",
+          lot_number: "OLD-LOT",
+          location_name: "Fixture shelf",
+          stock_unit: "mL",
+        },
+      ],
+    };
+    const render = (loading = false, error = "") =>
+      renderToStaticMarkup(
+        <ActivityScreen
+          data={data}
+          loading={loading}
+          error={error}
+          onRead={async () => {}}
+        />,
+      );
+    const html = render();
+    expect(html).toContain("1 shown · 65 matching of 240 recorded movements.");
+    expect(html).toContain("0.125 mL");
+    expect(html).toContain("OLD-LOT");
+    expect(html).toContain("Newest movements");
+    expect(html).toContain("Older movements");
+    expect(html).toContain("Clear filter");
+    expect(render(true)).toContain("Loading movements");
+    expect(render(false, "Request failed")).toContain(
+      "Request failed The previous ledger page remains visible.",
+    );
+    data.movements = [];
+    expect(render()).toContain("No older movements");
+    data.activity_page = {
+      ...data.activity_page,
+      before_cursor: null,
+      next_cursor: null,
+      filtered_count: 0,
+    };
+    expect(render()).toContain("No movements match");
+    data.activity_page = { ...data.activity_page, query: "", total_count: 0 };
+    expect(render()).toContain("No movements recorded");
+  });
+  it("renders supplier-package receiving totals from the PO snapshot", () => {
+    const data: InventoryData = {
+      schema_version: "1",
+      dataset_version: "fixture",
+      data_version: 1,
+      as_of: "2026-09-05T12:00:00Z",
+      timezone: "UTC",
+      practice: { id: 1, name: "Fixture clinic", timezone: "UTC" },
+      users: [],
+      current_user_id: "1",
+      capabilities: { "inventory.receive": true },
+      products: [
+        {
+          id: "1",
+          name: "Fixture liquid",
+          category: "medication",
+          active: true,
+          ndc: "",
+          device_identifier: "",
+          schedule: null,
+          package_id: "pkg",
+          base_unit: "mL",
+          units_per_package: "10.5",
+          reorder_point_units: "0",
+          preferred_supplier: null,
+          available_units: "0",
+          on_hand_units: "0",
+          low_stock: false,
+        },
+      ],
+      packages: [
+        {
+          id: "pkg",
+          product_id: "1",
+          description: "Catalog 10.5 mL",
+          input_unit: "package",
+          units_per_package: "10.5",
+        },
+      ],
+      locations: [{ id: "1", name: "Shelf", kind: "storage", areas: [], site_id: null,
+        parent_location_id: null, status: "active", path: "Shelf", child_count: 0, stock_destination: true }],
+      lots: [],
+      balances: [],
+      movements: [],
+      receipts: [],
+      recalls: [],
+      controlled_reconciliations: [],
+      audit_events: [],
+      purchase_orders: [
+        {
+          id: "po",
+          number: "Fixture PO",
+          status: "sent",
+          supplier: null,
+          destination: "Shelf",
+          created_at: "2026-09-05T12:00:00Z",
+          subtotal: "3",
+          tax: "0",
+          shipping: "0",
+          total: "3",
+          lines: [
+            {
+              id: "line",
+              product_id: "1",
+              package_id: "pkg",
+              ordered_packages: "3",
+              units_per_package: "7.25",
+              ordered_units: "21.75",
+              package_price: "1",
+              currency: "USD",
+              received_units: "0",
+              received_packages: "0",
+            },
+          ],
+        },
+      ],
+      shipments: [
+        {
+          id: "shipment",
+          po_id: "po",
+          supplier_reference: "Fixture delivery",
+          status: "delivered",
+          package_count: 2,
+          delivered_at: "2026-09-05T12:00:00Z",
+          expected_units: "14.5",
+          allocations: [
+            { purchase_order_line_id: "line", expected_packages: "2" },
+          ],
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <ReceivingScreen data={data} busy={false} run={async () => {}} />,
+    );
+    expect(html).toContain("7.25 mL per ordered package");
+    expect(html).toContain("2 package · 14.5 mL");
+    expect(html).not.toContain("21 mL");
+    expect(html).not.toContain("Catalog 10.5 mL");
+    expect(html).toContain("Missing packages");
+    expect(html).toContain("Excess packages refused");
+    data.shipments[0].reconciliation = {
+      id: "reconciliation",
+      accepted_packages: "0",
+      missing_packages: "2",
+      rejected_packages: "0",
+      excess_packages: "0",
+      exception: "short_delivery",
+      reason: "Fixture delivery missing both packages",
+      observations: [
+        {
+          product_id: "1",
+          lot_number: "OBSERVED-FIXTURE-LOT",
+          expires_on: "2099-01-02",
+          temperature_c: "8.1",
+        },
+      ],
+      actor_id: "1",
+      recorded_at: data.as_of,
+    };
+    const reconciled = renderToStaticMarkup(
+      <ReceivingScreen data={data} busy={false} run={async () => {}} />,
+    );
+    expect(reconciled).toContain("Delivery reconciled");
+    expect(reconciled).toContain("Fixture delivery missing both packages");
+    expect(reconciled).toContain("Reconciled with discrepancy");
+    expect(reconciled).toContain("0 package · 0 mL");
+    expect(reconciled).toContain('value="OBSERVED-FIXTURE-LOT"');
+    expect(reconciled).toContain('value="2099-01-02"');
+    expect(reconciled).toContain('value="8.1"');
+  });
+
   it("infers the stock unit and package quantity from FDA package text", () => {
     expect(
       inferInventoryUnits({
@@ -292,6 +584,7 @@ describe("inventory integration", () => {
         blocked_units: "0",
         quarantined_units: "10",
         available_units: "0",
+        transferable: false,
       },
     ];
 

@@ -12,9 +12,31 @@ module Clinic
 
       validates :status, inclusion: { in: STATUSES }
       validates :reason, length: { maximum: 200 }, allow_blank: true
+      validate :destination_belongs_to_practice
+
+      def with_draft_lock
+        self.class.transaction do
+          locked_practice = Clinic::Practice.lock("FOR SHARE").find(practice_id)
+          locked_actor = User.lock("FOR SHARE").find(actor_id)
+          with_lock do
+            Authorization.authorize!(actor: locked_actor, practice: locked_practice, action: "procurement.create")
+            raise ArgumentError, "This cart is no longer editable. Reload the cart." unless status == "draft"
+            yield
+            update!(version: version + 1)
+          end
+        end
+      end
 
       def self.active_for(practice:, actor:)
         find_or_create_by!(practice_id: practice.id, actor_id: actor.id, status: "draft")
+      end
+
+      private
+
+      def destination_belongs_to_practice
+        if destination_site && destination_site.practice_id != practice_id
+          errors.add(:destination_site, "must belong to this clinic")
+        end
       end
     end
   end
