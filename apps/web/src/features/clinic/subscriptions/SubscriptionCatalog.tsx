@@ -13,8 +13,13 @@ import {
   Paper,
   Stack,
   TextField,
+  Step,
+  StepLabel,
+  Stepper,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { api } from "../../../api/client";
 import { LoadState, useResource } from "../../../shared/ui";
 import { PackageCard } from "./PackageCard";
@@ -29,7 +34,6 @@ import type {
 
 const emptyDraft: Partial<PackageTerms> = {
   amount: "",
-  currency: "USD",
   duration: 1,
   duration_unit: "months",
   renewal: "none",
@@ -40,12 +44,33 @@ const emptyDraft: Partial<PackageTerms> = {
   components: [],
   eligibility_review: false,
 };
+
+function HelpLabel({ label, help }: { label: string; help: string }) {
+  return (
+    <Stack
+      direction="row"
+      spacing={0.5}
+      component="span"
+      sx={{ alignItems: "center" }}
+    >
+      <span>{label}</span>
+      <Tooltip title={help} arrow>
+        <InfoOutlinedIcon
+          aria-label={`Help for ${label}`}
+          sx={{ fontSize: 16 }}
+        />
+      </Tooltip>
+    </Stack>
+  );
+}
+
 export function SubscriptionCatalog() {
   const resource = useResource<AdminCatalog>(
     "/api/clinic/subscription_catalog",
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editorStep, setEditorStep] = useState(0);
   const [edit, setEdit] = useState<{
     kind: string;
     id?: number;
@@ -85,7 +110,8 @@ export function SubscriptionCatalog() {
         i === index ? { ...c, [field]: value } : c,
       ),
     );
-  const editItem = (kind: string, item?: CatalogItem | DraftPackage) =>
+  const editItem = (kind: string, item?: CatalogItem | DraftPackage) => {
+    setEditorStep(0);
     setEdit(
       item
         ? { kind, ...item }
@@ -97,6 +123,7 @@ export function SubscriptionCatalog() {
             draft: { ...emptyDraft },
           },
     );
+  };
   return (
     <Stack spacing={3} sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
       <Stack
@@ -269,12 +296,40 @@ export function SubscriptionCatalog() {
         <DialogTitle id="catalog-editor-title">
           {edit?.id ? "Edit" : "Create"} {edit?.kind}
         </DialogTitle>
+        {edit?.kind === "package" && (
+          <Box sx={{ px: 3, pb: 1 }}>
+            <Stepper activeStep={editorStep} alternativeLabel>
+              {["Basics", "Pricing & terms", "Services", "Review"].map(
+                (label) => (
+                  <Step key={label}>
+                    <StepLabel>{label}</StepLabel>
+                  </Step>
+                ),
+              )}
+            </Stepper>
+            <Typography color="text.secondary" sx={{ mt: 1 }}>
+              {
+                [
+                  "Name the package and place it in your catalog.",
+                  "Set the price, term, cancellation and patient-facing rules.",
+                  "Choose what is included and what patients may add.",
+                  "Check the final package summary before saving the draft.",
+                ][editorStep]
+              }
+            </Typography>
+          </Box>
+        )}
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
             <TextField
               required
-              label="Name"
+              label={
+                <HelpLabel
+                  label="Name"
+                  help="Use the name patients and staff should recognize in the catalog."
+                />
+              }
               value={edit?.name || ""}
               onChange={(e) =>
                 edit && setEdit({ ...edit, name: e.target.value })
@@ -282,7 +337,12 @@ export function SubscriptionCatalog() {
             />
             {edit?.kind !== "package" ? (
               <TextField
-                label="Description"
+                label={
+                  <HelpLabel
+                    label="Description"
+                    help="Explain what this family or service is for in one or two plain-language sentences."
+                  />
+                }
                 multiline
                 minRows={2}
                 value={edit?.description || ""}
@@ -292,79 +352,125 @@ export function SubscriptionCatalog() {
               />
             ) : (
               <>
-                <TextField
-                  select
-                  label="Product family"
-                  value={edit.family_id || ""}
-                  onChange={(e) =>
-                    setEdit({ ...edit, family_id: Number(e.target.value) })
-                  }
-                >
-                  {data?.families
-                    .filter((f) => !f.retired)
-                    .map((f) => (
-                      <MenuItem key={f.id} value={f.id}>
-                        {f.name}
-                      </MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                  label="Tier label (optional)"
-                  value={draft.tier || ""}
-                  onChange={(e) => setDraft("tier", e.target.value)}
-                />
-                <TextField
-                  label="Description"
-                  multiline
-                  value={draft.description || ""}
-                  onChange={(e) => setDraft("description", e.target.value)}
-                />
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    label="Base price"
-                    required
-                    value={draft.amount || ""}
-                    onChange={(e) => setDraft("amount", e.target.value)}
-                  />
-                  <TextField
-                    label="Currency"
-                    value={draft.currency || "USD"}
-                    onChange={(e) =>
-                      setDraft("currency", e.target.value.toUpperCase())
-                    }
-                  />
-                  <TextField
-                    label="Duration"
-                    type="number"
-                    value={draft.duration || 1}
-                    onChange={(e) =>
-                      setDraft("duration", Number(e.target.value))
-                    }
-                  />
-                  <TextField
-                    select
-                    label="Duration unit"
-                    value={draft.duration_unit || "months"}
-                    onChange={(e) => setDraft("duration_unit", e.target.value)}
+                <Box sx={{ display: editorStep === 0 ? "block" : "none" }}>
+                  <Stack spacing={2}>
+                    <TextField
+                      select
+                      label={
+                        <HelpLabel
+                          label="Product family"
+                          help="The catalog group patients will see above this package."
+                        />
+                      }
+                      value={edit.family_id || ""}
+                      onChange={(e) =>
+                        setEdit({ ...edit, family_id: Number(e.target.value) })
+                      }
+                    >
+                      {data?.families
+                        .filter((f) => !f.retired)
+                        .map((f) => (
+                          <MenuItem key={f.id} value={f.id}>
+                            {f.name}
+                          </MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Tier label (optional)"
+                          help="A short comparison label such as Essential, Complete or Plus."
+                        />
+                      }
+                      value={draft.tier || ""}
+                      onChange={(e) => setDraft("tier", e.target.value)}
+                    />
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Description"
+                          help="A short explanation shown alongside the package name."
+                        />
+                      }
+                      multiline
+                      value={draft.description || ""}
+                      onChange={(e) => setDraft("description", e.target.value)}
+                    />
+                  </Stack>
+                </Box>
+                <Box sx={{ display: editorStep === 1 ? "block" : "none" }}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                      gap: 2,
+                    }}
                   >
-                    {["days", "months"].map((v) => (
-                      <MenuItem value={v} key={v}>
-                        {v}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  {(["renewal", "cancellation", "refund_policy"] as const).map(
-                    (field) => (
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Base price"
+                          help="The starting price for one term. Optional or selected services can add to this amount."
+                        />
+                      }
+                      helperText="All package prices are stored and displayed in US dollars (USD)."
+                      required
+                      value={draft.amount || ""}
+                      onChange={(e) => setDraft("amount", e.target.value)}
+                    />
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Duration"
+                          help="How long one purchased term lasts."
+                        />
+                      }
+                      type="number"
+                      value={draft.duration || 1}
+                      onChange={(e) =>
+                        setDraft("duration", Number(e.target.value))
+                      }
+                    />
+                    <TextField
+                      select
+                      label={
+                        <HelpLabel
+                          label="Duration unit"
+                          help="Choose days for short programs or months for recurring membership terms."
+                        />
+                      }
+                      value={draft.duration_unit || "months"}
+                      onChange={(e) =>
+                        setDraft("duration_unit", e.target.value)
+                      }
+                    >
+                      {["days", "months"].map((v) => (
+                        <MenuItem value={v} key={v}>
+                          {v}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    {(
+                      ["renewal", "cancellation", "refund_policy"] as const
+                    ).map((field) => (
                       <TextField
                         key={field}
                         select
-                        label={field.replaceAll("_", " ")}
+                        label={
+                          <HelpLabel
+                            label={field.replaceAll("_", " ")}
+                            help={
+                              {
+                                renewal:
+                                  "Whether a new term starts automatically. This app supports none or a patient-started manual renewal.",
+                                cancellation:
+                                  "Whether access ends immediately or at the end of the paid term.",
+                                refund_policy:
+                                  "Whether staff may issue a refund through the subscription workflow.",
+                              }[field]
+                            }
+                          />
+                        }
                         value={draft[field] || emptyDraft[field]}
                         onChange={(e) => setDraft(field, e.target.value)}
                       >
@@ -378,216 +484,304 @@ export function SubscriptionCatalog() {
                           </MenuItem>
                         ))}
                       </TextField>
-                    ),
-                  )}
-                  <TextField
-                    label="Concurrent purchases per patient"
-                    type="number"
-                    value={draft.max_per_patient || 1}
-                    onChange={(e) =>
-                      setDraft("max_per_patient", Number(e.target.value))
-                    }
-                  />
-                  <TextField
-                    label="Available from (ISO timestamp, optional)"
-                    value={draft.available_from || ""}
-                    onChange={(e) => setDraft("available_from", e.target.value)}
-                  />
-                  <TextField
-                    label="Available until (ISO timestamp, optional)"
-                    value={draft.available_until || ""}
-                    onChange={(e) =>
-                      setDraft("available_until", e.target.value)
-                    }
-                  />
-                </Box>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={draft.eligibility_review || false}
-                      onChange={(_, value) =>
-                        setDraft("eligibility_review", value)
+                    ))}
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Concurrent purchases per patient"
+                          help="Stops duplicate overlapping purchases for the same patient."
+                        />
+                      }
+                      type="number"
+                      value={draft.max_per_patient || 1}
+                      onChange={(e) =>
+                        setDraft("max_per_patient", Number(e.target.value))
                       }
                     />
-                  }
-                  label="Require clinic eligibility review before payment"
-                />
-                <TextField
-                  required
-                  label="Patient purchase terms"
-                  multiline
-                  minRows={3}
-                  value={draft.terms || ""}
-                  onChange={(e) => setDraft("terms", e.target.value)}
-                />
-                <Typography variant="h6" component="h3">
-                  Service composition
-                </Typography>
-                {(draft.components || []).map((c, index) => (
-                  <Paper key={index} variant="outlined" sx={{ p: 2 }}>
-                    <Stack spacing={2}>
-                      <TextField
-                        select
-                        label={`Service ${index + 1}`}
-                        value={c.service_id || ""}
-                        onChange={(e) =>
-                          componentChange(
-                            index,
-                            "service_id",
-                            Number(e.target.value),
-                          )
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Available from (optional)"
+                          help="The first date and time a new purchase may be made. Use ISO date/time format."
+                        />
+                      }
+                      value={draft.available_from || ""}
+                      onChange={(e) =>
+                        setDraft("available_from", e.target.value)
+                      }
+                    />
+                    <TextField
+                      label={
+                        <HelpLabel
+                          label="Available until (optional)"
+                          help="The last date and time a new purchase may be made. Existing purchases are unaffected."
+                        />
+                      }
+                      value={draft.available_until || ""}
+                      onChange={(e) =>
+                        setDraft("available_until", e.target.value)
+                      }
+                    />
+                  </Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={draft.eligibility_review || false}
+                        onChange={(_, value) =>
+                          setDraft("eligibility_review", value)
                         }
-                      >
-                        {data?.services
-                          .filter((s) => !s.retired)
-                          .map((s) => (
-                            <MenuItem key={s.id} value={s.id}>
-                              {s.name}
-                            </MenuItem>
-                          ))}
-                      </TextField>
-                      <Box
-                        sx={{
-                          display: "grid",
-                          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                          gap: 2,
-                        }}
-                      >
+                      />
+                    }
+                    label={
+                      <HelpLabel
+                        label="Require clinic eligibility review before payment"
+                        help="Patients can review and request the package, but staff approval is required before payment."
+                      />
+                    }
+                  />
+                  <TextField
+                    required
+                    label={
+                      <HelpLabel
+                        label="Patient purchase terms"
+                        help="The plain-language terms shown immediately before the patient confirms the purchase."
+                      />
+                    }
+                    helperText="Write this for someone seeing the package for the first time."
+                    multiline
+                    minRows={3}
+                    value={draft.terms || ""}
+                    onChange={(e) => setDraft("terms", e.target.value)}
+                  />
+                </Box>
+                <Box sx={{ display: editorStep === 2 ? "block" : "none" }}>
+                  <Typography variant="h6" component="h3">
+                    Service composition
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Add at least one service. Included services are automatic;
+                    optional and choice-group services let the patient configure
+                    the package.
+                  </Typography>
+                  {(draft.components || []).map((c, index) => (
+                    <Paper key={index} variant="outlined" sx={{ p: 2 }}>
+                      <Stack spacing={2}>
                         <TextField
                           select
-                          label="Inclusion"
-                          value={c.mode}
-                          onChange={(e) =>
-                            componentChange(index, "mode", e.target.value)
-                          }
-                        >
-                          {[
-                            "included",
-                            "optional",
-                            "choose_one",
-                            "choose_many",
-                          ].map((v) => (
-                            <MenuItem key={v} value={v}>
-                              {v.replaceAll("_", " ")}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                        {c.mode.startsWith("choose_") && (
-                          <TextField
-                            label="Choice group name"
-                            value={c.group || ""}
-                            onChange={(e) =>
-                              componentChange(index, "group", e.target.value)
-                            }
-                          />
-                        )}
-                        {c.mode === "choose_many" &&
-                          (["min", "max"] as const).map((field) => (
-                            <TextField
-                              key={field}
-                              label={`${field} choices`}
-                              type="number"
-                              value={c[field]}
-                              onChange={(e) =>
-                                componentChange(
-                                  index,
-                                  field,
-                                  Number(e.target.value),
-                                )
-                              }
-                            />
-                          ))}
-                        <TextField
-                          label="Quantity / usage limit"
-                          type="number"
-                          value={c.quantity || 1}
+                          label={`Service ${index + 1}`}
+                          value={c.service_id || ""}
                           onChange={(e) =>
                             componentChange(
                               index,
-                              "quantity",
+                              "service_id",
                               Number(e.target.value),
                             )
                           }
-                        />
-                        <TextField
-                          select
-                          label="Frequency"
-                          value={c.frequency || "term"}
-                          onChange={(e) =>
-                            componentChange(index, "frequency", e.target.value)
-                          }
                         >
-                          {["term", "day", "week", "month"].map((v) => (
-                            <MenuItem key={v} value={v}>
-                              {v}
-                            </MenuItem>
-                          ))}
+                          {data?.services
+                            .filter((s) => !s.retired)
+                            .map((s) => (
+                              <MenuItem key={s.id} value={s.id}>
+                                {s.name}
+                              </MenuItem>
+                            ))}
                         </TextField>
-                        {c.mode !== "included" && (
+                        <Box
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                            gap: 2,
+                          }}
+                        >
                           <TextField
-                            label="Additional price when selected"
-                            value={c.price_adjustment || "0"}
+                            select
+                            label={
+                              <HelpLabel
+                                label="Inclusion"
+                                help="Decides whether this service is automatic, optional, or selected from a required choice group."
+                              />
+                            }
+                            value={c.mode}
+                            onChange={(e) =>
+                              componentChange(index, "mode", e.target.value)
+                            }
+                          >
+                            {[
+                              "included",
+                              "optional",
+                              "choose_one",
+                              "choose_many",
+                            ].map((v) => (
+                              <MenuItem key={v} value={v}>
+                                {v.replaceAll("_", " ")}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                          {c.mode.startsWith("choose_") && (
+                            <TextField
+                              label={
+                                <HelpLabel
+                                  label="Choice group name"
+                                  help="The shared question patients answer, such as Choose one focus session."
+                                />
+                              }
+                              value={c.group || ""}
+                              onChange={(e) =>
+                                componentChange(index, "group", e.target.value)
+                              }
+                            />
+                          )}
+                          {c.mode === "choose_many" &&
+                            (["min", "max"] as const).map((field) => (
+                              <TextField
+                                key={field}
+                                label={
+                                  <HelpLabel
+                                    label={`${field} choices`}
+                                    help={
+                                      field === "min"
+                                        ? "The fewest services a patient must select in this group."
+                                        : "The most services a patient may select in this group."
+                                    }
+                                  />
+                                }
+                                type="number"
+                                value={c[field]}
+                                onChange={(e) =>
+                                  componentChange(
+                                    index,
+                                    field,
+                                    Number(e.target.value),
+                                  )
+                                }
+                              />
+                            ))}
+                          <TextField
+                            label={
+                              <HelpLabel
+                                label="Quantity / usage limit"
+                                help="How many units are included at the selected frequency."
+                              />
+                            }
+                            type="number"
+                            value={c.quantity || 1}
                             onChange={(e) =>
                               componentChange(
                                 index,
-                                "price_adjustment",
+                                "quantity",
+                                Number(e.target.value),
+                              )
+                            }
+                          />
+                          <TextField
+                            select
+                            label={
+                              <HelpLabel
+                                label="Frequency"
+                                help="How often the quantity is available during the purchased term."
+                              />
+                            }
+                            value={c.frequency || "term"}
+                            onChange={(e) =>
+                              componentChange(
+                                index,
+                                "frequency",
                                 e.target.value,
                               )
                             }
-                          />
-                        )}
-                      </Box>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={c.eligibility_review || false}
-                            onChange={(_, value) =>
-                              componentChange(
-                                index,
-                                "eligibility_review",
-                                value,
-                              )
-                            }
-                          />
-                        }
-                        label="This service requires review"
-                      />
-                      <Button
-                        onClick={() =>
-                          setDraft(
-                            "components",
-                            (draft.components || []).filter(
-                              (_, i) => i !== index,
-                            ),
-                          )
-                        }
-                      >
-                        Remove service
-                      </Button>
-                    </Stack>
-                  </Paper>
-                ))}
-                <Button
-                  disabled={!data?.services.some((s) => !s.retired)}
-                  onClick={() =>
-                    setDraft("components", [
-                      ...(draft.components || []),
-                      {
-                        service_id: data?.services.find((s) => !s.retired)?.id,
-                        mode: "included",
-                        group: "",
-                        min: 0,
-                        max: 100,
-                        quantity: 1,
-                        frequency: "term",
-                        price_adjustment: "0",
-                        eligibility_review: false,
-                      } as ServiceComponent,
-                    ])
-                  }
-                >
-                  Add service to package
-                </Button>
+                          >
+                            {["term", "day", "week", "month"].map((v) => (
+                              <MenuItem key={v} value={v}>
+                                {v}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                          {c.mode !== "included" && (
+                            <TextField
+                              label={
+                                <HelpLabel
+                                  label="Additional price when selected"
+                                  help="Added to the base price only when a patient selects this optional service."
+                                />
+                              }
+                              value={c.price_adjustment || "0"}
+                              onChange={(e) =>
+                                componentChange(
+                                  index,
+                                  "price_adjustment",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          )}
+                        </Box>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={c.eligibility_review || false}
+                              onChange={(_, value) =>
+                                componentChange(
+                                  index,
+                                  "eligibility_review",
+                                  value,
+                                )
+                              }
+                            />
+                          }
+                          label={
+                            <HelpLabel
+                              label="This service requires review"
+                              help="Selecting this service sends the purchase to clinic review before payment."
+                            />
+                          }
+                        />
+                        <Button
+                          onClick={() =>
+                            setDraft(
+                              "components",
+                              (draft.components || []).filter(
+                                (_, i) => i !== index,
+                              ),
+                            )
+                          }
+                        >
+                          Remove service
+                        </Button>
+                      </Stack>
+                    </Paper>
+                  ))}
+                  <Button
+                    disabled={!data?.services.some((s) => !s.retired)}
+                    onClick={() =>
+                      setDraft("components", [
+                        ...(draft.components || []),
+                        {
+                          service_id: data?.services.find((s) => !s.retired)
+                            ?.id,
+                          mode: "included",
+                          group: "",
+                          min: 0,
+                          max: 100,
+                          quantity: 1,
+                          frequency: "term",
+                          price_adjustment: "0",
+                          eligibility_review: false,
+                        } as ServiceComponent,
+                      ])
+                    }
+                  >
+                    Add service to package
+                  </Button>
+                </Box>
+                <Box sx={{ display: editorStep === 3 ? "block" : "none" }}>
+                  <PackageCard
+                    terms={{ ...(draft as PackageTerms), currency: "USD" }}
+                  />
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    Saving creates a draft. Patients will only see this package
+                    after you validate it and publish a new version.
+                  </Alert>
+                </Box>
               </>
             )}
           </Stack>
@@ -596,22 +790,43 @@ export function SubscriptionCatalog() {
           <Button disabled={busy} onClick={() => setEdit(null)}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            disabled={busy || !edit?.name.trim()}
-            onClick={() =>
-              edit &&
-              void run(async () => {
-                await api(
-                  `/api/clinic/subscription_catalog/${edit.kind}${edit.id ? `/${edit.id}` : ""}`,
-                  { method: edit.id ? "PATCH" : "POST", body: { item: edit } },
-                );
-                setEdit(null);
-              })
-            }
-          >
-            Save draft
-          </Button>
+          {edit?.kind === "package" && editorStep > 0 && (
+            <Button
+              disabled={busy}
+              onClick={() => setEditorStep((step) => step - 1)}
+            >
+              Back
+            </Button>
+          )}
+          {edit?.kind === "package" && editorStep < 3 ? (
+            <Button
+              variant="contained"
+              disabled={busy || !edit?.name.trim()}
+              onClick={() => setEditorStep((step) => step + 1)}
+            >
+              Continue
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              disabled={busy || !edit?.name.trim()}
+              onClick={() =>
+                edit &&
+                void run(async () => {
+                  await api(
+                    `/api/clinic/subscription_catalog/${edit.kind}${edit.id ? `/${edit.id}` : ""}`,
+                    {
+                      method: edit.id ? "PATCH" : "POST",
+                      body: { item: edit },
+                    },
+                  );
+                  setEdit(null);
+                })
+              }
+            >
+              Save draft
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
       <Dialog

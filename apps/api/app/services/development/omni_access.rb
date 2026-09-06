@@ -72,6 +72,7 @@ module Development
       end
       BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI")
       seed_purchase_supplier_mix!(membership.practice)
+      SubscriptionExamples.seed!(practice: membership.practice, actor: user)
       retire_legacy_workflow!(membership)
       membership
     end

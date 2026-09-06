@@ -12,11 +12,13 @@ module Clinic
         raise ArgumentError, "Package settings must be an object." unless draft.is_a?(Hash)
         components = draft.fetch("components", [])
         raise ArgumentError, "Add between 1 and 100 services." unless components.is_a?(Array) && components.length.between?(1, 100)
+        requested_currency = draft.fetch("currency", "USD").to_s.upcase
+        raise ArgumentError, "Only USD packages are supported." unless requested_currency == "USD"
         snapshot = {
           "family_id" => package.family_id, "family_name" => package.family.name,
           "package_id" => package.id, "package_name" => package.name,
           "description" => text(draft["description"], 4000), "tier" => text(draft["tier"], 160),
-          "amount" => money(draft.fetch("amount")), "currency" => draft.fetch("currency").to_s,
+          "amount" => money(draft.fetch("amount")), "currency" => "USD",
           "duration" => integer(draft.fetch("duration"), 1..1200, "Duration"),
           "duration_unit" => choice(draft.fetch("duration_unit"), %w[days months], "Duration unit"),
           "renewal" => choice(draft.fetch("renewal", "none"), %w[none manual], "Renewal"),
@@ -28,7 +30,6 @@ module Clinic
           "available_from" => timestamp(draft["available_from"]),
           "available_until" => timestamp(draft["available_until"])
         }
-        raise ArgumentError, "Currency must use three uppercase letters." unless snapshot["currency"].match?(/\A[A-Z]{3}\z/)
         raise ArgumentError, "Package price must be positive." unless BigDecimal(snapshot["amount"]).positive?
         if snapshot["available_from"] && snapshot["available_until"] && snapshot["available_from"] >= snapshot["available_until"]
           raise ArgumentError, "Availability must end after it starts."
