@@ -27,6 +27,7 @@ describe("clinic shell composition", () => {
     expect(frame).toContain('window.location.replace("/login")');
     expect(frame).toContain('className="practice-location"');
     expect(frame).toContain('aria-label="Current clinic location"');
+    expect(frame).toContain("data-focus-mode={focusMode}");
     expect(frame).toContain("Select a location");
     expect(frame).not.toContain("clinic-chart-tab");
   });
@@ -39,6 +40,7 @@ describe("clinic shell composition", () => {
     expect(frameCss).toContain("font-size: 18px");
     expect(frameCss).toContain("display: flex");
     expect(frameCss).toContain("position: fixed");
+    expect(frameCss).toContain(".clinic-content.scribe-page");
     expect(frameCss).not.toContain("box-shadow");
     expect(frameCss).not.toContain("clinic-chart-tab");
   });
@@ -56,6 +58,7 @@ describe("clinic shell composition", () => {
       expect(workspace).toContain(icon);
     expect(workspace).toContain('className="clinic-topbar"');
     expect(workspace).toContain('className="clinic-topbar-location"');
+    expect(workspace).toContain('path.startsWith("/clinic/scribe")');
     expect(workspace).toContain("data?.current_site?.name");
     expect(workspace).toContain('method: "PATCH"');
     expect(frame).toContain('href="/portal"');

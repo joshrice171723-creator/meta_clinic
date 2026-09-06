@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
+import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
+  ButtonGroup,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Drawer,
   FormControl,
   IconButton,
@@ -28,6 +32,7 @@ import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { ScribePatientPicker, type PatientOption } from "./ScribePatientPicker";
+import { ScribeAudioMeter } from "./ScribeAudioMeter";
 import { useScribeRecording } from "./ScribeRecordingProvider";
 import {
   ScribeReviewWorkspace,
@@ -113,6 +118,11 @@ function formatSessionDate(value?: string | null) {
   });
 }
 
+function elapsedLabel(milliseconds: number) {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 export function currentVersionForRestore(
   encounter: ScribeEncounter,
   historicalDraftId: number,
@@ -144,7 +154,7 @@ export function LiveScribeReviewWorkspace() {
   recordingRef.current = recording;
   const locationSearch =
     typeof window === "undefined" ? "" : window.location.search;
-  const compactRail = useMediaQuery("(max-width: 1023.95px)");
+  const compactRail = useMediaQuery("(max-width: 759.95px)");
   const scopeKey = `${membership_id ?? "none"}:${current_site?.id ?? "all"}`;
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
@@ -917,6 +927,7 @@ export function LiveScribeReviewWorkspace() {
       onSelect={selectEncounter}
       onNewSession={beginNewSession}
       onLoadMore={() => void loadMore()}
+      onRefresh={() => void loadIndex(selectedEncounterId ?? undefined)}
     />
   );
 
@@ -924,20 +935,17 @@ export function LiveScribeReviewWorkspace() {
     <Box
       sx={{
         display: "flex",
-        height: { xs: "auto", md: "calc(100vh - 136px)" },
-        minHeight: 640,
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 1.5,
+        height: { xs: "auto", md: "100dvh" },
+        minHeight: { xs: 640, md: 620 },
         overflow: "hidden",
-        backgroundColor: "background.paper",
+        backgroundColor: "#fff",
       }}
     >
       {!compactRail && rail}
       <Drawer
         open={compactRail && railOpen}
         onClose={() => setRailOpen(false)}
-        slotProps={{ paper: { sx: { width: 248 } } }}
+        slotProps={{ paper: { sx: { width: 190 } } }}
       >
         {rail}
       </Drawer>
@@ -997,28 +1005,44 @@ export function LiveScribeReviewWorkspace() {
         <Stack
           component="header"
           direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
           sx={{
-            alignItems: { xs: "stretch", sm: "center" },
+            minHeight: 94,
+            alignItems: { xs: "stretch", sm: "flex-start" },
             justifyContent: "space-between",
-            px: { xs: 1.5, sm: 2.5 },
-            py: 1.5,
-            borderBottom: 1,
-            borderColor: "divider",
+            gap: 1.5,
+            px: { xs: 1.5, sm: 2.25 },
+            pt: 1.75,
+            pb: 1,
           }}
         >
           <Stack
             direction="row"
-            spacing={1.25}
-            sx={{ alignItems: "center", minWidth: 0 }}
+            spacing={1}
+            sx={{ alignItems: "flex-start", minWidth: 0 }}
           >
             {compactRail && (
               <IconButton
                 aria-label="Open session list"
                 onClick={() => setRailOpen(true)}
+                sx={{ mt: 0.25 }}
               >
                 <MenuOutlinedIcon />
               </IconButton>
+            )}
+            {!newSession && (
+              <Avatar
+                sx={{
+                  width: 26,
+                  height: 26,
+                  bgcolor: "#fff",
+                  color: "#75717a",
+                  border: "1px solid #cbc9cf",
+                  fontSize: 12,
+                  mt: 0.25,
+                }}
+              >
+                {patient?.display_name?.trim().charAt(0).toUpperCase() ?? "P"}
+              </Avatar>
             )}
             <Box sx={{ minWidth: 0, flex: 1 }}>
               {newSession ? (
@@ -1032,42 +1056,80 @@ export function LiveScribeReviewWorkspace() {
                 <>
                   <Typography
                     component="h1"
-                    variant="subtitle1"
                     noWrap
                     sx={{
-                      fontWeight: 700,
-                      "&&": { fontSize: 22, lineHeight: 1.3, m: 0 },
+                      "&&": {
+                        m: 0,
+                        fontSize: 18,
+                        lineHeight: 1.45,
+                        fontWeight: 700,
+                        color: "#242126",
+                      },
                     }}
                   >
                     {patient?.display_name ?? "Scribe"}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {patient
-                      ? `${patient.reference} · ${formatSessionDate(encounter?.created_at ?? selectedSummary?.created_at)}`
-                      : "Select a session or start a new one"}
-                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{
+                      alignItems: "center",
+                      color: "text.secondary",
+                      mt: 0.5,
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{ alignItems: "center" }}
+                    >
+                      <CalendarTodayOutlinedIcon sx={{ fontSize: 13 }} />
+                      <Typography
+                        variant="caption"
+                        noWrap
+                        sx={{ fontSize: 11 }}
+                      >
+                        {formatSessionDate(
+                          encounter?.created_at ?? selectedSummary?.created_at,
+                        )}
+                      </Typography>
+                    </Stack>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{ alignItems: "center" }}
+                    >
+                      <LanguageOutlinedIcon sx={{ fontSize: 13 }} />
+                      <Typography variant="caption" sx={{ fontSize: 11 }}>
+                        English
+                      </Typography>
+                    </Stack>
+                  </Stack>
                 </>
               )}
             </Box>
           </Stack>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            sx={{ alignItems: { xs: "stretch", sm: "center" } }}
-          >
-            {newSession ? (
-              <Button
-                variant="contained"
-                disabled={!selectedPatient || pendingAction !== null}
-                onClick={() => void createEncounter().catch(() => undefined)}
-              >
-                Start session
-              </Button>
-            ) : (
-              <>
+          {newSession ? (
+            <Button
+              variant="contained"
+              disabled={!selectedPatient || pendingAction !== null}
+              onClick={() => void createEncounter().catch(() => undefined)}
+              sx={{ height: 36 }}
+            >
+              Start session
+            </Button>
+          ) : (
+            <Stack
+              spacing={0.65}
+              sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}
+            >
+              <Stack direction="row" spacing={0.75}>
                 <FormControl
                   size="small"
-                  sx={{ minWidth: 160 }}
+                  sx={{
+                    width: 118,
+                    "& .MuiInputBase-root": { height: 36, fontSize: 11 },
+                  }}
                   disabled={
                     !canWrite ||
                     pendingAction !== null ||
@@ -1097,7 +1159,7 @@ export function LiveScribeReviewWorkspace() {
                 </FormControl>
                 <Button
                   variant="contained"
-                  startIcon={<NoteAddOutlinedIcon />}
+                  startIcon={<NoteAddOutlinedIcon sx={{ fontSize: 16 }} />}
                   disabled={
                     !canWrite ||
                     !encounter ||
@@ -1110,12 +1172,100 @@ export function LiveScribeReviewWorkspace() {
                     Boolean(outcomeUnknown)
                   }
                   onClick={() => void generateDraft().catch(() => undefined)}
+                  sx={{
+                    height: 36,
+                    minWidth: 84,
+                    bgcolor: "#3a252c",
+                    color: "#fff",
+                    borderRadius: 1,
+                    fontSize: 11,
+                    "&:hover": { bgcolor: "#2b1a20" },
+                  }}
                 >
-                  Create note
+                  Create
                 </Button>
-              </>
-            )}
-          </Stack>
+                <ButtonGroup
+                  variant="contained"
+                  aria-label="Transcription controls"
+                  sx={{
+                    height: 36,
+                    "& .MuiButton-root": {
+                      bgcolor: "#13b85c",
+                      color: "#fff",
+                      borderColor: "#38c879",
+                      fontSize: 11,
+                      "&:hover": { bgcolor: "#0ca650" },
+                    },
+                  }}
+                >
+                  <Button
+                    startIcon={<MicNoneOutlinedIcon sx={{ fontSize: 16 }} />}
+                    disabled={
+                      !canWrite ||
+                      !encounter ||
+                      !processingAllowed ||
+                      hasUnsavedContext ||
+                      pendingAction !== null ||
+                      otherEncounterRecording
+                    }
+                    onClick={() =>
+                      sameEncounterRecordingActive
+                        ? recording.expand()
+                        : openRecordingDock(true)
+                    }
+                    sx={{ minWidth: 104 }}
+                  >
+                    {sameEncounterRecordingActive ? "Recording" : "Transcribe"}
+                  </Button>
+                  <Button
+                    aria-label="Open recording controls"
+                    onClick={() => openRecordingDock(false)}
+                    disabled={!encounter || otherEncounterRecording}
+                    sx={{ minWidth: 30, width: 30, px: 0 }}
+                  >
+                    <ExpandMoreOutlinedIcon sx={{ fontSize: 16 }} />
+                  </Button>
+                </ButtonGroup>
+              </Stack>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: "center", pr: 0.25 }}
+              >
+                <MicNoneOutlinedIcon
+                  sx={{
+                    fontSize: 14,
+                    color: sameEncounterRecordingActive
+                      ? "#13b85c"
+                      : "text.disabled",
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    minWidth: 34,
+                    fontSize: 10.5,
+                    fontVariantNumeric: "tabular-nums",
+                    color: "text.secondary",
+                  }}
+                >
+                  {elapsedLabel(
+                    sameEncounterRecordingActive
+                      ? recording.state.elapsedMs
+                      : 0,
+                  )}
+                </Typography>
+                <ScribeAudioMeter
+                  level={
+                    sameEncounterRecordingActive
+                      ? recording.state.inputLevel
+                      : 0
+                  }
+                  active={sameEncounterRecordingActive}
+                />
+              </Stack>
+            </Stack>
+          )}
         </Stack>
 
         {!newSession && (
@@ -1136,11 +1286,18 @@ export function LiveScribeReviewWorkspace() {
             scrollButtons="auto"
             aria-label="Scribe session documents"
             sx={{
-              px: { xs: 1, sm: 2 },
-              minHeight: 44,
+              px: { xs: 1, sm: 1.75 },
+              minHeight: 40,
               borderBottom: 1,
               borderColor: "divider",
-              "& .MuiTab-root": { minHeight: 44, textTransform: "none" },
+              "& .MuiTab-root": {
+                minHeight: 40,
+                minWidth: 80,
+                px: 1.25,
+                fontSize: 11,
+                textTransform: "none",
+              },
+              "& .MuiTabs-indicator": { height: 2 },
             }}
           >
             <Tab value="context" label="Context" />
@@ -1174,26 +1331,65 @@ export function LiveScribeReviewWorkspace() {
           ) : activeTab === "context" ? (
             <Box
               sx={{
-                p: { xs: 2, sm: 3 },
-                maxWidth: 840,
+                p: { xs: 1, sm: 1.5 },
                 height: "100%",
                 overflowY: "auto",
+                backgroundColor: "#faf9f9",
               }}
             >
-              <Stack spacing={2}>
-                <Box>
-                  <Typography component="h2" variant="h6">
-                    Visit context
+              <Stack
+                spacing={1.25}
+                sx={{
+                  minHeight: "100%",
+                  p: { xs: 1.5, sm: 2 },
+                  borderRadius: 1.5,
+                  backgroundColor: "#fff",
+                  boxShadow: "0 1px 10px rgba(45, 35, 39, 0.035)",
+                }}
+              >
+                <Stack
+                  direction="row"
+                  sx={{ alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <Typography
+                    component="h2"
+                    sx={{ fontSize: 12, fontWeight: 700 }}
+                  >
+                    notes
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Add reviewer-authored context that should ground this note.
-                    Context is saved separately from spoken transcript evidence.
-                  </Typography>
-                </Box>
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    sx={{ alignItems: "center" }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color={
+                        hasUnsavedContext ? "warning.main" : "text.secondary"
+                      }
+                      sx={{ fontSize: 10 }}
+                    >
+                      {hasUnsavedContext ? "Unsaved" : "Saved"}
+                    </Typography>
+                    <Button
+                      size="small"
+                      disabled={
+                        !encounter ||
+                        !hasUnsavedContext ||
+                        pendingAction !== null ||
+                        Boolean(outcomeUnknown)
+                      }
+                      onClick={() => void saveContext().catch(() => undefined)}
+                      sx={{ minWidth: 48, height: 28, fontSize: 10 }}
+                    >
+                      {pendingAction === "context" ? "Saving…" : "Save"}
+                    </Button>
+                  </Stack>
+                </Stack>
                 <TextField
                   fullWidth
                   multiline
-                  minRows={10}
+                  minRows={12}
                   value={contextValue}
                   onChange={(event) => setContextValue(event.target.value)}
                   disabled={
@@ -1201,61 +1397,39 @@ export function LiveScribeReviewWorkspace() {
                   }
                   placeholder="Reason for visit, known history, observations, and documentation context"
                   slotProps={{
+                    input: { disableUnderline: true },
                     htmlInput: {
                       maxLength: 250000,
                       "aria-label": "Visit context",
                     },
                   }}
+                  variant="standard"
+                  sx={{
+                    flex: 1,
+                    "& .MuiInputBase-root": {
+                      alignItems: "flex-start",
+                      fontSize: 12,
+                      lineHeight: 1.65,
+                    },
+                  }}
                 />
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  sx={{ alignItems: { xs: "stretch", sm: "center" } }}
-                >
-                  <Button
-                    variant="contained"
-                    disabled={
-                      !encounter ||
-                      !hasUnsavedContext ||
-                      pendingAction !== null ||
-                      Boolean(outcomeUnknown)
-                    }
-                    onClick={() => void saveContext().catch(() => undefined)}
-                  >
-                    {pendingAction === "context" ? "Saving…" : "Save context"}
-                  </Button>
-                  <Typography
-                    variant="body2"
-                    color={
-                      hasUnsavedContext ? "warning.main" : "text.secondary"
-                    }
-                  >
-                    {hasUnsavedContext
-                      ? "Unsaved context"
-                      : encounter
-                        ? "Context is saved"
-                        : "Select a session"}
-                  </Typography>
-                </Stack>
                 {encounter && (
-                  <Box>
-                    <Divider sx={{ my: 1 }} />
-                    <Typography component="h3" variant="subtitle2" gutterBottom>
-                      Consent
-                    </Typography>
+                  <Box sx={{ borderTop: 1, borderColor: "divider", pt: 1 }}>
                     <Typography
                       variant="body2"
                       color="text.secondary"
-                      sx={{ mb: 1 }}
+                      sx={{ mb: 0.75, fontSize: 10.5 }}
                     >
-                      Current decision:{" "}
+                      Recording consent:{" "}
                       {encounter.consent_status.replaceAll("_", " ")}.
-                      Transcript import and note creation require accepted
-                      consent.
                     </Typography>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={0.75}
+                    >
                       {encounter.consent_status !== "accepted" && (
                         <Button
+                          size="small"
                           variant="outlined"
                           disabled={pendingAction !== null || hasUnsavedContext}
                           onClick={() =>
@@ -1273,6 +1447,7 @@ export function LiveScribeReviewWorkspace() {
                       )}
                       {encounter.consent_status !== "declined" && (
                         <Button
+                          size="small"
                           variant="outlined"
                           disabled={pendingAction !== null || hasUnsavedContext}
                           onClick={() =>
@@ -1290,6 +1465,7 @@ export function LiveScribeReviewWorkspace() {
                       )}
                       {encounter.consent_status === "accepted" && (
                         <Button
+                          size="small"
                           color="warning"
                           variant="outlined"
                           disabled={pendingAction !== null || hasUnsavedContext}
@@ -1308,6 +1484,7 @@ export function LiveScribeReviewWorkspace() {
                       )}
                       {canDelete && (
                         <Button
+                          size="small"
                           color="error"
                           variant="text"
                           disabled={pendingAction !== null || hasUnsavedContext}
@@ -1326,6 +1503,32 @@ export function LiveScribeReviewWorkspace() {
                     </Stack>
                   </Box>
                 )}
+                <Box
+                  sx={{
+                    mt: "auto",
+                    minHeight: 50,
+                    border: "1px solid #ebe8e9",
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    px: 2,
+                    color: "text.secondary",
+                    boxShadow: "0 5px 18px rgba(47, 35, 40, 0.08)",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontSize: 11.5 }}>
+                    Add context or edit your note above…
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  align="center"
+                  sx={{ fontSize: 9 }}
+                >
+                  Medical knowledge only. Check sources and use your clinical
+                  judgment.
+                </Typography>
               </Stack>
             </Box>
           ) : activeTab === "transcript" ? (

@@ -229,6 +229,7 @@ export function Workspace({
   const trackingBoard =
     path.replace(/\/+$/, "") === "/clinic" && homeView === "tracking";
   const inventoryPage = path.startsWith("/clinic/inventory");
+  const scribePage = path.startsWith("/clinic/scribe");
   const locationName =
     data?.current_site?.name || data?.current_site?.code || null;
   if (!data || !overview.data)
@@ -326,25 +327,31 @@ export function Workspace({
                       homeView={homeView}
                     />
                   }
+                  focusMode={scribePage}
                 >
-                  <header className="clinic-topbar" aria-label="Clinic context">
-                    <span className="clinic-topbar-context">
-                      Currently logged in as:{" "}
-                      <strong>{user.email_address}</strong>
-                      {data.credentials.length > 0 && (
-                        <>, {data.credentials.join(", ")}</>
-                      )}
-                    </span>
-                    <span className="clinic-topbar-actions">
-                      <span className="clinic-topbar-location">
-                        {data.practice.name}
+                  {!scribePage && (
+                    <header
+                      className="clinic-topbar"
+                      aria-label="Clinic context"
+                    >
+                      <span className="clinic-topbar-context">
+                        Currently logged in as:{" "}
+                        <strong>{user.email_address}</strong>
+                        {data.credentials.length > 0 && (
+                          <>, {data.credentials.join(", ")}</>
+                        )}
                       </span>
-                      <a href="/clinic/settings">My settings</a>
-                    </span>
-                  </header>
+                      <span className="clinic-topbar-actions">
+                        <span className="clinic-topbar-location">
+                          {data.practice.name}
+                        </span>
+                        <a href="/clinic/settings">My settings</a>
+                      </span>
+                    </header>
+                  )}
                   <main
                     id="main"
-                    className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
+                    className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}${scribePage ? " scribe-page" : ""}`}
                   >
                     {children}
                   </main>

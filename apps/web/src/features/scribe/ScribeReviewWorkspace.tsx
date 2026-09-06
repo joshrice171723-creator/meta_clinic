@@ -775,21 +775,21 @@ export function ScribeReviewWorkspace({
       sx={{
         minWidth: 0,
         height: "100%",
-        backgroundColor: "action.hover",
+        backgroundColor: "#faf9f9",
         overflowY: "auto",
-        p: { xs: 1.5, sm: 2.5 },
+        p: { xs: 1, sm: 1.5 },
       }}
     >
       <Paper
         component="article"
         variant="outlined"
         sx={{
-          maxWidth: 920,
-          minHeight: "calc(100% - 8px)",
+          maxWidth: "none",
+          minHeight: "100%",
           mx: "auto",
           borderRadius: 1.5,
           overflow: "hidden",
-          boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
+          boxShadow: "0 1px 10px rgba(45, 35, 39, 0.035)",
         }}
       >
         <Stack
@@ -798,8 +798,8 @@ export function ScribeReviewWorkspace({
           sx={{
             alignItems: { xs: "stretch", sm: "center" },
             justifyContent: "space-between",
-            px: { xs: 2, sm: 3 },
-            py: 1.25,
+            px: { xs: 1.5, sm: 2 },
+            py: 1,
             borderBottom: 1,
             borderColor: "divider",
           }}
@@ -909,9 +909,9 @@ export function ScribeReviewWorkspace({
         )}
         <Box
           sx={{
-            px: { xs: 2.5, sm: 4, md: 5 },
-            py: { xs: 2.5, sm: 3 },
-            maxWidth: "75ch",
+            px: { xs: 2, sm: 3 },
+            py: { xs: 2, sm: 2.5 },
+            maxWidth: "82ch",
             mx: "auto",
           }}
         >

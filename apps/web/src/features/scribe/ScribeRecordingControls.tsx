@@ -35,6 +35,7 @@ export type ScribeRecordingState = {
   recordingId: number | null;
   elapsedMs: number;
   pendingChunks: number;
+  inputLevel: number;
 };
 
 export type ScribeRecordingControlsProps = {
@@ -211,6 +212,7 @@ export function ScribeRecordingControls({
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const meterFrameRef = useRef<number | null>(null);
+  const lastMeterUpdateRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const activeStartedAtRef = useRef<number | null>(null);
   const accruedMsRef = useRef(0);
@@ -503,8 +505,11 @@ export function ScribeRecordingControls({
         const normalized = (value - 128) / 128;
         sum += normalized * normalized;
       }
-      if (mountedRef.current)
+      const now = performance.now();
+      if (mountedRef.current && now - lastMeterUpdateRef.current >= 80) {
+        lastMeterUpdateRef.current = now;
         setMeter(Math.min(100, Math.sqrt(sum / samples.length) * 280));
+      }
       meterFrameRef.current = requestAnimationFrame(sample);
     };
     sample();
@@ -792,8 +797,9 @@ export function ScribeRecordingControls({
       recordingId,
       elapsedMs,
       pendingChunks: pendingCount,
+      inputLevel: meter,
     });
-  }, [elapsedMs, pendingCount, phase, recordingId]);
+  }, [elapsedMs, meter, pendingCount, phase, recordingId]);
 
   useEffect(() => {
     if (!processingAllowed && scribeRecordingBlocksNavigation(phaseRef.current))

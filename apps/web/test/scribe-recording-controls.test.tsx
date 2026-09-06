@@ -5,6 +5,7 @@ import {
   scribeRecordingBlocksNavigation,
   type ScribeRecordingPhase,
 } from "../src/features/scribe/ScribeRecordingControls";
+import { ScribeAudioMeter } from "../src/features/scribe/ScribeAudioMeter";
 import {
   canBeginPersistentScribeSession,
   scribeReviewPath,
@@ -47,6 +48,16 @@ describe("ScribeRecordingControls", () => {
     expect(html).toContain("Record");
     expect(html).toContain("disabled");
     expect(html).not.toContain("Transcribe");
+  });
+
+  it("exposes the compact live microphone level as an accessible meter", () => {
+    const html = renderToStaticMarkup(
+      <ScribeAudioMeter level={64} active={true} />,
+    );
+
+    expect(html).toContain('role="meter"');
+    expect(html).toContain('aria-label="Microphone input level"');
+    expect(html).toContain('aria-valuenow="64"');
   });
 
   it("keeps one encounter in the dock and supports context before recording consent", () => {

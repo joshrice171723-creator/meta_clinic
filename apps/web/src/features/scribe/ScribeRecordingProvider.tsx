@@ -68,6 +68,7 @@ const initialState: ScribeRecordingState = {
   recordingId: null,
   elapsedMs: 0,
   pendingChunks: 0,
+  inputLevel: 0,
 };
 const PersistentScribeContext = createContext<PersistentScribeValue | null>(
   null,
