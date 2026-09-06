@@ -31,6 +31,16 @@ module Clinic
         render json: { data: InventoryWire.supplier_pricing(practice: current_practice, actor: current_user, query: params[:q], supplier_id: params[:supplier_id], page: params[:page]) }
       end
 
+      def exceptions
+        render json: { data: InventoryWire.exceptions(practice: current_practice, actor: current_user, query: params[:q], status: params[:exception_status], category: params[:category], page: params[:page]) }
+      end
+
+      def review_exception
+        input = params.require(:review).permit(:source_kind, :source_id, :category, :assignee_id, :state, :reason, :evidence_reference, :request_key)
+        review = ExceptionReview.record!(practice: current_practice, actor: current_user, **input.to_h.symbolize_keys)
+        render json: { acknowledged: true, id: review.id.to_s }, status: :created
+      end
+
       def locations
         render json: { data: InventoryWire.locations(practice: current_practice, actor: current_user, query: params[:q], status: params[:location_status], page: params[:page]) }
       end

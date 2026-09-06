@@ -568,6 +568,58 @@ export type InventoryLocationData = InventoryReadContext &
     location_options: InventoryLocation[];
   };
 
+export type InventoryExceptionRead = {
+  q?: string;
+  exception_status?: "all" | "unreviewed" | "reviewed";
+  category?:
+    | "all"
+    | "expiring"
+    | "expired"
+    | "inactive_product"
+    | "inactive_location"
+    | "hold"
+    | "delivery_discrepancy";
+  page?: number;
+};
+export type InventoryException = {
+  id: string;
+  source_kind: "batch" | "hold" | "reconciliation";
+  source_id: string;
+  category: string;
+  title: string;
+  product_id: string | null;
+  product_name: string | null;
+  lot_number: string | null;
+  location_id: string | null;
+  location_path: string | null;
+  shipment_id: string | null;
+  expires_on: string | null;
+  quantity_units: Decimal | null;
+  stock_unit: string | null;
+  details: string;
+  state: "open" | "reviewed";
+  assignee_id: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  reason: string | null;
+  evidence_reference: string | null;
+  review_id: string | null;
+};
+export type InventoryExceptionData = InventoryReadContext & {
+  exception_page: {
+    query: string;
+    status: NonNullable<InventoryExceptionRead["exception_status"]>;
+    category: NonNullable<InventoryExceptionRead["category"]>;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+  };
+  exceptions: InventoryException[];
+  assignees: { id: string; name: string }[];
+};
+
 export type InventoryStockData = InventoryReadContext &
   Pick<
     InventoryData,

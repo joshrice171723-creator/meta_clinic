@@ -366,6 +366,55 @@ END; $$;
 
 
 --
+-- Name: inventory_exception_review_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_exception_review_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  NEW.profile_id := inventory_authorize(NEW.practice_id, NEW.actor_id, 'configure', NEW.profile_id);
+
+  IF NEW.assignee_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1
+      FROM clinic_memberships membership
+      JOIN users assignee ON assignee.id = membership.user_id
+     WHERE membership.practice_id = NEW.practice_id
+       AND membership.user_id = NEW.assignee_id
+       AND membership.active
+       AND assignee.active
+  ) THEN
+    RAISE foreign_key_violation USING MESSAGE = 'Exception assignee must be an active clinic member';
+  END IF;
+
+  IF NEW.source_kind = 'batch' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_pharmacy_batches
+       WHERE practice_id = NEW.practice_id AND id = NEW.source_id
+    ) THEN
+      RAISE foreign_key_violation USING MESSAGE = 'Exception batch must belong to the clinic';
+    END IF;
+  ELSIF NEW.source_kind = 'hold' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_holds
+       WHERE practice_id = NEW.practice_id AND id = NEW.source_id
+    ) THEN
+      RAISE foreign_key_violation USING MESSAGE = 'Exception hold must belong to the clinic';
+    END IF;
+  ELSIF NEW.source_kind = 'reconciliation' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM clinic_inventory_shipment_reconciliations
+       WHERE practice_id = NEW.practice_id AND id = NEW.source_id
+    ) THEN
+      RAISE foreign_key_violation USING MESSAGE = 'Exception reconciliation must belong to the clinic';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END $$;
+
+
+--
 -- Name: inventory_immutable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1877,6 +1926,51 @@ CREATE SEQUENCE public.clinic_inventory_entries_id_seq
 --
 
 ALTER SEQUENCE public.clinic_inventory_entries_id_seq OWNED BY public.clinic_inventory_entries.id;
+
+
+--
+-- Name: clinic_inventory_exception_reviews; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_exception_reviews (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    source_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    profile_id bigint NOT NULL,
+    assignee_id bigint,
+    source_kind character varying NOT NULL,
+    category character varying NOT NULL,
+    state character varying NOT NULL,
+    reason character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    evidence_reference character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_exception_review_source_category CHECK (((((source_kind)::text = 'batch'::text) AND ((category)::text = ANY ((ARRAY['expiring'::character varying, 'expired'::character varying, 'inactive_product'::character varying, 'inactive_location'::character varying])::text[]))) OR (((source_kind)::text = 'hold'::text) AND ((category)::text = 'hold'::text)) OR (((source_kind)::text = 'reconciliation'::text) AND ((category)::text = 'delivery_discrepancy'::text)))),
+    CONSTRAINT inventory_exception_review_state CHECK (((state)::text = ANY ((ARRAY['open'::character varying, 'reviewed'::character varying])::text[]))),
+    CONSTRAINT inventory_exception_review_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((evidence_reference IS NULL) OR ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200))) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_exception_reviews_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_exception_reviews_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_exception_reviews_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_exception_reviews_id_seq OWNED BY public.clinic_inventory_exception_reviews.id;
 
 
 --
@@ -5950,6 +6044,13 @@ ALTER TABLE ONLY public.clinic_inventory_entries ALTER COLUMN id SET DEFAULT nex
 
 
 --
+-- Name: clinic_inventory_exception_reviews id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_exception_reviews_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_hold_releases id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -6905,6 +7006,14 @@ ALTER TABLE ONLY public.clinic_inventory_counts
 
 ALTER TABLE ONLY public.clinic_inventory_entries
     ADD CONSTRAINT clinic_inventory_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews clinic_inventory_exception_reviews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT clinic_inventory_exception_reviews_pkey PRIMARY KEY (id);
 
 
 --
@@ -9947,6 +10056,27 @@ CREATE UNIQUE INDEX inventory_entry_transfer_once ON public.clinic_inventory_ent
 
 
 --
+-- Name: inventory_exception_review_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_exception_review_latest ON public.clinic_inventory_exception_reviews USING btree (practice_id, source_kind, source_id, category, id DESC);
+
+
+--
+-- Name: inventory_exception_review_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_exception_review_retry ON public.clinic_inventory_exception_reviews USING btree (practice_id, request_key);
+
+
+--
+-- Name: inventory_exception_reviews_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_exception_reviews_practice_id ON public.clinic_inventory_exception_reviews USING btree (practice_id, id);
+
+
+--
 -- Name: inventory_expiry_worklist; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10924,6 +11054,20 @@ CREATE TRIGGER inventory_evidence_link_guard BEFORE INSERT OR UPDATE ON public.c
 --
 
 CREATE TRIGGER inventory_evidence_link_guard BEFORE INSERT OR UPDATE ON public.clinic_inventory_holds FOR EACH ROW EXECUTE FUNCTION public.inventory_evidence_link_guard();
+
+
+--
+-- Name: clinic_inventory_exception_reviews inventory_exception_review_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_exception_review_guard BEFORE INSERT ON public.clinic_inventory_exception_reviews FOR EACH ROW EXECUTE FUNCTION public.inventory_exception_review_guard();
+
+
+--
+-- Name: clinic_inventory_exception_reviews inventory_exception_review_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_exception_review_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_exception_reviews FOR EACH ROW EXECUTE FUNCTION public.inventory_immutable();
 
 
 --
@@ -11938,6 +12082,38 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 ALTER TABLE ONLY public.clinic_insurance_claims
     ADD CONSTRAINT fk_insurance_claims_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_actor FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_assignee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_assignee FOREIGN KEY (practice_id, assignee_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_exception_reviews fk_inventory_exception_reviews_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_exception_reviews
+    ADD CONSTRAINT fk_inventory_exception_reviews_profile FOREIGN KEY (practice_id, profile_id) REFERENCES public.clinic_inventory_profiles(practice_id, id);
 
 
 --
@@ -14224,6 +14400,7 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
 
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905010300'),
 ('20260905010200'),
 ('20260905010100'),
 ('20260905010000'),

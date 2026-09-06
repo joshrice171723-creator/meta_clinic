@@ -95,6 +95,24 @@ module Clinic
         { data: purchase_order_wire(order) }
       end
 
+      def exceptions(practice:, actor:, **filters)
+        result = ExceptionQueueQuery.call(practice: practice, **filters)
+        location_paths = location_directory(practice: practice).to_h { |location| [ location[:id], location[:path] ] }
+        context(practice: practice, actor: actor).merge(
+          exception_page: { query: result.query, status: result.status, category: result.category, page: result.page, page_count: result.page_count,
+            page_size: ExceptionQueueQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
+          exceptions: result.rows.map do |row|
+            row.slice("source_kind", "category", "title", "product_name", "lot_number", "stock_unit", "details", "state", "reason", "evidence_reference").symbolize_keys.merge(
+              id: [ row["source_kind"], row["source_id"], row["category"] ].join(":"), source_id: row["source_id"].to_s,
+              product_id: row["product_id"]&.to_s, location_id: row["location_id"]&.to_s, location_path: location_paths[row["location_id"]&.to_s],
+              expires_on: row["expires_on"]&.iso8601, quantity_units: row["quantity_units"]&.to_d&.to_s("F"), shipment_id: row["shipment_id"]&.to_s,
+              assignee_id: row["assignee_id"]&.to_s, reviewed_at: row["reviewed_at"]&.iso8601, reviewed_by: row["reviewed_by"]&.to_s, review_id: row["review_id"]&.to_s)
+          end,
+          assignees: Clinic::Membership.active.where(practice_id: practice.id).joins(:user).where(users: { active: true }).includes(:user).order(:user_id).map do |member|
+            { id: member.user_id.to_s, name: member.user.email_address.split("@").first.tr("._-", " ").titleize }
+          end)
+      end
+
       def locations(practice:, actor:, **filters)
         result = LocationQuery.call(practice: practice, **filters)
         directory = location_directory(practice: practice)

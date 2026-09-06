@@ -82,6 +82,8 @@ Rails.application.routes.draw do
       patch "products/:id/preferred-supplier", to: "inventory/supplier_pricing#set_preferred_supplier"
       post "demo", to: "inventory/management#demo"
       get "catalog", to: "inventory/management#catalog"
+      get "exceptions", to: "inventory/management#exceptions"
+      post "exceptions/reviews", to: "inventory/management#review_exception"
       get "locations", to: "inventory/management#locations"
       post "locations", to: "inventory/management#create_location"
       patch "locations/:id", to: "inventory/management#update_location"

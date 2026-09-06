@@ -26,6 +26,9 @@ import type {
   InventoryLocationData,
   InventoryLocationRead,
   InventoryLocation,
+  InventoryExceptionData,
+  InventoryExceptionRead,
+  InventoryException,
   InventoryStockData,
   InventoryStockRead,
   InventoryOrderData,
@@ -71,6 +74,7 @@ type Screen =
   | "receiving"
   | "lots"
   | "activity"
+  | "exceptions"
   | "recalls"
   | "controlled";
 type Notice = {
@@ -172,10 +176,17 @@ const links: {
     group: "Operate",
   },
   {
+    screen: "exceptions",
+    href: "/clinic/inventory/exceptions",
+    label: "Exception queue",
+    short: "Exceptions",
+    group: "Exceptions",
+  },
+  {
     screen: "recalls",
     href: "/clinic/inventory/recalls",
     label: "Expiry & recalls",
-    short: "Exceptions",
+    short: "Recalls",
     group: "Exceptions",
   },
   {
@@ -219,6 +230,7 @@ const screenDescriptions: Record<Screen, string> = {
   receiving: "Verify deliveries, lot details, and quarantine exceptions.",
   lots: "Review exact balances by lot and storage location.",
   activity: "Trace every stock movement to its source and operator.",
+  exceptions: "Assign and review expiry, stock, hold, and delivery exceptions.",
   recalls: "Keep affected lots held until disposition is recorded.",
   controlled: "Resolve count variances with an independent reviewer.",
 };
@@ -270,6 +282,7 @@ function screenTitle(screen: Screen) {
       receiving: "Receive & put away",
       lots: "Stock by lot",
       activity: "Movement ledger",
+      exceptions: "Exception queue",
       recalls: "Expiry & recalls",
       controlled: "Controlled reconciliation",
     } satisfies Record<Screen, string>
@@ -2365,6 +2378,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryPlanData
     | InventorySupplierData
     | InventoryLocationData
+    | InventoryExceptionData
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
@@ -2405,6 +2419,7 @@ export function InventoryApp({ path }: { path: string }) {
       "catalog_page" in data ||
       "supplier_page" in data ||
       "location_page" in data ||
+      "exception_page" in data ||
       "stock_page" in data ||
       "order_page" in data ||
       "delivery_page" in data ||
@@ -2421,6 +2436,7 @@ export function InventoryApp({ path }: { path: string }) {
       InventoryPlanRead &
       InventorySupplierRead &
       InventoryLocationRead &
+      InventoryExceptionRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null },
@@ -2429,6 +2445,7 @@ export function InventoryApp({ path }: { path: string }) {
       InventoryPlanRead &
       InventorySupplierRead &
       InventoryLocationRead &
+      InventoryExceptionRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null } = {
@@ -2459,6 +2476,13 @@ export function InventoryApp({ path }: { path: string }) {
                   location_status: data.location_page.status,
                   page: data.location_page.page,
                 }
+              : screen === "exceptions" && data && "exception_page" in data
+                ? {
+                    q: data.exception_page.query,
+                    exception_status: data.exception_page.status,
+                    category: data.exception_page.category,
+                    page: data.exception_page.page,
+                  }
               : screen === "supplier_pricing" && data && "supplier_page" in data
                 ? {
                     q: data.supplier_page.query,
@@ -2502,6 +2526,7 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "receiving") query.set("view", "deliveries");
         if (screen === "supplier_pricing") query.set("view", "table");
         if (screen === "locations") query.set("view", "tree");
+        if (screen === "exceptions") query.set("view", "queue");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         if (read.delivery_status)
           query.set("delivery_status", read.delivery_status);
@@ -2509,6 +2534,9 @@ export function InventoryApp({ path }: { path: string }) {
         if (read.supplier_id) query.set("supplier_id", read.supplier_id);
         if (read.location_status)
           query.set("location_status", read.location_status);
+        if (read.exception_status)
+          query.set("exception_status", read.exception_status);
+        if (read.category) query.set("category", read.category);
         const routeQuery = new URLSearchParams(window.location.search);
         const shipmentId =
           read.shipment_id === undefined
@@ -2538,7 +2566,9 @@ export function InventoryApp({ path }: { path: string }) {
                 ? `/api/clinic/inventory/lots?${query}`
                 : screen === "locations"
                   ? `/api/clinic/inventory/locations?${query}`
-                  : screen === "purchasing"
+                  : screen === "exceptions"
+                    ? `/api/clinic/inventory/exceptions?${query}`
+                    : screen === "purchasing"
                     ? `/api/clinic/inventory/purchase-orders?${query}`
                     : screen === "supplier_pricing"
                       ? `/api/clinic/inventory/supplier-pricing?${query}`
@@ -2555,6 +2585,7 @@ export function InventoryApp({ path }: { path: string }) {
             | InventoryPlanData
             | InventorySupplierData
             | InventoryLocationData
+            | InventoryExceptionData
             | InventoryStockData
             | InventoryOrderData
             | InventoryDeliveryData;
@@ -2566,6 +2597,7 @@ export function InventoryApp({ path }: { path: string }) {
           (screen === "catalog") !== "catalog_page" in payload.data ||
           (screen === "supplier_pricing") !== "supplier_page" in payload.data ||
           (screen === "locations") !== "location_page" in payload.data ||
+          (screen === "exceptions") !== "exception_page" in payload.data ||
           needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
@@ -2650,6 +2682,7 @@ export function InventoryApp({ path }: { path: string }) {
           "receiving",
           "replenishment",
           "purchase_order_new",
+          "exceptions",
         ].includes(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
@@ -2665,6 +2698,7 @@ export function InventoryApp({ path }: { path: string }) {
           "receiving",
           "replenishment",
           "purchase_order_new",
+          "exceptions",
         ].includes(screen)
       ) {
         if (payload.acknowledged !== true)
@@ -2692,6 +2726,7 @@ export function InventoryApp({ path }: { path: string }) {
           "receiving",
           "replenishment",
           "purchase_order_new",
+          "exceptions",
         ].includes(screen)
       )
         await load();
@@ -2744,6 +2779,7 @@ export function InventoryApp({ path }: { path: string }) {
     !("catalog_page" in data) &&
     !("supplier_page" in data) &&
     !("location_page" in data) &&
+    !("exception_page" in data) &&
     !("stock_page" in data) &&
     !("order_page" in data) &&
     !("delivery_page" in data) &&
@@ -2879,6 +2915,16 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 readBlocked={Boolean(uncertainMutation)}
                 onRead={load}
+              />
+            ) : "exception_page" in data ? (
+              <InventoryExceptionsScreen
+                data={data}
+                loading={loading}
+                error={error}
+                busy={busy}
+                pendingMutation={uncertainMutation}
+                onRead={load}
+                run={run}
               />
             ) : "plan_page" in data ? (
               <PurchaseCartWorkspace
@@ -6258,6 +6304,418 @@ function LotsScreen({
             </div>
           </Card>
         </div>
+      )}
+    </div>
+  );
+}
+
+function InventoryExceptionsScreen({
+  data,
+  loading,
+  error,
+  busy,
+  pendingMutation,
+  onRead,
+  run,
+}: {
+  data: InventoryExceptionData;
+  loading: boolean;
+  error: string;
+  busy: boolean;
+  pendingMutation: PendingInventoryMutation | null;
+  onRead: (read: InventoryExceptionRead) => Promise<void>;
+  run: InventoryRun;
+}) {
+  const page = data.exception_page;
+  const applied: InventoryExceptionRead = {
+    q: page.query,
+    exception_status: page.status,
+    category: page.category,
+    page: page.page,
+  };
+  const [query, setQuery] = useState(page.query);
+  const [selectedId, setSelectedId] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [reviewState, setReviewState] = useState<"open" | "reviewed">("open");
+  const [reason, setReason] = useState("");
+  const [evidenceReference, setEvidenceReference] = useState("");
+  const selected = data.exceptions.find((entry) => entry.id === selectedId);
+  const reviewerName = selected?.reviewed_by
+    ? data.users.find((user) => user.id === selected.reviewed_by)?.name
+    : undefined;
+  const canConfigure = capability(data, "inventory.configure");
+  const readBlocked = Boolean(pendingMutation);
+  const readDisabled = loading || busy || readBlocked;
+  const endpoint = "/api/clinic/inventory/exceptions/reviews";
+  const reviewBody = selected
+    ? {
+        review: {
+          source_kind: selected.source_kind,
+          source_id: selected.source_id,
+          category: selected.category,
+          assignee_id: assigneeId || null,
+          state: reviewState,
+          reason: reason.trim(),
+          evidence_reference: evidenceReference.trim() || null,
+        },
+      }
+    : null;
+  const retryingSame = Boolean(
+    reviewBody &&
+    pendingMutation?.endpoint === endpoint &&
+    pendingMutation.intent === JSON.stringify({ endpoint, body: reviewBody }),
+  );
+  const formLocked = loading || busy || Boolean(error) || readBlocked;
+  const mutationBlocked =
+    loading ||
+    busy ||
+    Boolean(error) ||
+    (!retryingSame && readBlocked) ||
+    !canConfigure ||
+    !selected ||
+    !reason.trim();
+
+  useEffect(() => setQuery(page.query), [page.query]);
+
+  const selectException = (entry: InventoryException) => {
+    if (readBlocked || busy) return;
+    setSelectedId(entry.id);
+    setAssigneeId(
+      data.assignees.some((assignee) => assignee.id === entry.assignee_id)
+        ? (entry.assignee_id ?? "")
+        : "",
+    );
+    setReviewState(entry.state);
+    setReason(entry.reason ?? "");
+    setEvidenceReference(entry.evidence_reference ?? "");
+  };
+  const sourceHref = (entry: InventoryException) => {
+    if (entry.source_kind === "reconciliation")
+      return entry.shipment_id
+        ? `/clinic/inventory/receiving?shipment_id=${entry.shipment_id}`
+        : "/clinic/inventory/receiving";
+    return entry.product_id
+      ? `/clinic/inventory/lots?product_id=${entry.product_id}`
+      : "/clinic/inventory/lots";
+  };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!reviewBody || mutationBlocked) return;
+    void run(
+      endpoint,
+      reviewBody,
+      reviewState === "reviewed" ? "Exception reviewed" : "Exception updated",
+      reviewState === "reviewed"
+        ? "The review record was saved. Operational correction, hold release, or stock adjustment remains separate."
+        : "The exception remains open with its updated assignment and review note.",
+      () => setSelectedId(""),
+    );
+  };
+
+  return (
+    <div className="inventory-stack" aria-busy={loading}>
+      <Card title="Inventory exception queue">
+        <p className="inventory-lead">
+          Review each active hazard in its source context. Queue totals are
+          record counts; quantities are not combined across products or units.
+        </p>
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!readDisabled)
+              void onRead({ ...applied, q: query.trim(), page: 1 });
+          }}
+        >
+          <TextField
+            size="small"
+            label="Search exceptions"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Product, lot, location, or detail"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            size="small"
+            label="Review status"
+            value={page.status}
+            disabled={readDisabled}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                exception_status: event.target.value as typeof page.status,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="all">All review states</MenuItem>
+            <MenuItem value="unreviewed">Unreviewed</MenuItem>
+            <MenuItem value="reviewed">Reviewed</MenuItem>
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Category"
+            value={page.category}
+            disabled={readDisabled}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                category: event.target.value as typeof page.category,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="all">All categories</MenuItem>
+            <MenuItem value="expiring">Expiring</MenuItem>
+            <MenuItem value="expired">Expired</MenuItem>
+            <MenuItem value="inactive_product">Inactive product</MenuItem>
+            <MenuItem value="inactive_location">Inactive location</MenuItem>
+            <MenuItem value="hold">Active hold</MenuItem>
+            <MenuItem value="delivery_discrepancy">
+              Delivery discrepancy
+            </MenuItem>
+          </TextField>
+          <Button type="submit" variant="outlined" disabled={readDisabled}>
+            Search exceptions
+          </Button>
+        </form>
+        <p className="inventory-results-count" role="status">
+          {loading
+            ? "Loading exceptions…"
+            : `Showing ${page.filtered_count === 0 ? 0 : (page.page - 1) * page.page_size + 1}–${Math.min(page.page * page.page_size, page.filtered_count)} of ${page.filtered_count} matching exceptions (${page.total_count} active hazards).`}
+        </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous exception page remains visible and review
+            actions are paused.
+          </Alert>
+        )}
+        <div className="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Exception</th>
+                <th>Source</th>
+                <th>Review</th>
+                <th>Assignee</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.exceptions.map((entry) => {
+                const assignee = data.assignees.find(
+                  (candidate) => candidate.id === entry.assignee_id,
+                );
+                return (
+                  <tr
+                    key={entry.id}
+                    className={entry.id === selectedId ? "selected" : ""}
+                  >
+                    <td>
+                      <strong>{entry.title}</strong>
+                      <small>{entry.details}</small>
+                    </td>
+                    <td>
+                      <a href={sourceHref(entry)}>
+                        {entry.product_name ??
+                          (entry.source_kind === "reconciliation"
+                            ? "Delivery record"
+                            : "Stock record")}
+                      </a>
+                      <small>
+                        {[
+                          entry.lot_number ? `Lot ${entry.lot_number}` : null,
+                          entry.location_path,
+                          entry.expires_on
+                            ? `Expires ${inventoryDate(entry.expires_on, data.timezone)}`
+                            : null,
+                          entry.quantity_units && entry.stock_unit
+                            ? `${number(entry.quantity_units)} ${entry.stock_unit}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </small>
+                    </td>
+                    <td>
+                      <Badge
+                        tone={
+                          entry.state === "reviewed" ? "success" : "warning"
+                        }
+                      >
+                        {entry.state === "reviewed" ? "Reviewed" : "Unreviewed"}
+                      </Badge>
+                      <small>{entry.category.replaceAll("_", " ")}</small>
+                    </td>
+                    <td>
+                      {assignee?.name ??
+                        (entry.assignee_id ? "Inactive member" : "Unassigned")}
+                    </td>
+                    <td>
+                      <Button
+                        type="button"
+                        size="small"
+                        variant="outlined"
+                        disabled={readBlocked || busy || loading}
+                        onClick={() => selectException(entry)}
+                      >
+                        {entry.state === "reviewed" ? "Update" : "Review"}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!data.exceptions.length && (
+          <p className="inventory-empty" role="status">
+            No active hazards match this view.
+          </p>
+        )}
+        {page.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Exception pagination"
+          >
+            <Button
+              variant="outlined"
+              disabled={readDisabled || page.page === 1}
+              onClick={() => void onRead({ ...applied, page: page.page - 1 })}
+            >
+              Previous
+            </Button>
+            <span>
+              Page {page.page} of {page.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              disabled={readDisabled || page.page === page.page_count}
+              onClick={() => void onRead({ ...applied, page: page.page + 1 })}
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </Card>
+      {selected && (
+        <Card title="Review selected exception">
+          <div className="inventory-data-grid four">
+            <DataPoint label="Exception" value={selected.title} />
+            <DataPoint
+              label="Category"
+              value={selected.category.replaceAll("_", " ")}
+            />
+            <DataPoint label="Source type" value={selected.source_kind} />
+            <DataPoint label="Source record" value={selected.source_id} />
+            <DataPoint
+              label="Product / lot"
+              value={
+                [
+                  selected.product_name,
+                  selected.lot_number && `Lot ${selected.lot_number}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Not product-specific"
+              }
+            />
+            <DataPoint
+              label="Location"
+              value={selected.location_path ?? "Not location-specific"}
+            />
+            <DataPoint
+              label="Reviewed"
+              value={
+                selected.reviewed_at
+                  ? `${inventoryDateTime(selected.reviewed_at, data.timezone)}${reviewerName ? ` by ${reviewerName}` : ""}`
+                  : "Not reviewed"
+              }
+            />
+          </div>
+          <p className="inventory-flow-note">{selected.details}</p>
+          <Alert severity="info">
+            Saving a review records ownership and acknowledgement only. It does
+            not release a hold, adjust stock, reactivate a product or location,
+            or resolve a delivery discrepancy.
+          </Alert>
+          <form className="inventory-form-grid" onSubmit={submit}>
+            <TextField
+              select
+              size="small"
+              label="Assignee"
+              value={assigneeId}
+              disabled={formLocked}
+              onChange={(event) => setAssigneeId(event.target.value)}
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {data.assignees.map((assignee) => (
+                <MenuItem key={assignee.id} value={assignee.id}>
+                  {assignee.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              size="small"
+              label="Review state"
+              value={reviewState}
+              disabled={formLocked}
+              onChange={(event) =>
+                setReviewState(event.target.value as typeof reviewState)
+              }
+            >
+              <MenuItem value="open">Keep open</MenuItem>
+              <MenuItem value="reviewed">Mark reviewed</MenuItem>
+            </TextField>
+            <TextField
+              size="small"
+              label="Review reason"
+              value={reason}
+              disabled={formLocked}
+              required
+              multiline
+              minRows={2}
+              onChange={(event) => setReason(event.target.value)}
+              slotProps={{ htmlInput: { maxLength: 200 } }}
+            />
+            <TextField
+              size="small"
+              label="Evidence reference"
+              value={evidenceReference}
+              disabled={formLocked}
+              onChange={(event) => setEvidenceReference(event.target.value)}
+              placeholder="Ticket, document, or inspection reference"
+              slotProps={{ htmlInput: { maxLength: 200 } }}
+            />
+            <div className="inventory-form-actions">
+              <PermissionNote
+                allowed={canConfigure}
+                permission="inventory.configure"
+              />
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={busy || readBlocked}
+                onClick={() => setSelectedId("")}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={mutationBlocked}
+              >
+                {busy
+                  ? "Saving…"
+                  : retryingSame
+                    ? "Retry review"
+                    : "Save review"}
+              </Button>
+            </div>
+          </form>
+        </Card>
       )}
     </div>
   );
