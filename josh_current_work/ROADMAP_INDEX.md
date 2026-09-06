@@ -14,9 +14,9 @@ This index connects the capability roadmaps. Each capability has a roadmap, an i
 
 ## Coordinated execution
 
-Use [EXECUTION_MATRIX.md](EXECUTION_MATRIX.md) for the current three-lane work-in-progress limit, shared-file ownership, capability dependencies, execution waves, and the exact next bounded actions. Shortcut remains authoritative for active task claims and status; the matrix is the repository-side sequencing and handoff contract.
+Use [AGENT_BUILD_FIRST_PLAN.md](AGENT_BUILD_FIRST_PLAN.md) for the source-reconciled forgotten-work sequence, exact current Rails/frontend paths, separate Shortcut outcomes, and usage-aware agent ownership. The [September 4 execution matrix](EXECUTION_MATRIX.md) retains historical checkpoints; its branch/runtime and missing-route claims are not current instructions. Shortcut remains authoritative for active claims and status.
 
-For the deliberate implementation-only pass requested on 2026-09-06, use [AGENT_BUILD_FIRST_PLAN.md](AGENT_BUILD_FIRST_PLAN.md). It supersedes the matrix's test-and-evidence cadence only for that pass: the goal is complete feature implementation with bounded agent ownership, then a separate stabilization and evidence pass.
+The 2026-09-06 plan is planning-only until implementation is authorized. It excludes rebuilding existing inventory/billing functionality and preserves the billing-only portal boundary. Future build-first execution completes missing server-backed behavior with Luna/Terra/Sol workers under an Astra-high coordinator; tests and polish are separate, explicitly deferred outcomes. Existing capability packets below remain design/audit references, not authority to reopen superseded scope or create their old proposed paths unchanged.
 
 ## Shared integration rules
 

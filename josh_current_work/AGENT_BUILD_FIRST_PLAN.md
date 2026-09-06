@@ -1,129 +1,141 @@
-# APPly build-first agent execution plan
+# APPly forgotten-work delivery plan
 
-## Objective and operating mode
+[Roadmap index](ROADMAP_INDEX.md) · [Planning story sc-340](https://app.shortcut.com/apply-1/story/340)
 
-Finish the currently scoped APPly product work as coherent, reachable implementation while deliberately saving model usage. This is a build-first pass, not a readiness, test, browser-proof, or polish pass.
+## Objective and authority
 
-Use one `GPT-6 Astra` coordinator at `high` reasoning and up to three `GPT-5.6 Sol` implementation agents at `medium`. Use `GPT-5.6 Terra` at `medium` only for cheap, bounded source inventory or merge-conflict assistance. Do not use an agent to create tests, expand test suites, run broad tests, repeatedly typecheck/build, conduct browser smoke tests, generate screenshots, or polish spacing/copy/responsiveness in this pass. Those jobs belong to the later stabilization pass.
+Finish the missing parts of the previously identified APPly work without rebuilding existing functionality. This revision is a **planning deliverable only**; no application implementation is started here. Future execution is build-first: complete real server-backed workflows, then return for verification and polish when authorized.
 
-The coordinator delegates every independently writable slice. It retains shared integration, migration allocation, branch integration, and final product-flow decisions. Astra must not implement a task that can safely be given to a Sol agent.
+Source reconciliation: 2026-09-06, canonical checkout `C:\Users\joshr\Desktop\Work\APPly`, `main` at `f26a627daa15`. Reconcile the base and current claims again before dispatch. The pre-existing change in `apps/api/db/structure.sql` belongs to other work and is excluded; tracked migrations and HEAD's schema, not that dirty file, support the findings below.
 
-## Scope
+Shortcut owns task scope, acceptance, claims and mutable status. This file owns the technical file map and dependency order; it is not a second status register. Each independently finishable outcome has its own story. Future stories were queued without owners or implementation claims. Existing review stories remain unchanged.
 
-This plan covers APPly only:
+This revision replaces the earlier broad build queue in this file. The September 4 [execution matrix](EXECUTION_MATRIX.md) and capability handoffs retain historical evidence; their old route/branch/runtime claims are not current instructions. Do not execute their broader proposed feature lists blindly. Existing capability build plans remain design references; some contain proposed TypeScript backend paths that do not match this Rails checkout. Use the verified Rails map below.
 
-1. Inventory procurement: Plan order, supplier routing, cart checkout, generated purchase orders, receiving, reconciliation, and the known transactional-hardening backlog.
-2. Cash-pay billing and the billing-only patient portal journey.
-3. Patient portal lifecycle and bounded patient requests.
-4. Staff messaging and its acknowledgement/escalation workflow.
-5. Patient reminders and staff escalation integration.
-6. AI scribe review, approval, export, provenance, and retention workflow.
+## Reconciliation: reuse, do not rebuild
 
-Existing source remains authoritative. These are implementation targets, not claims that a workflow is currently safe for production, clinical use, external providers, or real patient data.
+| Area | Current source observation | Remaining work / disposition |
+| --- | --- | --- |
+| Inventory procurement | `purchase_cart_checkout.rb` already scopes/locks checkout, snapshots offers and splits draft POs by supplier. `receiving.rb` already transacts receipts, lines, stock and received quantities. Commit `d4a8a6b` delivered packing-slip receiving and supplier reconciliation. | No replacement cart, receiving or reconciliation story. Reuse [sc-334](https://app.shortcut.com/apply-1/story/334) for its remaining operator/runtime acceptance. Supplier transmission was explicitly skipped and stays excluded. |
+| Inventory transaction backlog | Recall-quarantined receiving creates its recalled hold within the receipt transaction. Recall lot/hold/containment triggers exist in tracked migration `20260905010400_add_recall_case_closures.rb` and HEAD schema. Disposition binds the same recall lot/batch; transfers compare retry source/destination/quantity/reason/actor. | These old implementation leads are already present in source. No duplicate hardening rewrite. Existing review/failed-race evidence still requires later reconciliation; source does not prove concurrency behavior. |
+| Staff messaging | `/clinic/messages` is already routed; Rails endpoints, abilities and context exist. `StaffMessagingWorkspace.tsx` defaults to local fixture state and has optional action callbacks. | Connect the existing workspace to real data/actions. Do not rebuild the route or domain. Automatic outbox/overdue processing remains a separate outcome. |
+| AI scribe | Existing Rails workflow includes consent, source provenance, revisions, approval/export gates and retention; reviewer component exists but is not routed from `App.tsx`. | Add reachable server-backed composition. Preserve the bounded source-import/provider/export behavior; no cloud model, audio capture or official-record expansion. |
+| Reminders | Policy, outbox, attempts, dispatch and staff-recorded delivery outcomes exist. Dispatch directly uses the local gated provider and assigns a lease; authenticated callback/event receipt and durable expired-lease recovery are not evident. | Extend the existing state machine: recovery, callback boundary, and redacted staff handoff are separate outcomes. Do not recreate reminder tables or the scheduling feature. |
+| Cash-pay billing | Invoice/ledger/receipt/cash/reconciliation UI and services exist. Allocation already has external-event identity and transaction/locking guards. Draft creates new invoices without a durable request key; posting lacks request-replay identity. Financial reads still mix dedicated billing grants and legacy patient-read grants. | Add draft/post replay protection and reconcile financial-read grants as two sequential stories. Reuse allocation deduplication; do not replace the billing product. |
+| Patient portal | `/patient-portal` and its billing context already exist. Current handoff deliberately limits it to billing; dormant clinical/request/reminder actions deny access. | Reuse [sc-120](https://app.shortcut.com/apply-1/story/120) for remaining lifecycle/access evidence. Do not reopen booking, clinical content or patient messaging. Reconcile its older request-journey criterion with the later billing-only boundary before acceptance. |
 
-## Explicit exclusions to save usage
+Inventory source paths above are under `apps/api/app/services/clinic/inventory/`, except disposition at `apps/api/app/models/clinic/inventory/recall_disposition.rb` and migrations under `apps/api/db/migrate/`. Financial services are under `apps/api/app/services/clinic/billing/`.
 
-- No new automated tests and no editing existing tests.
-- No test, full typecheck, production build, audit, browser, screenshot, load, security, or accessibility run.
-- No repeated exploratory investigation after the coordinator assigns a bounded slice.
-- No visual polish, refactor, rename, dependency upgrade, seed-data expansion, deployment, external message, payment execution, or provider credential work.
-- No agent may erase, stage, or alter the pre-existing unrelated change at `apps/api/db/structure.sql` unless its assigned migration requires the matching generated schema update. The coordinator decides and records that exception.
+The historical browser-bootstrap failure is an **unreverified observation**, not a current implementation diagnosis. Investigate it only if the later authorized browser pass reproduces it. Previously failed broad checks also remain evidence to reconcile, not permission to repeat entire suites now.
 
-Each handoff must say `implementation only; tests and live verification intentionally deferred`. A feature is "implemented pending verification," never "done" or "ready."
+## Separate implementation stories and delivery order
 
-## Shared-file and agent rules
+Model assignments are starting recommendations, not fixed cost promises. Astra-high coordinates. Start workers at the cheapest capable tier; do not use high for routine work. Escalate one focused failure by effort or model when reasoning would help, not for missing credentials or provider choices.
 
-Create isolated worktrees from the current `APPly` `main` HEAD. Keep no more than three Sol agents active. Give every agent a branch, one outcome, an exact allowlist, and one exclusion list. Each agent commits its completed implementation before handoff; the coordinator integrates commits serially and commits its integration changes.
+| Story | Bounded outcome | Start | Dependency / ownership |
+| --- | --- | --- | --- |
+| [sc-344](https://app.shortcut.com/apply-1/story/344) | Live staff messaging adapter | Terra medium | Existing sc-99 frontend; coordinate sc-95 shared seams. |
+| [sc-346](https://app.shortcut.com/apply-1/story/346) | Durable invoice draft/post replay | Sol medium | Own billing controller/services; coordinator allocates receipt/schema changes. |
+| [sc-348](https://app.shortcut.com/apply-1/story/348) | Reminder lease/retry recovery | Sol medium | Existing dispatch/outbox; no live provider required for bounded local implementation. |
+| [sc-345](https://app.shortcut.com/apply-1/story/345) | Reachable server-backed scribe review | Terra medium; Sol if workflow complexity warrants | Serialize App/navigation/contracts edits with sc-344, not all feature-local work. |
+| [sc-347](https://app.shortcut.com/apply-1/story/347) | Consistent financial-read authority | Sol medium | After sc-346 for shared invoice-controller ownership; resolve deliberate legacy policy before changing grants. |
+| [sc-350](https://app.shortcut.com/apply-1/story/350) | Redacted reminder-to-staff requests | Sol medium | sc-344 and sc-348 state/event contracts. Does not need a live callback provider to process local actionable failures. |
+| [sc-351](https://app.shortcut.com/apply-1/story/351) | Staff overdue/outbox recovery | Sol medium | sc-344; agree messaging event contract with sc-350 and serialize overlapping service edits. |
+| [sc-349](https://app.shortcut.com/apply-1/story/349) | Authenticated reminder callback/event replay boundary | Sol medium | sc-348 contract; provider-specific signature protocol and secret custody must be selected before ingress enablement. Continue independent work if blocked. |
 
-Only the Astra coordinator may edit:
+First wave after implementation authorization: sc-344, sc-346 and sc-348, only if current claims and file ownership allow them. Up to three workers; use fewer if startup/review overhead or shared contracts dominate. Rotate into ready work, not a rigid three-agent assignment. Luna-low can perform a worthwhile independent link/path inventory; tiny mechanical edits stay local when delegation costs more.
 
-- `apps/api/config/routes.rb`
-- `apps/api/app/models/ability.rb` and shared authorization/context code
-- `apps/web/src/App.tsx`
-- `apps/web/src/api/contracts.ts`
-- migrations, `apps/api/db/structure.sql`, shared seeds, and `josh_current_work/` planning records
+No capability must wait for an unrelated financial/inventory task merely because both are transactional. Serialize conflicts, not entire domains. A provider-blocked callback must not prevent completion of local staff, billing, scribe or recovery work.
 
-No two agents modify the same file. An agent that needs a coordinator-owned file documents the exact proposed change instead of touching it. The coordinator batches compatible shared changes after the dependent agents hand off.
+## Verified file map and acceptance contracts
 
-## Delivery sequence
+Existing paths are listed below. Feature-local adapters and workers described as proposed do not exist merely because this plan names them. Choose final filenames after reading nearest instructions and the established pattern.
 
-### Phase 0 — Astra: establish the build queue
+### sc-344 — live staff messaging
 
-1. Inspect the current `APPly` branch, worktrees, dirty files, and the feature files named below.
-2. Convert each phase below into one bounded task prompt with its allowlist and exclusions.
-3. Allocate migrations before dispatch. If a capability needs a migration, dispatch that capability alone for its migration window.
-4. Dispatch the first three independent tasks. Do not wait for tests or browser setup.
+- Existing UI: `apps/web/src/features/staff-messaging/StaffMessagingWorkspace.tsx`.
+- Existing authority: `apps/api/app/controllers/clinic/messaging/staff_controller.rb`, `apps/api/app/serializers/clinic/staff_messaging_serializer.rb`, `apps/api/app/services/clinic/messaging/`.
+- Proposed addition: a feature-local API/container adapter; preserve the reusable presentation component and existing tests.
+- Actor/entry/outcome: authorized staff opens `/clinic/messages`, loads scoped conversations, selects one, sends/reads/acknowledges and performs permitted request/manual-escalation transitions, with server results persisted.
+- Failure boundary: no fixture fallback or optional-callback false success on the real route; preserve draft on failed send, stable retry identity, denied actions, empty/error/loading states and server-derived participants/capabilities. Attachments remain unavailable until their storage/scanning gate is satisfied.
 
-Output: an implementation queue and isolated worktrees. No product code is changed in this phase.
+### sc-346 / sc-347 — financial retry and read authority
 
-### Phase 1 — finish reachable product surfaces
+- Existing services: `apps/api/app/services/clinic/billing/draft_invoice.rb`, `post_invoice.rb`, `allocate_payment.rb`.
+- Existing controllers: `apps/api/app/controllers/clinic/billing/invoices_controller.rb`, `patient_ledgers_controller.rb`, `payment_events_controller.rb`; inspect dashboard/subscription readers as the dedicated-grant reference.
+- Existing consumers: `apps/web/src/features/clinic/BillingDashboard.tsx`, matching billing controls and API contracts discovered through its imports.
+- sc-346 outcome: a billing operator retries the same create/post operation after a lost response and receives the same authoritative result without duplicate financial effects. Same key with changed payload must fail. Reuse compatible existing operation-receipt infrastructure; allocate a forward migration only if needed.
+- sc-347 outcome: financial endpoints and projected capabilities agree on intended billing access; a patient-read grant alone is not casually treated as financial authority. Establish legitimate role compatibility before changing grants; escalate a deliberate conflicting policy, not routine implementation decisions.
+- Exclude processor/payment behavior changes, a new ledger, removal of allocation deduplication, broad role refactors and any direct overwrite of the dirty schema.
 
-Run these as the initial three Sol tasks:
+### sc-348 / sc-349 — reminder recovery and callbacks
 
-| Agent | Outcome | Primary allowed files | Must not touch |
-|---|---|---|---|
-| A: inventory | Complete the Plan order/cart -> supplier split -> draft PO -> shipment/receipt -> reconciliation flow using the existing cart and inventory services. Implement only missing UI/API wiring within feature ownership and list required shared-route changes for Astra. | `apps/web/src/features/inventory/**`, `apps/api/app/controllers/clinic/inventory/**`, `apps/api/app/services/clinic/inventory/**`, inventory-specific serializers | routes, Ability, migrations, structure, contracts, tests, shared seeds |
-| B: billing + portal | Complete cash-pay billing actions and the billing-only patient portal display/request flow against existing billing and portal services. Keep the portal patient-scoped. | `apps/web/src/features/clinic/Billing*`, `apps/web/src/features/clinic/billing.css`, `apps/web/src/features/patientPortal/**`, `apps/api/app/controllers/clinic/billing/**`, `apps/api/app/controllers/patient_portal/**`, matching services/serializers | routes, Ability, migrations, structure, contracts, tests |
-| C: staff + reminders | Complete the staff messaging workspace and reminder-to-staff escalation path using existing models/services. Implement component-local flows; report route/contract changes to Astra. | `apps/web/src/features/staff-messaging/**`, `apps/web/src/features/clinic/Reminders.tsx`, `apps/web/src/features/clinic/staffWorkflow.css`, reminder/messaging controllers, services, and serializers | routes, Ability, migrations, structure, contracts, tests |
+- Existing services: `apps/api/app/services/clinic/reminders/dispatch.rb`, `record_delivery.rb`, `policy.rb`, `reconcile_appointment.rb`.
+- Existing controller/UI: `apps/api/app/controllers/clinic/reminders_controller.rb`, `apps/web/src/features/clinic/Reminders.tsx`; reuse their outbox/attempt associations.
+- Proposed additions: bounded recovery/job entry point using existing job infrastructure; authenticated callback adapter/durable event receipt only where absent.
+- sc-348 outcome: interrupted eligible work can resume from persisted lease/attempt state without duplicate sends, consent/cancellation bypass, or unlimited retries. Re-evaluate policy and treat uncertain delivery distinctly from a known failure.
+- sc-349 outcome: verified provider/account events update the exact authorized attempt with durable deduplication and defined out-of-order behavior. Staff-entered delivery outcomes are not authenticated provider callbacks.
+- Do not invent a provider signature algorithm or recipient secret configuration. Preserve the closed provider gate and truthful consequential delivery status. Provider-specific enablement/proof remains blocked until its required protocol/custody decision exists.
 
-When an agent finishes, Astra reviews the bounded diff for scope only, integrates it, and immediately replaces the agent with the next queued task. Do not consume a second agent turn on test repair or UI polish.
+### sc-350 / sc-351 — actionable staff handoff and recovery
 
-### Phase 2 — coordinator shared integration, then scribe
+- Existing integration services: `apps/api/app/services/clinic/messaging/create_staff_conversation.rb`, `send_staff_message.rb`, `acknowledge_staff_message.rb`, `transition_staff_request.rb`, `escalate_staff_request.rb`.
+- sc-350 outcome: an actionable reminder failure/unresolved response creates one correlated server-owned request; authorized staff can acknowledge/escalate/resolve it without modifying appointment or clinical state.
+- sc-351 outcome: due staff requests/outbox work receive bounded durable processing and recover after interruption. Reuse the existing models and job mechanism; do not add another task ledger or queue platform.
+- Failure boundary: tenant/site-safe recipient lookup, event idempotency, no message-body leakage in notifications/logs, active-membership checks and approved escalation coverage. Missing coverage/provider choices remain named blockers, not invented emergency routing.
+- Agree the event contract first; only one writer touches a shared messaging service at a time. Attachment storage/malware scanning and external notification enablement remain gated follow-ups, not hidden placeholders labeled complete.
 
-1. Astra makes one serialized shared integration commit: routes, `App.tsx` navigation, shared contracts, capability visibility, and any previously documented authorization/context changes.
-2. Dispatch Sol task D for AI scribe: complete the reviewer draft -> edit -> approval -> export flow, with provenance/retention states already supported by the existing services. Allowed files: `apps/web/src/features/scribe/**`, `apps/api/app/controllers/clinic/scribe/**`, `apps/api/app/services/clinic/scribe/**`, and matching serializers. Exclude routes, Ability, migrations, structure, contracts, and tests.
-3. Astra integrates scribe route/navigation/contract changes in a second serialized shared commit.
+### sc-345 — scribe composition
 
-### Phase 3 — implementation hardening backlog
+- Existing UI: `apps/web/src/features/scribe/ScribeReviewWorkspace.tsx`, `types.ts`.
+- Existing authority: `apps/api/app/controllers/clinic/scribe/`, `apps/api/app/services/clinic/scribe/workflow.rb`, `draft_generator.rb`, `retention.rb`, `apps/api/app/serializers/clinic/scribe/serializer.rb`.
+- Proposed addition: feature-local API/container adapter plus the minimum clinic route/navigation composition.
+- Actor/entry/outcome: authorized reviewer reaches an existing persisted encounter/source/draft, submits permitted edits and explicitly approves/exports the authorized current revision.
+- Failure boundary: stale/unavailable source, missing consent, unsaved edits, permission denial and export confirmation remain authoritative. Display actual server provenance/status and never invent generated clinical conclusions.
+- Existing source import, local provider and bounded export adapter are the limit. No microphone/cloud provider, diagnosis/treatment automation or official-record writes.
 
-Run one Sol task at a time because these changes affect transactional authority. Still do not add or run tests.
+## Shared integration and no-waste rules
 
-1. Inventory: make receipt/quantity/stock movement one deterministic-lock transaction; create transactional holds for quarantined receipts; ensure recalls lock the lot, include current and future linked batches, and bind disposition to `recall_lot`; compare transfer retry destination and reason.
-2. Billing: add durable idempotency receipt handling across invoice draft, posting, and allocation; reconcile `billing.read` capability projection with `patients.read`.
-3. Reminders: implement provider callback signature/replay boundary and durable delivery/retry states using the existing reminder outbox/delivery models. Do not connect a real provider.
-4. Portal/staff: wire bounded request status and staff acknowledgement/escalation state transitions so the two visible workflows agree on the same server-owned state.
+- Current shared-contract Story [sc-95](https://app.shortcut.com/apply-1/story/95) still has historical active reservations. Reconcile exact implementation ownership before writing those seams; this planning task does not take them over.
+- Coordinator controls `apps/api/config/routes.rb`, `apps/api/app/models/ability.rb`, clinic context, `apps/web/src/App.tsx`, `apps/web/src/features/clinic/Workspace.tsx`, `apps/web/src/api/contracts.ts`, migration allocation and generated schema. It may delegate one explicitly bounded shared-file edit exclusively; other agents must exclude that file.
+- Use isolated worktrees or genuinely disjoint enforced file ownership. Different branches in one checkout are not isolation. Do not share mutable database/browser sessions.
+- Every task capsule includes story, current base/checkout, exact allowlist/exclusions, actor/entry/persisted outcome, failure behavior and verification boundary. Search symbols/consumers once; reuse the source map until a concrete change invalidates it.
+- One focused coordinator diff/consumer review per slice, then review integration deltas. Do not repeat whole-repository audits or dispatch an agent for every file.
+- Commit each coherent slice and integration. Preserve unrelated work. No pushing, deployment, branch/worktree removal or external actions without separate authority.
 
-Any hardening task that requires a migration is isolated and allocated by Astra before work begins. The coordinator owns the migration, schema update, and merge order even if a Sol agent supplies the model/service change.
+## Product quality and deliberately deferred proof
 
-### Phase 4 — finish the product wiring
+Every visible business record, price, balance, status and permission must come from its real backend/database authority. No hardcoded sample objects, fabricated metrics, mock-success handlers or missing-integration fallbacks. Static copy/design tokens/genuine invariants may remain in code. Use ordinary product language on screens; avoid “dev”, “seed”, “synth” and similar placeholder labels, while preserving truthful consequential sandbox/payment/delivery disclosures.
 
-The coordinator makes the final implementation-only integration pass:
+Build-first is not a wireframe pass. Persist mutations, handle errors and retain authorization/data integrity now. Optional visual refinement may wait; disconnected controls and missing backend wiring may not.
 
-1. Ensure every in-scope workspace is reachable from its intended APPly navigation path.
-2. Reconcile shared response contracts and loading/error boundaries so no feature relies on frontend-owned synthetic data.
-3. Remove dead local feature wiring introduced by this pass only when it is clearly replaced by the completed route.
-4. Integrate all clean agent commits, resolve conflicts surgically, preserve unrelated worktree changes, and commit each integration result.
+During the future build-first pass do not create/edit/run tests, typechecks, builds, browser checks, screenshots, audits or visual polish. Keep existing tests/hooks intact and do not bypass required hooks. Still inspect source/diffs and run `git diff --check`. A required-check conflict is reported, not silently bypassed. The finish label is **implemented pending verification**.
 
-Stop here. The product should have its requested surfaces and server-owned workflows implemented, but is intentionally unverified.
+Later, separately authorized proof is tracked by outcome:
 
-## Deferred stabilization and polish pass
+| Capability | Existing or new evidence story | Audit/design reference |
+| --- | --- | --- |
+| Inventory | [sc-334](https://app.shortcut.com/apply-1/story/334), with the related preserved inventory review records | Existing inventory evidence under `records/audits/2026-09-06-all-work-sync.md`; reconcile later fixes before replaying earlier failures. |
+| Cash-pay billing | [sc-96](https://app.shortcut.com/apply-1/story/96) | [Billing audit plan](cash%20pay%20billing/CASH_PAY_BILLING_AUDIT_PLAN.md) |
+| Billing-only portal | [sc-120](https://app.shortcut.com/apply-1/story/120) | [Portal audit plan](patient%20portal/PATIENT_PORTAL_AUDIT_PLAN.md) and [later scope handoff](patient%20portal/AGENT_IMPLEMENTATION_HANDOFF.md) |
+| Integrated staff messaging | [sc-352](https://app.shortcut.com/apply-1/story/352); prior component evidence sc-99 stays separate | [Staff audit plan](staff%20messaging/STAFF_MESSAGING_AUDIT_PLAN.md) |
+| Integrated scribe | [sc-353](https://app.shortcut.com/apply-1/story/353); prior safety evidence sc-102 stays separate | [Scribe audit plan](ai%20scribe/AI_SCRIBE_AUDIT_PLAN.md) |
+| Reminder delivery/recovery/handoff | [sc-354](https://app.shortcut.com/apply-1/story/354); prior security evidence sc-97 stays separate | [Reminder audit plan](patient%20reminders/PATIENT_REMINDERS_AUDIT_PLAN.md) |
 
-Create a later, separate Astra-led task for these items after all implementation commits are integrated:
+Reuse earlier evidence only when revision/environment relevance is established. Focus later checks on the changed paths, retries, tenant isolation, authorization, persisted outcomes and real authenticated desktop/narrow journeys. Record any unresolved provider, retention, accessibility, operational or professional/release gates. No test plan or completed source slice proves application-wide production readiness.
 
-1. Focused tests first, then only necessary contract/integration tests.
-2. Migration/schema and authorization regression review.
-3. Browser journeys at desktop and narrow widths, including real authenticated bootstrap recovery.
-4. Accessibility, error states, responsive polish, copy, and visual consistency.
-5. Retry/idempotency, tenant isolation, audit, retention, provider callback, and security validation.
-6. Resolve the current browser-session/bootstrap failure before using any live-browser result as evidence.
+## Living plan, completion and cleanup
 
-## Handoff format for every agent
+Keep this file as the current scoped execution map and Git as its revision history; do not generate numbered plan copies or mirror the queue into Obsidian. Existing roadmap/build/audit packets stay linked from the index. Update paths/contracts and commits at meaningful integration checkpoints; preserve dated evidence and accepted decisions with corrections/superseding links rather than rewriting history.
 
-```text
-Outcome implemented:
-Files changed:
-Files intentionally not touched:
-Required coordinator changes:
-Known gaps or assumptions:
-Checks: intentionally not run under build-first mode.
-Status: implementation only; tests and live verification intentionally deferred.
-Commit:
-```
+Build-first finishes only when every authorized implementation outcome is integrated and committed or its exact blocker is reported; do not silently drop a provider-dependent slice. Keep later evidence stories open. Record delivered scope, commits, checks actually run/deferred and next action in the existing handoff. “All local implementation finished” is not “production ready.”
 
-## Completion rule for this pass
+At final closeout, reconcile agent worktrees and task-owned changes once. Preserve useful roadmap/audit/decision/handoff history, remove only clearly disposable task-created scratch files within authority, and never delete branches/worktrees or unrelated data merely to obtain a clean status.
 
-This pass is complete when the six scoped product areas have their requested code paths implemented, routes/navigation are integrated, transactional backlog items above are addressed in source, every agent change is committed, and the `main` worktree contains no uncommitted changes created by this plan. It is not a release, pilot, clinical, financial, security, accessibility, or production-readiness decision.
+## Planning handoff and first bounded action
 
-## First bounded action
+This plan was source-reconciled with two read-only Terra-medium discovery agents; no application code, tests, runtime or provider state was changed. Structural link/path review, selected documentation checks and a scoped Git diff review are the planning acceptance, not application verification. The user reconciled sc-112's older reservation for this file and the index only; its other scope remains untouched.
 
-Have Astra inspect the current inventory cart/receiving/reconciliation path and dispatch the three Phase 1 Sol tasks with the exact file allowlists above. Do not create tests or begin a verification loop.
+Planning checks: all 25 local Markdown links across this file and the index resolve; scoped `bin/agent-check --run` passes. Whole-tree `git diff --check` reports a pre-existing blank line at EOF in the excluded `apps/api/db/structure.sql`; it was not corrected or staged. Application tests, builds, typechecks, runtime/browser checks and readiness audits were not run.
+
+First implementation action, when authorized: reconcile sc-95 shared ownership and current Git state, then take sc-344 with a feature-local live messaging adapter. Dispatch sc-346/sc-348 alongside it only after confirming disjoint ownership. Continue with the ready outcomes above; do not restart cart, inventory, portal or billing construction.
