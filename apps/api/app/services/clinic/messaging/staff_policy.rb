@@ -38,9 +38,14 @@ module Clinic
         object = case type.to_s
         when "appointment" then practice.appointments.find(id)
         when "encounter" then practice.encounters.find(id)
+        when "patient_reminder" then practice.patient_reminders.find(id)
         else raise ArgumentError, "The linked operational object type is unsupported."
         end
-        permission = type.to_s == "appointment" ? "appointments.read" : "encounters.write"
+        permission = case type.to_s
+        when "appointment" then "appointments.read"
+        when "encounter" then "encounters.write"
+        when "patient_reminder" then "reminders.read"
+        end
         Clinic::Authorization.authorize!(actor: actor, practice: practice, action: permission, subject: object)
         object
       end

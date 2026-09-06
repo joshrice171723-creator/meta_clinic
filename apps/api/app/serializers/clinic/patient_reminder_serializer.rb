@@ -1,6 +1,6 @@
 module Clinic
   module PatientReminderSerializer
-    def self.call(reminder, detail: false)
+    def self.call(reminder, detail: false, actor: nil, staff_handoff: nil)
       payload = {
         id: reminder.id, patient_id: reminder.patient_id, category: reminder.category,
         channel: reminder.channel, safe_preview: reminder.safe_preview, scheduled_at: reminder.scheduled_at&.iso8601(6),
@@ -9,7 +9,7 @@ module Clinic
         endpoint: { type: reminder.communication_endpoint.endpoint_type, label: reminder.communication_endpoint.label,
           masked_value: reminder.communication_endpoint.masked_value },
         action_types: %w[confirm request_reschedule request_help dismiss],
-        staff_handoff: Clinic::Reminders::StaffHandoff.summary(reminder: reminder)
+        staff_handoff: staff_handoff || Clinic::Reminders::StaffHandoff.summary(reminder: reminder, actor: actor)
       }
       if detail
         payload[:source] = { type: reminder.source_type, id: reminder.source_id, version: reminder.source_version }
