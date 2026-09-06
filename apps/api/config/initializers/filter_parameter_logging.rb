@@ -6,7 +6,7 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   :name, :message, :body, :website, :cookie, :signature, :consent, :content_digest,
-  :reference, :reason, :job_title, :ndc_query, :authorization,
+  :reference, :reason, :job_title, :ndc_query, :scan_code, :authorization,
   :text_value, :coded_value, :numeric_value, :unit_code, :missing_reason, :encrypted_value, :description_snapshot,
   :subjective, :objective, :assessment, :plan, :q,
   :allergen_name, :reaction, :medication_name, :dose_text, :route_text, :frequency_text, :purpose,

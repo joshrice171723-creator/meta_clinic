@@ -74,6 +74,7 @@ Rails.application.routes.draw do
     post "inventory_configuration", to: "inventory/pharmacy#configure", as: :inventory_configuration
     scope "inventory", as: "inventory_management" do
       get "bootstrap", to: "inventory/management#bootstrap"
+      post "scan", to: "inventory/management#scan"
       get "supplier-pricing", to: "inventory/management#supplier_pricing"
       post "suppliers", to: "inventory/supplier_pricing#create"
       patch "suppliers/:id", to: "inventory/supplier_pricing#update"
