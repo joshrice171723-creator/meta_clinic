@@ -12,7 +12,13 @@ module Clinic
             attempt = reminder.delivery_attempts.order(attempt_number: :desc).first
             return attempt if attempt&.provider_message_id == provider_event_reference && attempt.status == outcome
             raise ArgumentError, "A delivery attempt is required before recording a provider result." unless attempt
-            attempt.update_columns(status: outcome, completed_at: Time.current)
+            attempt.update_columns(
+              status: outcome,
+              failure_class: outcome == "failed" ? "delivery_reported_failed" : nil,
+              retryable: outcome == "failed",
+              completed_at: Time.current,
+              updated_at: Time.current
+            )
             reminder.outbox.update!(dispatch_state: outcome, lease_until: nil)
             target = outcome == "delivered" ? "delivered" : outcome == "unknown" ? "delivery_unknown" : "failed"
             reminder.update!(status: target)

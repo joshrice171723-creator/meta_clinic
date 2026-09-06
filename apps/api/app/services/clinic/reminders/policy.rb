@@ -8,6 +8,7 @@ module Clinic
         return deny("endpoint_unverified") unless endpoint&.verified_at.present? && endpoint.invalidated_at.blank?
         return deny("endpoint_channel_mismatch") unless endpoint.endpoint_type == reminder.channel
         return deny("expired") if reminder.expires_at.present? && reminder.expires_at <= at
+        return deny("source_cancelled") if source_cancelled?(reminder)
 
         preference = Clinic::CommunicationPreference.where(
           practice_id: reminder.practice_id, patient_id: reminder.patient_id,
@@ -28,6 +29,18 @@ module Clinic
         start_time < end_time ? local_time >= start_time && local_time < end_time : local_time >= start_time || local_time < end_time
       end
       private_class_method :quiet_hours?
+
+      def self.source_cancelled?(reminder)
+        return false unless reminder.source_type == "Clinic::Appointment"
+
+        appointment = Clinic::Appointment.find_by(
+          id: reminder.source_id,
+          practice_id: reminder.practice_id,
+          patient_id: reminder.patient_id
+        )
+        appointment.nil? || appointment.status == "cancelled"
+      end
+      private_class_method :source_cancelled?
 
       def self.deny(code)
         { allowed: false, code: code, version: VERSION }
