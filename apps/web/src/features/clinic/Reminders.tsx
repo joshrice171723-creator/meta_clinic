@@ -105,6 +105,16 @@ function StaffHandoffControl({
         endpoint={`/api/clinic/reminders/${reminder.id}/staff_handoff`}
         submit="Create staff follow-up"
         onSuccess={onSuccess}
+        transform={(values) => {
+          const handoff = values.handoff as Record<string, unknown>;
+          return {
+            ...values,
+            handoff: {
+              ...handoff,
+              due_at: new Date(String(handoff.due_at)).toISOString(),
+            },
+          };
+        }}
       >
         {reminder.staff_handoff.source_type === "action" && (
           <input
