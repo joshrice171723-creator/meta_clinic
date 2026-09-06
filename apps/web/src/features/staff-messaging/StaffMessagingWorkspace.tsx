@@ -32,6 +32,14 @@ export type StaffMessage = {
   createdAt: string;
   acknowledgementRequired?: boolean;
   acknowledged?: boolean;
+  request?: {
+    id: number;
+    state: string;
+    assignee_membership_id: number | null;
+    due_at: string | null;
+    resolved_at: string | null;
+    resolution_code: string | null;
+  } | null;
 };
 
 export type StaffConversation = {
@@ -53,6 +61,8 @@ export type StaffMessagingState = {
   selectedConversationId: number;
   canSend: boolean;
   canAcknowledge: boolean;
+  canTransition?: boolean;
+  canEscalate?: boolean;
   loading?: boolean;
   error?: string | null;
 };
@@ -62,6 +72,8 @@ type StaffMessagingWorkspaceProps = {
   onSelectConversation?: (conversationId: number) => void;
   onSend?: (conversationId: number, body: string) => void | Promise<void>;
   onAcknowledge?: (messageId: number) => void | Promise<void>;
+  onTransitionRequest?: (requestId: number, state: "acknowledged" | "in_progress") => void | Promise<void>;
+  onEscalateRequest?: (requestId: number) => void | Promise<void>;
   onRetry?: () => void;
 };
 
@@ -188,10 +200,18 @@ function MessageCard({
   message,
   canAcknowledge,
   onAcknowledge,
+  canTransition,
+  canEscalate,
+  onTransitionRequest,
+  onEscalateRequest,
 }: {
   message: StaffMessage;
   canAcknowledge: boolean;
   onAcknowledge?: (messageId: number) => void;
+  canTransition?: boolean;
+  canEscalate?: boolean;
+  onTransitionRequest?: (requestId: number, state: "acknowledged" | "in_progress") => void | Promise<void>;
+  onEscalateRequest?: (requestId: number) => void | Promise<void>;
 }) {
   return (
     <Paper
@@ -268,6 +288,28 @@ function MessageCard({
             )}
           </Stack>
         )}
+        {message.request && !["resolved", "declined", "expired"].includes(message.request.state) && (
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
+            <Typography variant="body2" color="text.secondary">
+              Request: {message.request.state.replaceAll("_", " ")}
+            </Typography>
+            {canTransition && message.request.state === "open" && (
+              <Button size="small" variant="outlined" onClick={() => void onTransitionRequest?.(message.request!.id, "acknowledged")}>
+                Acknowledge request
+              </Button>
+            )}
+            {canTransition && ["open", "acknowledged"].includes(message.request.state) && (
+              <Button size="small" variant="outlined" onClick={() => void onTransitionRequest?.(message.request!.id, "in_progress")}>
+                Start request
+              </Button>
+            )}
+            {canEscalate && (
+              <Button size="small" color="warning" variant="outlined" onClick={() => void onEscalateRequest?.(message.request!.id)}>
+                Escalate
+              </Button>
+            )}
+          </Stack>
+        )}
       </Stack>
     </Paper>
   );
@@ -281,6 +323,7 @@ export function StaffMessagingWorkspace({
   onRetry,
 }: StaffMessagingWorkspaceProps) {
   const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
   const selectedConversation = useMemo(
     () =>
       state.conversations.find(
@@ -330,18 +373,24 @@ export function StaffMessagingWorkspace({
           No conversations yet
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }}>
-          Start a staff conversation when the server-authorized messaging route
-          is connected.
+          There are no staff conversations available to your current account.
         </Typography>
       </Paper>
     );
   }
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const body = draft.trim();
-    if (!body || !state.canSend) return;
-    onSend?.(selectedConversation.id, body);
-    setDraft("");
+    if (!body || !state.canSend || sending) return;
+    setSending(true);
+    try {
+      await onSend?.(selectedConversation.id, body);
+      setDraft("");
+    } catch {
+      // The adapter owns the user-visible failure. Keep the draft for retry.
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -389,23 +438,11 @@ export function StaffMessagingWorkspace({
             </Typography>
           </Box>
           <Chip
-            label="3 active conversations"
+            label={`${state.conversations.filter(({ status }) => status === "active").length} active conversations`}
             variant="outlined"
             sx={{ alignSelf: { xs: "flex-start", sm: "auto" } }}
           />
         </Stack>
-
-        <Alert
-          severity="info"
-          icon={false}
-          sx={{ border: "1px solid #c8ddd8", bgcolor: "#f2f8f6" }}
-        >
-          <Typography variant="body2">
-            The preview keeps message state, urgency, and acknowledgement
-            explicit. The backend adapter remains the authority for membership,
-            scope, and delivery.
-          </Typography>
-        </Alert>
 
         <Box
           sx={{
@@ -585,6 +622,10 @@ export function StaffMessagingWorkspace({
                   message={message}
                   canAcknowledge={state.canAcknowledge}
                   onAcknowledge={onAcknowledge}
+                  canTransition={state.canTransition}
+                  canEscalate={state.canEscalate}
+                  onTransitionRequest={onTransitionRequest}
+                  onEscalateRequest={onEscalateRequest}
                 />
               ))}
               <Divider sx={{ my: 0.5 }} />
@@ -626,7 +667,7 @@ export function StaffMessagingWorkspace({
                       type="submit"
                       variant="contained"
                       endIcon={<SendRoundedIcon />}
-                      disabled={!state.canSend || draft.trim().length === 0}
+                      disabled={!state.canSend || sending || draft.trim().length === 0}
                     >
                       Send message
                     </Button>
