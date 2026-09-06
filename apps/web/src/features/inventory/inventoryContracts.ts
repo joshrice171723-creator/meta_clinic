@@ -509,3 +509,50 @@ export type InventoryOrderData = InventoryReadContext & {
   products: Pick<InventoryProduct, "id" | "name" | "ndc" | "base_unit">[];
   shipments: Pick<InventoryShipment, "id" | "po_id" | "supplier_reference">[];
 };
+
+export type InventoryReceivingRecall = Pick<
+  InventoryRecall,
+  "id" | "product_id" | "lot_numbers" | "reference" | "required_disposition"
+>;
+export type InventoryReceivingLotLookup = {
+  lot: InventoryLot | null;
+  recalls: InventoryReceivingRecall[];
+};
+export type InventoryReceivingDetail = InventoryReadContext &
+  Pick<
+    InventoryData,
+    | "packages"
+    | "lots"
+    | "locations"
+    | "receipts"
+    | "shipments"
+    | "purchase_orders"
+  > & {
+    products: Pick<InventoryProduct, "id" | "name" | "base_unit">[];
+    recalls: InventoryReceivingRecall[];
+  };
+export type InventoryDeliveryRead = {
+  q?: string;
+  delivery_status?: "all" | "open" | "reconciled";
+  page?: number;
+  shipment_id?: string | null;
+};
+export type InventoryDeliveryData = InventoryReceivingDetail & {
+  delivery_page: {
+    query: string;
+    status: NonNullable<InventoryDeliveryRead["delivery_status"]>;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+    selected_shipment_id: string | null;
+  };
+  delivery_options: {
+    id: string;
+    supplier_reference: string;
+    order_number: string;
+    supplier_name: string | null;
+    status: string;
+  }[];
+};

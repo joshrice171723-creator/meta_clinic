@@ -57,8 +57,15 @@ module Clinic
 
         render json: { data: InventoryWire.purchasing(practice: current_practice, actor: current_user, query: params[:q], status: params[:order_status], page: params[:page]) }
       end
-      def receiving = bootstrap
+      def receiving
+        return bootstrap unless params[:view] == "deliveries"
+
+        render json: { data: InventoryWire.receiving(practice: current_practice, actor: current_user, query: params[:q], status: params[:delivery_status], page: params[:page], shipment_id: params[:shipment_id]) }
+      end
       def lots
+        if params[:view] == "receiving_lookup"
+          return render json: { data: InventoryWire.receiving_lot(practice: current_practice, product_id: params.require(:product_id), number: params[:lot_number]) }
+        end
         return bootstrap unless params[:view] == "positions"
 
         render json: { data: InventoryWire.positions(practice: current_practice, actor: current_user, query: params[:q], status: params[:stock_status], product_id: params[:product_id], page: params[:page]) }
@@ -285,7 +292,8 @@ module Clinic
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
         receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, reconciliation: reconciliation, status: recall ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input[:lot_number], location: destination&.name, expires_on: input[:expiration_date], amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), receipt_id: receipt.is_a?(Receipt) ? receipt.id : nil }
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(receipt_id: receipt.is_a?(Receipt) ? receipt.id : nil)
       end
 
       def create_transfer

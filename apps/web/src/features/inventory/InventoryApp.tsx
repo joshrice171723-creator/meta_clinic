@@ -23,6 +23,10 @@ import type {
   InventoryStockRead,
   InventoryOrderData,
   InventoryOrderRead,
+  InventoryDeliveryData,
+  InventoryDeliveryRead,
+  InventoryReceivingDetail,
+  InventoryReceivingLotLookup,
   InventoryProduct,
   InventoryRecall,
   InventoryCategory,
@@ -1987,6 +1991,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryCatalogData
     | InventoryStockData
     | InventoryOrderData
+    | InventoryDeliveryData
   >();
   const readVersion = useRef(0);
   const [error, setError] = useState("");
@@ -2022,6 +2027,7 @@ export function InventoryApp({ path }: { path: string }) {
       "catalog_page" in data ||
       "stock_page" in data ||
       "order_page" in data ||
+      "delivery_page" in data ||
       !needsPurchaseOrderFacility
     )
       return;
@@ -2033,11 +2039,13 @@ export function InventoryApp({ path }: { path: string }) {
   const load = async (
     requested?: InventoryCatalogRead &
       InventoryStockRead &
-      InventoryOrderRead & { before?: string | null },
+      InventoryOrderRead &
+      InventoryDeliveryRead & { before?: string | null },
   ) => {
     const read: InventoryCatalogRead &
       InventoryStockRead &
-      InventoryOrderRead & { before?: string | null } =
+      InventoryOrderRead &
+      InventoryDeliveryRead & { before?: string | null } =
       requested ??
       (screen === "catalog" && data && "catalog_page" in data
         ? {
@@ -2058,7 +2066,14 @@ export function InventoryApp({ path }: { path: string }) {
                 order_status: data.order_page.status,
                 page: data.order_page.page,
               }
-            : {});
+            : screen === "receiving" && data && "delivery_page" in data
+              ? {
+                  q: data.delivery_page.query,
+                  delivery_status: data.delivery_page.status,
+                  page: data.delivery_page.page,
+                  shipment_id: data.delivery_page.selected_shipment_id,
+                }
+              : {});
     const version = ++readVersion.current;
     setLoading(true);
     setError("");
@@ -2072,8 +2087,17 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "catalog") query.set("view", "table");
         if (screen === "lots") query.set("view", "positions");
         if (screen === "purchasing") query.set("view", "batches");
+        if (screen === "receiving") query.set("view", "deliveries");
+        if (read.delivery_status)
+          query.set("delivery_status", read.delivery_status);
         if (read.order_status) query.set("order_status", read.order_status);
         const routeQuery = new URLSearchParams(window.location.search);
+        const shipmentId =
+          read.shipment_id === undefined
+            ? routeQuery.get("shipment_id")
+            : read.shipment_id;
+        if (screen === "receiving" && shipmentId)
+          query.set("shipment_id", shipmentId);
         if (screen === "lots" && routeQuery.get("product_id"))
           query.set("product_id", routeQuery.get("product_id")!);
         if (screen === "activity" && routeQuery.get("lot_id"))
@@ -2093,14 +2117,17 @@ export function InventoryApp({ path }: { path: string }) {
                 ? `/api/clinic/inventory/lots?${query}`
                 : screen === "purchasing"
                   ? `/api/clinic/inventory/purchase-orders?${query}`
-                  : "/api/clinic/inventory/bootstrap";
+                  : screen === "receiving"
+                    ? `/api/clinic/inventory/receiving?${query}`
+                    : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
             | InventoryActivityData
             | InventoryCatalogData
             | InventoryStockData
-            | InventoryOrderData;
+            | InventoryOrderData
+            | InventoryDeliveryData;
         }>(endpoint, { signal: controller.signal });
         if (version !== readVersion.current) return;
         if (
@@ -2108,7 +2135,8 @@ export function InventoryApp({ path }: { path: string }) {
           (screen === "activity") !== "activity_page" in payload.data ||
           (screen === "catalog") !== "catalog_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
-          (screen === "purchasing") !== "order_page" in payload.data
+          (screen === "purchasing") !== "order_page" in payload.data ||
+          (screen === "receiving") !== "delivery_page" in payload.data
         )
           throw new Error(
             "The inventory service returned an incomplete response.",
@@ -2183,7 +2211,7 @@ export function InventoryApp({ path }: { path: string }) {
         acknowledged?: boolean;
         id?: number | string;
       }>(
-        ["lots", "purchasing"].includes(screen)
+        ["lots", "purchasing", "receiving"].includes(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
         {
@@ -2191,7 +2219,7 @@ export function InventoryApp({ path }: { path: string }) {
           body: requestBody,
         },
       );
-      if (["lots", "purchasing"].includes(screen)) {
+      if (["lots", "purchasing", "receiving"].includes(screen)) {
         if (payload.acknowledged !== true)
           throw new Error(
             "The inventory action response could not be confirmed.",
@@ -2210,7 +2238,7 @@ export function InventoryApp({ path }: { path: string }) {
         detail: successDetail,
       });
       afterSuccess?.(payload);
-      if (["lots", "purchasing"].includes(screen)) await load();
+      if (["lots", "purchasing", "receiving"].includes(screen)) await load();
     } catch (reason) {
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
@@ -2260,6 +2288,7 @@ export function InventoryApp({ path }: { path: string }) {
     !("catalog_page" in data) &&
     !("stock_page" in data) &&
     !("order_page" in data) &&
+    !("delivery_page" in data) &&
     !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
   )
     return (
@@ -2398,6 +2427,16 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "delivery_page" in data ? (
+              <ReceivingWorkspace
+                data={data}
+                busy={busy}
+                readBlocked={Boolean(uncertainMutation)}
+                run={run}
+                loading={loading}
+                error={error}
+                onRead={load}
+              />
             ) : (
               <>
                 {screen === "catalog_new" && (
@@ -2434,9 +2473,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "shipment_new" && (
                   <ShipmentCreateScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "receiving" && (
-                  <ReceivingScreen data={data} busy={busy} run={run} />
                 )}
                 {screen === "recalls" && (
                   <RecallScreen data={data} busy={busy} run={run} />
@@ -4051,7 +4087,7 @@ function PurchaseOrderDetails({
             </div>
           </div>
           {shipment && (
-            <a className="inventory-info" href="/clinic/inventory/receiving">
+            <a className="inventory-info" href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}>
               Delivery {shipment.supplier_reference} recorded · View receiving
             </a>
           )}
@@ -4064,12 +4100,189 @@ function PurchaseOrderDetails({
   );
 }
 
+function ReceivingWorkspace({
+  data,
+  busy,
+  readBlocked,
+  loading,
+  error,
+  onRead,
+  run,
+}: {
+  data: InventoryDeliveryData;
+  busy: boolean;
+  readBlocked: boolean;
+  loading: boolean;
+  error: string;
+  onRead: (read: InventoryDeliveryRead) => Promise<void>;
+  run: (
+    endpoint: string,
+    body: Record<string, unknown>,
+    title: string,
+    detail: string,
+  ) => Promise<void>;
+}) {
+  const page = data.delivery_page;
+  const [query, setQuery] = useState(page.query);
+  useEffect(() => setQuery(page.query), [page.query]);
+  const applied = {
+    q: page.query,
+    delivery_status: page.status,
+    page: page.page,
+    shipment_id: page.selected_shipment_id,
+  };
+  const disabled = loading || busy || readBlocked;
+  const selected = data.shipments[0];
+  return (
+    <div className="inventory-stack" aria-busy={loading}>
+      <Card title="Delivery queue">
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!disabled)
+              void onRead({
+                ...applied,
+                q: query.trim(),
+                page: 1,
+                shipment_id: null,
+              });
+          }}
+        >
+          <TextField
+            label="Search deliveries"
+            size="small"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Delivery, order, supplier"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            label="Delivery status"
+            size="small"
+            value={page.status}
+            disabled={disabled}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                delivery_status: event.target.value as typeof page.status,
+                page: 1,
+                shipment_id: null,
+              })
+            }
+          >
+            <MenuItem value="open">Open deliveries</MenuItem>
+            <MenuItem value="reconciled">Reconciled deliveries</MenuItem>
+            <MenuItem value="all">All deliveries</MenuItem>
+          </TextField>
+          <Button type="submit" variant="outlined" disabled={disabled}>
+            Search deliveries
+          </Button>
+        </form>
+        <p role="status">
+          {loading
+            ? "Loading deliveries…"
+            : `${data.delivery_options.length} shown · ${page.filtered_count} matching of ${page.total_count} deliveries.`}
+        </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous delivery remains visible.
+          </Alert>
+        )}
+        {data.delivery_options.length === 0 && (
+          <p>
+            No deliveries match this view. Change the search or status to review
+            delivery history.
+          </p>
+        )}
+        {(data.delivery_options.length > 0 || selected) && (
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Select delivery"
+            value={selected?.id ?? ""}
+            disabled={disabled}
+            onChange={(event) =>
+              void onRead({ ...applied, shipment_id: event.target.value })
+            }
+          >
+            {selected &&
+              !data.delivery_options.some(
+                (option) => option.id === selected.id,
+              ) && (
+                <MenuItem value={selected.id}>
+                  {selected.supplier_reference} (outside this view)
+                </MenuItem>
+              )}
+            {data.delivery_options.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {option.supplier_reference} · {option.order_number} ·{" "}
+                {option.supplier_name ?? "Supplier not recorded"} ·{" "}
+                {option.status}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+        {page.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Delivery pagination"
+          >
+            <Button
+              variant="outlined"
+              disabled={disabled || page.page === 1}
+              onClick={() =>
+                void onRead({
+                  ...applied,
+                  page: page.page - 1,
+                  shipment_id: null,
+                })
+              }
+            >
+              Previous
+            </Button>
+            <span>
+              Page {page.page} of {page.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              disabled={disabled || page.page === page.page_count}
+              onClick={() =>
+                void onRead({
+                  ...applied,
+                  page: page.page + 1,
+                  shipment_id: null,
+                })
+              }
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </Card>
+      {selected && (
+        <ReceivingScreen
+          key={selected.id}
+          data={data}
+          busy={busy}
+          run={run}
+          lookupLot
+        />
+      )}
+    </div>
+  );
+}
+
 export function ReceivingScreen({
   data,
   busy,
   run,
+  lookupLot = false,
 }: {
-  data: InventoryData;
+  data: InventoryReceivingDetail;
+  lookupLot?: boolean;
   busy: boolean;
   run: (
     endpoint: string,
@@ -4102,6 +4315,12 @@ export function ReceivingScreen({
   const packageInfo = packageFor(data, line?.package_id);
   const packageUnit = packageInfo?.input_unit ?? "unavailable unit";
   const baseUnit = item?.base_unit ?? "unavailable unit";
+  const [lotLookupAttempt, setLotLookupAttempt] = useState(0);
+  const [lotLookup, setLotLookup] = useState<{
+    key: string;
+    data: InventoryReceivingLotLookup;
+    error?: string;
+  }>();
   const productLots = data.lots.filter(
     (record) => record.product_id === item?.id,
   );
@@ -4118,13 +4337,19 @@ export function ReceivingScreen({
   const displayedLot = shipment?.reconciliation
     ? (recordedObservation?.lot_number ?? "")
     : lotNumber;
-  const selectedLot = productLots.find(
-    (record) => record.lot_number === displayedLot,
-  );
-  const recall = data.recalls.find(
+  const lookupKey = `${item?.id}:${displayedLot.trim()}`;
+  const lookupMatches = lotLookup?.key === lookupKey;
+  const lookupReady = !lookupLot || (lookupMatches && !lotLookup?.error);
+  const selectedLot =
+    (lookupMatches ? lotLookup?.data.lot : undefined) ??
+    productLots.find((record) => record.lot_number === displayedLot.trim());
+  const recall = [
+    ...(lookupMatches ? (lotLookup?.data.recalls ?? []) : []),
+    ...data.recalls,
+  ].find(
     (record) =>
       record.product_id === item?.id &&
-      record.lot_numbers.includes(displayedLot),
+      record.lot_numbers.includes(displayedLot.trim()),
   );
   const eligibleLocations = recall
     ? data.locations.filter((record) => record.kind === "quarantine")
@@ -4170,7 +4395,7 @@ export function ReceivingScreen({
       (record) =>
         record.product_id === productId && record.lot_number === value,
     );
-    if (known) setExpirationDate(known.expiration_date);
+    setExpirationDate(known?.expiration_date ?? "");
 
     const nextRecall = data.recalls.find(
       (record) =>
@@ -4188,6 +4413,52 @@ export function ReceivingScreen({
     setDestinationId(nextLocation?.id ?? "");
     setAreaId(nextLocation?.areas[0] ?? "");
   };
+  useEffect(() => {
+    if (!lookupLot || !item?.id || !displayedLot.trim()) return;
+    const controller = new AbortController();
+    let current = true;
+    const key = lookupKey;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        view: "receiving_lookup",
+        product_id: item.id,
+        lot_number: displayedLot.trim(),
+      });
+      void api<{ data: InventoryReceivingLotLookup }>(
+        `/api/clinic/inventory/lots?${params}`,
+        { signal: controller.signal },
+      )
+        .then((payload) => {
+          if (!current) return;
+          setLotLookup({ key, data: payload.data });
+          if (payload.data.lot)
+            setExpirationDate(payload.data.lot.expiration_date);
+          if (payload.data.recalls.length > 0) {
+            setDestinationId(
+              data.locations.find((location) => location.kind === "quarantine")
+                ?.id ?? "",
+            );
+            setAreaId("");
+          }
+        })
+        .catch((reason: unknown) => {
+          if (!current) return;
+          setLotLookup({
+            key,
+            data: { lot: null, recalls: [] },
+            error:
+              reason instanceof Error
+                ? reason.message
+                : "Unable to check this lot.",
+          });
+        });
+    }, 300);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [lookupLot, item?.id, displayedLot, lotLookupAttempt]);
   if (!shipment || !order || !line || !item)
     return (
       <Card title="Receiving">
@@ -4223,7 +4494,7 @@ export function ReceivingScreen({
           purchase_order_id: order.id,
           shipment_id: shipment.id,
           purchase_order_line_id: line.id,
-          lot_number: lotNumber,
+          lot_number: lotNumber.trim(),
           expiration_date: expirationDate,
           quantity_packages: packages,
           destination_location: destination?.name,
@@ -4257,61 +4528,69 @@ export function ReceivingScreen({
     <div className="inventory-two-col wide-left">
       <Card>
         <div className="inventory-card-heading">
-          <Field label="Shipment">
-            <select
-              value={shipment.id}
-              onChange={(event) => {
-                const selected = data.shipments.find(
-                  (record) => record.id === event.target.value,
-                );
-                const selectedOrder = data.purchase_orders.find(
-                  (record) => record.id === selected?.po_id,
-                );
-                setShipmentId(event.target.value);
-                const selectedAllocations = selected?.allocations ?? [];
-                const selectedLine = selectedOrder?.lines.find((candidate) =>
-                  selectedAllocations.some(
-                    (entry) => entry.purchase_order_line_id === candidate.id,
-                  ),
-                );
-                const selectedLots = data.lots.filter(
-                  (record) => record.product_id === selectedLine?.product_id,
-                );
-                const nextLot =
-                  selectedLots.find((record) => record.status === "recalled") ??
-                  selectedLots[0];
-                setLineId(selectedLine?.id ?? "");
-                selectLot(nextLot?.lot_number ?? "", selectedLine?.product_id);
-                setPackages(
-                  selected?.reconciliation?.accepted_packages ??
-                    selectedAllocations.find(
-                      (entry) =>
-                        entry.purchase_order_line_id === selectedLine?.id,
-                    )?.expected_packages ??
-                    "1",
-                );
-                setMissingPackages(
-                  selected?.reconciliation?.missing_packages ?? "0",
-                );
-                setRejectedPackages(
-                  selected?.reconciliation?.rejected_packages ?? "0",
-                );
-                setExcessPackages(
-                  selected?.reconciliation?.excess_packages ?? "0",
-                );
-                setExceptionKind(
-                  selected?.reconciliation?.exception ?? "short_delivery",
-                );
-                setReason("");
-              }}
-            >
-              {data.shipments.map((record) => (
-                <option key={record.id} value={record.id}>
-                  {record.supplier_reference}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {lookupLot ? (
+            <DataPoint label="Shipment" value={shipment.supplier_reference} />
+          ) : (
+            <Field label="Shipment">
+              <select
+                value={shipment.id}
+                onChange={(event) => {
+                  const selected = data.shipments.find(
+                    (record) => record.id === event.target.value,
+                  );
+                  const selectedOrder = data.purchase_orders.find(
+                    (record) => record.id === selected?.po_id,
+                  );
+                  setShipmentId(event.target.value);
+                  const selectedAllocations = selected?.allocations ?? [];
+                  const selectedLine = selectedOrder?.lines.find((candidate) =>
+                    selectedAllocations.some(
+                      (entry) => entry.purchase_order_line_id === candidate.id,
+                    ),
+                  );
+                  const selectedLots = data.lots.filter(
+                    (record) => record.product_id === selectedLine?.product_id,
+                  );
+                  const nextLot =
+                    selectedLots.find(
+                      (record) => record.status === "recalled",
+                    ) ?? selectedLots[0];
+                  setLineId(selectedLine?.id ?? "");
+                  selectLot(
+                    nextLot?.lot_number ?? "",
+                    selectedLine?.product_id,
+                  );
+                  setPackages(
+                    selected?.reconciliation?.accepted_packages ??
+                      selectedAllocations.find(
+                        (entry) =>
+                          entry.purchase_order_line_id === selectedLine?.id,
+                      )?.expected_packages ??
+                      "1",
+                  );
+                  setMissingPackages(
+                    selected?.reconciliation?.missing_packages ?? "0",
+                  );
+                  setRejectedPackages(
+                    selected?.reconciliation?.rejected_packages ?? "0",
+                  );
+                  setExcessPackages(
+                    selected?.reconciliation?.excess_packages ?? "0",
+                  );
+                  setExceptionKind(
+                    selected?.reconciliation?.exception ?? "short_delivery",
+                  );
+                  setReason("");
+                }}
+              >
+                {data.shipments.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.supplier_reference}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           {allocatedLines.length > 1 && (
             <Field label="Purchase-order line">
               <select
@@ -4526,6 +4805,28 @@ export function ReceivingScreen({
             allowed={capability(data, "inventory.receive")}
             permission="inventory.receive"
           />
+          {lookupLot &&
+            displayedLot.trim() &&
+            !lookupReady &&
+            (lookupMatches && lotLookup?.error ? (
+              <Alert
+                severity="error"
+                action={
+                  <Button
+                    onClick={() => {
+                      setLotLookup(undefined);
+                      setLotLookupAttempt((attempt) => attempt + 1);
+                    }}
+                  >
+                    Retry lot check
+                  </Button>
+                }
+              >
+                {lotLookup.error} Check this lot before accepting stock.
+              </Alert>
+            ) : (
+              <p role="status">Checking lot expiry and recall records…</p>
+            ))}
           <ConfirmButton
             disabled={
               busy ||
@@ -4533,7 +4834,10 @@ export function ReceivingScreen({
               !!shipment.reconciliation ||
               !capability(data, "inventory.receive") ||
               (accepted &&
-                (!destination || !lotNumber.trim() || !expirationDate)) ||
+                (!destination ||
+                  !lotNumber.trim() ||
+                  !expirationDate ||
+                  !lookupReady)) ||
               !reason.trim() ||
               !allocation ||
               !balanced

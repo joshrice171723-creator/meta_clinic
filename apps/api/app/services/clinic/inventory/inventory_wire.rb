@@ -96,6 +96,44 @@ module Clinic
         { data: purchase_order_wire(order) }
       end
 
+      def receiving_lot(practice:, product_id:, number:)
+        product = PharmacyProduct.where(practice_id: practice.id).find(product_id)
+        number = number.to_s.strip
+        raise ArgumentError, "Enter a lot number of 1–100 characters." unless number.length.between?(1, 100)
+        lot = Lot.where(practice_id: practice.id, product_id: product.id).find_by(number: number)
+        return { lot: nil, recalls: [] } unless lot
+
+        kinds = Hold.active.where(practice_id: practice.id).joins(:batch).where(clinic_pharmacy_batches: { lot_id: lot.id }).distinct.pluck(:kind)
+        recalls = Recall.where(practice_id: practice.id, product_id: product.id).joins(:recall_lots).where(clinic_inventory_recall_lots: { lot_id: lot.id }).order(id: :desc)
+        { lot: { id: lot.id.to_s, product_id: product.id.to_s, package_id: "pkg_#{product.id}", lot_number: lot.number, expiration_date: lot.expires_on.iso8601,
+            status: kinds.include?("recalled") ? "recalled" : kinds.any? ? "quarantined" : "active" },
+          recalls: recalls.map { |recall| { id: recall.id.to_s, product_id: product.id.to_s, lot_numbers: [ lot.number ], reference: recall.reference, required_disposition: recall.required_disposition } } }
+      end
+
+      def receiving(practice:, actor:, **filters)
+        result = ReceivingQuery.call(practice: practice, **filters)
+        selected = result.selected && Shipment.where(practice_id: practice.id).includes(:reconciliation, :shipment_lines, { receipts: { lines: { batch: :lot } } }, { purchase_order: [ :supplier, { lines: :product } ] }).find(result.selected.id)
+        order = selected&.purchase_order
+        products = order ? order.lines.map(&:product).uniq(&:id) : []
+        receipts = selected ? selected.receipts.to_a : []
+        lots = receipts.flat_map { |receipt| receipt.lines.map { |line| line.batch.lot } }.uniq(&:id)
+        kinds_by_lot = Hold.active.where(practice_id: practice.id).joins(:batch).where(clinic_pharmacy_batches: { lot_id: lots.map(&:id) })
+          .group("clinic_pharmacy_batches.lot_id").pluck("clinic_pharmacy_batches.lot_id", Arel.sql("array_agg(DISTINCT clinic_inventory_holds.kind)")).to_h
+        context(practice: practice, actor: actor).merge(
+          delivery_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count, page_size: ReceivingQuery::PAGE_SIZE,
+            total_count: result.total_count, filtered_count: result.filtered_count, selected_shipment_id: selected&.id&.to_s },
+          delivery_options: result.rows.map { |shipment| { id: shipment.id.to_s, supplier_reference: shipment.supplier_reference, order_number: shipment[:order_number], supplier_name: shipment[:supplier_name], status: shipment[:receiving_state] } },
+          shipments: selected ? [ shipment_wire(selected) ] : [], purchase_orders: order ? [ purchase_order_wire(order) ] : [],
+          products: products.map { |product| { id: product.id.to_s, name: product.name, base_unit: product.stock_unit } }, packages: products.map { |product| package_wire(product) },
+          receipts: receipts.map { |receipt| receipt_wire(receipt) },
+          lots: lots.map do |lot|
+            kinds = kinds_by_lot.fetch(lot.id, [])
+            { id: lot.id.to_s, product_id: lot.product_id.to_s, package_id: "pkg_#{lot.product_id}", lot_number: lot.number, expiration_date: lot.expires_on.iso8601,
+              status: kinds.include?("recalled") ? "recalled" : kinds.any? ? "quarantined" : "active" }
+          end, recalls: [],
+          locations: practice.inventory_locations.order(:name, :id).map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, areas: [] } })
+      end
+
       def purchasing(practice:, actor:, **filters)
         result = PurchaseOrdersQuery.call(practice: practice, **filters)
         products = result.orders.flat_map { |order| order.lines.map(&:product) }.uniq(&:id)
