@@ -1,14 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PackageCard } from "../src/features/clinic/subscriptions/PackageCard";
+import { MembershipCard } from "../src/features/clinic/subscriptions/MembershipCard";
+import { draftMembershipTerms } from "../src/features/clinic/subscriptions/draftMembershipTerms";
 import {
   MembershipCatalog,
   membershipPrice,
 } from "../src/features/patientPortal/MembershipCatalog";
-import {
-  patientPortalLabel,
-  patientPortalTerms,
-} from "../src/features/patientPortal/patientPortalLabels";
+import { patientPortalLabel } from "../src/features/patientPortal/patientPortalLabels";
 import {
   subscriptionMoney,
   type PackageTerms,
@@ -54,6 +53,118 @@ const terms: PackageTerms = {
 };
 
 describe("subscription purchase presentation", () => {
+  it("renders published program and tier copy verbatim including service descriptions and terms", () => {
+    const published = {
+      ...terms,
+      package_name: "A custom tier",
+      description: "synthetic materials explained by the clinic",
+      terms: "lowercase terms\nKeep this exact line.",
+      components: [
+        {
+          ...service,
+          name: "Dev seed exact service",
+          mode: "included" as const,
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <MembershipCatalog
+        catalog={[
+          {
+            id: 3,
+            number: 2,
+            program: {
+              id: 1,
+              name: "Clinic-authored program",
+              description: "Program introduction",
+              display_order: 9,
+            },
+            terms: published,
+          },
+        ]}
+        busy={false}
+        canPurchase
+        onChoose={() => {}}
+      />,
+    );
+    for (const value of [
+      "Clinic-authored program",
+      "Program introduction",
+      "A custom tier",
+      "synthetic materials explained by the clinic",
+      "Dev seed exact service",
+      service.description,
+      "lowercase terms",
+      "Keep this exact line.",
+      "$12.30",
+      "manual renewal",
+    ])
+      expect(html).toContain(value);
+    expect(html).not.toContain("no automatic renewal");
+  });
+  it("builds the immediate preview from current input and catalog services without a client total", () => {
+    const live = draftMembershipTerms(
+      {
+        name: "Unsaved tier",
+        family_id: 7,
+        draft: {
+          ...terms,
+          amount: "99999999999999.99",
+          total: "1.00",
+          selected_components: [service],
+          components: [
+            {
+              ...service,
+              name: "stale name",
+              description: "stale copy",
+              mode: "included",
+            },
+          ],
+        },
+      },
+      [{ id: 7, name: "Unsaved program", description: "", retired: false }],
+      [
+        {
+          id: 1,
+          name: "Current catalog service",
+          description: "Current service description",
+          retired: false,
+        },
+      ],
+    );
+    expect(live.package_name).toBe("Unsaved tier");
+    expect(live.components[0].name).toBe("Current catalog service");
+    expect(live.components[0].description).toBe("Current service description");
+    expect(live.components[0].price_adjustment).toBe("0");
+    expect(live.total).toBeUndefined();
+    expect(live.selected_components).toBeUndefined();
+    const preview = renderToStaticMarkup(
+      <MembershipCard terms={live} draftPreview />,
+    );
+    const storefront = renderToStaticMarkup(
+      <MembershipCard terms={live} onChoose={() => {}} />,
+    );
+    for (const value of [
+      "Unsaved tier",
+      "Current catalog service",
+      "Current service description",
+      "$99,999,999,999,999.99",
+    ])
+      expect(preview.includes(value) && storefront.includes(value)).toBe(true);
+    expect(preview).toContain("disabled");
+    expect(preview).not.toContain("stale name");
+  });
+  it("does not invent a price or tier while the admin has not entered them", () => {
+    const html = renderToStaticMarkup(
+      <MembershipCard
+        terms={draftMembershipTerms({ name: "" }, [], [])}
+        draftPreview
+      />,
+    );
+    expect(html).toContain("Enter a base price");
+    expect(html).not.toContain("$0.00");
+    expect(html).not.toContain("Essential");
+  });
   it("removes development fixture prefixes from patient-facing labels only", () => {
     expect(patientPortalLabel("Dev seed Women's Wellness")).toBe(
       "Women's Wellness",
@@ -63,12 +174,6 @@ describe("subscription purchase presentation", () => {
     );
     expect(patientPortalLabel("SYN_Mercer, Alex")).toBe("Mercer, Alex");
     expect(patientPortalLabel("SYN-BASE-001")).toBe("BASE-001");
-    expect(
-      patientPortalTerms({
-        ...terms,
-        family_name: "Dev seed Women's Wellness",
-      }).family_name,
-    ).toBe("Women's Wellness");
     expect(terms.family_name).toBe("Any family");
   });
   it("formats US storefront prices without losing cents or changing other currencies", () => {
@@ -104,10 +209,10 @@ describe("subscription purchase presentation", () => {
       />,
     );
     expect(html).toContain("Separate program");
-    expect(html).not.toContain("Separate plan");
-    expect(html).toContain("Second tier");
-    expect(html).toContain("Explore Any package");
-    expect(html).not.toContain("Choose Any package");
+    expect(html).toContain("Separate plan");
+    expect(html).not.toContain("Second tier");
+    expect(html).toContain("Explore Separate plan");
+    expect(html).not.toContain("Choose Separate plan");
     expect(html).toContain("Base membership price");
     expect(html).not.toContain("Most popular");
   });

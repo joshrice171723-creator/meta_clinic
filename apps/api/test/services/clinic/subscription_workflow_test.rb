@@ -10,6 +10,7 @@ class SubscriptionWorkflowTest < ActiveSupport::TestCase
     @user = User.create!(email_address: "catalog-patient@example.invalid", password: SecureRandom.hex(20))
     @identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: @patient, user: @user, status: "active", invited_at: Time.current, activated_at: Time.current)
     @family = Clinic::Care::SubscriptionFamily.create!(practice: @practice, name: "Trail Services")
+    Clinic::Care::SubscriptionCatalog.save(practice: @practice, actor: @actor, kind: "family", id: @family.id, attributes: { "lock_version" => 0, "publish" => true })
     @options = 4.times.map { |index| Clinic::Care::ServiceOption.create!(practice: @practice, name: "Custom service #{index}") }
     @package = Clinic::Care::SubscriptionPackage.create!(practice: @practice, family: @family, name: "Flexible plan", draft: {
       "amount" => "12.30", "currency" => "USD", "duration" => 1, "duration_unit" => "months", "terms" => "One term; optional manual renewal. Refunds require clinic review.",
@@ -184,6 +185,52 @@ class SubscriptionWorkflowTest < ActiveSupport::TestCase
     signature = OpenSSL::HMAC.hexdigest("SHA256", secret, "#{timestamp}.#{body}")
     Clinic::Billing::SubscriptionPayments.reconcile(agreement: agreement, actor: @actor, raw_body: body,
       signature_header: "t=#{timestamp},v1=#{signature}", secret: secret, expected_account: "development:#{@practice.id}")
+  end
+
+  test "program publication requires publisher permission and detects stale saves" do
+    family = @family.reload
+    lock_version = family.lock_version
+    set_permission!(@membership, "subscription_catalog.publish", false)
+    grant_permissions!(@membership, "subscription_catalog.write")
+    assert_raises(Clinic::Authorization::Denied) do
+      Clinic::Care::SubscriptionCatalog.save(practice: @practice, actor: @actor, kind: "family", id: family.id,
+        attributes: { "lock_version" => lock_version, "publish" => true, "name" => "Denied rename" })
+    end
+    assert_equal "Trail Services", family.reload.name
+    Clinic::Care::SubscriptionCatalog.save(practice: @practice, actor: @actor, kind: "family", id: family.id,
+      attributes: { "lock_version" => lock_version, "name" => "Private draft" })
+    assert_raises(ActiveRecord::StaleObjectError) do
+      Clinic::Care::SubscriptionCatalog.save(practice: @practice, actor: @actor, kind: "family", id: family.id,
+        attributes: { "lock_version" => lock_version, "name" => "Stale overwrite" })
+    end
+    assert_equal "Trail Services", family.reload.published_snapshot.fetch("name")
+    # Publishing a tier cannot leak a separate unpublished program rename.
+    set_permission!(@membership, "subscription_catalog.publish", true)
+    assert_equal "Trail Services", publish("program-draft-isolated").snapshot.fetch("family_name")
+  end
+
+  test "program order and tier availability use published values" do
+    other = Clinic::Care::SubscriptionFamily.create!(practice: @practice, name: "First program", display_order: 1)
+    @family.reload.update!(display_order: 20)
+    [other, @family].each do |family|
+      Clinic::Care::SubscriptionCatalog.save(practice: @practice, actor: @actor, kind: "family", id: family.id,
+        attributes: { "lock_version" => family.lock_version, "publish" => true })
+    end
+    extra = Clinic::Care::SubscriptionPackage.create!(practice: @practice, family: other, name: "Another tier", draft: @package.draft)
+    Clinic::Care::SubscriptionCatalog.publish(practice: @practice, actor: @actor, id: extra.id, request_key: "other-program", lock_version: extra.lock_version)
+    catalog = Clinic::Care::SubscriptionProjection.catalog(practice: @practice)
+    assert_equal [other.id, @family.id], catalog.map { |row| row[:program]["id"] }
+    start = 1.day.from_now.change(usec: 0)
+    ending = start + 1.day
+    @package.reload.update!(draft: @package.draft.merge("available_from" => start.iso8601, "available_until" => ending.iso8601))
+    @version = publish("availability")
+    assert_equal [extra.reload.published_version_id], Clinic::Care::SubscriptionProjection.catalog(practice: @practice).map { |row| row[:id] }
+    assert_raises(ArgumentError) { checkout }
+    travel_to(start) { assert_includes Clinic::Care::SubscriptionProjection.catalog(practice: @practice).map { |row| row[:id] }, @version.id }
+    travel_to(ending) do
+      assert_not_includes Clinic::Care::SubscriptionProjection.catalog(practice: @practice).map { |row| row[:id] }, @version.id
+      assert_raises(ArgumentError) { checkout }
+    end
   end
 
   test "wrong account mode amount and conflicting replay cannot post payment" do

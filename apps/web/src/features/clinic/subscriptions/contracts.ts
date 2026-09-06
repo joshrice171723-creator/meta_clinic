@@ -18,6 +18,7 @@ export type PackageTerms = {
   package_name: string;
   description: string;
   tier: string;
+  display_order?: number;
   amount: string;
   currency: string;
   duration: number;
@@ -34,7 +35,14 @@ export type PackageTerms = {
   selected_components?: ServiceComponent[];
   total?: string;
 };
+export type MembershipProgram = {
+  id: number;
+  name: string;
+  description: string;
+  display_order: number;
+};
 export type PublishedPackage = {
+  program?: MembershipProgram;
   id: number;
   number: number;
   terms: PackageTerms;
@@ -56,6 +64,9 @@ export type Subscription = {
   events: { kind: string; occurred_at: string }[];
 };
 export type CatalogItem = {
+  display_order?: number;
+  lock_version?: number;
+  published_snapshot?: Omit<MembershipProgram, "id"> | null;
   id: number;
   name: string;
   description: string;

@@ -15,9 +15,10 @@ module Clinic
         requested_currency = draft.fetch("currency", "USD").to_s.upcase
         raise ArgumentError, "Only USD packages are supported." unless requested_currency == "USD"
         snapshot = {
-          "family_id" => package.family_id, "family_name" => package.family.name,
+          "family_id" => package.family_id, "family_name" => package.family.published_snapshot&.fetch("name") || package.family.name,
           "package_id" => package.id, "package_name" => package.name,
           "description" => text(draft["description"], 4000), "tier" => text(draft["tier"], 160),
+          "display_order" => integer(draft.fetch("display_order", 0), 0..1_000_000, "Display order"),
           "amount" => money(draft.fetch("amount")), "currency" => "USD",
           "duration" => integer(draft.fetch("duration"), 1..1200, "Duration"),
           "duration_unit" => choice(draft.fetch("duration_unit"), %w[days months], "Duration unit"),

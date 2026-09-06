@@ -6,14 +6,24 @@ module Clinic
         model = { "family" => SubscriptionFamily, "service" => ServiceOption, "package" => SubscriptionPackage }.fetch(kind) { raise ArgumentError, "Unknown catalog item." }
         ApplicationRecord.transaction do
           record = id ? model.where(practice: practice).lock.find(id) : model.new(practice: practice)
-          allowed = kind == "package" ? %w[name family_id draft lock_version] : %w[name description]
-          if record.persisted? && kind == "package" && attributes["lock_version"].to_s != record.lock_version.to_s
+          allowed = case kind
+          when "package" then %w[name family_id draft lock_version]
+          when "family" then %w[name description display_order lock_version]
+          else %w[name description]
+          end
+          if record.persisted? && %w[package family].include?(kind) && attributes["lock_version"].to_s != record.lock_version.to_s
             raise ActiveRecord::StaleObjectError.new(record, "update")
           end
           record.assign_attributes(attributes.slice(*allowed))
+          if kind == "family" && attributes["publish"] == true
+            Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.publish")
+            record.published_snapshot = record.attributes.slice("name", "description", "display_order")
+            record.retired = false
+          end
           raise ArgumentError, "The product family is retired." if kind == "package" && SubscriptionFamily.where(practice: practice, retired: false).find(record.family_id).nil?
           record.save!
-          Clinic::AuditRecorder.record!(practice: practice, actor: actor, action_code: "subscription_catalog.save", outcome: :committed, resource_version_ref: "#{kind}:#{record.id}")
+          action = kind == "family" && attributes["publish"] == true ? "subscription_catalog.publish" : "subscription_catalog.save"
+          Clinic::AuditRecorder.record!(practice: practice, actor: actor, action_code: action, outcome: :committed, resource_version_ref: "#{kind}:#{record.id}")
           record
         end
       end

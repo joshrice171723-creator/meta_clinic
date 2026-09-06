@@ -33,7 +33,10 @@ export function PackageCard({
       ids = ids.filter(
         (value) =>
           !terms.components.some(
-            (c) => c.service_id === value && c.group === component.group,
+            (c) =>
+              c.service_id === value &&
+              c.mode.startsWith("choose_") &&
+              c.group === component.group,
           ),
       );
     onSelect?.(
@@ -57,7 +60,9 @@ export function PackageCard({
         </Typography>
         <Typography>{terms.description}</Typography>
         <Typography variant="h5" component="p">
-          {subscriptionMoney(terms.total || terms.amount, terms.currency)}
+          {/^[0-9]+(?:\.[0-9]{1,2})?$/.test(terms.total || terms.amount)
+            ? subscriptionMoney(terms.total || terms.amount, terms.currency)
+            : "Price unavailable"}
         </Typography>
         <Typography variant="body2">
           {terms.duration}{" "}
@@ -70,7 +75,9 @@ export function PackageCard({
             : "No renewal"}
         </Typography>
         {groups.map((group) => {
-          const component = terms.components.find((c) => c.group === group)!;
+          const component = terms.components.find(
+            (c) => c.mode.startsWith("choose_") && c.group === group,
+          )!;
           return (
             <Typography key={group} variant="body2">
               {group}: choose{" "}
@@ -103,7 +110,7 @@ export function PackageCard({
               )}
               <Typography variant="body2" color="text.secondary">
                 {c.quantity} per {c.frequency}
-                {c.price_adjustment !== "0.0"
+                {!/^0(?:\.0+)?$/.test(c.price_adjustment)
                   ? ` · +${subscriptionMoney(c.price_adjustment, terms.currency)}`
                   : ""}
                 {c.eligibility_review ? " · review required" : ""}
@@ -118,7 +125,12 @@ export function PackageCard({
           <Chip
             size="small"
             label="Clinic review required before payment"
-            sx={{ alignSelf: "flex-start", maxWidth: "100%" }}
+            sx={{
+              alignSelf: "flex-start",
+              maxWidth: "100%",
+              height: "auto",
+              "& .MuiChip-label": { whiteSpace: "normal", py: 0.5 },
+            }}
           />
         )}
         <Typography variant="body2">
