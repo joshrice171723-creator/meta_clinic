@@ -10,11 +10,35 @@ module Clinic
           per_page: per_page_param(default: 25, maximum: 100),
           query: query_param,
           filter: invoice_filter_param,
-          sort: invoice_sort_param
+          sort: invoice_sort_param,
+          outlook_months: outlook_months_param,
+          outlook_start: outlook_start_param
         )
       end
 
       private
+
+      def outlook_months_param
+        value = params[:outlook_months].presence || "6"
+        unless %w[3 6 12].include?(value.to_s)
+          raise Clinic::Api::RequestParameters::Invalid.new("Choose 3, 6 or 12 months.", field: :outlook_months)
+        end
+        value.to_i
+      end
+
+      def outlook_start_param
+        return nil if params[:outlook_start].blank?
+
+        value = params[:outlook_start].to_s
+        date = Date.strptime("#{value}-01", "%Y-%m-%d") if /\A\d{4}-\d{2}\z/.match?(value)
+        current = Time.current.in_time_zone(current_practice.timezone).to_date.beginning_of_month
+        unless date && date.between?(current.next_month, current + 24.months)
+          raise ArgumentError
+        end
+        date
+      rescue ArgumentError
+        raise Clinic::Api::RequestParameters::Invalid.new("Choose a future month within the next two years.", field: :outlook_start)
+      end
 
       def invoice_filter_param
         value = params[:filter].presence || "all"

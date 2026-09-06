@@ -73,18 +73,17 @@ module Clinic
 
       def receipt
         payment = PaymentEvent.where(practice: current_practice).find(requested_id!(params[:id], :id))
-        receipt = payment.billing_receipts.order(issued_at: :desc, id: :desc).first!
+        receipts = payment.billing_receipts
+        @receipt = if params[:receipt_id].present?
+          receipts.find(requested_id!(params[:receipt_id], :receipt_id))
+        else
+          receipts.where(kind: %w[cash_payment subscription_payment]).order(:issued_at, :id).first!
+        end
+        @payment = payment
+        @practice = current_practice
+        @refunds = payment.refund_events.order(:created_at, :id)
         response.headers["Cache-Control"] = "no-store"
-        render html: receipt_html(receipt).html_safe, content_type: "text/html"
-      end
-
-      private
-
-      def receipt_html(receipt)
-        <<~HTML
-          <!doctype html><title>Receipt ##{receipt.id}</title><style>body{font:16px system-ui;max-width:640px;margin:48px auto}dt{color:#555}dd{margin:0 0 16px;font-weight:600}@media print{body{margin:0}}</style>
-          <h1>Payment receipt</h1><dl><dt>Receipt</dt><dd>##{receipt.id}</dd><dt>Type</dt><dd>#{ERB::Util.html_escape(receipt.kind.humanize)}</dd><dt>Issued</dt><dd>#{receipt.issued_at.iso8601}</dd><dt>Amount</dt><dd>#{ERB::Util.html_escape(receipt.payload.fetch("currency"))} #{ERB::Util.html_escape(receipt.payload.fetch("amount"))}</dd></dl><script>window.print()</script>
-        HTML
+        render template: "clinic/billing/payment_events/receipt", formats: [:html], layout: false
       end
     end
   end
