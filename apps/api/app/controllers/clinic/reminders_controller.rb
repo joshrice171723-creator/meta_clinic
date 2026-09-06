@@ -1,7 +1,7 @@
 module Clinic
   class RemindersController < Clinic::BaseController
     before_action -> { require_capability("reminders.read") }, only: %i[index show]
-    before_action -> { require_capability("reminders.write") }, only: %i[create pause cancel retry dispatch_reminder record_delivery recover]
+    before_action -> { require_capability("reminders.write") }, only: %i[create pause cancel retry dispatch_reminder record_delivery recover staff_handoff]
 
     def recover
       render json: Clinic::Reminders::RecoverJob.perform_now(
@@ -10,15 +10,21 @@ module Clinic
     end
 
     def index
-      reminders = current_practice.patient_reminders.includes(:patient, :communication_endpoint, :outbox)
+      reminders = current_practice.patient_reminders.includes(:patient, :communication_endpoint, :outbox, :actions, :delivery_attempts)
+      reminders = reminders.where(id: requested_id!(params[:reminder_id], :reminder_id)) if params[:reminder_id].present?
       reminders = reminders.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
       reminders = reminders.where(status: required_string!(params[:status], field: :status, maximum: 40)) if params[:status].present?
-      paginate(reminders, key: :reminders, serializer: ->(reminder) { PatientReminderSerializer.call(reminder) }, order: { scheduled_at: :asc, id: :asc })
+      records, pagination = paginated_records(reminders, order: { scheduled_at: :asc, id: :asc })
+      records = records.to_a
+      handoffs = Clinic::Reminders::StaffHandoff.summaries(reminders: records, actor: current_user)
+      render json: { reminders: records.map { |reminder|
+        PatientReminderSerializer.call(reminder, actor: current_user, staff_handoff: handoffs.fetch(reminder.id))
+      }, pagination: pagination }
     end
 
     def show
       reminder = current_practice.patient_reminders.includes(:communication_endpoint, :delivery_attempts).find(requested_id!(params[:id], :id))
-      render json: { reminder: PatientReminderSerializer.call(reminder, detail: true) }
+      render json: { reminder: PatientReminderSerializer.call(reminder, detail: true, actor: current_user) }
     end
 
     def create
@@ -32,7 +38,7 @@ module Clinic
         scheduled_at: time_param!(input[:scheduled_at], field: :scheduled_at), endpoint_id: input[:endpoint_id].present? ? requested_id!(input[:endpoint_id], :endpoint_id) : nil,
         appointment: appointment, expires_at: input[:expires_at].present? ? time_param!(input[:expires_at], field: :expires_at) : nil
       )
-      render json: { id: reminder.id, reminder: PatientReminderSerializer.call(reminder, detail: true) }, status: :created
+      render json: { id: reminder.id, reminder: PatientReminderSerializer.call(reminder, detail: true, actor: current_user) }, status: :created
     end
 
     def pause
@@ -51,12 +57,25 @@ module Clinic
 
     def retry
       reminder = reminder_record
-      render json: { reminder: PatientReminderSerializer.call(Clinic::Reminders::Dispatch.call(reminder: reminder, actor: current_user), detail: true) }
+      render json: { reminder: PatientReminderSerializer.call(Clinic::Reminders::Dispatch.call(reminder: reminder, actor: current_user), detail: true, actor: current_user) }
     end
 
     def dispatch_reminder
       reminder = reminder_record
-      render json: { reminder: PatientReminderSerializer.call(Clinic::Reminders::Dispatch.call(reminder: reminder, actor: current_user), detail: true) }
+      render json: { reminder: PatientReminderSerializer.call(Clinic::Reminders::Dispatch.call(reminder: reminder, actor: current_user), detail: true, actor: current_user) }
+    end
+
+    def staff_handoff
+      input = parameter_hash!(:handoff, %i[conversation_id assignee_membership_id due_at action_id])
+      request = Clinic::Reminders::StaffHandoff.call(
+        practice: current_practice, actor: current_user, reminder: reminder_record,
+        conversation_id: requested_id!(input[:conversation_id], :conversation_id),
+        assignee_membership_id: requested_id!(input[:assignee_membership_id], :assignee_membership_id),
+        due_at: time_param!(input[:due_at], field: :due_at),
+        action_id: input[:action_id].present? ? requested_id!(input[:action_id], :action_id) : nil
+      )
+      render json: { staff_handoff: { id: request.id, state: request.state,
+        assignee_membership_id: request.assignee_membership_id, due_at: request.due_at&.iso8601(6) } }
     end
 
     def record_delivery
@@ -80,7 +99,7 @@ module Clinic
       reminder = reminder_record
       reminder.with_lock { reminder.transition_to!(target); reminder.outbox.update!(dispatch_state: "pending") if target == "paused" }
       Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "reminders.#{reason}", outcome: :committed, resource_version_ref: "patient-reminder:#{reminder.id}")
-      render json: { reminder: PatientReminderSerializer.call(reminder, detail: true) }
+      render json: { reminder: PatientReminderSerializer.call(reminder, detail: true, actor: current_user) }
     end
   end
 end

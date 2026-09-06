@@ -17,9 +17,7 @@ module Clinic
         reminder = practice.patient_reminders.find(reminder.id)
         Authorization.authorize!(actor: actor, practice: practice, action: "reminders.write", at: at)
         due_at = due_at&.to_time
-        unless due_at && due_at > at && due_at <= at + MAX_DUE_WINDOW
-          raise ArgumentError, "Choose a response target within the next 30 days."
-        end
+        raise ArgumentError, "Choose a response due time." unless due_at
 
         conversation = Clinic::Messaging::StaffPolicy.conversation_for!(
           practice: practice,
@@ -50,6 +48,10 @@ module Clinic
               action: "staff_messaging.read"
             )
             return message.request
+          end
+
+          unless due_at > at && due_at <= at + MAX_DUE_WINDOW
+            raise ArgumentError, "Choose a response target within the next 30 days."
           end
 
           outcome = Clinic::Idempotency.execute(
@@ -115,7 +117,7 @@ module Clinic
 
       def self.summaries(reminders:, actor: nil)
         reminders = reminders.to_a
-        result = reminders.index_with { empty_summary }
+        result = reminders.to_h { |reminder| [reminder.id, empty_summary] }
         return result if actor.nil? || reminders.empty?
 
         practice = reminders.first.practice
