@@ -17,7 +17,6 @@ module Clinic
         batches_by_lot = batches.group_by(&:lot_id)
         inventory_date = practice.inventory_date
         lots = batches.map(&:lot).compact.uniq(&:id)
-        locations = practice.inventory_locations.order(:name, :id).to_a
         recalls = Recall.where(practice_id: practice.id).includes(
           :product,
           :dispositions,
@@ -52,7 +51,7 @@ module Clinic
           suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
           sites: sites.map { |site| Clinic::FacilitySerializer.site(site) },
           supplier_products: supplier_products.map { |row| supplier_product_wire(row, on: inventory_date) },
-          locations: locations.map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, address_line1: location.address_line1, address_line2: location.address_line2, city: location.city, state: location.state, postal_code: location.postal_code, country: location.country, areas: area_by_location.fetch(location.id, []) } },
+          locations: location_directory(practice: practice, areas_by_location: area_by_location),
           lots: lots.map { |lot| lot_wire(lot, batches_by_lot, recalls, active_holds_by_batch) },
           balances: batches.map { |batch| balance_wire(batch, active_holds_by_batch.fetch(batch.id, []), inventory_date) },
           movements: movements.map { |movement| movement_wire(movement) },
@@ -94,6 +93,39 @@ module Clinic
 
       def purchase_order(order)
         { data: purchase_order_wire(order) }
+      end
+
+      def locations(practice:, actor:, **filters)
+        result = LocationQuery.call(practice: practice, **filters)
+        directory = location_directory(practice: practice)
+        by_id = directory.index_by { |location| location[:id].to_i }
+        context(practice: practice, actor: actor).merge(
+          location_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count,
+            page_size: LocationQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
+          locations: result.ids.filter_map { |id| by_id[id] }, location_options: directory,
+          sites: practice.sites.order(:name, :id).map { |site| Clinic::FacilitySerializer.site(site) })
+      end
+
+      def location_directory(practice:, areas_by_location: {})
+        records = Location.where(practice_id: practice.id).includes(:site, :children).order(:name, :id).to_a
+        by_id = records.index_by(&:id)
+        records.each { |location| location.association(:parent_location).target = by_id[location.parent_location_id] }
+        records.map do |location|
+          names = [ location.name ]
+          parent = location.parent_location
+          seen = [ location.id ]
+          while parent && !seen.include?(parent.id)
+            seen << parent.id
+            names.unshift(parent.name)
+            parent = parent.parent_location
+          end
+          names.unshift(location.site.name) if location.site
+          { id: location.id.to_s, name: location.name, kind: location.kind, site_id: location.site_id&.to_s,
+            parent_location_id: location.parent_location_id&.to_s, status: location.status, path: names.join(" / "), child_count: location.children.size,
+            stock_destination: location.stock_destination?, address_line1: location.address_line1, address_line2: location.address_line2,
+            city: location.city, state: location.state, postal_code: location.postal_code, country: location.country,
+            areas: areas_by_location.fetch(location.id, []) }
+        end
       end
 
       def supplier_pricing(practice:, actor:, **filters)
@@ -178,7 +210,7 @@ module Clinic
             { id: lot.id.to_s, product_id: lot.product_id.to_s, package_id: "pkg_#{lot.product_id}", lot_number: lot.number, expiration_date: lot.expires_on.iso8601,
               status: kinds.include?("recalled") ? "recalled" : kinds.any? ? "quarantined" : "active" }
           end, recalls: [],
-          locations: practice.inventory_locations.order(:name, :id).map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, areas: [] } })
+          locations: location_directory(practice: practice))
       end
 
       def purchasing(practice:, actor:, **filters)
@@ -215,7 +247,7 @@ module Clinic
               status: kinds.include?("recalled") ? "recalled" : kinds.any? ? "quarantined" : "active" }
           end,
           balances: batches.map { |batch| balance_wire(batch, holds.fetch(batch.id, []), practice.inventory_date) },
-          locations: practice.inventory_locations.order(:name, :id).map { |location| { id: location.id.to_s, name: location.name, kind: location.kind, areas: areas.fetch(location.id, []) } })
+          locations: location_directory(practice: practice, areas_by_location: areas))
       end
 
       def catalog(practice:, actor:, **filters)
@@ -287,7 +319,7 @@ module Clinic
         blocked = active_holds.any? { |hold| %w[temperature damaged].include?(hold.kind) } ? batch.quantity.to_d : 0
         quarantined = active_holds.any? { |hold| hold.kind == "quarantined" || hold.kind == "recalled" } ? batch.quantity.to_d : 0
         recall_ids = active_holds.filter_map { |hold| hold.recall_id.to_s if hold.kind == "recalled" && hold.recall_id.present? }.uniq
-        { id: "bal_#{batch.id}", product_id: batch.product_id.to_s, lot_id: batch.lot_id.to_s, location_id: batch.location_id.to_s, recall_ids: recall_ids, on_hand_units: batch.quantity.to_d.to_s("F"), held_units: held.to_d.to_s("F"), blocked_units: blocked.to_d.to_s("F"), quarantined_units: quarantined.to_d.to_s("F"), available_units: batch_available?(batch, active_holds, inventory_date) ? batch.quantity.to_d.to_s("F") : "0" }
+        { id: "bal_#{batch.id}", product_id: batch.product_id.to_s, lot_id: batch.lot_id.to_s, location_id: batch.location_id.to_s, recall_ids: recall_ids, transferable: batch.transferable?, on_hand_units: batch.quantity.to_d.to_s("F"), held_units: held.to_d.to_s("F"), blocked_units: blocked.to_d.to_s("F"), quarantined_units: quarantined.to_d.to_s("F"), available_units: batch_available?(batch, active_holds, inventory_date) ? batch.quantity.to_d.to_s("F") : "0" }
       end
 
       def movement_wire(movement)
@@ -317,7 +349,7 @@ module Clinic
       end
 
       def batch_available?(batch, active_holds, inventory_date)
-        active_holds.empty? && batch.expires_on >= inventory_date && batch.product.active?
+        active_holds.empty? && batch.expires_on >= inventory_date && batch.product.active? && batch.location_record.stock_destination?
       end
 
       def count_wire(count)

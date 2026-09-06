@@ -37,7 +37,7 @@ module Clinic
 
       def self.with_stock(day)
         date = connection.quote(day)
-        usable = "#{PharmacyBatch::NO_HOLD_SQL} AND clinic_pharmacy_batches.expires_on >= #{date} AND clinic_pharmacy_products.active"
+        usable = "#{PharmacyBatch::NO_HOLD_SQL} AND #{PharmacyBatch::STOCK_DESTINATION_SQL} AND clinic_pharmacy_batches.expires_on >= #{date} AND clinic_pharmacy_products.active"
         left_joins(:batches).group("clinic_pharmacy_products.id").select("clinic_pharmacy_products.*",
           "COALESCE(SUM(clinic_pharmacy_batches.on_hand),0) AS physical_stock",
           "COALESCE(SUM(CASE WHEN #{usable} THEN clinic_pharmacy_batches.on_hand ELSE 0 END),0) AS available_stock",

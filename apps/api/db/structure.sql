@@ -376,6 +376,159 @@ BEGIN RAISE EXCEPTION 'Inventory history is append-only'; END $$;
 
 
 --
+-- Name: inventory_location_delete_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_location_delete_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Inventory locations must be retired, not deleted';
+END; $$;
+
+
+--
+-- Name: inventory_location_hierarchy_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_location_hierarchy_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  parent clinic_inventory_locations%ROWTYPE;
+  site_status text;
+  cycle_found boolean;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('inventory-location:' || NEW.practice_id::text, 0));
+
+  IF NEW.site_id IS NOT NULL THEN
+    SELECT status INTO site_status
+      FROM clinic_sites
+     WHERE practice_id = NEW.practice_id AND id = NEW.site_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Inventory location facility must belong to the clinic';
+    END IF;
+    IF NEW.status = 'active' AND site_status <> 'active' THEN
+      RAISE EXCEPTION 'An active inventory location requires an active facility';
+    END IF;
+  END IF;
+
+  IF NEW.parent_location_id IS NOT NULL THEN
+    SELECT * INTO parent
+      FROM clinic_inventory_locations
+     WHERE practice_id = NEW.practice_id AND id = NEW.parent_location_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Inventory parent location must belong to the clinic';
+    END IF;
+    IF parent.status <> 'active' THEN
+      RAISE EXCEPTION 'Inventory parent location must be active';
+    END IF;
+    IF NEW.site_id IS DISTINCT FROM parent.site_id THEN
+      RAISE EXCEPTION 'Inventory child and parent locations must use the same facility';
+    END IF;
+    IF parent.kind IN ('quarantine','returns','controlled') AND NEW.kind IS DISTINCT FROM parent.kind THEN
+      RAISE EXCEPTION 'Inventory child location must preserve its restricted parent kind';
+    END IF;
+    IF EXISTS (SELECT 1 FROM clinic_pharmacy_batches WHERE practice_id = NEW.practice_id AND location_id = parent.id) THEN
+      RAISE EXCEPTION 'A location with inventory history cannot become a parent location';
+    END IF;
+
+    WITH RECURSIVE ancestors(id, parent_location_id) AS (
+      SELECT id, parent_location_id
+        FROM clinic_inventory_locations
+       WHERE practice_id = NEW.practice_id AND id = NEW.parent_location_id
+      UNION
+      SELECT location.id, location.parent_location_id
+        FROM clinic_inventory_locations location
+        JOIN ancestors ON location.id = ancestors.parent_location_id
+       WHERE location.practice_id = NEW.practice_id
+    )
+    SELECT EXISTS(SELECT 1 FROM ancestors WHERE id = NEW.id) INTO cycle_found;
+    IF cycle_found THEN
+      RAISE EXCEPTION 'Inventory location hierarchy cannot contain a cycle';
+    END IF;
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    IF (
+      NEW.name IS DISTINCT FROM OLD.name OR
+      NEW.kind IS DISTINCT FROM OLD.kind OR
+      NEW.site_id IS DISTINCT FROM OLD.site_id OR
+      NEW.parent_location_id IS DISTINCT FROM OLD.parent_location_id
+    ) AND EXISTS (SELECT 1 FROM clinic_pharmacy_batches WHERE practice_id = NEW.practice_id AND location_id = NEW.id) THEN
+      RAISE EXCEPTION 'A location with inventory history cannot change hierarchy identity';
+    END IF;
+
+    IF (
+      NEW.name IS DISTINCT FROM OLD.name OR
+      NEW.kind IS DISTINCT FROM OLD.kind OR
+      NEW.site_id IS DISTINCT FROM OLD.site_id OR
+      NEW.parent_location_id IS DISTINCT FROM OLD.parent_location_id
+    ) AND EXISTS (SELECT 1 FROM clinic_inventory_locations WHERE practice_id = NEW.practice_id AND parent_location_id = NEW.id) THEN
+      RAISE EXCEPTION 'A parent location cannot change hierarchy identity';
+    END IF;
+
+    IF NEW.status = 'retired' AND OLD.status IS DISTINCT FROM NEW.status THEN
+      IF EXISTS (SELECT 1 FROM clinic_pharmacy_batches WHERE practice_id = NEW.practice_id AND location_id = NEW.id AND on_hand > 0) THEN
+        RAISE EXCEPTION 'A location with on-hand inventory cannot be retired';
+      END IF;
+      IF EXISTS (SELECT 1 FROM clinic_inventory_locations WHERE practice_id = NEW.practice_id AND parent_location_id = NEW.id AND status = 'active') THEN
+        RAISE EXCEPTION 'A location with active children cannot be retired';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END; $$;
+
+
+--
+-- Name: inventory_location_stock_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.inventory_location_stock_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  validate_destination boolean;
+BEGIN
+  PERFORM pg_advisory_xact_lock_shared(hashtextextended('inventory-location:' || NEW.practice_id::text, 0));
+
+  IF TG_OP = 'INSERT' THEN
+    validate_destination := NEW.on_hand > 0;
+  ELSE
+    validate_destination := NEW.on_hand > 0 AND (
+      NEW.location_id IS DISTINCT FROM OLD.location_id OR NEW.on_hand > OLD.on_hand
+    );
+  END IF;
+
+  IF validate_destination AND NOT EXISTS (
+    SELECT 1
+      FROM clinic_inventory_locations location
+     WHERE location.practice_id = NEW.practice_id
+       AND location.id = NEW.location_id
+       AND location.status = 'active'
+       AND NOT EXISTS (
+         SELECT 1 FROM clinic_inventory_locations child
+          WHERE child.practice_id = location.practice_id
+            AND child.parent_location_id = location.id
+       )
+       AND (
+         location.site_id IS NULL OR EXISTS (
+           SELECT 1 FROM clinic_sites site
+            WHERE site.practice_id = location.practice_id
+              AND site.id = location.site_id
+              AND site.status = 'active'
+         )
+       )
+  ) THEN
+    RAISE EXCEPTION 'On-hand inventory requires an active leaf location at an active facility';
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+--
 -- Name: inventory_new_position(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1814,7 +1967,12 @@ CREATE TABLE public.clinic_inventory_locations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     kind character varying,
-    CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY ((ARRAY['storage'::character varying, 'quarantine'::character varying, 'returns'::character varying, 'controlled'::character varying])::text[])))
+    CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY ((ARRAY['storage'::character varying, 'quarantine'::character varying, 'returns'::character varying, 'controlled'::character varying])::text[]))),
+    site_id bigint,
+    parent_location_id bigint,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    CONSTRAINT inventory_location_not_self_parent CHECK (((parent_location_id IS NULL) OR (parent_location_id <> id))),
+    CONSTRAINT inventory_location_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'retired'::character varying])::text[])))
 );
 
 
@@ -9306,13 +9464,6 @@ CREATE UNIQUE INDEX index_clinic_inventory_locations_on_practice_id_and_id ON pu
 
 
 --
--- Name: index_clinic_inventory_locations_on_practice_id_and_name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_clinic_inventory_locations_on_practice_id_and_name ON public.clinic_inventory_locations USING btree (practice_id, name);
-
-
---
 -- Name: index_clinic_inventory_lots_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9824,6 +9975,27 @@ CREATE UNIQUE INDEX inventory_hold_transfer_once ON public.clinic_inventory_hold
 
 
 --
+-- Name: inventory_location_children; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_location_children ON public.clinic_inventory_locations USING btree (practice_id, parent_location_id, status, id);
+
+
+--
+-- Name: inventory_location_sibling_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_location_sibling_name ON public.clinic_inventory_locations USING btree (practice_id, site_id, parent_location_id, name) NULLS NOT DISTINCT;
+
+
+--
+-- Name: inventory_location_site_worklist; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_location_site_worklist ON public.clinic_inventory_locations USING btree (practice_id, site_id, status, id);
+
+
+--
 -- Name: inventory_lot_identity; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9947,13 +10119,6 @@ CREATE UNIQUE INDEX inventory_transfer_retry ON public.clinic_inventory_transfer
 --
 
 CREATE UNIQUE INDEX permissions_action_code ON public.permissions USING btree (action_code);
-
-
---
--- Name: pharmacy_batch_identity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX pharmacy_batch_identity ON public.clinic_pharmacy_batches USING btree (product_id, lot_number, location);
 
 
 --
@@ -10766,6 +10931,27 @@ CREATE TRIGGER inventory_evidence_link_guard BEFORE INSERT OR UPDATE ON public.c
 --
 
 CREATE CONSTRAINT TRIGGER inventory_line_complete AFTER INSERT ON public.clinic_inventory_receipt_lines DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.inventory_evidence_complete();
+
+
+--
+-- Name: clinic_inventory_locations inventory_location_delete_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_location_delete_guard BEFORE DELETE ON public.clinic_inventory_locations FOR EACH ROW EXECUTE FUNCTION public.inventory_location_delete_guard();
+
+
+--
+-- Name: clinic_inventory_locations inventory_location_hierarchy_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_location_hierarchy_guard BEFORE INSERT OR UPDATE ON public.clinic_inventory_locations FOR EACH ROW EXECUTE FUNCTION public.inventory_location_hierarchy_guard();
+
+
+--
+-- Name: clinic_pharmacy_batches inventory_location_stock_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_location_stock_guard BEFORE INSERT OR UPDATE OF on_hand, location_id ON public.clinic_pharmacy_batches FOR EACH ROW EXECUTE FUNCTION public.inventory_location_stock_guard();
 
 
 --
@@ -11752,6 +11938,22 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 ALTER TABLE ONLY public.clinic_insurance_claims
     ADD CONSTRAINT fk_insurance_claims_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_locations fk_inventory_locations_parent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_locations
+    ADD CONSTRAINT fk_inventory_locations_parent FOREIGN KEY (practice_id, parent_location_id) REFERENCES public.clinic_inventory_locations(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_locations fk_inventory_locations_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_locations
+    ADD CONSTRAINT fk_inventory_locations_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -14022,6 +14224,7 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_reconciliations
 
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260905010200'),
 ('20260905010100'),
 ('20260905010000'),
 ('20260903001400'),

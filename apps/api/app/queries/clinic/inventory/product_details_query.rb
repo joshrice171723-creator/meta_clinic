@@ -20,7 +20,7 @@ module Clinic
           filtered = filtered.where("concat_ws(' ',clinic_pharmacy_products.name,clinic_pharmacy_products.ndc,clinic_pharmacy_products.device_identifier,clinic_pharmacy_batches.lot_number,clinic_inventory_locations.name) ILIKE ?", "%#{PharmacyBatch.sanitize_sql_like(query)}%")
         end
         day = practice.inventory_date
-        available_sql = "#{PharmacyBatch::NO_HOLD_SQL} AND clinic_pharmacy_batches.expires_on >= #{PharmacyBatch.connection.quote(day)} AND clinic_pharmacy_products.active"
+        available_sql = "#{PharmacyBatch::NO_HOLD_SQL} AND #{PharmacyBatch::STOCK_DESTINATION_SQL} AND clinic_pharmacy_batches.expires_on >= #{PharmacyBatch.connection.quote(day)} AND clinic_pharmacy_products.active"
         filtered = filtered.where(available_sql).where("clinic_pharmacy_batches.on_hand > 0") if status == "available"
         filtered = filtered.where("NOT (#{PharmacyBatch::NO_HOLD_SQL})") if status == "held"
         filtered = filtered.where("clinic_pharmacy_batches.expires_on < ?", day) if status == "expired"

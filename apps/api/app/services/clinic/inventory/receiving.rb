@@ -9,7 +9,11 @@ module Clinic
         raise ArgumentError, "Provide structured discrepancy counts." if reconciliation && !reconciliation.is_a?(Hash)
         reconciliation = ShipmentReconciliation.normalize(reconciliation)
         raise ArgumentError, "A discrepancy needs a delivered shipment." if reconciliation && !shipment
-        normalized = lines.map { |line| line.symbolize_keys.slice(:product_id, :lot_number, :location, :expires_on, :amount, :input_unit, :unit_cost, :currency, :purchase_order_line_id, :area_id, :temperature_c, :exception, :disposition).transform_values { |value| value.to_s.strip } }
+        normalized = lines.map do |line|
+          normalized_line = line.symbolize_keys.slice(:product_id, :lot_number, :location_id, :location, :expires_on, :amount, :input_unit, :unit_cost, :currency, :purchase_order_line_id, :area_id, :temperature_c, :exception, :disposition).transform_values { |value| value.to_s.strip }
+          normalized_line.delete(:location_id) if normalized_line[:location_id].blank?
+          normalized_line
+        end
         if reconciliation && normalized.any? { |line| line[:lot_number].to_s.length > 160 || line[:expires_on].to_s.length > 30 || line[:temperature_c].to_s.length > 30 }
           raise ArgumentError, "Keep lot observations within 160 characters and expiry/temperature observations within 30 characters."
         end
@@ -68,10 +72,11 @@ module Clinic
             expiry = Date.iso8601(line[:expires_on])
             lot = Clinic::Inventory::Lot.find_or_create_by!(practice_id: practice.id, product_id: product.id, number: line[:lot_number]) { |record| record.expires_on = expiry }
             raise ArgumentError, "This lot has a different recorded expiry. Resolve the discrepancy before receiving." unless lot.expires_on == expiry
-            location = Clinic::Inventory::Location.create_or_find_by!(practice_id: practice.id, name: line[:location])
-            if status.to_s == "received" && %w[quarantine returns].include?(location.kind)
+            location = resolve_location!(practice, line)
+            restricted_kind = location.restricted_kind
+            if status.to_s == "received" && %w[quarantine returns].include?(restricted_kind)
               raise ArgumentError, "A normal receipt cannot be placed in a quarantine or returns location."
-            elsif status.to_s == "quarantined" && location.kind != "quarantine"
+            elsif status.to_s == "quarantined" && restricted_kind != "quarantine"
               raise ArgumentError, "A quarantined receipt must use a quarantine location."
             end
             batch = product.batches.find_or_create_by!(practice_id: practice.id, lot_id: lot.id, location_id: location.id) do |record|
@@ -134,7 +139,25 @@ module Clinic
           raise ArgumentError, "The received packages do not match the shipment allocation." unless package_total == expected_packages
         end
       end
-      private_class_method :validate_shipment!
+
+      def self.resolve_location!(practice, line)
+        if line[:location_id].present?
+          location = Location.where(practice_id: practice.id).includes(:site, :children, :parent_location).lock.find(line[:location_id])
+          if line[:location].present? && line[:location] != location.name
+            raise ArgumentError, "The selected inventory location does not match its recorded name. Reload and try again."
+          end
+        else
+          name = line[:location].to_s.strip
+          raise ArgumentError, "Choose an inventory location." if name.blank?
+
+          matches = Location.where(practice_id: practice.id, name: name).includes(:site, :children, :parent_location).lock.limit(2).to_a
+          raise ActiveRecord::RecordNotFound if matches.empty?
+          raise ArgumentError, "More than one inventory bin has this name. Reload and choose its exact location." if matches.many?
+          location = matches.sole
+        end
+        location.ensure_stock_destination!
+      end
+      private_class_method :validate_shipment!, :resolve_location!
     end
   end
 end

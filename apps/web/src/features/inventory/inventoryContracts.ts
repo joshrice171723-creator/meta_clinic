@@ -168,6 +168,12 @@ export type InventoryLocation = {
   id: string;
   name: string;
   kind?: "storage" | "quarantine" | "returns" | "controlled";
+  site_id: string | null;
+  parent_location_id: string | null;
+  status: "active" | "retired";
+  path: string;
+  child_count: number;
+  stock_destination: boolean;
   address_line1?: string | null;
   address_line2?: string | null;
   city?: string | null;
@@ -208,6 +214,7 @@ export type InventoryBalance = {
   blocked_units: Decimal;
   quarantined_units: Decimal;
   available_units: Decimal;
+  transferable: boolean;
 };
 export type InventoryMovement = {
   id: string;
@@ -540,6 +547,27 @@ export type InventoryStockRead = {
   stock_status?: "all" | "available" | "held" | "expired";
   page?: number;
 };
+
+export type InventoryLocationRead = {
+  q?: string;
+  location_status?: "all" | "active" | "retired";
+  page?: number;
+};
+export type InventoryLocationData = InventoryReadContext &
+  Pick<InventoryData, "sites"> & {
+    location_page: {
+      query: string;
+      status: NonNullable<InventoryLocationRead["location_status"]>;
+      page: number;
+      page_count: number;
+      page_size: number;
+      total_count: number;
+      filtered_count: number;
+    };
+    locations: InventoryLocation[];
+    location_options: InventoryLocation[];
+  };
+
 export type InventoryStockData = InventoryReadContext &
   Pick<
     InventoryData,

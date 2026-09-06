@@ -23,6 +23,9 @@ import type {
   InventoryPlanRead,
   InventorySupplierData,
   InventorySupplierRead,
+  InventoryLocationData,
+  InventoryLocationRead,
+  InventoryLocation,
   InventoryStockData,
   InventoryStockRead,
   InventoryOrderData,
@@ -1786,94 +1789,458 @@ function PurchaseOrderCreateScreen({
 
 function InventoryLocationsScreen({
   data,
-  busy,
-  run,
+  loading,
+  error: readError,
+  readBlocked,
+  onRead,
 }: {
-  data: InventoryData;
-  busy: boolean;
-  run: InventoryRun;
+  data: InventoryLocationData;
+  loading: boolean;
+  error: string;
+  readBlocked: boolean;
+  onRead: (read: InventoryLocationRead) => Promise<void>;
 }) {
   const params = new URLSearchParams(window.location.search);
-  const requestedReturnTo = params.get("return_to") ?? "/clinic/inventory/purchasing/new";
+  const requestedReturnTo = params.get("return_to") ?? "/clinic/inventory";
   const returnTo = requestedReturnTo.startsWith("/clinic/inventory")
     ? requestedReturnTo
-    : "/clinic/inventory/purchasing/new";
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<"storage" | "controlled">("storage");
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    void run(
-      "/api/clinic/inventory/locations",
-      {
-        location: {
-          name: name.trim(),
-          kind,
-        },
-      },
-      "Storage location saved",
-      `${name.trim()} is now available for stock put-away and movement tracking.`,
-      () => window.location.assign(returnTo),
-    );
+    : "/clinic/inventory";
+  const page = data.location_page;
+  const applied: InventoryLocationRead = {
+    q: page.query,
+    location_status: page.status,
+    page: page.page,
   };
+  const [query, setQuery] = useState(page.query);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<
+    "storage" | "quarantine" | "returns" | "controlled"
+  >("storage");
+  const [siteId, setSiteId] = useState("");
+  const [parentId, setParentId] = useState("");
+  const [status, setStatus] = useState<"active" | "retired">("active");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("US");
+  const [busy, setBusy] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState("");
+  const canConfigure = capability(data, "inventory.configure");
+  const writeBlocked = loading || readBlocked || Boolean(readError);
+  const readDisabled = loading || readBlocked || Boolean(busy);
+
+  useEffect(() => setQuery(page.query), [page.query]);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setName("");
+    setKind("storage");
+    setSiteId("");
+    setParentId("");
+    setStatus("active");
+    setAddressLine1("");
+    setAddressLine2("");
+    setCity("");
+    setState("");
+    setPostalCode("");
+    setCountry("US");
+  };
+  const editLocation = (record: InventoryLocation) => {
+    setEditingId(record.id);
+    setName(record.name);
+    setKind(record.kind ?? "storage");
+    setSiteId(record.site_id ?? "");
+    setParentId(record.parent_location_id ?? "");
+    setStatus(record.status);
+    setAddressLine1(record.address_line1 ?? "");
+    setAddressLine2(record.address_line2 ?? "");
+    setCity(record.city ?? "");
+    setState(record.state ?? "");
+    setPostalCode(record.postal_code ?? "");
+    setCountry(record.country ?? "US");
+    setActionError("");
+    setNotice("");
+  };
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || writeBlocked || busy || !canConfigure) return;
+    setBusy("save");
+    setActionError("");
+    setNotice("");
+    try {
+      const endpoint = editingId
+        ? `/api/clinic/inventory/locations/${editingId}`
+        : "/api/clinic/inventory/locations";
+      const payload = await api<{ acknowledged?: boolean }>(
+        `${endpoint}?response=ack`,
+        {
+          method: editingId ? "PATCH" : "POST",
+          body: {
+            location: {
+              name: name.trim(),
+              kind,
+              site_id: siteId || null,
+              parent_location_id: parentId || null,
+              status,
+              address_line1: addressLine1.trim() || null,
+              address_line2: addressLine2.trim() || null,
+              city: city.trim() || null,
+              state: state.trim() || null,
+              postal_code: postalCode.trim() || null,
+              country: country.trim() || null,
+            },
+          },
+        },
+      );
+      if (payload.acknowledged !== true)
+        throw new Error("The location update could not be confirmed.");
+      await onRead(applied);
+      setNotice(editingId ? "Location updated." : "Location created.");
+      resetForm();
+    } catch (reason) {
+      await onRead(applied);
+      setActionError(
+        `${reason instanceof Error ? reason.message : "The location action could not be completed."} A location refresh was requested; reload if the hierarchy is still unclear.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+  const setLocationStatus = async (
+    record: InventoryLocation,
+    nextStatus: "active" | "retired",
+  ) => {
+    if (writeBlocked || busy || !canConfigure) return;
+    setBusy(`status:${record.id}`);
+    setActionError("");
+    setNotice("");
+    try {
+      const payload = await api<{ acknowledged?: boolean }>(
+        `/api/clinic/inventory/locations/${record.id}?response=ack`,
+        {
+          method: "PATCH",
+          body: { location: { status: nextStatus } },
+        },
+      );
+      if (payload.acknowledged !== true)
+        throw new Error("The location status could not be confirmed.");
+      await onRead(applied);
+      setNotice(
+        nextStatus === "retired" ? "Location retired." : "Location restored.",
+      );
+      if (editingId === record.id) resetForm();
+    } catch (reason) {
+      await onRead(applied);
+      setActionError(
+        `${reason instanceof Error ? reason.message : "The location status could not be updated."} A location refresh was requested; reload if the hierarchy is still unclear.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+  const parentOptions = data.location_options.filter(
+    (record) =>
+      record.id !== editingId &&
+      (record.site_id ?? "") === siteId &&
+      (record.status === "active" || record.id === parentId),
+  );
   return (
     <div className="inventory-stack">
       <a className="inventory-back-link" href={returnTo}>
-        ← Back to purchase order
+        ← Back
       </a>
       <Card title="Inventory storage locations">
         <p className="inventory-lead">
-          Define the physical places where stock is stored, quarantined,
-          returned, or controlled. Supplier delivery addresses belong to the
-          clinic facility profile in Operations.
+          Organize stock destinations under a facility and parent location.
+          Legacy area labels remain receipt history; use child locations for new
+          room, cabinet, shelf, and bin structure.
         </p>
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!readDisabled)
+              void onRead({ ...applied, q: query.trim(), page: 1 });
+          }}
+        >
+          <TextField
+            size="small"
+            label="Search locations"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Name, path, facility, or address"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            size="small"
+            label="Status"
+            value={page.status}
+            disabled={readDisabled}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                location_status: event.target.value as typeof page.status,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="all">All locations</MenuItem>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="retired">Retired</MenuItem>
+          </TextField>
+          <Button type="submit" variant="outlined" disabled={readDisabled}>
+            Search locations
+          </Button>
+        </form>
+        <p className="inventory-results-count" role="status">
+          {loading
+            ? "Loading locations…"
+            : `Showing ${page.filtered_count === 0 ? 0 : (page.page - 1) * page.page_size + 1}–${Math.min(page.page * page.page_size, page.filtered_count)} of ${page.filtered_count} matching locations (${page.total_count} total).`}
+        </p>
+        {readError && (
+          <Alert severity="error">
+            {readError} The previous location page remains visible.
+          </Alert>
+        )}
+        {actionError && <Alert severity="error">{actionError}</Alert>}
+        {notice && <Alert severity="success">{notice}</Alert>}
         {data.locations.length > 0 && (
           <div className="inventory-stack compact">
-            {data.locations.map((record) => (
-              <div className="inventory-muted-panel" key={record.id}>
-                <strong>{record.name}</strong>
-                <p>
-                  {record.kind?.replace("_", " ") || "Storage"}
-                </p>
-              </div>
-            ))}
+            {data.locations.map((record) => {
+              const site = data.sites?.find(
+                (candidate) => String(candidate.id) === record.site_id,
+              );
+              return (
+                <div className="inventory-muted-panel" key={record.id}>
+                  <div className="inventory-panel-heading">
+                    <div>
+                      <strong>{record.path}</strong>
+                      <p>
+                        {record.kind?.replace("_", " ") || "Storage"} ·{" "}
+                        {record.status} · {site?.name ?? "No facility link"}
+                      </p>
+                      <small>
+                        {record.stock_destination
+                          ? "Eligible stock destination"
+                          : record.child_count > 0
+                            ? `${record.child_count} child locations; choose a leaf for stock`
+                            : "Not eligible for stock"}
+                      </small>
+                    </div>
+                    <div className="inventory-form-actions">
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        size="small"
+                        disabled={
+                          writeBlocked || Boolean(busy) || !canConfigure
+                        }
+                        onClick={() => editLocation(record)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        size="small"
+                        color={
+                          record.status === "active" ? "warning" : "primary"
+                        }
+                        disabled={
+                          writeBlocked || Boolean(busy) || !canConfigure
+                        }
+                        onClick={() =>
+                          void setLocationStatus(
+                            record,
+                            record.status === "active" ? "retired" : "active",
+                          )
+                        }
+                      >
+                        {busy === `status:${record.id}`
+                          ? "Saving…"
+                          : record.status === "active"
+                            ? "Retire"
+                            : "Restore"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
-      </Card>
-      <Card title="Add storage location">
-        <form className="inventory-form-grid" onSubmit={submit}>
-          <Field label="Location name" hint="For example, Main cabinet or Medication room.">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={100}
-              required
-              autoFocus
-            />
-          </Field>
-          <Field label="Location type">
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value as "storage" | "controlled")}
+        {!data.locations.length && (
+          <p className="inventory-empty" role="status">
+            No locations match this view.
+          </p>
+        )}
+        {page.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Location pagination"
+          >
+            <Button
+              variant="outlined"
+              disabled={readDisabled || page.page === 1}
+              onClick={() => void onRead({ ...applied, page: page.page - 1 })}
             >
-              <option value="storage">Storage</option>
-              <option value="controlled">Controlled storage</option>
-            </select>
-          </Field>
+              Previous
+            </Button>
+            <span>
+              Page {page.page} of {page.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              disabled={readDisabled || page.page === page.page_count}
+              onClick={() => void onRead({ ...applied, page: page.page + 1 })}
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </Card>
+      <Card
+        title={editingId ? "Edit storage location" : "Add storage location"}
+      >
+        <form className="inventory-form-grid" onSubmit={save}>
+          <TextField
+            size="small"
+            label="Location name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Main cabinet or Bin A-01"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+            required
+          />
+          <TextField
+            select
+            size="small"
+            label="Location type"
+            value={kind}
+            onChange={(event) => setKind(event.target.value as typeof kind)}
+          >
+            <MenuItem value="storage">Storage</MenuItem>
+            <MenuItem value="controlled">Controlled storage</MenuItem>
+            <MenuItem value="quarantine">Quarantine</MenuItem>
+            <MenuItem value="returns">Returns</MenuItem>
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Facility"
+            value={siteId}
+            onChange={(event) => {
+              setSiteId(event.target.value);
+              setParentId("");
+            }}
+            helperText="Optional for existing standalone storage."
+          >
+            <MenuItem value="">No facility link</MenuItem>
+            {(data.sites ?? []).map((site) => (
+              <MenuItem key={site.id} value={String(site.id)}>
+                {site.name} · {site.status}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Parent location"
+            value={parentId}
+            onChange={(event) => {
+              const nextParent = data.location_options.find(
+                (record) => record.id === event.target.value,
+              );
+              setParentId(event.target.value);
+              if (
+                nextParent?.kind === "quarantine" ||
+                nextParent?.kind === "returns" ||
+                nextParent?.kind === "controlled"
+              )
+                setKind(nextParent.kind);
+            }}
+          >
+            <MenuItem value="">Top-level location</MenuItem>
+            {parentOptions.map((record) => (
+              <MenuItem key={record.id} value={record.id}>
+                {record.path}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value as typeof status)}
+          >
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="retired">Retired</MenuItem>
+          </TextField>
+          <TextField
+            size="small"
+            label="Address line 1"
+            value={addressLine1}
+            onChange={(event) => setAddressLine1(event.target.value)}
+          />
+          <TextField
+            size="small"
+            label="Address line 2"
+            value={addressLine2}
+            onChange={(event) => setAddressLine2(event.target.value)}
+          />
+          <TextField
+            size="small"
+            label="City"
+            value={city}
+            onChange={(event) => setCity(event.target.value)}
+          />
+          <TextField
+            size="small"
+            label="State"
+            value={state}
+            onChange={(event) => setState(event.target.value)}
+          />
+          <TextField
+            size="small"
+            label="Postal code"
+            value={postalCode}
+            onChange={(event) => setPostalCode(event.target.value)}
+          />
+          <TextField
+            size="small"
+            label="Country"
+            value={country}
+            onChange={(event) => setCountry(event.target.value)}
+          />
           <div className="inventory-form-actions">
             <PermissionNote
-              allowed={capability(data, "inventory.configure")}
+              allowed={canConfigure}
               permission="inventory.configure"
             />
-            <ConfirmButton
+            {editingId && (
+              <Button type="button" variant="outlined" onClick={resetForm}>
+                Cancel editing
+              </Button>
+            )}
+            <Button
+              type="submit"
+              variant="contained"
               disabled={
-                busy ||
-                !capability(data, "inventory.configure") ||
-                !name.trim()
+                writeBlocked || Boolean(busy) || !canConfigure || !name.trim()
               }
-              onConfirm={() => submit(new Event("submit") as unknown as FormEvent)}
             >
-              Save storage location →
-            </ConfirmButton>
+              {busy === "save"
+                ? "Saving…"
+                : editingId
+                  ? "Save location"
+                  : "Add location"}
+            </Button>
           </div>
         </form>
       </Card>
@@ -1997,6 +2364,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryCatalogData
     | InventoryPlanData
     | InventorySupplierData
+    | InventoryLocationData
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
@@ -2036,6 +2404,7 @@ export function InventoryApp({ path }: { path: string }) {
       "activity_page" in data ||
       "catalog_page" in data ||
       "supplier_page" in data ||
+      "location_page" in data ||
       "stock_page" in data ||
       "order_page" in data ||
       "delivery_page" in data ||
@@ -2051,6 +2420,7 @@ export function InventoryApp({ path }: { path: string }) {
     requested?: InventoryCatalogRead &
       InventoryPlanRead &
       InventorySupplierRead &
+      InventoryLocationRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null },
@@ -2058,6 +2428,7 @@ export function InventoryApp({ path }: { path: string }) {
     const read: InventoryCatalogRead &
       InventoryPlanRead &
       InventorySupplierRead &
+      InventoryLocationRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null } = {
@@ -2082,18 +2453,24 @@ export function InventoryApp({ path }: { path: string }) {
                 stock_status: data.stock_page.status,
                 page: data.stock_page.page,
               }
-            : screen === "supplier_pricing" && data && "supplier_page" in data
+            : screen === "locations" && data && "location_page" in data
               ? {
-                  q: data.supplier_page.query,
-                  supplier_id: data.supplier_page.supplier_id ?? undefined,
-                  page: data.supplier_page.page,
+                  q: data.location_page.query,
+                  location_status: data.location_page.status,
+                  page: data.location_page.page,
                 }
-              : screen === "purchasing" && data && "order_page" in data
+              : screen === "supplier_pricing" && data && "supplier_page" in data
                 ? {
-                    q: data.order_page.query,
-                    order_status: data.order_page.status,
-                    page: data.order_page.page,
+                    q: data.supplier_page.query,
+                    supplier_id: data.supplier_page.supplier_id ?? undefined,
+                    page: data.supplier_page.page,
                   }
+                : screen === "purchasing" && data && "order_page" in data
+                  ? {
+                      q: data.order_page.query,
+                      order_status: data.order_page.status,
+                      page: data.order_page.page,
+                    }
                 : screen === "receiving" && data && "delivery_page" in data
                   ? {
                       q: data.delivery_page.query,
@@ -2124,11 +2501,14 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "purchasing") query.set("view", "batches");
         if (screen === "receiving") query.set("view", "deliveries");
         if (screen === "supplier_pricing") query.set("view", "table");
+        if (screen === "locations") query.set("view", "tree");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         if (read.delivery_status)
           query.set("delivery_status", read.delivery_status);
         if (read.order_status) query.set("order_status", read.order_status);
         if (read.supplier_id) query.set("supplier_id", read.supplier_id);
+        if (read.location_status)
+          query.set("location_status", read.location_status);
         const routeQuery = new URLSearchParams(window.location.search);
         const shipmentId =
           read.shipment_id === undefined
@@ -2156,15 +2536,17 @@ export function InventoryApp({ path }: { path: string }) {
               ? `/api/clinic/inventory/catalog?${query}`
               : screen === "lots"
                 ? `/api/clinic/inventory/lots?${query}`
-                : screen === "purchasing"
-                  ? `/api/clinic/inventory/purchase-orders?${query}`
-                  : screen === "supplier_pricing"
-                    ? `/api/clinic/inventory/supplier-pricing?${query}`
-                    : screen === "receiving"
-                      ? `/api/clinic/inventory/receiving?${query}`
-                      : needsPurchaseOrderFacility
-                        ? `/api/clinic/inventory/replenishment?${query}`
-                        : "/api/clinic/inventory/bootstrap";
+                : screen === "locations"
+                  ? `/api/clinic/inventory/locations?${query}`
+                  : screen === "purchasing"
+                    ? `/api/clinic/inventory/purchase-orders?${query}`
+                    : screen === "supplier_pricing"
+                      ? `/api/clinic/inventory/supplier-pricing?${query}`
+                      : screen === "receiving"
+                        ? `/api/clinic/inventory/receiving?${query}`
+                        : needsPurchaseOrderFacility
+                          ? `/api/clinic/inventory/replenishment?${query}`
+                          : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
@@ -2172,6 +2554,7 @@ export function InventoryApp({ path }: { path: string }) {
             | InventoryCatalogData
             | InventoryPlanData
             | InventorySupplierData
+            | InventoryLocationData
             | InventoryStockData
             | InventoryOrderData
             | InventoryDeliveryData;
@@ -2182,6 +2565,7 @@ export function InventoryApp({ path }: { path: string }) {
           (screen === "activity") !== "activity_page" in payload.data ||
           (screen === "catalog") !== "catalog_page" in payload.data ||
           (screen === "supplier_pricing") !== "supplier_page" in payload.data ||
+          (screen === "locations") !== "location_page" in payload.data ||
           needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
@@ -2359,6 +2743,7 @@ export function InventoryApp({ path }: { path: string }) {
     !("activity_page" in data) &&
     !("catalog_page" in data) &&
     !("supplier_page" in data) &&
+    !("location_page" in data) &&
     !("stock_page" in data) &&
     !("order_page" in data) &&
     !("delivery_page" in data) &&
@@ -2487,6 +2872,14 @@ export function InventoryApp({ path }: { path: string }) {
                 readBlocked={Boolean(uncertainMutation)}
                 onRead={load}
               />
+            ) : "location_page" in data ? (
+              <InventoryLocationsScreen
+                data={data}
+                loading={loading}
+                error={error}
+                readBlocked={Boolean(uncertainMutation)}
+                onRead={load}
+              />
             ) : "plan_page" in data ? (
               <PurchaseCartWorkspace
                 data={data}
@@ -2536,9 +2929,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "configure" && (
                   <InventoryConfigureScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "locations" && (
-                  <InventoryLocationsScreen data={data} busy={busy} run={run} />
                 )}
                 {screen === "shipment_new" && (
                   <ShipmentCreateScreen data={data} busy={busy} run={run} />
@@ -4834,9 +5224,12 @@ export function ReceivingScreen({
       record.product_id === item?.id &&
       record.lot_numbers.includes(displayedLot.trim()),
   );
+  const stockDestinations = data.locations.filter(
+    (record) => record.status === "active" && record.stock_destination,
+  );
   const eligibleLocations = recall
-    ? data.locations.filter((record) => record.kind === "quarantine")
-    : data.locations;
+    ? stockDestinations.filter((record) => record.kind === "quarantine")
+    : stockDestinations;
   const initialLocation = recall
     ? (eligibleLocations.find((record) => record.kind === "quarantine") ??
       eligibleLocations[0])
@@ -4848,6 +5241,9 @@ export function ReceivingScreen({
     eligibleLocations.find((record) => record.id === destinationId) ??
     initialLocation;
   const [areaId, setAreaId] = useState(initialLocation?.areas[0] ?? "");
+  const effectiveAreaId = destination?.areas.includes(areaId)
+    ? areaId
+    : (destination?.areas[0] ?? "");
   const receipt =
     shipment && data.receipts.find((item) => item.shipment_id === shipment.id);
   const receiptLine = receipt?.lines.find(
@@ -4884,9 +5280,12 @@ export function ReceivingScreen({
       (record) =>
         record.product_id === productId && record.lot_numbers.includes(value),
     );
+    const nextStockDestinations = data.locations.filter(
+      (record) => record.status === "active" && record.stock_destination,
+    );
     const nextLocations = nextRecall
-      ? data.locations.filter((record) => record.kind === "quarantine")
-      : data.locations;
+      ? nextStockDestinations.filter((record) => record.kind === "quarantine")
+      : nextStockDestinations;
     const nextLocation = nextRecall
       ? (nextLocations.find((record) => record.kind === "quarantine") ??
         nextLocations[0])
@@ -4918,8 +5317,12 @@ export function ReceivingScreen({
             setExpirationDate(payload.data.lot.expiration_date);
           if (payload.data.recalls.length > 0) {
             setDestinationId(
-              data.locations.find((location) => location.kind === "quarantine")
-                ?.id ?? "",
+              data.locations.find(
+                (location) =>
+                  location.kind === "quarantine" &&
+                  location.status === "active" &&
+                  location.stock_destination,
+              )?.id ?? "",
             );
             setAreaId("");
           }
@@ -4980,8 +5383,8 @@ export function ReceivingScreen({
           lot_number: lotNumber.trim(),
           expiration_date: expirationDate,
           quantity_packages: packages,
-          destination_location: destination?.name,
-          ...(areaId ? { area_id: areaId } : {}),
+          destination_location_id: destination?.id,
+          ...(effectiveAreaId ? { area_id: effectiveAreaId } : {}),
           ...(temperature ? { temperature_c: temperature } : {}),
           ...(recall && accepted
             ? {
@@ -5005,7 +5408,7 @@ export function ReceivingScreen({
         },
       },
       hasDiscrepancy ? "Delivery reconciled" : "Receipt recorded",
-      `${number(packages)} ${packageUnit} accepted${accepted ? ` into ${destination?.name}` : ""}.`,
+      `${number(packages)} ${packageUnit} accepted${accepted ? ` into ${destination?.path ?? destination?.name}` : ""}.`,
     );
   return (
     <div className="inventory-two-col wide-left">
@@ -5250,15 +5653,22 @@ export function ReceivingScreen({
             >
               {eligibleLocations.map((record) => (
                 <option key={record.id} value={record.id}>
-                  {record.name}
+                  {record.path}
                 </option>
               ))}
             </select>
           </Field>
+          {eligibleLocations.length === 0 && (
+            <Alert severity="warning">
+              {recall
+                ? "Create an active quarantine leaf location before receiving this recalled lot."
+                : "Create an active leaf location before receiving stock."}
+            </Alert>
+          )}
           {destination && destination.areas.length > 0 && (
             <Field label="Area">
               <select
-                value={areaId}
+                value={effectiveAreaId}
                 onChange={(event) => setAreaId(event.target.value)}
               >
                 {destination.areas.map((area) => (
@@ -5425,8 +5835,15 @@ function LotsScreen({
   );
   const [quantity, setQuantity] = useState<Decimal>("1");
   const [destination, setDestination] = useState(
-    data.locations.find((item) => item.kind === "returns")?.id ??
-      data.locations[0]?.id ??
+    data.locations.find(
+      (item) =>
+        item.kind === "returns" &&
+        item.status === "active" &&
+        item.stock_destination,
+    )?.id ??
+      data.locations.find(
+        (item) => item.status === "active" && item.stock_destination,
+      )?.id ??
       "",
   );
   const [reason, setReason] = useState("");
@@ -5438,16 +5855,33 @@ function LotsScreen({
   const selectedLocation = selected
     ? location(data, selected.location_id)
     : undefined;
+  const transferDestinations = data.locations.filter(
+    (item) =>
+      item.id !== selected?.location_id &&
+      item.status === "active" &&
+      item.stock_destination,
+  );
+  const effectiveDestination = transferDestinations.some(
+    (item) => item.id === destination,
+  )
+    ? destination
+    : (transferDestinations[0]?.id ?? "");
+  const blocked =
+    !selected ||
+    !selectedLot ||
+    !selected.transferable ||
+    decimalCompare(selected.on_hand_units, "0") === 0;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!selected || !selectedProduct) return;
+    if (action === "transfer" && (blocked || !effectiveDestination)) return;
     if (action === "transfer")
       void run(
         `/api/clinic/inventory/lots/${selected.lot_id}/transfer`,
         {
           transfer: {
             source_batch_id: selected.id.replace("bal_", ""),
-            destination_location_id: destination,
+            destination_location_id: effectiveDestination,
             quantity,
             reason,
           },
@@ -5484,11 +5918,6 @@ function LotsScreen({
         "Cycle count recorded.",
       );
   };
-  const blocked =
-    !selected ||
-    !selectedLot ||
-    decimalCompare(selected.available_units, "0") === 0 ||
-    selectedLot.status !== "active";
   return (
     <div className="inventory-stack" aria-busy={loading}>
       <Card title="Find stock positions">
@@ -5745,18 +6174,21 @@ function LotsScreen({
               {action === "transfer" && (
                 <Field label="Destination">
                   <select
-                    value={destination}
+                    value={effectiveDestination}
                     onChange={(event) => setDestination(event.target.value)}
                   >
-                    {data.locations
-                      .filter((item) => item.id !== selected.location_id)
-                      .map((item) => (
-                        <option value={item.id} key={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
+                    {transferDestinations.map((item) => (
+                      <option value={item.id} key={item.id}>
+                        {item.path}
+                      </option>
+                    ))}
                   </select>
                 </Field>
+              )}
+              {action === "transfer" && transferDestinations.length === 0 && (
+                <Alert severity="warning">
+                  Create another active leaf location before transferring stock.
+                </Alert>
               )}
               <Field label="Reason">
                 <input
@@ -5785,7 +6217,8 @@ function LotsScreen({
                 <ConfirmButton
                   disabled={
                     busy ||
-                    (action === "transfer" && blocked) ||
+                    (action === "transfer" &&
+                      (blocked || !effectiveDestination)) ||
                     (action !== "count" &&
                       decimalCompare(quantity || "0", "0") <= 0) ||
                     !capability(
@@ -5810,8 +6243,8 @@ function LotsScreen({
           <Card title="Selected balance">
             <div className="inventory-stack compact">
               <DataPoint
-                label="Available"
-                value={`${number(selected.available_units)} ${selectedProduct.base_unit}`}
+                label="On hand"
+                value={`${number(selected.on_hand_units)} ${selectedProduct.base_unit}`}
               />
               <p
                 className={
@@ -5819,8 +6252,8 @@ function LotsScreen({
                 }
               >
                 {blocked
-                  ? "Action blocked: held, recalled, or unavailable stock cannot transfer."
-                  : "Available for transfer."}
+                  ? "Action blocked: this balance is not eligible for transfer."
+                  : "Eligible for transfer."}
               </p>
             </div>
           </Card>

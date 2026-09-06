@@ -31,11 +31,20 @@ module Clinic
         render json: { data: InventoryWire.supplier_pricing(practice: current_practice, actor: current_user, query: params[:q], supplier_id: params[:supplier_id], page: params[:page]) }
       end
 
+      def locations
+        render json: { data: InventoryWire.locations(practice: current_practice, actor: current_user, query: params[:q], status: params[:location_status], page: params[:page]) }
+      end
+
       def create_location
-        Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.configure")
-        input = params.require(:location).permit(:name, :kind, :address_line1, :address_line2, :city, :state, :postal_code, :country)
-        location = current_practice.inventory_locations.create!(input.merge(country: input[:country].presence || "US"))
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: location.id }, status: :created
+        location = ManageLocation.call(practice: current_practice, actor: current_user, attributes: location_attributes)
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: location.id.to_s), status: :created
+      end
+
+      def update_location
+        location = ManageLocation.call(practice: current_practice, actor: current_user, location_id: params[:id], attributes: location_attributes)
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: location.id.to_s)
       end
 
       def update_product
@@ -293,7 +302,15 @@ module Clinic
             .find_by(product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
         end
         recalled = matched_recall.present?
-        destination = current_practice.inventory_locations.find_by!(name: input.require(:destination_location)) if packages.positive?
+        destination = if packages.positive?
+          if input[:destination_location_id].present?
+            current_practice.inventory_locations.find(input[:destination_location_id])
+          else
+            matches = current_practice.inventory_locations.where(name: input.require(:destination_location)).limit(2).to_a
+            raise ArgumentError, "Select an exact destination location." unless matches.one?
+            matches.first
+          end
+        end
         if packages.positive? && recalled && destination.kind != "quarantine"
           raise ArgumentError, "Blocking recall match: this lot must be routed to a quarantine location."
         end
@@ -303,7 +320,7 @@ module Clinic
         elsif input[:recall_id].present?
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
-        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, reconciliation: reconciliation, status: recall ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input[:lot_number], location: destination&.name, expires_on: input[:expiration_date], amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
+        receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, reconciliation: reconciliation, status: recall ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input[:lot_number], location_id: input[:destination_location_id].present? ? destination&.id : nil, location: destination&.name, expires_on: input[:expiration_date], amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
         payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
         render json: payload.merge(receipt_id: receipt.is_a?(Receipt) ? receipt.id : nil)
       end
@@ -395,6 +412,10 @@ module Clinic
       end
 
       private
+
+      def location_attributes
+        params.require(:location).permit(:name, :kind, :site_id, :parent_location_id, :status, :address_line1, :address_line2, :city, :state, :postal_code, :country).to_h
+      end
 
       def purchase_orders_scope = PurchaseOrder.where(practice_id: current_practice.id)
       def batches_scope = PharmacyBatch.where(practice_id: current_practice.id)
