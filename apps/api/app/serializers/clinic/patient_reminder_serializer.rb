@@ -8,7 +8,8 @@ module Clinic
         priority: reminder.priority, expires_at: reminder.expires_at&.iso8601(6),
         endpoint: { type: reminder.communication_endpoint.endpoint_type, label: reminder.communication_endpoint.label,
           masked_value: reminder.communication_endpoint.masked_value },
-        action_types: %w[confirm request_reschedule request_help dismiss]
+        action_types: %w[confirm request_reschedule request_help dismiss],
+        staff_handoff: Clinic::Reminders::StaffHandoff.summary(reminder: reminder)
       }
       if detail
         payload[:source] = { type: reminder.source_type, id: reminder.source_id, version: reminder.source_version }
