@@ -1,5 +1,6 @@
 import { useResource, Form } from "../../shared/ui";
 import { api } from "../../api/client";
+import { businessNow } from "../../shared/businessDate";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useClinic } from "./Workspace";
 import type { Appointment, PatientReminder } from "../../api/contracts";
@@ -368,9 +369,20 @@ function dateInput(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function phoneLabel(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
 function rangeBoundary(value: string, addDay = false) {
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(value);
-  const date = valid ? new Date(`${value}T00:00:00`) : new Date();
+  const date = valid ? new Date(`${value}T00:00:00`) : businessNow();
   if (addDay) date.setDate(date.getDate() + 1);
   return date.toISOString();
 }
@@ -547,9 +559,9 @@ export function Reminders() {
     reminderIdParam && /^[1-9]\d*$/.test(reminderIdParam)
       ? reminderIdParam
       : null;
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => businessNow(), []);
   const initialEnd = useMemo(() => {
-    const value = new Date();
+    const value = businessNow();
     value.setDate(value.getDate() + 14);
     return value;
   }, []);
