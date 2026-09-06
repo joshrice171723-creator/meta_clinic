@@ -58,6 +58,12 @@ export function Login({ developmentLogin }: { developmentLogin: boolean }) {
               onSuccess={() => window.location.assign("/patient-portal")}
               values={{ profile: "omni" }}
             />
+            <Form
+              endpoint="/api/development_session"
+              submit="Open assigned patient portal"
+              onSuccess={() => window.location.assign("/patient-portal")}
+              values={{ profile: "patient" }}
+            />
             <p className="form-note">
               OmniLogin is the local development identity for rapid review. The
               patient portal uses this signed-in account and loads patient and

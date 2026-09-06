@@ -66,7 +66,16 @@ export function Billing() {
   const { capabilities } = useClinic();
   const [query, setQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
-    null,
+    () => {
+      const value = new URLSearchParams(window.location.search).get(
+        "patient_id",
+      );
+      return value &&
+        /^[1-9]\d*$/.test(value) &&
+        Number.isSafeInteger(Number(value))
+        ? Number(value)
+        : null;
+    },
   );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     null,

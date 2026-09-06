@@ -9,6 +9,7 @@ import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { CashDrawerOperations } from "./CashDrawerOperations";
+import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
 
 export type BillingInvoiceFilter =
   | "all"
@@ -987,6 +988,12 @@ export function BillingDashboard() {
           </p>
         </section>
       </div>
+      <SubscriptionBilling
+        onChanged={() => {
+          refresh();
+          detailResource.refresh();
+        }}
+      />
       <CashDrawerOperations
         invoice={selectedInvoice ?? null}
         onRecorded={() => {

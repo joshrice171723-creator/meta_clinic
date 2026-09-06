@@ -330,6 +330,7 @@ export type ClinicCapabilities = {
   appointments_status_transition?: boolean;
   staff_write?: boolean;
   billing_read?: boolean;
+  subscription_catalog_read?: boolean;
   billing_invoice_draft?: boolean;
   billing_invoice_post?: boolean;
   billing_payment_record?: boolean;

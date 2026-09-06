@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Subscription races and migration recovery on two task-owned local databases."""
+import os
+import pathlib
+import subprocess
+import tempfile
+import uuid
+
+root = pathlib.Path(__file__).resolve().parents[1]
+env = os.environ.copy()
+if env.get("PGHOST", "127.0.0.1") not in ("127.0.0.1", "localhost", "::1"):
+    raise SystemExit("Loopback PostgreSQL required")
+env.pop("DATABASE_URL", None)
+prefix = "apply_subscription_verify_" + uuid.uuid4().hex[:12]
+databases = [prefix, prefix + "_restore"]
+env.update(RAILS_ENV="test", APPLY_TEST_DATABASE=prefix,
+           APPLY_DEVELOPMENT_DATABASE=prefix + "_unused", SKIP_TEST_DATABASE="1")
+clients = {"createdb", "dropdb", "pg_dump", "pg_restore", "psql"}
+
+
+def command(args):
+    if os.name == "nt":
+        if args[0] in clients:
+            return ["ruby", str(root / "bin/pg-client.rb"), *args]
+        if args[0] == "bin/rails":
+            return ["ruby", str(root / "bin/rails"), *args[1:]]
+    return args
+
+
+def run(args, data=None):
+    result = subprocess.run(command(args), cwd=root, env=env, input=data,
+                            capture_output=True, text=True)
+    if result.returncode:
+        # Inputs and databases are created entirely by this verification.
+        print(result.stdout[-6000:])
+        print(result.stderr[-6000:])
+        raise RuntimeError("Subscription verification failed: " + args[0])
+    return result.stdout
+
+
+created = []
+with tempfile.TemporaryDirectory(prefix="apply-subscription-verify-") as temporary:
+    env["SCHEMA"] = str(pathlib.Path(temporary) / "structure.sql")
+    try:
+        for name in databases:
+            run(["createdb", name])
+            created.append(name)
+        run(["bin/rails", "db:migrate"])
+        run(["bin/rails", "db:rollback", "STEP=1"])
+        run(["bin/rails", "db:migrate"])
+        print("PASS: fresh migrations, empty subscription rollback and reapply", flush=True)
+        print(run(["bin/rails", "runner", "test/verification/subscription_races.rb"]), end="", flush=True)
+        dump = str(pathlib.Path(temporary) / "subscriptions.dump")
+        run(["pg_dump", "--format=custom", "--no-owner", "--no-acl", "--file", dump, prefix])
+        run(["pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl", "--dbname", databases[1], dump])
+        env["APPLY_TEST_DATABASE"] = databases[1]
+        env["APPLY_SUBSCRIPTION_RESTORE_CHECK"] = "1"
+        print(run(["bin/rails", "runner", "test/verification/subscription_races.rb"]), end="", flush=True)
+    finally:
+        for name in reversed(created):
+            run(["dropdb", name])
+        print("Removed only task-owned subscription scratch databases", flush=True)

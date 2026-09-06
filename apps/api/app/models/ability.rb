@@ -16,6 +16,10 @@ class Ability
   # Permission catalogs are global definitions. They become effective only
   # through an active grant on the user's practice membership.
   PERMISSION_RULES = {
+    "subscription_catalog.read" => { action: :read, subjects: [ Clinic::Care::SubscriptionPackage ], scope: :practice },
+    "subscription_catalog.write" => { action: :create, subjects: [ Clinic::Care::SubscriptionPackage ], actions: %i[create update], scope: :practice },
+    "subscription_catalog.publish" => { action: :publish, subjects: [ Clinic::Care::SubscriptionPackage ], scope: :practice },
+    "subscriptions.review" => { action: :review, subjects: [ Clinic::Care::SubscriptionAgreement ], scope: :practice },
     "patients.read" => { action: :read, subjects: [ Clinic::Care::Patient ], scope: :practice },
     "patients.identity.read" => { action: :read_identity, subjects: [ Clinic::Care::Patient ], scope: :practice },
     "patients.write" => { action: :create, subjects: [ Clinic::Care::Patient ], actions: %i[create update], scope: :practice },
