@@ -16,7 +16,7 @@ module Clinic
       "draft" => %w[scheduled paused cancelled suppressed],
       "scheduled" => %w[queued paused cancelled suppressed expired],
       "queued" => %w[sending paused cancelled suppressed expired],
-      "sending" => %w[provider_accepted failed delivery_unknown cancelled],
+      "sending" => %w[provider_accepted failed delivery_unknown paused cancelled],
       "provider_accepted" => %w[delivered failed delivery_unknown],
       "delivered" => %w[actioned expired],
       "delivery_unknown" => %w[queued failed expired],
