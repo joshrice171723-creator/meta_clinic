@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
 import {
   ScribeReviewWorkspace,
   type ScribeReviewState,
@@ -58,6 +59,7 @@ function errorMessage(reason: unknown, fallback: string): string {
 
 export function LiveScribeReviewWorkspace() {
   const { capabilities, current_site, membership_id } = useClinic();
+  const { registerBlocker } = useClinicNavigation();
   const scopeKey = `${membership_id ?? "none"}:${current_site?.id ?? "all"}`;
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
@@ -88,6 +90,12 @@ export function LiveScribeReviewWorkspace() {
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [hasUnsavedReviewEdits, setHasUnsavedReviewEdits] = useState(false);
   const [discardEditsToken, setDiscardEditsToken] = useState(0);
+
+  useEffect(() => registerBlocker(() => {
+    if (pendingAction) return "A scribe action is still in progress. Leave this workspace?";
+    if (hasUnsavedReviewEdits || transcript.trim()) return "Unsaved scribe content will be lost. Leave this workspace?";
+    return null;
+  }), [registerBlocker, pendingAction, hasUnsavedReviewEdits, transcript]);
 
   const isCurrent = useCallback(
     (requestScope: string) => mounted.current && scopeRef.current === requestScope,

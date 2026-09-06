@@ -14,7 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 
-type ReminderResponse = { reminders: PatientReminder[] };
+type ReminderResponse = { reminders: PatientReminder[]; pagination: { page: number; total_pages: number } };
 type StaffConversation = {
   id: number;
   title: string | null;
@@ -340,6 +340,7 @@ function HandoffEnabledReminderRows({
 export function Reminders() {
   const { capabilities } = useClinic();
   const [recoveryNotice, setRecoveryNotice] = useState("");
+  const [reminderPage, setReminderPage] = useState(1);
   const reminderIdParam = new URLSearchParams(window.location.search).get(
     "reminder_id",
   );
@@ -347,10 +348,11 @@ export function Reminders() {
     reminderIdParam && /^[1-9]\d*$/.test(reminderIdParam)
       ? reminderIdParam
       : null;
+  useEffect(() => setReminderPage(1), [reminderId]);
   const resource = useResource<ReminderResponse>(
     reminderId
       ? `/api/clinic/reminders?reminder_id=${reminderId}&per_page=50`
-      : "/api/clinic/reminders?per_page=50",
+      : `/api/clinic/reminders?per_page=50&page=${reminderPage}`,
   );
   const reminders = resource.data?.reminders || [];
   return (
@@ -433,6 +435,13 @@ export function Reminders() {
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
           Reminder worklist
         </Typography>
+        {!reminderId && resource.data && resource.data.pagination.total_pages > 1 && (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+            <Button disabled={reminderPage <= 1} onClick={() => setReminderPage((page) => page - 1)}>Previous reminders</Button>
+            <Typography variant="body2">Page {resource.data.pagination.page} of {resource.data.pagination.total_pages}</Typography>
+            <Button disabled={reminderPage >= resource.data.pagination.total_pages} onClick={() => setReminderPage((page) => page + 1)}>More reminders</Button>
+          </Stack>
+        )}
         {reminders.length === 0 && (
           <Typography color="text.secondary">
             No reminders are scheduled.
