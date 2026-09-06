@@ -2,14 +2,17 @@ module Clinic
   module Care
     class SubscriptionProjection
       def self.catalog(practice:)
-        SubscriptionPackage.where(practice: practice, retired: false).includes(:family, :published_version).filter_map do |package|
+        families = SubscriptionFamily.where(practice: practice, retired: false).where.not(published_snapshot: nil).index_by(&:id)
+        SubscriptionPackage.where(practice: practice, retired: false).includes(:published_version).filter_map do |package|
           version = package.published_version
-          next if !version || package.family.retired
+          next unless version
           terms = version.snapshot
+          family = families[terms["family_id"]]
+          next unless family
           next if terms["available_from"] && Time.iso8601(terms["available_from"]) > Time.current
           next if terms["available_until"] && Time.iso8601(terms["available_until"]) <= Time.current
-          { id: version.id, number: version.number, terms: terms }
-        end
+          { id: version.id, number: version.number, program: family.published_snapshot.merge("id" => family.id), terms: terms }
+        end.sort_by { |item| [item[:program]["display_order"], item[:program]["id"], item[:terms].fetch("display_order", 0), item[:terms]["package_id"]] }
       end
 
       def self.agreement(agreement)

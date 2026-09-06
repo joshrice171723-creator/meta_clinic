@@ -3,8 +3,8 @@ module Development
     def self.seed!(practice:, actor:)
       return unless Rails.env.development?
 
-      women = family(practice, "Dev seed Women's Wellness")
-      men = family(practice, "Dev seed Men's Wellness")
+      women = family(practice, "Women's Wellness")
+      men = family(practice, "Men's Wellness")
       services = {
         planning: service(practice, "Wellness planning visit", "A structured visit to set personal goals and a follow-up plan."),
         nutrition: service(practice, "Nutrition coaching session", "A practical session for meal planning and everyday habits."),
@@ -55,7 +55,7 @@ module Development
 
     def self.family(practice, name)
       Clinic::Care::SubscriptionFamily.find_or_create_by!(practice: practice, name: name) do |record|
-        record.description = "Synthetic example catalog for learning the subscription editor."
+        record.description = ""
       end
     end
 
@@ -69,6 +69,10 @@ module Development
     end
 
     def self.create_package(practice, actor, family, name, description, amount, components)
+      unless family.reload.published_snapshot
+        Clinic::Care::SubscriptionCatalog.save(practice: practice, actor: actor, kind: "family", id: family.id,
+          attributes: { "lock_version" => family.lock_version, "publish" => true })
+      end
       package = Clinic::Care::SubscriptionPackage.find_or_create_by!(practice: practice, family: family, name: name) do |record|
         record.draft = { description: description, amount: amount, currency: "USD", duration: 1, duration_unit: "months", renewal: "manual",
                          cancellation: "end_of_term", refund_policy: "manual_review", terms: "One month of #{name.downcase}. Services are scheduled through the clinic. Renewal is manual and refunds require clinic review.",

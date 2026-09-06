@@ -6,6 +6,7 @@ module Clinic
       include Clinic::Auditable
       validates :name, presence: true, length: { maximum: 160 }
       validates :description, length: { maximum: 4000 }
+      validates :display_order, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 1_000_000 }
     end
   end
 end

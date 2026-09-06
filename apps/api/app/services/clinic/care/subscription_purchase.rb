@@ -19,7 +19,8 @@ module Clinic
           end
           version = SubscriptionVersion.where(practice: practice).find(version_id)
           package = SubscriptionPackage.where(practice: practice).lock.find(version.package_id)
-          raise ArgumentError, "This package changed or is no longer available. Review the current catalog." if package.retired || package.family.retired || package.published_version_id != version.id
+          family = SubscriptionFamily.where(practice: practice).lock.find(version.snapshot.fetch("family_id"))
+          raise ArgumentError, "This package changed or is no longer available. Review the current catalog." if package.retired || family.retired || !family.published_snapshot || package.published_version_id != version.id
           snapshot = SubscriptionDefinition.select(version.snapshot, selections)
           now = Time.current
           raise ArgumentError, "This package is outside its purchase window." if

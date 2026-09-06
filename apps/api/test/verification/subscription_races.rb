@@ -31,7 +31,7 @@ end
 practice = Clinic::Practice.create!(name: "Dev seed subscription race clinic")
 actor = User.create!(email_address: "subscription-race-staff@example.invalid", password: SecureRandom.hex(20))
 membership = practice.memberships.create!(user: actor)
-%w[subscription_catalog.publish billing.payment_record].each do |action|
+%w[subscription_catalog.write subscription_catalog.publish billing.payment_record].each do |action|
   permission = Permission.find_or_create_by!(action_code: action)
   role = RoleVersion.create!(role_code: "subscription-race-#{action}", version: 1)
   RoleVersionPermission.create!(role_version: role, permission: permission)
@@ -41,6 +41,7 @@ patient = practice.patients.create!(display_name: "Dev seed race patient", refer
 user = User.create!(email_address: "subscription-race-patient@example.invalid", password: SecureRandom.hex(20))
 identity = Clinic::PatientPortal::Identity.create!(practice: practice, patient: patient, user: user, status: "active", invited_at: Time.current, activated_at: Time.current)
 family = Clinic::Care::SubscriptionFamily.create!(practice: practice, name: "Any family")
+Clinic::Care::SubscriptionCatalog.save(practice: practice, actor: actor, kind: "family", id: family.id, attributes: { "lock_version" => 0, "publish" => true })
 service = Clinic::Care::ServiceOption.create!(practice: practice, name: "Any service")
 package = Clinic::Care::SubscriptionPackage.create!(practice: practice, family: family, name: "Any package",
   draft: { amount: "10.25", currency: "USD", duration: 1, duration_unit: "months", terms: "One term, no automatic renewal.", components: [ { service_id: service.id, mode: "included" } ] })

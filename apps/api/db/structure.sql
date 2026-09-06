@@ -5184,7 +5184,11 @@ CREATE TABLE public.clinic_subscription_families (
     description text DEFAULT ''::text NOT NULL,
     retired boolean DEFAULT false NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    display_order integer DEFAULT 0 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    published_snapshot jsonb,
+    CONSTRAINT subscription_program_display_order CHECK ((display_order >= 0))
 );
 
 
@@ -14282,6 +14286,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906000100'),
 ('20260905000300'),
 ('20260903001400'),
 ('20260903001300'),
