@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
-  scope path: "api", as: "api" do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
+  scope path: "api", as: "api" do
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"

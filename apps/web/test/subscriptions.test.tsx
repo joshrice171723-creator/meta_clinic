@@ -97,7 +97,7 @@ describe("subscription purchase presentation", () => {
       "lowercase terms",
       "Keep this exact line.",
       "$12.30",
-      "manual renewal",
+      "renew manually",
     ])
       expect(html).toContain(value);
     expect(html).not.toContain("no automatic renewal");
@@ -244,8 +244,16 @@ describe("subscription purchase presentation", () => {
     expect(html).toContain("Dev seed chosen service");
     expect(html).not.toContain("Unselected alternative");
     expect(html).toContain("Clinic review required before payment");
-    expect(html).toContain("Manual renewal; no automatic charge");
+    expect(html).toContain("Renew manually; no automatic charge");
     expect(html).toContain("Clinic-defined fixed-term conditions.");
+  });
+  it("discloses monthly recurring charges and cancellation after the paid period", () => {
+    const html = renderToStaticMarkup(
+      <PackageCard terms={{ ...terms, renewal: "automatic" }} />,
+    );
+    expect(html).toContain("Billed monthly until canceled.");
+    expect(html).toContain("Cancellation takes effect at the end of the current paid period.");
+    expect(html).not.toContain("no automatic charge");
   });
   it("browsing offers labeled selectable components without claiming purchase", () => {
     const html = renderToStaticMarkup(

@@ -97,7 +97,7 @@
   [
     "api_clinic_inventory_management",
     "PATCH",
-    "/api/clinic/inventory/suppliers/:id(.:format)"
+    "/api/clinic/inventory/products/:id(.:format)"
   ],
   [
     "api_clinic_inventory_management_activity",
@@ -135,21 +135,6 @@
     "/api/clinic/inventory/lots(.:format)"
   ],
   [
-    "api_clinic_inventory_management_purchase_cart",
-    "GET",
-    "/api/clinic/inventory/purchase-cart(.:format)"
-  ],
-  [
-    "api_clinic_inventory_management_purchase_cart_checkout",
-    "POST",
-    "/api/clinic/inventory/purchase-cart/checkout(.:format)"
-  ],
-  [
-    "api_clinic_inventory_management_purchase_cart_items",
-    "POST",
-    "/api/clinic/inventory/purchase-cart/items(.:format)"
-  ],
-  [
     "api_clinic_inventory_management_purchase_orders",
     "GET",
     "/api/clinic/inventory/purchase-orders(.:format)"
@@ -178,21 +163,6 @@
     "api_clinic_inventory_management_shipments",
     "POST",
     "/api/clinic/inventory/shipments(.:format)"
-  ],
-  [
-    "api_clinic_inventory_management_suppliers",
-    "POST",
-    "/api/clinic/inventory/suppliers(.:format)"
-  ],
-  [
-    "api_clinic_inventory_management_suppliers_import",
-    "POST",
-    "/api/clinic/inventory/suppliers/import(.:format)"
-  ],
-  [
-    "api_clinic_inventory_management_suppliers_preview",
-    "POST",
-    "/api/clinic/inventory/suppliers/preview(.:format)"
   ],
   [
     "api_clinic_invoice",
@@ -368,6 +338,21 @@
     "api_clinic_staff_messaging_preferences",
     "GET",
     "/api/clinic/staff-messaging/preferences(.:format)"
+  ],
+  [
+    "api_clinic_stripe_connect",
+    "GET",
+    "/api/clinic/stripe_connect(.:format)"
+  ],
+  [
+    "api_clinic_stripe_connect_onboard",
+    "POST",
+    "/api/clinic/stripe_connect/onboard(.:format)"
+  ],
+  [
+    "api_clinic_stripe_connect_refresh",
+    "POST",
+    "/api/clinic/stripe_connect/refresh(.:format)"
   ],
   [
     "api_clinic_subscription_catalog",
@@ -690,6 +675,11 @@
     "/api/clinic/subscriptions/:id/reconcile(.:format)"
   ],
   [
+    "reconcile_api_patient_portal_subscription",
+    "POST",
+    "/api/patient_portal/subscriptions/:id/reconcile(.:format)"
+  ],
+  [
     "reconcile_ledger_api_clinic_subscription",
     "POST",
     "/api/clinic/subscriptions/:id/reconcile_ledger(.:format)"
@@ -745,14 +735,14 @@
     "/api/paperworks/:id/start(.:format)"
   ],
   [
+    "stripe_connect_webhook",
+    "POST",
+    "/stripe/connect/webhook(.:format)"
+  ],
+  [
     "transition_api_clinic_appointment",
     "POST",
     "/api/clinic/appointments/:id/transition(.:format)"
-  ],
-  [
-    null,
-    "DELETE",
-    "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
   ],
   [
     null,
@@ -783,26 +773,6 @@
     null,
     "PATCH",
     "/api/clinic/context(.:format)"
-  ],
-  [
-    null,
-    "PATCH",
-    "/api/clinic/inventory/products/:id(.:format)"
-  ],
-  [
-    null,
-    "PATCH",
-    "/api/clinic/inventory/products/:id/preferred-supplier(.:format)"
-  ],
-  [
-    null,
-    "PATCH",
-    "/api/clinic/inventory/purchase-cart(.:format)"
-  ],
-  [
-    null,
-    "PATCH",
-    "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
   ],
   [
     null,

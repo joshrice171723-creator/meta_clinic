@@ -42,7 +42,7 @@ The subscribed snapshot events are `checkout.session.completed`, `checkout.sessi
 
 ## Manual acceptance walkthrough
 
-Automated tests, browser test scripts, test generators and verification hooks remain prohibited until Joshua personally accepts the implementation and explicitly authorizes testing. Do not run the older verification commands in the subscription guide during this gate. Non-test type checking and direct manual computer use are permitted.
+Joshua authorized a light automated-testing pass during the non-inventory integration. Focused automated checks support the manual walkthrough below; they do not establish Stripe payment or user acceptance. The earlier testing pause is preserved in the dated handoff as historical evidence.
 
 1. Open `http://127.0.0.1:3200/login`, choose **OmniLogin**, then open `http://127.0.0.1:3200/clinic/billing`. Select **Stripe setup**. After the listener is ready, reload and choose **Connect clinic with Stripe**. Complete the sandbox onboarding yourself, return, and choose **Check connection**. Both card payments and payouts must be enabled.
 2. Open **Subscriptions** in the clinic sidebar. Create/edit a membership with a positive USD monthly price, automatic renewal, one-month duration, end-of-term cancellation and maximum one purchase per patient. Publish its immutable version. Existing service-selection and eligibility review rules still apply.
@@ -53,7 +53,7 @@ Automated tests, browser test scripts, test generators and verification hooks re
 7. Choose **Cancel future renewals** and confirm. For a paid subscription, Stripe schedules cancellation at period end and APPly retains only the verified paid access. For an open unpaid Checkout, APPly expires that session. Refresh repeatedly to inspect stable dates and records.
 8. If reviewing refunds manually, use the connected clinic's sandbox Stripe Dashboard. APPly observes cumulative successful refunded amounts from the verified charge; it never initiates a Stripe refund or claims that the application fee was refunded. A full refund of the current paid period removes that period's access. Refunding a payment does not cancel its recurring subscription; cancel future renewals separately.
 
-Immediate month advancement is not built into this UI. Checkout currently creates its own customer without a test clock. An accelerated renewal/failure walkthrough requires a separately reviewed sandbox test-clock customer flow; do not claim that monthly renewal was exercised merely by completing initial Checkout. Automated renewal, failure, replay and concurrency checks remain deferred until explicit testing authorization.
+Immediate month advancement is not built into this UI. Checkout currently creates its own customer without a test clock. An accelerated renewal/failure walkthrough requires a separately reviewed sandbox test-clock customer flow; do not claim that monthly renewal was exercised merely by completing initial Checkout. Focused service tests use stubbed Stripe responses and cannot prove live sandbox delivery or a real monthly charge.
 
 ## Implementation contract and limits
 

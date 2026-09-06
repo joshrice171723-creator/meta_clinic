@@ -33,7 +33,7 @@ When multiple agents are running, give each agent a separate development databas
 
 ## Verification and recovery
 
-For the Stripe membership continuation, Joshua has explicitly prohibited automated tests and verification helpers until personal acceptance and testing authorization. The commands below describe the earlier fixture workflow; do not run them during this gate. See [Stripe monthly membership setup](stripe-memberships.md).
+Joshua subsequently authorized a light focused test pass for the Stripe membership continuation. See [Stripe monthly membership setup](stripe-memberships.md) for the current provider and manual acceptance boundaries; the commands below also describe the older fixture workflow.
 
 From `apps/api/`, using a prepared isolated test database:
 
