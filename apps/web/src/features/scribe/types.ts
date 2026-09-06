@@ -20,6 +20,18 @@ export type ScribeSectionStatus =
 
 export type ScribeExportStatus = "exported" | "failed";
 
+export type ScribeInputSource =
+  | {
+      kind: "transcript";
+      source_id: number;
+      digest: string;
+    }
+  | {
+      kind: "reviewer_authored_context";
+      authored_by_id: number;
+      digest: string;
+    };
+
 export type ScribeSourceSegment = {
   id: number;
   sequence: number;
@@ -45,7 +57,7 @@ export type ScribeDraftSection = {
   section_key: "subjective" | "objective" | "assessment" | "plan";
   generated_content: string | null;
   human_content: string | null;
-  effective_content: string;
+  effective_content: string | null;
   status: ScribeSectionStatus;
   warning_codes: string[];
   evidence_segment_ids: number[];
@@ -63,11 +75,16 @@ export type ScribeExport = {
 
 export type ScribeDraft = {
   id: number;
+  document_id?: number;
+  revision_number?: number;
+  current?: boolean;
+  stale?: boolean;
+  input_sources?: ScribeInputSource[];
   parent_id: number | null;
-  source_id: number;
+  source_id: number | null;
   status: ScribeDraftStatus;
   template_id: string;
-  template_version: string;
+  template_version: number;
   provider: string;
   model: string;
   model_version: string;
@@ -83,9 +100,34 @@ export type ScribeDraft = {
   exports: ScribeExport[];
 };
 
+export type ScribeDocument = {
+  id: number;
+  template_id: string;
+  template_version: number;
+  status: string;
+  current_draft_id: number | null;
+  version: number;
+  current_revision: ScribeDraft | null;
+};
+
+export type ScribeTemplate = {
+  id: string;
+  version: number;
+  label: string;
+  note_kind: string;
+  status: "active" | "disabled";
+  disabled_reason: string | null;
+  sections: Record<ScribeDraftSection["section_key"], string>;
+};
+
 export type ScribeEncounter = {
   id: number;
   patient_id: number;
+  patient?: {
+    id: number;
+    reference: string;
+    display_name: string;
+  };
   site_id: number | null;
   status: ScribeEncounterStatus;
   consent_status: "not_recorded" | "accepted" | "declined" | "withdrawn";
@@ -97,10 +139,14 @@ export type ScribeEncounter = {
   retention_expires_at: string | null;
   deleted_at: string | null;
   template_id: string;
-  template_version: string;
+  template_version: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+  context_content?: string | null;
   version: number;
   sources: ScribeSource[];
   drafts: ScribeDraft[];
+  documents?: ScribeDocument[];
   events: Array<{
     id: number;
     event_type: string;

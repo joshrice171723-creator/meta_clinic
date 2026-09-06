@@ -2,11 +2,18 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   hasUnsavedDraftEdits,
+  reconciledSelectedDraftId,
   reviewStateSummary,
+  sectionAcceptBlocked,
   ScribeReviewWorkspace,
   type ScribeReviewState,
 } from "../src/features/scribe/ScribeReviewWorkspace";
 import type { ScribeDraft, ScribeSource } from "../src/features/scribe/types";
+import { ScribeSessionRail } from "../src/features/scribe/ScribeSessionRail";
+import {
+  currentVersionForRestore,
+  scribeReturnTarget,
+} from "../src/features/scribe/LiveScribeReviewWorkspace";
 
 const draft = {
   id: 18,
@@ -14,7 +21,7 @@ const draft = {
   source_id: 11,
   status: "in_review",
   template_id: "soap-v1",
-  template_version: "1.0.0",
+  template_version: 1,
   provider: "synthetic-local",
   model: "grounded-section-abstainer",
   model_version: "1",
@@ -91,7 +98,7 @@ const readyState: ScribeReviewState = {
     retention_expires_at: null,
     deleted_at: null,
     template_id: "soap-v1",
-    template_version: "1.0.0",
+    template_version: 1,
     version: 2,
     sources: [
       {
@@ -145,12 +152,12 @@ describe("synthetic AI scribe review workspace", () => {
       <ScribeReviewWorkspace state={readyState} />,
     );
 
-    expect(html).toContain("Source transcript");
+    expect(html).toContain("SOAP note");
+    expect(html).toContain("Open revision history");
     expect(html).toContain("Generated draft");
-    expect(html).toContain("Human-edited version");
     expect(html).toContain("Human-edited");
     expect(html).toContain(
-      "Needs review: abstained · Reviewer decision required · Content not recorded",
+      "Needs review: No supported content was generated · Reviewer decision required · Content not recorded",
     );
     expect(html).toContain("Approval and export");
     expect(html).toContain("Approve current draft");
@@ -173,7 +180,7 @@ describe("synthetic AI scribe review workspace", () => {
     expect(
       render({ kind: "error", message: "Synthetic load failure." }),
     ).toContain("Retry loading review");
-    expect(render({ kind: "empty" })).toContain("Nothing to review yet");
+    expect(render({ kind: "empty" })).toContain("Ready when you are");
     expect(render({ kind: "unknown" })).toContain("unknown state");
   });
 
@@ -232,7 +239,156 @@ describe("synthetic AI scribe review workspace", () => {
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('aria-describedby="scribe-approval-help"');
     expect(html).toContain('aria-describedby="scribe-export-help"');
-    expect(html).toContain("grid-template-columns");
+    expect(html).toContain('aria-label="SOAP note editor"');
     expect(html).toContain("min-width:0");
+  });
+
+  it("keeps context-grounded and historical revisions distinct", () => {
+    const resolvedSections = draft.sections.map((section) => ({
+      ...section,
+      status: "accepted" as const,
+      warning_codes: [],
+      effective_content: "Reviewed documentation.",
+    }));
+    expect(
+      reviewStateSummary({
+        ...draft,
+        source_id: null,
+        input_sources: [
+          {
+            kind: "reviewer_authored_context",
+            authored_by_id: 9,
+            digest: "context-digest",
+          },
+        ],
+        sections: resolvedSections,
+      }),
+    ).toEqual({ unresolved: false, approved: false, exported: false });
+    expect(
+      reviewStateSummary(
+        { ...draft, current: false, sections: resolvedSections },
+        readySource,
+      ).unresolved,
+    ).toBe(true);
+    expect(
+      reviewStateSummary(
+        { ...draft, stale: true, sections: resolvedSections },
+        readySource,
+      ).unresolved,
+    ).toBe(true);
+  });
+
+  it("renders a searchable, date-grouped session rail with a clear creation action", () => {
+    const html = renderToStaticMarkup(
+      <ScribeSessionRail
+        summaries={[
+          {
+            id: 7,
+            patient_id: 42,
+            patient: {
+              id: 42,
+              display_name: "Taylor Morgan",
+              reference: "P-0042",
+            },
+            site_id: null,
+            status: "in_review",
+            consent_status: "accepted",
+            version: 2,
+            created_at: new Date().toISOString(),
+          },
+        ]}
+        selectedId={7}
+        search=""
+        onSearchChange={() => undefined}
+        onSelect={() => undefined}
+        onNewSession={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("New session");
+    expect(html).toContain('aria-label="Search scribe sessions"');
+    expect(html).toContain("Today");
+    expect(html).toContain("Taylor Morgan");
+    expect(html).toContain("in review");
+  });
+
+  it("locks history restore against the document current revision", () => {
+    const historical = {
+      ...draft,
+      id: 17,
+      document_id: 3,
+      revision_number: 1,
+      current: false,
+      version: 4,
+    };
+    const current = {
+      ...draft,
+      document_id: 3,
+      revision_number: 2,
+      current: true,
+      version: 9,
+    };
+    const encounter = {
+      ...readyState.encounter,
+      drafts: [current, historical],
+      documents: [
+        {
+          id: 3,
+          template_id: "soap",
+          template_version: 1,
+          status: "in_review",
+          current_draft_id: current.id,
+          current_revision: current,
+          version: 5,
+        },
+      ],
+    };
+
+    expect(currentVersionForRestore(encounter, historical.id)).toBe(9);
+    expect(currentVersionForRestore(encounter, 999)).toBeNull();
+    expect(
+      reconciledSelectedDraftId(encounter, 3, historical.id, current.id),
+    ).toBe(current.id);
+    expect(reconciledSelectedDraftId(encounter, 3, historical.id, null)).toBe(
+      historical.id,
+    );
+  });
+
+  it("allows a complete newly saved section to be accepted", () => {
+    const needsReview = {
+      ...draft.sections[0],
+      status: "needs_review" as const,
+      warning_codes: [],
+      effective_content: "Reviewer-authored section ready for review.",
+    };
+
+    expect(
+      sectionAcceptBlocked(needsReview, { dirty: false, stale: false }),
+    ).toBe(false);
+    expect(
+      sectionAcceptBlocked(needsReview, { dirty: true, stale: false }),
+    ).toBe(true);
+    expect(
+      sectionAcceptBlocked(
+        { ...needsReview, warning_codes: ["source_incomplete"] },
+        { dirty: false, stale: false },
+      ),
+    ).toBe(true);
+  });
+
+  it("validates an exact recording return target", () => {
+    expect(
+      scribeReturnTarget("?encounter_id=42&review=1&review_token=recording-7"),
+    ).toEqual({
+      encounterId: 42,
+      review: true,
+    });
+    expect(scribeReturnTarget("?encounter_id=42")).toEqual({
+      encounterId: 42,
+      review: false,
+    });
+    expect(scribeReturnTarget("?encounter_id=-1&review=1")).toBeNull();
+    expect(scribeReturnTarget("?encounter_id=not-a-number")).toBeNull();
   });
 });

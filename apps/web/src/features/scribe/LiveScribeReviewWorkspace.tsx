@@ -1,195 +1,407 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  Drawer,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { ScribePatientPicker, type PatientOption } from "./ScribePatientPicker";
+import { useScribeRecording } from "./ScribeRecordingProvider";
 import {
   ScribeReviewWorkspace,
   type ScribeReviewState,
 } from "./ScribeReviewWorkspace";
-import type { ScribeDraft, ScribeDraftSection, ScribeEncounter } from "./types";
-
-type PatientOption = { id: number; reference: string; display_name: string };
-type EncounterSummary = Pick<
+import {
+  ScribeSessionRail,
+  type ScribeEncounterSummary,
+} from "./ScribeSessionRail";
+import type {
+  ScribeDraft,
+  ScribeDraftSection,
+  ScribeDocument,
   ScribeEncounter,
-  "id" | "patient_id" | "site_id" | "status" | "consent_status" | "version"
-> & { patient: PatientOption };
-type Pagination = { page: number; per_page: number; total: number; total_pages: number };
+  ScribeTemplate,
+} from "./types";
+
+type Pagination = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+};
 type EncounterIndex = {
-  encounters: EncounterSummary[];
-  patient_options: PatientOption[];
-  patient_pagination: Pagination;
+  encounters: ScribeEncounterSummary[];
   pagination: Pagination;
 };
 type Confirmation =
-  | { kind: "consent"; decision: "accepted" | "declined" | "withdrawn"; encounterId: number; encounterVersion: number; scopeKey: string }
-  | { kind: "approve"; draftId: number; draftVersion: number; encounterId: number; scopeKey: string }
-  | { kind: "export"; draftId: number; draftVersion: number; encounterId: number; scopeKey: string }
-  | { kind: "delete"; encounterId: number; encounterVersion: number; scopeKey: string }
+  | {
+      kind: "consent";
+      decision: "accepted" | "declined" | "withdrawn";
+      encounterId: number;
+      encounterVersion: number;
+      scopeKey: string;
+    }
+  | {
+      kind: "approve";
+      draftId: number;
+      draftVersion: number;
+      encounterId: number;
+      scopeKey: string;
+    }
+  | {
+      kind: "export";
+      draftId: number;
+      draftVersion: number;
+      encounterId: number;
+      scopeKey: string;
+    }
+  | {
+      kind: "delete";
+      encounterId: number;
+      encounterVersion: number;
+      scopeKey: string;
+    }
   | null;
 
 const PAGE_SIZE = 25;
-
-function capability(capabilities: object, name: string): boolean {
+function capability(capabilities: object, name: string) {
   return (capabilities as Record<string, boolean | undefined>)[name] === true;
 }
-
-function currentDraft(encounter: ScribeEncounter | null): ScribeDraft | undefined {
-  return encounter?.drafts.find((draft) => !["superseded", "deleted"].includes(draft.status));
+function activeDraft(encounter: ScribeEncounter | null, documentId?: number) {
+  return encounter?.drafts.find(
+    (draft) =>
+      (documentId === undefined || (draft.document_id ?? 0) === documentId) &&
+      draft.current !== false &&
+      !["superseded", "deleted"].includes(draft.status),
+  );
+}
+function errorMessage(reason: unknown, fallback: string) {
+  return reason instanceof Error ? reason.message : fallback;
+}
+function formatSessionDate(value?: string | null) {
+  if (!value) return "Date unavailable";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return "Date unavailable";
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
-function errorMessage(reason: unknown, fallback: string): string {
-  return reason instanceof Error ? reason.message : fallback;
+export function currentVersionForRestore(
+  encounter: ScribeEncounter,
+  historicalDraftId: number,
+) {
+  const historicalDraft = encounter.drafts.find(
+    ({ id }) => id === historicalDraftId,
+  );
+  if (!historicalDraft) return null;
+  return (
+    encounter.documents?.find(({ id }) => id === historicalDraft.document_id)
+      ?.current_revision?.version ?? null
+  );
+}
+
+export function scribeReturnTarget(search: string) {
+  const params = new URLSearchParams(search);
+  const rawId = params.get("encounter_id");
+  if (!rawId || !/^\d+$/.test(rawId)) return null;
+  const encounterId = Number(rawId);
+  if (!Number.isSafeInteger(encounterId) || encounterId <= 0) return null;
+  return { encounterId, review: params.get("review") === "1" };
 }
 
 export function LiveScribeReviewWorkspace() {
   const { capabilities, current_site, membership_id } = useClinic();
   const { registerBlocker } = useClinicNavigation();
+  const recording = useScribeRecording();
+  const recordingRef = useRef(recording);
+  recordingRef.current = recording;
+  const locationSearch =
+    typeof window === "undefined" ? "" : window.location.search;
+  const compactRail = useMediaQuery("(max-width: 1023.95px)");
   const scopeKey = `${membership_id ?? "none"}:${current_site?.id ?? "all"}`;
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
   const mounted = useRef(true);
   const listVersion = useRef(0);
-  const patientListVersion = useRef(0);
   const detailVersion = useRef(0);
   const selectedEncounterRef = useRef<number | null>(null);
+  const newSessionRef = useRef(false);
+  const searchRef = useRef("");
+  const skipNextSearchRef = useRef(true);
+  const returnReviewEncounterRef = useRef<number | null>(null);
   const actionLock = useRef(new Set<string>());
   const exportKeys = useRef(new Map<string, string>());
 
-  const [summaries, setSummaries] = useState<EncounterSummary[]>([]);
-  const [patients, setPatients] = useState<PatientOption[]>([]);
-  const [patientPage, setPatientPage] = useState(1);
-  const [patientTotalPages, setPatientTotalPages] = useState(1);
-  const [loadingMorePatients, setLoadingMorePatients] = useState(false);
+  const [summaries, setSummaries] = useState<ScribeEncounterSummary[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [selectedEncounterId, setSelectedEncounterId] = useState<number | "">("");
-  const [selectedPatientId, setSelectedPatientId] = useState<number | "">("");
-  const [reviewState, setReviewState] = useState<ScribeReviewState>({ kind: "loading" });
+  const [railSearch, setRailSearch] = useState("");
+  const [railOpen, setRailOpen] = useState(false);
+  const [newSession, setNewSession] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(
+    null,
+  );
+  const [selectedEncounterId, setSelectedEncounterId] = useState<number | null>(
+    null,
+  );
   const [encounter, setEncounter] = useState<ScribeEncounter | null>(null);
+  const [reviewState, setReviewState] = useState<ScribeReviewState>({
+    kind: "loading",
+  });
+  const [activeTab, setActiveTab] = useState("context");
+  const [contextValue, setContextValue] = useState("");
+  const [contextBaseline, setContextBaseline] = useState("");
   const [transcript, setTranscript] = useState("");
+  const [templates, setTemplates] = useState<ScribeTemplate[]>([]);
+  const [templateId, setTemplateId] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [outcomeUnknown, setOutcomeUnknown] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [hasUnsavedReviewEdits, setHasUnsavedReviewEdits] = useState(false);
   const [discardEditsToken, setDiscardEditsToken] = useState(0);
+  const [followCurrentDraftId, setFollowCurrentDraftId] = useState<
+    number | null
+  >(null);
+  const hasUnsavedContext = contextValue !== contextBaseline;
+  const contextDirtyRef = useRef(hasUnsavedContext);
+  contextDirtyRef.current = hasUnsavedContext;
 
-  useEffect(() => registerBlocker(() => {
-    if (pendingAction) return "A scribe action is still in progress. Leave this workspace?";
-    if (hasUnsavedReviewEdits || transcript.trim()) return "Unsaved scribe content will be lost. Leave this workspace?";
-    return null;
-  }), [registerBlocker, pendingAction, hasUnsavedReviewEdits, transcript]);
+  useEffect(
+    () =>
+      registerBlocker(() => {
+        if (pendingAction)
+          return "A scribe action is still in progress. Leave this workspace?";
+        if (hasUnsavedReviewEdits || hasUnsavedContext || transcript.trim())
+          return "Unsaved scribe content will be lost. Leave this workspace?";
+        return null;
+      }),
+    [
+      registerBlocker,
+      pendingAction,
+      hasUnsavedReviewEdits,
+      hasUnsavedContext,
+      transcript,
+    ],
+  );
 
   const isCurrent = useCallback(
-    (requestScope: string) => mounted.current && scopeRef.current === requestScope,
+    (requestScope: string) =>
+      mounted.current && scopeRef.current === requestScope,
     [],
+  );
+
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      listVersion.current += 1;
+      detailVersion.current += 1;
+    },
+    [],
+  );
+
+  const adoptEncounter = useCallback(
+    (next: ScribeEncounter, forceContext = false) => {
+      setEncounter(next);
+      setReviewState({ kind: "ready", encounter: next });
+      recordingRef.current.reconcile({
+        encounterId: next.id,
+        encounterVersion: next.version,
+        processingAllowed:
+          next.consent_status === "accepted" &&
+          !next.deleted_at &&
+          next.status !== "deleted",
+        contextContent: next.context_content ?? "",
+        scrubContext:
+          next.consent_status === "withdrawn" ||
+          Boolean(next.deleted_at) ||
+          next.status === "deleted",
+      });
+      if (forceContext || !contextDirtyRef.current) {
+        const context = next.context_content ?? "";
+        setContextValue(context);
+        setContextBaseline(context);
+      }
+    },
+    [],
+  );
+
+  const loadEncounter = useCallback(
+    async (encounterId: number) => {
+      const requestScope = scopeKey;
+      const requestVersion = ++detailVersion.current;
+      setReviewState({
+        kind: "loading",
+        message: "Loading the selected session…",
+      });
+      try {
+        const result = await api<{ encounter: ScribeEncounter }>(
+          `/api/clinic/scribe/encounters/${encounterId}`,
+        );
+        if (
+          !isCurrent(requestScope) ||
+          requestVersion !== detailVersion.current ||
+          selectedEncounterRef.current !== encounterId
+        )
+          return;
+        adoptEncounter(result.encounter);
+        if (returnReviewEncounterRef.current === encounterId) {
+          const currentDocument = result.encounter.documents?.find(
+            (document) => document.current_revision,
+          );
+          setActiveTab(
+            currentDocument ? `document:${currentDocument.id}` : "transcript",
+          );
+          if (currentDocument) setTemplateId(currentDocument.template_id);
+          returnReviewEncounterRef.current = null;
+        }
+        setOutcomeUnknown(null);
+      } catch (reason) {
+        if (
+          !isCurrent(requestScope) ||
+          requestVersion !== detailVersion.current ||
+          selectedEncounterRef.current !== encounterId
+        )
+          return;
+        setEncounter(null);
+        setReviewState({
+          kind: "error",
+          message: errorMessage(reason, "Unable to load this scribe session."),
+        });
+      }
+    },
+    [adoptEncounter, isCurrent, scopeKey],
+  );
+
+  const loadIndex = useCallback(
+    async (preferredEncounterId?: number, query = searchRef.current) => {
+      const requestScope = scopeKey;
+      const requestVersion = ++listVersion.current;
+      try {
+        const queryParam = query.trim()
+          ? `&q=${encodeURIComponent(query.trim())}`
+          : "";
+        const result = await api<EncounterIndex>(
+          `/api/clinic/scribe/encounters?page=1&per_page=${PAGE_SIZE}${queryParam}`,
+        );
+        if (!isCurrent(requestScope) || requestVersion !== listVersion.current)
+          return;
+        setSummaries(result.encounters);
+        setPage(result.pagination.page);
+        setTotalPages(result.pagination.total_pages);
+        setLoadingMore(false);
+        setActionError(null);
+        if (newSessionRef.current) return;
+        const nextId = preferredEncounterId
+          ? preferredEncounterId
+          : selectedEncounterRef.current &&
+              result.encounters.some(
+                ({ id }) => id === selectedEncounterRef.current,
+              )
+            ? selectedEncounterRef.current
+            : result.encounters[0]?.id;
+        selectedEncounterRef.current = nextId ?? null;
+        setSelectedEncounterId(nextId ?? null);
+        if (nextId) await loadEncounter(nextId);
+        else {
+          setEncounter(null);
+          setReviewState({
+            kind: "empty",
+            message:
+              "Start a new session to add context or import a transcript.",
+          });
+        }
+      } catch (reason) {
+        if (isCurrent(requestScope) && requestVersion === listVersion.current)
+          setReviewState({
+            kind: "error",
+            message: errorMessage(reason, "Unable to load scribe sessions."),
+          });
+      }
+    },
+    [isCurrent, loadEncounter, scopeKey],
   );
 
   useEffect(() => {
     mounted.current = true;
-    return () => {
-      mounted.current = false;
-      listVersion.current += 1;
-      patientListVersion.current += 1;
-      detailVersion.current += 1;
-    };
-  }, []);
-
-  useEffect(() => {
-    listVersion.current += 1;
-    patientListVersion.current += 1;
-    detailVersion.current += 1;
     selectedEncounterRef.current = null;
-    actionLock.current.clear();
-    exportKeys.current.clear();
-    setSummaries([]);
-    setPatients([]);
-    setPatientPage(1);
-    setPatientTotalPages(1);
-    setLoadingMorePatients(false);
-    setSelectedEncounterId("");
-    setSelectedPatientId("");
+    searchRef.current = "";
+    setRailSearch("");
+    newSessionRef.current = false;
+    setNewSession(false);
+    setSelectedPatient(null);
     setEncounter(null);
     setTranscript("");
+    setTemplates([]);
+    setTemplateId("");
     setActionError(null);
     setOutcomeUnknown(null);
     setConfirmation(null);
     setHasUnsavedReviewEdits(false);
-  }, [scopeKey]);
+    setFollowCurrentDraftId(null);
+    const returnTarget = scribeReturnTarget(locationSearch);
+    returnReviewEncounterRef.current = returnTarget?.review
+      ? returnTarget.encounterId
+      : null;
+    skipNextSearchRef.current = true;
+    void loadIndex(returnTarget?.encounterId);
+    void api<{ templates: ScribeTemplate[] }>("/api/clinic/scribe/templates")
+      .then((result) => {
+        if (!isCurrent(scopeKey)) return;
+        setTemplates(result.templates);
+        const available = result.templates.find(
+          (template) => template.status === "active",
+        );
+        if (available) setTemplateId(available.id);
+      })
+      .catch((reason) => {
+        if (isCurrent(scopeKey))
+          setActionError(
+            errorMessage(reason, "Unable to load note templates."),
+          );
+      });
+  }, [isCurrent, loadIndex, locationSearch, scopeKey]);
 
-  const loadEncounter = useCallback(async (encounterId: number) => {
-    const requestScope = scopeKey;
-    const requestVersion = ++detailVersion.current;
-    setReviewState({ kind: "loading", message: "Loading the selected encounter and current revision…" });
-    try {
-      const result = await api<{ encounter: ScribeEncounter }>(
-        `/api/clinic/scribe/encounters/${encounterId}`,
-      );
-      if (!isCurrent(requestScope) || requestVersion !== detailVersion.current || selectedEncounterRef.current !== encounterId) return;
-      setEncounter(result.encounter);
-      setReviewState({ kind: "ready", encounter: result.encounter });
-      setOutcomeUnknown(null);
-    } catch (reason) {
-      if (!isCurrent(requestScope) || requestVersion !== detailVersion.current || selectedEncounterRef.current !== encounterId) return;
-      setEncounter(null);
-      setReviewState({ kind: "error", message: errorMessage(reason, "Unable to load this scribe encounter.") });
+  useEffect(() => {
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
     }
-  }, [isCurrent, scopeKey]);
-
-  const loadIndex = useCallback(async (preferredEncounterId?: number) => {
-    const requestScope = scopeKey;
-    const requestVersion = ++listVersion.current;
-    patientListVersion.current += 1;
-    setReviewState({ kind: "loading" });
-    try {
-      const result = await api<EncounterIndex>(
-        `/api/clinic/scribe/encounters?page=1&per_page=${PAGE_SIZE}`,
-      );
-      if (!isCurrent(requestScope) || requestVersion !== listVersion.current) return;
-      setSummaries(result.encounters);
-      setPatients(result.patient_options);
-      setPatientPage(result.patient_pagination.page);
-      setPatientTotalPages(result.patient_pagination.total_pages);
-      setLoadingMorePatients(false);
-      setPage(result.pagination.page);
-      setTotalPages(result.pagination.total_pages);
-      setLoadingMore(false);
-      setActionError(null);
-      setOutcomeUnknown(null);
-      const nextId = preferredEncounterId && result.encounters.some(({ id }) => id === preferredEncounterId)
-        ? preferredEncounterId
-        : result.encounters[0]?.id;
-      selectedEncounterRef.current = nextId ?? null;
-      setSelectedEncounterId(nextId ?? "");
-      if (nextId) await loadEncounter(nextId);
-      else {
-        setEncounter(null);
-        setReviewState({ kind: "empty", message: "Create a scribe encounter to begin consent and source review." });
-      }
-    } catch (reason) {
-      if (!isCurrent(requestScope) || requestVersion !== listVersion.current) return;
-      setReviewState({ kind: "error", message: errorMessage(reason, "Unable to load scribe encounters.") });
-    }
-  }, [isCurrent, loadEncounter, scopeKey]);
-
-  useEffect(() => { void loadIndex(); }, [loadIndex]);
+    searchRef.current = railSearch;
+    const timeout = window.setTimeout(
+      () => void loadIndex(undefined, railSearch),
+      250,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [railSearch, loadIndex, locationSearch]);
 
   const loadMore = async () => {
     if (loadingMore || page >= totalPages) return;
@@ -197,62 +409,78 @@ export function LiveScribeReviewWorkspace() {
     const requestVersion = ++listVersion.current;
     setLoadingMore(true);
     try {
+      const queryParam = searchRef.current.trim()
+        ? `&q=${encodeURIComponent(searchRef.current.trim())}`
+        : "";
       const result = await api<EncounterIndex>(
-        `/api/clinic/scribe/encounters?page=${page + 1}&per_page=${PAGE_SIZE}`,
+        `/api/clinic/scribe/encounters?page=${page + 1}&per_page=${PAGE_SIZE}${queryParam}`,
       );
-      if (!isCurrent(requestScope) || requestVersion !== listVersion.current) return;
-      setSummaries((current) => {
-        const ids = new Set(current.map(({ id }) => id));
-        return [...current, ...result.encounters.filter(({ id }) => !ids.has(id))];
-      });
+      if (!isCurrent(requestScope) || requestVersion !== listVersion.current)
+        return;
+      setSummaries((current) => [
+        ...current,
+        ...result.encounters.filter(
+          (item) => !current.some(({ id }) => id === item.id),
+        ),
+      ]);
       setPage(result.pagination.page);
       setTotalPages(result.pagination.total_pages);
       setLoadingMore(false);
     } catch (reason) {
-      if (!isCurrent(requestScope) || requestVersion !== listVersion.current) return;
-      setLoadingMore(false);
-      setActionError(errorMessage(reason, "Unable to load more scribe encounters."));
+      if (isCurrent(requestScope) && requestVersion === listVersion.current) {
+        setLoadingMore(false);
+        setActionError(errorMessage(reason, "Unable to load more sessions."));
+      }
     }
   };
 
-  const selectEncounter = (encounterId: number) => {
-    if (encounterId === selectedEncounterRef.current) return;
-    if (hasUnsavedReviewEdits) {
-      setActionError("Save or discard the unsaved reviewer edits before switching encounters.");
+  const unsavedMessage = () =>
+    hasUnsavedReviewEdits || hasUnsavedContext || transcript.trim()
+      ? "Save or discard unsaved note, context, and transcript changes before switching sessions."
+      : null;
+  const selectEncounter = (id: number) => {
+    if (id === selectedEncounterRef.current && !newSession) return;
+    const blocked = unsavedMessage();
+    if (blocked) {
+      setActionError(blocked);
       return;
     }
-    selectedEncounterRef.current = encounterId;
-    setSelectedEncounterId(encounterId);
+    setNewSession(false);
+    newSessionRef.current = false;
+    setSelectedPatient(null);
+    setFollowCurrentDraftId(null);
+    selectedEncounterRef.current = id;
+    setSelectedEncounterId(id);
     setEncounter(null);
     setTranscript("");
     setActionError(null);
     setOutcomeUnknown(null);
-    setConfirmation(null);
-    void loadEncounter(encounterId);
+    setActiveTab("context");
+    setRailOpen(false);
+    void loadEncounter(id);
   };
-
-  const loadMorePatients = async () => {
-    if (loadingMorePatients || patientPage >= patientTotalPages) return;
-    const requestScope = scopeKey;
-    const requestVersion = ++patientListVersion.current;
-    setLoadingMorePatients(true);
-    try {
-      const result = await api<EncounterIndex>(
-        `/api/clinic/scribe/encounters?page=1&per_page=${PAGE_SIZE}&patient_page=${patientPage + 1}`,
-      );
-      if (!isCurrent(requestScope) || requestVersion !== patientListVersion.current) return;
-      setPatients((current) => {
-        const ids = new Set(current.map(({ id }) => id));
-        return [...current, ...result.patient_options.filter(({ id }) => !ids.has(id))];
-      });
-      setPatientPage(result.patient_pagination.page);
-      setPatientTotalPages(result.patient_pagination.total_pages);
-      setLoadingMorePatients(false);
-    } catch (reason) {
-      if (!isCurrent(requestScope) || requestVersion !== patientListVersion.current) return;
-      setLoadingMorePatients(false);
-      setActionError(errorMessage(reason, "Unable to load more patient options."));
+  const beginNewSession = () => {
+    const blocked = unsavedMessage();
+    if (blocked) {
+      setActionError(blocked);
+      return;
     }
+    setNewSession(true);
+    newSessionRef.current = true;
+    setSelectedPatient(null);
+    setFollowCurrentDraftId(null);
+    selectedEncounterRef.current = null;
+    setSelectedEncounterId(null);
+    setEncounter(null);
+    setContextValue("");
+    setContextBaseline("");
+    setTranscript("");
+    setReviewState({
+      kind: "empty",
+      message: "Choose a patient to start this session.",
+    });
+    setActiveTab("context");
+    setRailOpen(false);
   };
 
   const runMutation = async (
@@ -269,7 +497,9 @@ export function LiveScribeReviewWorkspace() {
       await action();
     } catch (reason) {
       if (isCurrent(scopeKey)) {
-        setActionError(errorMessage(reason, "The scribe action could not be completed."));
+        setActionError(
+          errorMessage(reason, "The scribe action could not be completed."),
+        );
         if (uncertainMessage) setOutcomeUnknown(uncertainMessage);
       }
       throw reason;
@@ -279,37 +509,94 @@ export function LiveScribeReviewWorkspace() {
     }
   };
 
-  const createEncounter = () => runMutation("create", async () => {
-    if (hasUnsavedReviewEdits) throw new Error("Save or discard reviewer edits before creating another encounter.");
-    if (!selectedPatientId) throw new Error("Choose a patient before creating the encounter.");
-    const result = await api<{ encounter: ScribeEncounter }>("/api/clinic/scribe/encounters", {
-      method: "POST",
-      body: { encounter: { patient_id: selectedPatientId, site_id: current_site?.id } },
-    });
-    if (!isCurrent(scopeKey)) return;
-    setSelectedPatientId("");
-    await loadIndex(result.encounter.id);
-  }, "Creation outcome is not confirmed. Reload the encounter list before trying again.");
+  const createEncounter = () =>
+    runMutation(
+      "create",
+      async () => {
+        if (!selectedPatient)
+          throw new Error("Choose a patient before starting the session.");
+        const content = contextValue.trim();
+        const result = await api<{ encounter: ScribeEncounter }>(
+          "/api/clinic/scribe/encounters",
+          {
+            method: "POST",
+            body: {
+              encounter: {
+                patient_id: selectedPatient.id,
+                site_id: current_site?.id,
+                ...(content
+                  ? { context: { content, source_type: "reviewer_authored" } }
+                  : {}),
+              },
+            },
+          },
+        );
+        if (!isCurrent(scopeKey)) return;
+        setNewSession(false);
+        newSessionRef.current = false;
+        setSelectedPatient(null);
+        selectedEncounterRef.current = result.encounter.id;
+        setSelectedEncounterId(result.encounter.id);
+        adoptEncounter(result.encounter);
+        await loadIndex(result.encounter.id);
+      },
+      "Session creation is not confirmed. Reload the session list before trying again.",
+    );
+
+  const saveContext = () => {
+    if (!encounter || !hasUnsavedContext) return Promise.resolve();
+    const encounterId = encounter.id;
+    const expectedVersion = encounter.version;
+    return runMutation(
+      "context",
+      async () => {
+        const result = await api<{ encounter: ScribeEncounter }>(
+          `/api/clinic/scribe/encounters/${encounterId}/context`,
+          {
+            method: "PATCH",
+            body: {
+              context: {
+                content: contextValue,
+                expected_version: expectedVersion,
+              },
+            },
+          },
+        );
+        if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId)
+          adoptEncounter(result.encounter, true);
+      },
+      "Context save is not confirmed. Reload this session before editing again.",
+    );
+  };
 
   const decideConsent = (decision: "accepted" | "declined" | "withdrawn") => {
     const encounterId = selectedEncounterRef.current;
     if (!encounterId) return Promise.resolve();
-    return runMutation(`consent:${decision}`, async () => {
-      await api(`/api/clinic/scribe/encounters/${encounterId}/consent`, {
-        method: "POST",
-        body: { consent: { decision, method: "in_person" } },
-      });
-      if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId) await loadEncounter(encounterId);
-    }, "Consent outcome is not confirmed. Reload the encounter before making another decision.");
+    return runMutation(
+      `consent:${decision}`,
+      async () => {
+        await api(`/api/clinic/scribe/encounters/${encounterId}/consent`, {
+          method: "POST",
+          body: { consent: { decision, method: "in_person" } },
+        });
+        if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId)
+          await loadEncounter(encounterId);
+      },
+      "Consent outcome is not confirmed. Reload the session before making another decision.",
+    );
   };
 
   const importSource = () => {
     const encounterId = selectedEncounterRef.current;
     const content = transcript.trim();
     if (!encounterId || !content) return Promise.resolve();
-    if (hasUnsavedReviewEdits) {
-      setActionError("Save or discard the unsaved reviewer edits before importing another transcript.");
-      return Promise.reject(new Error("Unsaved reviewer edits must be resolved first."));
+    if (hasUnsavedContext || hasUnsavedReviewEdits) {
+      setActionError(
+        "Save or discard note and context changes before importing a transcript.",
+      );
+      return Promise.reject(
+        new Error("Unsaved changes must be resolved first."),
+      );
     }
     return runMutation("source", async () => {
       await api(`/api/clinic/scribe/encounters/${encounterId}/sources`, {
@@ -323,207 +610,958 @@ export function LiveScribeReviewWorkspace() {
     });
   };
 
+  const selectedDocumentId = activeTab.startsWith("document:")
+    ? Number(activeTab.split(":")[1])
+    : undefined;
   const generateDraft = () => {
     const encounterId = selectedEncounterRef.current;
-    if (!encounterId) return Promise.resolve();
-    if (hasUnsavedReviewEdits) {
-      setActionError("Save or discard the unsaved reviewer edits before generating another draft.");
-      return Promise.reject(new Error("Unsaved reviewer edits must be resolved first."));
-    }
-    return runMutation("generate", async () => {
-      await api(`/api/clinic/scribe/encounters/${encounterId}/generate`, { method: "POST", body: {} });
-      if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId) await loadEncounter(encounterId);
-    }, "Generation outcome is not confirmed. Reload the encounter before generating again.");
+    if (!encounterId || !encounter) return Promise.resolve();
+    const selectedDocument = encounter.documents?.find(
+      ({ id }) => id === selectedDocumentId,
+    );
+    return runMutation(
+      "generate",
+      async () => {
+        const result = await api<{
+          draft: ScribeDraft;
+          document: ScribeDocument;
+          encounter: ScribeEncounter;
+        }>(`/api/clinic/scribe/encounters/${encounterId}/generate`, {
+          method: "POST",
+          body: {
+            generation: {
+              template_id: templateId,
+              ...(selectedDocumentId
+                ? { document_id: selectedDocumentId }
+                : {}),
+              expected_version: selectedDocument
+                ? selectedDocument.version
+                : encounter.version,
+            },
+          },
+        });
+        if (
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounterId
+        ) {
+          adoptEncounter(result.encounter);
+          setActiveTab(`document:${result.document.id}`);
+        }
+      },
+      "Note creation is not confirmed. Reload the current session before trying again.",
+    );
   };
 
+  const saveDraft = (
+    draftId: number,
+    sections: Record<ScribeDraftSection["section_key"], string>,
+  ) => {
+    const draft = encounter?.drafts.find((item) => item.id === draftId);
+    if (!draft || !encounter) return Promise.resolve();
+    return runMutation(
+      "review:all",
+      async () => {
+        const result = await api<{
+          draft: ScribeDraft;
+          document: ScribeDocument;
+        }>(`/api/clinic/scribe/drafts/${draftId}/sections`, {
+          method: "POST",
+          body: { revision: { expected_version: draft.version, sections } },
+        });
+        if (
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounter.id
+        )
+          setFollowCurrentDraftId(result.draft.id);
+        if (
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounter.id
+        )
+          await loadEncounter(encounter.id);
+      },
+      "Note save is not confirmed. Reload the current revision before editing again.",
+    );
+  };
+  const restoreDraft = (draftId: number) => {
+    const draft = encounter?.drafts.find((item) => item.id === draftId);
+    const currentVersion = encounter
+      ? currentVersionForRestore(encounter, draftId)
+      : null;
+    if (!draft || !encounter || currentVersion === null) {
+      setActionError(
+        "The current document revision is unavailable. Reload the session before restoring history.",
+      );
+      return Promise.reject(
+        new Error("Current document revision is required for restore."),
+      );
+    }
+    return runMutation(
+      "restore",
+      async () => {
+        const result = await api<{
+          draft: ScribeDraft;
+          document: ScribeDocument;
+        }>(`/api/clinic/scribe/drafts/${draftId}/restore`, {
+          method: "POST",
+          body: { restore: { expected_version: currentVersion } },
+        });
+        if (
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounter.id
+        )
+          setFollowCurrentDraftId(result.draft.id);
+        if (
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounter.id
+        )
+          await loadEncounter(encounter.id);
+      },
+      "Restore outcome is not confirmed. Reload the current revision before trying again.",
+    );
+  };
   const reviewSection = (
     draftId: number,
-    draftVersion: number,
     sectionKey: ScribeDraftSection["section_key"],
-    action: "edit" | "accept" | "reject",
-    content?: string,
+    action: "accept" | "reject",
   ) => {
-    const encounterId = selectedEncounterRef.current;
-    if (!encounterId) return Promise.resolve();
-    return runMutation(`review:${sectionKey}`, async () => {
-      await api(`/api/clinic/scribe/drafts/${draftId}/review`, {
-        method: "POST",
-        body: { review: { action, section_key: sectionKey, content, expected_version: draftVersion } },
-      });
-      const latestDraft = currentDraft(encounter);
-      if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId && latestDraft?.id === draftId && latestDraft.version === draftVersion) {
-        await loadEncounter(encounterId);
-      }
-    }, "Review outcome is not confirmed. Reload the current revision before another review action.");
+    const draft = encounter?.drafts.find((item) => item.id === draftId);
+    if (!draft || !encounter) return Promise.resolve();
+    return runMutation(
+      `review:${sectionKey}`,
+      async () => {
+        await api(`/api/clinic/scribe/drafts/${draftId}/review`, {
+          method: "POST",
+          body: {
+            review: {
+              action,
+              section_key: sectionKey,
+              expected_version: draft.version,
+            },
+          },
+        });
+        if (
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounter.id
+        )
+          await loadEncounter(encounter.id);
+      },
+      "Review outcome is not confirmed. Reload the current revision before another review action.",
+    );
   };
 
-  const approveDraft = (draftId: number, draftVersion: number) => {
-    const encounterId = selectedEncounterRef.current;
-    if (!encounterId) return Promise.resolve();
-    return runMutation("approve", async () => {
-      await api(`/api/clinic/scribe/drafts/${draftId}/approve`, { method: "POST", body: { expected_version: draftVersion } });
-      const latestDraft = currentDraft(encounter);
-      if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId && latestDraft?.id === draftId && latestDraft.version === draftVersion) await loadEncounter(encounterId);
-    }, "Approval outcome is not confirmed. Reload the current revision before trying again.");
-  };
-
-  const exportDraft = (draftId: number, draftVersion: number) => {
-    const encounterId = selectedEncounterRef.current;
-    if (!encounterId) return Promise.resolve();
-    const identity = `${draftId}:${draftVersion}`;
-    const idempotencyKey = exportKeys.current.get(identity) || crypto.randomUUID();
+  const approveDraft = (draftId: number, version: number) =>
+    runMutation(
+      "approve",
+      async () => {
+        await api(`/api/clinic/scribe/drafts/${draftId}/approve`, {
+          method: "POST",
+          body: { expected_version: version },
+        });
+        if (
+          encounter &&
+          isCurrent(scopeKey) &&
+          selectedEncounterRef.current === encounter.id
+        )
+          await loadEncounter(encounter.id);
+      },
+      "Approval outcome is not confirmed. Reload the current revision before trying again.",
+    );
+  const exportDraft = (draftId: number, version: number) => {
+    const identity = `${draftId}:${version}`;
+    const idempotencyKey =
+      exportKeys.current.get(identity) || crypto.randomUUID();
     exportKeys.current.set(identity, idempotencyKey);
     return runMutation("export", async () => {
       await api(`/api/clinic/scribe/drafts/${draftId}/export`, {
         method: "POST",
-        body: { export: { destination: "parent_record_adapter", idempotency_key: idempotencyKey, confirmed: true, expected_version: draftVersion } },
+        body: {
+          export: {
+            destination: "parent_record_adapter",
+            idempotency_key: idempotencyKey,
+            confirmed: true,
+            expected_version: version,
+          },
+        },
       });
-      if (!isCurrent(scopeKey)) return;
       exportKeys.current.delete(identity);
-      if (selectedEncounterRef.current === encounterId) await loadEncounter(encounterId);
+      if (
+        encounter &&
+        isCurrent(scopeKey) &&
+        selectedEncounterRef.current === encounter.id
+      )
+        await loadEncounter(encounter.id);
     });
   };
-
-  const deleteEncounter = (encounterId: number) => runMutation("delete", async () => {
-    await api(`/api/clinic/scribe/encounters/${encounterId}`, { method: "DELETE" });
-    if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId) await loadIndex();
-  }, "Deletion outcome is not confirmed. Reload the encounter list before trying again.");
+  const deleteEncounter = (id: number) =>
+    runMutation(
+      "delete",
+      async () => {
+        await api(`/api/clinic/scribe/encounters/${id}`, { method: "DELETE" });
+        if (isCurrent(scopeKey) && selectedEncounterRef.current === id)
+          await loadIndex();
+      },
+      "Deletion outcome is not confirmed. Reload the session list before trying again.",
+    );
 
   const confirmAction = async () => {
     const value = confirmation;
     setConfirmation(null);
     if (!value) return;
-    const loadedDraft = currentDraft(encounter);
-    const confirmationCurrent = value.scopeKey === scopeKey && value.encounterId === selectedEncounterRef.current &&
+    const draft = activeDraft(encounter, selectedDocumentId);
+    const current =
+      value.scopeKey === scopeKey &&
+      value.encounterId === selectedEncounterRef.current &&
       (value.kind === "consent" || value.kind === "delete"
         ? encounter?.version === value.encounterVersion
-        : loadedDraft?.id === value.draftId && loadedDraft.version === value.draftVersion);
-    if (!confirmationCurrent) {
-      setActionError("The selected encounter or revision changed. Review it again before confirming this action.");
+        : draft?.id === value.draftId &&
+          draft.version === value.draftVersion &&
+          !(
+            recording.session?.encounterId === value.encounterId &&
+            recording.state.active
+          ));
+    if (!current) {
+      setActionError(
+        "The selected session or revision changed. Review it again before confirming this action.",
+      );
       return;
     }
     if (value.kind === "consent") await decideConsent(value.decision);
-    if (value.kind === "approve") await approveDraft(value.draftId, value.draftVersion);
-    if (value.kind === "export") await exportDraft(value.draftId, value.draftVersion);
+    if (value.kind === "approve")
+      await approveDraft(value.draftId, value.draftVersion);
+    if (value.kind === "export")
+      await exportDraft(value.draftId, value.draftVersion);
     if (value.kind === "delete") await deleteEncounter(value.encounterId);
   };
 
-  const draft = currentDraft(encounter);
+  const draft = activeDraft(encounter, selectedDocumentId);
   const canWrite = capability(capabilities, "scribe_write");
   const canApprove = capability(capabilities, "scribe_approve");
   const canExport = capability(capabilities, "scribe_export");
   const canDelete = capability(capabilities, "scribe_delete");
-  const encounterDeleted = Boolean(encounter?.deleted_at || encounter?.status === "deleted");
-  const processingAllowed = encounter?.consent_status === "accepted" && !encounterDeleted;
+  const deleted = Boolean(
+    encounter?.deleted_at || encounter?.status === "deleted",
+  );
+  const processingAllowed =
+    encounter?.consent_status === "accepted" && !deleted;
+  const hasGrounding = Boolean(
+    encounter?.context_content?.trim() ||
+    encounter?.sources.some(({ status }) => status === "ready"),
+  );
+  const documents =
+    encounter?.documents ??
+    (draft
+      ? [
+          {
+            id: draft.document_id ?? 0,
+            template_id: draft.template_id,
+            template_version: draft.template_version,
+            status: draft.status,
+            current_draft_id: draft.id,
+            version: 1,
+            current_revision: draft,
+          },
+        ]
+      : []);
+  const selectedSummary = summaries.find(
+    ({ id }) => id === selectedEncounterId,
+  );
+  const patient = encounter?.patient ?? selectedSummary?.patient;
+  const sameEncounterRecordingActive = Boolean(
+    encounter &&
+    recording.session?.encounterId === encounter.id &&
+    recording.state.active,
+  );
+  const otherEncounterRecording = Boolean(
+    recording.session && recording.session.encounterId !== encounter?.id,
+  );
+  const openRecordingDock = (startRecording: boolean) => {
+    if (!encounter) return;
+    if (recording.session?.encounterId === encounter.id && !startRecording) {
+      recording.expand();
+      return;
+    }
+    const opened = recording.begin(
+      {
+        encounterId: encounter.id,
+        encounterVersion: encounter.version,
+        processingAllowed,
+        scopeKey: `${scopeKey}:${encounter.id}`,
+        patientLabel:
+          patient?.display_name ??
+          patient?.reference ??
+          `Session ${encounter.id}`,
+        contextContent: encounter.context_content ?? "",
+        returnPath: `/clinic/scribe?encounter_id=${encounter.id}&review=1`,
+      },
+      { startRecording },
+    );
+    if (!opened)
+      setActionError(
+        "Finish or discard the current recording before starting another.",
+      );
+  };
+  const rail = (
+    <ScribeSessionRail
+      summaries={summaries}
+      selectedId={selectedEncounterId}
+      search={railSearch}
+      disabled={
+        pendingAction !== null ||
+        hasUnsavedReviewEdits ||
+        hasUnsavedContext ||
+        Boolean(transcript.trim())
+      }
+      loadingMore={loadingMore}
+      hasMore={page < totalPages}
+      onSearchChange={setRailSearch}
+      onSelect={selectEncounter}
+      onNewSession={beginNewSession}
+      onLoadMore={() => void loadMore()}
+    />
+  );
 
   return (
-    <Stack spacing={2.5}>
-      {actionError && <Alert severity="error">{actionError}</Alert>}
-      {hasUnsavedReviewEdits && (
-        <Alert
-          severity="warning"
-          action={
-            <Button
-              color="inherit"
-              disabled={pendingAction !== null}
-              onClick={() => setDiscardEditsToken((current) => current + 1)}
-            >
-              Discard edits
-            </Button>
-          }
-        >
-          Save or explicitly discard reviewer edits before changing the encounter or source revision.
-        </Alert>
-      )}
-      {outcomeUnknown && (
-        <Alert severity="warning" action={<Button color="inherit" onClick={() => void (hasUnsavedReviewEdits && selectedEncounterRef.current ? loadEncounter(selectedEncounterRef.current) : loadIndex(selectedEncounterRef.current ?? undefined))}>Reload</Button>}>
-          {outcomeUnknown}
-        </Alert>
-      )}
-      <Paper component="section" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Stack spacing={2}>
-          <Typography component="h2" variant="h5">Scribe encounters</Typography>
-          <FormControl fullWidth disabled={!summaries.length || pendingAction !== null}>
-            <InputLabel id="scribe-encounter-label">Encounter</InputLabel>
-            <Select
-              labelId="scribe-encounter-label"
-              label="Encounter"
-              value={selectedEncounterId}
-              onChange={(event) => selectEncounter(Number(event.target.value))}
-            >
-              {summaries.map((summary) => (
-                <MenuItem key={summary.id} value={summary.id}>
-                  {summary.patient.display_name} · {summary.patient.reference} · {summary.status.replaceAll("_", " ")}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {page < totalPages && <Button variant="outlined" disabled={loadingMore || pendingAction !== null} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more encounters"}</Button>}
-          {canWrite && (
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <FormControl fullWidth disabled={pendingAction !== null || Boolean(outcomeUnknown)}>
-                <InputLabel id="scribe-patient-label">Patient</InputLabel>
-                <Select labelId="scribe-patient-label" label="Patient" value={selectedPatientId} onChange={(event) => setSelectedPatientId(Number(event.target.value))}>
-                  {patients.map((patient) => <MenuItem key={patient.id} value={patient.id}>{patient.display_name} · {patient.reference}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <Button variant="contained" disabled={!selectedPatientId || hasUnsavedReviewEdits || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void createEncounter().catch(() => undefined)}>Create encounter</Button>
-            </Stack>
-          )}
-          {canWrite && patientPage < patientTotalPages && <Button variant="outlined" disabled={loadingMorePatients || pendingAction !== null} onClick={() => void loadMorePatients()}>{loadingMorePatients ? "Loading patients…" : "Load more patients"}</Button>}
-        </Stack>
-      </Paper>
-
-      {encounter && canWrite && (
-        <Paper component="section" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-          <Stack spacing={2}>
-            <Typography component="h2" variant="h5">Consent and source</Typography>
-            <Typography color="text.secondary">Consent policy {encounter.consent_policy_version || "not yet recorded"}. Capture and processing remain unavailable unless the server records accepted consent.</Typography>
-            {!encounterDeleted && <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              {encounter.consent_status !== "accepted" && <Button variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "accepted", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Record accepted consent</Button>}
-              {encounter.consent_status !== "declined" && <Button variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "declined", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Record declined consent</Button>}
-              {encounter.consent_status === "accepted" && <Button color="warning" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "withdrawn", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Withdraw consent</Button>}
-            </Stack>}
-            <TextField label="Imported transcript" multiline minRows={5} value={transcript} onChange={(event) => setTranscript(event.target.value)} disabled={!processingAllowed || pendingAction !== null} helperText="Paste only an authorized transcript. The server stores it as protected source evidence; no microphone or cloud provider is used here." slotProps={{ htmlInput: { maxLength: 250000 } }} />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button variant="contained" disabled={!processingAllowed || !transcript.trim() || hasUnsavedReviewEdits || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void importSource().catch(() => undefined)}>Import transcript</Button>
-              <Button variant="outlined" disabled={!processingAllowed || !encounter.sources.some(({ status }) => status === "ready") || hasUnsavedReviewEdits || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void generateDraft().catch(() => undefined)}>Generate local grounded draft</Button>
-              {canDelete && <Button color="error" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "delete", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Delete encounter content</Button>}
-            </Stack>
+    <Box
+      sx={{
+        display: "flex",
+        height: { xs: "auto", md: "calc(100vh - 136px)" },
+        minHeight: 640,
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 1.5,
+        overflow: "hidden",
+        backgroundColor: "background.paper",
+      }}
+    >
+      {!compactRail && rail}
+      <Drawer
+        open={compactRail && railOpen}
+        onClose={() => setRailOpen(false)}
+        slotProps={{ paper: { sx: { width: 248 } } }}
+      >
+        {rail}
+      </Drawer>
+      <Stack sx={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+        {(actionError ||
+          outcomeUnknown ||
+          hasUnsavedReviewEdits ||
+          hasUnsavedContext) && (
+          <Stack spacing={0}>
+            {actionError && (
+              <Alert severity="error" onClose={() => setActionError(null)}>
+                {actionError}
+              </Alert>
+            )}
+            {outcomeUnknown && (
+              <Alert
+                severity="warning"
+                action={
+                  <Button
+                    color="inherit"
+                    onClick={() =>
+                      selectedEncounterRef.current
+                        ? void loadEncounter(selectedEncounterRef.current)
+                        : void loadIndex()
+                    }
+                  >
+                    Reload
+                  </Button>
+                }
+              >
+                {outcomeUnknown}
+              </Alert>
+            )}
+            {(hasUnsavedReviewEdits || hasUnsavedContext) && (
+              <Alert
+                severity="warning"
+                action={
+                  <Button
+                    color="inherit"
+                    disabled={pendingAction !== null}
+                    onClick={() => {
+                      setDiscardEditsToken((value) => value + 1);
+                      setContextValue(contextBaseline);
+                    }}
+                  >
+                    Discard edits
+                  </Button>
+                }
+              >
+                Unsaved changes must be saved or discarded before switching
+                sessions.
+              </Alert>
+            )}
           </Stack>
-        </Paper>
-      )}
+        )}
 
-      <ScribeReviewWorkspace
-        key={`${scopeKey}:${selectedEncounterId || "none"}`}
-        state={reviewState}
-        pendingAction={pendingAction}
-        onUnsavedEditsChange={setHasUnsavedReviewEdits}
-        discardEditsToken={discardEditsToken}
-        onRetry={() => selectedEncounterRef.current ? void loadEncounter(selectedEncounterRef.current) : void loadIndex()}
-        onSaveSection={canWrite && draft ? (draftId, sectionKey, content) => reviewSection(draftId, draft.version, sectionKey, "edit", content) : undefined}
-        onAcceptSection={canWrite && draft ? (draftId, sectionKey) => reviewSection(draftId, draft.version, sectionKey, "accept") : undefined}
-        onRejectSection={canWrite && draft ? (draftId, sectionKey) => reviewSection(draftId, draft.version, sectionKey, "reject") : undefined}
-        onApprove={canApprove && draft && encounter ? (draftId) => setConfirmation({ kind: "approve", draftId, draftVersion: draft.version, encounterId: encounter.id, scopeKey }) : undefined}
-        onExport={canExport && draft && encounter ? (draftId) => setConfirmation({ kind: "export", draftId, draftVersion: draft.version, encounterId: encounter.id, scopeKey }) : undefined}
-      />
+        <Stack
+          component="header"
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          sx={{
+            alignItems: { xs: "stretch", sm: "center" },
+            justifyContent: "space-between",
+            px: { xs: 1.5, sm: 2.5 },
+            py: 1.5,
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{ alignItems: "center", minWidth: 0 }}
+          >
+            {compactRail && (
+              <IconButton
+                aria-label="Open session list"
+                onClick={() => setRailOpen(true)}
+              >
+                <MenuOutlinedIcon />
+              </IconButton>
+            )}
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              {newSession ? (
+                <ScribePatientPicker
+                  value={selectedPatient}
+                  onChange={setSelectedPatient}
+                  disabled={pendingAction !== null}
+                  scopeKey={scopeKey}
+                />
+              ) : (
+                <>
+                  <Typography
+                    component="h1"
+                    variant="subtitle1"
+                    noWrap
+                    sx={{
+                      fontWeight: 700,
+                      "&&": { fontSize: 22, lineHeight: 1.3, m: 0 },
+                    }}
+                  >
+                    {patient?.display_name ?? "Scribe"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" noWrap>
+                    {patient
+                      ? `${patient.reference} · ${formatSessionDate(encounter?.created_at ?? selectedSummary?.created_at)}`
+                      : "Select a session or start a new one"}
+                  </Typography>
+                </>
+              )}
+            </Box>
+          </Stack>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ alignItems: { xs: "stretch", sm: "center" } }}
+          >
+            {newSession ? (
+              <Button
+                variant="contained"
+                disabled={!selectedPatient || pendingAction !== null}
+                onClick={() => void createEncounter().catch(() => undefined)}
+              >
+                Start session
+              </Button>
+            ) : (
+              <>
+                <FormControl
+                  size="small"
+                  sx={{ minWidth: 160 }}
+                  disabled={
+                    !canWrite ||
+                    pendingAction !== null ||
+                    Boolean(selectedDocumentId)
+                  }
+                >
+                  <InputLabel id="scribe-template-label">Template</InputLabel>
+                  <Select
+                    labelId="scribe-template-label"
+                    label="Template"
+                    value={templateId}
+                    onChange={(event) => setTemplateId(event.target.value)}
+                  >
+                    {templates.map((template) => (
+                      <MenuItem
+                        key={`${template.id}:${template.version}`}
+                        value={template.id}
+                        disabled={template.status !== "active"}
+                      >
+                        {template.label}
+                        {template.disabled_reason
+                          ? ` — ${template.disabled_reason}`
+                          : ""}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="contained"
+                  startIcon={<NoteAddOutlinedIcon />}
+                  disabled={
+                    !canWrite ||
+                    !encounter ||
+                    !templateId ||
+                    !processingAllowed ||
+                    !hasGrounding ||
+                    hasUnsavedContext ||
+                    hasUnsavedReviewEdits ||
+                    pendingAction !== null ||
+                    Boolean(outcomeUnknown)
+                  }
+                  onClick={() => void generateDraft().catch(() => undefined)}
+                >
+                  Create note
+                </Button>
+              </>
+            )}
+          </Stack>
+        </Stack>
 
-      <Dialog open={confirmation !== null} onClose={() => pendingAction === null && setConfirmation(null)} fullWidth maxWidth="sm">
+        {!newSession && (
+          <Tabs
+            value={activeTab}
+            onChange={(_, value: string) => {
+              const documentId = value.startsWith("document:")
+                ? Number(value.split(":")[1])
+                : undefined;
+              const document = encounter?.documents?.find(
+                ({ id }) => id === documentId,
+              );
+              if (document) setTemplateId(document.template_id);
+              setFollowCurrentDraftId(null);
+              setActiveTab(value);
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            aria-label="Scribe session documents"
+            sx={{
+              px: { xs: 1, sm: 2 },
+              minHeight: 44,
+              borderBottom: 1,
+              borderColor: "divider",
+              "& .MuiTab-root": { minHeight: 44, textTransform: "none" },
+            }}
+          >
+            <Tab value="context" label="Context" />
+            <Tab value="transcript" label="Transcript" />
+            {documents.map((document, index) => (
+              <Tab
+                key={document.id}
+                value={`document:${document.id}`}
+                label={
+                  documents.length === 1
+                    ? (templates.find(({ id }) => id === document.template_id)
+                        ?.label ?? "SOAP")
+                    : `${templates.find(({ id }) => id === document.template_id)?.label ?? "SOAP"} ${index + 1}`
+                }
+              />
+            ))}
+          </Tabs>
+        )}
+
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          {newSession ? (
+            <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 760 }}>
+              <Typography component="h2" variant="h6" gutterBottom>
+                Start a new session
+              </Typography>
+              <Typography color="text.secondary">
+                Choose the patient above, then add visit context or import a
+                transcript.
+              </Typography>
+            </Box>
+          ) : activeTab === "context" ? (
+            <Box
+              sx={{
+                p: { xs: 2, sm: 3 },
+                maxWidth: 840,
+                height: "100%",
+                overflowY: "auto",
+              }}
+            >
+              <Stack spacing={2}>
+                <Box>
+                  <Typography component="h2" variant="h6">
+                    Visit context
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Add reviewer-authored context that should ground this note.
+                    Context is saved separately from spoken transcript evidence.
+                  </Typography>
+                </Box>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={10}
+                  value={contextValue}
+                  onChange={(event) => setContextValue(event.target.value)}
+                  disabled={
+                    !canWrite || !encounter || deleted || pendingAction !== null
+                  }
+                  placeholder="Reason for visit, known history, observations, and documentation context"
+                  slotProps={{
+                    htmlInput: {
+                      maxLength: 250000,
+                      "aria-label": "Visit context",
+                    },
+                  }}
+                />
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ alignItems: { xs: "stretch", sm: "center" } }}
+                >
+                  <Button
+                    variant="contained"
+                    disabled={
+                      !encounter ||
+                      !hasUnsavedContext ||
+                      pendingAction !== null ||
+                      Boolean(outcomeUnknown)
+                    }
+                    onClick={() => void saveContext().catch(() => undefined)}
+                  >
+                    {pendingAction === "context" ? "Saving…" : "Save context"}
+                  </Button>
+                  <Typography
+                    variant="body2"
+                    color={
+                      hasUnsavedContext ? "warning.main" : "text.secondary"
+                    }
+                  >
+                    {hasUnsavedContext
+                      ? "Unsaved context"
+                      : encounter
+                        ? "Context is saved"
+                        : "Select a session"}
+                  </Typography>
+                </Stack>
+                {encounter && (
+                  <Box>
+                    <Divider sx={{ my: 1 }} />
+                    <Typography component="h3" variant="subtitle2" gutterBottom>
+                      Consent
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      Current decision:{" "}
+                      {encounter.consent_status.replaceAll("_", " ")}.
+                      Transcript import and note creation require accepted
+                      consent.
+                    </Typography>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      {encounter.consent_status !== "accepted" && (
+                        <Button
+                          variant="outlined"
+                          disabled={pendingAction !== null || hasUnsavedContext}
+                          onClick={() =>
+                            setConfirmation({
+                              kind: "consent",
+                              decision: "accepted",
+                              encounterId: encounter.id,
+                              encounterVersion: encounter.version,
+                              scopeKey,
+                            })
+                          }
+                        >
+                          Record accepted consent
+                        </Button>
+                      )}
+                      {encounter.consent_status !== "declined" && (
+                        <Button
+                          variant="outlined"
+                          disabled={pendingAction !== null || hasUnsavedContext}
+                          onClick={() =>
+                            setConfirmation({
+                              kind: "consent",
+                              decision: "declined",
+                              encounterId: encounter.id,
+                              encounterVersion: encounter.version,
+                              scopeKey,
+                            })
+                          }
+                        >
+                          Record declined consent
+                        </Button>
+                      )}
+                      {encounter.consent_status === "accepted" && (
+                        <Button
+                          color="warning"
+                          variant="outlined"
+                          disabled={pendingAction !== null || hasUnsavedContext}
+                          onClick={() =>
+                            setConfirmation({
+                              kind: "consent",
+                              decision: "withdrawn",
+                              encounterId: encounter.id,
+                              encounterVersion: encounter.version,
+                              scopeKey,
+                            })
+                          }
+                        >
+                          Withdraw consent
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          color="error"
+                          variant="text"
+                          disabled={pendingAction !== null || hasUnsavedContext}
+                          onClick={() =>
+                            setConfirmation({
+                              kind: "delete",
+                              encounterId: encounter.id,
+                              encounterVersion: encounter.version,
+                              scopeKey,
+                            })
+                          }
+                        >
+                          Delete session content
+                        </Button>
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+          ) : activeTab === "transcript" ? (
+            <Box
+              sx={{
+                p: { xs: 2, sm: 3 },
+                maxWidth: 840,
+                height: "100%",
+                overflowY: "auto",
+              }}
+            >
+              <Stack spacing={2}>
+                <Box>
+                  <Typography component="h2" variant="h6">
+                    Transcript
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Record the session or import an authorized transcript as
+                    source evidence. Automated transcription is not available
+                    yet.
+                  </Typography>
+                </Box>
+                {canWrite && encounter && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 1.5,
+                      backgroundColor: "action.hover",
+                    }}
+                  >
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1.5}
+                      sx={{
+                        alignItems: { xs: "stretch", sm: "center" },
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2">
+                          Record this session
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Recording stays available in the clinic bar while you
+                          move between pages. Finish it to return to this note.
+                        </Typography>
+                      </Box>
+                      {sameEncounterRecordingActive ? (
+                        <Button
+                          variant="outlined"
+                          startIcon={<MicNoneOutlinedIcon />}
+                          onClick={recording.expand}
+                        >
+                          Open recording bar
+                        </Button>
+                      ) : (
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                        >
+                          <Button
+                            variant="text"
+                            disabled={
+                              hasUnsavedContext ||
+                              pendingAction !== null ||
+                              otherEncounterRecording
+                            }
+                            onClick={() => openRecordingDock(false)}
+                          >
+                            Open visit notes
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            startIcon={<MicNoneOutlinedIcon />}
+                            disabled={
+                              !processingAllowed ||
+                              hasUnsavedContext ||
+                              pendingAction !== null ||
+                              otherEncounterRecording
+                            }
+                            onClick={() => openRecordingDock(true)}
+                          >
+                            {otherEncounterRecording
+                              ? "Recording another session"
+                              : "Start recording"}
+                          </Button>
+                        </Stack>
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+                {encounter?.sources.map((source) => (
+                  <Box
+                    key={source.id}
+                    sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      Imported source · {source.status.replaceAll("_", " ")}
+                    </Typography>
+                    <Typography
+                      sx={{ mt: 0.5, whiteSpace: "pre-wrap", lineHeight: 1.65 }}
+                    >
+                      {source.content ?? "Transcript content unavailable."}
+                    </Typography>
+                  </Box>
+                ))}
+                <TextField
+                  label="Import transcript"
+                  multiline
+                  minRows={8}
+                  value={transcript}
+                  onChange={(event) => setTranscript(event.target.value)}
+                  disabled={!processingAllowed || pendingAction !== null}
+                  helperText={
+                    processingAllowed
+                      ? "Review the transcript before import. Imported text becomes protected source evidence."
+                      : "Accepted consent is required before transcript import."
+                  }
+                  slotProps={{ htmlInput: { maxLength: 250000 } }}
+                />
+                <Button
+                  variant="contained"
+                  sx={{ alignSelf: "flex-start" }}
+                  disabled={
+                    !processingAllowed ||
+                    !transcript.trim() ||
+                    hasUnsavedReviewEdits ||
+                    hasUnsavedContext ||
+                    pendingAction !== null ||
+                    Boolean(outcomeUnknown)
+                  }
+                  onClick={() => void importSource().catch(() => undefined)}
+                >
+                  Import transcript
+                </Button>
+              </Stack>
+            </Box>
+          ) : (
+            <ScribeReviewWorkspace
+              key={`${scopeKey}:${selectedEncounterId ?? "none"}:${selectedDocumentId ?? "none"}`}
+              state={reviewState}
+              documentId={selectedDocumentId}
+              followCurrentDraftId={followCurrentDraftId}
+              pendingAction={pendingAction}
+              onUnsavedEditsChange={setHasUnsavedReviewEdits}
+              discardEditsToken={discardEditsToken}
+              onRetry={() =>
+                selectedEncounterRef.current
+                  ? void loadEncounter(selectedEncounterRef.current)
+                  : void loadIndex()
+              }
+              onSaveDraft={canWrite ? saveDraft : undefined}
+              onRestoreDraft={canWrite ? restoreDraft : undefined}
+              onAcceptSection={
+                canWrite
+                  ? (draftId, section) =>
+                      reviewSection(draftId, section, "accept")
+                  : undefined
+              }
+              onRejectSection={
+                canWrite
+                  ? (draftId, section) =>
+                      reviewSection(draftId, section, "reject")
+                  : undefined
+              }
+              onApprove={
+                canApprove &&
+                draft &&
+                encounter &&
+                !sameEncounterRecordingActive
+                  ? (draftId) =>
+                      setConfirmation({
+                        kind: "approve",
+                        draftId,
+                        draftVersion: draft.version,
+                        encounterId: encounter.id,
+                        scopeKey,
+                      })
+                  : undefined
+              }
+              onExport={
+                canExport && draft && encounter && !sameEncounterRecordingActive
+                  ? (draftId) =>
+                      setConfirmation({
+                        kind: "export",
+                        draftId,
+                        draftVersion: draft.version,
+                        encounterId: encounter.id,
+                        scopeKey,
+                      })
+                  : undefined
+              }
+            />
+          )}
+        </Box>
+      </Stack>
+
+      <Dialog
+        open={confirmation !== null}
+        onClose={() => pendingAction === null && setConfirmation(null)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Confirm scribe action</DialogTitle>
         <DialogContent>
           <Typography>
-            {confirmation?.kind === "approve" && "Approve this exact draft revision after confirming every section against the source evidence?"}
-            {confirmation?.kind === "export" && "Export this exact approved revision to the local parent-record adapter? Approval alone never exports."}
-            {confirmation?.kind === "delete" && "Delete the encounter content under the configured retention workflow? This cannot be undone from this workspace."}
-            {confirmation?.kind === "consent" && `Record the in-person consent decision as ${confirmation.decision.replaceAll("_", " ")}?`}
+            {confirmation?.kind === "approve" &&
+              "Approve this exact current revision after confirming every section against its source evidence?"}
+            {confirmation?.kind === "export" &&
+              "Export this exact approved revision to the parent record? Approval alone never exports."}
+            {confirmation?.kind === "delete" &&
+              "Delete this session content under the configured retention workflow? This cannot be undone here."}
+            {confirmation?.kind === "consent" &&
+              `Record the in-person consent decision as ${confirmation.decision.replaceAll("_", " ")}?`}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button disabled={pendingAction !== null} onClick={() => setConfirmation(null)}>Cancel</Button>
-          <Button color={confirmation?.kind === "delete" ? "error" : "primary"} variant="contained" disabled={pendingAction !== null} onClick={() => void confirmAction().catch(() => undefined)}>Confirm</Button>
+          <Button
+            disabled={pendingAction !== null}
+            onClick={() => setConfirmation(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color={confirmation?.kind === "delete" ? "error" : "primary"}
+            variant="contained"
+            disabled={pendingAction !== null}
+            onClick={() => void confirmAction().catch(() => undefined)}
+          >
+            Confirm
+          </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </Box>
   );
 }
 

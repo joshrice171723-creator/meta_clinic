@@ -111,25 +111,9 @@ export function Patients({ id }: { id?: string }) {
       </Card>
       {clinic.capabilities.patients_write && (
         <Card title="Register a patient">
-          <Form
-            endpoint="/api/clinic/patients"
-            submit="Register patient"
+          <PatientRegistrationForm
             onSuccess={createdPath("/clinic/patients")}
-          >
-            <Field
-              name="clinic_patient[display_name]"
-              label="Patient display name"
-              maxLength={120}
-              autoComplete="name"
-            />
-            <Field
-              name="clinic_patient[reference]"
-              label="Clinic reference"
-              maxLength={32}
-              autoComplete="off"
-            />
-            <PatientFields />
-          </Form>
+          />
         </Card>
       )}
     </>
@@ -278,24 +262,33 @@ function PatientFields({ patient }: { patient?: Patient }) {
   );
 }
 
-function PatientRegistrationForm({ patient }: { patient: Patient }) {
+export function PatientRegistrationForm({
+  patient,
+  onSuccess,
+}: {
+  patient?: Patient;
+  onSuccess?: (result: Record<string, unknown> | undefined) => void;
+}) {
   return (
     <Form
-      endpoint={`/api/clinic/patients/${patient.id}`}
-      method="PATCH"
-      submit="Save registration details"
+      endpoint={
+        patient ? `/api/clinic/patients/${patient.id}` : "/api/clinic/patients"
+      }
+      method={patient ? "PATCH" : "POST"}
+      submit={patient ? "Save registration details" : "Register patient"}
+      onSuccess={onSuccess}
       className="pharmacy-form-grid"
     >
       <Field
         name="clinic_patient[display_name]"
         label="Patient display name"
-        value={patient.display_name}
+        value={patient?.display_name}
         maxLength={120}
       />
       <Field
         name="clinic_patient[reference]"
         label="Clinic reference"
-        value={patient.reference}
+        value={patient?.reference}
         maxLength={32}
       />
       <PatientFields patient={patient} />

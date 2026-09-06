@@ -30,6 +30,7 @@ import {
   ClinicAppearanceScope,
   useClinicAppearance,
 } from "./Appearance";
+import { ScribeRecordingProvider } from "../scribe/ScribeRecordingProvider";
 
 const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
@@ -272,86 +273,90 @@ export function Workspace({
       <AppearanceContext value={appearance}>
         <ClinicContext value={data}>
           <ClinicOverviewContext value={overview.data}>
-            <div
-              onClick={(event) => {
-                if (
-                  event.defaultPrevented ||
-                  event.button !== 0 ||
-                  event.metaKey ||
-                  event.ctrlKey ||
-                  event.shiftKey ||
-                  event.altKey
-                )
-                  return;
-                const anchor = (
-                  event.target as Element
-                ).closest<HTMLAnchorElement>("a[href]");
-                if (
-                  !anchor ||
-                  anchor.target ||
-                  anchor.hasAttribute("download") ||
-                  anchor.rel.split(/\s+/).includes("external") ||
-                  anchor.closest('[contenteditable="true"]') ||
-                  !clinicTarget(anchor.href, window.location.origin)
-                )
-                  return;
-                if (anchor.getAttribute("aria-disabled") === "true") {
-                  event.preventDefault();
-                  return;
-                }
-                event.preventDefault();
-                navigate(anchor.href, {
-                  homeView:
-                    anchor.dataset.clinicView === "schedule"
-                      ? "schedule"
-                      : anchor.dataset.clinicView === "tracking"
-                        ? "tracking"
-                        : undefined,
-                });
-              }}
+            <ScribeRecordingProvider
+              key={`${user.id}:${data.practice.id}:${data.membership_id ?? "none"}:${data.current_site?.id ?? "all"}`}
             >
-              <ClinicFrame
-                practiceName={data.practice.name}
-                locationName={locationName}
-                locations={data.sites}
-                selectedLocationId={data.current_site?.id}
-                onLocationChange={(siteId) => {
-                  void api("/api/clinic/context", {
-                    method: "PATCH",
-                    body: { site_id: siteId },
-                  }).then(() => window.location.reload());
+              <div
+                onClick={(event) => {
+                  if (
+                    event.defaultPrevented ||
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  )
+                    return;
+                  const anchor = (
+                    event.target as Element
+                  ).closest<HTMLAnchorElement>("a[href]");
+                  if (
+                    !anchor ||
+                    anchor.target ||
+                    anchor.hasAttribute("download") ||
+                    anchor.rel.split(/\s+/).includes("external") ||
+                    anchor.closest('[contenteditable="true"]') ||
+                    !clinicTarget(anchor.href, window.location.origin)
+                  )
+                    return;
+                  if (anchor.getAttribute("aria-disabled") === "true") {
+                    event.preventDefault();
+                    return;
+                  }
+                  event.preventDefault();
+                  navigate(anchor.href, {
+                    homeView:
+                      anchor.dataset.clinicView === "schedule"
+                        ? "schedule"
+                        : anchor.dataset.clinicView === "tracking"
+                          ? "tracking"
+                          : undefined,
+                  });
                 }}
-                navigation={
-                  <ClinicNavigation
-                    capabilities={data.capabilities}
-                    path={path}
-                    homeView={homeView}
-                  />
-                }
               >
-                <header className="clinic-topbar" aria-label="Clinic context">
-                  <span className="clinic-topbar-context">
-                    Currently logged in as:{" "}
-                    <strong>{user.email_address}</strong>
-                    {data.credentials.length > 0 && (
-                      <>, {data.credentials.join(", ")}</>
-                    )}
-                  </span>
-                  <span className="clinic-topbar-actions">
-                    <span className="clinic-topbar-location">
-                      {data.practice.name}
-                    </span>
-                    <a href="/clinic/settings">My settings</a>
-                  </span>
-                </header>
-                <main
-                  id="main"
-                  className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
+                <ClinicFrame
+                  practiceName={data.practice.name}
+                  locationName={locationName}
+                  locations={data.sites}
+                  selectedLocationId={data.current_site?.id}
+                  onLocationChange={(siteId) => {
+                    void api("/api/clinic/context", {
+                      method: "PATCH",
+                      body: { site_id: siteId },
+                    }).then(() => window.location.reload());
+                  }}
+                  navigation={
+                    <ClinicNavigation
+                      capabilities={data.capabilities}
+                      path={path}
+                      homeView={homeView}
+                    />
+                  }
                 >
-                  {children}
-                </main>
-              </ClinicFrame>
-            </div>
+                  <header className="clinic-topbar" aria-label="Clinic context">
+                    <span className="clinic-topbar-context">
+                      Currently logged in as:{" "}
+                      <strong>{user.email_address}</strong>
+                      {data.credentials.length > 0 && (
+                        <>, {data.credentials.join(", ")}</>
+                      )}
+                    </span>
+                    <span className="clinic-topbar-actions">
+                      <span className="clinic-topbar-location">
+                        {data.practice.name}
+                      </span>
+                      <a href="/clinic/settings">My settings</a>
+                    </span>
+                  </header>
+                  <main
+                    id="main"
+                    className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}`}
+                  >
+                    {children}
+                  </main>
+                </ClinicFrame>
+              </div>
+            </ScribeRecordingProvider>
           </ClinicOverviewContext>
         </ClinicContext>
       </AppearanceContext>

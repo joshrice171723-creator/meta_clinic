@@ -1,31 +1,29 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
-import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
-import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlined";
+import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
   Alert,
   Box,
   Button,
   Chip,
   Divider,
-  LinearProgress,
+  Drawer,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
   Paper,
   Skeleton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import type {
@@ -58,6 +56,11 @@ export type ScribeReviewWorkspaceProps = {
     sectionKey: ScribeDraftSection["section_key"],
     content: string,
   ) => void | Promise<void>;
+  onSaveDraft?: (
+    draftId: number,
+    sections: Record<ScribeDraftSection["section_key"], string>,
+  ) => void | Promise<void>;
+  onRestoreDraft?: (draftId: number) => void | Promise<void>;
   onAcceptSection?: (
     draftId: number,
     sectionKey: ScribeDraftSection["section_key"],
@@ -69,18 +72,8 @@ export type ScribeReviewWorkspaceProps = {
   pendingAction?: string | null;
   onUnsavedEditsChange?: (hasUnsavedEdits: boolean) => void;
   discardEditsToken?: number;
-};
-
-const encounterStatusLabels: Record<ScribeEncounter["status"], string> = {
-  awaiting_consent: "Awaiting consent",
-  consented: "Consent accepted",
-  source_ready: "Source ready",
-  in_review: "In review",
-  approved: "Approved",
-  exported: "Exported",
-  consent_declined: "Consent declined",
-  consent_withdrawn: "Consent withdrawn",
-  deleted: "Deleted",
+  documentId?: number;
+  followCurrentDraftId?: number | null;
 };
 
 const sectionLabels: Record<ScribeDraftSection["section_key"], string> = {
@@ -89,14 +82,12 @@ const sectionLabels: Record<ScribeDraftSection["section_key"], string> = {
   assessment: "Assessment",
   plan: "Plan",
 };
-
 const speakerLabels: Record<ScribeSourceSegment["speaker"], string> = {
   patient: "Patient",
   clinician: "Clinician",
   caregiver: "Caregiver",
   unknown: "Speaker not identified",
 };
-
 const knownDraftStatuses = new Set<ScribeDraft["status"]>([
   "draft",
   "in_review",
@@ -105,7 +96,6 @@ const knownDraftStatuses = new Set<ScribeDraft["status"]>([
   "exported",
   "deleted",
 ]);
-
 const currentDraftStatuses = new Set<ScribeDraft["status"]>([
   "draft",
   "in_review",
@@ -113,46 +103,43 @@ const currentDraftStatuses = new Set<ScribeDraft["status"]>([
   "exported",
 ]);
 
-function formatSectionLabel(sectionKey: string) {
+function draftBelongsToDocument(draft: ScribeDraft, documentId?: number) {
+  return documentId === undefined || (draft.document_id ?? 0) === documentId;
+}
+
+function currentDraft(encounter: ScribeEncounter, documentId?: number) {
+  const revisions = encounter.drafts.filter((draft) =>
+    draftBelongsToDocument(draft, documentId),
+  );
   return (
-    sectionLabels[sectionKey as ScribeDraftSection["section_key"]] ?? sectionKey
+    revisions.find(
+      (draft) =>
+        draft.current !== false && currentDraftStatuses.has(draft.status),
+    ) ?? revisions[0]
   );
 }
 
-function formatTime(milliseconds: number) {
-  if (!Number.isFinite(milliseconds) || milliseconds < 0)
-    return "Time not recorded";
-  const seconds = Math.floor(milliseconds / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-function statusChipSx(status: "neutral" | "attention" | "success" | "error") {
-  if (status === "attention")
-    return {
-      color: "var(--clinic-warning)",
-      backgroundColor: "var(--clinic-warning-background)",
-    };
-  if (status === "success")
-    return {
-      color: "var(--clinic-success)",
-      backgroundColor: "var(--clinic-success-background)",
-    };
-  if (status === "error")
-    return {
-      color: "var(--clinic-error)",
-      backgroundColor: "var(--clinic-error-background)",
-    };
-  return { color: "text.secondary", backgroundColor: "action.hover" };
-}
-
-function selectedDraft(encounter: ScribeEncounter) {
-  return (
-    encounter.drafts.find(
-      (draft) => draft.status !== "superseded" && draft.status !== "deleted",
-    ) ?? encounter.drafts[0]
+export function reconciledSelectedDraftId(
+  encounter: ScribeEncounter,
+  documentId: number | undefined,
+  selectedDraftId: number | null,
+  followCurrentDraftId: number | null | undefined,
+) {
+  const revisions = encounter.drafts.filter((draft) =>
+    draftBelongsToDocument(draft, documentId),
   );
+  if (
+    followCurrentDraftId != null &&
+    revisions.some(({ id }) => id === followCurrentDraftId)
+  )
+    return followCurrentDraftId;
+  if (
+    selectedDraftId != null &&
+    revisions.some(({ id }) => id === selectedDraftId)
+  )
+    return selectedDraftId;
+  return currentDraft(encounter, documentId)?.id ?? null;
 }
-
 function sourceForDraft(encounter: ScribeEncounter, draft?: ScribeDraft) {
   return (
     (draft &&
@@ -160,43 +147,61 @@ function sourceForDraft(encounter: ScribeEncounter, draft?: ScribeDraft) {
     encounter.sources[0]
   );
 }
-
+function baselineForDraft(draft: ScribeDraft) {
+  return Object.fromEntries(
+    draft.sections.map((section) => [
+      section.section_key,
+      section.effective_content ?? "",
+    ]),
+  );
+}
+function hasContextInput(draft: ScribeDraft) {
+  return draft.input_sources?.some(
+    (source) => source.kind === "reviewer_authored_context",
+  );
+}
 export function hasUnsavedDraftEdits(
   draft: ScribeDraft | undefined,
   edits: Record<string, string>,
 ) {
   if (!draft) return false;
-  return draft.sections.some((section) => {
-    if (!(section.section_key in edits)) return false;
-    return edits[section.section_key] !== (section.human_content ?? "");
-  });
+  return draft.sections.some(
+    (section) =>
+      section.section_key in edits &&
+      edits[section.section_key] !== (section.effective_content ?? ""),
+  );
 }
-
 export function reviewStateSummary(
   draft: ScribeDraft | undefined,
   source?: ScribeSource,
 ) {
   if (!draft) return { unresolved: true, approved: false, exported: false };
-  const sourceUnavailable =
-    !source || source.status !== "ready" || source.content === null;
+  const hasReviewableInput = Boolean(
+    (source && source.status === "ready" && source.content !== null) ||
+    hasContextInput(draft),
+  );
   const unresolved =
     !knownDraftStatuses.has(draft.status) ||
     !currentDraftStatuses.has(draft.status) ||
-    sourceUnavailable ||
+    draft.current === false ||
+    Boolean(draft.stale) ||
+    !hasReviewableInput ||
     draft.sections.length === 0 ||
     draft.sections.some(
       (section) =>
-        !section.effective_content.trim() ||
+        !(section.effective_content ?? "").trim() ||
         section.status === "needs_review" ||
         section.status === "rejected" ||
         section.warning_codes.length > 0,
     );
-  const approved = draft.status === "approved" || draft.status === "exported";
-  const exported =
-    draft.status === "exported" ||
-    draft.export_state === "exported" ||
-    draft.exports.some((exportRecord) => exportRecord.status === "exported");
-  return { unresolved, approved, exported };
+  return {
+    unresolved,
+    approved: draft.status === "approved" || draft.status === "exported",
+    exported:
+      draft.status === "exported" ||
+      draft.export_state === "exported" ||
+      draft.exports.some((record) => record.status === "exported"),
+  };
 }
 
 function StatePanel({
@@ -215,6 +220,7 @@ function StatePanel({
       severity={tone}
       icon={icon}
       sx={{
+        m: 3,
         alignItems: "flex-start",
         "& .MuiAlert-message": { width: "100%" },
       }}
@@ -226,459 +232,315 @@ function StatePanel({
     </Alert>
   );
 }
-
-function LoadingState({ message }: { message?: string }) {
+function formatTime(milliseconds: number) {
+  if (!Number.isFinite(milliseconds) || milliseconds < 0)
+    return "Time not recorded";
+  const seconds = Math.floor(milliseconds / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+const warningLabels: Record<string, string> = {
+  abstained: "No supported content was generated",
+  no_source_evidence: "No source evidence is linked",
+  source_incomplete: "The source is incomplete",
+  speaker_uncertain: "A speaker could not be confirmed",
+  low_confidence: "Source confidence is low",
+};
+function warningLabel(code: string) {
   return (
-    <Paper component="section" variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-      <Stack spacing={2} role="status" aria-live="polite">
-        <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
-          <HourglassEmptyOutlinedIcon aria-hidden="true" color="action" />
-          <Typography component="h1" variant="h5">
-            Loading scribe review
-          </Typography>
-        </Stack>
-        <Typography color="text.secondary">
-          {message ?? "Loading the transcript and current draft…"}
-        </Typography>
-        <Skeleton variant="rounded" height={72} aria-hidden="true" />
-        <Skeleton variant="rounded" height={160} aria-hidden="true" />
-      </Stack>
-    </Paper>
+    warningLabels[code] ??
+    code
+      .replaceAll("_", " ")
+      .replace(/^./, (character) => character.toUpperCase())
   );
 }
-
-function EmptyState({ message }: { message?: string }) {
-  return (
-    <StatePanel icon={<ArticleOutlinedIcon />} title="Nothing to review yet">
-      <Typography>
-        {message ??
-          "A transcript and draft must be available before review can begin."}
-      </Typography>
-    </StatePanel>
-  );
-}
-
-function UnresolvedBadge({ section }: { section: ScribeDraftSection }) {
-  const reasons = [
-    ...section.warning_codes,
+function unresolvedReasons(section: ScribeDraftSection) {
+  return [
+    ...section.warning_codes.map(warningLabel),
     ...(section.status === "needs_review"
       ? ["Reviewer decision required"]
       : []),
     ...(section.status === "rejected" ? ["Section rejected"] : []),
-    ...(!section.effective_content.trim() ? ["Content not recorded"] : []),
+    ...(!(section.effective_content ?? "").trim()
+      ? ["Content not recorded"]
+      : []),
   ];
-  if (!reasons.length) return null;
+}
+
+export function sectionAcceptBlocked(
+  section: ScribeDraftSection,
+  options: { dirty: boolean; stale: boolean },
+) {
   return (
-    <Alert
-      severity="warning"
-      icon={<WarningAmberOutlinedIcon />}
-      sx={{ mt: 1.5, py: 0.25, "& .MuiAlert-message": { minWidth: 0 } }}
-    >
-      <Typography variant="body2">
-        Needs review: {reasons.join(" · ")}
-      </Typography>
-    </Alert>
+    options.dirty ||
+    options.stale ||
+    section.warning_codes.length > 0 ||
+    !(section.effective_content ?? "").trim()
   );
 }
 
-function EvidenceReferences({
-  section,
-  segments,
-  selectedSegmentId,
-  onSelect,
-}: {
-  section: ScribeDraftSection;
-  segments: ScribeSourceSegment[];
-  selectedSegmentId: number | null;
-  onSelect: (segmentId: number) => void;
-}) {
-  if (!section.evidence_segment_ids.length)
-    return (
-      <Typography variant="body2" color="text.secondary">
-        No source span linked. Treat this content as unresolved until a reviewer
-        confirms it.
-      </Typography>
-    );
-  return (
-    <Stack
-      direction="row"
-      spacing={0.75}
-      useFlexGap
-      sx={{ flexWrap: "wrap", alignItems: "center" }}
-    >
-      <Typography variant="body2" color="text.secondary" sx={{ mr: 0.25 }}>
-        Source spans
-      </Typography>
-      {section.evidence_segment_ids.map((segmentId) => {
-        const segment = segments.find(
-          (candidate) => candidate.id === segmentId,
-        );
-        return segment ? (
-          <Button
-            key={segmentId}
-            size="small"
-            variant={selectedSegmentId === segmentId ? "contained" : "outlined"}
-            onClick={() => onSelect(segmentId)}
-            aria-label={`Show source span ${segment.sequence} for ${formatSectionLabel(section.section_key)}`}
-            aria-controls={`scribe-source-segment-${segmentId}`}
-            sx={{ minHeight: 36, borderRadius: 1.5 }}
-          >
-            Span {segment.sequence}
-          </Button>
-        ) : (
-          <Chip
-            key={segmentId}
-            label={`Span ${segmentId} unavailable`}
-            color="warning"
-            variant="outlined"
-            aria-label={`Source span ${segmentId} unavailable`}
-          />
-        );
-      })}
-    </Stack>
-  );
-}
-
-function DraftSectionCard({
-  draftId,
-  section,
-  segments,
-  editValue,
-  selectedSegmentId,
-  onEdit,
-  onEvidenceSelect,
-  onSave,
-  onAccept,
-  onReject,
-  pendingAction,
-}: {
-  draftId: number;
-  section: ScribeDraftSection;
-  segments: ScribeSourceSegment[];
-  editValue: string;
-  selectedSegmentId: number | null;
-  onEdit: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-  onEvidenceSelect: (segmentId: number) => void;
-  onSave?: (draftId: number, sectionKey: ScribeDraftSection["section_key"], content: string) => void | Promise<void>;
-  onAccept?: (draftId: number, sectionKey: ScribeDraftSection["section_key"]) => void | Promise<void>;
-  onReject?: (draftId: number, sectionKey: ScribeDraftSection["section_key"]) => void | Promise<void>;
-  pendingAction?: string | null;
-}) {
-  const hasHumanEdit = Boolean(section.human_content) || editValue !== "";
-  const hasUnsavedSectionEdit = editValue !== (section.human_content ?? "");
-  const sectionUnknown = ![
-    "needs_review",
-    "accepted",
-    "edited",
-    "rejected",
-  ].includes(section.status);
-  return (
-    <Paper
-      component="article"
-      variant="outlined"
-      sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}
-    >
-      <Stack spacing={1.5}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          sx={{
-            justifyContent: "space-between",
-            alignItems: { xs: "flex-start", sm: "center" },
-          }}
-        >
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <EditNoteOutlinedIcon color="action" aria-hidden="true" />
-            <Typography component="h3" variant="h6">
-              {formatSectionLabel(section.section_key)}
-            </Typography>
-          </Stack>
-          <Chip
-            size="small"
-            label={
-              sectionUnknown
-                ? "Unknown section state"
-                : hasHumanEdit
-                  ? "Human-edited"
-                  : "Generated draft"
-            }
-            icon={
-              sectionUnknown ? (
-                <ErrorOutlineOutlinedIcon aria-hidden="true" />
-              ) : hasHumanEdit ? (
-                <EditNoteOutlinedIcon aria-hidden="true" />
-              ) : (
-                <AutoAwesomeOutlinedIcon aria-hidden="true" />
-              )
-            }
-            sx={statusChipSx(
-              sectionUnknown || section.status === "needs_review"
-                ? "attention"
-                : "neutral",
-            )}
-          />
-        </Stack>
-        <Box>
-          <Typography variant="overline" color="text.secondary">
-            Generated draft
-          </Typography>
-          <Typography
-            component="p"
-            sx={{
-              m: 0,
-              whiteSpace: "pre-wrap",
-              overflowWrap: "anywhere",
-              color: "text.primary",
-              lineHeight: 1.6,
-            }}
-          >
-            {section.generated_content?.trim() ||
-              "No generated content recorded."}
-          </Typography>
-        </Box>
-        <TextField
-          fullWidth
-          multiline
-          minRows={3}
-          disabled={pendingAction !== null}
-          label="Human-edited version"
-          value={editValue}
-          onChange={onEdit}
-          placeholder="Add a reviewer edit only when needed. The generated draft stays visible above."
-          helperText={onSave ? "Save creates a new server revision; the generated text remains visible." : "Edits are transient in this isolated slice until a server-authorized save is connected."}
-          slotProps={{
-            input: {
-              "aria-label": `${formatSectionLabel(section.section_key)} human-edited version`,
-            },
-          }}
-        />
-        {(onSave || onAccept || onReject) && (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {onSave && (
-              <Button
-                variant="contained"
-                disabled={pendingAction !== null || !editValue.trim() || !hasUnsavedSectionEdit}
-                onClick={() => void Promise.resolve().then(() => onSave(draftId, section.section_key, editValue)).catch(() => undefined)}
-              >
-                Save reviewer edit
-              </Button>
-            )}
-            {onAccept && (
-              <Button
-                variant="outlined"
-                disabled={pendingAction !== null || hasUnsavedSectionEdit || section.warning_codes.length > 0 || !section.effective_content.trim()}
-                onClick={() => void Promise.resolve().then(() => onAccept(draftId, section.section_key)).catch(() => undefined)}
-              >
-                Accept section
-              </Button>
-            )}
-            {onReject && (
-              <Button
-                color="warning"
-                variant="outlined"
-                disabled={pendingAction !== null || hasUnsavedSectionEdit}
-                onClick={() => void Promise.resolve().then(() => onReject(draftId, section.section_key)).catch(() => undefined)}
-              >
-                Reject section
-              </Button>
-            )}
-          </Stack>
-        )}
-        <EvidenceReferences
-          section={section}
-          segments={segments}
-          selectedSegmentId={selectedSegmentId}
-          onSelect={onEvidenceSelect}
-        />
-        <UnresolvedBadge section={section} />
-      </Stack>
-    </Paper>
-  );
-}
-
-function TranscriptPanel({
+function SourceTranscript({
   source,
+  contextGrounded,
   selectedSegmentId,
   onSelect,
 }: {
   source?: ScribeSource;
+  contextGrounded?: boolean;
   selectedSegmentId: number | null;
-  onSelect: (segmentId: number) => void;
+  onSelect: (id: number) => void;
 }) {
-  if (!source)
+  if (!source && contextGrounded)
     return (
-      <StatePanel icon={<ArticleOutlinedIcon />} title="Transcript unavailable">
-        <Typography>
-          No source artifact is linked to the current draft. Review and approval
-          remain blocked.
-        </Typography>
-      </StatePanel>
+      <Alert severity="info">
+        Reviewer context is the grounding source for this revision. No spoken
+        transcript is attached.
+      </Alert>
     );
-  if (source.status === "deleted" || source.content === null)
+  if (!source || source.content === null || source.status === "deleted")
     return (
-      <StatePanel
-        icon={<WarningAmberOutlinedIcon />}
-        title="Transcript content unavailable"
-        tone="warning"
-      >
-        <Typography>
-          The source artifact is not available for review. Do not infer content
-          from the draft.
-        </Typography>
-      </StatePanel>
+      <Alert severity="warning">
+        Source transcript is unavailable. Approval remains blocked.
+      </Alert>
     );
-  const sourceUnknown = ![
-    "ready",
-    "incomplete",
-    "pending_deletion",
-    "deleted",
-  ].includes(source.status);
   return (
-    <Paper
-      component="section"
-      variant="outlined"
-      sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}
-      aria-labelledby="scribe-transcript-heading"
+    <Stack spacing={1.5}>
+      <Box>
+        <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+          Source transcript
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Imported evidence for this revision. This is not generated content.
+        </Typography>
+      </Box>
+      {source.status !== "ready" && (
+        <Alert severity="warning">
+          Source status is {source.status.replaceAll("_", " ")}. Resolve it
+          before approval.
+        </Alert>
+      )}
+      <List disablePadding aria-label="Transcript source spans">
+        {source.segments.length ? (
+          source.segments.map((segment) => (
+            <ListItemButton
+              key={segment.id}
+              id={`scribe-source-segment-${segment.id}`}
+              selected={selectedSegmentId === segment.id}
+              onClick={() => onSelect(segment.id)}
+              sx={{ borderRadius: 1, alignItems: "flex-start", mb: 0.5 }}
+            >
+              <ListItemText
+                primary={`${speakerLabels[segment.speaker]} · ${formatTime(segment.start_ms)}`}
+                secondary={
+                  segment.content?.trim() || "Transcript text unavailable."
+                }
+                slotProps={{
+                  primary: {
+                    variant: "caption",
+                    color: "text.secondary",
+                    sx: { fontVariantNumeric: "tabular-nums" },
+                  },
+                  secondary: {
+                    color: "text.primary",
+                    sx: {
+                      mt: 0.25,
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "anywhere",
+                    },
+                  },
+                }}
+              />
+            </ListItemButton>
+          ))
+        ) : (
+          <Typography color="text.secondary" variant="body2">
+            No transcript spans are available.
+          </Typography>
+        )}
+      </List>
+    </Stack>
+  );
+}
+
+function ReviewDrawer({
+  open,
+  onClose,
+  encounter,
+  draft,
+  currentDraftId,
+  source,
+  selectedSegmentId,
+  onEvidenceSelect,
+  onSelectDraft,
+}: {
+  open: boolean;
+  onClose: () => void;
+  encounter: ScribeEncounter;
+  draft: ScribeDraft;
+  currentDraftId?: number;
+  source?: ScribeSource;
+  selectedSegmentId: number | null;
+  onEvidenceSelect: (id: number) => void;
+  onSelectDraft: (id: number) => void;
+}) {
+  return (
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      slotProps={{
+        paper: { sx: { width: { xs: "100%", sm: 440 }, maxWidth: "100%" } },
+      }}
     >
-      <Stack spacing={2}>
+      <Stack sx={{ height: "100%" }}>
         <Stack
           direction="row"
-          spacing={1}
-          sx={{ alignItems: "flex-start", justifyContent: "space-between" }}
+          sx={{
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            py: 2,
+          }}
         >
           <Box>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <ArticleOutlinedIcon color="primary" aria-hidden="true" />
-              <Typography
-                id="scribe-transcript-heading"
-                component="h2"
-                variant="h5"
-              >
-                Source transcript
-              </Typography>
-            </Stack>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 0.75 }}
-            >
-              Original imported text and timestamped evidence. This is not
-              generated content.
+            <Typography component="h2" variant="h6">
+              Sources, review and history
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Revision {draft.revision_number ?? draft.version} ·{" "}
+              {draft.status.replaceAll("_", " ")}
             </Typography>
           </Box>
-          <Chip
-            size="small"
-            label={
-              sourceUnknown
-                ? "Unknown source state"
-                : source.status === "ready"
-                  ? "Ready"
-                  : "Needs review"
-            }
-            sx={statusChipSx(
-              sourceUnknown || source.status !== "ready"
-                ? "attention"
-                : "neutral",
-            )}
-          />
+          <IconButton aria-label="Close sources and review" onClick={onClose}>
+            <CloseOutlinedIcon />
+          </IconButton>
         </Stack>
-        {sourceUnknown && (
-          <Alert severity="warning" icon={<ErrorOutlineOutlinedIcon />}>
-            The source returned an unknown state. Evidence linking is not
-            considered complete.
-          </Alert>
-        )}
-        {source.status === "incomplete" && (
-          <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
-            This transcript is incomplete. Missing intervals must be resolved
-            before approval.
-          </Alert>
-        )}
-        {source.status === "pending_deletion" && (
-          <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
-            This source is pending deletion and is not safe to treat as
-            available evidence.
-          </Alert>
-        )}
-        <Box
-          component="ol"
-          aria-label="Transcript source spans"
-          sx={{ m: 0, pl: { xs: 2.5, sm: 3 }, display: "grid", gap: 1.25 }}
-        >
-          {source.segments.length ? (
-            source.segments.map((segment) => (
-              <Box
-                component="li"
-                id={`scribe-source-segment-${segment.id}`}
-                key={segment.id}
-                sx={{
-                  pl: 1,
-                  scrollMarginTop: 16,
-                  ...(selectedSegmentId === segment.id
-                    ? {
-                        backgroundColor: "action.selected",
-                        outline: "2px solid",
-                        outlineColor: "primary.main",
-                        outlineOffset: 3,
-                      }
-                    : {}),
-                }}
+        <Divider />
+        <Box sx={{ p: 2.5, overflowY: "auto", minHeight: 0 }}>
+          <Stack spacing={3}>
+            <Box>
+              <Typography
+                component="h3"
+                variant="subtitle1"
+                gutterBottom
+                sx={{ fontWeight: 700 }}
               >
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={{ xs: 0.5, sm: 1.5 }}
-                >
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ minWidth: 124, fontVariantNumeric: "tabular-nums" }}
-                  >
-                    {speakerLabels[segment.speaker]} ·{" "}
-                    {formatTime(segment.start_ms)}
-                  </Typography>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ overflowWrap: "anywhere" }}>
-                      {segment.content?.trim() ||
-                        "Transcript text unavailable."}
-                    </Typography>
-                    {segment.quality_flags.length > 0 && (
-                      <Stack
-                        direction="row"
-                        spacing={0.75}
-                        useFlexGap
-                        sx={{ mt: 0.75, flexWrap: "wrap" }}
-                      >
-                        {segment.quality_flags.map((flag) => (
-                          <Chip
-                            key={flag}
-                            size="small"
-                            variant="outlined"
-                            label={`Quality flag: ${flag}`}
-                          />
-                        ))}
-                      </Stack>
-                    )}
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() => onSelect(segment.id)}
-                      aria-label={`Focus transcript span ${segment.sequence}`}
-                      sx={{ mt: 0.5, minHeight: 36, px: 0.5 }}
+                Revision history
+              </Typography>
+              <List disablePadding>
+                {encounter.drafts
+                  .filter(
+                    (revision) =>
+                      (revision.document_id ?? 0) === (draft.document_id ?? 0),
+                  )
+                  .map((revision) => (
+                    <ListItemButton
+                      key={revision.id}
+                      selected={revision.id === draft.id}
+                      onClick={() => onSelectDraft(revision.id)}
+                      sx={{ borderRadius: 1 }}
                     >
-                      Focus evidence
-                    </Button>
-                  </Box>
-                </Stack>
-              </Box>
-            ))
-          ) : (
-            <Typography component="li" color="text.secondary">
-              No transcript spans are available.
-            </Typography>
-          )}
+                      <ListItemText
+                        primary={`Revision ${revision.revision_number ?? revision.version}`}
+                        secondary={`${revision.status.replaceAll("_", " ")}${revision.id === currentDraftId ? " · current" : " · read only"}`}
+                        slotProps={{
+                          secondary: { sx: { textTransform: "capitalize" } },
+                        }}
+                      />
+                    </ListItemButton>
+                  ))}
+              </List>
+            </Box>
+            <Divider />
+            <SourceTranscript
+              source={source}
+              contextGrounded={hasContextInput(draft)}
+              selectedSegmentId={selectedSegmentId}
+              onSelect={onEvidenceSelect}
+            />
+            <Divider />
+            <Box>
+              <Typography
+                component="h3"
+                variant="subtitle1"
+                gutterBottom
+                sx={{ fontWeight: 700 }}
+              >
+                Review details
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 1.5, overflowWrap: "anywhere" }}
+              >
+                Generated draft provenance: {draft.provider} / {draft.model}{" "}
+                {draft.model_version}. Input digest {draft.input_digest}.
+              </Typography>
+              {draft.warnings.length > 0 && (
+                <Alert severity="warning" sx={{ mb: 1.5 }}>
+                  Draft review: {draft.warnings.map(warningLabel).join(" · ")}
+                </Alert>
+              )}
+              <Stack spacing={1.25}>
+                {draft.sections.map((section) => {
+                  const reasons = unresolvedReasons(section);
+                  return (
+                    <Box key={section.id}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {sectionLabels[section.section_key]}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {section.human_content !== null
+                          ? "Human-edited version"
+                          : "Generated draft"}{" "}
+                        · {section.status.replaceAll("_", " ")}
+                      </Typography>
+                      {reasons.length > 0 && (
+                        <Typography variant="body2" color="warning.main">
+                          Needs review: {reasons.join(" · ")}
+                        </Typography>
+                      )}
+                      {section.evidence_segment_ids.length > 0 && (
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          useFlexGap
+                          sx={{ mt: 0.5, flexWrap: "wrap" }}
+                        >
+                          {section.evidence_segment_ids.map((id) => {
+                            const segment = source?.segments.find(
+                              (item) => item.id === id,
+                            );
+                            return segment ? (
+                              <Button
+                                key={id}
+                                size="small"
+                                variant="text"
+                                aria-label={`Show source span ${segment.sequence} for ${sectionLabels[section.section_key]}`}
+                                aria-controls={`scribe-source-segment-${id}`}
+                                onClick={() => onEvidenceSelect(id)}
+                              >
+                                Span {segment.sequence}
+                              </Button>
+                            ) : (
+                              <Chip
+                                key={id}
+                                size="small"
+                                variant="outlined"
+                                label={`Span ${id} unavailable`}
+                              />
+                            );
+                          })}
+                        </Stack>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Box>
+          </Stack>
         </Box>
       </Stack>
-    </Paper>
+    </Drawer>
   );
 }
 
@@ -690,54 +552,87 @@ export function ScribeReviewWorkspace({
   onSectionChange,
   onEvidenceSelect,
   onSaveSection,
+  onSaveDraft,
+  onRestoreDraft,
   onAcceptSection,
   onRejectSection,
   pendingAction = null,
   onUnsavedEditsChange,
   discardEditsToken,
+  documentId,
+  followCurrentDraftId,
 }: ScribeReviewWorkspaceProps) {
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(
     null,
   );
+  const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const editContextRef = useRef<{
     encounterId: number;
+    draftId: number;
     baseline: Record<string, string>;
   } | null>(null);
   const discardTokenRef = useRef(discardEditsToken);
-
+  const consumedFollowRef = useRef<number | null>(null);
   const encounter = state.kind === "ready" ? state.encounter : undefined;
+  const latestDraft = useMemo(
+    () => (encounter ? currentDraft(encounter, documentId) : undefined),
+    [documentId, encounter],
+  );
   const draft = useMemo(
-    () => (encounter ? selectedDraft(encounter) : undefined),
-    [encounter],
+    () =>
+      encounter?.drafts.find(
+        (item) =>
+          item.id === selectedDraftId &&
+          draftBelongsToDocument(item, documentId),
+      ) ?? latestDraft,
+    [documentId, encounter, latestDraft, selectedDraftId],
   );
   const source = useMemo(
     () => (encounter ? sourceForDraft(encounter, draft) : undefined),
     [encounter, draft],
   );
-  const reviewSummary = reviewStateSummary(draft, source);
-  const hasUnsavedEdits = draft
-    ? hasUnsavedDraftEdits(draft, edits)
-    : Object.entries(edits).some(
-        ([key, value]) =>
-          value !== (editContextRef.current?.baseline[key] ?? ""),
-      );
-  const staleDraft = Boolean(
-    draft && ["superseded", "deleted"].includes(draft.status),
+  const isCurrentRevision = Boolean(
+    draft &&
+    latestDraft &&
+    draft.id === latestDraft.id &&
+    draft.current !== false &&
+    currentDraftStatuses.has(draft.status),
   );
+  const isFreshCurrentRevision = isCurrentRevision && !draft?.stale;
+  const reviewSummary = reviewStateSummary(draft, source);
+  const hasUnsavedEdits = draft ? hasUnsavedDraftEdits(draft, edits) : false;
 
   useEffect(() => {
-    if (!encounter || !draft) return;
-    const serverEdits = Object.fromEntries(
-      draft.sections.map((section) => [
-        section.section_key,
-        section.human_content ?? "",
-      ]),
+    if (!encounter) return;
+    const pendingFollow =
+      followCurrentDraftId != null &&
+      consumedFollowRef.current !== followCurrentDraftId
+        ? followCurrentDraftId
+        : null;
+    const nextId = reconciledSelectedDraftId(
+      encounter,
+      documentId,
+      selectedDraftId,
+      pendingFollow,
     );
+    if (pendingFollow != null && nextId === pendingFollow)
+      consumedFollowRef.current = pendingFollow;
+    if (nextId !== selectedDraftId) setSelectedDraftId(nextId);
+  }, [documentId, encounter, followCurrentDraftId, selectedDraftId]);
+  useEffect(() => {
+    if (!encounter || !draft) return;
+    const serverEdits = baselineForDraft(draft);
     const previous = editContextRef.current;
     setSelectedSegmentId(null);
     setEdits((current) => {
-      if (!previous || previous.encounterId !== encounter.id) return serverEdits;
+      if (
+        !previous ||
+        previous.encounterId !== encounter.id ||
+        previous.draftId !== draft.id
+      )
+        return serverEdits;
       return Object.fromEntries(
         draft.sections.map((section) => {
           const key = section.section_key;
@@ -747,30 +642,42 @@ export function ScribeReviewWorkspace({
         }),
       );
     });
-    editContextRef.current = { encounterId: encounter.id, baseline: serverEdits };
+    editContextRef.current = {
+      encounterId: encounter.id,
+      draftId: draft.id,
+      baseline: serverEdits,
+    };
   }, [encounter?.id, draft?.id, draft?.version]);
-
   useEffect(() => {
     if (discardTokenRef.current === discardEditsToken) return;
     discardTokenRef.current = discardEditsToken;
     setEdits({ ...(editContextRef.current?.baseline ?? {}) });
   }, [discardEditsToken]);
-
   useEffect(() => {
     onUnsavedEditsChange?.(hasUnsavedEdits);
   }, [hasUnsavedEdits, onUnsavedEditsChange]);
-
   useEffect(() => {
     if (!hasUnsavedEdits || typeof window === "undefined") return;
-    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+    const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
-    window.addEventListener("beforeunload", warnBeforeLeaving);
-    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
   }, [hasUnsavedEdits]);
 
-  if (state.kind === "loading") return <LoadingState message={state.message} />;
+  if (state.kind === "loading")
+    return (
+      <Stack spacing={2} role="status" aria-live="polite" sx={{ p: 3 }}>
+        <Typography component="h2" variant="h6">
+          Loading scribe review
+        </Typography>
+        <Typography color="text.secondary">
+          {state.message ?? "Loading the current note…"}
+        </Typography>
+        <Skeleton variant="rounded" height={320} />
+      </Stack>
+    );
   if (state.kind === "error")
     return (
       <Stack spacing={1.5}>
@@ -786,14 +693,13 @@ export function ScribeReviewWorkspace({
             variant="outlined"
             startIcon={<RefreshOutlinedIcon />}
             onClick={onRetry}
-            sx={{ alignSelf: "flex-start" }}
+            sx={{ alignSelf: "flex-start", ml: 3 }}
           >
             Retry loading review
           </Button>
         )}
       </Stack>
     );
-  if (state.kind === "empty") return <EmptyState message={state.message} />;
   if (state.kind === "unknown")
     return (
       <StatePanel
@@ -807,410 +713,490 @@ export function ScribeReviewWorkspace({
         </Typography>
       </StatePanel>
     );
-  if (!encounter)
-    return <EmptyState message="The review encounter is unavailable." />;
+  if (state.kind === "empty" || !encounter || !draft)
+    return (
+      <Box
+        sx={{
+          minHeight: 440,
+          display: "grid",
+          placeItems: "center",
+          px: 3,
+          textAlign: "center",
+        }}
+      >
+        <Box sx={{ maxWidth: 440 }}>
+          <ArticleOutlinedIcon color="action" sx={{ fontSize: 38, mb: 1 }} />
+          <Typography component="h2" variant="h5" gutterBottom>
+            Ready when you are
+          </Typography>
+          <Typography color="text.secondary">
+            {state.kind === "empty"
+              ? (state.message ??
+                "Add context or import a transcript to begin a note.")
+              : "Add context or import a transcript to begin a note."}
+          </Typography>
+        </Box>
+      </Box>
+    );
 
-  const encounterUnknown = !encounterStatusLabels[encounter.status];
   const approved = reviewSummary.approved;
   const approvalBlocked =
     reviewSummary.unresolved ||
-    encounterUnknown ||
     hasUnsavedEdits ||
+    !isFreshCurrentRevision ||
     !onApprove;
   const exportBlocked =
     !approved ||
     reviewSummary.unresolved ||
     reviewSummary.exported ||
     hasUnsavedEdits ||
+    !isFreshCurrentRevision ||
     !onExport;
-  const actionStatus = hasUnsavedEdits
-    ? "Unsaved reviewer edits are not part of the server revision. Save or discard them before requesting approval or export."
-    : staleDraft
-      ? "This draft revision is no longer current. Reload the current draft before reviewing or exporting."
-      : reviewSummary.unresolved &&
-          (!source || source.status !== "ready" || source.content === null)
-        ? "The source transcript is unavailable or not ready. Approval and export are blocked until reviewable evidence is available."
-        : reviewSummary.exported
-          ? "Export recorded for this approved revision."
-          : approved
-            ? "Approved revision is eligible for a separate export request."
-            : reviewSummary.unresolved
-              ? "Resolve every warning and section before requesting approval."
-              : "Review complete. Approval is still a separate explicit action.";
+  const unresolvedCount =
+    draft.sections.filter((section) => unresolvedReasons(section).length > 0)
+      .length + draft.warnings.length;
+  const saveState = pendingAction?.startsWith("review:")
+    ? "Saving…"
+    : hasUnsavedEdits
+      ? "Unsaved changes"
+      : draft.stale
+        ? "Grounding changed"
+        : "All changes saved";
+  const selectEvidence = (id: number) => {
+    setSelectedSegmentId(id);
+    setDrawerOpen(true);
+    onEvidenceSelect?.(id);
+  };
 
   return (
     <Box
       component="main"
-      aria-labelledby="scribe-review-heading"
+      aria-label="SOAP note editor"
       sx={{
-        maxWidth: 1440,
-        mx: "auto",
-        p: { xs: 2, sm: 3, lg: 4 },
         minWidth: 0,
+        height: "100%",
+        backgroundColor: "action.hover",
+        overflowY: "auto",
+        p: { xs: 1.5, sm: 2.5 },
       }}
     >
-      <Stack spacing={{ xs: 2, lg: 3 }}>
-        <Paper
-          component="header"
-          variant="outlined"
-          sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
+      <Paper
+        component="article"
+        variant="outlined"
+        sx={{
+          maxWidth: 920,
+          minHeight: "calc(100% - 8px)",
+          mx: "auto",
+          borderRadius: 1.5,
+          overflow: "hidden",
+          boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{
+            alignItems: { xs: "stretch", sm: "center" },
+            justifyContent: "space-between",
+            px: { xs: 2, sm: 3 },
+            py: 1.25,
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
         >
-          <Stack spacing={2}>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              sx={{
-                justifyContent: "space-between",
-                alignItems: { xs: "flex-start", md: "center" },
-              }}
-            >
-              <Box sx={{ minWidth: 0 }}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ mb: 0.75, alignItems: "center" }}
-                >
-                  <AutoAwesomeOutlinedIcon color="primary" aria-hidden="true" />
-                  <Typography
-                    id="scribe-review-heading"
-                    component="h1"
-                    variant="h4"
-                    sx={{ overflowWrap: "anywhere" }}
-                  >
-                    Documentation review
-                  </Typography>
-                </Stack>
-                <Typography color="text.secondary">
-                  Compare source evidence with a human-reviewed documentation
-                  draft before any export request.
-                </Typography>
-              </Box>
-              <Chip
-                label={
-                  encounterUnknown
-                    ? "Unknown encounter state"
-                    : encounterStatusLabels[encounter.status]
-                }
-                icon={
-                  encounterUnknown ? (
-                    <ErrorOutlineOutlinedIcon aria-hidden="true" />
-                  ) : undefined
-                }
-                sx={statusChipSx(
-                  encounterUnknown
-                    ? "attention"
-                    : approved
-                      ? "success"
-                      : "neutral",
-                )}
-              />
-            </Stack>
-            <Divider />
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={{ xs: 0.75, sm: 2 }}
-              useFlexGap
-              sx={{ flexWrap: "wrap" }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Encounter reference {encounter.id}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Revision {draft?.version ?? "not available"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Consent {encounter.consent_status}
-              </Typography>
-            </Stack>
-            <Alert severity="info" icon={<ArticleOutlinedIcon />}>
-              Source text, generated draft text, human edits, and approved
-              content remain separate states. This workspace does not write an
-              official record.
-            </Alert>
-          </Stack>
-        </Paper>
-
-        {encounterUnknown && (
-          <Alert
-            severity="warning"
-            icon={<ErrorOutlineOutlinedIcon />}
-            role="alert"
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ alignItems: "center", flexWrap: "wrap" }}
           >
-            The encounter returned an unknown state. Review actions are blocked
-            until the server contract is understood.
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              SOAP note
+            </Typography>
+            <Chip
+              size="small"
+              label={`Revision ${draft.revision_number ?? draft.version}`}
+            />
+            {!isCurrentRevision && (
+              <Chip
+                size="small"
+                color="warning"
+                variant="outlined"
+                label="Read-only history"
+              />
+            )}
+            <Typography
+              variant="caption"
+              color={hasUnsavedEdits ? "warning.main" : "text.secondary"}
+              aria-live="polite"
+            >
+              {saveState}
+            </Typography>
+            {onSaveDraft && (
+              <Button
+                size="small"
+                variant={hasUnsavedEdits || draft.stale ? "contained" : "text"}
+                startIcon={<SaveOutlinedIcon />}
+                disabled={
+                  !isCurrentRevision ||
+                  pendingAction !== null ||
+                  (!hasUnsavedEdits && !draft.stale)
+                }
+                onClick={() =>
+                  void Promise.resolve(
+                    onSaveDraft(
+                      draft.id,
+                      Object.fromEntries(
+                        draft.sections.map((section) => [
+                          section.section_key,
+                          edits[section.section_key] ??
+                            section.effective_content ??
+                            "",
+                        ]),
+                      ) as Record<ScribeDraftSection["section_key"], string>,
+                    ),
+                  ).catch(() => undefined)
+                }
+              >
+                {draft.stale ? "Save fresh revision" : "Save changes"}
+              </Button>
+            )}
+            {!isCurrentRevision && onRestoreDraft && (
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={pendingAction !== null}
+                onClick={() =>
+                  void Promise.resolve(onRestoreDraft(draft.id)).catch(
+                    () => undefined,
+                  )
+                }
+              >
+                Restore as current
+              </Button>
+            )}
+          </Stack>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+            <Tooltip title="Revision history">
+              <IconButton
+                aria-label="Open revision history"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <HistoryOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<FactCheckOutlinedIcon />}
+              onClick={() => setDrawerOpen(true)}
+            >
+              Review{unresolvedCount > 0 ? ` (${unresolvedCount})` : ""}
+            </Button>
+          </Stack>
+        </Stack>
+        {!isCurrentRevision && (
+          <Alert severity="warning" square>
+            This historical revision is read only and cannot be approved or
+            exported.
           </Alert>
         )}
-
-        {!draft ? (
-          <EmptyState message="A transcript may be present, but no draft version is available for review." />
-        ) : (
-          <>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  lg: "minmax(0, 0.9fr) minmax(0, 1.1fr)",
-                },
-                gap: { xs: 2, lg: 3 },
-                alignItems: "start",
-                minWidth: 0,
-              }}
-            >
-              <TranscriptPanel
-                source={source}
-                selectedSegmentId={selectedSegmentId}
-                onSelect={(segmentId) => {
-                  setSelectedSegmentId(segmentId);
-                  onEvidenceSelect?.(segmentId);
-                }}
-              />
-              <Paper
-                component="section"
-                variant="outlined"
-                sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}
-                aria-labelledby="scribe-draft-heading"
-              >
-                <Stack spacing={2}>
+        {isCurrentRevision && draft.stale && (
+          <Alert severity="warning" square>
+            The grounding inputs changed after this revision. Save the note to
+            create a fresh review revision before approval or export.
+          </Alert>
+        )}
+        <Box
+          sx={{
+            px: { xs: 2.5, sm: 4, md: 5 },
+            py: { xs: 2.5, sm: 3 },
+            maxWidth: "75ch",
+            mx: "auto",
+          }}
+        >
+          <Stack spacing={2.75}>
+            {draft.sections.map((section) => {
+              const value =
+                edits[section.section_key] ?? section.effective_content ?? "";
+              const isDirty = value !== (section.effective_content ?? "");
+              const reasons = unresolvedReasons(section);
+              return (
+                <Box
+                  component="section"
+                  key={section.id}
+                  aria-labelledby={`scribe-section-${section.id}`}
+                >
                   <Stack
                     direction={{ xs: "column", sm: "row" }}
                     spacing={1}
                     sx={{
                       justifyContent: "space-between",
                       alignItems: { xs: "flex-start", sm: "center" },
+                      mb: 0.5,
                     }}
                   >
-                    <Box>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{ alignItems: "center" }}
-                      >
-                        <EditNoteOutlinedIcon
-                          color="primary"
-                          aria-hidden="true"
-                        />
-                        <Typography
-                          id="scribe-draft-heading"
-                          component="h2"
-                          variant="h5"
-                        >
-                          Current draft
-                        </Typography>
-                      </Stack>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mt: 0.75 }}
-                      >
-                        Generated sections stay visible beside reviewer edits
-                        and evidence links.
-                      </Typography>
-                    </Box>
-                    <Chip
-                      size="small"
-                      label={
-                        knownDraftStatuses.has(draft.status)
-                          ? draft.status.replace("_", " ")
-                          : "Unknown draft state"
-                      }
-                      sx={statusChipSx(
-                        !knownDraftStatuses.has(draft.status) ||
-                          reviewSummary.unresolved
-                          ? "attention"
-                          : approved
-                            ? "success"
-                            : "neutral",
-                      )}
-                    />
-                  </Stack>
-                  <Box sx={{ display: "grid", gap: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Template {draft.template_id} v{draft.template_version} ·
-                      Model provenance {draft.provider} / {draft.model}{" "}
-                      {draft.model_version}
-                    </Typography>
                     <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ overflowWrap: "anywhere" }}
+                      id={`scribe-section-${section.id}`}
+                      component="h2"
+                      variant="h6"
+                      sx={{ fontWeight: 700 }}
                     >
-                      Input digest {draft.input_digest}
+                      {sectionLabels[section.section_key]}
                     </Typography>
-                  </Box>
-                  {draft.warnings.length > 0 && (
-                    <Alert
-                      severity="warning"
-                      icon={<WarningAmberOutlinedIcon />}
+                    <Stack direction="row" spacing={0.5}>
+                      {onAcceptSection && (
+                        <Button
+                          size="small"
+                          variant="text"
+                          disabled={
+                            !isCurrentRevision ||
+                            pendingAction !== null ||
+                            sectionAcceptBlocked(section, {
+                              dirty: isDirty,
+                              stale: Boolean(draft.stale),
+                            })
+                          }
+                          onClick={() =>
+                            void Promise.resolve(
+                              onAcceptSection(draft.id, section.section_key),
+                            ).catch(() => undefined)
+                          }
+                        >
+                          Accept
+                        </Button>
+                      )}
+                      {onRejectSection && (
+                        <Button
+                          size="small"
+                          color="warning"
+                          variant="text"
+                          disabled={
+                            !isCurrentRevision ||
+                            Boolean(draft.stale) ||
+                            pendingAction !== null ||
+                            isDirty
+                          }
+                          onClick={() =>
+                            void Promise.resolve(
+                              onRejectSection(draft.id, section.section_key),
+                            ).catch(() => undefined)
+                          }
+                        >
+                          Reject
+                        </Button>
+                      )}
+                    </Stack>
+                  </Stack>
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={2}
+                    value={value}
+                    disabled={
+                      !isCurrentRevision ||
+                      pendingAction !== null ||
+                      (!onSaveDraft && !onSaveSection)
+                    }
+                    placeholder={`Add ${sectionLabels[section.section_key].toLowerCase()} documentation`}
+                    onChange={(event) => {
+                      const content = event.target.value;
+                      setEdits((current) => ({
+                        ...current,
+                        [section.section_key]: content,
+                      }));
+                      onSectionChange?.(section.section_key, content);
+                    }}
+                    slotProps={{
+                      input: {
+                        "aria-label": `${sectionLabels[section.section_key]} human-edited version`,
+                      },
+                    }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        alignItems: "flex-start",
+                        backgroundColor: "background.paper",
+                        borderRadius: 0,
+                        transition:
+                          "background-color 120ms ease, box-shadow 120ms ease",
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "transparent",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "divider",
+                        },
+                        "&.Mui-focused": {
+                          backgroundColor: "action.hover",
+                          boxShadow: "inset 0 0 0 1px var(--clinic-accent)",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "transparent",
+                        },
+                      },
+                      "& textarea": {
+                        lineHeight: 1.7,
+                        overflowWrap: "anywhere",
+                      },
+                    }}
+                  />
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    sx={{
+                      alignItems: { xs: "flex-start", sm: "center" },
+                      mt: 1,
+                    }}
+                  >
+                    {onSaveSection && (
+                      <Button
+                        size="small"
+                        variant={isDirty ? "contained" : "text"}
+                        startIcon={<SaveOutlinedIcon />}
+                        disabled={
+                          !isCurrentRevision ||
+                          pendingAction !== null ||
+                          !isDirty ||
+                          !value.trim()
+                        }
+                        onClick={() =>
+                          void Promise.resolve(
+                            onSaveSection(draft.id, section.section_key, value),
+                          ).catch(() => undefined)
+                        }
+                      >
+                        Save section
+                      </Button>
+                    )}
+                    <Typography
+                      variant="caption"
+                      color={reasons.length ? "warning.main" : "text.secondary"}
                     >
-                      Draft warnings require reviewer attention:{" "}
-                      {draft.warnings.join(" · ")}
-                    </Alert>
-                  )}
-                  <Stack spacing={1.5}>
-                    {draft.sections.length ? (
-                      draft.sections.map((section) => (
-                        <DraftSectionCard
-                          key={section.id}
-                          draftId={draft.id}
-                          section={section}
-                          segments={source?.segments ?? []}
-                          editValue={edits[section.section_key] ?? ""}
-                          selectedSegmentId={selectedSegmentId}
-                          onEdit={(event) => {
-                            const content = event.target.value;
-                            setEdits((current) => ({
-                              ...current,
-                              [section.section_key]: content,
-                            }));
-                            onSectionChange?.(section.section_key, content);
-                          }}
-                          onEvidenceSelect={(segmentId) => {
-                            setSelectedSegmentId(segmentId);
-                            onEvidenceSelect?.(segmentId);
-                          }}
-                          onSave={onSaveSection}
-                          onAccept={onAcceptSection}
-                          onReject={onRejectSection}
-                          pendingAction={pendingAction}
-                        />
-                      ))
-                    ) : (
-                      <EmptyState message="This draft has no sections. Approval is blocked." />
+                      {reasons.length
+                        ? `Needs review: ${reasons.join(" · ")}`
+                        : section.human_content !== null
+                          ? "Human-edited"
+                          : "Generated draft"}
+                    </Typography>
+                    {section.evidence_segment_ids.length > 0 && (
+                      <Button
+                        size="small"
+                        variant="text"
+                        aria-label={`Show source span 1 for ${sectionLabels[section.section_key]}`}
+                        aria-controls={`scribe-source-segment-${section.evidence_segment_ids[0]}`}
+                        onClick={() =>
+                          selectEvidence(section.evidence_segment_ids[0])
+                        }
+                      >
+                        {section.evidence_segment_ids.length} source{" "}
+                        {section.evidence_segment_ids.length === 1
+                          ? "span"
+                          : "spans"}
+                      </Button>
                     )}
                   </Stack>
-                </Stack>
-              </Paper>
-            </Box>
-
-            <Paper
-              component="section"
-              variant="outlined"
-              sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}
-              aria-labelledby="scribe-approval-heading"
-            >
-              <Stack spacing={2}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: "center" }}
-                >
-                  <CheckCircleOutlineOutlinedIcon
-                    color={approved ? "success" : "action"}
-                    aria-hidden="true"
-                  />
-                  <Typography
-                    id="scribe-approval-heading"
-                    component="h2"
-                    variant="h5"
-                  >
-                    Approval and export
-                  </Typography>
-                </Stack>
-                <Typography color="text.secondary">
-                  Approval marks this exact draft revision as reviewer-approved.
-                  Export is a separate request to the parent-record adapter.
-                </Typography>
-                {hasUnsavedEdits && (
-                  <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
-                    <Stack spacing={1}>
-                      <Typography>
-                        Unsaved reviewer edits are visible only in this review
-                        session. Save them through the server-authorized integration
-                        or discard them before leaving; approval and export remain
-                        blocked.
-                      </Typography>
-                      <Button
-                        color="warning"
-                        variant="outlined"
-                        disabled={pendingAction !== null}
-                        onClick={() => {
-                          const baseline = editContextRef.current?.baseline ?? {};
-                          setEdits({ ...baseline });
-                        }}
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        Discard unsaved edits
-                      </Button>
-                    </Stack>
-                  </Alert>
-                )}
-                <Box
-                  role="status"
-                  aria-live="polite"
-                  sx={{ color: "text.secondary" }}
-                >
-                  {actionStatus}
                 </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={
-                    reviewSummary.exported
-                      ? 100
-                      : approved
-                        ? 75
-                        : reviewSummary.unresolved
-                          ? 25
-                          : 50
+              );
+            })}
+          </Stack>
+        </Box>
+        <Divider />
+        <Stack
+          component="section"
+          aria-labelledby="scribe-approval-heading"
+          spacing={1.5}
+          sx={{ px: { xs: 2, sm: 3 }, py: 2 }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { xs: "stretch", md: "center" },
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                id="scribe-approval-heading"
+                component="h2"
+                variant="subtitle1"
+                sx={{ fontWeight: 700 }}
+              >
+                Approval and export
+              </Typography>
+              <Typography
+                id="scribe-approval-help"
+                variant="body2"
+                color="text.secondary"
+                role="status"
+                aria-live="polite"
+              >
+                {hasUnsavedEdits
+                  ? "Save or discard edits before approval."
+                  : unresolvedCount > 0
+                    ? `Resolve ${unresolvedCount} review ${unresolvedCount === 1 ? "item" : "items"} before approval.`
+                    : approved
+                      ? "This exact revision is approved."
+                      : "Review complete. Approval remains a separate action."}
+              </Typography>
+              <Typography
+                id="scribe-export-help"
+                variant="caption"
+                color="text.secondary"
+              >
+                Export control is shown separately and does not write an
+                official record until explicitly confirmed.
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              {hasUnsavedEdits && (
+                <Button
+                  color="warning"
+                  variant="text"
+                  disabled={pendingAction !== null}
+                  onClick={() =>
+                    setEdits({ ...(editContextRef.current?.baseline ?? {}) })
                   }
-                  aria-label="Review lifecycle progress"
-                  sx={{ height: 6, borderRadius: 1 }}
-                />
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1.5}
-                  sx={{ alignItems: { xs: "stretch", sm: "center" } }}
                 >
-                  <Button
-                    variant="contained"
-                    startIcon={<CheckCircleOutlineOutlinedIcon />}
-                    disabled={approvalBlocked || approved || pendingAction !== null}
-                    onClick={() => draft && onApprove?.(draft.id)}
-                    aria-describedby="scribe-approval-help"
-                  >
-                    {approved ? "Draft approved" : "Approve current draft"}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FileDownloadOutlinedIcon />}
-                    disabled={exportBlocked || pendingAction !== null}
-                    onClick={() => draft && onExport?.(draft.id)}
-                    aria-describedby="scribe-export-help"
-                  >
-                    {reviewSummary.exported
-                      ? "Export recorded"
-                      : "Request separate export"}
-                  </Button>
-                </Stack>
-                <Stack spacing={0.5}>
-                  <Typography
-                    id="scribe-approval-help"
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    {hasUnsavedEdits
-                      ? "Approval remains blocked while reviewer edits are unsaved."
-                      : onApprove
-                        ? "Approval remains blocked while any section, source, or draft revision is unresolved."
-                        : "Approval control is shown for the eventual integration; no save handler is connected in this isolated slice."}
-                  </Typography>
-                  <Typography
-                    id="scribe-export-help"
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    {hasUnsavedEdits
-                      ? "Export remains blocked until reviewer edits are saved or discarded; it never exports local-only text."
-                      : onExport
-                        ? "Export is enabled only for an approved current revision with reviewable source evidence and is never implied by approval."
-                        : "Export control is shown separately; no export handler is connected in this isolated slice."}
-                  </Typography>
-                </Stack>
-              </Stack>
-            </Paper>
-          </>
-        )}
-      </Stack>
+                  Discard unsaved edits
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                startIcon={<CheckCircleOutlineOutlinedIcon />}
+                disabled={approvalBlocked || approved || pendingAction !== null}
+                onClick={() => onApprove?.(draft.id)}
+                aria-describedby="scribe-approval-help"
+              >
+                {approved ? "Draft approved" : "Approve current draft"}
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<FileDownloadOutlinedIcon />}
+                disabled={exportBlocked || pendingAction !== null}
+                onClick={() => onExport?.(draft.id)}
+                aria-describedby="scribe-export-help"
+              >
+                {reviewSummary.exported
+                  ? "Export recorded"
+                  : "Request separate export"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Stack>
+      </Paper>
+      <ReviewDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        encounter={encounter}
+        draft={draft}
+        currentDraftId={latestDraft?.id}
+        source={source}
+        selectedSegmentId={selectedSegmentId}
+        onEvidenceSelect={selectEvidence}
+        onSelectDraft={(id) => {
+          if (!hasUnsavedEdits) setSelectedDraftId(id);
+        }}
+      />
     </Box>
   );
 }

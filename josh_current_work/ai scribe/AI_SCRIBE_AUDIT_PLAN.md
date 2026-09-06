@@ -1,5 +1,7 @@
 # AI Scribe Audit Plan
 
+Execution evidence: [September 6 implementation verification](IMPLEMENTATION_VERIFICATION_2026_09_06.md). The acceptance matrix below remains a target; provider-dependent rows and the failed full-project checks are not marked complete by local component results.
+
 ## Reference-led workspace acceptance — 2026-09-06
 
 Future checks for the [workspace build sequence](AI_SCRIBE_BUILD_PLAN.md#reference-led-workspace-redesign--2026-09-06), not test results. The plan was source-reconciled at `9355021`; no app tests or live browser checks ran in this planning task. Existing dated evidence remains historical.

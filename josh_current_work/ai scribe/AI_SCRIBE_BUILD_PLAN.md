@@ -1,5 +1,9 @@
 # AI Scribe Build Plan
 
+Execution update: the founder authorized implementation after this plan. See [September 6 implementation and verification evidence](IMPLEMENTATION_VERIFICATION_2026_09_06.md) for the delivered local workflows and the outstanding provider-dependent work.
+
+Interaction refinement: recording stays with the clinician during clinic navigation in a compact persistent control bar that expands for typed visit context. Patient identity, recording state, pause and Finish & review stay visible. Finish saves context and audio before returning to the exact encounter in Scribe; microphone capture does not silently survive a full page reload or account/site change. This replaces the initial page-bound capture strip while retaining the reference-led note workspace.
+
 ## Reference-led workspace redesign — 2026-09-06
 
 Planning deliverable [sc-396](https://app.shortcut.com/apply-1/story/396). Source inspected at `9355021` in `C:\Users\joshr\Desktop\Work\APPly`; this section is the current bounded build sequence. The broader original proposal below remains background, not evidence that its proposed paths exist. Dated implementation/audit files retain their historical meaning; the September 6 source already has the live route they previously described as missing. No application code or runtime tests were changed or run for this plan.
