@@ -16,6 +16,8 @@ This index connects the capability roadmaps. Each capability has a roadmap, an i
 
 Use [EXECUTION_MATRIX.md](EXECUTION_MATRIX.md) for the current three-lane work-in-progress limit, shared-file ownership, capability dependencies, execution waves, and the exact next bounded actions. Shortcut remains authoritative for active task claims and status; the matrix is the repository-side sequencing and handoff contract.
 
+For the deliberate implementation-only pass requested on 2026-09-06, use [AGENT_BUILD_FIRST_PLAN.md](AGENT_BUILD_FIRST_PLAN.md). It supersedes the matrix's test-and-evidence cadence only for that pass: the goal is complete feature implementation with bounded agent ownership, then a separate stabilization and evidence pass.
+
 ## Shared integration rules
 
 - The host application remains authoritative for identity, tenant/practice/site scope, patient and appointment master data, permissions, CSRF/session security, official-record persistence, and organization-wide audit infrastructure.
