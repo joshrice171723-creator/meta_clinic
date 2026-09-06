@@ -29,15 +29,18 @@ module Clinic
           result[:outbox][outcome] += 1
         end
 
-        requests = overdue_requests(practice: practice, conversation: conversation, now: now, limit: request_limit)
-        result[:overdue_requests][:considered] = requests.length
-        if target_membership_id.blank?
-          result[:overdue_requests][:blocked] = requests.length
-          return result
+        target = if target_membership_id.present?
+          active_conversation_member(conversation: conversation, membership_id: target_membership_id)
         end
-
-        target = active_conversation_member(conversation: conversation, membership_id: target_membership_id)
-        unless target
+        requests = overdue_requests(
+          practice: practice,
+          conversation: conversation,
+          target_membership_id: target&.membership_id,
+          now: now,
+          limit: request_limit
+        )
+        result[:overdue_requests][:considered] = requests.length
+        if target_membership_id.blank? || !target
           result[:overdue_requests][:blocked] = requests.length
           return result
         end
@@ -45,13 +48,6 @@ module Clinic
         requests.each do |request|
           if target.membership_id.in?([ actor_member.id, request.assignee_membership_id ])
             result[:overdue_requests][:blocked] += 1
-            next
-          end
-          if request.escalations.exists?(
-            trigger: EscalateStaffRequest::OVERDUE_TRIGGER,
-            target_membership_id: target.membership_id
-          )
-            result[:overdue_requests][:skipped] += 1
             next
           end
 
@@ -216,12 +212,27 @@ module Clinic
       end
       private_class_method :outbox_ids
 
-      def self.overdue_requests(practice:, conversation:, now:, limit:)
-        Clinic::StaffMessageRequest.joins(:message)
+      def self.overdue_requests(practice:, conversation:, target_membership_id:, now:, limit:)
+        requests = Clinic::StaffMessageRequest.joins(:message)
           .where(practice_id: practice.id)
           .where(clinic_staff_messages: { conversation_id: conversation.id })
           .where.not(state: TERMINAL_REQUEST_STATES)
           .where("clinic_staff_message_requests.due_at <= ?", now)
+          .where(<<~SQL.squish, EscalateStaffRequest::MAX_LEVEL)
+            (SELECT COUNT(*) FROM clinic_staff_message_escalations
+              WHERE clinic_staff_message_escalations.practice_id = clinic_staff_message_requests.practice_id
+                AND clinic_staff_message_escalations.request_id = clinic_staff_message_requests.id) < ?
+          SQL
+        if target_membership_id
+          previously_recovered = Clinic::StaffMessageEscalation.where(
+            practice_id: practice.id,
+            trigger: EscalateStaffRequest::OVERDUE_TRIGGER,
+            target_membership_id: target_membership_id
+          ).select(:request_id)
+          requests = requests.where.not(id: previously_recovered)
+        end
+
+        requests
           .order("clinic_staff_message_requests.due_at ASC", "clinic_staff_message_requests.id ASC")
           .limit(limit).to_a
       end
