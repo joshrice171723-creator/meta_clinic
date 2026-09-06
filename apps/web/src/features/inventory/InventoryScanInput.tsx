@@ -89,7 +89,10 @@ export function InventoryScanInput({
       )
         return;
       setResult(payload.data);
-      if (payload.data.status === "matched" && payload.data.matches.length === 1) {
+      if (
+        payload.data.status === "matched" &&
+        payload.data.matches.length === 1
+      ) {
         const match = payload.data.matches[0];
         if (!productId || match.product_id === productId) {
           currentOnMatch.current(match);
@@ -105,7 +108,8 @@ export function InventoryScanInput({
       }
     } catch (reason) {
       if (version !== requestVersion.current) return;
-      if (reason instanceof DOMException && reason.name === "AbortError") return;
+      if (reason instanceof DOMException && reason.name === "AbortError")
+        return;
       setError(
         reason instanceof Error
           ? reason.message
@@ -140,9 +144,7 @@ export function InventoryScanInput({
 
   return (
     <div className="inventory-stack compact">
-      <div
-        className="inventory-toolbar"
-      >
+      <div className="inventory-toolbar">
         <TextField
           size="small"
           label={label}
@@ -180,7 +182,11 @@ export function InventoryScanInput({
         Scanner input checks exact catalog identifiers. It does not enter a
         quantity, lot number, expiration date, or post inventory.
       </p>
-      {error && <Alert severity="error">{error} {manualFallback}</Alert>}
+      {error && (
+        <Alert severity="error">
+          {error} {manualFallback}
+        </Alert>
+      )}
       {result?.status === "matched" && result.matches[0] && (
         <Alert severity="success">
           {result.message ?? `Matched ${result.matches[0].product_name}.`} No
@@ -189,9 +195,9 @@ export function InventoryScanInput({
       )}
       {(result?.status === "ambiguous" || result?.status === "too_many") && (
         <Alert severity="warning">
-          {result.message ?? "This code matches more than one catalog item."} Choose
-          the intended result below when selection is available. No inventory
-          action was posted. {manualFallback}
+          {result.message ?? "This code matches more than one catalog item."}{" "}
+          Choose the intended result below when selection is available. No
+          inventory action was posted. {manualFallback}
         </Alert>
       )}
       {result?.status === "unmatched" && (
@@ -203,69 +209,76 @@ export function InventoryScanInput({
       {result &&
         (result.status === "ambiguous" || result.status === "too_many") &&
         result.matches.length > 0 && (
-        <div className="inventory-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Matched product</th>
-                <th>Identifier</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.matches.map((match) => (
-                <tr key={`${match.product_id}:${match.line_id ?? "product"}`}>
-                  <td>
-                    {match.product_name}
-                    {match.lot_number && (
-                      <small>
-                        Lot {match.lot_number}
-                        {match.expires_on ? ` · expires ${match.expires_on}` : ""}
-                        {match.location_name ? ` · ${match.location_name}` : ""}
-                      </small>
-                    )}
-                  </td>
-                  <td>
-                    {match.matched_fields.map((field) => (
-                      <Chip
-                        key={field}
-                        size="small"
-                        label={field.replaceAll("_", " ").toUpperCase()}
-                      />
-                    ))}
-                  </td>
-                  <td>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={
-                        disabled ||
-                        loading ||
-                        result.status === "too_many" ||
-                        (context === "count" &&
-                          (!match.line_id || !match.line_page)) ||
-                        Boolean(productId && match.product_id !== productId)
-                      }
-                      onClick={() => choose(match)}
-                    >
-                      {result.status === "too_many"
-                        ? "Resolve identifiers"
-                        : context === "count" &&
-                            (!match.line_id || !match.line_page)
-                          ? "Select line manually"
-                        : productId && match.product_id !== productId
-                        ? "Different product"
-                        : "Select match"}
-                    </Button>
-                  </td>
+          <div className="inventory-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Matched product</th>
+                  <th>Identifier</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {result.matches.map((match) => (
+                  <tr key={`${match.product_id}:${match.line_id ?? "product"}`}>
+                    <td>
+                      {match.product_name}
+                      {match.lot_number && (
+                        <small>
+                          Lot {match.lot_number}
+                          {match.expires_on
+                            ? ` · expires ${match.expires_on}`
+                            : ""}
+                          {match.location_name
+                            ? ` · ${match.location_name}`
+                            : ""}
+                        </small>
+                      )}
+                    </td>
+                    <td>
+                      {match.matched_fields.map((field) => (
+                        <Chip
+                          key={field}
+                          size="small"
+                          label={field.replaceAll("_", " ").toUpperCase()}
+                        />
+                      ))}
+                    </td>
+                    <td>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={
+                          disabled ||
+                          loading ||
+                          result.status === "too_many" ||
+                          (context === "count" &&
+                            (!match.line_id || !match.line_page)) ||
+                          Boolean(productId && match.product_id !== productId)
+                        }
+                        onClick={() => choose(match)}
+                      >
+                        {result.status === "too_many"
+                          ? "Resolve identifiers"
+                          : context === "count" &&
+                              (!match.line_id || !match.line_page)
+                            ? "Select line manually"
+                            : productId && match.product_id !== productId
+                              ? "Different product"
+                              : "Select match"}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       {result && (result.page_count ?? 1) > 1 && (
-        <nav className="inventory-pagination" aria-label="Scan match pagination">
+        <nav
+          className="inventory-pagination"
+          aria-label="Scan match pagination"
+        >
           <Button
             variant="outlined"
             disabled={disabled || loading || (result.page ?? 1) === 1}
@@ -273,7 +286,9 @@ export function InventoryScanInput({
           >
             Previous matches
           </Button>
-          <span>Page {result.page ?? 1} of {result.page_count ?? 1}</span>
+          <span>
+            Page {result.page ?? 1} of {result.page_count ?? 1}
+          </span>
           <Button
             variant="outlined"
             disabled={

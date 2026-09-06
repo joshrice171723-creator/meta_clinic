@@ -524,8 +524,6 @@ module Clinic
       def audit_wire(event)
         { id: event.id.to_s, action: event.action_code, actor_id: event.actor_session_reference.to_s.sub(/^user:/, ""), entity_id: event.resource_manifests.first&.protected_resource_version_ref, occurred_at: event.occurred_at.iso8601 }
       end
-
-
     end
   end
 end

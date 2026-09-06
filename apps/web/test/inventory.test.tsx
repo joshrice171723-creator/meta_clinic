@@ -61,8 +61,8 @@ describe("inventory integration", () => {
         {
           id: "21",
           name: "Catalog fixture liquid",
-        schedule: null,
-        preferred_supplier: null,
+          schedule: null,
+          preferred_supplier: null,
           category: "medication",
           ndc: "",
           device_identifier: "",
@@ -227,8 +227,20 @@ describe("inventory integration", () => {
           units_per_package: "10.5",
         },
       ],
-      locations: [{ id: "1", name: "Shelf", kind: "storage", areas: [], site_id: null,
-        parent_location_id: null, status: "active", path: "Shelf", child_count: 0, stock_destination: true }],
+      locations: [
+        {
+          id: "1",
+          name: "Shelf",
+          kind: "storage",
+          areas: [],
+          site_id: null,
+          parent_location_id: null,
+          status: "active",
+          path: "Shelf",
+          child_count: 0,
+          stock_destination: true,
+        },
+      ],
       lots: [],
       balances: [],
       movements: [],
@@ -449,8 +461,11 @@ describe("inventory integration", () => {
   });
 
   it("groups checkout-created purchase orders without merging standalone orders", () => {
-    const order = (id: string, checkout_group_id: string | null, created_at: string) =>
-      ({ id, checkout_group_id, created_at } as InventoryPurchaseOrder);
+    const order = (
+      id: string,
+      checkout_group_id: string | null,
+      created_at: string,
+    ) => ({ id, checkout_group_id, created_at }) as InventoryPurchaseOrder;
 
     const groups = purchaseOrderGroups([
       order("po-2", "checkout-1", "2027-07-31T12:00:00Z"),
@@ -459,7 +474,10 @@ describe("inventory integration", () => {
     ]);
 
     expect(groups).toHaveLength(2);
-    expect(groups[0].orders.map((record) => record.id)).toEqual(["po-2", "po-3"]);
+    expect(groups[0].orders.map((record) => record.id)).toEqual([
+      "po-2",
+      "po-3",
+    ]);
     expect(groups[1].orders.map((record) => record.id)).toEqual(["po-1"]);
     expect(groups[1].checkoutGroupId).toBeNull();
   });
@@ -517,7 +535,9 @@ describe("inventory integration", () => {
     expect(source).toContain("Select a package");
     expect(source).toContain('"/api/clinic/pharmacy/nadac"');
     expect(source).toContain("Public cost benchmark");
-    expect(source).toContain("No public CMS NADAC benchmark was found for this exact NDC");
+    expect(source).toContain(
+      "No public CMS NADAC benchmark was found for this exact NDC",
+    );
     expect(source).toContain("The last recorded package price is shown");
     expect(source).toContain("Inventory definition");
     expect(source).not.toContain("What happens next");

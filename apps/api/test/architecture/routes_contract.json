@@ -120,13 +120,28 @@
     "/api/clinic/inventory/controlled(.:format)"
   ],
   [
+    "api_clinic_inventory_management_count_sessions",
+    "GET",
+    "/api/clinic/inventory/count-sessions(.:format)"
+  ],
+  [
     "api_clinic_inventory_management_demo",
     "POST",
     "/api/clinic/inventory/demo(.:format)"
   ],
   [
-    "api_clinic_inventory_management_locations",
+    "api_clinic_inventory_management_exceptions",
+    "GET",
+    "/api/clinic/inventory/exceptions(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_exceptions_reviews",
     "POST",
+    "/api/clinic/inventory/exceptions/reviews(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_locations",
+    "GET",
     "/api/clinic/inventory/locations(.:format)"
   ],
   [
@@ -175,9 +190,19 @@
     "/api/clinic/inventory/replenishment(.:format)"
   ],
   [
+    "api_clinic_inventory_management_scan",
+    "POST",
+    "/api/clinic/inventory/scan(.:format)"
+  ],
+  [
     "api_clinic_inventory_management_shipments",
     "POST",
     "/api/clinic/inventory/shipments(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_supplier_pricing",
+    "GET",
+    "/api/clinic/inventory/supplier-pricing(.:format)"
   ],
   [
     "api_clinic_inventory_management_suppliers",
@@ -797,11 +822,6 @@
   [
     null,
     "GET",
-    "/"
-  ],
-  [
-    null,
-    "GET",
     "/api/clinic/inventory/purchase-orders/:id(.:format)"
   ],
   [
@@ -818,6 +838,11 @@
     null,
     "PATCH",
     "/api/clinic/context(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/locations/:id(.:format)"
   ],
   [
     null,
@@ -902,7 +927,47 @@
   [
     null,
     "POST",
+    "/api/clinic/inventory/count-session-lines/:id/observe(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/count-session-lines/:id/resume(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/count-session-lines/:id/skip(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/count-sessions(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/count-sessions/:id/cancel(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/count-sessions/:id/complete(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/count-sessions/:id/reassign(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/inventory/counts/:id/approve(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/locations(.:format)"
   ],
   [
     null,
@@ -938,6 +1003,16 @@
     null,
     "POST",
     "/api/clinic/inventory/recalls(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/recalls/:id/close(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/recalls/:id/contain(.:format)"
   ],
   [
     null,

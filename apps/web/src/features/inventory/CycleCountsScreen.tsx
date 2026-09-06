@@ -139,9 +139,10 @@ export function CycleCountsScreen({
 
   useEffect(() => setQuery(queue.query), [queue.query]);
   useEffect(() => {
+    const pendingScan = scanTarget.current;
     const target =
-      scanTarget.current?.sessionId === session?.id
-        ? scanTarget.current.lineId
+      pendingScan && pendingScan.sessionId === session?.id
+        ? pendingScan.lineId
         : "";
     const first =
       data.lines.find((line) => line.id === target) ?? data.lines[0];
@@ -157,7 +158,8 @@ export function CycleCountsScreen({
     );
     setSessionActionReason("");
     if (target && first?.id === target) scanTarget.current = null;
-    if (scanTarget.current?.sessionId !== session?.id) scanTarget.current = null;
+    if (scanTarget.current?.sessionId !== session?.id)
+      scanTarget.current = null;
   }, [session?.id, data.line_page.page]);
   useEffect(() => {
     if (error) scanTarget.current = null;

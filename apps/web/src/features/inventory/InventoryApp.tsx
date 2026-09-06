@@ -229,7 +229,10 @@ const inventoryCategories: Array<{
 ];
 
 function inventoryCategoryLabel(category: InventoryCategory): string {
-  return inventoryCategories.find((option) => option.value === category)?.label ?? "Other";
+  return (
+    inventoryCategories.find((option) => option.value === category)?.label ??
+    "Other"
+  );
 }
 
 const screenDescriptions: Record<Screen, string> = {
@@ -237,7 +240,8 @@ const screenDescriptions: Record<Screen, string> = {
   catalog_new: "Add a product definition before ordering or receiving stock.",
   configure:
     "Record the inventory operating configuration before posting stock.",
-  locations: "Manage stock storage, quarantine, returns, and controlled locations.",
+  locations:
+    "Manage stock storage, quarantine, returns, and controlled locations.",
   supplier_pricing: "",
   replenishment: "Turn low-stock signals into reviewed purchase requests.",
   purchasing: "Track purchase orders from draft through completion.",
@@ -430,7 +434,10 @@ export function inventoryDateTime(value?: string, timezone?: string) {
 function capability(data: Pick<InventoryData, "capabilities">, key: string) {
   return data.capabilities[key] === true;
 }
-function product<T extends { id: string }>(data: { products: T[] }, id: string) {
+function product<T extends { id: string }>(
+  data: { products: T[] },
+  id: string,
+) {
   return data.products.find((item) => item.id === id);
 }
 function lot(data: Pick<InventoryData, "lots">, id: string) {
@@ -532,7 +539,10 @@ function recordedPackageTerms(
     : undefined;
 }
 export function benchmarkPackagePrice(
-  item: Pick<InventoryData["products"][number], "base_unit" | "units_per_package">,
+  item: Pick<
+    InventoryData["products"][number],
+    "base_unit" | "units_per_package"
+  >,
   benchmark?: NadacBenchmark,
 ): Decimal | undefined {
   if (
@@ -543,8 +553,25 @@ export function benchmarkPackagePrice(
   )
     return undefined;
   const unitKey = (value: string) => {
-    const normalized = value.trim().toLowerCase().replace(/[^a-z]/g, "");
-    if (["ea", "each", "tablet", "tablets", "capsule", "capsules", "vial", "vials", "package", "packages"].includes(normalized)) return "count";
+    const normalized = value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z]/g, "");
+    if (
+      [
+        "ea",
+        "each",
+        "tablet",
+        "tablets",
+        "capsule",
+        "capsules",
+        "vial",
+        "vials",
+        "package",
+        "packages",
+      ].includes(normalized)
+    )
+      return "count";
     if (["ml", "milliliter", "milliliters"].includes(normalized)) return "ml";
     if (["g", "gm", "gram", "grams"].includes(normalized)) return "g";
     return normalized;
@@ -564,7 +591,9 @@ function supplierProductFor(
       row.supplier_id === supplierId &&
       row.available !== false &&
       (row.product_id === productId ||
-        (row.product_id == null && Boolean(item?.ndc) && row.ndc === item?.ndc)),
+        (row.product_id == null &&
+          Boolean(item?.ndc) &&
+          row.ndc === item?.ndc)),
   );
 }
 function supplierOffersFor(data: InventoryData, productId: string) {
@@ -572,7 +601,9 @@ function supplierOffersFor(data: InventoryData, productId: string) {
   return (data.supplier_products ?? []).filter(
     (row) =>
       (row.product_id === productId ||
-        (row.product_id == null && Boolean(item?.ndc) && row.ndc === item?.ndc)) &&
+        (row.product_id == null &&
+          Boolean(item?.ndc) &&
+          row.ndc === item?.ndc)) &&
       row.available !== false,
   );
 }
@@ -581,10 +612,10 @@ function facilityCanReceivePurchaseOrder(record: InventoryFacility) {
     record.status === "active" &&
     Boolean(
       record.address_line1?.trim() &&
-        record.city?.trim() &&
-        record.state?.trim() &&
-        record.postal_code?.trim() &&
-        record.country?.trim(),
+      record.city?.trim() &&
+      record.state?.trim() &&
+      record.postal_code?.trim() &&
+      record.country?.trim(),
     )
   );
 }
@@ -914,7 +945,10 @@ function CatalogCreateScreen({
       );
       if (deviceVersion.current !== version) return;
       if (payload.result) setDeviceLookupResult(payload.result);
-      else setDeviceError("No FDA device record matched that identifier. You can enter the item manually.");
+      else
+        setDeviceError(
+          "No FDA device record matched that identifier. You can enter the item manually.",
+        );
     } catch (reason) {
       if (deviceVersion.current !== version) return;
       setDeviceError(
@@ -1078,117 +1112,123 @@ function CatalogCreateScreen({
           </Field>
           {category === "medication" ? (
             <div className="inventory-info">
-            <strong>Use FDA package data</strong>
-            <p>
-              Search by a medication name or the NDC printed on the package.
-              Choose the exact package to prefill its verified label data, then
-              complete the clinic-owned purchasing fields below.
-            </p>
-            <form className="inventory-inline-form" autoComplete="off">
-              <Field label="Search FDA NDC Directory">
-                <input
-                  value={lookupQuery}
-                  onChange={(event) => setLookupQuery(event.target.value)}
-                  placeholder="Type 3+ letters or an NDC, e.g. ibu"
-                  maxLength={80}
-                  disabled={!capability(data, "inventory.catalog")}
-                  autoComplete="off"
-                />
-              </Field>
-              <small className="inventory-permission">
-                {lookupBusy
-                  ? "Searching FDA…"
-                  : "Search begins automatically after 3 characters."}
-              </small>
-            </form>
-            {lookupError && (
-              <p className="inventory-danger-text">{lookupError}</p>
-            )}
-            {lookupResults.length > 0 && (
-              <div className="inventory-stack compact">
-                <Field
-                  label="Choose exact FDA package"
-                  hint={lookupResults.length + " package matches found."}
-                >
-                  <select
-                    value={selectedNdc?.reference_token ?? ""}
-                    onChange={(event) => {
-                      const result = lookupResults.find(
-                        (item) => item.reference_token === event.target.value,
-                      );
-                      if (result) selectNdc(result);
-                    }}
-                  >
-                    <option value="">Select a package</option>
-                    {lookupResults.map((result) => (
-                      <option
-                        key={result.reference_token}
-                        value={result.reference_token}
-                      >
-                        {result.name} · NDC {result.ndc}
-                        {result.package_description
-                          ? " · " + result.package_description
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
+              <strong>Use FDA package data</strong>
+              <p>
+                Search by a medication name or the NDC printed on the package.
+                Choose the exact package to prefill its verified label data,
+                then complete the clinic-owned purchasing fields below.
+              </p>
+              <form className="inventory-inline-form" autoComplete="off">
+                <Field label="Search FDA NDC Directory">
+                  <input
+                    value={lookupQuery}
+                    onChange={(event) => setLookupQuery(event.target.value)}
+                    placeholder="Type 3+ letters or an NDC, e.g. ibu"
+                    maxLength={80}
+                    disabled={!capability(data, "inventory.catalog")}
+                    autoComplete="off"
+                  />
                 </Field>
-                {selectedNdc && (
-                  <p className="inventory-success-line">
-                    Selected {selectedNdc.name} · NDC {selectedNdc.ndc}
-                    {selectedNdc.labeler ? " · " + selectedNdc.labeler : ""}
-                  </p>
-                )}
-              </div>
-            )}
-            {selectedNdc && (
-              <button
-                className="inventory-button outline"
-                type="button"
-                onClick={clearNdcSelection}
-              >
-                Clear FDA selection and enter manually
-              </button>
-            )}
-            {selectedNdc && (
-              <div className="inventory-info inventory-benchmark">
-                <strong>Public cost benchmark</strong>
-                {nadacBusy ? (
-                  <p>Checking CMS NADAC…</p>
-                ) : nadacError ? (
-                  <p>{nadacError} You can continue without it.</p>
-                ) : nadacBenchmark ? (
-                  <>
-                    <p>
-                      <strong>
-                        ${nadacBenchmark.nadac_per_unit ?? "Not available"}
-                      </strong>{" "}
-                      per {nadacBenchmark.pricing_unit ?? "pricing unit"}
+                <small className="inventory-permission">
+                  {lookupBusy
+                    ? "Searching FDA…"
+                    : "Search begins automatically after 3 characters."}
+                </small>
+              </form>
+              {lookupError && (
+                <p className="inventory-danger-text">{lookupError}</p>
+              )}
+              {lookupResults.length > 0 && (
+                <div className="inventory-stack compact">
+                  <Field
+                    label="Choose exact FDA package"
+                    hint={lookupResults.length + " package matches found."}
+                  >
+                    <select
+                      value={selectedNdc?.reference_token ?? ""}
+                      onChange={(event) => {
+                        const result = lookupResults.find(
+                          (item) => item.reference_token === event.target.value,
+                        );
+                        if (result) selectNdc(result);
+                      }}
+                    >
+                      <option value="">Select a package</option>
+                      {lookupResults.map((result) => (
+                        <option
+                          key={result.reference_token}
+                          value={result.reference_token}
+                        >
+                          {result.name} · NDC {result.ndc}
+                          {result.package_description
+                            ? " · " + result.package_description
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {selectedNdc && (
+                    <p className="inventory-success-line">
+                      Selected {selectedNdc.name} · NDC {selectedNdc.ndc}
+                      {selectedNdc.labeler ? " · " + selectedNdc.labeler : ""}
                     </p>
+                  )}
+                </div>
+              )}
+              {selectedNdc && (
+                <button
+                  className="inventory-button outline"
+                  type="button"
+                  onClick={clearNdcSelection}
+                >
+                  Clear FDA selection and enter manually
+                </button>
+              )}
+              {selectedNdc && (
+                <div className="inventory-info inventory-benchmark">
+                  <strong>Public cost benchmark</strong>
+                  {nadacBusy ? (
+                    <p>Checking CMS NADAC…</p>
+                  ) : nadacError ? (
+                    <p>{nadacError} You can continue without it.</p>
+                  ) : nadacBenchmark ? (
+                    <>
+                      <p>
+                        <strong>
+                          ${nadacBenchmark.nadac_per_unit ?? "Not available"}
+                        </strong>{" "}
+                        per {nadacBenchmark.pricing_unit ?? "pricing unit"}
+                      </p>
+                      <p>
+                        Effective{" "}
+                        {nadacBenchmark.effective_date ?? "date unavailable"} ·
+                        CMS NADAC ·{" "}
+                        <a
+                          href={nadacBenchmark.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Source
+                        </a>
+                      </p>
+                      <p>
+                        This is a national average benchmark, not your clinic’s
+                        supplier price.
+                      </p>
+                    </>
+                  ) : (
                     <p>
-                      Effective {nadacBenchmark.effective_date ?? "date unavailable"} · CMS NADAC ·{" "}
-                      <a href={nadacBenchmark.source_url} target="_blank" rel="noreferrer">
-                        Source
-                      </a>
+                      No current NADAC benchmark was found for this NDC. You can
+                      continue without it.
                     </p>
-                    <p>
-                      This is a national average benchmark, not your clinic’s
-                      supplier price.
-                    </p>
-                  </>
-                ) : (
-                  <p>
-                    No current NADAC benchmark was found for this NDC. You can
-                    continue without it.
-                  </p>
-                )}
-              </div>
-            )}
-            <p className="inventory-caption">
-              FDA data is used to prefill the package record. It does not
-              replace your clinic’s SKU, stock unit, reorder point, or receiving
-              setup.
-            </p>
+                  )}
+                </div>
+              )}
+              <p className="inventory-caption">
+                FDA data is used to prefill the package record. It does not
+                replace your clinic’s SKU, stock unit, reorder point, or
+                receiving setup.
+              </p>
             </div>
           ) : (
             <div className="inventory-info">
@@ -1202,7 +1242,9 @@ function CatalogCreateScreen({
                 <Field label="UDI-DI / GTIN">
                   <input
                     value={deviceIdentifier}
-                    onChange={(event) => setDeviceIdentifier(event.target.value)}
+                    onChange={(event) =>
+                      setDeviceIdentifier(event.target.value)
+                    }
                     placeholder="Enter the identifier from the package"
                     maxLength={200}
                     disabled={!capability(data, "inventory.catalog")}
@@ -1215,12 +1257,17 @@ function CatalogCreateScreen({
                     : "Lookup begins automatically after 6 characters."}
                 </small>
               </form>
-              {deviceError && <p className="inventory-danger-text">{deviceError}</p>}
+              {deviceError && (
+                <p className="inventory-danger-text">{deviceError}</p>
+              )}
               {deviceLookupResult && (
                 <div className="inventory-stack compact">
                   <p className="inventory-success-line">
-                    {deviceLookupResult.brand_name || "FDA device record"} · {deviceLookupResult.device_identifier}
-                    {deviceLookupResult.company_name ? ` · ${deviceLookupResult.company_name}` : ""}
+                    {deviceLookupResult.brand_name || "FDA device record"} ·{" "}
+                    {deviceLookupResult.device_identifier}
+                    {deviceLookupResult.company_name
+                      ? ` · ${deviceLookupResult.company_name}`
+                      : ""}
                   </p>
                   <button
                     className="inventory-button outline"
@@ -1234,7 +1281,8 @@ function CatalogCreateScreen({
               {deviceResult && (
                 <div className="inventory-stack compact">
                   <p className="inventory-success-line">
-                    Selected {deviceResult.brand_name || "FDA device record"} · {deviceResult.device_identifier}
+                    Selected {deviceResult.brand_name || "FDA device record"} ·{" "}
+                    {deviceResult.device_identifier}
                   </p>
                   <button
                     className="inventory-button outline"
@@ -1456,8 +1504,7 @@ function PurchaseOrderCreateScreen({
   const requestedItem = data.products.find(
     (item) => item.id === requestedProductId,
   );
-  const initialItem =
-    requestedItem ?? data.products[0];
+  const initialItem = requestedItem ?? data.products[0];
   const productIsLocked = Boolean(requestedItem);
   const [productId, setProductId] = useState(initialItem?.id ?? "");
   const item = data.products.find((record) => record.id === productId);
@@ -1478,9 +1525,7 @@ function PurchaseOrderCreateScreen({
   const [destinationId, setDestinationId] = useState(
     initialDestination?.id ?? "",
   );
-  const [supplierId, setSupplierId] = useState(
-    initialSupplierId,
-  );
+  const [supplierId, setSupplierId] = useState(initialSupplierId);
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState(
     initialOffer?.wholesale_unit_cost ?? initialTerms?.packagePrice ?? "",
@@ -1498,9 +1543,7 @@ function PurchaseOrderCreateScreen({
     ? supplierProductFor(data, item.id, supplierId)
     : undefined;
   const packageInfo = packageFor(data, item?.package_id);
-  const destination = data.sites?.find(
-    (record) => record.id === destinationId,
-  );
+  const destination = data.sites?.find((record) => record.id === destinationId);
   const destinationOptions = purchaseOrderFacilities(data);
   const selectProduct = (nextId: string) => {
     const next = data.products.find((record) => record.id === nextId);
@@ -1514,8 +1557,7 @@ function PurchaseOrderCreateScreen({
     setSupplierId(nextSupplierId);
     setDestinationId(purchaseOrderDestination(data, nextId)?.id ?? "");
     setUnitPrice(
-      nextOffer?.wholesale_unit_cost ??
-        (nextTerms?.packagePrice ?? ""),
+      nextOffer?.wholesale_unit_cost ?? nextTerms?.packagePrice ?? "",
     );
   };
   const [nadacBenchmark, setNadacBenchmark] = useState<NadacBenchmark>();
@@ -1675,12 +1717,16 @@ function PurchaseOrderCreateScreen({
                 value={supplierId}
                 onChange={(event) => {
                   const nextSupplierId = event.target.value;
-                  const offer = supplierProductFor(data, item.id, nextSupplierId);
+                  const offer = supplierProductFor(
+                    data,
+                    item.id,
+                    nextSupplierId,
+                  );
                   const terms = recordedPackageTerms(data, item.id);
-                   setSupplierId(nextSupplierId);
-                   setUnitPrice(
-                     offer?.wholesale_unit_cost ?? terms?.packagePrice ?? "",
-                   );
+                  setSupplierId(nextSupplierId);
+                  setUnitPrice(
+                    offer?.wholesale_unit_cost ?? terms?.packagePrice ?? "",
+                  );
                 }}
               >
                 <option value="">No supplier</option>
@@ -2526,47 +2572,59 @@ export function InventoryApp({ path }: { path: string }) {
                       lot_page: data.lot_page.page,
                       product_id: data.lot_page.product_id ?? undefined,
                     }
-                : screen === "counts" && data && "count_page" in data
-                  ? {
-                      q: data.count_page.query,
-                      count_status: data.count_page.status,
-                      page: data.count_page.page,
-                      session_id: data.count_page.selected_id ?? undefined,
-                      line_page: data.line_page.page,
-                      history_page: data.history_page.page,
-                    }
-                : screen === "controlled" && data && "controlled_page" in data
-                  ? {
-                      q: data.controlled_page.query,
-                      control_status: data.controlled_page.status,
-                      page: data.controlled_page.page,
-                    }
-              : screen === "supplier_pricing" && data && "supplier_page" in data
-                ? {
-                    q: data.supplier_page.query,
-                    supplier_id: data.supplier_page.supplier_id ?? undefined,
-                    page: data.supplier_page.page,
-                  }
-                : screen === "purchasing" && data && "order_page" in data
-                  ? {
-                      q: data.order_page.query,
-                      order_status: data.order_page.status,
-                      page: data.order_page.page,
-                    }
-                : screen === "receiving" && data && "delivery_page" in data
-                  ? {
-                      q: data.delivery_page.query,
-                      delivery_status: data.delivery_page.status,
-                      page: data.delivery_page.page,
-                      shipment_id: data.delivery_page.selected_shipment_id,
-                    }
-                  : needsPurchaseOrderFacility && data && "plan_page" in data
+                  : screen === "counts" && data && "count_page" in data
                     ? {
-                        q: data.plan_page.query,
-                        plan_mode: data.plan_page.mode,
-                        page: data.plan_page.page,
+                        q: data.count_page.query,
+                        count_status: data.count_page.status,
+                        page: data.count_page.page,
+                        session_id: data.count_page.selected_id ?? undefined,
+                        line_page: data.line_page.page,
+                        history_page: data.history_page.page,
                       }
-                    : {})),
+                    : screen === "controlled" &&
+                        data &&
+                        "controlled_page" in data
+                      ? {
+                          q: data.controlled_page.query,
+                          control_status: data.controlled_page.status,
+                          page: data.controlled_page.page,
+                        }
+                      : screen === "supplier_pricing" &&
+                          data &&
+                          "supplier_page" in data
+                        ? {
+                            q: data.supplier_page.query,
+                            supplier_id:
+                              data.supplier_page.supplier_id ?? undefined,
+                            page: data.supplier_page.page,
+                          }
+                        : screen === "purchasing" &&
+                            data &&
+                            "order_page" in data
+                          ? {
+                              q: data.order_page.query,
+                              order_status: data.order_page.status,
+                              page: data.order_page.page,
+                            }
+                          : screen === "receiving" &&
+                              data &&
+                              "delivery_page" in data
+                            ? {
+                                q: data.delivery_page.query,
+                                delivery_status: data.delivery_page.status,
+                                page: data.delivery_page.page,
+                                shipment_id:
+                                  data.delivery_page.selected_shipment_id,
+                              }
+                            : needsPurchaseOrderFacility &&
+                                data &&
+                                "plan_page" in data
+                              ? {
+                                  q: data.plan_page.query,
+                                  plan_mode: data.plan_page.mode,
+                                  page: data.plan_page.page,
+                                }
+                              : {})),
     };
     const version = ++readVersion.current;
     setLoading(true);
@@ -3530,7 +3588,9 @@ function ReplenishmentScreen({
       (initialItem ? (recordedPackagePrice(data, initialItem.id) ?? "") : ""),
   );
   const [reason, setReason] = useState("");
-  const [currency, setCurrency] = useState(initialSupplierOffer?.currency ?? "");
+  const [currency, setCurrency] = useState(
+    initialSupplierOffer?.currency ?? "",
+  );
   if (!item)
     return (
       <Card title="Replenishment suggestions">
@@ -3661,11 +3721,16 @@ function ReplenishmentScreen({
                 value={supplierId}
                 onChange={(event) => {
                   const nextSupplierId = event.target.value;
-                  const offer = supplierProductFor(data, item.id, nextSupplierId);
-                setSupplierId(nextSupplierId);
-                setDestinationId(
-                  purchaseOrderDestination(data, event.target.value)?.id ?? "",
-                );
+                  const offer = supplierProductFor(
+                    data,
+                    item.id,
+                    nextSupplierId,
+                  );
+                  setSupplierId(nextSupplierId);
+                  setDestinationId(
+                    purchaseOrderDestination(data, event.target.value)?.id ??
+                      "",
+                  );
                   setUnitPrice(
                     offer?.wholesale_unit_cost ??
                       recordedPackagePrice(data, item.id) ??
@@ -4645,9 +4710,10 @@ function purchaseOrderStatusTone(
   return "blue";
 }
 
-function purchaseOrderGroupStatus(
-  orders: InventoryPurchaseOrder[],
-): { label: string; tone: "neutral" | "success" | "warning" | "danger" | "blue" } {
+function purchaseOrderGroupStatus(orders: InventoryPurchaseOrder[]): {
+  label: string;
+  tone: "neutral" | "success" | "warning" | "danger" | "blue";
+} {
   const statuses = orders.map((order) => order.status);
   if (statuses.every((status) => status === "complete"))
     return { label: "Complete", tone: "success" };
@@ -4661,16 +4727,11 @@ function purchaseOrderGroupStatus(
 function purchaseOrderGroupTotal(group: InventoryPurchaseOrderGroup): string {
   const currencies = Array.from(
     new Set(
-      group.orders.flatMap((order) =>
-        order.lines.map((line) => line.currency),
-      ),
+      group.orders.flatMap((order) => order.lines.map((line) => line.currency)),
     ),
   );
   return currencies.length === 1
-    ? money(
-        decimalSum(group.orders.map((order) => order.total)),
-        currencies[0],
-      )
+    ? money(decimalSum(group.orders.map((order) => order.total)), currencies[0])
     : "Multiple currencies";
 }
 
@@ -4871,8 +4932,12 @@ function PurchaseOrderDetails({
       </Card>
     );
   const shipment = data.shipments.find((record) => record.po_id === order.id);
-  const hasRemaining = order.lines.some((record) =>
-    decimalCompare(decimalSubtract(record.ordered_packages, record.received_packages), "0") > 0,
+  const hasRemaining = order.lines.some(
+    (record) =>
+      decimalCompare(
+        decimalSubtract(record.ordered_packages, record.received_packages),
+        "0",
+      ) > 0,
   );
   const orderCurrency = order.lines[0]?.currency ?? "USD";
   const next = (
@@ -4970,7 +5035,9 @@ function PurchaseOrderDetails({
                         className={`inventory-purchase-order-option ${record.id === order.id ? "selected" : ""}`}
                         type="button"
                         key={record.id}
-                        aria-current={record.id === order.id ? "true" : undefined}
+                        aria-current={
+                          record.id === order.id ? "true" : undefined
+                        }
                         onClick={() => setOrderId(record.id)}
                       >
                         <span>
@@ -5009,135 +5076,145 @@ function PurchaseOrderDetails({
               <Badge tone="blue">{order.status.replaceAll("_", " ")}</Badge>
             </div>
             <p className="inventory-lead">
-              {order.supplier ?? "Supplier not recorded"} → {order.destination} · created{" "}
-              {inventoryDateTime(order.created_at, data.timezone)}
+              {order.supplier ?? "Supplier not recorded"} → {order.destination}{" "}
+              · created {inventoryDateTime(order.created_at, data.timezone)}
             </p>
             {order.destination_address && (
-              <p className="inventory-lead">Deliver to: {order.destination_address}</p>
+              <p className="inventory-lead">
+                Deliver to: {order.destination_address}
+              </p>
             )}
           </div>
         </div>
       </Card>
       <Card title="Order lines">
-          <div className="inventory-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Product / package</th>
-                  <th className="numeric">Status</th>
-                  <th className="numeric">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.lines.map((line) => {
-                  const item = product(data, line.product_id);
-                  const packageUnit = line.input_unit ?? "package";
-                  const baseUnit = line.stock_unit ?? item?.base_unit ?? "unavailable unit";
-                  const remaining = nonNegative(
-                    decimalSubtract(line.ordered_packages, line.received_packages),
-                  );
-                  return (
-                    <tr key={line.id}>
-                      <td>
-                        <strong>{line.product_name ?? item?.name}</strong>
-                        <small>
-                          {`${number(line.units_per_package)} ${baseUnit} / ${packageUnit}`} {" "}
-                          · NDC {item?.ndc}
-                        </small>
-                      </td>
-                      <td className="numeric">
-                        <strong>
-                          {number(line.ordered_packages)} {packageUnit} ordered
-                        </strong>
-                        <small>
-                          {number(line.received_packages)} received · {number(remaining)} remaining
-                        </small>
-                        <small>
-                          {number(line.ordered_units)} {baseUnit} total
-                        </small>
-                      </td>
-                      <td className="numeric">
-                        {money(line.package_price, line.currency)} / {packageUnit}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="inventory-order-footer">
-            <div className="inventory-order-actions">
-              {["sent", "partially_received"].includes(order.status) &&
-                hasRemaining && (
-                  <a
-                    className="inventory-button outline"
-                    href={`/clinic/inventory/shipments/new?purchase_order_id=${order.id}`}
-                  >
-                    Record delivery
-                  </a>
-                )}
-              {next && (
-                <ConfirmButton
-                  tone="primary"
-                  disabled={busy || !capability(data, next[2])}
-                  confirmationTitle={`${next[1]}?`}
-                  confirmationContent={actionReasonField}
-                  confirmDisabled={actionConfirmDisabled(next[2])}
-                  confirmLabel={next[1]}
-                  onConfirm={transition}
+        <div className="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Product / package</th>
+                <th className="numeric">Status</th>
+                <th className="numeric">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.lines.map((line) => {
+                const item = product(data, line.product_id);
+                const packageUnit = line.input_unit ?? "package";
+                const baseUnit =
+                  line.stock_unit ?? item?.base_unit ?? "unavailable unit";
+                const remaining = nonNegative(
+                  decimalSubtract(
+                    line.ordered_packages,
+                    line.received_packages,
+                  ),
+                );
+                return (
+                  <tr key={line.id}>
+                    <td>
+                      <strong>{line.product_name ?? item?.name}</strong>
+                      <small>
+                        {`${number(line.units_per_package)} ${baseUnit} / ${packageUnit}`}{" "}
+                        · NDC {item?.ndc}
+                      </small>
+                    </td>
+                    <td className="numeric">
+                      <strong>
+                        {number(line.ordered_packages)} {packageUnit} ordered
+                      </strong>
+                      <small>
+                        {number(line.received_packages)} received ·{" "}
+                        {number(remaining)} remaining
+                      </small>
+                      <small>
+                        {number(line.ordered_units)} {baseUnit} total
+                      </small>
+                    </td>
+                    <td className="numeric">
+                      {money(line.package_price, line.currency)} / {packageUnit}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="inventory-order-footer">
+          <div className="inventory-order-actions">
+            {["sent", "partially_received"].includes(order.status) &&
+              hasRemaining && (
+                <a
+                  className="inventory-button outline"
+                  href={`/clinic/inventory/shipments/new?purchase_order_id=${order.id}`}
                 >
-                  {next[1]}
+                  Record delivery
+                </a>
+              )}
+            {next && (
+              <ConfirmButton
+                tone="primary"
+                disabled={busy || !capability(data, next[2])}
+                confirmationTitle={`${next[1]}?`}
+                confirmationContent={actionReasonField}
+                confirmDisabled={actionConfirmDisabled(next[2])}
+                confirmLabel={next[1]}
+                onConfirm={transition}
+              >
+                {next[1]}
+              </ConfirmButton>
+            )}
+            {order.status !== "complete" && order.status !== "cancelled" && (
+              <div className="inventory-order-cancel">
+                <ConfirmButton
+                  tone="outline"
+                  disabled={
+                    busy ||
+                    !hasRemaining ||
+                    !capability(data, "procurement.submit")
+                  }
+                  confirmationTitle="Cancel remaining quantities?"
+                  confirmationContent={actionReasonField}
+                  confirmDisabled={actionConfirmDisabled("procurement.submit")}
+                  confirmLabel="Cancel remainder"
+                  onConfirm={cancel}
+                >
+                  Cancel remainder
                 </ConfirmButton>
-              )}
-              {order.status !== "complete" && order.status !== "cancelled" && (
-                <div className="inventory-order-cancel">
-                  <ConfirmButton
-                    tone="outline"
-                    disabled={
-                      busy ||
-                      !hasRemaining ||
-                      !capability(data, "procurement.submit")
-                    }
-                    confirmationTitle="Cancel remaining quantities?"
-                    confirmationContent={actionReasonField}
-                    confirmDisabled={actionConfirmDisabled("procurement.submit")}
-                    confirmLabel="Cancel remainder"
-                    onConfirm={cancel}
-                  >
-                    Cancel remainder
-                  </ConfirmButton>
-                </div>
-              )}
+              </div>
+            )}
+          </div>
+          <div className="inventory-order-summary" aria-label="Order total">
+            <div className="inventory-order-summary-row">
+              <span>Subtotal</span>
+              <strong>{money(order.subtotal, orderCurrency)}</strong>
             </div>
-            <div className="inventory-order-summary" aria-label="Order total">
-              <div className="inventory-order-summary-row">
-                <span>Subtotal</span>
-                <strong>{money(order.subtotal, orderCurrency)}</strong>
-              </div>
-              <div className="inventory-order-summary-row">
-                <span>Shipping</span>
-                <strong>{money(order.shipping, orderCurrency)}</strong>
-              </div>
-              <div className="inventory-order-summary-row">
-                <span>Tax</span>
-                <strong>{money(order.tax, orderCurrency)}</strong>
-              </div>
-              <div className="inventory-order-summary-row total">
-                <span>Order total</span>
-                <strong>{money(order.total, orderCurrency)}</strong>
-              </div>
+            <div className="inventory-order-summary-row">
+              <span>Shipping</span>
+              <strong>{money(order.shipping, orderCurrency)}</strong>
+            </div>
+            <div className="inventory-order-summary-row">
+              <span>Tax</span>
+              <strong>{money(order.tax, orderCurrency)}</strong>
+            </div>
+            <div className="inventory-order-summary-row total">
+              <span>Order total</span>
+              <strong>{money(order.total, orderCurrency)}</strong>
             </div>
           </div>
-          {shipment && (
-            <a className="inventory-info" href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}>
-              Delivery {shipment.supplier_reference} recorded · View receiving
-            </a>
-          )}
-          <PermissionNote
-            allowed={capability(data, "procurement.approve")}
-            permission="procurement.approve"
-          />
-        </Card>
+        </div>
+        {shipment && (
+          <a
+            className="inventory-info"
+            href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}
+          >
+            Delivery {shipment.supplier_reference} recorded · View receiving
+          </a>
+        )}
+        <PermissionNote
+          allowed={capability(data, "procurement.approve")}
+          permission="procurement.approve"
+        />
+      </Card>
     </div>
   );
 }
@@ -6028,8 +6105,8 @@ function LotsScreen({
   const scanScoped =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("scan") === "1";
-  const [selectedId, setSelectedId] = useState(
-    () => (scanScoped ? "" : (balanceFor(data)?.id ?? "")),
+  const [selectedId, setSelectedId] = useState(() =>
+    scanScoped ? "" : (balanceFor(data)?.id ?? ""),
   );
   const [action, setAction] = useState<"transfer" | "adjust" | "count">(
     "transfer",
@@ -7123,9 +7200,8 @@ function RecallScreen({
   const canLock = capability(data, "recall.lock");
   const canDispose = capability(data, "recall.dispose");
   const closureActor = selectedRecall?.closure
-    ? data.users.find(
-        (user) => user.id === selectedRecall.closure?.actor_id,
-      )?.name
+    ? data.users.find((user) => user.id === selectedRecall.closure?.actor_id)
+        ?.name
     : undefined;
   const readBlocked = Boolean(pendingMutation);
   const readDisabled = loading || busy || readBlocked;
@@ -7476,9 +7552,8 @@ function RecallScreen({
                 )}
                 {closureActor ? ` by ${closureActor}` : ""}.{" "}
                 {selectedRecall.closure.reason} Evidence:{" "}
-                {selectedRecall.closure.evidence_reference}.{" "}
-                Closing preserves recall history; later receipts of these lots
-                require a new case.
+                {selectedRecall.closure.evidence_reference}. Closing preserves
+                recall history; later receipts of these lots require a new case.
               </Alert>
             )}
           </Card>

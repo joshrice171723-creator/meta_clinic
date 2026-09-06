@@ -247,12 +247,10 @@ class AddRecallCaseClosures < ActiveRecord::Migration[8.1]
       DEFERRABLE INITIALLY DEFERRED
       FOR EACH ROW EXECUTE FUNCTION inventory_recall_containment_complete();
     SQL
-
   end
 
   def down
     raise ActiveRecord::IrreversibleMigration,
       "Preserve recall containment and closure evidence; restore a reviewed backup instead."
   end
-
 end
