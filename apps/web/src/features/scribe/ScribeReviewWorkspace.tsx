@@ -455,7 +455,7 @@ function DraftSectionCard({
               <Button
                 variant="contained"
                 disabled={pendingAction !== null || !editValue.trim() || !hasUnsavedSectionEdit}
-                onClick={() => void onSave(draftId, section.section_key, editValue)}
+                onClick={() => void Promise.resolve().then(() => onSave(draftId, section.section_key, editValue)).catch(() => undefined)}
               >
                 Save reviewer edit
               </Button>
@@ -464,7 +464,7 @@ function DraftSectionCard({
               <Button
                 variant="outlined"
                 disabled={pendingAction !== null || hasUnsavedSectionEdit || section.warning_codes.length > 0 || !section.effective_content.trim()}
-                onClick={() => void onAccept(draftId, section.section_key)}
+                onClick={() => void Promise.resolve().then(() => onAccept(draftId, section.section_key)).catch(() => undefined)}
               >
                 Accept section
               </Button>
@@ -474,7 +474,7 @@ function DraftSectionCard({
                 color="warning"
                 variant="outlined"
                 disabled={pendingAction !== null || hasUnsavedSectionEdit}
-                onClick={() => void onReject(draftId, section.section_key)}
+                onClick={() => void Promise.resolve().then(() => onReject(draftId, section.section_key)).catch(() => undefined)}
               >
                 Reject section
               </Button>

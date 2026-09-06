@@ -13,18 +13,26 @@ module Clinic
         can_create = Clinic::Authorization.allowed?(
           actor: current_user, practice: current_practice, action: "scribe.write", any_site: true
         )
+        patient_page = bounded_integer!(params[:patient_page].presence || "1", field: :patient_page, min: 1, max: 100_000)
+        patient_per_page = 100
         patient_scope = current_practice.patients.order(:reference, :id)
-        patient_options = can_create ? patient_scope.limit(101).to_a : []
+        patient_total = can_create ? patient_scope.count : 0
+        patient_options = can_create ? patient_scope.limit(patient_per_page).offset((patient_page - 1) * patient_per_page) : []
         render json: {
           encounters: encounters.map do |encounter|
             Serializer.encounter(encounter, detail: false).merge(
               patient: { id: encounter.patient.id, reference: encounter.patient.reference, display_name: encounter.patient.display_name }
             )
           end,
-          patient_options: patient_options.first(100).map do |patient|
+          patient_options: patient_options.map do |patient|
             { id: patient.id, reference: patient.reference, display_name: patient.display_name }
           end,
-          patient_options_capped: patient_options.length > 100,
+          patient_pagination: {
+            page: patient_page,
+            per_page: patient_per_page,
+            total: patient_total,
+            total_pages: patient_total.zero? ? 0 : (patient_total.to_f / patient_per_page).ceil
+          },
           pagination: pagination
         }
       end

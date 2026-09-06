@@ -94,68 +94,87 @@ module Clinic
           draft
         end
 
-        def review!(draft:, actor:, action:, section_key:, content: nil)
+        def review!(draft:, actor:, action:, section_key:, content: nil, expected_version: nil)
           authorize!(draft.encounter, actor, "scribe.write")
-          raise ArgumentError, "This draft is no longer current." unless draft.current?
           raise ArgumentError, "Unknown draft section." unless SECTIONS.include?(section_key.to_s)
           action = action.to_s
-          section = draft.sections.find_by!(section_key: section_key)
-          if action == "edit"
-            raise ArgumentError, "Section content is required." if content.to_s.strip.blank?
-            new_draft = nil
+          result = nil
+          draft.encounter.with_lock do
             draft.with_lock do
-              new_draft = clone_draft!(draft, actor)
-              new_section = new_draft.sections.find_by!(section_key: section_key)
-              new_section.update!(human_content: content.to_s.strip, status: "edited", warning_codes: [], edit_revision: section.edit_revision + 1)
-              finalize_draft_digest!(new_draft)
-              draft.update!(status: "superseded")
-              record_event!(draft.encounter, actor, "section_edited", "Draft", new_draft.id,
-                parent_draft_id: draft.id, section_key: section_key, edit_revision: new_section.edit_revision)
+              ensure_processing_allowed!(draft.encounter)
+              verify_expected_version!(draft, expected_version)
+              raise ArgumentError, "Only a draft in review can be changed." unless %w[draft in_review].include?(draft.status)
+              section = draft.sections.find_by!(section_key: section_key)
+              if action == "edit"
+                raise ArgumentError, "Section content is required." if content.to_s.strip.blank?
+                result = clone_draft!(draft, actor)
+                new_section = result.sections.find_by!(section_key: section_key)
+                new_section.update!(human_content: content.to_s.strip, status: "edited", warning_codes: [], edit_revision: section.edit_revision + 1)
+                finalize_draft_digest!(result)
+                draft.update!(status: "superseded")
+                record_event!(draft.encounter, actor, "section_edited", "Draft", result.id,
+                  parent_draft_id: draft.id, section_key: section_key, edit_revision: new_section.edit_revision)
+              elsif %w[accept reject].include?(action)
+                raise ArgumentError, "Only a section with no warnings can be accepted." if action == "accept" && (section.warning_codes.present? || section.effective_content.blank?)
+                section.update!(status: action == "accept" ? "accepted" : "rejected")
+                draft.touch
+                record_event!(draft.encounter, actor, "section_#{action}ed", "DraftSection", section.id,
+                  draft_id: draft.id, section_key: section_key)
+                result = draft.reload
+              else
+                raise ArgumentError, "Review action is not supported."
+              end
             end
-            new_draft
-          elsif %w[accept reject].include?(action)
-            raise ArgumentError, "Only a section with no warnings can be accepted." if action == "accept" && (section.warning_codes.present? || section.effective_content.blank?)
-            section.update!(status: action == "accept" ? "accepted" : "rejected")
-            record_event!(draft.encounter, actor, "section_#{action}ed", "DraftSection", section.id,
-              draft_id: draft.id, section_key: section_key)
-            draft.reload
-          else
-            raise ArgumentError, "Review action is not supported."
           end
+          result
         end
 
-        def approve!(draft:, actor:)
+        def approve!(draft:, actor:, expected_version: nil)
           authorize!(draft.encounter, actor, "scribe.approve")
-          draft.with_lock do
-            raise ArgumentError, "Only the current draft can be approved." unless draft.current?
-            raise ArgumentError, "Resolve every section before approval." unless draft.sections.size == SECTIONS.size &&
-              draft.sections.all? { |section| %w[accepted edited].include?(section.status) && section.warning_codes.blank? && section.effective_content.present? }
-            draft.update!(status: "approved", approved_by: actor, approved_at: Time.current)
-            draft.encounter.update!(status: "approved")
-            record_event!(draft.encounter, actor, "draft_approved", "Draft", draft.id, checksum: checksum(draft))
+          draft.encounter.with_lock do
+            draft.with_lock do
+              ensure_processing_allowed!(draft.encounter)
+              verify_expected_version!(draft, expected_version)
+              raise ArgumentError, "Only a draft in review can be approved." unless %w[draft in_review].include?(draft.status)
+              raise ArgumentError, "Resolve every section before approval." unless draft.sections.size == SECTIONS.size &&
+                draft.sections.all? { |section| %w[accepted edited].include?(section.status) && section.warning_codes.blank? && section.effective_content.present? }
+              draft.update!(status: "approved", approved_by: actor, approved_at: Time.current)
+              draft.encounter.update!(status: "approved")
+              record_event!(draft.encounter, actor, "draft_approved", "Draft", draft.id, checksum: checksum(draft))
+            end
           end
           draft.reload
         end
 
-        def export!(draft:, actor:, destination:, idempotency_key:, confirmed:)
+        def export!(draft:, actor:, destination:, idempotency_key:, confirmed:, expected_version: nil)
           authorize!(draft.encounter, actor, "scribe.export")
           raise ArgumentError, "Export confirmation is required." unless confirmed == true
-          raise ArgumentError, "Only an approved current draft can be exported." unless draft.status == "approved" || draft.status == "exported"
           raise ArgumentError, "The export destination is not supported." unless destination.to_s == "parent_record_adapter"
-          version_checksum = checksum(draft)
-          payload_digest = Digest::SHA256.hexdigest(draft.effective_sections.to_json)
-          export = Export.find_or_initialize_by(practice_id: draft.practice_id, idempotency_key: idempotency_key.to_s)
-          if export.persisted?
-            raise ArgumentError, "The export key was already used for another version." unless export.draft_id == draft.id && export.version_checksum == version_checksum
-            return export
+          export = nil
+          draft.encounter.with_lock do
+            draft.with_lock do
+              payload_digest = Digest::SHA256.hexdigest(draft.effective_sections.to_json)
+              export = Export.find_or_initialize_by(practice_id: draft.practice_id, idempotency_key: idempotency_key.to_s)
+              if export.persisted?
+                requested_checksum = expected_version.nil? ? export.version_checksum : checksum(draft, version: expected_version)
+                same_request = export.draft_id == draft.id && export.destination == destination.to_s &&
+                  export.version_checksum == requested_checksum && export.payload_digest == payload_digest
+                raise ArgumentError, "The export key was already used for another version." unless same_request
+                next
+              end
+              ensure_processing_allowed!(draft.encounter)
+              verify_expected_version!(draft, expected_version)
+              raise ArgumentError, "Only an approved current draft can be exported." unless draft.status == "approved"
+              version_checksum = checksum(draft)
+              export.assign_attributes(draft: draft, actor: actor, destination: destination, version_checksum: version_checksum,
+                status: "exported", payload_digest: payload_digest, exported_at: Time.current)
+              export.save!
+              draft.update!(status: "exported", export_state: "exported")
+              draft.encounter.update!(status: "exported")
+              record_event!(draft.encounter, actor, "draft_exported", "Export", export.id,
+                destination: destination, version_checksum: version_checksum, payload_digest: payload_digest)
+            end
           end
-          export.assign_attributes(draft: draft, actor: actor, destination: destination, version_checksum: version_checksum,
-            status: "exported", payload_digest: payload_digest, exported_at: Time.current)
-          export.save!
-          draft.update!(status: "exported", export_state: "exported")
-          draft.encounter.update!(status: "exported")
-          record_event!(draft.encounter, actor, "draft_exported", "Export", export.id,
-            destination: destination, version_checksum: version_checksum, payload_digest: payload_digest)
           export
         end
 
@@ -167,6 +186,11 @@ module Clinic
 
         def ensure_processing_allowed!(encounter)
           raise ArgumentError, "Current consent does not allow processing." unless encounter.processing_allowed?
+        end
+
+        def verify_expected_version!(draft, expected_version)
+          return if expected_version.nil?
+          raise ActiveRecord::StaleObjectError.new(draft, "update") unless draft.lock_version == expected_version
         end
 
         def normalize_segments(segments, content)
@@ -213,8 +237,8 @@ module Clinic
           draft.update!(output_digest: Digest::SHA256.hexdigest(draft.effective_sections.values.join("\u0000")))
         end
 
-        def checksum(draft)
-          Digest::SHA256.hexdigest([draft.id, draft.lock_version, draft.output_digest, draft.effective_sections.to_json].join("\u0000"))
+        def checksum(draft, version: draft.lock_version)
+          Digest::SHA256.hexdigest([draft.id, version, draft.output_digest, draft.effective_sections.to_json].join("\u0000"))
         end
 
         def record_event!(encounter, actor, event_type, resource_type, resource_id, metadata = {})

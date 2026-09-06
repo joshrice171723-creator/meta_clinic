@@ -32,14 +32,14 @@ type Pagination = { page: number; per_page: number; total: number; total_pages: 
 type EncounterIndex = {
   encounters: EncounterSummary[];
   patient_options: PatientOption[];
-  patient_options_capped: boolean;
+  patient_pagination: Pagination;
   pagination: Pagination;
 };
 type Confirmation =
-  | { kind: "consent"; decision: "accepted" | "declined" | "withdrawn" }
-  | { kind: "approve"; draftId: number; draftVersion: number }
-  | { kind: "export"; draftId: number; draftVersion: number }
-  | { kind: "delete"; encounterId: number }
+  | { kind: "consent"; decision: "accepted" | "declined" | "withdrawn"; encounterId: number; encounterVersion: number; scopeKey: string }
+  | { kind: "approve"; draftId: number; draftVersion: number; encounterId: number; scopeKey: string }
+  | { kind: "export"; draftId: number; draftVersion: number; encounterId: number; scopeKey: string }
+  | { kind: "delete"; encounterId: number; encounterVersion: number; scopeKey: string }
   | null;
 
 const PAGE_SIZE = 25;
@@ -63,6 +63,7 @@ export function LiveScribeReviewWorkspace() {
   scopeRef.current = scopeKey;
   const mounted = useRef(true);
   const listVersion = useRef(0);
+  const patientListVersion = useRef(0);
   const detailVersion = useRef(0);
   const selectedEncounterRef = useRef<number | null>(null);
   const actionLock = useRef(new Set<string>());
@@ -70,7 +71,9 @@ export function LiveScribeReviewWorkspace() {
 
   const [summaries, setSummaries] = useState<EncounterSummary[]>([]);
   const [patients, setPatients] = useState<PatientOption[]>([]);
-  const [patientsCapped, setPatientsCapped] = useState(false);
+  const [patientPage, setPatientPage] = useState(1);
+  const [patientTotalPages, setPatientTotalPages] = useState(1);
+  const [loadingMorePatients, setLoadingMorePatients] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -94,19 +97,23 @@ export function LiveScribeReviewWorkspace() {
     return () => {
       mounted.current = false;
       listVersion.current += 1;
+      patientListVersion.current += 1;
       detailVersion.current += 1;
     };
   }, []);
 
   useEffect(() => {
     listVersion.current += 1;
+    patientListVersion.current += 1;
     detailVersion.current += 1;
     selectedEncounterRef.current = null;
     actionLock.current.clear();
     exportKeys.current.clear();
     setSummaries([]);
     setPatients([]);
-    setPatientsCapped(false);
+    setPatientPage(1);
+    setPatientTotalPages(1);
+    setLoadingMorePatients(false);
     setSelectedEncounterId("");
     setSelectedPatientId("");
     setEncounter(null);
@@ -138,6 +145,7 @@ export function LiveScribeReviewWorkspace() {
   const loadIndex = useCallback(async (preferredEncounterId?: number) => {
     const requestScope = scopeKey;
     const requestVersion = ++listVersion.current;
+    patientListVersion.current += 1;
     setReviewState({ kind: "loading" });
     try {
       const result = await api<EncounterIndex>(
@@ -146,7 +154,9 @@ export function LiveScribeReviewWorkspace() {
       if (!isCurrent(requestScope) || requestVersion !== listVersion.current) return;
       setSummaries(result.encounters);
       setPatients(result.patient_options);
-      setPatientsCapped(result.patient_options_capped);
+      setPatientPage(result.patient_pagination.page);
+      setPatientTotalPages(result.patient_pagination.total_pages);
+      setLoadingMorePatients(false);
       setPage(result.pagination.page);
       setTotalPages(result.pagination.total_pages);
       setLoadingMore(false);
@@ -202,7 +212,32 @@ export function LiveScribeReviewWorkspace() {
     setTranscript("");
     setActionError(null);
     setOutcomeUnknown(null);
+    setConfirmation(null);
     void loadEncounter(encounterId);
+  };
+
+  const loadMorePatients = async () => {
+    if (loadingMorePatients || patientPage >= patientTotalPages) return;
+    const requestScope = scopeKey;
+    const requestVersion = ++patientListVersion.current;
+    setLoadingMorePatients(true);
+    try {
+      const result = await api<EncounterIndex>(
+        `/api/clinic/scribe/encounters?page=1&per_page=${PAGE_SIZE}&patient_page=${patientPage + 1}`,
+      );
+      if (!isCurrent(requestScope) || requestVersion !== patientListVersion.current) return;
+      setPatients((current) => {
+        const ids = new Set(current.map(({ id }) => id));
+        return [...current, ...result.patient_options.filter(({ id }) => !ids.has(id))];
+      });
+      setPatientPage(result.patient_pagination.page);
+      setPatientTotalPages(result.patient_pagination.total_pages);
+      setLoadingMorePatients(false);
+    } catch (reason) {
+      if (!isCurrent(requestScope) || requestVersion !== patientListVersion.current) return;
+      setLoadingMorePatients(false);
+      setActionError(errorMessage(reason, "Unable to load more patient options."));
+    }
   };
 
   const runMutation = async (
@@ -222,6 +257,7 @@ export function LiveScribeReviewWorkspace() {
         setActionError(errorMessage(reason, "The scribe action could not be completed."));
         if (uncertainMessage) setOutcomeUnknown(uncertainMessage);
       }
+      throw reason;
     } finally {
       actionLock.current.delete(scopedKey);
       if (isCurrent(scopeKey)) setPendingAction(null);
@@ -235,6 +271,7 @@ export function LiveScribeReviewWorkspace() {
       body: { encounter: { patient_id: selectedPatientId, site_id: current_site?.id } },
     });
     if (!isCurrent(scopeKey)) return;
+    setSelectedPatientId("");
     await loadIndex(result.encounter.id);
   }, "Creation outcome is not confirmed. Reload the encounter list before trying again.");
 
@@ -287,7 +324,7 @@ export function LiveScribeReviewWorkspace() {
     return runMutation(`review:${sectionKey}`, async () => {
       await api(`/api/clinic/scribe/drafts/${draftId}/review`, {
         method: "POST",
-        body: { review: { action, section_key: sectionKey, content } },
+        body: { review: { action, section_key: sectionKey, content, expected_version: draftVersion } },
       });
       const latestDraft = currentDraft(encounter);
       if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId && latestDraft?.id === draftId && latestDraft.version === draftVersion) {
@@ -300,7 +337,7 @@ export function LiveScribeReviewWorkspace() {
     const encounterId = selectedEncounterRef.current;
     if (!encounterId) return Promise.resolve();
     return runMutation("approve", async () => {
-      await api(`/api/clinic/scribe/drafts/${draftId}/approve`, { method: "POST", body: {} });
+      await api(`/api/clinic/scribe/drafts/${draftId}/approve`, { method: "POST", body: { expected_version: draftVersion } });
       const latestDraft = currentDraft(encounter);
       if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId && latestDraft?.id === draftId && latestDraft.version === draftVersion) await loadEncounter(encounterId);
     }, "Approval outcome is not confirmed. Reload the current revision before trying again.");
@@ -315,7 +352,7 @@ export function LiveScribeReviewWorkspace() {
     return runMutation("export", async () => {
       await api(`/api/clinic/scribe/drafts/${draftId}/export`, {
         method: "POST",
-        body: { export: { destination: "parent_record_adapter", idempotency_key: idempotencyKey, confirmed: true } },
+        body: { export: { destination: "parent_record_adapter", idempotency_key: idempotencyKey, confirmed: true, expected_version: draftVersion } },
       });
       if (!isCurrent(scopeKey)) return;
       exportKeys.current.delete(identity);
@@ -332,6 +369,15 @@ export function LiveScribeReviewWorkspace() {
     const value = confirmation;
     setConfirmation(null);
     if (!value) return;
+    const loadedDraft = currentDraft(encounter);
+    const confirmationCurrent = value.scopeKey === scopeKey && value.encounterId === selectedEncounterRef.current &&
+      (value.kind === "consent" || value.kind === "delete"
+        ? encounter?.version === value.encounterVersion
+        : loadedDraft?.id === value.draftId && loadedDraft.version === value.draftVersion);
+    if (!confirmationCurrent) {
+      setActionError("The selected encounter or revision changed. Review it again before confirming this action.");
+      return;
+    }
     if (value.kind === "consent") await decideConsent(value.decision);
     if (value.kind === "approve") await approveDraft(value.draftId, value.draftVersion);
     if (value.kind === "export") await exportDraft(value.draftId, value.draftVersion);
@@ -372,7 +418,7 @@ export function LiveScribeReviewWorkspace() {
               ))}
             </Select>
           </FormControl>
-          {page < totalPages && <Button variant="outlined" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more encounters"}</Button>}
+          {page < totalPages && <Button variant="outlined" disabled={loadingMore || pendingAction !== null} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more encounters"}</Button>}
           {canWrite && (
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <FormControl fullWidth disabled={pendingAction !== null || Boolean(outcomeUnknown)}>
@@ -381,10 +427,10 @@ export function LiveScribeReviewWorkspace() {
                   {patients.map((patient) => <MenuItem key={patient.id} value={patient.id}>{patient.display_name} · {patient.reference}</MenuItem>)}
                 </Select>
               </FormControl>
-              <Button variant="contained" disabled={!selectedPatientId || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void createEncounter()}>Create encounter</Button>
+              <Button variant="contained" disabled={!selectedPatientId || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void createEncounter().catch(() => undefined)}>Create encounter</Button>
             </Stack>
           )}
-          {patientsCapped && <Alert severity="info">The patient selector shows the first 100 references. A server-side search route is still needed for larger patient lists.</Alert>}
+          {canWrite && patientPage < patientTotalPages && <Button variant="outlined" disabled={loadingMorePatients || pendingAction !== null} onClick={() => void loadMorePatients()}>{loadingMorePatients ? "Loading patients…" : "Load more patients"}</Button>}
         </Stack>
       </Paper>
 
@@ -394,15 +440,15 @@ export function LiveScribeReviewWorkspace() {
             <Typography component="h2" variant="h5">Consent and source</Typography>
             <Typography color="text.secondary">Consent policy {encounter.consent_policy_version || "not yet recorded"}. Capture and processing remain unavailable unless the server records accepted consent.</Typography>
             {!encounterDeleted && <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              {encounter.consent_status !== "accepted" && <Button variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "accepted" })}>Record accepted consent</Button>}
-              {encounter.consent_status !== "declined" && <Button variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "declined" })}>Record declined consent</Button>}
-              {encounter.consent_status === "accepted" && <Button color="warning" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "withdrawn" })}>Withdraw consent</Button>}
+              {encounter.consent_status !== "accepted" && <Button variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "accepted", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Record accepted consent</Button>}
+              {encounter.consent_status !== "declined" && <Button variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "declined", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Record declined consent</Button>}
+              {encounter.consent_status === "accepted" && <Button color="warning" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "consent", decision: "withdrawn", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Withdraw consent</Button>}
             </Stack>}
             <TextField label="Imported transcript" multiline minRows={5} value={transcript} onChange={(event) => setTranscript(event.target.value)} disabled={!processingAllowed || pendingAction !== null} helperText="Paste only an authorized transcript. The server stores it as protected source evidence; no microphone or cloud provider is used here." slotProps={{ htmlInput: { maxLength: 250000 } }} />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button variant="contained" disabled={!processingAllowed || !transcript.trim() || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void importSource()}>Import transcript</Button>
-              <Button variant="outlined" disabled={!processingAllowed || !encounter.sources.some(({ status }) => status === "ready") || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void generateDraft()}>Generate local grounded draft</Button>
-              {canDelete && <Button color="error" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "delete", encounterId: encounter.id })}>Delete encounter content</Button>}
+              <Button variant="contained" disabled={!processingAllowed || !transcript.trim() || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void importSource().catch(() => undefined)}>Import transcript</Button>
+              <Button variant="outlined" disabled={!processingAllowed || !encounter.sources.some(({ status }) => status === "ready") || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void generateDraft().catch(() => undefined)}>Generate local grounded draft</Button>
+              {canDelete && <Button color="error" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "delete", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Delete encounter content</Button>}
             </Stack>
           </Stack>
         </Paper>
@@ -416,8 +462,8 @@ export function LiveScribeReviewWorkspace() {
         onSaveSection={canWrite && draft ? (draftId, sectionKey, content) => reviewSection(draftId, draft.version, sectionKey, "edit", content) : undefined}
         onAcceptSection={canWrite && draft ? (draftId, sectionKey) => reviewSection(draftId, draft.version, sectionKey, "accept") : undefined}
         onRejectSection={canWrite && draft ? (draftId, sectionKey) => reviewSection(draftId, draft.version, sectionKey, "reject") : undefined}
-        onApprove={canApprove && draft ? (draftId) => setConfirmation({ kind: "approve", draftId, draftVersion: draft.version }) : undefined}
-        onExport={canExport && draft ? (draftId) => setConfirmation({ kind: "export", draftId, draftVersion: draft.version }) : undefined}
+        onApprove={canApprove && draft && encounter ? (draftId) => setConfirmation({ kind: "approve", draftId, draftVersion: draft.version, encounterId: encounter.id, scopeKey }) : undefined}
+        onExport={canExport && draft && encounter ? (draftId) => setConfirmation({ kind: "export", draftId, draftVersion: draft.version, encounterId: encounter.id, scopeKey }) : undefined}
       />
 
       <Dialog open={confirmation !== null} onClose={() => pendingAction === null && setConfirmation(null)} fullWidth maxWidth="sm">
@@ -432,7 +478,7 @@ export function LiveScribeReviewWorkspace() {
         </DialogContent>
         <DialogActions>
           <Button disabled={pendingAction !== null} onClick={() => setConfirmation(null)}>Cancel</Button>
-          <Button color={confirmation?.kind === "delete" ? "error" : "primary"} variant="contained" disabled={pendingAction !== null} onClick={() => void confirmAction()}>Confirm</Button>
+          <Button color={confirmation?.kind === "delete" ? "error" : "primary"} variant="contained" disabled={pendingAction !== null} onClick={() => void confirmAction().catch(() => undefined)}>Confirm</Button>
         </DialogActions>
       </Dialog>
     </Stack>
