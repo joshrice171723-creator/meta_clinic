@@ -1,7 +1,8 @@
 module Clinic
   module Billing
     class SubscriptionsController < Clinic::BaseController
-      before_action -> { require_capability("billing.read") }
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: :index
+      before_action -> { require_capability("billing.read") }, except: :index
       rescue_from StripeGateway::Unavailable do |error|
         render json: { error: error.message }, status: :service_unavailable
       end

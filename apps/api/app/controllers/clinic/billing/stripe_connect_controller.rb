@@ -2,7 +2,8 @@ module Clinic
   module Billing
     class StripeConnectController < Clinic::BaseController
       before_action -> { head :not_found unless Rails.env.test? || DevelopmentAccess.allowed?(request) }
-      before_action -> { require_capability("billing.read") }
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: :show
+      before_action -> { require_capability("billing.read") }, except: :show
       rescue_from StripeGateway::Unavailable do |error|
         render json: { error: error.message }, status: :service_unavailable
       end

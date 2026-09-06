@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class InvoicesController < Clinic::ApiController
-      before_action -> { require_capability_with_legacy("billing.read", "patients.read") }, only: %i[index show]
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create update_draft]
       before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: :post
       before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[allocate_payment record_cash_payment]

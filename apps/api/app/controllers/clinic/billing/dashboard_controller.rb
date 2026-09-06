@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class DashboardController < Clinic::ApiController
-      before_action -> { require_capability("billing.read") }
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }
 
       def show
         render json: Dashboard.call(

@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class PaymentEventsController < Clinic::ApiController
-      before_action -> { require_capability_with_legacy("billing.read", "patients.read") }, only: :receipt
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: :receipt
       before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[cash_refunds allocate]
 
       def allocate
