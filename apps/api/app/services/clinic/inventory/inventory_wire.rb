@@ -96,6 +96,33 @@ module Clinic
         { data: purchase_order_wire(order) }
       end
 
+      def replenishment(practice:, actor:, **filters)
+        result = CatalogQuery.replenishment(practice: practice, actor: actor, **filters)
+        explanations = result.products.to_h do |product|
+          shortage = product[:shortage_units].to_d
+          packages = (shortage / product.package_size.to_d).ceil
+          offer = nil
+          offer_error = nil
+          begin
+            selected = PurchaseCartCheckout.select_offer(product: product, requested_packages: [ packages, 1 ].max.to_s)
+            row = selected.supplier_product
+            offer = { supplier_name: selected.supplier.name, supplier_product_id: row.id.to_s, supplier_id: row.supplier_id.to_s,
+              package_quantity: row.package_quantity.to_d.to_s("F"), supplier_packages: selected.supplier_packages.to_s, unit_price: row.wholesale_unit_cost.to_d.to_s("F"), currency: row.currency }
+          rescue ArgumentError => error
+            offer_error = error.message
+          end
+          [ product.id.to_s, { available_units: product.available_quantity.to_d.to_s("F"), on_hand_units: product.on_hand_quantity.to_d.to_s("F"),
+            unavailable_units: (product.on_hand_quantity.to_d - product.available_quantity.to_d).to_s("F"), incoming_units: product[:incoming_units].to_d.to_s("F"), pending_order_units: product[:pending_units].to_d.to_s("F"),
+            draft_cart_packages: product[:draft_packages].to_d.to_s("F"), shortage_units: shortage.to_s("F"), suggested_packages: packages.to_s,
+            rounded_units: (packages * product.package_size.to_d).to_s("F"), unit_mismatch_count: product[:unit_mismatch_count].to_i, offer: offer, offer_error: offer_error } ]
+        end
+        context(practice: practice, actor: actor).merge(
+          plan_page: { query: result.query, mode: result.mode, page: result.page, page_count: result.page_count, page_size: CatalogQuery::TABLE_PAGE_SIZE,
+            total_count: result.total_count, filtered_count: result.filtered_count, product_id: result.product_id }, explanations: explanations,
+          products: result.products.map { |product| product_summary_wire(product, available: product.available_quantity, on_hand: product.on_hand_quantity, supplier_name: product.preferred_supplier&.name, supplier_id: product.preferred_supplier_id) },
+          sites: practice.sites.order(:name, :id).map { |site| Clinic::FacilitySerializer.site(site) }, purchase_cart: result.cart ? purchase_cart_wire(result.cart) : nil)
+      end
+
       def receiving_lot(practice:, product_id:, number:)
         product = PharmacyProduct.where(practice_id: practice.id).find(product_id)
         number = number.to_s.strip
@@ -188,7 +215,7 @@ module Clinic
         {
           id: cart.id.to_s, status: cart.status, destination_site_id: cart.destination_site_id&.to_s,
           reason: cart.reason, checkout_group_id: cart.checkout_group_id, version: cart.version,
-          items: cart.items.where(status: "draft").map do |item|
+          items: cart.items.select { |item| item.status == "draft" }.map do |item|
             offer = item.selected_supplier_product
             {
               id: item.id.to_s, product_id: item.product_id.to_s, product_name: item.product.name,

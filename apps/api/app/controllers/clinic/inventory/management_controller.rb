@@ -38,7 +38,11 @@ module Clinic
         head :no_content
       end
 
-      def replenishment = bootstrap
+      def replenishment
+        return bootstrap unless params[:view] == "plan"
+
+        render json: { data: InventoryWire.replenishment(practice: current_practice, actor: current_user, query: params[:q], mode: params[:plan_mode], page: params[:page], product_id: params[:product_id]) }
+      end
       def purchase_cart
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
@@ -50,7 +54,7 @@ module Clinic
         cart.with_draft_lock do
           cart.update!(destination_site: cart_destination(input[:destination_site_id]), reason: input[:reason].to_s.strip.presence)
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
       def purchase_orders
         return bootstrap unless params[:view] == "batches"
@@ -171,7 +175,7 @@ module Clinic
             price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest, source: input[:source].presence || "manual", status: "draft")
           item.save!
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }, status: :created
+        render json: params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }, status: :created
       end
 
       def update_purchase_cart_item
@@ -186,14 +190,14 @@ module Clinic
             selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
             price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def remove_purchase_cart_item
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
         item.cart.with_draft_lock { item.reload.destroy! }
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def checkout_purchase_cart
@@ -201,7 +205,8 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         cart, orders = PurchaseCartCheckout.call(practice: current_practice, actor: current_user, cart_id: input.require(:cart_id), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), checkout_group_id: cart.checkout_group_id, purchase_order_ids: orders.map(&:id) }, status: :created
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(checkout_group_id: cart.checkout_group_id, purchase_order_ids: orders.map(&:id)), status: :created
       end
 
       def transition_purchase_order

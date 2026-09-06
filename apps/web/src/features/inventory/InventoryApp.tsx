@@ -19,6 +19,8 @@ import type {
   InventoryActivityData,
   InventoryCatalogData,
   InventoryCatalogRead,
+  InventoryPlanData,
+  InventoryPlanRead,
   InventoryStockData,
   InventoryStockRead,
   InventoryOrderData,
@@ -547,7 +549,7 @@ function facilityCanReceivePurchaseOrder(record: InventoryFacility) {
     )
   );
 }
-function purchaseOrderFacilities(data: InventoryData) {
+function purchaseOrderFacilities(data: Pick<InventoryData, "sites">) {
   return (data.sites ?? []).filter((record) => record.status === "active");
 }
 function facilityAddress(record?: InventoryFacility) {
@@ -1989,6 +1991,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryData
     | InventoryActivityData
     | InventoryCatalogData
+    | InventoryPlanData
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
@@ -2002,6 +2005,8 @@ export function InventoryApp({ path }: { path: string }) {
   const [notice, setNotice] = useState<Notice>(null);
   const needsPurchaseOrderFacility =
     screen === "purchase_order_new" || screen === "replenishment";
+  const routeScope =
+    typeof window === "undefined" ? "" : window.location.search;
 
   useEffect(() => {
     if (!uncertainMutation || typeof window === "undefined") return;
@@ -2038,42 +2043,58 @@ export function InventoryApp({ path }: { path: string }) {
 
   const load = async (
     requested?: InventoryCatalogRead &
+      InventoryPlanRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null },
   ) => {
     const read: InventoryCatalogRead &
+      InventoryPlanRead &
       InventoryStockRead &
       InventoryOrderRead &
-      InventoryDeliveryRead & { before?: string | null } =
-      requested ??
-      (screen === "catalog" && data && "catalog_page" in data
+      InventoryDeliveryRead & { before?: string | null } = {
+      ...(needsPurchaseOrderFacility
         ? {
-            q: data.catalog_page.query,
-            status: data.catalog_page.status,
-            sort: data.catalog_page.sort,
-            page: data.catalog_page.page,
+            plan_mode: (screen === "purchase_order_new"
+              ? "all"
+              : "needed") as NonNullable<InventoryPlanRead["plan_mode"]>,
           }
-        : screen === "lots" && data && "stock_page" in data
+        : {}),
+      ...(requested ??
+        (screen === "catalog" && data && "catalog_page" in data
           ? {
-              q: data.stock_page.query,
-              stock_status: data.stock_page.status,
-              page: data.stock_page.page,
+              q: data.catalog_page.query,
+              status: data.catalog_page.status,
+              sort: data.catalog_page.sort,
+              page: data.catalog_page.page,
             }
-          : screen === "purchasing" && data && "order_page" in data
+          : screen === "lots" && data && "stock_page" in data
             ? {
-                q: data.order_page.query,
-                order_status: data.order_page.status,
-                page: data.order_page.page,
+                q: data.stock_page.query,
+                stock_status: data.stock_page.status,
+                page: data.stock_page.page,
               }
-            : screen === "receiving" && data && "delivery_page" in data
+            : screen === "purchasing" && data && "order_page" in data
               ? {
-                  q: data.delivery_page.query,
-                  delivery_status: data.delivery_page.status,
-                  page: data.delivery_page.page,
-                  shipment_id: data.delivery_page.selected_shipment_id,
+                  q: data.order_page.query,
+                  order_status: data.order_page.status,
+                  page: data.order_page.page,
                 }
-              : {});
+              : screen === "receiving" && data && "delivery_page" in data
+                ? {
+                    q: data.delivery_page.query,
+                    delivery_status: data.delivery_page.status,
+                    page: data.delivery_page.page,
+                    shipment_id: data.delivery_page.selected_shipment_id,
+                  }
+                : needsPurchaseOrderFacility && data && "plan_page" in data
+                  ? {
+                      q: data.plan_page.query,
+                      plan_mode: data.plan_page.mode,
+                      page: data.plan_page.page,
+                    }
+                  : {})),
+    };
     const version = ++readVersion.current;
     setLoading(true);
     setError("");
@@ -2088,6 +2109,7 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "lots") query.set("view", "positions");
         if (screen === "purchasing") query.set("view", "batches");
         if (screen === "receiving") query.set("view", "deliveries");
+        if (needsPurchaseOrderFacility) query.set("view", "plan");
         if (read.delivery_status)
           query.set("delivery_status", read.delivery_status);
         if (read.order_status) query.set("order_status", read.order_status);
@@ -2102,6 +2124,9 @@ export function InventoryApp({ path }: { path: string }) {
           query.set("product_id", routeQuery.get("product_id")!);
         if (screen === "activity" && routeQuery.get("lot_id"))
           query.set("lot_id", routeQuery.get("lot_id")!);
+        if (needsPurchaseOrderFacility && routeQuery.get("product_id"))
+          query.set("product_id", routeQuery.get("product_id")!);
+        if (read.plan_mode) query.set("plan_mode", read.plan_mode);
         if (read.stock_status) query.set("stock_status", read.stock_status);
         if (read.status) query.set("status", read.status);
         if (read.sort) query.set("sort", read.sort);
@@ -2119,12 +2144,15 @@ export function InventoryApp({ path }: { path: string }) {
                   ? `/api/clinic/inventory/purchase-orders?${query}`
                   : screen === "receiving"
                     ? `/api/clinic/inventory/receiving?${query}`
-                    : "/api/clinic/inventory/bootstrap";
+                    : needsPurchaseOrderFacility
+                      ? `/api/clinic/inventory/replenishment?${query}`
+                      : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
             | InventoryActivityData
             | InventoryCatalogData
+            | InventoryPlanData
             | InventoryStockData
             | InventoryOrderData
             | InventoryDeliveryData;
@@ -2134,6 +2162,7 @@ export function InventoryApp({ path }: { path: string }) {
           !payload.data ||
           (screen === "activity") !== "activity_page" in payload.data ||
           (screen === "catalog") !== "catalog_page" in payload.data ||
+          needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
           (screen === "receiving") !== "delivery_page" in payload.data
@@ -2168,11 +2197,11 @@ export function InventoryApp({ path }: { path: string }) {
   };
   useEffect(() => {
     setData(undefined);
-    void load();
+    void load({});
     return () => {
       readVersion.current += 1;
     };
-  }, [screen]);
+  }, [screen, routeScope]);
 
   const run = async (
     endpoint: string,
@@ -2211,7 +2240,13 @@ export function InventoryApp({ path }: { path: string }) {
         acknowledged?: boolean;
         id?: number | string;
       }>(
-        ["lots", "purchasing", "receiving"].includes(screen)
+        [
+          "lots",
+          "purchasing",
+          "receiving",
+          "replenishment",
+          "purchase_order_new",
+        ].includes(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
         {
@@ -2219,7 +2254,15 @@ export function InventoryApp({ path }: { path: string }) {
           body: requestBody,
         },
       );
-      if (["lots", "purchasing", "receiving"].includes(screen)) {
+      if (
+        [
+          "lots",
+          "purchasing",
+          "receiving",
+          "replenishment",
+          "purchase_order_new",
+        ].includes(screen)
+      ) {
         if (payload.acknowledged !== true)
           throw new Error(
             "The inventory action response could not be confirmed.",
@@ -2238,7 +2281,16 @@ export function InventoryApp({ path }: { path: string }) {
         detail: successDetail,
       });
       afterSuccess?.(payload);
-      if (["lots", "purchasing", "receiving"].includes(screen)) await load();
+      if (
+        [
+          "lots",
+          "purchasing",
+          "receiving",
+          "replenishment",
+          "purchase_order_new",
+        ].includes(screen)
+      )
+        await load();
     } catch (reason) {
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
@@ -2406,6 +2458,17 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "plan_page" in data ? (
+              <PurchaseCartWorkspace
+                data={data}
+                busy={busy}
+                readBlocked={Boolean(uncertainMutation)}
+                loading={loading}
+                error={error}
+                run={run}
+                onRead={load}
+                directEntry={screen === "purchase_order_new"}
+              />
             ) : "stock_page" in data ? (
               <LotsScreen
                 key={`${data.stock_page.page}:${data.stock_page.query}:${data.stock_page.status}:${data.stock_page.product_id}`}
@@ -2452,23 +2515,6 @@ export function InventoryApp({ path }: { path: string }) {
                   <SupplierPricingScreen
                     data={data}
                     onData={(next) => setData(next)}
-                  />
-                )}
-                {screen === "replenishment" && (
-                  <PurchaseCartWorkspace
-                    data={data}
-                    busy={busy}
-                    run={run}
-                    onRefresh={load}
-                  />
-                )}
-                {screen === "purchase_order_new" && (
-                  <PurchaseCartWorkspace
-                    data={data}
-                    busy={busy}
-                    run={run}
-                    onRefresh={load}
-                    directEntry
                   />
                 )}
                 {screen === "shipment_new" && (
@@ -3173,148 +3219,531 @@ function ReplenishmentScreen({
   );
 }
 
-function cartBestOffer(data: InventoryData, product: InventoryProduct) {
-  const offers = (data.supplier_products ?? [])
-    .filter((offer) => offer.product_id === product.id && offer.available !== false)
-    .filter((offer) => !offer.effective_date || offer.effective_date <= new Date().toISOString().slice(0, 10));
-  return offers.sort((left, right) => {
-    const leftCost = Number(left.wholesale_unit_cost) / Number(left.package_quantity);
-    const rightCost = Number(right.wholesale_unit_cost) / Number(right.package_quantity);
-    return leftCost - rightCost || (left.lead_time_days ?? 9999) - (right.lead_time_days ?? 9999) || left.id.localeCompare(right.id);
-  })[0];
-}
-
 function PurchaseCartWorkspace({
   data,
   busy,
+  readBlocked,
+  loading,
+  error,
   run,
-  onRefresh,
+  onRead,
   directEntry = false,
 }: {
-  data: InventoryData;
+  data: InventoryPlanData;
   busy: boolean;
+  readBlocked: boolean;
+  loading: boolean;
+  error: string;
   run: InventoryRun;
-  onRefresh: () => Promise<void>;
+  onRead: (read: InventoryPlanRead) => Promise<void>;
   directEntry?: boolean;
 }) {
-  const queryProductId = new URLSearchParams(window.location.search).get("product_id");
-  const [showAll, setShowAll] = useState(directEntry);
-  const [search, setSearch] = useState("");
-  const [catalogPage, setCatalogPage] = useState(1);
+  const result = data.plan_page;
+  const pinnedProduct = Boolean(result.product_id);
+  const [search, setSearch] = useState(result.query);
   const [reason, setReason] = useState(data.purchase_cart?.reason ?? "");
-  const [destinationId, setDestinationId] = useState(data.purchase_cart?.destination_site_id ?? "");
+  const [destinationId, setDestinationId] = useState(
+    data.purchase_cart?.destination_site_id ?? "",
+  );
+  const [lineQuantities, setLineQuantities] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        (data.purchase_cart?.items ?? []).map((item) => [
+          item.id,
+          item.requested_packages,
+        ]),
+      ),
+  );
+  const [cartAction, setCartAction] = useState<string | null>(null);
+  const [cartError, setCartError] = useState("");
   const cart = data.purchase_cart;
-  const destinations = purchaseOrderFacilities(data).filter(facilityCanReceivePurchaseOrder);
-  const products = data.products
-    .filter((product) => product.active && (showAll || product.low_stock) && (!search.trim() || `${product.name} ${product.ndc} ${product.device_identifier}`.toLowerCase().includes(search.trim().toLowerCase())))
-    .sort((left, right) => left.name.localeCompare(right.name));
-  const catalogPageSize = 20;
-  const catalogPageCount = Math.max(1, Math.ceil(products.length / catalogPageSize));
-  const visibleProducts = products.slice((catalogPage - 1) * catalogPageSize, catalogPage * catalogPageSize);
+  const canProcure = capability(data, "procurement.create");
+  const writeBlocked = readBlocked || loading || Boolean(error);
+  const destinations = purchaseOrderFacilities(data).filter(
+    facilityCanReceivePurchaseOrder,
+  );
+  const applied: InventoryPlanRead = {
+    q: result.query,
+    plan_mode: result.mode,
+    page: result.page,
+  };
+  useEffect(() => setSearch(result.query), [result.query]);
   useEffect(() => {
-    setCatalogPage((current) => Math.min(current, catalogPageCount));
-  }, [catalogPageCount]);
-  const suggestedQuantity = (product: InventoryProduct) => {
-    const deficit = nonNegative(decimalSubtract(decimalSubtract(product.reorder_point_units, product.available_units), onOrderUnits(data, product.id)));
-    return decimalCompare(deficit, "0") > 0 ? decimalCeilDivide(deficit, product.units_per_package) : "1";
-  };
-  const addItem = (product: InventoryProduct) => {
-    const offer = cartBestOffer(data, product);
-    if (!offer) return;
-    void run("/api/clinic/inventory/purchase-cart/items", {
-      item: {
-        product_id: product.id,
-        requested_packages: suggestedQuantity(product),
-        source: product.low_stock && !showAll ? "replenishment" : "manual",
-        destination_site_id: destinationId,
-        reason: reason.trim(),
-      },
-    }, "Added to draft", `${product.name} is in the draft cart using ${offer.supplier_name}.`);
-  };
-  const updateItem = async (id: string, requested_packages: string) => {
+    setReason(cart?.reason ?? "");
+    setDestinationId(cart?.destination_site_id ?? "");
+    setLineQuantities(
+      Object.fromEntries(
+        (cart?.items ?? []).map((item) => [item.id, item.requested_packages]),
+      ),
+    );
+  }, [cart?.id, cart?.version]);
+
+  const refresh = () => onRead(applied);
+  const reconcileCartMutation = async (
+    action: string,
+    endpoint: string,
+    options: { method: "PATCH" | "DELETE"; body?: Record<string, unknown> },
+  ) => {
+    setCartAction(action);
+    setCartError("");
     try {
-      await api(`/api/clinic/inventory/purchase-cart/items/${id}`, { method: "PATCH", body: { item: { requested_packages } } });
-      await onRefresh();
-    } catch {
-      await onRefresh();
+      const payload = await api<{ acknowledged?: boolean }>(
+        `${endpoint}?response=ack`,
+        options,
+      );
+      if (payload.acknowledged !== true)
+        throw new Error("The cart update response could not be confirmed.");
+      await refresh();
+    } catch (reason) {
+      setCartError(
+        reason instanceof Error
+          ? `${reason.message} A draft refresh was requested; reload the page if its current state is still unclear.`
+          : "The cart update could not be confirmed. A draft refresh was requested; reload the page if its current state is still unclear.",
+      );
+      await refresh();
+    } finally {
+      setCartAction(null);
     }
   };
-  const removeItem = async (id: string) => {
-    await api(`/api/clinic/inventory/purchase-cart/items/${id}`, { method: "DELETE" });
-    await onRefresh();
+  const addItem = (product: InventoryProduct) => {
+    const explanation = data.explanations[product.id];
+    if (!explanation?.offer) return;
+    const quantity =
+      decimalCompare(explanation.suggested_packages, "0") > 0
+        ? explanation.suggested_packages
+        : "1";
+    void run(
+      "/api/clinic/inventory/purchase-cart/items",
+      {
+        item: {
+          product_id: product.id,
+          requested_packages: quantity,
+          source:
+            result.mode === "needed" &&
+            decimalCompare(explanation.shortage_units, "0") > 0
+              ? "replenishment"
+              : "manual",
+          destination_site_id: destinationId,
+          reason: reason.trim(),
+        },
+      },
+      "Added to draft",
+      `${product.name} is in the draft cart using ${explanation.offer.supplier_name}.`,
+    );
   };
-  const subtotal = decimalSum((cart?.items ?? []).map((item) => item.extended_cost));
-  const supplierCount = new Set((cart?.items ?? []).map((item) => item.supplier_id).filter(Boolean)).size;
-  const selectedDestination = destinations.find((site) => String(site.id) === destinationId);
+  const updateItem = (id: string) => {
+    const requestedPackages = lineQuantities[id]?.trim() ?? "";
+    if (!/^[1-9][0-9]*$/.test(requestedPackages)) {
+      setCartError("Package quantity must be a positive whole number.");
+      return;
+    }
+    void reconcileCartMutation(
+      `update:${id}`,
+      `/api/clinic/inventory/purchase-cart/items/${id}`,
+      {
+        method: "PATCH",
+        body: { item: { requested_packages: requestedPackages } },
+      },
+    );
+  };
+  const removeItem = (id: string) => {
+    void reconcileCartMutation(
+      `remove:${id}`,
+      `/api/clinic/inventory/purchase-cart/items/${id}`,
+      { method: "DELETE" },
+    );
+  };
+  const subtotal = decimalSum(
+    (cart?.items ?? []).map((item) => item.extended_cost),
+  );
+  const supplierCount = new Set(
+    (cart?.items ?? []).map((item) => item.supplier_id).filter(Boolean),
+  ).size;
+  const selectedDestination = destinations.find(
+    (site) => String(site.id) === destinationId,
+  );
+  const hasUnsavedLineChanges = Boolean(
+    cart?.items.some(
+      (item) =>
+        (lineQuantities[item.id] ?? item.requested_packages) !==
+        item.requested_packages,
+    ),
+  );
   const checkout = async () => {
     if (!cart) return;
-    await api("/api/clinic/inventory/purchase-cart", { method: "PATCH", body: { cart: { destination_site_id: destinationId, reason: reason.trim() } } });
-    await run("/api/clinic/inventory/purchase-cart/checkout", { checkout: { cart_id: cart.id } }, "Checkout complete", `${supplierCount} supplier purchase order${supplierCount === 1 ? "" : "s"} created.`);
+    setCartAction("checkout");
+    setCartError("");
+    try {
+      const payload = await api<{ acknowledged?: boolean }>(
+        "/api/clinic/inventory/purchase-cart?response=ack",
+        {
+          method: "PATCH",
+          body: {
+            cart: {
+              destination_site_id: destinationId,
+              reason: reason.trim(),
+            },
+          },
+        },
+      );
+      if (payload.acknowledged !== true)
+        throw new Error("The cart details could not be confirmed.");
+      await run(
+        "/api/clinic/inventory/purchase-cart/checkout",
+        { checkout: { cart_id: cart.id } },
+        "Checkout complete",
+        `${supplierCount} supplier purchase order${supplierCount === 1 ? "" : "s"} created.`,
+      );
+    } catch (reason) {
+      setCartError(
+        reason instanceof Error
+          ? reason.message
+          : "The cart details could not be confirmed.",
+      );
+      await refresh();
+    } finally {
+      setCartAction(null);
+    }
   };
   return (
     <div className="inventory-two-col purchase-cart-layout">
-      <Card title={directEntry ? "Create purchase order" : "Plan replenishment"}>
-        <div className="inventory-toolbar purchase-cart-toolbar">
-          <div className="inventory-segmented" role="group" aria-label="Catalog scope">
-            <button type="button" className={!showAll ? "active" : ""} onClick={() => { setShowAll(false); setCatalogPage(1); }}>Needs replenishment</button>
-            <button type="button" className={showAll ? "active" : ""} onClick={() => { setShowAll(true); setCatalogPage(1); }}>All active catalog items</button>
-          </div>
-          <input aria-label="Search active catalog" placeholder="Search name, NDC, or SKU" value={search} onChange={(event) => { setSearch(event.target.value); setCatalogPage(1); }} />
-        </div>
+      <Card
+        title={directEntry ? "Create purchase order" : "Plan replenishment"}
+      >
+        {pinnedProduct && (
+          <Alert severity="info">
+            This view is pinned to the catalog item you selected. Its product
+            cannot be changed here.{" "}
+            <a
+              href={
+                directEntry
+                  ? "/clinic/inventory/purchasing/new"
+                  : "/clinic/inventory/replenishment"
+              }
+            >
+              Open the full planning list
+            </a>
+            .
+          </Alert>
+        )}
+        <form
+          className="inventory-toolbar purchase-cart-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!loading)
+              void onRead({
+                ...applied,
+                q: pinnedProduct ? "" : search.trim(),
+                page: 1,
+              });
+          }}
+        >
+          <TextField
+            select
+            size="small"
+            label="Planning scope"
+            value={result.mode}
+            disabled={loading || pinnedProduct}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                plan_mode: event.target.value as NonNullable<
+                  InventoryPlanRead["plan_mode"]
+                >,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="needed">Needs replenishment</MenuItem>
+            <MenuItem value="all">All active catalog items</MenuItem>
+          </TextField>
+          <TextField
+            size="small"
+            label="Search active catalog"
+            placeholder="Name, NDC, device ID, or SKU"
+            value={search}
+            disabled={pinnedProduct}
+            onChange={(event) => setSearch(event.target.value)}
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <Button
+            type="submit"
+            variant="outlined"
+            disabled={loading || pinnedProduct}
+          >
+            Search products
+          </Button>
+        </form>
         <p className="inventory-results-count" role="status">
-          Showing {products.length === 0 ? 0 : (catalogPage - 1) * catalogPageSize + 1}–{Math.min(catalogPage * catalogPageSize, products.length)} of {products.length} products.
+          {loading
+            ? "Loading planning data…"
+            : `Showing ${result.filtered_count === 0 ? 0 : (result.page - 1) * result.page_size + 1}–${Math.min(result.page * result.page_size, result.filtered_count)} of ${result.filtered_count} matching products (${result.total_count} active total).`}
         </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous planning page remains visible.
+          </Alert>
+        )}
         <div className="inventory-list purchase-catalog-list">
-          {visibleProducts.map((product) => {
-            const offer = cartBestOffer(data, product);
-            const preselected = product.id === queryProductId;
+          {data.products.map((product) => {
+            const explanation = data.explanations[product.id];
+            const offer = explanation?.offer;
+            const alreadyInCart = cart?.items.some(
+              (item) => item.product_id === product.id,
+            );
+            const hasUnitMismatch = Boolean(explanation?.unit_mismatch_count);
             return (
-              <div className={`inventory-list-row ${preselected ? "selected" : ""}`} key={product.id}>
+              <div
+                className={`inventory-list-row ${product.id === result.product_id ? "selected" : ""}`}
+                key={product.id}
+              >
                 <div>
                   <strong>{product.name}</strong>
-                  <small>{product.ndc || product.device_identifier || "Identifier not recorded"} · {number(product.units_per_package)} {product.base_unit} per package</small>
-                  <small>Available {number(product.available_units)} · On order {number(onOrderUnits(data, product.id))} · Reorder point {number(product.reorder_point_units)}</small>
+                  <small>
+                    {product.ndc ||
+                      product.device_identifier ||
+                      "Identifier not recorded"}{" "}
+                    · {number(product.units_per_package)} {product.base_unit}{" "}
+                    per catalog package
+                  </small>
+                  {explanation && (
+                    <small>
+                      Available {number(explanation.available_units)} ·
+                      Confirmed incoming {number(explanation.incoming_units)} ·
+                      Reorder point {number(product.reorder_point_units)}
+                    </small>
+                  )}
+                  {explanation && (
+                    <details>
+                      <summary>How this quantity was calculated</summary>
+                      <small>
+                        Physical {number(explanation.on_hand_units)}{" "}
+                        {product.base_unit}; unavailable{" "}
+                        {number(explanation.unavailable_units)}; confirmed
+                        incoming {number(explanation.incoming_units)}; pending
+                        unsent orders {number(explanation.pending_order_units)};
+                        current draft {number(explanation.draft_cart_packages)}{" "}
+                        catalog packages.
+                      </small>
+                      <small>
+                        Shortage {number(explanation.shortage_units)}{" "}
+                        {product.base_unit}; suggested{" "}
+                        {number(explanation.suggested_packages)} catalog
+                        packages, rounded to {number(explanation.rounded_units)}{" "}
+                        {product.base_unit}.
+                      </small>
+                    </details>
+                  )}
+                  {hasUnitMismatch && (
+                    <Alert severity="warning">
+                      {explanation.unit_mismatch_count} outstanding order line
+                      {explanation.unit_mismatch_count === 1
+                        ? " has"
+                        : "s have"}{" "}
+                      a different stock unit. Review it before adding this item.
+                    </Alert>
+                  )}
                 </div>
-                <div className="purchase-catalog-price">{offer ? money(offer.wholesale_unit_cost, offer.currency) : "No eligible offer"}<small>{offer?.supplier_name ?? ""}</small></div>
-                <Button variant="outlined" size="small" disabled={busy || !offer || !selectedDestination || !reason.trim()} onClick={() => addItem(product)}>Add</Button>
+                <div className="purchase-catalog-price">
+                  {offer
+                    ? money(offer.unit_price, offer.currency)
+                    : "No eligible offer"}
+                  <small>
+                    {offer
+                      ? `${offer.supplier_name} · ${number(offer.supplier_packages)} supplier packages`
+                      : (explanation?.offer_error ??
+                        "Supplier terms unavailable")}
+                  </small>
+                </div>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={
+                    busy ||
+                    writeBlocked ||
+                    Boolean(cartAction) ||
+                    !offer ||
+                    !selectedDestination ||
+                    !reason.trim() ||
+                    !canProcure ||
+                    alreadyInCart ||
+                    hasUnitMismatch
+                  }
+                  onClick={() => addItem(product)}
+                >
+                  {alreadyInCart ? "In draft" : "Add"}
+                </Button>
               </div>
             );
           })}
-          {products.length === 0 && <p className="inventory-empty">No matching catalog items.</p>}
+          {data.products.length === 0 && (
+            <p className="inventory-empty" role="status">
+              No products match this planning view.
+            </p>
+          )}
         </div>
-        {catalogPageCount > 1 && (
-          <nav className="inventory-pagination" aria-label="Purchase catalog pagination">
-            <button className="inventory-button outline" type="button" disabled={catalogPage === 1} onClick={() => setCatalogPage((current) => current - 1)}>Previous</button>
-            <span aria-live="polite">Page {catalogPage} of {catalogPageCount}</span>
-            <button className="inventory-button outline" type="button" disabled={catalogPage === catalogPageCount} onClick={() => setCatalogPage((current) => current + 1)}>Next</button>
+        {result.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Purchase catalog pagination"
+          >
+            <Button
+              variant="outlined"
+              type="button"
+              disabled={loading || result.page === 1}
+              onClick={() => void onRead({ ...applied, page: result.page - 1 })}
+            >
+              Previous
+            </Button>
+            <span aria-live="polite">
+              Page {result.page} of {result.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              type="button"
+              disabled={loading || result.page === result.page_count}
+              onClick={() => void onRead({ ...applied, page: result.page + 1 })}
+            >
+              Next
+            </Button>
           </nav>
         )}
       </Card>
       <Card title="Draft purchase cart" className="purchase-cart-panel">
+        <PermissionNote allowed={canProcure} permission="procurement.create" />
         <div className="inventory-form-grid compact">
-          <Field label="Destination facility">
-            <select aria-label="Destination facility" value={destinationId} onChange={(event) => setDestinationId(event.target.value)}>
-              <option value="">Select a facility</option>
-              {destinations.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Reason"><input aria-label="Purchase reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this needed?" /></Field>
+          <TextField
+            select
+            size="small"
+            label="Destination facility"
+            value={destinationId}
+            disabled={writeBlocked || Boolean(cartAction)}
+            onChange={(event) => setDestinationId(event.target.value)}
+          >
+            <MenuItem value="">Select a facility</MenuItem>
+            {destinations.map((site) => (
+              <MenuItem key={site.id} value={String(site.id)}>
+                {site.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            size="small"
+            label="Purchase reason"
+            value={reason}
+            disabled={writeBlocked || Boolean(cartAction)}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Why is this needed?"
+          />
         </div>
-        {!cart?.items.length ? <p className="inventory-muted-panel">Your draft is empty. Add any active catalog item; supplier routing happens automatically.</p> : (
+        {cartError && <Alert severity="error">{cartError}</Alert>}
+        {!cart?.items.length ? (
+          <p className="inventory-muted-panel">
+            Your draft is empty. Add any active catalog item; supplier routing
+            happens automatically.
+          </p>
+        ) : (
           <div className="purchase-cart-lines">
-            {cart.items.map((item) => <div className="purchase-cart-line" key={item.id}>
-              <div><strong>{item.product_name}</strong><small>{item.supplier ?? "Supplier unavailable"} · {item.requested_packages} catalog packages · {item.supplier_packages ?? item.requested_packages} supplier packages · {money(item.unit_price, item.currency)} / supplier package</small></div>
-              <input aria-label={`${item.product_name} package quantity`} type="number" min="1" step="1" value={item.requested_packages} onChange={(event) => void updateItem(item.id, event.target.value)} />
-              <strong>{money(item.extended_cost, item.currency)}</strong>
-              <button type="button" aria-label={`Remove ${item.product_name}`} onClick={() => void removeItem(item.id)}><ClearRoundedIcon fontSize="small" /></button>
-            </div>)}
+            {cart.items.map((item) => {
+              const quantity =
+                lineQuantities[item.id] ?? item.requested_packages;
+              const unchanged = quantity === item.requested_packages;
+              return (
+                <form
+                  className="purchase-cart-line"
+                  key={item.id}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    updateItem(item.id);
+                  }}
+                >
+                  <div>
+                    <strong>{item.product_name}</strong>
+                    <small>
+                      {item.supplier ?? "Supplier unavailable"} ·{" "}
+                      {item.requested_packages} catalog packages ·{" "}
+                      {item.supplier_packages ?? item.requested_packages}{" "}
+                      supplier packages ·{" "}
+                      {money(item.unit_price, item.currency)} / supplier package
+                    </small>
+                  </div>
+                  <TextField
+                    size="small"
+                    label="Packages"
+                    type="number"
+                    value={quantity}
+                    disabled={writeBlocked || Boolean(cartAction)}
+                    onChange={(event) =>
+                      setLineQuantities((current) => ({
+                        ...current,
+                        [item.id]: event.target.value,
+                      }))
+                    }
+                    slotProps={{ htmlInput: { min: 1, step: 1 } }}
+                  />
+                  <strong>{money(item.extended_cost, item.currency)}</strong>
+                  <div className="inventory-form-actions">
+                    <Button
+                      type="submit"
+                      size="small"
+                      variant="outlined"
+                      disabled={
+                        busy ||
+                        writeBlocked ||
+                        Boolean(cartAction) ||
+                        unchanged ||
+                        !canProcure
+                      }
+                    >
+                      {cartAction === `update:${item.id}` ? "Saving…" : "Save"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="small"
+                      color="error"
+                      aria-label={`Remove ${item.product_name}`}
+                      disabled={
+                        busy ||
+                        writeBlocked ||
+                        Boolean(cartAction) ||
+                        !canProcure
+                      }
+                      onClick={() => removeItem(item.id)}
+                    >
+                      <ClearRoundedIcon fontSize="small" />
+                    </Button>
+                  </div>
+                </form>
+              );
+            })}
           </div>
         )}
         <div className="purchase-cart-summary">
-          <span>{cart?.items.length ?? 0} lines · {supplierCount} supplier purchase order{supplierCount === 1 ? "" : "s"}</span>
-          <strong>Estimated subtotal {money(subtotal, cart?.items[0]?.currency ?? "USD")}</strong>
+          <span>
+            {cart?.items.length ?? 0} lines · {supplierCount} supplier purchase
+            order{supplierCount === 1 ? "" : "s"}
+          </span>
+          <strong>
+            Estimated subtotal{" "}
+            {money(subtotal, cart?.items[0]?.currency ?? "USD")}
+          </strong>
         </div>
-        <Button variant="contained" disabled={busy || !cart?.items.length || !destinationId || !reason.trim()} onClick={() => void checkout()}>Check out once</Button>
+        <Button
+          variant="contained"
+          disabled={
+            busy ||
+            writeBlocked ||
+            Boolean(cartAction) ||
+            hasUnsavedLineChanges ||
+            !cart?.items.length ||
+            !destinationId ||
+            !reason.trim() ||
+            !canProcure
+          }
+          onClick={() => void checkout()}
+        >
+          {cartAction === "checkout" ? "Checking out…" : "Check out once"}
+        </Button>
       </Card>
     </div>
   );

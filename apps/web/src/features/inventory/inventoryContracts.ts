@@ -459,6 +459,50 @@ export type InventoryCatalogData = InventoryReadContext &
     > & { product_name: string })[];
   };
 
+export type InventoryPlanRead = {
+  q?: string;
+  plan_mode?: "needed" | "all";
+  page?: number;
+};
+export type InventoryPlanData = InventoryReadContext &
+  Pick<InventoryData, "products" | "sites" | "purchase_cart"> & {
+    plan_page: {
+      query: string;
+      mode: NonNullable<InventoryPlanRead["plan_mode"]>;
+      page: number;
+      page_count: number;
+      page_size: number;
+      total_count: number;
+      filtered_count: number;
+      product_id: string | null;
+    };
+    explanations: Record<
+      string,
+      {
+        available_units: Decimal;
+        on_hand_units: Decimal;
+        unavailable_units: Decimal;
+        incoming_units: Decimal;
+        pending_order_units: Decimal;
+        draft_cart_packages: Decimal;
+        shortage_units: Decimal;
+        suggested_packages: Decimal;
+        rounded_units: Decimal;
+        unit_mismatch_count: number;
+        offer: {
+          supplier_name: string;
+          supplier_product_id: string;
+          supplier_id: string;
+          package_quantity: Decimal;
+          supplier_packages: Decimal;
+          unit_price: Decimal;
+          currency: string;
+        } | null;
+        offer_error: string | null;
+      }
+    >;
+  };
+
 export type InventoryStockRead = {
   q?: string;
   stock_status?: "all" | "available" | "held" | "expired";

@@ -5,6 +5,42 @@ module Clinic
         :unit_totals, :attention, :movements, :profile, :query, :filter, :page, :filtered_count, :filtered)
       TABLE_PAGE_SIZE = 20
       TableResult = Data.define(:products, :total_count, :filtered_count, :query, :status, :sort, :page, :page_count, :attention, :attention_count)
+      ReplenishmentResult = Data.define(:products, :cart, :query, :mode, :page, :page_count, :total_count, :filtered_count, :product_id)
+
+      def self.replenishment(practice:, actor:, query: nil, mode: nil, page: nil, product_id: nil)
+        query = query.to_s.strip
+        mode = mode.presence || "needed"
+        raise ArgumentError, "Search must be 100 characters or fewer." if query.length > 100
+        raise ArgumentError, "Choose a supported planning view." unless %w[needed all].include?(mode)
+        page = page.presence || "1"
+        raise ArgumentError, "Choose a valid planning page." unless /\A[1-9][0-9]{0,5}\z/.match?(page.to_s)
+        product = PharmacyProduct.where(practice_id: practice.id).find(product_id) if product_id.present?
+        stock = PharmacyProduct.where(practice_id: practice.id, active: true).with_stock(practice.inventory_date)
+        outstanding = PurchaseOrderLine.where(practice_id: practice.id).joins(:purchase_order, :product)
+          .where(clinic_inventory_purchase_orders: { practice_id: practice.id, status: %w[draft submitted approved sent partially_received] })
+          .group(:product_id).select(:product_id,
+            "SUM(CASE WHEN clinic_inventory_purchase_orders.status IN ('sent','partially_received') AND clinic_inventory_purchase_order_lines.stock_unit=clinic_pharmacy_products.stock_unit THEN GREATEST(ordered_quantity-received_quantity,0)*conversion_factor ELSE 0 END) AS incoming_units",
+            "SUM(CASE WHEN clinic_inventory_purchase_orders.status IN ('draft','submitted','approved') AND clinic_inventory_purchase_order_lines.stock_unit=clinic_pharmacy_products.stock_unit THEN GREATEST(ordered_quantity-received_quantity,0)*conversion_factor ELSE 0 END) AS pending_units",
+            "COUNT(*) FILTER (WHERE ordered_quantity>received_quantity AND clinic_inventory_purchase_order_lines.stock_unit<>clinic_pharmacy_products.stock_unit) AS unit_mismatch_count")
+        cart = PurchaseCart.where(practice_id: practice.id, actor_id: actor.id, status: "draft").includes(items: [ :product, :selected_supplier, :selected_supplier_product ]).first
+        draft = PurchaseCartItem.where(practice_id: practice.id, cart_id: cart&.id, status: "draft").group(:product_id).select(:product_id, "SUM(requested_packages) AS draft_packages")
+        projected = PharmacyProduct.from("(#{stock.to_sql}) clinic_pharmacy_products")
+          .joins("LEFT JOIN (#{outstanding.to_sql}) incoming ON incoming.product_id=clinic_pharmacy_products.id")
+          .joins("LEFT JOIN (#{draft.to_sql}) draft ON draft.product_id=clinic_pharmacy_products.id")
+          .select("clinic_pharmacy_products.*", "COALESCE(incoming.incoming_units,0) AS incoming_units", "COALESCE(incoming.pending_units,0) AS pending_units",
+            "COALESCE(incoming.unit_mismatch_count,0) AS unit_mismatch_count", "COALESCE(draft.draft_packages,0) AS draft_packages",
+            "GREATEST(reorder_point-available_stock-COALESCE(incoming.incoming_units,0),0) AS shortage_units")
+        summary = PharmacyProduct.from("(#{projected.to_sql}) clinic_pharmacy_products")
+        filtered = summary
+        filtered = filtered.where(id: product.id) if product
+        filtered = filtered.where("shortage_units > 0 OR unit_mismatch_count > 0") if mode == "needed" && !product
+        filtered = filtered.where("concat_ws(' ',name,sku,ndc,device_identifier,generic_name) ILIKE ?", "%#{PharmacyProduct.sanitize_sql_like(query)}%") if query.present?
+        count = filtered.count
+        page_count = [ (count + TABLE_PAGE_SIZE - 1) / TABLE_PAGE_SIZE, 1 ].max
+        page = [ page.to_i, page_count ].min
+        ReplenishmentResult.new(products: filtered.includes(:preferred_supplier).order(:name, :id).limit(TABLE_PAGE_SIZE).offset((page - 1) * TABLE_PAGE_SIZE).to_a,
+          cart: cart, query: query, mode: mode, page: page, page_count: page_count, total_count: summary.count, filtered_count: count, product_id: product&.id&.to_s)
+      end
 
       def self.table(practice:, query: nil, status: nil, sort: nil, page: nil)
         query = query.to_s.strip
