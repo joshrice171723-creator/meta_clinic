@@ -169,6 +169,47 @@ Rails.application.routes.draw do
       post :adjust, on: :member
     end
     resources :staff, controller: "staff/members", only: %i[index create update]
+    namespace :workforce do
+      resources :badges, only: %i[index create] do
+        post :revoke, on: :member
+      end
+      resources :kiosks, only: %i[index create] do
+        post :revoke, on: :member
+      end
+      resources :timecards, only: %i[index show] do
+        post :calculate, on: :collection
+        post :submit, on: :member
+        post :approve, on: :member
+      end
+      resources :adjustments, only: %i[index create] do
+        post :decide, on: :member
+      end
+      resources :employments, only: %i[index create update]
+      get "settings", to: "settings#show"
+      put "settings", to: "settings#update"
+      post "onboarding", to: "onboarding#create"
+      patch "onboarding/:id", to: "onboarding#update"
+      get "schedules", to: "schedules#index"
+      get "my-schedule", to: "schedules#employee"
+      get "schedule-drafts/:id", to: "schedules#show_draft"
+      post "schedule-templates", to: "schedules#create_template"
+      patch "schedule-templates/:id", to: "schedules#update_template"
+      post "schedule-drafts", to: "schedules#create_draft"
+      post "schedule-drafts/:id/shifts", to: "schedules#upsert_shift"
+      delete "schedule-drafts/:id/shifts/:shift_id", to: "schedules#destroy_shift"
+      post "schedule-drafts/:id/validate", to: "schedules#validate_draft"
+      post "schedule-drafts/:id/publish", to: "schedules#publish"
+      get "requests", to: "workforce_requests#index"
+      post "availability", to: "workforce_requests#create_availability"
+      post "time-off-requests", to: "workforce_requests#create_time_off"
+      post "shift-swap-requests", to: "workforce_requests#create_swap"
+      post "requests/:id/decision", to: "workforce_requests#decision"
+      get "payroll-exports", to: "payroll_exports#index"
+      post "payroll-exports/configuration", to: "payroll_exports#configure"
+      post "payroll-exports/preview", to: "payroll_exports#preview"
+      post "payroll-exports", to: "payroll_exports#create"
+      get "payroll-exports/:id/download", to: "payroll_exports#download"
+    end
     scope "staff-messaging", as: "staff_messaging" do
       get "conversations", to: "messaging/staff#index"
       post "conversations", to: "messaging/staff#create_conversation"
@@ -207,11 +248,19 @@ Rails.application.routes.draw do
   end
   end
   namespace :api, module: "identity/api" do
+    post "employee_activation", to: "employee_activations#create"
     get "csrf", to: "sessions#csrf"
     resource :session, only: %i[show create destroy]
     resource :settings, only: %i[show update]
       resource :development_access, controller: :development_access, only: :update
     post "development_session", to: "sessions#development"
+  end
+  scope "api/workforce/kiosk", controller: "workforce/kiosk_clock" do
+    get "/", action: :show
+    post "enroll", action: :enroll
+    post "challenges", action: :challenge
+    post "punches", action: :create_punch
+    get "punches/status", action: :status
   end
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do

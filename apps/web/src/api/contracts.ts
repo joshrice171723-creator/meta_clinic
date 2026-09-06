@@ -334,6 +334,19 @@ export type Pagination = {
   total_pages: number;
 };
 export type ClinicCapabilities = {
+  workforce_self?: boolean;
+  workforce_admin?: boolean;
+  workforce_settings?: boolean;
+  workforce_badges?: boolean;
+  workforce_timecards_read?: boolean;
+  workforce_timecards_review?: boolean;
+  workforce_timecards_approve?: boolean;
+  workforce_schedule_read?: boolean;
+  workforce_schedule_manage?: boolean;
+  workforce_schedule_publish?: boolean;
+  workforce_requests_review?: boolean;
+  workforce_payroll_configure?: boolean;
+  workforce_payroll_export?: boolean;
   facilities_read?: boolean;
   facilities_write?: boolean;
   patient_identity_read?: boolean;

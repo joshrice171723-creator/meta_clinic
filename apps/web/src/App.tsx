@@ -23,6 +23,9 @@ import { Operations } from "./features/clinic/Operations";
 import { Facilities } from "./features/clinic/Facilities";
 import { Patients } from "./features/clinic/Patients";
 import { Staff } from "./features/clinic/Staff";
+import { WorkforceApp } from "./features/workforce/WorkforceApp";
+import { EmployeeActivationPage } from "./features/workforce/EmployeeActivationPage";
+import { KioskClockPage } from "./features/workforce/KioskClockPage";
 import { FrontDesk } from "./features/clinic/FrontDesk";
 import { Billing } from "./features/clinic/Billing";
 import { BillingDashboard } from "./features/clinic/BillingDashboard";
@@ -198,6 +201,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
     <InventoryApp path={path} />
   ) : path === "/clinic/staff" ? (
     <Staff />
+  ) : path.startsWith("/clinic/workforce") ? (
+    <WorkforceApp path={path} />
   ) : path === "/clinic/front-desk" ? (
     <FrontDesk />
   ) : path === "/clinic/billing/patients" ? (
@@ -377,6 +382,8 @@ export function App() {
     "/contact",
     "/login",
     "/patient-portal/activate",
+    "/workforce/activate",
+    "/workforce/kiosk",
   ].includes(path);
   const [session, setSession] = useState<{
     user?: User | null;
@@ -422,6 +429,8 @@ export function App() {
   const user = session.user || null;
   let page: ReactNode;
   if (path === "/patient-portal/activate") return <PatientPortalActivation />;
+  if (path === "/workforce/activate") return <EmployeeActivationPage />;
+  if (path === "/workforce/kiosk") return <KioskClockPage />;
   if (path.startsWith("/clinic") && user) {
     return <ClinicApplication user={user} />;
   }

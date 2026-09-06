@@ -107,6 +107,14 @@ export function ClinicNavigation({
       allowed: capabilities.staff,
     },
     {
+      href: "/clinic/workforce",
+      label: "Workforce",
+      Icon: PeopleAltIcon,
+      allowed: Object.entries(capabilities).some(
+        ([key, value]) => key.startsWith("workforce_") && value === true,
+      ),
+    },
+    {
       href: "/clinic/billing",
       label: "Billing",
       Icon: ReceiptLongIcon,
@@ -195,7 +203,9 @@ export function clinicLandingDestination(
     capabilities.appointments_book,
     capabilities.billing_read,
   ].some((value) => value === true);
-  return administrative ? "/clinic/front-desk" : "/clinic/operations";
+  if (administrative) return "/clinic/front-desk";
+  if (capabilities.workforce_self) return "/clinic/workforce/hours";
+  return "/clinic/operations";
 }
 
 export function Workspace({

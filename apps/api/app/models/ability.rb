@@ -21,6 +21,18 @@ class Ability
   # Permission catalogs are global definitions. They become effective only
   # through an active grant on the user's practice membership.
   PERMISSION_RULES = {
+    "workforce.admin" => { action: :workforce_admin, subjects: [ Clinic::Site ], scope: :practice },
+    "workforce.settings" => { action: :workforce_settings, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.badges" => { action: :workforce_badges, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.timecards.read" => { action: :workforce_timecards_read, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.timecards.review" => { action: :workforce_timecards_review, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.timecards.approve" => { action: :workforce_timecards_approve, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.schedule.read" => { action: :workforce_schedule_read, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.schedule.manage" => { action: :workforce_schedule_manage, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.schedule.publish" => { action: :workforce_schedule_publish, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.requests.review" => { action: :workforce_requests_review, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.payroll.configure" => { action: :workforce_payroll_configure, subjects: [ Clinic::Site ], scope: :site_or_practice },
+    "workforce.payroll.export" => { action: :workforce_payroll_export, subjects: [ Clinic::Site ], scope: :site_or_practice },
     "subscription_catalog.read" => { action: :read, subjects: [ Clinic::Care::SubscriptionPackage ], scope: :practice },
     "subscription_catalog.write" => { action: :create, subjects: [ Clinic::Care::SubscriptionPackage ], actions: %i[create update], scope: :practice },
     "subscription_catalog.publish" => { action: :publish, subjects: [ Clinic::Care::SubscriptionPackage ], scope: :practice },

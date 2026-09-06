@@ -448,7 +448,7 @@ export function EmployeeRequestsPage() {
                 sx={{ justifyContent: "space-between" }}
               >
                 <div>
-                  <Typography fontWeight={700}>
+                  <Typography sx={{ fontWeight: 700 }}>
                     {request.type.replaceAll("_", " ")}
                   </Typography>
                   <Typography color="text.secondary">

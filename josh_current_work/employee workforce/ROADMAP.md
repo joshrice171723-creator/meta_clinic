@@ -4,7 +4,7 @@
 
 ## Status and authority
 
-This is a planning-only packet for employee workforce operations. It does not claim implementation, test, migration, runtime, browser, security, payroll, legal, or release evidence. Shortcut owns mutable task state; the linked stories define independently deliverable outcomes. The inspected source map was based on `38547aff18e9` and rechecked at `ddbeb076904f`; the intervening change was outside these workforce entry points.
+Implementation was authorized on 2026-09-06 and is in progress. The [implementation handoff](AGENT_IMPLEMENTATION_HANDOFF.md) records actual commits, verification and remaining gates; planning requirements below are not evidence of completion. Shortcut owns mutable task state. The original source map was based on `38547aff18e9` and rechecked at `ddbeb076904f`; implementation began from `5d2025c`.
 
 ## Objective and actors
 

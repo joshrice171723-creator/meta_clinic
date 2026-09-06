@@ -4,7 +4,7 @@
 
 ## Planning contract
 
-This document proposes implementation; none of the proposed paths or behavior is evidence that the capability exists. Build one server-backed vertical slice at a time. The host application owns login/session security, current practice/site context, authorization, audit metadata, and canonical site and staff records. Workforce owns employment linkage, eligible work sites, workforce settings, badges, kiosk enrollment/challenges, punches, calculations, schedules, requests, and export artifacts.
+This document defines the build contract. Implementation is authorized and in progress; the [implementation handoff](AGENT_IMPLEMENTATION_HANDOFF.md) distinguishes delivered source from actual verification and remaining gates. The host application owns login/session security, current practice/site context, authorization, audit metadata, and canonical site and staff records. Workforce owns employment linkage, eligible work sites, workforce settings, badges, kiosk enrollment/challenges, punches, calculations, schedules, requests, and export artifacts.
 
 ## Inspected source map
 

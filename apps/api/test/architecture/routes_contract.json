@@ -356,7 +356,7 @@
   ],
   [
     "api_clinic_scribe_encounters",
-    "POST",
+    "GET",
     "/api/clinic/scribe/encounters(.:format)"
   ],
   [
@@ -425,6 +425,111 @@
     "/api/clinic/tracking_board(.:format)"
   ],
   [
+    "api_clinic_workforce",
+    "PATCH",
+    "/api/clinic/workforce/onboarding/:id(.:format)"
+  ],
+  [
+    "api_clinic_workforce_adjustments",
+    "GET",
+    "/api/clinic/workforce/adjustments(.:format)"
+  ],
+  [
+    "api_clinic_workforce_availability",
+    "POST",
+    "/api/clinic/workforce/availability(.:format)"
+  ],
+  [
+    "api_clinic_workforce_badges",
+    "GET",
+    "/api/clinic/workforce/badges(.:format)"
+  ],
+  [
+    "api_clinic_workforce_employment",
+    "PATCH",
+    "/api/clinic/workforce/employments/:id(.:format)"
+  ],
+  [
+    "api_clinic_workforce_employments",
+    "GET",
+    "/api/clinic/workforce/employments(.:format)"
+  ],
+  [
+    "api_clinic_workforce_kiosks",
+    "GET",
+    "/api/clinic/workforce/kiosks(.:format)"
+  ],
+  [
+    "api_clinic_workforce_my_schedule",
+    "GET",
+    "/api/clinic/workforce/my-schedule(.:format)"
+  ],
+  [
+    "api_clinic_workforce_onboarding",
+    "POST",
+    "/api/clinic/workforce/onboarding(.:format)"
+  ],
+  [
+    "api_clinic_workforce_payroll_exports",
+    "GET",
+    "/api/clinic/workforce/payroll-exports(.:format)"
+  ],
+  [
+    "api_clinic_workforce_payroll_exports_configuration",
+    "POST",
+    "/api/clinic/workforce/payroll-exports/configuration(.:format)"
+  ],
+  [
+    "api_clinic_workforce_payroll_exports_preview",
+    "POST",
+    "/api/clinic/workforce/payroll-exports/preview(.:format)"
+  ],
+  [
+    "api_clinic_workforce_requests",
+    "GET",
+    "/api/clinic/workforce/requests(.:format)"
+  ],
+  [
+    "api_clinic_workforce_schedule_drafts",
+    "POST",
+    "/api/clinic/workforce/schedule-drafts(.:format)"
+  ],
+  [
+    "api_clinic_workforce_schedule_templates",
+    "POST",
+    "/api/clinic/workforce/schedule-templates(.:format)"
+  ],
+  [
+    "api_clinic_workforce_schedules",
+    "GET",
+    "/api/clinic/workforce/schedules(.:format)"
+  ],
+  [
+    "api_clinic_workforce_settings",
+    "GET",
+    "/api/clinic/workforce/settings(.:format)"
+  ],
+  [
+    "api_clinic_workforce_shift_swap_requests",
+    "POST",
+    "/api/clinic/workforce/shift-swap-requests(.:format)"
+  ],
+  [
+    "api_clinic_workforce_time_off_requests",
+    "POST",
+    "/api/clinic/workforce/time-off-requests(.:format)"
+  ],
+  [
+    "api_clinic_workforce_timecard",
+    "GET",
+    "/api/clinic/workforce/timecards/:id(.:format)"
+  ],
+  [
+    "api_clinic_workforce_timecards",
+    "GET",
+    "/api/clinic/workforce/timecards(.:format)"
+  ],
+  [
     "api_contact_messages",
     "POST",
     "/api/contact_messages(.:format)"
@@ -443,6 +548,11 @@
     "api_development_session",
     "POST",
     "/api/development_session(.:format)"
+  ],
+  [
+    "api_employee_activation",
+    "POST",
+    "/api/employee_activation(.:format)"
   ],
   [
     "api_inquiries",
@@ -545,9 +655,19 @@
     "/api/clinic/scribe/drafts/:id/approve(.:format)"
   ],
   [
+    "approve_api_clinic_workforce_timecard",
+    "POST",
+    "/api/clinic/workforce/timecards/:id/approve(.:format)"
+  ],
+  [
     "billing_ledger_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/billing_ledger(.:format)"
+  ],
+  [
+    "calculate_api_clinic_workforce_timecards",
+    "POST",
+    "/api/clinic/workforce/timecards/calculate(.:format)"
   ],
   [
     "cancel_api_clinic_reminder",
@@ -575,6 +695,11 @@
     "/api/clinic/payment_events/:id/cash_refunds(.:format)"
   ],
   [
+    "challenges",
+    "POST",
+    "/api/workforce/kiosk/challenges(.:format)"
+  ],
+  [
     "checkout_api_patient_portal_subscriptions",
     "POST",
     "/api/patient_portal/subscriptions/checkout(.:format)"
@@ -593,6 +718,11 @@
     "consent_api_clinic_scribe_encounter",
     "POST",
     "/api/clinic/scribe/encounters/:id/consent(.:format)"
+  ],
+  [
+    "decide_api_clinic_workforce_adjustment",
+    "POST",
+    "/api/clinic/workforce/adjustments/:id/decide(.:format)"
   ],
   [
     "delivery_events_api_clinic_message_intent",
@@ -628,6 +758,11 @@
     "draft_api_clinic_invoice",
     "PATCH",
     "/api/clinic/invoices/:id/draft(.:format)"
+  ],
+  [
+    "enroll",
+    "POST",
+    "/api/workforce/kiosk/enroll(.:format)"
   ],
   [
     "export_api_clinic_scribe_draft",
@@ -695,6 +830,16 @@
     "/api/clinic/encounters/:id/provider_assignment(.:format)"
   ],
   [
+    "punches",
+    "POST",
+    "/api/workforce/kiosk/punches(.:format)"
+  ],
+  [
+    "punches_status",
+    "GET",
+    "/api/workforce/kiosk/punches/status(.:format)"
+  ],
+  [
     "quote_api_patient_portal_subscriptions",
     "POST",
     "/api/patient_portal/subscriptions/quote(.:format)"
@@ -745,6 +890,11 @@
     "/api/clinic/subscriptions/:id/reconcile_ledger(.:format)"
   ],
   [
+    "recover_api_clinic_reminders",
+    "POST",
+    "/api/clinic/reminders/recover(.:format)"
+  ],
+  [
     "refund_api_clinic_subscription",
     "POST",
     "/api/clinic/subscriptions/:id/refund(.:format)"
@@ -775,6 +925,16 @@
     "/api/clinic/role_grants/:id/revoke(.:format)"
   ],
   [
+    "revoke_api_clinic_workforce_badge",
+    "POST",
+    "/api/clinic/workforce/badges/:id/revoke(.:format)"
+  ],
+  [
+    "revoke_api_clinic_workforce_kiosk",
+    "POST",
+    "/api/clinic/workforce/kiosks/:id/revoke(.:format)"
+  ],
+  [
     "sign_api_paperwork",
     "POST",
     "/api/paperworks/:id/sign(.:format)"
@@ -790,6 +950,11 @@
     "/api/clinic/scribe/encounters/:id/sources(.:format)"
   ],
   [
+    "staff_handoff_api_clinic_reminder",
+    "POST",
+    "/api/clinic/reminders/:id/staff_handoff(.:format)"
+  ],
+  [
     "start_api_paperwork",
     "POST",
     "/api/paperworks/:id/start(.:format)"
@@ -798,6 +963,11 @@
     "stripe_connect_webhook",
     "POST",
     "/stripe/connect/webhook(.:format)"
+  ],
+  [
+    "submit_api_clinic_workforce_timecard",
+    "POST",
+    "/api/clinic/workforce/timecards/:id/submit(.:format)"
   ],
   [
     "transition_api_clinic_appointment",
@@ -817,6 +987,11 @@
   [
     null,
     "DELETE",
+    "/api/clinic/workforce/schedule-drafts/:id/shifts/:shift_id(.:format)"
+  ],
+  [
+    null,
+    "DELETE",
     "/api/session(.:format)"
   ],
   [
@@ -827,12 +1002,32 @@
   [
     null,
     "GET",
+    "/api/clinic/inventory/purchase-orders/:id/reconciliation(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/staff-messaging/attachments/:id/download(.:format)"
   ],
   [
     null,
     "GET",
     "/api/clinic/subscription_catalog/packages/:id/preview(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/workforce/payroll-exports/:id/download(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/workforce/schedule-drafts/:id(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/workforce/kiosk(.:format)"
   ],
   [
     null,
@@ -883,6 +1078,11 @@
     null,
     "PATCH",
     "/api/clinic/subscription_catalog/:kind/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/workforce/schedule-templates/:id(.:format)"
   ],
   [
     null,
@@ -997,6 +1197,26 @@
   [
     null,
     "POST",
+    "/api/clinic/inventory/purchase-orders/:id/credits(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/purchase-orders/:id/invoices(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/purchase-orders/:id/receiving-sessions(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/purchase-orders/:id/returns(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/inventory/purchase-orders/:id/transition(.:format)"
   ],
   [
@@ -1067,6 +1287,11 @@
   [
     null,
     "POST",
+    "/api/clinic/scribe/encounters(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/staff(.:format)"
   ],
   [
@@ -1088,6 +1313,11 @@
     null,
     "POST",
     "/api/clinic/staff-messaging/conversations/:id/read(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/staff-messaging/conversations/:id/recover(.:format)"
   ],
   [
     null,
@@ -1132,6 +1362,51 @@
   [
     null,
     "POST",
+    "/api/clinic/workforce/adjustments(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/badges(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/employments(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/kiosks(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/payroll-exports(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/requests/:id/decision(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/schedule-drafts/:id/publish(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/schedule-drafts/:id/shifts(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/workforce/schedule-drafts/:id/validate(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/materials/:material_id/complete(.:format)"
   ],
   [
@@ -1168,6 +1443,16 @@
     null,
     "PUT",
     "/api/clinic/staff/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/workforce/employments/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/workforce/settings(.:format)"
   ],
   [
     null,

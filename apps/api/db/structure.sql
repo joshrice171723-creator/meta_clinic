@@ -17462,9 +17462,2502 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 -- PostgreSQL database dump complete
 --
 
+--
+-- Name: workforce_adjustment_freeze(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.workforce_adjustment_freeze() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.status IN ('approved','denied') THEN
+    RAISE EXCEPTION 'decided workforce adjustments are immutable';
+  END IF;
+  RETURN NEW;
+END
+$$;
+
+
+--
+-- Name: workforce_payroll_immutable(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.workforce_payroll_immutable() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN RAISE EXCEPTION 'Workforce payroll history is immutable'; END; $$;
+
+
+--
+-- Name: workforce_timecard_freeze(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.workforce_timecard_freeze() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.status IN ('approved','superseded') THEN
+    RAISE EXCEPTION 'approved workforce timecards are immutable';
+  END IF;
+  RETURN NEW;
+END
+$$;
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: clinic_workforce_adjustment_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_adjustment_requests (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    timecard_version_id bigint CONSTRAINT clinic_workforce_adjustment_reques_timecard_version_id_not_null NOT NULL,
+    status character varying DEFAULT 'submitted'::character varying NOT NULL,
+    correction_type character varying NOT NULL,
+    proposed_changes jsonb DEFAULT '{}'::jsonb NOT NULL,
+    reason character varying(1000) NOT NULL,
+    requested_by_membership_id bigint CONSTRAINT clinic_workforce_adjustment_requested_by_membership_id_not_null NOT NULL,
+    requested_at timestamp(6) without time zone NOT NULL,
+    reviewed_by_membership_id bigint,
+    reviewed_at timestamp(6) without time zone,
+    decision_reason character varying(1000),
+    request_key character varying(36) NOT NULL,
+    payload_digest character varying(64) NOT NULL,
+    source_lock_version integer CONSTRAINT clinic_workforce_adjustment_reques_source_lock_version_not_null NOT NULL,
+    resulting_timecard_version_id bigint,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_adjustments_valid CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'approved'::character varying, 'denied'::character varying])::text[])) AND ((correction_type)::text = ANY ((ARRAY['add_segment'::character varying, 'replace_segment'::character varying, 'remove_segment'::character varying])::text[])) AND (length(TRIM(BOTH FROM reason)) > 0) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64) AND (jsonb_typeof(proposed_changes) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_adjustment_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_adjustment_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_adjustment_requests_id_seq OWNED BY public.clinic_workforce_adjustment_requests.id;
+
+
+--
+-- Name: clinic_workforce_availability_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_availability_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    created_by_id bigint NOT NULL,
+    effective_from date NOT NULL,
+    effective_until date,
+    public_id character varying NOT NULL,
+    timezone character varying NOT NULL,
+    status character varying NOT NULL,
+    reason character varying NOT NULL,
+    idempotency_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    decision_reason character varying,
+    weekly_rules jsonb DEFAULT '[]'::jsonb NOT NULL,
+    decision_receipts jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_workforce_availability_versio_decision_receipts_not_null NOT NULL,
+    reviewed_by_id bigint,
+    submitted_at timestamp(6) without time zone,
+    decided_at timestamp(6) without time zone,
+    cancelled_at timestamp(6) without time zone,
+    revision integer DEFAULT 1 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_workforce_availability_versions_digest CHECK ((length((request_digest)::text) = 64)),
+    CONSTRAINT workforce_availability_values CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'approved'::character varying, 'denied'::character varying, 'cancelled'::character varying, 'superseded'::character varying])::text[])) AND (revision > 0) AND ((effective_until IS NULL) OR (effective_until >= effective_from)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
+);
+
+
+--
+-- Name: clinic_workforce_availability_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_availability_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_availability_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_availability_versions_id_seq OWNED BY public.clinic_workforce_availability_versions.id;
+
+
+--
+-- Name: clinic_workforce_badge_credentials; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_badge_credentials (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    secret_digest character varying(64) NOT NULL,
+    pin_digest character varying,
+    format character varying DEFAULT 'code128'::character varying NOT NULL,
+    status character varying DEFAULT 'issued'::character varying NOT NULL,
+    issued_by_membership_id bigint CONSTRAINT clinic_workforce_badge_credent_issued_by_membership_id_not_null NOT NULL,
+    issued_at timestamp(6) without time zone NOT NULL,
+    revoked_by_membership_id bigint,
+    revoked_at timestamp(6) without time zone,
+    replaced_by_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_badges_valid CHECK (((length((secret_digest)::text) = 64) AND ((format)::text = 'code128'::text) AND ((status)::text = ANY ((ARRAY['issued'::character varying, 'revoked'::character varying, 'replaced'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_workforce_badge_credentials_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_badge_credentials_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_badge_credentials_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_badge_credentials_id_seq OWNED BY public.clinic_workforce_badge_credentials.id;
+
+
+--
+-- Name: clinic_workforce_employee_invitations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_employee_invitations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    staff_member_id bigint NOT NULL,
+    invited_by_membership_id bigint CONSTRAINT clinic_workforce_employee_inv_invited_by_membership_id_not_null NOT NULL,
+    email_address text NOT NULL,
+    email_digest character varying(64),
+    token_digest character varying(64),
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    invited_at timestamp(6) without time zone NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    activated_at timestamp(6) without time zone,
+    revoked_at timestamp(6) without time zone,
+    effective_from timestamp(6) without time zone NOT NULL,
+    site_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_employee_invitations_state CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'activated'::character varying, 'revoked'::character varying])::text[])) AND (expires_at > invited_at) AND ((cardinality(site_ids) >= 1) AND (cardinality(site_ids) <= 100))))
+);
+
+
+--
+-- Name: clinic_workforce_employee_invitations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_employee_invitations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_employee_invitations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_employee_invitations_id_seq OWNED BY public.clinic_workforce_employee_invitations.id;
+
+
+--
+-- Name: clinic_workforce_employment_sites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_employment_sites (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    effective_until timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_employment_sites_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
+);
+
+
+--
+-- Name: clinic_workforce_employment_sites_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_employment_sites_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_employment_sites_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_employment_sites_id_seq OWNED BY public.clinic_workforce_employment_sites.id;
+
+
+--
+-- Name: clinic_workforce_employments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_employments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    staff_member_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    effective_until timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_employments_state CHECK ((((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
+);
+
+
+--
+-- Name: clinic_workforce_employments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_employments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_employments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_employments_id_seq OWNED BY public.clinic_workforce_employments.id;
+
+
+--
+-- Name: clinic_workforce_export_batches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_export_batches (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    configuration_version_id bigint CONSTRAINT clinic_workforce_export_batch_configuration_version_id_not_null NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_workforce_export_batch_created_by_membership_id_not_null NOT NULL,
+    supersedes_batch_id bigint,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    source_digest character varying NOT NULL,
+    source_versions jsonb DEFAULT '[]'::jsonb NOT NULL,
+    rows jsonb DEFAULT '[]'::jsonb NOT NULL,
+    totals jsonb DEFAULT '{}'::jsonb NOT NULL,
+    csv_content text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT wf_export_keys CHECK ((((length((request_key)::text) >= 8) AND (length((request_key)::text) <= 100)) AND (length((payload_digest)::text) = 64) AND (length((source_digest)::text) = 64)))
+);
+
+
+--
+-- Name: clinic_workforce_export_batches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_export_batches_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_export_batches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_export_batches_id_seq OWNED BY public.clinic_workforce_export_batches.id;
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_kiosk_enrollments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    token_digest character varying(64) NOT NULL,
+    status character varying DEFAULT 'issued'::character varying NOT NULL,
+    issued_by_membership_id bigint CONSTRAINT clinic_workforce_kiosk_enrollm_issued_by_membership_id_not_null NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    enrolled_at timestamp(6) without time zone,
+    revoked_by_membership_id bigint,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_kiosk_enrollments_valid CHECK (((length((token_digest)::text) = 64) AND ((status)::text = ANY ((ARRAY['issued'::character varying, 'enrolled'::character varying, 'revoked'::character varying, 'expired'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_kiosk_enrollments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_kiosk_enrollments_id_seq OWNED BY public.clinic_workforce_kiosk_enrollments.id;
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_kiosk_sessions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    kiosk_enrollment_id bigint NOT NULL,
+    session_digest character varying(64) NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    last_seen_at timestamp(6) without time zone NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_kiosk_sessions_valid CHECK (((length((session_digest)::text) = 64) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'revoked'::character varying, 'expired'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_kiosk_sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_kiosk_sessions_id_seq OWNED BY public.clinic_workforce_kiosk_sessions.id;
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_payroll_configuration_versions (
+    id bigint NOT NULL,
+    practice_id bigint CONSTRAINT clinic_workforce_payroll_configuration_ver_practice_id_not_null NOT NULL,
+    site_id bigint CONSTRAINT clinic_workforce_payroll_configuration_version_site_id_not_null NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_workforce_payroll_conf_created_by_membership_id_not_null NOT NULL,
+    revision integer CONSTRAINT clinic_workforce_payroll_configuration_versio_revision_not_null NOT NULL,
+    effective_from timestamp(6) without time zone CONSTRAINT clinic_workforce_payroll_configuration__effective_from_not_null NOT NULL,
+    name character varying NOT NULL,
+    provider character varying DEFAULT 'custom_file'::character varying CONSTRAINT clinic_workforce_payroll_configuration_versio_provider_not_null NOT NULL,
+    columns jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_workforce_payroll_configuration_version_columns_not_null NOT NULL,
+    employee_identifiers jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_workforce_payroll_configur_employee_identifiers_not_null NOT NULL,
+    created_at timestamp(6) without time zone CONSTRAINT clinic_workforce_payroll_configuration_vers_created_at_not_null NOT NULL,
+    updated_at timestamp(6) without time zone CONSTRAINT clinic_workforce_payroll_configuration_vers_updated_at_not_null NOT NULL,
+    CONSTRAINT wf_payroll_provider CHECK ((((provider)::text = 'custom_file'::text) AND (revision > 0)))
+);
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_payroll_configuration_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_payroll_configuration_versions_id_seq OWNED BY public.clinic_workforce_payroll_configuration_versions.id;
+
+
+--
+-- Name: clinic_workforce_punch_challenges; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_punch_challenges (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    kiosk_session_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    challenge_digest character varying(64) NOT NULL,
+    permitted_transitions jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_workforce_punch_challenge_permitted_transitions_not_null NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    consumed_at timestamp(6) without time zone,
+    failed_attempts integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_punch_challenges_valid CHECK (((length((challenge_digest)::text) = 64) AND (jsonb_typeof(permitted_transitions) = 'array'::text) AND ((failed_attempts >= 0) AND (failed_attempts <= 20))))
+);
+
+
+--
+-- Name: clinic_workforce_punch_challenges_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_punch_challenges_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_punch_challenges_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_punch_challenges_id_seq OWNED BY public.clinic_workforce_punch_challenges.id;
+
+
+--
+-- Name: clinic_workforce_punches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_punches (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    kiosk_session_id bigint,
+    punch_challenge_id bigint,
+    event_type character varying NOT NULL,
+    occurred_at_utc timestamp(6) without time zone NOT NULL,
+    time_zone character varying NOT NULL,
+    utc_offset_seconds integer NOT NULL,
+    local_date date NOT NULL,
+    source character varying DEFAULT 'kiosk'::character varying NOT NULL,
+    request_key character varying(36) NOT NULL,
+    payload_digest character varying(64) NOT NULL,
+    correlation_id character varying(36) NOT NULL,
+    received_at timestamp(6) without time zone NOT NULL,
+    result_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_punches_valid CHECK ((((event_type)::text = ANY ((ARRAY['clock_in'::character varying, 'break_start'::character varying, 'break_end'::character varying, 'clock_out'::character varying])::text[])) AND ((source)::text = ANY ((ARRAY['kiosk'::character varying, 'manager_correction'::character varying])::text[])) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64) AND (length((correlation_id)::text) = 36) AND (jsonb_typeof(result_snapshot) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_workforce_punches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_punches_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_punches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_punches_id_seq OWNED BY public.clinic_workforce_punches.id;
+
+
+--
+-- Name: clinic_workforce_schedule_drafts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_schedule_drafts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    created_by_id bigint NOT NULL,
+    schedule_template_id bigint,
+    week_start_on date NOT NULL,
+    timezone character varying NOT NULL,
+    status character varying NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_schedule_drafts_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'superseded'::character varying])::text[])) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (revision > 0)))
+);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_schedule_drafts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_schedule_drafts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_schedule_drafts_id_seq OWNED BY public.clinic_workforce_schedule_drafts.id;
+
+
+--
+-- Name: clinic_workforce_schedule_publications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_schedule_publications (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    schedule_draft_id bigint CONSTRAINT clinic_workforce_schedule_publicatio_schedule_draft_id_not_null NOT NULL,
+    published_by_id bigint NOT NULL,
+    supersedes_id bigint,
+    week_start_on date NOT NULL,
+    timezone character varying NOT NULL,
+    snapshot_digest character varying NOT NULL,
+    idempotency_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    version integer NOT NULL,
+    shift_snapshot jsonb DEFAULT '[]'::jsonb NOT NULL,
+    published_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_schedule_publications_values CHECK (((version > 0) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (length((snapshot_digest)::text) = 64) AND (length((request_digest)::text) = 64)))
+);
+
+
+--
+-- Name: clinic_workforce_schedule_publications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_schedule_publications_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_schedule_publications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_schedule_publications_id_seq OWNED BY public.clinic_workforce_schedule_publications.id;
+
+
+--
+-- Name: clinic_workforce_schedule_templates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_schedule_templates (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    created_by_id bigint NOT NULL,
+    name character varying NOT NULL,
+    timezone character varying NOT NULL,
+    shift_definitions jsonb DEFAULT '[]'::jsonb NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_schedule_templates_values CHECK ((((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 120)) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (revision > 0)))
+);
+
+
+--
+-- Name: clinic_workforce_schedule_templates_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_schedule_templates_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_schedule_templates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_schedule_templates_id_seq OWNED BY public.clinic_workforce_schedule_templates.id;
+
+
+--
+-- Name: clinic_workforce_settings_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_settings_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    scope_kind character varying NOT NULL,
+    site_id bigint,
+    revision integer NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    "values" jsonb NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_workforce_settings_ver_created_by_membership_id_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_settings_values CHECK (((revision > 0) AND (jsonb_typeof("values") = 'object'::text) AND (octet_length(("values")::text) <= 65536) AND ((((scope_kind)::text = 'practice'::text) AND (site_id IS NULL)) OR (((scope_kind)::text = 'site'::text) AND (site_id IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_workforce_settings_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_settings_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_settings_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_settings_versions_id_seq OWNED BY public.clinic_workforce_settings_versions.id;
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_shift_swap_requests (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    requester_employment_id bigint CONSTRAINT clinic_workforce_shift_swap_re_requester_employment_id_not_null NOT NULL,
+    target_employment_id bigint CONSTRAINT clinic_workforce_shift_swap_reque_target_employment_id_not_null NOT NULL,
+    requested_by_id bigint NOT NULL,
+    target_decided_by_id bigint,
+    reviewed_by_id bigint,
+    schedule_publication_id bigint CONSTRAINT clinic_workforce_shift_swap_re_schedule_publication_id_not_null NOT NULL,
+    public_id character varying NOT NULL,
+    offered_shift_public_id character varying CONSTRAINT clinic_workforce_shift_swap_re_offered_shift_public_id_not_null NOT NULL,
+    status character varying NOT NULL,
+    reason character varying NOT NULL,
+    idempotency_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    target_reason character varying,
+    decision_reason character varying,
+    submitted_at timestamp(6) without time zone NOT NULL,
+    target_decided_at timestamp(6) without time zone,
+    decided_at timestamp(6) without time zone,
+    cancelled_at timestamp(6) without time zone,
+    expires_at timestamp(6) without time zone,
+    decision_receipts jsonb DEFAULT '{}'::jsonb NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_workforce_shift_swap_requests_digest CHECK ((length((request_digest)::text) = 64)),
+    CONSTRAINT workforce_shift_swap_requests_values CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'accepted'::character varying, 'declined'::character varying, 'approved'::character varying, 'denied'::character varying, 'cancelled'::character varying])::text[])) AND (requester_employment_id <> target_employment_id) AND (revision > 0) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((target_reason IS NULL) OR ((length(TRIM(BOTH FROM target_reason)) >= 1) AND (length(TRIM(BOTH FROM target_reason)) <= 500))) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
+);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_shift_swap_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_shift_swap_requests_id_seq OWNED BY public.clinic_workforce_shift_swap_requests.id;
+
+
+--
+-- Name: clinic_workforce_shifts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_shifts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    schedule_draft_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    public_id character varying NOT NULL,
+    timezone character varying NOT NULL,
+    local_start character varying NOT NULL,
+    local_end character varying NOT NULL,
+    start_occurrence character varying NOT NULL,
+    end_occurrence character varying NOT NULL,
+    starts_at timestamp(6) without time zone NOT NULL,
+    ends_at timestamp(6) without time zone NOT NULL,
+    role_name character varying,
+    break_minutes integer DEFAULT 0 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_shifts_values CHECK (((ends_at > starts_at) AND (break_minutes >= 0) AND ((break_minutes)::numeric < (EXTRACT(epoch FROM (ends_at - starts_at)) / (60)::numeric)) AND ((start_occurrence)::text = ANY ((ARRAY['only'::character varying, 'first'::character varying, 'second'::character varying])::text[])) AND ((end_occurrence)::text = ANY ((ARRAY['only'::character varying, 'first'::character varying, 'second'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_workforce_shifts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_shifts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_shifts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_shifts_id_seq OWNED BY public.clinic_workforce_shifts.id;
+
+
+--
+-- Name: clinic_workforce_time_off_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_time_off_requests (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    requested_by_id bigint NOT NULL,
+    reviewed_by_id bigint,
+    public_id character varying NOT NULL,
+    status character varying NOT NULL,
+    timezone character varying NOT NULL,
+    reason character varying NOT NULL,
+    idempotency_key character varying NOT NULL,
+    request_digest character varying NOT NULL,
+    decision_reason character varying,
+    starts_at timestamp(6) without time zone NOT NULL,
+    ends_at timestamp(6) without time zone NOT NULL,
+    submitted_at timestamp(6) without time zone NOT NULL,
+    decided_at timestamp(6) without time zone,
+    cancelled_at timestamp(6) without time zone,
+    decision_receipts jsonb DEFAULT '{}'::jsonb NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_workforce_time_off_requests_digest CHECK ((length((request_digest)::text) = 64)),
+    CONSTRAINT workforce_time_off_requests_values CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'approved'::character varying, 'denied'::character varying, 'cancelled'::character varying])::text[])) AND (ends_at > starts_at) AND (revision > 0) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
+);
+
+
+--
+-- Name: clinic_workforce_time_off_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_time_off_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_time_off_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_time_off_requests_id_seq OWNED BY public.clinic_workforce_time_off_requests.id;
+
+
+--
+-- Name: clinic_workforce_time_segments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_time_segments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    timecard_version_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    segment_kind character varying NOT NULL,
+    local_date date NOT NULL,
+    started_at_utc timestamp(6) without time zone NOT NULL,
+    ended_at_utc timestamp(6) without time zone NOT NULL,
+    raw_minutes integer NOT NULL,
+    rounded_minutes integer NOT NULL,
+    paid_minutes integer NOT NULL,
+    regular_minutes integer,
+    overtime_minutes integer,
+    source_punch_ids jsonb DEFAULT '[]'::jsonb NOT NULL,
+    settings_provenance jsonb DEFAULT '{}'::jsonb NOT NULL,
+    exception_codes jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_time_segments_valid CHECK ((((segment_kind)::text = ANY ((ARRAY['work'::character varying, 'break'::character varying, 'manual'::character varying])::text[])) AND (ended_at_utc > started_at_utc) AND (raw_minutes >= 0) AND (rounded_minutes >= 0) AND (paid_minutes >= 0) AND ((regular_minutes IS NULL) OR (regular_minutes >= 0)) AND ((overtime_minutes IS NULL) OR (overtime_minutes >= 0)) AND (jsonb_typeof(source_punch_ids) = 'array'::text) AND (jsonb_typeof(settings_provenance) = 'object'::text) AND (jsonb_typeof(exception_codes) = 'array'::text)))
+);
+
+
+--
+-- Name: clinic_workforce_time_segments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_time_segments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_time_segments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_time_segments_id_seq OWNED BY public.clinic_workforce_time_segments.id;
+
+
+--
+-- Name: clinic_workforce_timecard_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_workforce_timecard_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    employment_id bigint NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    version_number integer NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    source_digest character varying(64) NOT NULL,
+    previous_version_id bigint,
+    settings_provenance jsonb DEFAULT '{}'::jsonb NOT NULL,
+    snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    unresolved_exceptions jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_workforce_timecard_versio_unresolved_exceptions_not_null NOT NULL,
+    raw_total_minutes integer DEFAULT 0 NOT NULL,
+    rounded_total_minutes integer DEFAULT 0 CONSTRAINT clinic_workforce_timecard_versio_rounded_total_minutes_not_null NOT NULL,
+    regular_minutes integer,
+    overtime_minutes integer,
+    submitted_at timestamp(6) without time zone,
+    submitted_by_membership_id bigint,
+    approved_at timestamp(6) without time zone,
+    approved_by_membership_id bigint,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workforce_timecards_valid CHECK (((period_end > period_start) AND (version_number > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'approved'::character varying, 'superseded'::character varying])::text[])) AND (length((source_digest)::text) = 64) AND (jsonb_typeof(settings_provenance) = 'object'::text) AND (jsonb_typeof(snapshot) = 'object'::text) AND (jsonb_typeof(unresolved_exceptions) = 'array'::text) AND (raw_total_minutes >= 0) AND (rounded_total_minutes >= 0) AND ((regular_minutes IS NULL) OR (regular_minutes >= 0)) AND ((overtime_minutes IS NULL) OR (overtime_minutes >= 0))))
+);
+
+
+--
+-- Name: clinic_workforce_timecard_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_workforce_timecard_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_workforce_timecard_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_workforce_timecard_versions_id_seq OWNED BY public.clinic_workforce_timecard_versions.id;
+
+
+--
+-- Name: clinic_workforce_adjustment_requests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_adjustment_requests_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_availability_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_availability_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_badge_credentials id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_badge_credentials_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_employee_invitations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employee_invitations ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_employee_invitations_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_employment_sites id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employment_sites ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_employment_sites_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_employments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employments ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_employments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_export_batches id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_export_batches_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_kiosk_enrollments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_kiosk_sessions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_payroll_configuration_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_punch_challenges id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punch_challenges ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_punch_challenges_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_punches id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_punches_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_drafts ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_schedule_drafts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_schedule_publications id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_schedule_publications_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_schedule_templates id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_templates ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_schedule_templates_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_settings_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_settings_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_settings_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_shift_swap_requests_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_shifts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shifts ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_shifts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_time_off_requests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_time_off_requests_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_time_segments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_segments ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_time_segments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_timecard_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_workforce_timecard_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests clinic_workforce_adjustment_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT clinic_workforce_adjustment_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_availability_versions clinic_workforce_availability_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions
+    ADD CONSTRAINT clinic_workforce_availability_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_badge_credentials clinic_workforce_badge_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials
+    ADD CONSTRAINT clinic_workforce_badge_credentials_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_employee_invitations clinic_workforce_employee_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employee_invitations
+    ADD CONSTRAINT clinic_workforce_employee_invitations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_employment_sites clinic_workforce_employment_sites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employment_sites
+    ADD CONSTRAINT clinic_workforce_employment_sites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_employments clinic_workforce_employments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employments
+    ADD CONSTRAINT clinic_workforce_employments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_export_batches clinic_workforce_export_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches
+    ADD CONSTRAINT clinic_workforce_export_batches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments clinic_workforce_kiosk_enrollments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
+    ADD CONSTRAINT clinic_workforce_kiosk_enrollments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions clinic_workforce_kiosk_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions
+    ADD CONSTRAINT clinic_workforce_kiosk_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions clinic_workforce_payroll_configuration_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions
+    ADD CONSTRAINT clinic_workforce_payroll_configuration_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_punch_challenges clinic_workforce_punch_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punch_challenges
+    ADD CONSTRAINT clinic_workforce_punch_challenges_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_punches clinic_workforce_punches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches
+    ADD CONSTRAINT clinic_workforce_punches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts clinic_workforce_schedule_drafts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_drafts
+    ADD CONSTRAINT clinic_workforce_schedule_drafts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications clinic_workforce_schedule_publications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications
+    ADD CONSTRAINT clinic_workforce_schedule_publications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_schedule_templates clinic_workforce_schedule_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_templates
+    ADD CONSTRAINT clinic_workforce_schedule_templates_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_settings_versions clinic_workforce_settings_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_settings_versions
+    ADD CONSTRAINT clinic_workforce_settings_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests clinic_workforce_shift_swap_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT clinic_workforce_shift_swap_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_shifts clinic_workforce_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shifts
+    ADD CONSTRAINT clinic_workforce_shifts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests clinic_workforce_time_off_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT clinic_workforce_time_off_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_time_segments clinic_workforce_time_segments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_segments
+    ADD CONSTRAINT clinic_workforce_time_segments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_timecard_versions clinic_workforce_timecard_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions
+    ADD CONSTRAINT clinic_workforce_timecard_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_workforce_employment_sites workforce_assignment_no_overlap; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employment_sites
+    ADD CONSTRAINT workforce_assignment_no_overlap EXCLUDE USING gist (practice_id WITH =, employment_id WITH =, site_id WITH =, tsrange(effective_from, effective_until, '[)'::text) WITH &&);
+
+
+--
+-- Name: idx_on_practice_id_employment_id_status_41c67b575c; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_employment_id_status_41c67b575c ON public.clinic_workforce_adjustment_requests USING btree (practice_id, employment_id, status);
+
+
+--
+-- Name: idx_on_practice_id_id_0500e5e548; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_0500e5e548 ON public.clinic_workforce_employee_invitations USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_id_2f9691e89a; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_2f9691e89a ON public.clinic_workforce_shift_swap_requests USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_id_43fe56c3ac; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_43fe56c3ac ON public.clinic_workforce_availability_versions USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_id_949e35bd12; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_949e35bd12 ON public.clinic_workforce_schedule_publications USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_id_e5fda4f1b6; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_e5fda4f1b6 ON public.clinic_workforce_schedule_templates USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_id_ee4e957d65; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_id_ee4e957d65 ON public.clinic_workforce_adjustment_requests USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_idempotency_key_2b63f09cc6; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_idempotency_key_2b63f09cc6 ON public.clinic_workforce_time_off_requests USING btree (practice_id, idempotency_key);
+
+
+--
+-- Name: idx_on_practice_id_idempotency_key_4456d92c89; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_idempotency_key_4456d92c89 ON public.clinic_workforce_availability_versions USING btree (practice_id, idempotency_key);
+
+
+--
+-- Name: idx_on_practice_id_idempotency_key_60bb7b62db; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_idempotency_key_60bb7b62db ON public.clinic_workforce_shift_swap_requests USING btree (practice_id, idempotency_key);
+
+
+--
+-- Name: idx_on_practice_id_kiosk_session_id_expires_at_c467e83429; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_kiosk_session_id_expires_at_c467e83429 ON public.clinic_workforce_punch_challenges USING btree (practice_id, kiosk_session_id, expires_at);
+
+
+--
+-- Name: idx_on_practice_id_public_id_5e2cd22580; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_public_id_5e2cd22580 ON public.clinic_workforce_availability_versions USING btree (practice_id, public_id);
+
+
+--
+-- Name: idx_on_practice_id_public_id_a25f30437e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_public_id_a25f30437e ON public.clinic_workforce_time_off_requests USING btree (practice_id, public_id);
+
+
+--
+-- Name: idx_on_practice_id_public_id_ea66fc3198; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_public_id_ea66fc3198 ON public.clinic_workforce_shift_swap_requests USING btree (practice_id, public_id);
+
+
+--
+-- Name: idx_on_practice_id_request_key_6747e9efbb; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_request_key_6747e9efbb ON public.clinic_workforce_adjustment_requests USING btree (practice_id, request_key);
+
+
+--
+-- Name: idx_on_practice_id_site_id_status_b22685788d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_site_id_status_b22685788d ON public.clinic_workforce_kiosk_sessions USING btree (practice_id, site_id, status);
+
+
+--
+-- Name: idx_workforce_one_active_badge; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_workforce_one_active_badge ON public.clinic_workforce_badge_credentials USING btree (practice_id, employment_id) WHERE ((status)::text = 'issued'::text);
+
+
+--
+-- Name: idx_workforce_punches_employee_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_workforce_punches_employee_time ON public.clinic_workforce_punches USING btree (practice_id, employment_id, occurred_at_utc, id);
+
+
+--
+-- Name: idx_workforce_segments_timecard; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_workforce_segments_timecard ON public.clinic_workforce_time_segments USING btree (practice_id, timecard_version_id, started_at_utc);
+
+
+--
+-- Name: idx_workforce_timecard_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_workforce_timecard_version ON public.clinic_workforce_timecard_versions USING btree (practice_id, employment_id, period_start, version_number);
+
+
+--
+-- Name: idx_workforce_timecards_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_workforce_timecards_status ON public.clinic_workforce_timecard_versions USING btree (practice_id, employment_id, period_start, status);
+
+
+--
+-- Name: index_clinic_workforce_badge_credentials_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_badge_credentials_on_practice_id_and_id ON public.clinic_workforce_badge_credentials USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_badge_credentials_on_secret_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_badge_credentials_on_secret_digest ON public.clinic_workforce_badge_credentials USING btree (secret_digest);
+
+
+--
+-- Name: index_clinic_workforce_employment_sites_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_employment_sites_on_practice_id_and_id ON public.clinic_workforce_employment_sites USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_employments_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_employments_on_practice_id_and_id ON public.clinic_workforce_employments USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_kiosk_enrollments_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_kiosk_enrollments_on_practice_id_and_id ON public.clinic_workforce_kiosk_enrollments USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_kiosk_enrollments_on_token_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_kiosk_enrollments_on_token_digest ON public.clinic_workforce_kiosk_enrollments USING btree (token_digest);
+
+
+--
+-- Name: index_clinic_workforce_kiosk_sessions_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_kiosk_sessions_on_practice_id_and_id ON public.clinic_workforce_kiosk_sessions USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_kiosk_sessions_on_session_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_kiosk_sessions_on_session_digest ON public.clinic_workforce_kiosk_sessions USING btree (session_digest);
+
+
+--
+-- Name: index_clinic_workforce_punch_challenges_on_challenge_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_punch_challenges_on_challenge_digest ON public.clinic_workforce_punch_challenges USING btree (challenge_digest);
+
+
+--
+-- Name: index_clinic_workforce_punch_challenges_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_punch_challenges_on_practice_id_and_id ON public.clinic_workforce_punch_challenges USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_punches_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_punches_on_practice_id_and_id ON public.clinic_workforce_punches USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_punches_on_practice_id_and_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_punches_on_practice_id_and_request_key ON public.clinic_workforce_punches USING btree (practice_id, request_key);
+
+
+--
+-- Name: index_clinic_workforce_schedule_drafts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_schedule_drafts_on_practice_id_and_id ON public.clinic_workforce_schedule_drafts USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_settings_versions_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_settings_versions_on_practice_id_and_id ON public.clinic_workforce_settings_versions USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_shifts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_shifts_on_practice_id_and_id ON public.clinic_workforce_shifts USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_shifts_on_practice_id_and_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_shifts_on_practice_id_and_public_id ON public.clinic_workforce_shifts USING btree (practice_id, public_id);
+
+
+--
+-- Name: index_clinic_workforce_time_off_requests_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_time_off_requests_on_practice_id_and_id ON public.clinic_workforce_time_off_requests USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_time_segments_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_time_segments_on_practice_id_and_id ON public.clinic_workforce_time_segments USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_workforce_timecard_versions_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_workforce_timecard_versions_on_practice_id_and_id ON public.clinic_workforce_timecard_versions USING btree (practice_id, id);
+
+
+--
+-- Name: wf_export_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wf_export_retry ON public.clinic_workforce_export_batches USING btree (practice_id, request_key);
+
+
+--
+-- Name: wf_export_single_successor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wf_export_single_successor ON public.clinic_workforce_export_batches USING btree (supersedes_batch_id) WHERE (supersedes_batch_id IS NOT NULL);
+
+
+--
+-- Name: wf_export_site_history; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX wf_export_site_history ON public.clinic_workforce_export_batches USING btree (practice_id, site_id, created_at);
+
+
+--
+-- Name: wf_export_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wf_export_tenant_id ON public.clinic_workforce_export_batches USING btree (practice_id, id);
+
+
+--
+-- Name: wf_payroll_config_effective; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wf_payroll_config_effective ON public.clinic_workforce_payroll_configuration_versions USING btree (practice_id, site_id, effective_from);
+
+
+--
+-- Name: wf_payroll_config_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wf_payroll_config_revision ON public.clinic_workforce_payroll_configuration_versions USING btree (practice_id, site_id, revision);
+
+
+--
+-- Name: wf_payroll_config_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wf_payroll_config_tenant_id ON public.clinic_workforce_payroll_configuration_versions USING btree (practice_id, id);
+
+
+--
+-- Name: workforce_assignment_open_interval; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_assignment_open_interval ON public.clinic_workforce_employment_sites USING btree (practice_id, employment_id, site_id) WHERE (effective_until IS NULL);
+
+
+--
+-- Name: workforce_availability_current; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_availability_current ON public.clinic_workforce_availability_versions USING btree (practice_id, site_id, employment_id) WHERE ((status)::text = 'approved'::text);
+
+
+--
+-- Name: workforce_employee_invitations_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_employee_invitations_email ON public.clinic_workforce_employee_invitations USING btree (email_digest) WHERE (email_digest IS NOT NULL);
+
+
+--
+-- Name: workforce_employee_invitations_staff; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_employee_invitations_staff ON public.clinic_workforce_employee_invitations USING btree (practice_id, staff_member_id);
+
+
+--
+-- Name: workforce_employee_invitations_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_employee_invitations_token ON public.clinic_workforce_employee_invitations USING btree (token_digest) WHERE (token_digest IS NOT NULL);
+
+
+--
+-- Name: workforce_employment_sites_eligibility; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workforce_employment_sites_eligibility ON public.clinic_workforce_employment_sites USING btree (practice_id, site_id, active);
+
+
+--
+-- Name: workforce_employments_membership; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_employments_membership ON public.clinic_workforce_employments USING btree (practice_id, membership_id);
+
+
+--
+-- Name: workforce_employments_staff; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_employments_staff ON public.clinic_workforce_employments USING btree (practice_id, staff_member_id);
+
+
+--
+-- Name: workforce_practice_settings_effective; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_practice_settings_effective ON public.clinic_workforce_settings_versions USING btree (practice_id, effective_from) WHERE (site_id IS NULL);
+
+
+--
+-- Name: workforce_practice_settings_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_practice_settings_revision ON public.clinic_workforce_settings_versions USING btree (practice_id, revision) WHERE (site_id IS NULL);
+
+
+--
+-- Name: workforce_schedule_drafts_week; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workforce_schedule_drafts_week ON public.clinic_workforce_schedule_drafts USING btree (practice_id, site_id, week_start_on, status);
+
+
+--
+-- Name: workforce_schedule_publications_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_schedule_publications_retry ON public.clinic_workforce_schedule_publications USING btree (practice_id, idempotency_key);
+
+
+--
+-- Name: workforce_schedule_publications_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_schedule_publications_version ON public.clinic_workforce_schedule_publications USING btree (practice_id, site_id, week_start_on, version);
+
+
+--
+-- Name: workforce_schedule_templates_active_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_schedule_templates_active_name ON public.clinic_workforce_schedule_templates USING btree (practice_id, site_id, name) WHERE active;
+
+
+--
+-- Name: workforce_shifts_employee_interval; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workforce_shifts_employee_interval ON public.clinic_workforce_shifts USING btree (practice_id, employment_id, starts_at, ends_at);
+
+
+--
+-- Name: workforce_site_settings_effective; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_site_settings_effective ON public.clinic_workforce_settings_versions USING btree (practice_id, site_id, effective_from) WHERE (site_id IS NOT NULL);
+
+
+--
+-- Name: workforce_site_settings_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workforce_site_settings_revision ON public.clinic_workforce_settings_versions USING btree (practice_id, site_id, revision) WHERE (site_id IS NOT NULL);
+
+
+--
+-- Name: clinic_workforce_settings_versions clinic_workforce_settings_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_workforce_settings_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_workforce_settings_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_workforce_adjustment_requests workforce_adjustment_freeze; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_adjustment_freeze BEFORE DELETE OR UPDATE ON public.clinic_workforce_adjustment_requests FOR EACH ROW EXECUTE FUNCTION public.workforce_adjustment_freeze();
+
+
+--
+-- Name: clinic_workforce_export_batches workforce_export_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_export_immutable BEFORE DELETE OR UPDATE ON public.clinic_workforce_export_batches FOR EACH ROW EXECUTE FUNCTION public.workforce_payroll_immutable();
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions workforce_payroll_config_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_payroll_config_immutable BEFORE DELETE OR UPDATE ON public.clinic_workforce_payroll_configuration_versions FOR EACH ROW EXECUTE FUNCTION public.workforce_payroll_immutable();
+
+
+--
+-- Name: clinic_workforce_punches workforce_punches_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_punches_immutable BEFORE DELETE OR UPDATE ON public.clinic_workforce_punches FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_workforce_time_segments workforce_segments_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_segments_immutable BEFORE DELETE OR UPDATE ON public.clinic_workforce_time_segments FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_workforce_timecard_versions workforce_timecard_freeze; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_timecard_freeze BEFORE DELETE OR UPDATE ON public.clinic_workforce_timecard_versions FOR EACH ROW EXECUTE FUNCTION public.workforce_timecard_freeze();
+
+
+--
+-- Name: clinic_workforce_schedule_templates fk_rails_01a38e595e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_templates
+    ADD CONSTRAINT fk_rails_01a38e595e FOREIGN KEY (practice_id, created_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_punch_challenges fk_rails_038aad3ae1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punch_challenges
+    ADD CONSTRAINT fk_rails_038aad3ae1 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_punch_challenges fk_rails_043cc3740f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punch_challenges
+    ADD CONSTRAINT fk_rails_043cc3740f FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts fk_rails_076786827a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_drafts
+    ADD CONSTRAINT fk_rails_076786827a FOREIGN KEY (practice_id, created_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_export_batches fk_rails_13cff6c007; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches
+    ADD CONSTRAINT fk_rails_13cff6c007 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shifts fk_rails_160fc3c8d0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shifts
+    ADD CONSTRAINT fk_rails_160fc3c8d0 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_employee_invitations fk_rails_162210adb9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employee_invitations
+    ADD CONSTRAINT fk_rails_162210adb9 FOREIGN KEY (practice_id, staff_member_id) REFERENCES public.clinic_staff_members(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments fk_rails_1bf29cc8cc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
+    ADD CONSTRAINT fk_rails_1bf29cc8cc FOREIGN KEY (practice_id, revoked_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts fk_rails_1c01481252; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_drafts
+    ADD CONSTRAINT fk_rails_1c01481252 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_schedule_templates fk_rails_231dc3c4f9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_templates
+    ADD CONSTRAINT fk_rails_231dc3c4f9 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_rails_23fbbae981; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_rails_23fbbae981 FOREIGN KEY (practice_id, reviewed_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions fk_rails_26b6e8a3aa; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions
+    ADD CONSTRAINT fk_rails_26b6e8a3aa FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_settings_versions fk_rails_278bfef16b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_settings_versions
+    ADD CONSTRAINT fk_rails_278bfef16b FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions fk_rails_29ddf909a9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions
+    ADD CONSTRAINT fk_rails_29ddf909a9 FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_307c687e13; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_307c687e13 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_badge_credentials fk_rails_30cb894fe8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials
+    ADD CONSTRAINT fk_rails_30cb894fe8 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_export_batches fk_rails_346f4cde3f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches
+    ADD CONSTRAINT fk_rails_346f4cde3f FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_employee_invitations fk_rails_3497a94c22; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employee_invitations
+    ADD CONSTRAINT fk_rails_3497a94c22 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_punches fk_rails_38e293b876; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches
+    ADD CONSTRAINT fk_rails_38e293b876 FOREIGN KEY (practice_id, kiosk_session_id) REFERENCES public.clinic_workforce_kiosk_sessions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_timecard_versions fk_rails_3fe0b246b7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions
+    ADD CONSTRAINT fk_rails_3fe0b246b7 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests fk_rails_41eb6fb51c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT fk_rails_41eb6fb51c FOREIGN KEY (practice_id, requested_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_punches fk_rails_43f74c088e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches
+    ADD CONSTRAINT fk_rails_43f74c088e FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_badge_credentials fk_rails_468431674b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials
+    ADD CONSTRAINT fk_rails_468431674b FOREIGN KEY (practice_id, replaced_by_id) REFERENCES public.clinic_workforce_badge_credentials(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_employments fk_rails_477f216f99; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employments
+    ADD CONSTRAINT fk_rails_477f216f99 FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_timecard_versions fk_rails_4971abfd60; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions
+    ADD CONSTRAINT fk_rails_4971abfd60 FOREIGN KEY (practice_id, approved_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_time_segments fk_rails_4bf7201ea6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_segments
+    ADD CONSTRAINT fk_rails_4bf7201ea6 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications fk_rails_4f972e7f1f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications
+    ADD CONSTRAINT fk_rails_4f972e7f1f FOREIGN KEY (practice_id, published_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_rails_54cb12a1e8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_rails_54cb12a1e8 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_settings_versions fk_rails_5ba5996cc6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_settings_versions
+    ADD CONSTRAINT fk_rails_5ba5996cc6 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_5bc99aa01c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_5bc99aa01c FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions fk_rails_5d1fc20fb8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions
+    ADD CONSTRAINT fk_rails_5d1fc20fb8 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_punches fk_rails_5e65f1e661; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches
+    ADD CONSTRAINT fk_rails_5e65f1e661 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests fk_rails_5ec252c636; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT fk_rails_5ec252c636 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_availability_versions fk_rails_602daedec6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions
+    ADD CONSTRAINT fk_rails_602daedec6 FOREIGN KEY (practice_id, created_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_settings_versions fk_rails_6fa8693b57; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_settings_versions
+    ADD CONSTRAINT fk_rails_6fa8693b57 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments fk_rails_732019edfb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
+    ADD CONSTRAINT fk_rails_732019edfb FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_badge_credentials fk_rails_76a2633323; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials
+    ADD CONSTRAINT fk_rails_76a2633323 FOREIGN KEY (practice_id, revoked_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications fk_rails_7ae8db05fb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications
+    ADD CONSTRAINT fk_rails_7ae8db05fb FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_time_segments fk_rails_808d39eb3b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_segments
+    ADD CONSTRAINT fk_rails_808d39eb3b FOREIGN KEY (practice_id, timecard_version_id) REFERENCES public.clinic_workforce_timecard_versions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests fk_rails_81de23790d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT fk_rails_81de23790d FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions fk_rails_8293e2694b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions
+    ADD CONSTRAINT fk_rails_8293e2694b FOREIGN KEY (practice_id, kiosk_enrollment_id) REFERENCES public.clinic_workforce_kiosk_enrollments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_rails_845032cdc6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_rails_845032cdc6 FOREIGN KEY (practice_id, requested_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_punches fk_rails_856438e140; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches
+    ADD CONSTRAINT fk_rails_856438e140 FOREIGN KEY (practice_id, punch_challenge_id) REFERENCES public.clinic_workforce_punch_challenges(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_availability_versions fk_rails_880acd5a76; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions
+    ADD CONSTRAINT fk_rails_880acd5a76 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_employment_sites fk_rails_8a047045fe; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employment_sites
+    ADD CONSTRAINT fk_rails_8a047045fe FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests fk_rails_8a4510b23a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT fk_rails_8a4510b23a FOREIGN KEY (practice_id, timecard_version_id) REFERENCES public.clinic_workforce_timecard_versions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_punches fk_rails_8d6810b0d1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punches
+    ADD CONSTRAINT fk_rails_8d6810b0d1 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications fk_rails_8e60744ac0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications
+    ADD CONSTRAINT fk_rails_8e60744ac0 FOREIGN KEY (practice_id, schedule_draft_id) REFERENCES public.clinic_workforce_schedule_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications fk_rails_906779a65f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications
+    ADD CONSTRAINT fk_rails_906779a65f FOREIGN KEY (practice_id, supersedes_id) REFERENCES public.clinic_workforce_schedule_publications(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments fk_rails_9501614832; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
+    ADD CONSTRAINT fk_rails_9501614832 FOREIGN KEY (practice_id, issued_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_export_batches fk_rails_9890b6fffd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches
+    ADD CONSTRAINT fk_rails_9890b6fffd FOREIGN KEY (practice_id, configuration_version_id) REFERENCES public.clinic_workforce_payroll_configuration_versions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests fk_rails_996f5f302c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT fk_rails_996f5f302c FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_rails_99b1639b4b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_rails_99b1639b4b FOREIGN KEY (practice_id, target_decided_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_rails_9d13ceefeb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_rails_9d13ceefeb FOREIGN KEY (practice_id, schedule_publication_id) REFERENCES public.clinic_workforce_schedule_publications(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_availability_versions fk_rails_9f1c6209c8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions
+    ADD CONSTRAINT fk_rails_9f1c6209c8 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_export_batches fk_rails_a169ff1a35; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches
+    ADD CONSTRAINT fk_rails_a169ff1a35 FOREIGN KEY (practice_id, supersedes_batch_id) REFERENCES public.clinic_workforce_export_batches(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_employment_sites fk_rails_a301c07935; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employment_sites
+    ADD CONSTRAINT fk_rails_a301c07935 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications fk_rails_a3a7b0c020; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_publications
+    ADD CONSTRAINT fk_rails_a3a7b0c020 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_timecard_versions fk_rails_a5e7408b1a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions
+    ADD CONSTRAINT fk_rails_a5e7408b1a FOREIGN KEY (practice_id, submitted_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_punch_challenges fk_rails_ac6ecccd3e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_punch_challenges
+    ADD CONSTRAINT fk_rails_ac6ecccd3e FOREIGN KEY (practice_id, kiosk_session_id) REFERENCES public.clinic_workforce_kiosk_sessions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_rails_ac7d785f26; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_rails_ac7d785f26 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_badge_credentials fk_rails_acada4d59c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials
+    ADD CONSTRAINT fk_rails_acada4d59c FOREIGN KEY (practice_id, issued_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_employment_sites fk_rails_b01eb37851; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employment_sites
+    ADD CONSTRAINT fk_rails_b01eb37851 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts fk_rails_b4b6665fbc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_drafts
+    ADD CONSTRAINT fk_rails_b4b6665fbc FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_templates fk_rails_b7fa0c013b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_templates
+    ADD CONSTRAINT fk_rails_b7fa0c013b FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_availability_versions fk_rails_bef7fafd4f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions
+    ADD CONSTRAINT fk_rails_bef7fafd4f FOREIGN KEY (practice_id, reviewed_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_kiosk_enrollments fk_rails_c366323e19; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
+    ADD CONSTRAINT fk_rails_c366323e19 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_kiosk_sessions fk_rails_c771adc280; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions
+    ADD CONSTRAINT fk_rails_c771adc280 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_time_segments fk_rails_c94a0f99e0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_segments
+    ADD CONSTRAINT fk_rails_c94a0f99e0 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_availability_versions fk_rails_cda17f1998; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_availability_versions
+    ADD CONSTRAINT fk_rails_cda17f1998 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_d03f705388; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_d03f705388 FOREIGN KEY (practice_id, reviewed_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_export_batches fk_rails_d0ea41ca6b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_export_batches
+    ADD CONSTRAINT fk_rails_d0ea41ca6b FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_payroll_configuration_versions fk_rails_d19cb84774; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions
+    ADD CONSTRAINT fk_rails_d19cb84774 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_timecard_versions fk_rails_d50ec95377; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions
+    ADD CONSTRAINT fk_rails_d50ec95377 FOREIGN KEY (practice_id, previous_version_id) REFERENCES public.clinic_workforce_timecard_versions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_drafts fk_rails_d8046d4b71; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_schedule_drafts
+    ADD CONSTRAINT fk_rails_d8046d4b71 FOREIGN KEY (practice_id, schedule_template_id) REFERENCES public.clinic_workforce_schedule_templates(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shifts fk_rails_dcb1b35bbb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shifts
+    ADD CONSTRAINT fk_rails_dcb1b35bbb FOREIGN KEY (practice_id, schedule_draft_id) REFERENCES public.clinic_workforce_schedule_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_adjustment_requests fk_rails_df65e14823; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
+    ADD CONSTRAINT fk_rails_df65e14823 FOREIGN KEY (practice_id, resulting_timecard_version_id) REFERENCES public.clinic_workforce_timecard_versions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_employee_invitations fk_rails_e1122d2ea4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employee_invitations
+    ADD CONSTRAINT fk_rails_e1122d2ea4 FOREIGN KEY (practice_id, invited_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_badge_credentials fk_rails_e1be38af55; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_badge_credentials
+    ADD CONSTRAINT fk_rails_e1be38af55 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_employments fk_rails_e30d82058e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employments
+    ADD CONSTRAINT fk_rails_e30d82058e FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_employments fk_rails_ede8fb32d3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employments
+    ADD CONSTRAINT fk_rails_ede8fb32d3 FOREIGN KEY (practice_id, staff_member_id) REFERENCES public.clinic_staff_members(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shifts fk_rails_eeb20d59e1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shifts
+    ADD CONSTRAINT fk_rails_eeb20d59e1 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_timecard_versions fk_rails_f4a8d0e896; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_timecard_versions
+    ADD CONSTRAINT fk_rails_f4a8d0e896 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_fc8e68da48; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_fc8e68da48 FOREIGN KEY (practice_id, requested_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_fd9725aff5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_fd9725aff5 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_workforce_swap_requester; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_workforce_swap_requester FOREIGN KEY (practice_id, requester_employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_workforce_swap_target; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_workforce_swap_target FOREIGN KEY (practice_id, target_employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_schedule_publications workforce_schedule_publications_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE ON public.clinic_workforce_schedule_publications FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906001500'),
+('20260906001400'),
+('20260906001300'),
+('20260906001200'),
+('20260906001100'),
+('20260906001000'),
 ('20260906000500'),
 ('20260906000400'),
 ('20260906000300'),

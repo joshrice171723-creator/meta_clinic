@@ -1,7 +1,15 @@
 module Clinic
   class ContextController < ApiController
     def show
-      sites = accessible_clinic_sites.order(:code, :id)
+      sites = accessible_clinic_sites
+      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.allowed_permission?(permission) }
+        sites = current_practice.sites
+      end
+      if workforce_employment
+        assigned_ids = workforce_employment.employment_sites.active.effective_at(Time.current).select(:site_id)
+        sites = current_practice.sites.where(id: sites.select(:id)).or(current_practice.sites.where(id: assigned_ids))
+      end
+      sites = sites.order(:code, :id)
       current_site = current_clinic_site
       session.delete(:clinic_site_id) if session[:clinic_site_id].present? && current_site.nil?
       if current_site.nil? && sites.one?
@@ -18,6 +26,19 @@ module Clinic
         credentials: current_credential_types,
         policy_version: "clinic-authorization-v1",
         capabilities: {
+          workforce_self: workforce_employment.present?,
+          workforce_admin: current_ability.allowed_permission?("workforce.admin", any_site: true),
+          workforce_settings: current_ability.allowed_permission?("workforce.settings", any_site: true),
+          workforce_badges: current_ability.allowed_permission?("workforce.badges", any_site: true),
+          workforce_timecards_read: current_ability.allowed_permission?("workforce.timecards.read", any_site: true),
+          workforce_timecards_review: current_ability.allowed_permission?("workforce.timecards.review", any_site: true),
+          workforce_timecards_approve: current_ability.allowed_permission?("workforce.timecards.approve", any_site: true),
+          workforce_schedule_read: current_ability.allowed_permission?("workforce.schedule.read", any_site: true),
+          workforce_schedule_manage: current_ability.allowed_permission?("workforce.schedule.manage", any_site: true),
+          workforce_schedule_publish: current_ability.allowed_permission?("workforce.schedule.publish", any_site: true),
+          workforce_requests_review: current_ability.allowed_permission?("workforce.requests.review", any_site: true),
+          workforce_payroll_configure: current_ability.allowed_permission?("workforce.payroll.configure", any_site: true),
+          workforce_payroll_export: current_ability.allowed_permission?("workforce.payroll.export", any_site: true),
           patients: allowed?("patients.read"),
           patient_identity_read: allowed?("patients.identity.read"),
           patients_write: allowed?("patients.write"),
@@ -70,6 +91,14 @@ module Clinic
     end
 
     private
+
+    def workforce_employment
+      return @workforce_employment if defined?(@workforce_employment)
+      return nil unless defined?(Clinic::Workforce::Employment) && Clinic::Workforce::Employment.table_exists?
+
+      employee = Clinic::Workforce::Employment.find_by(practice_id: current_practice.id, membership_id: clinic_membership.id)
+      @workforce_employment = employee if employee&.active_for_work?
+    end
 
     def allowed?(action)
       Clinic::Authorization.allowed?(actor: current_user, practice: current_practice, action: action, any_site: true)

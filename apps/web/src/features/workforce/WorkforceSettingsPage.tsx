@@ -92,7 +92,6 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
   const { data, error, refresh } = useResource<WorkforceSettingsData>(resourcePath);
   const [values, setValues] = useState<WorkforceSettingValues>({});
   const [effectiveFrom, setEffectiveFrom] = useState(localDateTime);
-  const [mappingText, setMappingText] = useState("{}");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ severity: "success" | "error"; text: string } | null>(null);
 
@@ -100,7 +99,6 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
     if (!data) return;
     const next = data.current_version?.values ?? emptyValues(data);
     setValues(next);
-    setMappingText(next.provider_mapping === null ? "" : JSON.stringify(next.provider_mapping ?? {}, null, 2));
     setEffectiveFrom(localDateTime());
     setFeedback(null);
   }, [data]);
@@ -118,10 +116,6 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
     setSaving(true);
     setFeedback(null);
     try {
-      const providerMapping = mappingText.trim() ? JSON.parse(mappingText) : {};
-      if (!providerMapping || Array.isArray(providerMapping) || typeof providerMapping !== "object") {
-        throw new Error("Provider field mapping must be a JSON object.");
-      }
       await api("/api/clinic/workforce/settings", {
         method: "PUT",
         body: {
@@ -130,7 +124,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
             site_id: data.scope.site_id,
             effective_from: new Date(effectiveFrom).toISOString(),
             expected_revision: data.latest_revision,
-            values: { ...values, provider_mapping: siteScope && values.provider_mapping === null ? null : providerMapping },
+            values,
           },
         },
       });
@@ -248,7 +242,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
               {enumField("pay_cadence", data.setting_contract.enum_values.pay_cadence)}
               {enumField("payroll_provider", data.setting_contract.enum_values.payroll_provider)}
             </Stack>
-            <TextField label={labels.provider_mapping} value={mappingText} onChange={(event) => { setMappingText(event.target.value); setValue("provider_mapping", siteScope && event.target.value.trim() === "" ? null : {}); }} multiline minRows={4} helperText={siteScope ? "Leave blank to inherit the practice mapping. Only custom file mappings are supported." : "JSON object for the custom file mapping. Credentials are not accepted."} />
+            <Typography variant="body2" color="text.secondary">Pay cadence records your location's payroll cycle; it does not schedule payments. Timecards use the configured workweek. Choose approved timecards, file headings, and employee payroll IDs in Payroll exports.</Typography>
           </Stack>
 
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
