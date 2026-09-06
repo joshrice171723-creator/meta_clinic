@@ -410,6 +410,7 @@ export function SubscriptionCatalog() {
                 </div>
                 {data.capabilities.write && (
                   <Button
+                    className="subscription-catalog__create-tier"
                     variant="contained"
                     startIcon={<AddIcon />}
                     disabled={!data.families.some((f) => !f.retired)}
