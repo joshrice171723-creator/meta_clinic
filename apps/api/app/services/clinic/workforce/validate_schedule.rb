@@ -32,7 +32,7 @@ module Clinic
         shifts.each do |shift|
           label = shift.employment.staff_member.display_name
           errors << "#{label}: shift must begin within the selected week." unless shift.starts_at.in_time_zone(draft.timezone).to_date.between?(draft.week_start_on, week_end - 1.day)
-          shift_end = shift.ends_at - 1.microsecond
+          shift_end = shift.ends_at - Rational(1, 1_000_000)
           unless shift.employment.active_for_work?(at: shift.starts_at) && shift.employment.active_for_work?(at: shift_end)
             errors << "#{label}: employee is not active for the full shift."
           end

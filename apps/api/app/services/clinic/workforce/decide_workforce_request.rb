@@ -141,7 +141,7 @@ module Clinic
         starts_at = Time.iso8601(shift.fetch("starts_at"))
         ends_at = Time.iso8601(shift.fetch("ends_at"))
         target = request.target_employment
-        shift_end = ends_at - 1.microsecond
+        shift_end = ends_at - Rational(1, 1_000_000)
         unless target.active_for_work?(at: starts_at) && target.active_for_work?(at: shift_end) &&
             target.eligible_site?(request.site, at: starts_at) && target.eligible_site?(request.site, at: shift_end)
           raise ArgumentError, "Target employee is not active or eligible for the full shift."

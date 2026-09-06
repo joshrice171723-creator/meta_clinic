@@ -91,7 +91,7 @@ module Clinic
         raise ArgumentError, "The offered published shift is unavailable." unless offered && offered["employment_id"].to_i == employment.id
         target = Employment.find_by!(practice_id: current_practice.id, id: requested_id!(input[:target_employment_id], :target_employment_id))
         starts_at = Time.iso8601(offered.fetch("starts_at"))
-        shift_end = Time.iso8601(offered.fetch("ends_at")) - 1.microsecond
+        shift_end = Time.iso8601(offered.fetch("ends_at")) - Rational(1, 1_000_000)
         unless target.active_for_work?(at: starts_at) && target.active_for_work?(at: shift_end) &&
             target.eligible_site?(site, at: starts_at) && target.eligible_site?(site, at: shift_end)
           raise ArgumentError, "Target employee is not active or eligible for the full shift."
