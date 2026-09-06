@@ -2,6 +2,8 @@
 
 Dated 2026-09-05. This is an exact handoff snapshot, not an alternative live task register. Shortcut Agent Workspace owns claims, acceptance and status. Follow root/nested AGENTS.md before writes.
 
+**Superseding verification evidence:** [M2c follow-up](2026-09-05-inventory-program-m2c.md) closes the fixture and responsive receiving gates described in this earlier snapshot. Its commit and sc-264 record authorize advancing to M3 within the original program. The baseline portal type errors remain disclosed.
+
 ## Resume location and authority
 
 - Worktree: `C:/Users/joshr/Desktop/Work/APPly-inventory-program`
