@@ -21,6 +21,8 @@ import type {
   InventoryCatalogRead,
   InventoryStockData,
   InventoryStockRead,
+  InventoryOrderData,
+  InventoryOrderRead,
   InventoryProduct,
   InventoryRecall,
   InventoryCategory,
@@ -383,7 +385,7 @@ export function inventoryDateTime(value?: string, timezone?: string) {
 function capability(data: Pick<InventoryData, "capabilities">, key: string) {
   return data.capabilities[key] === true;
 }
-function product(data: Pick<InventoryData, "products">, id: string) {
+function product<T extends { id: string }>(data: { products: T[] }, id: string) {
   return data.products.find((item) => item.id === id);
 }
 function lot(data: Pick<InventoryData, "lots">, id: string) {
@@ -1984,6 +1986,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryActivityData
     | InventoryCatalogData
     | InventoryStockData
+    | InventoryOrderData
   >();
   const readVersion = useRef(0);
   const [error, setError] = useState("");
@@ -2018,6 +2021,7 @@ export function InventoryApp({ path }: { path: string }) {
       "activity_page" in data ||
       "catalog_page" in data ||
       "stock_page" in data ||
+      "order_page" in data ||
       !needsPurchaseOrderFacility
     )
       return;
@@ -2028,10 +2032,12 @@ export function InventoryApp({ path }: { path: string }) {
 
   const load = async (
     requested?: InventoryCatalogRead &
-      InventoryStockRead & { before?: string | null },
+      InventoryStockRead &
+      InventoryOrderRead & { before?: string | null },
   ) => {
     const read: InventoryCatalogRead &
-      InventoryStockRead & { before?: string | null } =
+      InventoryStockRead &
+      InventoryOrderRead & { before?: string | null } =
       requested ??
       (screen === "catalog" && data && "catalog_page" in data
         ? {
@@ -2046,7 +2052,13 @@ export function InventoryApp({ path }: { path: string }) {
               stock_status: data.stock_page.status,
               page: data.stock_page.page,
             }
-          : {});
+          : screen === "purchasing" && data && "order_page" in data
+            ? {
+                q: data.order_page.query,
+                order_status: data.order_page.status,
+                page: data.order_page.page,
+              }
+            : {});
     const version = ++readVersion.current;
     setLoading(true);
     setError("");
@@ -2059,6 +2071,8 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "activity") query.set("view", "ledger");
         if (screen === "catalog") query.set("view", "table");
         if (screen === "lots") query.set("view", "positions");
+        if (screen === "purchasing") query.set("view", "batches");
+        if (read.order_status) query.set("order_status", read.order_status);
         const routeQuery = new URLSearchParams(window.location.search);
         if (screen === "lots" && routeQuery.get("product_id"))
           query.set("product_id", routeQuery.get("product_id")!);
@@ -2077,20 +2091,24 @@ export function InventoryApp({ path }: { path: string }) {
               ? `/api/clinic/inventory/catalog?${query}`
               : screen === "lots"
                 ? `/api/clinic/inventory/lots?${query}`
-                : "/api/clinic/inventory/bootstrap";
+                : screen === "purchasing"
+                  ? `/api/clinic/inventory/purchase-orders?${query}`
+                  : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
             | InventoryActivityData
             | InventoryCatalogData
-            | InventoryStockData;
+            | InventoryStockData
+            | InventoryOrderData;
         }>(endpoint, { signal: controller.signal });
         if (version !== readVersion.current) return;
         if (
           !payload.data ||
           (screen === "activity") !== "activity_page" in payload.data ||
           (screen === "catalog") !== "catalog_page" in payload.data ||
-          (screen === "lots") !== "stock_page" in payload.data
+          (screen === "lots") !== "stock_page" in payload.data ||
+          (screen === "purchasing") !== "order_page" in payload.data
         )
           throw new Error(
             "The inventory service returned an incomplete response.",
@@ -2164,13 +2182,20 @@ export function InventoryApp({ path }: { path: string }) {
         data?: InventoryData;
         acknowledged?: boolean;
         id?: number | string;
-      }>(screen === "lots" ? `${endpoint}?response=ack` : endpoint, {
-        method: "POST",
-        body: requestBody,
-      });
-      if (screen === "lots") {
+      }>(
+        ["lots", "purchasing"].includes(screen)
+          ? `${endpoint}?response=ack`
+          : endpoint,
+        {
+          method: "POST",
+          body: requestBody,
+        },
+      );
+      if (["lots", "purchasing"].includes(screen)) {
         if (payload.acknowledged !== true)
-          throw new Error("The stock action response could not be confirmed.");
+          throw new Error(
+            "The inventory action response could not be confirmed.",
+          );
       } else {
         if (!payload.data)
           throw new Error(
@@ -2185,7 +2210,7 @@ export function InventoryApp({ path }: { path: string }) {
         detail: successDetail,
       });
       afterSuccess?.(payload);
-      if (screen === "lots") await load();
+      if (["lots", "purchasing"].includes(screen)) await load();
     } catch (reason) {
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
@@ -2234,6 +2259,7 @@ export function InventoryApp({ path }: { path: string }) {
     !("activity_page" in data) &&
     !("catalog_page" in data) &&
     !("stock_page" in data) &&
+    !("order_page" in data) &&
     !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
   )
     return (
@@ -2362,6 +2388,16 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "order_page" in data ? (
+              <PurchasingScreen
+                data={data}
+                busy={busy}
+                readBlocked={Boolean(uncertainMutation)}
+                run={run}
+                loading={loading}
+                error={error}
+                onRead={load}
+              />
             ) : (
               <>
                 {screen === "catalog_new" && (
@@ -2386,9 +2422,6 @@ export function InventoryApp({ path }: { path: string }) {
                     run={run}
                     onRefresh={load}
                   />
-                )}
-                {screen === "purchasing" && (
-                  <PurchasingScreen data={data} busy={busy} run={run} />
                 )}
                 {screen === "purchase_order_new" && (
                   <PurchaseCartWorkspace
@@ -3566,9 +3599,161 @@ function purchaseOrderGroupTotal(group: InventoryPurchaseOrderGroup): string {
 function PurchasingScreen({
   data,
   busy,
+  readBlocked,
+  loading,
+  error,
+  onRead,
   run,
 }: {
-  data: InventoryData;
+  data: InventoryOrderData;
+  busy: boolean;
+  readBlocked: boolean;
+  loading: boolean;
+  error: string;
+  onRead: (read: InventoryOrderRead) => Promise<void>;
+  run: (
+    endpoint: string,
+    body: Record<string, unknown>,
+    title: string,
+    detail: string,
+  ) => Promise<void>;
+}) {
+  const page = data.order_page;
+  const [query, setQuery] = useState(page.query);
+  useEffect(() => setQuery(page.query), [page.query]);
+  const applied = { q: page.query, order_status: page.status, page: page.page };
+  const disabled = loading || busy || readBlocked;
+  return (
+    <div className="inventory-stack" aria-busy={loading}>
+      <Card title="Find purchase batches">
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!disabled)
+              void onRead({ ...applied, q: query.trim(), page: 1 });
+          }}
+        >
+          <TextField
+            label="Search orders"
+            size="small"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Order, supplier, product"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            label="Order status"
+            size="small"
+            value={page.status}
+            disabled={disabled}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                order_status: event.target.value,
+                page: 1,
+              })
+            }
+          >
+            {[
+              "all",
+              "draft",
+              "submitted",
+              "approved",
+              "rejected",
+              "sent",
+              "partially_received",
+              "complete",
+              "cancelled",
+            ].map((status) => (
+              <MenuItem key={status} value={status}>
+                {status === "all" ? "All orders" : status.replaceAll("_", " ")}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button type="submit" variant="outlined" disabled={disabled}>
+            Search orders
+          </Button>
+          {(page.query || page.status !== "all") && (
+            <Button
+              type="button"
+              variant="outlined"
+              disabled={disabled}
+              onClick={() =>
+                void onRead({ q: "", order_status: "all", page: 1 })
+              }
+            >
+              Reset filters
+            </Button>
+          )}
+        </form>
+        <p role="status">
+          {loading
+            ? "Loading purchase batches…"
+            : `${page.filtered_groups} matching of ${page.total_groups} purchase batches · ${page.matching_orders} matching of ${page.total_orders} orders.`}
+        </p>
+        <p className="inventory-card-description">
+          Each matching batch includes all of its supplier orders so batch
+          totals remain complete.
+        </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous purchase page remains visible.
+          </Alert>
+        )}
+        {page.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Purchase batch pagination"
+          >
+            <Button
+              variant="outlined"
+              disabled={disabled || page.page === 1}
+              onClick={() => void onRead({ ...applied, page: page.page - 1 })}
+            >
+              Previous
+            </Button>
+            <span>
+              Page {page.page} of {page.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              disabled={disabled || page.page === page.page_count}
+              onClick={() => void onRead({ ...applied, page: page.page + 1 })}
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </Card>
+      {data.purchase_orders.length > 0 ? (
+        <PurchaseOrderDetails
+          key={`${page.page}:${page.query}:${page.status}`}
+          data={data}
+          busy={busy}
+          run={run}
+        />
+      ) : (
+        <Card title="Purchasing">
+          <p>
+            {page.total_orders === 0
+              ? "No purchase orders exist yet."
+              : "No purchase batches match this view. Change the filters."}
+          </p>
+          <a href="/clinic/inventory/replenishment">Plan order</a>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function PurchaseOrderDetails({
+  data,
+  busy,
+  run,
+}: {
+  data: InventoryOrderData;
   busy: boolean;
   run: (
     endpoint: string,

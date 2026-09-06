@@ -487,3 +487,25 @@ export type InventoryStockData = InventoryReadContext &
       unavailable_units: Decimal;
     }[];
   };
+
+export type InventoryOrderRead = {
+  q?: string;
+  order_status?: string;
+  page?: number;
+};
+export type InventoryOrderData = InventoryReadContext & {
+  order_page: {
+    query: string;
+    status: string;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_groups: number;
+    filtered_groups: number;
+    total_orders: number;
+    matching_orders: number;
+  };
+  purchase_orders: InventoryPurchaseOrder[];
+  products: Pick<InventoryProduct, "id" | "name" | "ndc" | "base_unit">[];
+  shipments: Pick<InventoryShipment, "id" | "po_id" | "supplier_reference">[];
+};

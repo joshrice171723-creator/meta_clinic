@@ -52,7 +52,11 @@ module Clinic
         end
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
-      def purchase_orders = bootstrap
+      def purchase_orders
+        return bootstrap unless params[:view] == "batches"
+
+        render json: { data: InventoryWire.purchasing(practice: current_practice, actor: current_user, query: params[:q], status: params[:order_status], page: params[:page]) }
+      end
       def receiving = bootstrap
       def lots
         return bootstrap unless params[:view] == "positions"
@@ -198,7 +202,7 @@ module Clinic
         request_key = params.require(:request_key).to_s
         validate_request_key!(request_key)
         order.transition!(to: params.require(:status), actor: current_user, reason: params.require(:reason), request_key: request_key)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
       end
 
       def cancel_remainder
