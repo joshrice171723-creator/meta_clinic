@@ -611,7 +611,9 @@ export type Appointment = {
   ends_at: string;
   status: string;
   encounter_id: number | null;
-  patient?: Pick<Patient, "id" | "display_name" | "reference">;
+  patient?: Pick<Patient, "id" | "display_name" | "reference"> & {
+    phone?: string | null;
+  };
 };
 export type FacilitySite = ClinicSite;
 export type FacilityRoom = { id: number; site_id: number; code: string };

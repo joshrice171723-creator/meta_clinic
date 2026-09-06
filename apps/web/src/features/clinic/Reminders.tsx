@@ -243,13 +243,12 @@ function ReminderRows({
           >
             <Box>
               <Typography sx={{ fontWeight: 700 }}>
-                Reminder #{reminder.id} ·{" "}
+                {reminder.patient.display_name} ·{" "}
                 {reminder.category.replaceAll("_", " ")}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {reminder.local_schedule_label} ·{" "}
-                {reminder.endpoint.masked_value} · patient #
-                {reminder.patient_id}
+                {reminder.endpoint.masked_value}
               </Typography>
             </Box>
             <Chip
@@ -470,7 +469,6 @@ function MessageHistory({
                   {reminder.patient.display_name}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {reminder.patient.reference} ·{" "}
                   {reminder.appointment
                     ? dateTimeLabel(reminder.appointment.starts_at)
                     : reminder.local_schedule_label}
@@ -874,8 +872,10 @@ export function Reminders() {
                             `Patient ${appointment.patient_id}`}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {appointment.patient?.reference} ·{" "}
                           {appointmentLabel(appointment)}
+                          {appointment.patient?.phone
+                            ? ` · ${appointment.patient.phone}`
+                            : " · No verified phone on file"}
                         </Typography>
                       </Box>
                       <Chip
@@ -927,7 +927,11 @@ export function Reminders() {
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    {selected.patient?.reference} · {appointmentLabel(selected)}
+                    {appointmentLabel(selected)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    <strong>Text will go to:</strong>{" "}
+                    {selected.patient?.phone || "No verified phone on file"}
                   </Typography>
                   <TextField
                     multiline

@@ -21,7 +21,7 @@ module Clinic
           )
           appointments = appointments.where(patient_id: matching_patients.select(:id))
         end
-        paginate(appointments.includes(:encounter, :patient), key: :appointments,
+        paginate(appointments.includes(:encounter, patient: :communication_endpoints), key: :appointments,
           serializer: ->(appointment) { AppointmentSerializer.call(appointment) }, order: { starts_at: :asc, id: :asc })
       end
 

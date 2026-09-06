@@ -8,7 +8,8 @@ module Clinic
           patient: {
             id: appointment.patient.id,
             display_name: appointment.patient.display_name,
-            reference: appointment.patient.reference
+            reference: appointment.patient.reference,
+            phone: appointment.patient.communication_endpoints.verified.phone.first&.value
           },
           site_id: appointment.site_id,
           room_id: appointment.room_id,
