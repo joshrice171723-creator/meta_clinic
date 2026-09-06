@@ -1,5 +1,16 @@
 # AI Scribe Roadmap
 
+## Reference-led delivery order — 2026-09-06
+
+The current request is a planning-only redesign of `/clinic/scribe` using the supplied session-and-note interface. Use the [current build sequence](AI_SCRIBE_BUILD_PLAN.md#reference-led-workspace-redesign--2026-09-06) and [workspace acceptance checks](AI_SCRIBE_AUDIT_PLAN.md#reference-led-workspace-acceptance--2026-09-06). This sequence scopes the next product work; broader phases below remain longer-term context and do not authorize new integrations or release.
+
+1. [S1 / sc-398](https://app.shortcut.com/apply-1/story/398): dated searchable session rail, searchable patient picker with the existing create-patient form in a modal, context/transcript/note tabs and a clean revision-safe editor using the existing backend. Successful patient creation closes the modal and preselects the saved patient in Scribe without another search. Finish: saved context and manual note changes survive reload, modal cancel/failure preserves work, and session switching preserves unsaved edits.
+2. [S2 / sc-399](https://app.shortcut.com/apply-1/story/399): actual recording controls, protected audio upload, transcription jobs and recovery. Depends on the S1 contract and explicit provider/storage choices. Finish: consent-gated audio produces traceable transcript evidence, including interruption and failure handling.
+3. [S3 / sc-400](https://app.shortcut.com/apply-1/story/400): templates, separate note documents and source-grounded instruction-bar revision previews. Depends on S1 and generation-provider choices; text-source work need not wait for recording. Finish: apply/discard/restore works without lost edits or inherited approval.
+4. Verify the integrated experience on desktop/tablet with the backend and negative cases. Preserve [sc-353](https://app.shortcut.com/apply-1/story/353) for its existing review/export verification scope; do not claim it covers unimplemented capture/model behavior.
+
+Source inspected at `9355021`: the route, encounter CRUD, consent, transcript import, local draft generation and review/approval/export wiring exist. Microphone capture, transcription provider, selectable templates, independent note documents and prompt-driven edits do not. No runtime completion is asserted. Root owns the three planning documents; two lower-cost agents performed independent read-only discovery. Planning coordination: [sc-396](https://app.shortcut.com/apply-1/story/396). Shortcut owns active status; this roadmap owns scope, dependencies and finish lines.
+
 ## Objective
 
 Build a consent-based, human-reviewed documentation assistant that turns an authorized encounter recording or transcript into a traceable draft. The product assists documentation; it does not independently diagnose, triage, prescribe, recommend treatment, or finalize a clinical record.

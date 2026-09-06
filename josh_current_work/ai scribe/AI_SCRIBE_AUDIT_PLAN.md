@@ -1,5 +1,23 @@
 # AI Scribe Audit Plan
 
+## Reference-led workspace acceptance — 2026-09-06
+
+Future checks for the [workspace build sequence](AI_SCRIBE_BUILD_PLAN.md#reference-led-workspace-redesign--2026-09-06), not test results. The plan was source-reconciled at `9355021`; no app tests or live browser checks ran in this planning task. Existing dated evidence remains historical.
+
+| Journey | Required observable proof |
+| --- | --- |
+| New/reopen session | Create a session for an authorized backend patient, add context, reload and reopen it from date-grouped history. Search across more than one page; confirm practice/site isolation and the displayed timezone/date grouping. Empty/loading/failure states cannot display success or invented records. |
+| Search/create patient in Scribe | Search authorized patients beyond the first page and distinguish duplicate names; select by stable ID. Open Create new patient in a modal using the existing form, save and verify it closes with the saved patient immediately selected in Scribe. Cancel/validation/save failure must preserve Scribe and form state appropriately. Test repeat clicks, uncertain response, stale search results, late creation after practice/site/session switch, unauthorized creation, keyboard focus return and existing-encounter identity protection. Patient creation alone does not create a session or record consent. |
+| Document editing | Import source, generate SOAP, edit multiple sections, save and reload. Switch tabs/sessions during pending saves; induce stale revisions and network failure. No lost text, silent overwrite, incorrect Saved state or accepted stale response. Undo and revision restore have distinct behavior. |
+| Capture/transcription | Exercise permission denied, absent microphone, start/pause/resume/stop, actual timer/meter, interrupted upload, duplicate chunk/finalize retry, refresh, worker/provider failure and durable recovery. Browser must not restart the microphone after reload without explicit action. Confirm transcript/source linkage and no recording UI before provider capability is available. |
+| Consent/deletion race | Decline or withdraw consent before/during capture, upload and processing. Stop microphone tracks and cancel work; late jobs cannot restore deleted/withdrawn text. Verify existing server scope, audit, protected storage and retention behavior remains intact. |
+| Templates and revisions | Create SOAP and an independently versioned SOAP-with-labs document only with authorized source results. Missing labs stay missing. A second document cannot supersede the first; a new revision does supersede its own parent. Wrong/stale template or document IDs are rejected server-side. |
+| Instruction bar | Submit a source-grounded rewrite, inspect changes, discard then retry/apply. Manual edits made during generation survive. Reject unsupported facts and source/prompt instructions that request permission changes or automatic export. Provider timeout preserves current content; retries do not duplicate revisions. |
+| Review and export | Drawer evidence links select the correct source; unresolved warnings remain discoverable and block approval. Every edit/restore/applied proposal invalidates approval. Approve/export bind exact document/revision/version, remain separate, enforce capabilities and retain idempotency. Copy must be permission-aware and clearly identify draft status; it cannot imply chart export. |
+| Visual/accessibility | Capture 1440px desktop and 1024px tablet with local backend records; verify session rail, compact header, tabs, spacious note and bottom bar against the supplied composition. Also check narrow reflow, long patient names/notes, many sessions/tabs, keyboard traversal, drawer focus return, accessible recording announcements, zoom and supported appearances. No hidden final paragraph or page-wide horizontal overflow. |
+
+Use focused Rails/API tests for changed persistence, tenancy, consent, concurrency and job recovery; React integration tests for state transitions and unsaved work; then live browser journeys with the actual API. Use independently authored test data only. Record commands, revision, environment, screenshots, failures and unperformed checks. Passing structural document checks or old review tests cannot substitute for these journeys. Provider-dependent checks remain explicitly unverified until the selected integration is available; visual S1 acceptance does not close S2/S3.
+
 ## Related planning documents
 
 - [Capability roadmap](ROADMAP.md)
