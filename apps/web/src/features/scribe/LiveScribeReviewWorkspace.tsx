@@ -272,6 +272,7 @@ export function LiveScribeReviewWorkspace() {
   };
 
   const createEncounter = () => runMutation("create", async () => {
+    if (hasUnsavedReviewEdits) throw new Error("Save or discard reviewer edits before creating another encounter.");
     if (!selectedPatientId) throw new Error("Choose a patient before creating the encounter.");
     const result = await api<{ encounter: ScribeEncounter }>("/api/clinic/scribe/encounters", {
       method: "POST",
@@ -427,7 +428,7 @@ export function LiveScribeReviewWorkspace() {
         </Alert>
       )}
       {outcomeUnknown && (
-        <Alert severity="warning" action={<Button color="inherit" onClick={() => void loadIndex(selectedEncounterRef.current ?? undefined)}>Reload</Button>}>
+        <Alert severity="warning" action={<Button color="inherit" onClick={() => void (hasUnsavedReviewEdits && selectedEncounterRef.current ? loadEncounter(selectedEncounterRef.current) : loadIndex(selectedEncounterRef.current ?? undefined))}>Reload</Button>}>
           {outcomeUnknown}
         </Alert>
       )}
@@ -458,7 +459,7 @@ export function LiveScribeReviewWorkspace() {
                   {patients.map((patient) => <MenuItem key={patient.id} value={patient.id}>{patient.display_name} · {patient.reference}</MenuItem>)}
                 </Select>
               </FormControl>
-              <Button variant="contained" disabled={!selectedPatientId || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void createEncounter().catch(() => undefined)}>Create encounter</Button>
+              <Button variant="contained" disabled={!selectedPatientId || hasUnsavedReviewEdits || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void createEncounter().catch(() => undefined)}>Create encounter</Button>
             </Stack>
           )}
           {canWrite && patientPage < patientTotalPages && <Button variant="outlined" disabled={loadingMorePatients || pendingAction !== null} onClick={() => void loadMorePatients()}>{loadingMorePatients ? "Loading patients…" : "Load more patients"}</Button>}
@@ -486,7 +487,7 @@ export function LiveScribeReviewWorkspace() {
       )}
 
       <ScribeReviewWorkspace
-        key={`${scopeKey}:${encounter?.id ?? "none"}`}
+        key={`${scopeKey}:${selectedEncounterId || "none"}`}
         state={reviewState}
         pendingAction={pendingAction}
         onUnsavedEditsChange={setHasUnsavedReviewEdits}
