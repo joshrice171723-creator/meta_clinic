@@ -72,6 +72,9 @@ export function LiveStaffMessagingWorkspace() {
   const [createTitle, setCreateTitle] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [resolution, setResolution] = useState<{ requestId: number; conversationId: number } | null>(null);
+  const [resolutionCode, setResolutionCode] = useState("");
+  const [resolving, setResolving] = useState(false);
 
   const isCurrentScope = useCallback((requestScope: string) => mounted.current && scopeKeyRef.current === requestScope, []);
 
@@ -100,6 +103,9 @@ export function LiveStaffMessagingWorkspace() {
     setCreateTitle("");
     setRecipientId("");
     setActionError(null);
+    setResolution(null);
+    setResolutionCode("");
+    setResolving(false);
   }, [scopeKey]);
 
   const loadConversation = useCallback(async (conversationId: number) => {
@@ -235,12 +241,12 @@ export function LiveStaffMessagingWorkspace() {
     }
   });
 
-  const transitionRequest = async (requestId: number, requestState: StaffRequestTransitionState) => withMutationLock(`${scopeKey}:request:${requestId}`, async () => {
+  const transitionRequest = async (requestId: number, requestState: StaffRequestTransitionState, resolutionCode?: string) => withMutationLock(`${scopeKey}:request:${requestId}`, async () => {
     const requestScope = scopeKey;
     const conversationId = selectedConversationId.current;
     setActionError(null);
     try {
-      await api<{ request: ApiRequest }>(`/api/clinic/staff-messaging/requests/${requestId}/transition`, { method: "POST", body: { transition: { state: requestState } } });
+      await api<{ request: ApiRequest }>(`/api/clinic/staff-messaging/requests/${requestId}/transition`, { method: "POST", body: { transition: { state: requestState, resolution_code: resolutionCode } } });
       if (isCurrentScope(requestScope) && selectedConversationId.current === conversationId) await loadConversation(conversationId);
     } catch (reason) {
       if (isCurrentScope(requestScope) && selectedConversationId.current === conversationId) setActionError(errorMessage(reason, "Unable to transition the request."));
@@ -275,6 +281,20 @@ export function LiveStaffMessagingWorkspace() {
       setCreateOpen(true);
     } catch (reason) {
       if (isCurrentScope(requestScope)) setActionError(errorMessage(reason, "Unable to load staff participants."));
+    }
+  };
+
+  const resolveRequest = async () => {
+    if (!resolution || resolving || !resolutionCode.trim()) return;
+    const requestScope = scopeKey;
+    setResolving(true);
+    try {
+      await transitionRequest(resolution.requestId, "resolved", resolutionCode.trim());
+      if (isCurrentScope(requestScope)) setResolution(null);
+    } catch {
+      // Keep the entered resolution for retry; the mutation displays the server error.
+    } finally {
+      if (isCurrentScope(requestScope)) setResolving(false);
     }
   };
 
@@ -317,7 +337,14 @@ export function LiveStaffMessagingWorkspace() {
     <Stack spacing={2}>
       {actionError && <Alert severity="error" action={<Button color="inherit" onClick={() => setActionError(null)}>Dismiss</Button>}>{actionError}</Alert>}
       {capability(capabilities, "staff_messaging_create_conversation") && <Button variant="outlined" sx={{ alignSelf: "flex-start" }} onClick={() => void openCreate()}>New conversation</Button>}
-      <StaffMessagingWorkspace key={scopeKey} state={state} onSelectConversation={selectConversation} onSend={send} onAcknowledge={acknowledge} onTransitionRequest={transitionRequest} onResolveRequest={(requestId) => transitionRequest(requestId, "resolved")} onDeclineRequest={(requestId) => transitionRequest(requestId, "declined")} onEscalateRequest={escalateRequest} onLoadMoreConversations={loadMoreConversations} onLoadEarlierMessages={loadEarlierMessages} onRetry={() => void load()} />
+      <StaffMessagingWorkspace key={scopeKey} state={state} onSelectConversation={selectConversation} onSend={send} onAcknowledge={acknowledge} onTransitionRequest={transitionRequest} onResolveRequest={(requestId) => { setResolutionCode(""); setResolution({ requestId, conversationId: selectedConversationId.current }); }} onDeclineRequest={(requestId) => transitionRequest(requestId, "declined")} onEscalateRequest={escalateRequest} onLoadMoreConversations={loadMoreConversations} onLoadEarlierMessages={loadEarlierMessages} onRetry={() => void load()} />
+      <Dialog open={resolution !== null} onClose={() => { if (!resolving) setResolution(null); }} fullWidth maxWidth="sm">
+        <DialogTitle>Resolve staff request</DialogTitle>
+        <DialogContent>
+          <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} inputProps={{ maxLength: 120 }} sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions><Button disabled={resolving} onClick={() => setResolution(null)}>Cancel</Button><Button disabled={resolving || !resolutionCode.trim()} onClick={() => void resolveRequest()}>{resolving ? "Resolving…" : "Resolve request"}</Button></DialogActions>
+      </Dialog>
       <Dialog open={createOpen} onClose={closeCreate} fullWidth maxWidth="sm">
         <DialogTitle>New staff conversation</DialogTitle>
         <DialogContent>
