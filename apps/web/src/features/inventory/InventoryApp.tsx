@@ -4019,9 +4019,6 @@ function PurchaseCartWorkspace({
   const supplierCount = new Set(
     (cart?.items ?? []).map((item) => item.supplier_id).filter(Boolean),
   ).size;
-  const selectedDestination = destinations.find(
-    (site) => String(site.id) === destinationId,
-  );
   const hasUnsavedLineChanges = Boolean(
     cart?.items.some(
       (item) =>
@@ -4118,6 +4115,7 @@ function PurchaseCartWorkspace({
             <MenuItem value="all">All active catalog items</MenuItem>
           </TextField>
           <TextField
+            className="purchase-catalog-search"
             size="small"
             label="Search active catalog"
             placeholder="Name, NDC, device ID, or SKU"
@@ -4230,8 +4228,6 @@ function PurchaseCartWorkspace({
                     writeBlocked ||
                     Boolean(cartAction) ||
                     !offer ||
-                    !selectedDestination ||
-                    !reason.trim() ||
                     !canProcure ||
                     alreadyInCart ||
                     hasUnitMismatch
@@ -4278,7 +4274,7 @@ function PurchaseCartWorkspace({
       </Card>
       <Card title="Draft purchase cart" className="purchase-cart-panel">
         <PermissionNote allowed={canProcure} permission="procurement.create" />
-        <div className="inventory-form-grid compact">
+        <div className="inventory-form-grid compact purchase-cart-details">
           <TextField
             select
             size="small"
@@ -4423,7 +4419,7 @@ function PurchaseCartWorkspace({
           }
           onClick={() => void checkout()}
         >
-          {cartAction === "checkout" ? "Checking out…" : "Check out once"}
+          {cartAction === "checkout" ? "Checking out…" : "Check out"}
         </Button>
       </Card>
     </div>
