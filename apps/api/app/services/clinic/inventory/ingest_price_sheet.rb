@@ -7,6 +7,9 @@ module Clinic
       MAX_ROWS = 50_000
       MAX_BYTES = 50.megabytes
       REQUIRED_HEADERS = %w[ndc vendor_sku description package_qty wholesale_cost effective_date].freeze
+      OPTIONAL_HEADERS = %w[currency ordering_unit contract_status available lead_time_days].freeze
+      CONTRACT_STATUSES = %w[active inactive unknown].freeze
+      ORDERING_UNITS = %w[package unknown].freeze
 
       def self.call(practice:, supplier:, actor:, path: nil, csv: nil, include_lines: nil)
         new(practice:, supplier:, actor:, path:, csv:, include_lines:).call
@@ -42,9 +45,6 @@ module Clinic
             practice_id: @practice.id,
             supplier_id: @supplier.id,
             product_id: row[:product_id],
-            currency: "USD",
-            ordering_unit: "package",
-            contract_status: "unknown",
             imported_at: imported_at,
             created_at: imported_at,
             updated_at: imported_at,
@@ -111,7 +111,7 @@ module Clinic
       end
 
       def parse_row(row, line_number)
-        values = REQUIRED_HEADERS.to_h { |header| [ header.to_sym, row[header].to_s.strip ] }
+        values = (REQUIRED_HEADERS + OPTIONAL_HEADERS).to_h { |header| [ header.to_sym, row[header].to_s.strip ] }
         missing = REQUIRED_HEADERS.select { |header| values[header.to_sym].empty? }
         raise ArgumentError, "Supplier feed line #{line_number} is missing #{missing.join(', ')}." if missing.any?
         ndc = self.class.normalize_ndc(values[:ndc])
@@ -119,9 +119,43 @@ module Clinic
         package_quantity = decimal(values[:package_qty], line_number, "package quantity")
         wholesale_unit_cost = decimal(values[:wholesale_cost], line_number, "wholesale cost", zero: true)
         effective_date = Date.iso8601(values[:effective_date])
-        { ndc: ndc, supplier_sku: values[:vendor_sku].first(120), description: values[:description].first(400), package_quantity: package_quantity, wholesale_unit_cost: wholesale_unit_cost, effective_date: effective_date }
+        currency = values[:currency].presence&.upcase || SupplierProduct::UNKNOWN_CURRENCY
+        raise ArgumentError, "Supplier feed line #{line_number} has an invalid currency." unless currency.match?(/\A[A-Z]{3}\z/)
+        ordering_unit = values[:ordering_unit].presence&.downcase || "unknown"
+        unless ORDERING_UNITS.include?(ordering_unit)
+          raise ArgumentError, "Supplier feed line #{line_number} has an unsupported ordering unit."
+        end
+        contract_status = values[:contract_status].presence&.downcase || "unknown"
+        unless CONTRACT_STATUSES.include?(contract_status)
+          raise ArgumentError, "Supplier feed line #{line_number} has an unsupported contract status."
+        end
+        available = availability(values[:available], line_number)
+        lead_time_days = lead_time_days(values[:lead_time_days], line_number)
+        {
+          ndc: ndc, supplier_sku: values[:vendor_sku].first(120), description: values[:description].first(400),
+          package_quantity: package_quantity, wholesale_unit_cost: wholesale_unit_cost, effective_date: effective_date,
+          currency: currency, ordering_unit: ordering_unit, contract_status: contract_status, available: available,
+          lead_time_days: lead_time_days
+        }
       rescue Date::Error
         raise ArgumentError, "Supplier feed line #{line_number} has an invalid effective date."
+      end
+
+      def availability(value, line_number)
+        return nil if value.blank? || value.casecmp?("unknown")
+        return true if value.casecmp?("true")
+        return false if value.casecmp?("false")
+
+        raise ArgumentError, "Supplier feed line #{line_number} has an invalid availability value."
+      end
+
+      def lead_time_days(value, line_number)
+        return nil if value.blank?
+        unless value.match?(/\A\d{1,4}\z/) && value.to_i.between?(0, 3650)
+          raise ArgumentError, "Supplier feed line #{line_number} has an invalid lead time."
+        end
+
+        value.to_i
       end
 
       def decimal(value, line_number, label, zero: false)

@@ -154,6 +154,8 @@ export type InventorySupplierProduct = {
   lead_time_days?: number | null;
   effective_date?: string | null;
   imported_at: string;
+  eligible?: boolean;
+  eligibility_reason?: string | null;
 };
 export type InventoryPackage = {
   id: string;
@@ -497,11 +499,41 @@ export type InventoryPlanData = InventoryReadContext &
           supplier_packages: Decimal;
           unit_price: Decimal;
           currency: string;
+          desired_units: Decimal;
+          total_cost: Decimal;
+          overage_units: Decimal;
+          lead_time_days: number | null;
         } | null;
         offer_error: string | null;
       }
     >;
   };
+
+export type InventorySupplierRead = {
+  q?: string;
+  supplier_id?: string;
+  page?: number;
+};
+export type InventorySupplierData = InventoryReadContext & {
+  supplier_page: {
+    query: string;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+    supplier_id: string | null;
+  };
+  suppliers: { id: string; name: string }[];
+  supplier_products: (InventorySupplierProduct & {
+    eligible: boolean;
+    eligibility_reason: string | null;
+  })[];
+  products: Pick<
+    InventoryProduct,
+    "id" | "name" | "ndc" | "preferred_supplier_id"
+  >[];
+};
 
 export type InventoryStockRead = {
   q?: string;

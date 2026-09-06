@@ -1,32 +1,50 @@
 module Clinic
   module Inventory
     class PurchaseCartCheckout
-      Offer = Struct.new(:supplier_product, :supplier, :supplier_packages, :normalized_cost, :digest, :captured_at, keyword_init: true)
+      Offer = Struct.new(:supplier_product, :supplier, :supplier_packages, :desired_units, :overage_units, :normalized_cost, :total_cost, :digest, :captured_at, keyword_init: true)
       class OfferChanged < ArgumentError; end
 
       def self.select_offer(product:, requested_packages:)
         raise ArgumentError, "Inactive products cannot be purchased." unless product.active?
         requested_packages = Quantity.parse(requested_packages.is_a?(BigDecimal) ? requested_packages.to_s("F") : requested_packages.to_s, scale: 0, zero: false)
-        offers = SupplierProduct.where(practice_id: product.practice_id, product_id: product.id, available: [ true, nil ])
-          .where("effective_date IS NULL OR effective_date <= ?", Date.current)
+        offers = SupplierProduct.where(practice_id: product.practice_id, product_id: product.id)
+          .eligible_for_purchase(on: product.practice.inventory_date)
           .includes(:supplier)
           .order(:id).lock("FOR SHARE")
           .to_a
-          .select { |offer| offer.ordering_unit.present? && offer.package_quantity.to_d.positive? }
         raise ArgumentError, "No eligible supplier offer is available for #{product.name}." if offers.empty?
 
         desired_units = requested_packages.to_d * product.package_size.to_d
-        offer = offers.min_by do |candidate|
-          normalized = candidate.wholesale_unit_cost.to_d / candidate.package_quantity.to_d
+        candidates = offers.filter_map do |candidate|
+          supplier_packages = (desired_units / candidate.package_quantity.to_d).ceil
+          next unless supplier_packages.between?(1, 1_000_000)
+
+          normalized_cost = candidate.wholesale_unit_cost.to_d / candidate.package_quantity.to_d
+          total_cost = supplier_packages * candidate.wholesale_unit_cost.to_d
+          overage_units = supplier_packages * candidate.package_quantity.to_d - desired_units
           preferred = product.preferred_supplier_id.to_i == candidate.supplier_id.to_i ? 0 : 1
-          [ normalized, candidate.lead_time_days || 1_000_000, preferred, candidate.id ]
+          [ candidate, supplier_packages, normalized_cost, total_cost, overage_units, preferred ]
         end
-        supplier_packages = (desired_units / offer.package_quantity.to_d).ceil
+        if candidates.empty?
+          raise ArgumentError, "No eligible supplier offer can fulfill the requested quantity within the supported package limit for #{product.name}."
+        end
+        currencies = candidates.map { |candidate,| candidate.currency }.uniq
+        if currencies.size > 1
+          raise ArgumentError, "Eligible supplier offers for #{product.name} use multiple currencies. Currency conversion is not supported."
+        end
+
+        offer, supplier_packages, normalized_cost, total_cost, overage_units, = candidates.min_by do |candidate, packages, normalized, total, overage, preferred|
+          [ total, overage, normalized, candidate.lead_time_days || 1_000_000, preferred, candidate.id ]
+        end
         Quantity.parse(supplier_packages.to_s, scale: 0, zero: false)
         captured_at = Time.current
         payload = [ offer.id, offer.supplier_id, offer.wholesale_unit_cost.to_d.to_s("F"), offer.currency, offer.package_quantity.to_d.to_s("F"), offer.effective_date&.iso8601,
-          offer.supplier_sku, offer.ordering_unit, product.package_size.to_d.to_s("F"), product.stock_unit ]
-        Offer.new(supplier_product: offer, supplier: offer.supplier, supplier_packages: supplier_packages, normalized_cost: offer.wholesale_unit_cost.to_d / offer.package_quantity.to_d, digest: Digest::SHA256.hexdigest(payload.join("|")), captured_at: captured_at)
+          offer.supplier_sku, offer.ordering_unit, offer.contract_status, offer.available?, offer.lead_time_days,
+          product.package_size.to_d.to_s("F"), product.stock_unit, desired_units.to_s("F"), supplier_packages,
+          overage_units.to_s("F"), normalized_cost.to_s("F"), total_cost.to_s("F") ]
+        Offer.new(supplier_product: offer, supplier: offer.supplier, supplier_packages: supplier_packages,
+          desired_units: desired_units, overage_units: overage_units, normalized_cost: normalized_cost, total_cost: total_cost,
+          digest: Digest::SHA256.hexdigest(payload.join("|")), captured_at: captured_at)
       end
 
       def self.call(practice:, actor:, cart_id:, request_key:)

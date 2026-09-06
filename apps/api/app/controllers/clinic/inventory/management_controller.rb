@@ -24,6 +24,13 @@ module Clinic
         render json: { data: InventoryWire.catalog(practice: current_practice, actor: current_user, query: params[:q], status: params[:status], sort: params[:sort], page: params[:page]) }
       end
 
+      def supplier_pricing
+        ability = Ability.new(current_user, practice: current_practice)
+        raise Clinic::Authorization::Denied unless ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)
+
+        render json: { data: InventoryWire.supplier_pricing(practice: current_practice, actor: current_user, query: params[:q], supplier_id: params[:supplier_id], page: params[:page]) }
+      end
+
       def create_location
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.configure")
         input = params.require(:location).permit(:name, :kind, :address_line1, :address_line2, :city, :state, :postal_code, :country)

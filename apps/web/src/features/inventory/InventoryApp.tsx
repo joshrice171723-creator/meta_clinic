@@ -21,6 +21,8 @@ import type {
   InventoryCatalogRead,
   InventoryPlanData,
   InventoryPlanRead,
+  InventorySupplierData,
+  InventorySupplierRead,
   InventoryStockData,
   InventoryStockRead,
   InventoryOrderData,
@@ -357,6 +359,8 @@ function packageFor(data: Pick<InventoryData, "packages">, packageId?: string) {
   return data.packages.find((item) => item.id === packageId);
 }
 function money(value: Decimal, currency?: string) {
+  if (currency === "UNK")
+    return `${decimalMoney(value)} (currency unconfirmed)`;
   return `${currency ? `${currency} ` : ""}${decimalMoney(value)}`;
 }
 export function inventoryDate(value?: string, timezone?: string) {
@@ -1992,6 +1996,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryActivityData
     | InventoryCatalogData
     | InventoryPlanData
+    | InventorySupplierData
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
@@ -2030,6 +2035,7 @@ export function InventoryApp({ path }: { path: string }) {
       !data ||
       "activity_page" in data ||
       "catalog_page" in data ||
+      "supplier_page" in data ||
       "stock_page" in data ||
       "order_page" in data ||
       "delivery_page" in data ||
@@ -2044,12 +2050,14 @@ export function InventoryApp({ path }: { path: string }) {
   const load = async (
     requested?: InventoryCatalogRead &
       InventoryPlanRead &
+      InventorySupplierRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null },
   ) => {
     const read: InventoryCatalogRead &
       InventoryPlanRead &
+      InventorySupplierRead &
       InventoryStockRead &
       InventoryOrderRead &
       InventoryDeliveryRead & { before?: string | null } = {
@@ -2074,26 +2082,32 @@ export function InventoryApp({ path }: { path: string }) {
                 stock_status: data.stock_page.status,
                 page: data.stock_page.page,
               }
-            : screen === "purchasing" && data && "order_page" in data
+            : screen === "supplier_pricing" && data && "supplier_page" in data
               ? {
-                  q: data.order_page.query,
-                  order_status: data.order_page.status,
-                  page: data.order_page.page,
+                  q: data.supplier_page.query,
+                  supplier_id: data.supplier_page.supplier_id ?? undefined,
+                  page: data.supplier_page.page,
                 }
-              : screen === "receiving" && data && "delivery_page" in data
+              : screen === "purchasing" && data && "order_page" in data
                 ? {
-                    q: data.delivery_page.query,
-                    delivery_status: data.delivery_page.status,
-                    page: data.delivery_page.page,
-                    shipment_id: data.delivery_page.selected_shipment_id,
+                    q: data.order_page.query,
+                    order_status: data.order_page.status,
+                    page: data.order_page.page,
                   }
-                : needsPurchaseOrderFacility && data && "plan_page" in data
+                : screen === "receiving" && data && "delivery_page" in data
                   ? {
-                      q: data.plan_page.query,
-                      plan_mode: data.plan_page.mode,
-                      page: data.plan_page.page,
+                      q: data.delivery_page.query,
+                      delivery_status: data.delivery_page.status,
+                      page: data.delivery_page.page,
+                      shipment_id: data.delivery_page.selected_shipment_id,
                     }
-                  : {})),
+                  : needsPurchaseOrderFacility && data && "plan_page" in data
+                    ? {
+                        q: data.plan_page.query,
+                        plan_mode: data.plan_page.mode,
+                        page: data.plan_page.page,
+                      }
+                    : {})),
     };
     const version = ++readVersion.current;
     setLoading(true);
@@ -2109,10 +2123,12 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "lots") query.set("view", "positions");
         if (screen === "purchasing") query.set("view", "batches");
         if (screen === "receiving") query.set("view", "deliveries");
+        if (screen === "supplier_pricing") query.set("view", "table");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         if (read.delivery_status)
           query.set("delivery_status", read.delivery_status);
         if (read.order_status) query.set("order_status", read.order_status);
+        if (read.supplier_id) query.set("supplier_id", read.supplier_id);
         const routeQuery = new URLSearchParams(window.location.search);
         const shipmentId =
           read.shipment_id === undefined
@@ -2142,17 +2158,20 @@ export function InventoryApp({ path }: { path: string }) {
                 ? `/api/clinic/inventory/lots?${query}`
                 : screen === "purchasing"
                   ? `/api/clinic/inventory/purchase-orders?${query}`
-                  : screen === "receiving"
-                    ? `/api/clinic/inventory/receiving?${query}`
-                    : needsPurchaseOrderFacility
-                      ? `/api/clinic/inventory/replenishment?${query}`
-                      : "/api/clinic/inventory/bootstrap";
+                  : screen === "supplier_pricing"
+                    ? `/api/clinic/inventory/supplier-pricing?${query}`
+                    : screen === "receiving"
+                      ? `/api/clinic/inventory/receiving?${query}`
+                      : needsPurchaseOrderFacility
+                        ? `/api/clinic/inventory/replenishment?${query}`
+                        : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
             | InventoryActivityData
             | InventoryCatalogData
             | InventoryPlanData
+            | InventorySupplierData
             | InventoryStockData
             | InventoryOrderData
             | InventoryDeliveryData;
@@ -2162,6 +2181,7 @@ export function InventoryApp({ path }: { path: string }) {
           !payload.data ||
           (screen === "activity") !== "activity_page" in payload.data ||
           (screen === "catalog") !== "catalog_page" in payload.data ||
+          (screen === "supplier_pricing") !== "supplier_page" in payload.data ||
           needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
@@ -2338,6 +2358,7 @@ export function InventoryApp({ path }: { path: string }) {
     needsPurchaseOrderFacility &&
     !("activity_page" in data) &&
     !("catalog_page" in data) &&
+    !("supplier_page" in data) &&
     !("stock_page" in data) &&
     !("order_page" in data) &&
     !("delivery_page" in data) &&
@@ -2458,6 +2479,14 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "supplier_page" in data ? (
+              <SupplierPricingScreen
+                data={data}
+                loading={loading}
+                error={error}
+                readBlocked={Boolean(uncertainMutation)}
+                onRead={load}
+              />
             ) : "plan_page" in data ? (
               <PurchaseCartWorkspace
                 data={data}
@@ -2510,12 +2539,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "locations" && (
                   <InventoryLocationsScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "supplier_pricing" && (
-                  <SupplierPricingScreen
-                    data={data}
-                    onData={(next) => setData(next)}
-                  />
                 )}
                 {screen === "shipment_new" && (
                   <ShipmentCreateScreen data={data} busy={busy} run={run} />
@@ -3331,8 +3354,11 @@ function PurchaseCartWorkspace({
       `${product.name} is in the draft cart using ${explanation.offer.supplier_name}.`,
     );
   };
-  const updateItem = (id: string) => {
-    const requestedPackages = lineQuantities[id]?.trim() ?? "";
+  const updateItem = (id: string, currentQuantity: string) => {
+    const requestedPackages =
+      lineQuantities[id] === undefined
+        ? currentQuantity
+        : lineQuantities[id].trim();
     if (!/^[1-9][0-9]*$/.test(requestedPackages)) {
       setCartError("Package quantity must be a positive whole number.");
       return;
@@ -3353,9 +3379,16 @@ function PurchaseCartWorkspace({
       { method: "DELETE" },
     );
   };
-  const subtotal = decimalSum(
-    (cart?.items ?? []).map((item) => item.extended_cost),
-  );
+  const subtotals = Object.entries(
+    (cart?.items ?? []).reduce<Record<string, Decimal>>((totals, item) => {
+      totals[item.currency] = decimalAdd(
+        totals[item.currency] ?? "0",
+        item.extended_cost,
+      );
+      return totals;
+    }, {}),
+  ).sort(([left], [right]) => left.localeCompare(right));
+  const mixedCurrencies = subtotals.length > 1;
   const supplierCount = new Set(
     (cart?.items ?? []).map((item) => item.supplier_id).filter(Boolean),
   ).size;
@@ -3546,14 +3579,21 @@ function PurchaseCartWorkspace({
                 </div>
                 <div className="purchase-catalog-price">
                   {offer
-                    ? money(offer.unit_price, offer.currency)
+                    ? money(offer.total_cost, offer.currency)
                     : "No eligible offer"}
                   <small>
                     {offer
-                      ? `${offer.supplier_name} · ${number(offer.supplier_packages)} supplier packages`
+                      ? `${offer.supplier_name} · ${number(offer.supplier_packages)} supplier packages · ${number(offer.overage_units)} ${product.base_unit} over requested${offer.lead_time_days == null ? "" : ` · ${offer.lead_time_days} day lead`}`
                       : (explanation?.offer_error ??
                         "Supplier terms unavailable")}
                   </small>
+                  {offer && (
+                    <small>
+                      {money(offer.unit_price, offer.currency)} per supplier
+                      package · {number(offer.desired_units)}{" "}
+                      {product.base_unit} requested
+                    </small>
+                  )}
                 </div>
                 <Button
                   variant="outlined"
@@ -3637,6 +3677,12 @@ function PurchaseCartWorkspace({
           />
         </div>
         {cartError && <Alert severity="error">{cartError}</Alert>}
+        {mixedCurrencies && (
+          <Alert severity="warning">
+            This draft contains multiple currencies. Review or remove lines
+            until one currency remains before checkout.
+          </Alert>
+        )}
         {!cart?.items.length ? (
           <p className="inventory-muted-panel">
             Your draft is empty. Add any active catalog item; supplier routing
@@ -3654,7 +3700,7 @@ function PurchaseCartWorkspace({
                   key={item.id}
                   onSubmit={(event) => {
                     event.preventDefault();
-                    updateItem(item.id);
+                    updateItem(item.id, item.requested_packages);
                   }}
                 >
                   <div>
@@ -3691,11 +3737,14 @@ function PurchaseCartWorkspace({
                         busy ||
                         writeBlocked ||
                         Boolean(cartAction) ||
-                        unchanged ||
                         !canProcure
                       }
                     >
-                      {cartAction === `update:${item.id}` ? "Saving…" : "Save"}
+                      {cartAction === `update:${item.id}`
+                        ? "Refreshing…"
+                        : unchanged
+                          ? "Refresh offer"
+                          : "Save quantity"}
                     </Button>
                     <Button
                       type="button"
@@ -3725,7 +3774,11 @@ function PurchaseCartWorkspace({
           </span>
           <strong>
             Estimated subtotal{" "}
-            {money(subtotal, cart?.items[0]?.currency ?? "USD")}
+            {subtotals.length
+              ? subtotals
+                  .map(([currency, total]) => money(total, currency))
+                  .join(" · ")
+              : "0.00"}
           </strong>
         </div>
         <Button
@@ -3735,6 +3788,7 @@ function PurchaseCartWorkspace({
             writeBlocked ||
             Boolean(cartAction) ||
             hasUnsavedLineChanges ||
+            mixedCurrencies ||
             !cart?.items.length ||
             !destinationId ||
             !reason.trim() ||

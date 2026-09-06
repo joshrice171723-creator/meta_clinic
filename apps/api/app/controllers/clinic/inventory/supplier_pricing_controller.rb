@@ -15,7 +15,7 @@ module Clinic
         supplier = Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") do
           current_practice.inventory_suppliers.create!(name: required_string!(input[:name], field: :name, maximum: 120))
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: supplier.id }, status: :created
+        render json: mutation_response.merge(id: supplier.id), status: :created
       end
 
       def update
@@ -24,20 +24,20 @@ module Clinic
         Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") do
           supplier.update!(name: required_string!(input[:name], field: :name, maximum: 120))
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: mutation_response
       end
 
       def preview
         supplier = current_practice.inventory_suppliers.find(requested_id!(params[:supplier_id], :supplier_id))
         preview = IngestPriceSheet.preview(practice: current_practice, supplier:, csv: required_csv)
-        render json: { preview: serialize_preview(preview) }
+        render json: { preview: serialize_preview(preview, supplier:) }
       end
 
       def import
         supplier = current_practice.inventory_suppliers.find(requested_id!(params[:supplier_id], :supplier_id))
         include_lines = Array(params[:include_lines]).first(50_000)
         result = IngestPriceSheet.call(practice: current_practice, supplier:, actor: current_user, csv: required_csv, include_lines: include_lines)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), imported: result[:imported], unmatched_ndcs: result[:unmatched_ndcs] }
+        render json: mutation_response.merge(imported: result[:imported], unmatched_ndcs: result[:unmatched_ndcs])
       end
 
       def set_preferred_supplier
@@ -45,11 +45,11 @@ module Clinic
         supplier = if params[:supplier_id].present?
           current_practice.inventory_suppliers.find(requested_id!(params[:supplier_id], :supplier_id))
         end
-        if supplier && !supplier.supplier_products.where(product_id: product.id).where(available: [ true, nil ]).exists?
-          raise ArgumentError, "The preferred supplier must have an available price for this catalog item."
+        if supplier && !supplier.supplier_products.where(product_id: product.id).eligible_for_purchase(on: current_practice.inventory_date).exists?
+          raise ArgumentError, "The preferred supplier must have an eligible price for this catalog item."
         end
         product.update_catalog!({ preferred_supplier_id: supplier&.id }, actor: current_user)
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: mutation_response
       end
 
       private
@@ -72,15 +72,28 @@ module Clinic
         value
       end
 
-      def serialize_preview(preview)
+      def mutation_response
+        return { acknowledged: true } if params[:response] == "ack"
+
+        { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+      end
+
+      def serialize_preview(preview, supplier:)
+        products = current_practice.pharmacy_products.where(id: preview[:rows].filter_map { |row| row[:product_id] }).index_by(&:id)
         preview.merge(
           rows: preview[:rows].map do |row|
             attributes = row[:attributes]
+            supplier_product = SupplierProduct.new(attributes.merge(
+              practice_id: current_practice.id, supplier: supplier, product: products[row[:product_id]]
+            ))
+            eligibility_reason = supplier_product.purchase_eligibility_reason(on: current_practice.inventory_date)
             {
               line: row[:line], product_id: row[:product_id]&.to_s, matched: row[:matched],
               ndc: attributes[:ndc], supplier_sku: attributes[:supplier_sku], description: attributes[:description],
               package_quantity: attributes[:package_quantity].to_d.to_s("F"), wholesale_unit_cost: attributes[:wholesale_unit_cost].to_d.to_s("F"),
-              effective_date: attributes[:effective_date].iso8601
+              effective_date: attributes[:effective_date].iso8601, currency: attributes[:currency], ordering_unit: attributes[:ordering_unit],
+              contract_status: attributes[:contract_status], available: attributes[:available], lead_time_days: attributes[:lead_time_days],
+              eligible: eligibility_reason.nil?, eligibility_reason: eligibility_reason
             }
           end
         )
