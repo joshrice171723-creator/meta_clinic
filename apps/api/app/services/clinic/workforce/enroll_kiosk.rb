@@ -4,7 +4,7 @@ module Clinic
       class Rejected < StandardError; end
       Result = Data.define(:kiosk_session, :token)
 
-      def self.call(enrollment_token:, now: Time.current)
+      def self.call(enrollment_token:, now: Current.business_time)
         digest = IssueBadge.digest(enrollment_token)
         KioskEnrollment.transaction do
           enrollment = KioskEnrollment.lock.find_by(token_digest: digest)

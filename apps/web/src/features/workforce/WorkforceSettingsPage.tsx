@@ -19,6 +19,7 @@ import type {
   WorkforceSettingValues,
   WorkforceSettingsData,
 } from "./foundationTypes";
+import { businessNow } from "../../shared/businessDate";
 
 const labels: Record<string, string> = {
   timezone: "Practice timezone",
@@ -65,7 +66,8 @@ const scheduleBooleanKeys = [
 ];
 
 function localDateTime() {
-  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000);
+  const current = businessNow();
+  const now = new Date(current.getTime() - current.getTimezoneOffset() * 60_000);
   return now.toISOString().slice(0, 16);
 }
 

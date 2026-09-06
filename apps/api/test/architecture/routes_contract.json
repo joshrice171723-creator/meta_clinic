@@ -560,6 +560,11 @@
     "/api/development_access(.:format)"
   ],
   [
+    "api_development_date",
+    "PATCH",
+    "/api/development_date(.:format)"
+  ],
+  [
     "api_development_session",
     "POST",
     "/api/development_session(.:format)"

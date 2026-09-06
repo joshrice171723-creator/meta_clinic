@@ -10,7 +10,7 @@ module Clinic
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :recorded_by_membership, class_name: "Clinic::Membership"
 
-      scope :latest_as_of, ->(at = Time.current) {
+      scope :latest_as_of, ->(at = Current.business_time) {
         where("effective_from <= ?", at)
           .select("DISTINCT ON (patient_id) clinic_patient_memberships.*")
           .order(:patient_id, effective_from: :desc, version: :desc, id: :desc)
@@ -20,7 +20,7 @@ module Clinic
       validates :effective_from, presence: true
       validates :effective_until, comparison: { greater_than: :effective_from }, allow_nil: true
 
-      def effective_at?(at = Time.current)
+      def effective_at?(at = Current.business_time)
         effective_from <= at && (effective_until.nil? || effective_until > at)
       end
 

@@ -19,7 +19,7 @@ module Clinic
       validates :session_digest, presence: true, length: { is: 64 }, uniqueness: true
       validates :status, inclusion: { in: %w[active revoked expired] }
 
-      def active?(at: Time.current)
+      def active?(at: Current.business_time)
         status == "active" && revoked_at.nil? && expires_at > at && kiosk_enrollment.status == "enrolled"
       end
     end

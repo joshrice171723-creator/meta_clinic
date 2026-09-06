@@ -19,7 +19,7 @@ module Clinic
       validates :permitted_transitions, presence: true
       validates :failed_attempts, inclusion: { in: 0..20 }
 
-      def usable?(at: Time.current)
+      def usable?(at: Current.business_time)
         consumed_at.nil? && expires_at > at && failed_attempts < 5
       end
 

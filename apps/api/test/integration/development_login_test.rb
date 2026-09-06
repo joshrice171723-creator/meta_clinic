@@ -142,4 +142,48 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
       assert_response :unauthorized
     end
   end
+
+  test "development date drives workflow dates, survives account switches and resets to today" do
+    with_environment do
+      Development::TestAccounts.prepare!
+      token = csrf
+      patch "/api/development_date", params: { date: "2032-04-15" }, headers: token, as: :json
+      assert_response :success
+      assert_equal "2032-04-15", response.parsed_body.fetch("business_date")
+
+      post "/api/development_session", params: { profile: "customer-client-a" }, headers: csrf, as: :json
+      assert_response :created
+      assert_equal "/portal", response.parsed_body.fetch("destination")
+      assert_equal "customer-client-a", response.parsed_body.dig("user", "development_account_id")
+      post "/api/materials/#{@sample.id}/start", headers: csrf, as: :json
+      assert_response :success
+      account = User.find_by!(email_address: "test-client-a@example.invalid")
+      assert_equal Date.new(2032, 4, 15), account.learning_progresses.find_by!(material: @sample).started_at.to_date
+      get "/api/csrf", headers: headers
+      assert_equal "2032-04-15", response.parsed_body.fetch("business_date")
+
+      patch "/api/development_date", params: { date: "" }, headers: csrf, as: :json
+      assert_response :success
+      assert_equal Date.current.iso8601, response.parsed_body.fetch("business_date")
+      get "/api/csrf", headers: headers
+      assert_equal Date.current.iso8601, response.parsed_body.fetch("business_date")
+    end
+  end
+
+  test "development date rejects invalid values and is unavailable outside local development" do
+    with_environment do
+      patch "/api/development_date", params: { date: "not-a-date" }, headers: csrf, as: :json
+      assert_response :unprocessable_entity
+      patch "/api/development_date", params: { date: "1999-12-31" }, headers: csrf, as: :json
+      assert_response :unprocessable_entity
+    end
+
+    with_environment("production") do
+      token = csrf
+      assert_equal "production", response.parsed_body.fetch("environment")
+      assert_empty response.parsed_body.fetch("development_accounts")
+      patch "/api/development_date", params: { date: "2032-04-15" }, headers: token, as: :json
+      assert_response :not_found
+    end
+  end
 end

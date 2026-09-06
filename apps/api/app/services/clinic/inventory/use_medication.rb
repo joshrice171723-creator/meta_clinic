@@ -1,7 +1,7 @@
 module Clinic
   module Inventory
     class UseMedication
-      def self.call(practice:, actor:, product_id:, quantity_requested:, request_key:, reason:, occurred_at: Time.current)
+      def self.call(practice:, actor:, product_id:, quantity_requested:, request_key:, reason:, occurred_at: Current.business_time)
         Access.with(practice.id, actor, "adjust") do |profile|
           Access.retry_lock(practice.id, request_key)
           product = PharmacyProduct.where(practice_id: practice.id).lock.find(product_id)

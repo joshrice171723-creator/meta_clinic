@@ -33,7 +33,7 @@ module Clinic
           appointment: appointment,
           site: site,
           room: room,
-          started_at: input[:started_at].present? ? time_param!(input[:started_at], field: :started_at) : Time.current
+          started_at: input[:started_at].present? ? time_param!(input[:started_at], field: :started_at) : Current.business_time
         )
         render json: { encounter: EncounterSerializer.call(encounter, detail: true) }, status: :created
       end

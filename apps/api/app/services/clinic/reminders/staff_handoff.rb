@@ -13,7 +13,7 @@ module Clinic
         end
       end
 
-      def self.call(practice:, actor:, reminder:, conversation_id:, assignee_membership_id:, due_at:, action_id: nil, at: Time.current)
+      def self.call(practice:, actor:, reminder:, conversation_id:, assignee_membership_id:, due_at:, action_id: nil, at: Current.business_time)
         reminder = practice.patient_reminders.find(reminder.id)
         Authorization.authorize!(actor: actor, practice: practice, action: "reminders.write", at: at)
         due_at = due_at&.to_time

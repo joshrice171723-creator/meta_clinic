@@ -26,14 +26,14 @@ module Clinic
           end
           current_profile_id = current&.membership&.clinician_profile&.id
           same_provider = profile && current_profile_id == profile.id
-          current&.update!(effective_until: Time.current) unless same_provider
+          current&.update!(effective_until: Current.business_time) unless same_provider
           participant = if unassign
             current
           elsif same_provider
             current
           else
             updated.participants.create!(practice: practice, patient: updated.patient, membership: profile.membership,
-              participation_role: "queue_provider", effective_from: Time.current)
+              participation_role: "queue_provider", effective_from: Current.business_time)
           end
           AuditRecorder.record!(practice: practice, actor: actor, action_code: "encounters.assign_provider",
             outcome: :committed, resource_version_ref: "encounter-participant:#{participant&.id}:#{participant&.updated_at&.utc&.iso8601(6)}")

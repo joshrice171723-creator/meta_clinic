@@ -267,6 +267,7 @@ Rails.application.routes.draw do
     resource :settings, only: %i[show update]
       resource :development_access, controller: :development_access, only: :update
     post "development_session", to: "sessions#development"
+    patch "development_date", to: "sessions#development_date"
   end
   scope "api/workforce/kiosk", controller: "workforce/kiosk_clock" do
     get "/", action: :show

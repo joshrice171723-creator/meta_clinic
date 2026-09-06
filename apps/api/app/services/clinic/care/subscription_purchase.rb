@@ -22,7 +22,7 @@ module Clinic
           family = SubscriptionFamily.where(practice: practice).lock.find(version.snapshot.fetch("family_id"))
           raise ArgumentError, "This package changed or is no longer available. Review the current catalog." if package.retired || family.retired || !family.published_snapshot || package.published_version_id != version.id
           snapshot = SubscriptionDefinition.select(version.snapshot, selections)
-          now = Time.current
+          now = Current.business_time
           raise ArgumentError, "This package is outside its purchase window." if
             (snapshot["available_from"] && Time.iso8601(snapshot["available_from"]) > now) ||
             (snapshot["available_until"] && Time.iso8601(snapshot["available_until"]) <= now)

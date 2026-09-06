@@ -25,7 +25,7 @@ module Clinic
           end
           revoked_invitation = false
           EmployeeInvitation.where(practice_id: locked_practice.id, staff_member_id: locked_staff.id, status: "pending").lock.each do |invitation|
-            invitation.update!(status: :revoked, revoked_at: Time.current, token_digest: nil, email_digest: nil)
+            invitation.update!(status: :revoked, revoked_at: Current.business_time, token_digest: nil, email_digest: nil)
             revoked_invitation = true
           end
           Clinic::AuditRecorder.record!(practice: locked_practice, actor: actor,
@@ -38,7 +38,7 @@ module Clinic
         raise ArgumentError, "That directory entry or clinic account is already linked to workforce."
       end
 
-      def self.update!(employment:, actor:, status: nil, site_ids: nil, effective_until: :unchanged, now: Time.current)
+      def self.update!(employment:, actor:, status: nil, site_ids: nil, effective_until: :unchanged, now: Current.business_time)
         Access.new(actor: actor, practice: employment.practice, at: now).authorize!("workforce.admin")
         normalized_site_ids = site_ids.nil? ? nil : normalize_site_ids(site_ids)
 

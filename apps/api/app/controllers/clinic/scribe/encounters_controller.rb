@@ -83,7 +83,7 @@ module Clinic
         authorize_encounter!(encounter, "scribe.delete")
         encounter.with_lock do
           raise ArgumentError, "This encounter has already been deleted." if encounter.deleted_at
-          encounter.update!(status: "deleted", deleted_at: Time.current)
+          encounter.update!(status: "deleted", deleted_at: Current.business_time)
           Retention.scrub!(encounter)
           Event.create!(practice: current_practice, encounter: encounter, actor: current_user, event_type: "encounter_deleted",
             resource_type: "Encounter", resource_id: encounter.id, metadata: { "retention" => "content_scrubbed" }, created_at: Time.current)

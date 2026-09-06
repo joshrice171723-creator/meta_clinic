@@ -49,7 +49,7 @@ module Clinic
             author_membership: author_membership,
             encounter: locked_encounter,
             parent_observation: locked_parent,
-            recorded_at: attributes[:recorded_at] || Time.current
+            recorded_at: attributes[:recorded_at] || Current.business_time
           ))
           Clinic::AuditRecorder.record!(
             practice: practice,

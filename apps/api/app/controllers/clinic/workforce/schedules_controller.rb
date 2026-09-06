@@ -23,10 +23,10 @@ module Clinic
       def employee
         employment = workforce_access.own_employment
         raise Clinic::Authorization::Denied unless employment
-        from = params[:from].present? ? date_param!(params[:from], field: :from) : Date.current.beginning_of_week
+        from = params[:from].present? ? date_param!(params[:from], field: :from) : Current.business_date.beginning_of_week
         to = params[:to].present? ? date_param!(params[:to], field: :to) : from + 42.days
         publications = latest_publications.where(week_start_on: (from.beginning_of_week)..to).includes(:site)
-          .select { |item| employment.eligible_site?(item.site, at: Time.current) && schedule_visible?(item.site) }
+          .select { |item| employment.eligible_site?(item.site, at: Current.business_time) && schedule_visible?(item.site) }
         render json: ScheduleSerializer.response(publications: publications.map { |item| ScheduleSerializer.publication(item, employee_id: employment.id) })
       end
 
@@ -135,7 +135,7 @@ module Clinic
       end
 
       def effective_settings(site)
-        EffectiveSettings.call(practice: current_practice, site: site, at: Time.current)
+        EffectiveSettings.call(practice: current_practice, site: site, at: Current.business_time)
       end
 
       def ensure_schedule_enabled!(site)
@@ -155,7 +155,7 @@ module Clinic
       end
 
       def eligible_employments(site)
-        Employment.where(practice_id: current_practice.id).includes(:staff_member).select { |item| item.active_for_work?(at: Time.current) && item.eligible_site?(site, at: Time.current) }.map do |item|
+        Employment.where(practice_id: current_practice.id).includes(:staff_member).select { |item| item.active_for_work?(at: Current.business_time) && item.eligible_site?(site, at: Current.business_time) }.map do |item|
           { id: item.id.to_s, name: item.staff_member.display_name, job_title: item.staff_member.job_title }
         end
       end

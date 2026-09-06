@@ -49,7 +49,7 @@ module Clinic
 
       def settings_payload(site)
         relation = SettingsVersion.where(practice_id: current_practice.id, site_id: site&.id)
-        current_version = relation.effective_at(Time.current).order(effective_from: :desc, revision: :desc).first
+        current_version = relation.effective_at(Current.business_time).order(effective_from: :desc, revision: :desc).first
         effective = begin
           EffectiveSettings.call(practice: current_practice, site: site)
         rescue EffectiveSettings::Unconfigured

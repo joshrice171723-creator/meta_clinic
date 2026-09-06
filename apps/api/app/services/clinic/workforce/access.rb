@@ -5,7 +5,7 @@ module Clinic
 
       attr_reader :actor, :practice, :at
 
-      def initialize(actor:, practice:, at: Time.current)
+      def initialize(actor:, practice:, at: Current.business_time)
         @actor = actor
         @practice = practice
         @at = at

@@ -4,7 +4,7 @@ module Clinic
       DEFAULT_LIMIT = 50
       MAX_LIMIT = 100
 
-      def self.call(practice:, actor:, at: Time.current, limit: DEFAULT_LIMIT)
+      def self.call(practice:, actor:, at: Current.business_time, limit: DEFAULT_LIMIT)
         Authorization.authorize!(actor: actor, practice: practice, action: "reminders.write", at: at)
         limit = Integer(limit)
         raise ArgumentError, "Recovery limit must be between 1 and #{MAX_LIMIT}." unless limit.between?(1, MAX_LIMIT)

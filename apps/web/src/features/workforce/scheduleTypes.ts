@@ -1,3 +1,5 @@
+import { businessNow } from "../../shared/businessDate";
+
 export type WorkforceSite = {
   id: string;
   name: string;
@@ -113,7 +115,7 @@ export function requestKey(prefix: string) {
   return `${prefix}:${crypto.randomUUID()}`;
 }
 
-export function mondayIso(date = new Date()) {
+export function mondayIso(date = businessNow()) {
   const copy = new Date(date);
   const day = copy.getDay();
   copy.setDate(copy.getDate() - ((day + 6) % 7));

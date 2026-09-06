@@ -6,17 +6,17 @@ module Clinic
       RETRY_DELAY = 5.minutes
       TERMINAL_STATUSES = %w[cancelled expired suppressed actioned delivered].freeze
 
-      def self.call(reminder:, actor:, at: Time.current)
+      def self.call(reminder:, actor:, at: Current.business_time)
         Authorization.authorize!(actor: actor, practice: reminder.practice, action: "reminders.write", at: at)
         claim = claim_attempt(reminder:, actor:, at:)
         return claim.fetch(:reminder) unless claim[:attempt]
 
         attempt = claim.fetch(:attempt)
-        send_at = Time.current
+        send_at = Current.business_time
         return reminder.reload unless ready_to_send?(reminder:, attempt:, actor:, at: send_at)
 
         result = deliver(reminder:, attempt:)
-        finalize(reminder:, attempt:, actor:, result:, at: Time.current)
+        finalize(reminder:, attempt:, actor:, result:, at: Current.business_time)
       end
 
       def self.claim_attempt(reminder:, actor:, at:)

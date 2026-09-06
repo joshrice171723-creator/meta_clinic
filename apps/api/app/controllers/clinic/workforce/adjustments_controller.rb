@@ -47,7 +47,7 @@ module Clinic
           proposed_changes: changes,
           reason: reason,
           requested_by_membership: clinic_membership,
-          requested_at: Time.current,
+          requested_at: Current.business_time,
           request_key: request_key,
           payload_digest: payload_digest,
           source_lock_version: card.lock_version
@@ -111,7 +111,7 @@ module Clinic
         site_ids = card&.time_segments&.distinct&.pluck(:site_id) || []
         site_ids << requested_id!(fallback_site_id, :site_id) if site_ids.empty? && fallback_site_id.present?
         if site_ids.empty?
-          site_ids = employment.employment_sites.active.effective_at(Time.current).pluck(:site_id)
+          site_ids = employment.employment_sites.active.effective_at(Current.business_time).pluck(:site_id)
         end
         raise Clinic::Authorization::Denied if site_ids.empty?
         enabled = current_practice.sites.where(id: site_ids).all? do |site|

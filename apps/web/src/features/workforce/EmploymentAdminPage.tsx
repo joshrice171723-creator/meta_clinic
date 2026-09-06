@@ -23,9 +23,13 @@ import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type { EmploymentAdminData } from "./foundationTypes";
+import { businessNow } from "../../shared/businessDate";
 
 function localDateTime() {
-  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000);
+  const current = businessNow();
+  const now = new Date(
+    current.getTime() - current.getTimezoneOffset() * 60_000,
+  );
   return now.toISOString().slice(0, 16);
 }
 
@@ -43,9 +47,7 @@ export function EmploymentAdminPage() {
   );
   const [displayName, setDisplayName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
-  const [accountMode, setAccountMode] = useState<"existing" | "new">(
-    "new",
-  );
+  const [accountMode, setAccountMode] = useState<"existing" | "new">("new");
   const [membershipId, setMembershipId] = useState("");
   const [roleVersionId, setRoleVersionId] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
@@ -455,9 +457,7 @@ export function EmploymentAdminPage() {
                 <Typography variant="body2">
                   {Array.from(
                     new Set(
-                      employment.roles.map((role) =>
-                        roleLabel(role.role_code),
-                      ),
+                      employment.roles.map((role) => roleLabel(role.role_code)),
                     ),
                   ).join(", ") || "Employee"}
                 </Typography>

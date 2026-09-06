@@ -6,9 +6,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { User } from "./api/contracts";
+import type {
+  DevelopmentAccount,
+  RuntimeEnvironment,
+  User,
+} from "./api/contracts";
 import { api, ApiError, csrf, loginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
+import { setBusinessDate } from "./shared/businessDate";
 import { Home } from "./features/launch/Home";
 import { Portal } from "./features/launch/Portal";
 import { Contact } from "./features/launch/Contact";
@@ -16,6 +21,10 @@ import { Inquiries } from "./features/launch/Inquiries";
 import { PaperworkPage, Paperworks } from "./features/launch/Paperwork";
 import { Training } from "./features/launch/Training";
 import { Login } from "./features/identity/Login";
+import {
+  DevelopmentControls,
+  EnvironmentLabel,
+} from "./features/identity/DevelopmentAccountSwitcher";
 import { Settings } from "./features/identity/Settings";
 import { Workspace } from "./features/clinic/Workspace";
 import { Overview } from "./features/clinic/TrackingBoardPage";
@@ -64,10 +73,12 @@ function LaunchLayout({
   user,
   children,
   clinicAvailable,
+  environment,
 }: {
   user: User | null;
   children: ReactNode;
   clinicAvailable: boolean;
+  environment: RuntimeEnvironment;
 }) {
   return (
     <>
@@ -79,6 +90,7 @@ function LaunchLayout({
           APPly
           <span className="brand-dot" />
         </a>
+        <EnvironmentLabel environment={environment} />
         <nav aria-label="Main navigation">
           <a href="/#approach">The approach</a>
           <a href="/#process">How it works</a>
@@ -90,11 +102,6 @@ function LaunchLayout({
           </a>
         </nav>
       </header>
-      {user?.development_demo && (
-        <div className="wrap demo-notice session-notice">
-          Development demo session · You are already signed in.
-        </div>
-      )}
       {children}
       <footer className="wrap footer-wrap">
         <div className="site-footer">
@@ -121,7 +128,17 @@ function LaunchLayout({
     </>
   );
 }
-function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
+function MemberLayout({
+  user,
+  children,
+  developmentAccounts,
+  businessDate,
+}: {
+  user: User;
+  children: ReactNode;
+  developmentAccounts: DevelopmentAccount[];
+  businessDate: string;
+}) {
   return (
     <main id="main" className="wrap inner-page portal-page">
       <nav className="member-navigation" aria-label="Member navigation">
@@ -129,12 +146,20 @@ function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
         <a href="/paperwork">Paperwork</a>
         <a href="/training">Training</a>
         {user.admin && <a href="/inquiries">Inquiries</a>}
-        <Form
-          endpoint="/api/session"
-          method="DELETE"
-          submit="Sign out"
-          onSuccess={() => window.location.replace("/login")}
-        />
+        {user.development_demo ? (
+          <DevelopmentControls
+            accounts={developmentAccounts}
+            activeId={user.development_account_id}
+            businessDate={businessDate}
+          />
+        ) : (
+          <Form
+            endpoint="/api/session"
+            method="DELETE"
+            submit="Sign out"
+            onSuccess={() => window.location.replace("/login")}
+          />
+        )}
       </nav>
       {children}
     </main>
@@ -233,7 +258,17 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
   );
 }
 
-function ClinicApplication({ user }: { user: User }) {
+function ClinicApplication({
+  user,
+  developmentAccounts,
+  environment,
+  businessDate,
+}: {
+  user: User;
+  developmentAccounts: DevelopmentAccount[];
+  environment: RuntimeEnvironment;
+  businessDate: string;
+}) {
   const [route, setRoute] = useState(() =>
     clinicRoute(
       window.location.pathname,
@@ -367,6 +402,9 @@ function ClinicApplication({ user }: { user: User }) {
         user={user}
         path={route.path}
         homeView={route.homeView}
+        developmentAccounts={developmentAccounts}
+        environment={environment}
+        businessDate={businessDate}
       >
         <div hidden={!home}>
           <ClinicHome view={route.homeView} active={home} />
@@ -378,13 +416,25 @@ function ClinicApplication({ user }: { user: User }) {
 }
 
 export function App() {
-  const [configuration, setConfiguration] = useState({
+  const [configuration, setConfiguration] = useState<{
+    development_login: boolean;
+    clinic_available: boolean;
+    environment: RuntimeEnvironment;
+    development_accounts: DevelopmentAccount[];
+    business_date: string;
+  }>({
     development_login: false,
     clinic_available: false,
+    environment: "unknown",
+    development_accounts: [],
+    business_date: "",
   });
   useEffect(() => {
     csrf()
-      .then(setConfiguration)
+      .then((next) => {
+        setBusinessDate(next.business_date);
+        setConfiguration(next);
+      })
       .catch(() => {});
   }, []);
   const path = window.location.pathname.replace(/\/$/, "") || "/";
@@ -443,9 +493,24 @@ export function App() {
   if (path === "/workforce/activate") return <EmployeeActivationPage />;
   if (path === "/workforce/kiosk") return <KioskClockPage />;
   if (path.startsWith("/clinic") && user) {
-    return <ClinicApplication user={user} />;
+    return (
+      <ClinicApplication
+        user={user}
+        developmentAccounts={configuration.development_accounts}
+        environment={configuration.environment}
+        businessDate={configuration.business_date}
+      />
+    );
   }
-  if (path === "/patient-portal" && user) return <PatientPortal />;
+  if (path === "/patient-portal" && user)
+    return (
+      <PatientPortal
+        user={user}
+        developmentAccounts={configuration.development_accounts}
+        environment={configuration.environment}
+        businessDate={configuration.business_date}
+      />
+    );
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
     guide = /^\/(?:training|materials)\/(\d+)$/.exec(path);
   page =
@@ -454,7 +519,12 @@ export function App() {
     ) : path === "/contact" ? (
       <Contact />
     ) : path === "/login" ? (
-      <Login developmentLogin={configuration.development_login} />
+      <Login
+        developmentLogin={configuration.development_login}
+        developmentAccounts={configuration.development_accounts}
+        environment={configuration.environment}
+        businessDate={configuration.business_date}
+      />
     ) : path === "/portal" ? (
       <Portal clinicAvailable={configuration.clinic_available} />
     ) : path === "/paperwork" ? (
@@ -471,11 +541,20 @@ export function App() {
       <h1>Page not found.</h1>
     );
   return (
-    <LaunchLayout user={user} clinicAvailable={configuration.clinic_available}>
+    <LaunchLayout
+      user={user}
+      clinicAvailable={configuration.clinic_available}
+      environment={configuration.environment}
+    >
       {publicPage
         ? page
         : user && (
-            <MemberLayout key={user.id} user={user}>
+            <MemberLayout
+              key={user.id}
+              user={user}
+              developmentAccounts={configuration.development_accounts}
+              businessDate={configuration.business_date}
+            >
               {page}
             </MemberLayout>
           )}

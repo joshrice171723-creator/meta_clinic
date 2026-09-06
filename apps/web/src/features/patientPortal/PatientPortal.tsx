@@ -15,15 +15,34 @@ import {
   ThemeProvider,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import type { PatientPortalContext } from "../../api/contracts";
+import type {
+  DevelopmentAccount,
+  PatientPortalContext,
+  RuntimeEnvironment,
+  User,
+} from "../../api/contracts";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 import { PatientSubscriptions } from "./PatientSubscriptions";
 import { patientPortalLabel } from "./patientPortalLabels";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
+import {
+  DevelopmentControls,
+  EnvironmentLabel,
+} from "../identity/DevelopmentAccountSwitcher";
 
-export function PatientPortal() {
+export function PatientPortal({
+  user,
+  developmentAccounts = [],
+  environment = "unknown",
+  businessDate = "",
+}: {
+  user?: User;
+  developmentAccounts?: DevelopmentAccount[];
+  environment?: RuntimeEnvironment;
+  businessDate?: string;
+}) {
   const resource = useResource<PatientPortalContext>(
     "/api/patient_portal/context",
   );
@@ -52,6 +71,7 @@ export function PatientPortal() {
             sx={{ justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}
           >
             <Box>
+              <EnvironmentLabel environment={environment} />
               <Typography sx={{ fontWeight: 700, fontSize: 20 }}>
                 {context?.practice.name || "Your clinic"}
               </Typography>
@@ -68,20 +88,28 @@ export function PatientPortal() {
               <Button href="#memberships">Explore plans</Button>
               <Button href="#my-memberships">My memberships</Button>
               <Button href="#billing">Billing</Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    await api("/api/session", { method: "DELETE" });
-                    window.location.assign("/login");
-                  } catch (e) {
-                    setError(
-                      e instanceof Error ? e.message : "Unable to sign out.",
-                    );
-                  }
-                }}
-              >
-                Sign out
-              </Button>
+              {user?.development_demo ? (
+                <DevelopmentControls
+                  accounts={developmentAccounts}
+                  activeId={user.development_account_id}
+                  businessDate={businessDate}
+                />
+              ) : (
+                <Button
+                  onClick={async () => {
+                    try {
+                      await api("/api/session", { method: "DELETE" });
+                      window.location.assign("/login");
+                    } catch (e) {
+                      setError(
+                        e instanceof Error ? e.message : "Unable to sign out.",
+                      );
+                    }
+                  }}
+                >
+                  Sign out
+                </Button>
+              )}
             </Stack>
           </Stack>
           {!context && !resource.error && (

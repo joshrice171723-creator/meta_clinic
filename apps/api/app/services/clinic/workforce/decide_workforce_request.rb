@@ -35,7 +35,7 @@ module Clinic
           publication = transition!
           receipts = request.decision_receipts.merge(idempotency_key => {
             "digest" => digest, "decision" => decision, "status" => request.status,
-            "publication_id" => publication&.id, "decided_at" => Time.current.iso8601(6)
+            "publication_id" => publication&.id, "decided_at" => Current.business_time.iso8601(6)
           })
           request.update!(decision_receipts: receipts)
           Result.new(request, publication, false)
@@ -58,7 +58,7 @@ module Clinic
         raise Clinic::Authorization::Denied unless own&.id == owner_id
         raise ArgumentError, "Only a pending request can be cancelled." unless %w[submitted accepted].include?(request.status)
 
-        request.update!(status: "cancelled", cancelled_at: Time.current, revision: request.revision + 1)
+        request.update!(status: "cancelled", cancelled_at: Current.business_time, revision: request.revision + 1)
         nil
       end
 
@@ -70,7 +70,7 @@ module Clinic
         end
         supersede_availability! if request.is_a?(AvailabilityVersion) && status == "approved"
         request.update!(status: status, reviewed_by_id: actor.id, decision_reason: reason,
-          decided_at: Time.current, revision: request.revision + 1)
+          decided_at: Current.business_time, revision: request.revision + 1)
         nil
       end
 
@@ -83,11 +83,11 @@ module Clinic
           ensure_target_eligible!
           if decision == "target_decline"
             request.update!(status: "declined", target_decided_by_id: actor.id, target_reason: reason,
-              target_decided_at: Time.current, revision: request.revision + 1)
+              target_decided_at: Current.business_time, revision: request.revision + 1)
             return nil
           end
           request.update!(status: "accepted", target_decided_by_id: actor.id, target_reason: reason,
-            target_decided_at: Time.current, revision: request.revision + 1)
+            target_decided_at: Current.business_time, revision: request.revision + 1)
           return approve_swap! unless setting_enabled?("shift_swap_approval_required")
           nil
         when "manager_approve", "manager_deny"
@@ -95,7 +95,7 @@ module Clinic
           raise ArgumentError, "Target employee consent is required first." unless request.status == "accepted"
           if decision == "manager_deny"
             request.update!(status: "denied", reviewed_by_id: actor.id, decision_reason: reason,
-              decided_at: Time.current, revision: request.revision + 1)
+              decided_at: Current.business_time, revision: request.revision + 1)
             nil
           else
             approve_swap!
@@ -109,7 +109,7 @@ module Clinic
         ensure_target_eligible!
         publication = publish_swap_revision!
         request.update!(status: "approved", reviewed_by_id: actor.id, decision_reason: reason,
-          decided_at: Time.current, revision: request.revision + 1)
+          decided_at: Current.business_time, revision: request.revision + 1)
         publication
       end
 
@@ -152,7 +152,7 @@ module Clinic
       end
 
       def setting_enabled?(key)
-        EffectiveSettings.call(practice: request.practice, site: request.site, at: Time.current).fetch(:values).fetch(key) == true
+        EffectiveSettings.call(practice: request.practice, site: request.site, at: Current.business_time).fetch(:values).fetch(key) == true
       end
 
       def supersede_availability!

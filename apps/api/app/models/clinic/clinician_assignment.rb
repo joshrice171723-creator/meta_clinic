@@ -8,7 +8,7 @@ module Clinic
     belongs_to :department, class_name: "Clinic::Department"
     belongs_to :site, class_name: "Clinic::Site"
 
-    scope :current, ->(at = Time.current) { where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at) }
+    scope :current, ->(at = Current.business_time) { where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at) }
 
     validates :effective_from, presence: true
     validate :valid_effective_window

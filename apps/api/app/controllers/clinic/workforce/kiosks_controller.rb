@@ -24,7 +24,7 @@ module Clinic
           site: site,
           token_digest: IssueBadge.digest(token),
           issued_by_membership: clinic_membership,
-          expires_at: Time.current + ENROLLMENT_LIFETIME
+          expires_at: Current.business_time + ENROLLMENT_LIFETIME
         )
         render json: { kiosk: ClockSerializer.kiosk(enrollment), enrollment_token: token }, status: :created
       end
@@ -34,9 +34,9 @@ module Clinic
         workforce_access.authorize!("workforce.settings", site: workforce_access.allow?("workforce.settings") ? nil : enrollment.site)
         KioskEnrollment.transaction do
           enrollment.lock!
-          enrollment.update!(status: "revoked", revoked_at: Time.current, revoked_by_membership: clinic_membership) unless enrollment.status == "revoked"
+          enrollment.update!(status: "revoked", revoked_at: Current.business_time, revoked_by_membership: clinic_membership) unless enrollment.status == "revoked"
           enrollment.kiosk_sessions.where(status: "active").find_each do |session_record|
-            session_record.update!(status: "revoked", revoked_at: Time.current)
+            session_record.update!(status: "revoked", revoked_at: Current.business_time)
           end
         end
         render json: { kiosk: ClockSerializer.kiosk(enrollment.reload) }

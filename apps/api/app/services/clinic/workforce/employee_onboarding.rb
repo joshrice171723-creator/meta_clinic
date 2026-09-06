@@ -5,7 +5,7 @@ module Clinic
       class InvalidPassword < StandardError; end
 
       def self.invite!(practice:, email_address:, site_ids:, effective_from:, actor:, role_version: nil,
-        staff_member: nil, display_name: nil, job_title: nil, now: Time.current)
+        staff_member: nil, display_name: nil, job_title: nil, now: Current.business_time)
         access = Access.new(actor: actor, practice: practice, at: now)
         inviter_membership = access.authorize!("workforce.admin")
         normalized_email = email_address.to_s.strip.downcase
@@ -53,7 +53,7 @@ module Clinic
         raise ArgumentError, "That email or directory entry already has a pending employee invitation."
       end
 
-      def self.revoke!(invitation:, actor:, now: Time.current)
+      def self.revoke!(invitation:, actor:, now: Current.business_time)
         Access.new(actor: actor, practice: invitation.practice, at: now).authorize!("workforce.admin")
         ApplicationRecord.transaction do
           locked = EmployeeInvitation.lock.find(invitation.id)
@@ -67,7 +67,7 @@ module Clinic
         end
       end
 
-      def self.activate!(token:, password:, password_confirmation:, now: Time.current)
+      def self.activate!(token:, password:, password_confirmation:, now: Current.business_time)
         invitation = nil
         user = nil
         employment = nil

@@ -52,7 +52,7 @@ module Clinic
     after_create { inventory_profiles.create!(version: 1, reason: "New synthetic clinic inventory baseline") }
 
     def inventory_date
-      Time.current.in_time_zone(timezone).to_date
+      Current.business_time.in_time_zone(timezone).to_date
     end
 
     validates :timezone, inclusion: { in: ActiveSupport::TimeZone::MAPPING.values + [ "UTC" ] }

@@ -12,7 +12,7 @@ module Clinic
         new(employment: employment, period_start: period_start, actor_membership: nil).source_digest
       end
 
-      def self.current_period_start(practice:, at: Time.current)
+      def self.current_period_start(practice:, at: Current.business_time)
         values = EffectiveSettings.call(practice: practice, at: at).fetch(:values)
         zone = ActiveSupport::TimeZone[values.fetch("timezone")]
         raise ArgumentError, "Workforce timezone is invalid" unless zone

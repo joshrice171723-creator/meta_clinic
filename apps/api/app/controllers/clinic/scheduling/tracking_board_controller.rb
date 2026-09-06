@@ -6,7 +6,7 @@ module Clinic
       before_action -> { require_capability("patients.read") }
 
       def show
-        as_of = Time.current
+        as_of = Current.business_time
         encounters = current_practice.encounters.open.where(status: "open")
           .where(patient: current_practice.patients.accessible_by(current_ability, :read))
           .includes(:patient, :site, :room, appointment: %i[visit_type site room])

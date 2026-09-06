@@ -9,8 +9,8 @@ module Clinic
           terms = version.snapshot
           family = families[terms["family_id"]]
           next unless family
-          next if terms["available_from"] && Time.iso8601(terms["available_from"]) > Time.current
-          next if terms["available_until"] && Time.iso8601(terms["available_until"]) <= Time.current
+          next if terms["available_from"] && Time.iso8601(terms["available_from"]) > Current.business_time
+          next if terms["available_until"] && Time.iso8601(terms["available_until"]) <= Current.business_time
           { id: version.id, number: version.number, program: family.published_snapshot.merge("id" => family.id), terms: terms }
         end.sort_by { |item| [item[:program]["display_order"], item[:program]["id"], item[:terms].fetch("display_order", 0), item[:terms]["package_id"]] }
       end

@@ -20,7 +20,7 @@ module Clinic
           }
         ) do
           updated = encounter.practice.encounters.where(patient_id: encounter.patient_id).lock.find(encounter.id)
-          updated.close!(ended_at: ended_at || Time.current)
+          updated.close!(ended_at: ended_at || Current.business_time)
           AuditRecorder.record!(practice: encounter.practice, actor: actor, action_code: "encounters.close",
             outcome: :committed, resource_version_ref: "encounter:#{updated.id}:#{updated.updated_at.utc.iso8601(6)}")
           updated

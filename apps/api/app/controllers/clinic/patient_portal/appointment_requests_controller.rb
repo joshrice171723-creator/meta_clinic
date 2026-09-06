@@ -13,7 +13,7 @@ module Clinic
         input = parameter_hash!(:appointment_request, %i[request_key starts_at ends_at site_id visit_type_id])
         starts_at = time_param!(input[:starts_at], field: :starts_at)
         ends_at = time_param!(input[:ends_at], field: :ends_at)
-        raise ArgumentError, "Appointment requests must start in the future." unless starts_at > Time.current
+        raise ArgumentError, "Appointment requests must start in the future." unless starts_at > Current.business_time
         raise ArgumentError, "Choose a time window no longer than four hours." if ends_at - starts_at > 4.hours
 
         request = AppointmentRequest.find_or_initialize_by(practice: portal_practice, request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
@@ -30,7 +30,7 @@ module Clinic
         raise ArgumentError, "That time overlaps an existing appointment." if conflict
 
         request.assign_attributes(practice: portal_practice, patient: portal_patient,
-          identity: patient_portal_identity, starts_at:, ends_at:, site:, visit_type:, requested_at: Time.current, status: :pending)
+          identity: patient_portal_identity, starts_at:, ends_at:, site:, visit_type:, requested_at: Current.business_time, status: :pending)
         request.save!
         record_portal_read("patient_portal.appointment_request.create")
         render json: { appointment_request: request_payload(request) }, status: :created

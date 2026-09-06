@@ -3,7 +3,7 @@ module Clinic
     module PatientCareSummarySerializer
       TOPICS = %w[allergies medications care_needs].freeze
 
-      def self.call(patient, encounter: nil, as_of: Time.current)
+      def self.call(patient, encounter: nil, as_of: Current.business_time)
         allergies = patient.allergies.active_for_summary.to_a
         medications = patient.medication_statements.active_for_summary.to_a
         care_needs = patient.care_needs.active_at(as_of).order(:category, :recorded_at, :id).to_a

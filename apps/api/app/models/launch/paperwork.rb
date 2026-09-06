@@ -20,7 +20,7 @@ module Launch
     end
 
     def begin_review!
-      with_lock { update!(started_at: Time.current) unless started_at? }
+      with_lock { update!(started_at: Current.business_time) unless started_at? }
     end
 
     def sign!(name:, reviewed_digest:)
@@ -30,7 +30,7 @@ module Launch
         raise SigningConflict, "Begin reviewing this document before signing." unless started_at?
         raise SigningConflict, "The document version changed. Reload and review it again." unless reviewed_digest == content_digest
         raise SigningConflict, "Only demonstration documents can be signed in this prototype." unless demo?
-        timestamp = Time.current
+        timestamp = Current.business_time
         signature = name.to_s.strip
         raise SigningConflict, "Enter a demonstration name (2–120 characters)." unless signature.length.between?(2, 120)
         evidence = [ id, user_id, content_digest, timestamp.iso8601(6), signature, CONSENT_VERSION ].to_json

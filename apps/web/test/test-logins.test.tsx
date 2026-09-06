@@ -2,31 +2,47 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Login } from "../src/features/identity/Login";
 
-describe("local named test logins", () => {
-  it("offers backend-owned Omni access only when local access is enabled", () => {
-    const html = renderToStaticMarkup(<Login developmentLogin />);
-    expect(html).toContain("Open Omni patient portal");
-    expect(html).toContain("OmniLogin");
-    expect(html).toContain(
-      "loads patient and billing records from the backend",
+describe("development account preview", () => {
+  it("shows distinct backend-owned account groups and a business date", () => {
+    const html = renderToStaticMarkup(
+      <Login
+        developmentLogin
+        environment="development"
+        businessDate="2032-04-15"
+        developmentAccounts={[
+          {
+            id: "employee-clinician",
+            label: "Clinician",
+            account_type: "employee",
+            email_address: "clinician1@test.com",
+            destination: "/clinic",
+          },
+          {
+            id: "customer-client-a",
+            label: "Customer A",
+            account_type: "customer",
+            email_address: "test-client-a@example.invalid",
+            destination: "/portal",
+          },
+        ]}
+      />,
     );
-    expect(html).toContain("Test Client A");
-    expect(html).toContain("Test Client B");
-    expect(html).toContain("Test Admin");
-    expect(html).toContain('name="profile"');
-    expect(html).toContain("Use test login");
-    expect(html).toContain("Continue as demo client");
-    expect(html).not.toContain("Synthetic Patient Portal");
-    expect(html).not.toContain("Open synthetic patient portal");
-    expect(html).toContain("Settings → Development view");
+    expect(html).toContain("Development environment");
+    expect(html).toContain("Employee portal");
+    expect(html).toContain("Customer portal");
+    expect(html).toContain("Active account");
+    expect(html).toContain("2032-04-15");
+    expect(html).toContain("Uses the real current time with this date.");
+    expect(html.toLowerCase()).not.toContain("omni");
   });
 
-  it("keeps test identities out of the normal hosted login", () => {
-    const html = renderToStaticMarkup(<Login developmentLogin={false} />);
-    expect(html).not.toContain('name="profile"');
-    expect(html).not.toContain("Test Admin");
-    expect(html).not.toContain("Use test login");
-    expect(html).not.toContain("OmniLogin");
+  it("keeps account and date controls out of the production login", () => {
+    const html = renderToStaticMarkup(
+      <Login developmentLogin={false} environment="production" />,
+    );
+    expect(html).toContain("Production");
+    expect(html).not.toContain("Development account preview");
+    expect(html).not.toContain("App date");
     expect(html).toContain("Email address");
   });
 });

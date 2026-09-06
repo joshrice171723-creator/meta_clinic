@@ -8,7 +8,7 @@ module Clinic
         raise ActiveRecord::RecordNotFound unless receipt
         raise ArgumentError, "This message does not require acknowledgement." unless message.acknowledgement_required?
 
-        now = Time.current
+        now = Current.business_time
         ApplicationRecord.transaction do
           receipt.update!(acknowledged_at: now, acknowledgement_note: note.to_s.strip.presence)
           message.update!(acknowledged_at: now, acknowledged_by_membership: member) if message.acknowledged_at.blank?

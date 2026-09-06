@@ -31,9 +31,9 @@ module Clinic
             verify_expected_version!(encounter, expected_version)
             raise ArgumentError, "Context cannot be changed after deletion." if encounter.deleted_at
             attributes = normalized.blank? ?
-              { context_content: nil, context_digest: nil, context_source_type: nil, context_authored_by: nil, context_updated_at: Time.current } :
+              { context_content: nil, context_digest: nil, context_source_type: nil, context_authored_by: nil, context_updated_at: Current.business_time } :
               { context_content: normalized, context_digest: Digest::SHA256.hexdigest(normalized), context_source_type: "reviewer_authored",
-                context_authored_by: actor, context_updated_at: Time.current }
+                context_authored_by: actor, context_updated_at: Current.business_time }
             encounter.update!(attributes)
             record_event!(encounter, actor, normalized.blank? ? "context_cleared" : "context_saved", "Encounter", encounter.id,
               context_digest: encounter.context_digest, provenance: encounter.context_source_type)
@@ -49,9 +49,9 @@ module Clinic
             if decision == "accepted"
               raise ArgumentError, "Consent cannot be accepted after deletion." if encounter.deleted_at
               encounter.update!(consent_status: "accepted", consent_policy_version: CONSENT_POLICY_VERSION,
-                consent_method: method, consented_at: Time.current, consent_withdrawn_at: nil, status: "consented")
+                consent_method: method, consented_at: Current.business_time, consent_withdrawn_at: nil, status: "consented")
             elsif decision == "withdrawn"
-              encounter.update!(consent_status: "withdrawn", consent_withdrawn_at: Time.current, status: "consent_withdrawn")
+              encounter.update!(consent_status: "withdrawn", consent_withdrawn_at: Current.business_time, status: "consent_withdrawn")
               Retention.scrub!(encounter)
             else
               encounter.update!(consent_status: "declined", consent_policy_version: CONSENT_POLICY_VERSION,
@@ -260,7 +260,7 @@ module Clinic
                 raise ArgumentError, "Only a draft in review can be approved." unless %w[draft in_review].include?(draft.status)
                 raise ArgumentError, "Resolve every section before approval." unless draft.sections.size == SECTIONS.size &&
                   draft.sections.all? { |section| %w[accepted edited].include?(section.status) && section.warning_codes.blank? && section.effective_content.present? }
-                draft.update!(status: "approved", approved_by: actor, approved_at: Time.current)
+                draft.update!(status: "approved", approved_by: actor, approved_at: Current.business_time)
                 draft.encounter.update!(status: "approved")
                 record_event!(draft.encounter, actor, "draft_approved", "Draft", draft.id,
                   draft_id: draft.id, document_id: draft.document_id, checksum: checksum(draft))
@@ -294,7 +294,7 @@ module Clinic
                 raise ArgumentError, "Only an approved current draft can be exported." unless draft.status == "approved"
                 version_checksum = checksum(draft)
                 export.assign_attributes(draft: draft, actor: actor, destination: destination, version_checksum: version_checksum,
-                  status: "exported", payload_digest: payload_digest, exported_at: Time.current)
+                  status: "exported", payload_digest: payload_digest, exported_at: Current.business_time)
                 export.save!
                 draft.update!(status: "exported", export_state: "exported")
                 draft.encounter.update!(status: "exported")

@@ -23,11 +23,11 @@ module Clinic
         where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at)
       }
 
-      def active_for_work?(at: Time.current)
+      def active_for_work?(at: Current.business_time)
         active? && effective_at?(at) && staff_member.active? && membership.active? && membership.user.active?
       end
 
-      def eligible_site?(site, at: Time.current)
+      def eligible_site?(site, at: Current.business_time)
         return false unless active_for_work?(at: at)
         return false unless site.is_a?(Clinic::Site) && site.practice_id == practice_id && site.status == "active"
 

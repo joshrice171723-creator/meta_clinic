@@ -18,7 +18,7 @@ module Clinic
     scope :open, -> { where(ended_at: nil) }
     scope :recent, -> { order(started_at: :desc) }
 
-    def close!(ended_at: Time.current)
+    def close!(ended_at: Current.business_time)
       raise ArgumentError, "An encounter is already closed." if ended_at.nil? || self.ended_at.present?
       raise ArgumentError, "An encounter must end after it starts." if ended_at <= started_at
 

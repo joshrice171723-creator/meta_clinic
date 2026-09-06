@@ -17,6 +17,7 @@ import type {
 } from "../../api/contracts";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../../api/client";
+import { businessNow } from "../../shared/businessDate";
 import {
   Alert,
   Box,
@@ -265,7 +266,7 @@ function localDateTimeValue(value: Date) {
   return local.toISOString().slice(0, 16);
 }
 
-export function appointmentDefaults(now = new Date()) {
+export function appointmentDefaults(now = businessNow()) {
   const start = new Date(now);
   start.setSeconds(0, 0);
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);

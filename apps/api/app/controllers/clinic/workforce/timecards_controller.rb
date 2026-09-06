@@ -43,7 +43,7 @@ module Clinic
           raise ArgumentError, "Only a draft timecard can be submitted" unless card.status == "draft"
           raise ArgumentError, "Resolve every timecard exception before submission" if card.unresolved?
           ensure_source_is_current!(card)
-          card.update!(status: "submitted", submitted_at: Time.current, submitted_by_membership: clinic_membership)
+          card.update!(status: "submitted", submitted_at: Current.business_time, submitted_by_membership: clinic_membership)
         end
         render json: { timecard: TimecardSerializer.call(card.reload, site_id: site_id) }
       end
@@ -67,7 +67,7 @@ module Clinic
           newer = TimecardVersion.where(practice_id: card.practice_id, employment_id: card.employment_id,
             period_start: card.period_start).where("version_number > ?", card.version_number).exists?
           raise ActiveRecord::StaleObjectError.new(card, "approve") if newer
-          card.update!(status: "approved", approved_at: Time.current, approved_by_membership: clinic_membership)
+          card.update!(status: "approved", approved_at: Current.business_time, approved_by_membership: clinic_membership)
         end
         render json: { timecard: TimecardSerializer.call(card.reload) }
       end
@@ -155,7 +155,7 @@ module Clinic
         sites = if card
           current_practice.sites.where(id: card.time_segments.distinct.select(:site_id)).to_a
         else
-          employment.sites.merge(EmploymentSite.active.effective_at(Time.current)).where(status: "active").to_a
+          employment.sites.merge(EmploymentSite.active.effective_at(Current.business_time)).where(status: "active").to_a
         end
         raise Clinic::Authorization::Denied if sites.empty?
         enabled = sites.all? do |site|

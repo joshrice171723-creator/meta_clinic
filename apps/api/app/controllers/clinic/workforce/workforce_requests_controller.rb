@@ -51,12 +51,12 @@ module Clinic
                   revision: prior.revision + 1)
               end if status == "approved"
             AvailabilityVersion.create!(practice: current_practice, site: site, employment: employment,
-              created_by_id: current_user.id, status: status, submitted_at: Time.current,
+              created_by_id: current_user.id, status: status, submitted_at: Current.business_time,
               effective_from: effective_from,
               effective_until: input[:effective_until].present? ? date_param!(input[:effective_until], field: :effective_until) : nil,
               timezone: required_string!(input[:timezone], field: :timezone, maximum: 80), weekly_rules: input[:weekly_rules].map(&:to_h),
               reason: reason!(input[:reason]), revision: 1, idempotency_key: key, request_digest: digest,
-              decided_at: status == "approved" ? Time.current : nil)
+              decided_at: status == "approved" ? Current.business_time : nil)
           end
         end
         render json: RequestSerializer.response(request: RequestSerializer.call(record), replayed: !created), status: created ? :created : :ok
@@ -73,7 +73,7 @@ module Clinic
           TimeOffRequest.create!(practice: current_practice, site: site, employment: employment,
             requested_by_id: current_user.id, starts_at: interval[:starts_at], ends_at: interval[:ends_at],
             timezone: required_string!(input[:timezone], field: :timezone, maximum: 80), reason: reason!(input[:reason]),
-            status: status, submitted_at: Time.current, decided_at: status == "approved" ? Time.current : nil,
+            status: status, submitted_at: Current.business_time, decided_at: status == "approved" ? Current.business_time : nil,
             revision: 1, idempotency_key: key, request_digest: digest)
         end
         render json: RequestSerializer.response(request: RequestSerializer.call(record), replayed: !created), status: created ? :created : :ok
@@ -101,7 +101,7 @@ module Clinic
             target_employment: target, requested_by_id: current_user.id, schedule_publication: publication,
             offered_shift_public_id: required_string!(input[:offered_shift_public_id], field: :offered_shift_public_id, maximum: 80),
             reason: reason!(input[:reason]), expires_at: input[:expires_at].present? ? time_param!(input[:expires_at], field: :expires_at) : nil,
-            status: "submitted", submitted_at: Time.current, revision: 1, idempotency_key: key, request_digest: digest)
+            status: "submitted", submitted_at: Current.business_time, revision: 1, idempotency_key: key, request_digest: digest)
         end
         render json: RequestSerializer.response(request: RequestSerializer.call(record), replayed: !created,
           approval_required: values.fetch("shift_swap_approval_required")), status: created ? :created : :ok
@@ -123,10 +123,10 @@ module Clinic
 
       def own_request_context!(flag)
         employment = workforce_access.own_employment
-        raise Clinic::Authorization::Denied unless employment&.active_for_work?(at: Time.current)
+        raise Clinic::Authorization::Denied unless employment&.active_for_work?(at: Current.business_time)
         site_id = params.dig(:availability, :site_id) || params.dig(:time_off, :site_id) || params.dig(:shift_swap, :site_id)
         site = site!(site_id)
-        raise Clinic::Authorization::Denied unless employment.eligible_site?(site, at: Time.current)
+        raise Clinic::Authorization::Denied unless employment.eligible_site?(site, at: Current.business_time)
         values = effective_settings(site)
         raise ArgumentError, "Employee requests are not enabled for this site." unless values.fetch("employee_self_service_enabled") == true
         raise ArgumentError, "This request type is not enabled for this site." unless values.fetch(flag) == true
@@ -134,7 +134,7 @@ module Clinic
       end
 
       def effective_settings(site)
-        EffectiveSettings.call(practice: current_practice, site: site, at: Time.current).fetch(:values)
+        EffectiveSettings.call(practice: current_practice, site: site, at: Current.business_time).fetch(:values)
       end
 
       def site!(value = params[:site_id])
@@ -143,7 +143,7 @@ module Clinic
 
       def eligible_sites(employment)
         return [] unless employment
-        current_practice.sites.includes(:operating_hours).select { |site| employment.eligible_site?(site, at: Time.current) }.map do |site|
+        current_practice.sites.includes(:operating_hours).select { |site| employment.eligible_site?(site, at: Current.business_time) }.map do |site|
           values = effective_settings(site)
           { id: site.id.to_s, name: site.name, timezone: site.timezone_override || current_practice.timezone,
             request_options: %w[availability_editing_enabled time_off_enabled shift_swaps_enabled availability_approval_required time_off_approval_required shift_swap_approval_required].to_h { |key| [ key, values.fetch(key) ] } }
@@ -192,7 +192,7 @@ module Clinic
             end
           end
           employees = Employment.where(practice_id: current_practice.id).includes(:staff_member).select do |candidate|
-            candidate.id != employment.id && candidate.active_for_work?(at: Time.current) && candidate.eligible_site?(site, at: Time.current)
+            candidate.id != employment.id && candidate.active_for_work?(at: Current.business_time) && candidate.eligible_site?(site, at: Current.business_time)
           end.map { |candidate| { id: candidate.id.to_s, name: candidate.staff_member.display_name } }
           { site_id: site.id.to_s, shifts: own_shifts, employees: employees }
         end

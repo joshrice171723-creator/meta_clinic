@@ -1,7 +1,7 @@
 class Clinic::Reminders::RecoverJob < ApplicationJob
   queue_as :default
 
-  def perform(practice_id:, actor_id:, at: Time.current, limit: Clinic::Reminders::Recover::DEFAULT_LIMIT)
+  def perform(practice_id:, actor_id:, at: Current.business_time, limit: Clinic::Reminders::Recover::DEFAULT_LIMIT)
     practice = Clinic::Practice.find(practice_id)
     actor = User.find(actor_id)
 

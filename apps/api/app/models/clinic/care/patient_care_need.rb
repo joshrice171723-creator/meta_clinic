@@ -27,7 +27,7 @@ module Clinic
       encrypts :description, :instructions
       attr_readonly :practice_id, :patient_id, :recorded_by_membership_id, :recorded_at, :effective_from
 
-      scope :active_at, ->(at = Time.current) {
+      scope :active_at, ->(at = Current.business_time) {
         where(status: :active).where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at)
       }
 

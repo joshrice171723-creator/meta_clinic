@@ -9,7 +9,7 @@ module Clinic
       belongs_to :invoice, class_name: "Clinic::Invoice"
       has_many :events, class_name: "Clinic::Care::SubscriptionEvent", foreign_key: :agreement_id
 
-      def current_state(at: Time.current)
+      def current_state(at: Current.business_time)
         latest = events.order(id: :desc).first
         return "pending_payment" unless latest
         return "expired" if latest.kind == "active" && Time.iso8601(latest.details.fetch("ends_at")) <= at

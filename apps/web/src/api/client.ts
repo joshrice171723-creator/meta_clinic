@@ -1,3 +1,5 @@
+import type { DevelopmentAccount, RuntimeEnvironment } from "./contracts";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -13,6 +15,9 @@ type Configuration = {
   csrf_token: string;
   development_login: boolean;
   clinic_available: boolean;
+  environment: RuntimeEnvironment;
+  development_accounts: DevelopmentAccount[];
+  business_date: string;
 };
 let csrfRequest: Promise<Configuration> | undefined;
 let csrfGeneration = 0;

@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import type { ScribeEncounter } from "./types";
+import { businessNow } from "../../shared/businessDate";
 
 export type ScribeEncounterSummary = Pick<
   ScribeEncounter,
@@ -47,7 +48,7 @@ function sessionDay(value?: string | null) {
   if (!value) return "Earlier";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.valueOf())) return "Earlier";
-  const today = new Date();
+  const today = businessNow();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   const key = parsed.toDateString();
@@ -75,7 +76,7 @@ function isToday(value?: string | null) {
   const parsed = new Date(value);
   return (
     !Number.isNaN(parsed.valueOf()) &&
-    parsed.toDateString() === new Date().toDateString()
+    parsed.toDateString() === businessNow().toDateString()
   );
 }
 

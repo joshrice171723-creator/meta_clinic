@@ -41,7 +41,7 @@ module Clinic
       def call(preview:)
         Access.new(actor: @actor, practice: @practice).authorize!("workforce.payroll.export", site: @configuration.site)
         raise ArgumentError, "The payroll configuration belongs to another practice" unless @configuration.practice_id == @practice.id
-        raise ArgumentError, "This payroll configuration is not effective yet" if @configuration.effective_from > Time.current
+        raise ArgumentError, "This payroll configuration is not effective yet" if @configuration.effective_from > Current.business_time
         settings = EffectiveSettings.call(practice: @practice, site: @configuration.site)
         raise ArgumentError, "Payroll exports are disabled for this location" unless settings[:values]["payroll_export_enabled"] == true
         self.class.validate_mapping!(@configuration.columns, @configuration.employee_identifiers)

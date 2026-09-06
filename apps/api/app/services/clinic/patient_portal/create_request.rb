@@ -16,7 +16,7 @@ module Clinic
 
           Request.create!(practice: practice, patient: patient, identity: identity,
             request_key: request_key, request_type: request_type, content: content,
-            content_digest: digest, requested_at: Time.current, status: :pending)
+            content_digest: digest, requested_at: Current.business_time, status: :pending)
         end
       rescue ActiveRecord::RecordNotUnique
         retry_existing = Request.find_by!(practice: practice, request_key: request_key)

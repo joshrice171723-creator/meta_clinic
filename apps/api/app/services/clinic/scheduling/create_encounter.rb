@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     class CreateEncounter
-      def self.call(practice:, actor:, patient:, started_at: Time.current, appointment: nil, site: nil, room: nil)
+      def self.call(practice:, actor:, patient:, started_at: Current.business_time, appointment: nil, site: nil, room: nil)
         Authorization.authorize!(actor: actor, practice: practice, action: "encounters.write", site: site)
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
         if appointment && (appointment.practice_id != practice.id || appointment.patient_id != patient.id)

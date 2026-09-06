@@ -11,7 +11,7 @@ module Clinic
     belongs_to :visit_type, class_name: "Clinic::VisitType", optional: true
     has_one :encounter, class_name: "Clinic::Encounter", dependent: :restrict_with_error
 
-    scope :upcoming, ->(from = Time.current) { where("starts_at >= ?", from).order(:starts_at) }
+    scope :upcoming, ->(from = Current.business_time) { where("starts_at >= ?", from).order(:starts_at) }
     scope :for_clinician, ->(clinician) { where(booked_clinician_id: clinician.respond_to?(:id) ? clinician.id : clinician) }
 
     TRANSITIONS = {

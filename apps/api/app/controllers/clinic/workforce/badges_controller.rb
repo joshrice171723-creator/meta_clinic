@@ -31,7 +31,7 @@ module Clinic
         badge = BadgeCredential.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
         authorize_employment!(badge.employment, "workforce.badges", require_active: false)
         badge.with_lock do
-          badge.update!(status: "revoked", revoked_at: Time.current, revoked_by_membership: clinic_membership) if badge.active?
+          badge.update!(status: "revoked", revoked_at: Current.business_time, revoked_by_membership: clinic_membership) if badge.active?
         end
         render json: { badge: ClockSerializer.badge(badge.reload) }
       end

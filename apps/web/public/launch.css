@@ -90,6 +90,9 @@
 .login-card>svg { margin-bottom:24px; color:#66805b; }
 .login-card h2 { margin-bottom:14px; }
 .login-card .form-note { margin-bottom:0; }
+.portal-type-links { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:18px 0 28px; }
+.portal-type-links a { padding:11px 12px; border:1px solid #b8c3b2; border-radius:5px; background:#fffefa; font-size:12px; font-weight:600; text-align:center; }
+.portal-type-links a[aria-current=page] { background:#254e40; border-color:#254e40; color:#fff; }
 .spin { animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .member-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:35px; margin-bottom:45px; }

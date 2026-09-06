@@ -3,7 +3,7 @@ module Clinic
     class Policy
       VERSION = "patient-reminders-policy-v1"
 
-      def self.evaluate(reminder:, at: Time.current)
+      def self.evaluate(reminder:, at: Current.business_time)
         endpoint = reminder.communication_endpoint
         return deny("endpoint_unverified") unless endpoint&.verified_at.present? && endpoint.invalidated_at.blank?
         expected_endpoint_type = reminder.channel == "sms" ? "phone" : reminder.channel

@@ -134,7 +134,7 @@ class Ability
     rule_for(permission)&.fetch(:subjects, []) || []
   end
 
-  def initialize(user, practice: nil, at: Time.current)
+  def initialize(user, practice: nil, at: Current.business_time)
     @practice = practice
     @at = at
     @membership = active_membership_for(user, practice)

@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class Dashboard
-      def self.call(practice:, now: Time.current, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil)
+      def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil)
         local_now = now.in_time_zone(practice.timezone)
         period_start = local_now.beginning_of_month
         period_end = period_start.next_month
@@ -134,7 +134,7 @@ module Clinic
       end
       private_class_method :open_invoice_count
 
-      def self.invoice_summary(invoice, now: Time.current)
+      def self.invoice_summary(invoice, now: Current.business_time)
         total = invoice.lines.sum(&:posted_amount)
         allocated = invoice.payment_allocations.sum(&:amount)
         credited = invoice.credit_notes.sum(&:amount)

@@ -74,7 +74,7 @@ module Clinic
             allocation = AllocatePayment.call(practice: agreement.practice, actor: actor, patient: agreement.patient, invoice: agreement.invoice,
               external_event_reference: "subscription:#{intent.reference}", currency: intent.currency, amount: intent.amount.to_s("F"))
             intent.transition_to!("succeeded")
-            starts_at = Time.current
+            starts_at = Current.business_time
             terms = agreement.snapshot
             ends_at = terms["duration_unit"] == "months" ? starts_at.advance(months: terms["duration"]) : starts_at.advance(days: terms["duration"])
             agreement.events.create!(practice: agreement.practice, kind: "active", request_key: "provider:#{event.id}",
@@ -144,7 +144,7 @@ module Clinic
           invoice = agreement.invoice
           allocations = invoice.payment_allocations.includes(:payment_event).to_a
           raise ArgumentError, "The invoice needs an exact, fully posted payment without refunds or credits." unless invoice.status == "posted" && invoice.credit_notes.empty? && allocations.sum(&:amount) == agreement.amount && allocations.all? { |a| a.payment_event.currency == agreement.currency && a.payment_event.refund_events.empty? }
-          starts_at = Time.current
+          starts_at = Current.business_time
           terms = agreement.snapshot
           ends_at = terms["duration_unit"] == "months" ? starts_at.advance(months: terms["duration"]) : starts_at.advance(days: terms["duration"])
           agreement.events.create!(practice: agreement.practice, kind: "active", request_key: key,

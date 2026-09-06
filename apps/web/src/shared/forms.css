@@ -32,6 +32,9 @@ fieldset {
 .member-navigation form {
   margin-left: auto;
 }
+.member-navigation .development-account-switcher {
+  margin-left: auto;
+}
 .preserve-lines {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

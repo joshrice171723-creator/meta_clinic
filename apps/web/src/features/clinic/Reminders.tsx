@@ -635,7 +635,7 @@ export function Reminders() {
               appointment_id: selected.id,
               category: "appointment",
               channel: "sms",
-              scheduled_at: new Date().toISOString(),
+              scheduled_at: businessNow().toISOString(),
               content: message.trim(),
             },
           },
@@ -886,7 +886,7 @@ export function Reminders() {
                         <Typography variant="body2" color="text.secondary">
                           {appointmentLabel(appointment)}
                           {appointment.patient?.phone
-                            ? ` · ${appointment.patient.phone}`
+                            ? ` · ${phoneLabel(appointment.patient.phone)}`
                             : " · No verified phone on file"}
                         </Typography>
                       </Box>
@@ -943,7 +943,9 @@ export function Reminders() {
                   </Typography>
                   <Typography variant="body2" sx={{ mb: 2 }}>
                     <strong>Text will go to:</strong>{" "}
-                    {selected.patient?.phone || "No verified phone on file"}
+                    {selected.patient?.phone
+                      ? phoneLabel(selected.patient.phone)
+                      : "No verified phone on file"}
                   </Typography>
                   <TextField
                     multiline

@@ -3,7 +3,7 @@ require "securerandom"
 module Clinic
   module PatientPortal
     class InviteIdentity
-      def self.call(practice:, patient:, user:, actor:, now: Time.current)
+      def self.call(practice:, patient:, user:, actor:, now: Current.business_time)
         raise ArgumentError, "The patient account is inactive." unless user.active?
 
         token = SecureRandom.urlsafe_base64(32)

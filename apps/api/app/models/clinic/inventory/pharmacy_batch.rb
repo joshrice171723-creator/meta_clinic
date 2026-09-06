@@ -42,7 +42,7 @@ module Clinic
             )
         )
       SQL
-      scope :usable, ->(day = Date.current) { where(NO_HOLD_SQL).where(STOCK_DESTINATION_SQL).where("expires_on >= ?", day) }
+      scope :usable, ->(day = Current.business_date) { where(NO_HOLD_SQL).where(STOCK_DESTINATION_SQL).where("expires_on >= ?", day) }
 
       def quantity
         self[:on_hand]
@@ -79,7 +79,7 @@ module Clinic
         status
       end
 
-      def move!(kind:, amount:, reason:, actor:, request_key:, occurred_at: Time.current)
+      def move!(kind:, amount:, reason:, actor:, request_key:, occurred_at: Current.business_time)
         if kind == "receipt"
           receipt = Clinic::Inventory::Receiving.call(practice: practice, actor: actor, reason: reason, request_key: request_key, supplier: supplier,
             lines: [ { product_id: product_id, lot_number: lot_number, location_id: location_id, location: location, expires_on: expires_on, amount: amount, input_unit: product.stock_unit } ], received_at: occurred_at)

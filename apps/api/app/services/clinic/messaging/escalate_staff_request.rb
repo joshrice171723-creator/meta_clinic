@@ -39,7 +39,7 @@ module Clinic
           ApplicationRecord.transaction do
             locked_request = Clinic::StaffMessageRequest.where(practice_id: practice.id).lock.find(request.id)
             raise ArgumentError, "A completed staff request cannot be escalated." if TERMINAL_STATES.include?(locked_request.state)
-            if trigger == OVERDUE_TRIGGER && locked_request.due_at > Time.current
+            if trigger == OVERDUE_TRIGGER && locked_request.due_at > Current.business_time
               raise ArgumentError, "The staff request is not overdue."
             end
 

@@ -71,7 +71,7 @@ module Clinic
 
       def save_registration!(patient, input)
         Clinic::Care::Patient.transaction do
-          now = Time.current
+          now = Current.business_time
           demographics = {
             date_of_birth: input[:date_of_birth].presence && date_param!(input[:date_of_birth], field: :date_of_birth),
             sex: enum_param!(input[:sex].presence || "not_recorded", field: :sex, allowed: Clinic::Care::PatientDemographics.sexes.keys),

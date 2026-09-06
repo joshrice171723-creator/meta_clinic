@@ -49,7 +49,7 @@ module Clinic
           publication = SchedulePublication.create!(practice_id: draft.practice_id, site: draft.site,
             schedule_draft: draft, published_by_id: actor.id, supersedes: prior,
             week_start_on: draft.week_start_on, timezone: draft.timezone, version: prior&.version.to_i + 1,
-            shift_snapshot: snapshot, snapshot_digest: digest, published_at: Time.current,
+            shift_snapshot: snapshot, snapshot_digest: digest, published_at: Current.business_time,
             idempotency_key: idempotency_key, request_digest: request_digest)
           draft.update!(status: "published", revision: draft.revision + 1)
           publication

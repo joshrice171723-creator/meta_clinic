@@ -23,6 +23,7 @@ export function ClinicFrame({
   onLocationChange,
   navigation,
   children,
+  developmentPreview = false,
 }: {
   practiceName: string;
   locationName?: string | null;
@@ -31,6 +32,7 @@ export function ClinicFrame({
   onLocationChange?: (siteId: number) => void;
   navigation: ReactNode;
   children: ReactNode;
+  developmentPreview?: boolean;
 }) {
   const [compact, setCompact] = useState(compactNavigation);
   const [collapsed, setCollapsed] = useState(compactNavigation);
@@ -287,13 +289,15 @@ export function ClinicFrame({
               <PublicIcon aria-hidden="true" fontSize="small" />
               <span>APPly selling site</span>
             </a>
-            <Form
-              className="clinic-sign-out"
-              endpoint="/api/session"
-              method="DELETE"
-              submit="Sign out"
-              onSuccess={() => window.location.replace("/login")}
-            />
+            {!developmentPreview && (
+              <Form
+                className="clinic-sign-out"
+                endpoint="/api/session"
+                method="DELETE"
+                submit="Sign out"
+                onSuccess={() => window.location.replace("/login")}
+              />
+            )}
           </div>
         </aside>
       </div>

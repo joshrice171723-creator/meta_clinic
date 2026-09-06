@@ -3,7 +3,7 @@ module Clinic
     class EffectiveSettings
       class Unconfigured < StandardError; end
 
-      def self.call(practice:, site: nil, at: Time.current)
+      def self.call(practice:, site: nil, at: Current.business_time)
         raise ArgumentError, "The selected site does not belong to this practice." if site && site.practice_id != practice.id
 
         practice_version = SettingsVersion.practice.effective_at(at)

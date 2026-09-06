@@ -64,7 +64,7 @@ module Clinic
       reminder = reminder_record
       reason = required_string!(params[:reason], field: :reason, maximum: 120)
       reminder.with_lock do
-        reminder.update!(status: "cancelled", cancelled_at: Time.current, cancel_reason: reason)
+        reminder.update!(status: "cancelled", cancelled_at: Current.business_time, cancel_reason: reason)
         reminder.outbox.update!(dispatch_state: "suppressed")
       end
       head :no_content

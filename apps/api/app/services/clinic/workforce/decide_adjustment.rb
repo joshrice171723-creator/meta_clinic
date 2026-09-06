@@ -26,7 +26,7 @@ module Clinic
           adjustment.update!(
             status: decision,
             reviewed_by_membership: reviewer,
-            reviewed_at: Time.current,
+            reviewed_at: Current.business_time,
             decision_reason: decision_reason.to_s.strip,
             resulting_timecard_version: resulting
           )

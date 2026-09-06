@@ -9,7 +9,7 @@ module Clinic
         appointments = appointments.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
         appointments = appointments.where(site_id: requested_id!(params[:site_id], :site_id)) if params[:site_id].present?
         appointments = appointments.where(booked_clinician_id: requested_id!(params[:booked_clinician_id], :booked_clinician_id)) if params[:booked_clinician_id].present?
-        appointments = appointments.where(status: %w[scheduled confirmed]).where("starts_at >= ?", Time.current) if params[:upcoming] == "true"
+        appointments = appointments.where(status: %w[scheduled confirmed]).where("starts_at >= ?", Current.business_time) if params[:upcoming] == "true"
         appointments = appointments.where(status: enum_param!(params[:status], field: :status, allowed: Clinic::Appointment::TRANSITIONS.keys)) if params[:status].present?
         appointments = appointments.where("starts_at >= ?", time_param!(params[:from], field: :from)) if params[:from].present?
         appointments = appointments.where("starts_at < ?", time_param!(params[:to], field: :to)) if params[:to].present?

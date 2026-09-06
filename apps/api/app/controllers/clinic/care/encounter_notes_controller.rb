@@ -70,7 +70,7 @@ module Clinic
           revision_no: bounded_integer!(input[:revision_no], field: :revision_no, min: 1, max: 2_147_483_647),
           content_digest: required_string!(input[:content_digest], field: :content_digest, maximum: 128),
           attestation_version: required_string!(input[:attestation_version], field: :attestation_version, maximum: 80),
-          signed_at: Time.current
+          signed_at: Current.business_time
         )
         render json: { signature: signature_json(signature) }, status: :created
       end

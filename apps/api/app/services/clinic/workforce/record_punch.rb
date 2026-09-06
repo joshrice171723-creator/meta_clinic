@@ -12,7 +12,7 @@ module Clinic
       Result = Data.define(:punch, :replayed)
       DEBOUNCE_WINDOW = 3.seconds
 
-      def self.call(kiosk_session:, challenge_token:, event_type:, request_key:, now: Time.current)
+      def self.call(kiosk_session:, challenge_token:, event_type:, request_key:, now: Current.business_time)
         request_key = request_key.to_s
         raise ArgumentError, "A valid request key is required" unless request_key.match?(/\A[0-9a-f-]{36}\z/i)
         raise ArgumentError, "Unsupported punch action" unless Punch::EVENTS.include?(event_type)
@@ -92,7 +92,7 @@ module Clinic
         Result.new(punch: prior, replayed: true)
       end
 
-      def self.allowed_transitions(employment:, at: Time.current)
+      def self.allowed_transitions(employment:, at: Current.business_time)
         next_transitions(latest_effective_punch(employment, at: at)&.event_type)
       end
 

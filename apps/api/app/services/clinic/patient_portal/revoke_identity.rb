@@ -1,7 +1,7 @@
 module Clinic
   module PatientPortal
     class RevokeIdentity
-      def self.call(identity:, actor:, reason:, now: Time.current)
+      def self.call(identity:, actor:, reason:, now: Current.business_time)
         ApplicationRecord.transaction do
           identity.with_lock do
             identity.update!(status: :revoked, revoked_at: now, revoked_reason: reason,

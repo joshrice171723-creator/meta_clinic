@@ -27,8 +27,8 @@ module Clinic
               id: assignment.site.id,
               code: assignment.site.code,
               name: assignment.site.name,
-              active: assignment.active && assignment.effective_from <= Time.current &&
-                (assignment.effective_until.nil? || assignment.effective_until > Time.current),
+              active: assignment.active && assignment.effective_from <= Current.business_time &&
+                (assignment.effective_until.nil? || assignment.effective_until > Current.business_time),
               effective_from: assignment.effective_from.iso8601,
               effective_until: assignment.effective_until&.iso8601
             }

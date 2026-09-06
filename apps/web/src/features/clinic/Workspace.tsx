@@ -15,6 +15,8 @@ import type {
   ClinicCapabilities,
   ClinicOverview,
   ClinicWorkspaceContext,
+  DevelopmentAccount,
+  RuntimeEnvironment,
   User,
 } from "../../api/contracts";
 import { api } from "../../api/client";
@@ -31,6 +33,10 @@ import {
   useClinicAppearance,
 } from "./Appearance";
 import { ScribeRecordingProvider } from "../scribe/ScribeRecordingProvider";
+import {
+  DevelopmentControls,
+  EnvironmentLabel,
+} from "../identity/DevelopmentAccountSwitcher";
 
 const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
@@ -208,11 +214,17 @@ export function Workspace({
   user,
   path = typeof window === "undefined" ? "/clinic" : window.location.pathname,
   homeView = "tracking",
+  developmentAccounts = [],
+  environment = "unknown",
+  businessDate = "",
 }: {
   children: ReactNode;
   user: User;
   path?: string;
   homeView?: ClinicHomeView;
+  developmentAccounts?: DevelopmentAccount[];
+  environment?: RuntimeEnvironment;
+  businessDate?: string;
 }) {
   const { navigate } = useClinicNavigation();
   const { data, error } = useResource<ClinicWorkspaceContext>(
@@ -327,6 +339,7 @@ export function Workspace({
                       homeView={homeView}
                     />
                   }
+                  developmentPreview={!!user.development_demo}
                 >
                   {!scribePage && (
                     <header
@@ -334,10 +347,20 @@ export function Workspace({
                       aria-label="Clinic context"
                     >
                       <span className="clinic-topbar-context">
-                        Currently logged in as:{" "}
-                        <strong>{user.email_address}</strong>
-                        {data.credentials.length > 0 && (
-                          <>, {data.credentials.join(", ")}</>
+                        <EnvironmentLabel environment={environment} />
+                        {user.development_demo ? (
+                          <DevelopmentControls
+                            accounts={developmentAccounts}
+                            activeId={user.development_account_id}
+                            businessDate={businessDate}
+                          />
+                        ) : (
+                          <span>
+                            Signed in as <strong>{user.email_address}</strong>
+                            {data.credentials.length > 0 && (
+                              <>, {data.credentials.join(", ")}</>
+                            )}
+                          </span>
                         )}
                       </span>
                       <span className="clinic-topbar-actions">

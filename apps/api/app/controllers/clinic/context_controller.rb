@@ -90,7 +90,7 @@ module Clinic
         sites = current_practice.sites
       end
       if workforce_employment
-        assigned_ids = workforce_employment.employment_sites.active.effective_at(Time.current).select(:site_id)
+        assigned_ids = workforce_employment.employment_sites.active.effective_at(Current.business_time).select(:site_id)
         sites = current_practice.sites.where(id: sites.select(:id)).or(current_practice.sites.where(id: assigned_ids))
       end
       sites

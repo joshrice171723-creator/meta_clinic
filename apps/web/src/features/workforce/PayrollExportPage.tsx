@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
+import { businessNow } from "../../shared/businessDate";
 
 type Column = { field: string; header: string };
 type Configuration = {
@@ -98,7 +99,7 @@ export function PayrollExportPage() {
         setIdentifiers(latest?.employee_identifiers || {});
         setConfigurationId(
           result.configurations.find(
-            (item) => new Date(item.effective_from) <= new Date(),
+            (item) => new Date(item.effective_from) <= businessNow(),
           )?.id || "",
         );
       })
@@ -131,7 +132,7 @@ export function PayrollExportPage() {
           site_id: siteId,
           configuration: {
             name,
-            effective_from: new Date().toISOString(),
+            effective_from: businessNow().toISOString(),
             expected_revision: data.configurations[0]?.revision || 0,
             columns,
             employee_identifiers: Object.fromEntries(
@@ -342,7 +343,7 @@ export function PayrollExportPage() {
                     key={configuration.id}
                     value={configuration.id}
                     disabled={
-                      new Date(configuration.effective_from) > new Date()
+                      new Date(configuration.effective_from) > businessNow()
                     }
                   >
                     {configuration.name} · version {configuration.revision}

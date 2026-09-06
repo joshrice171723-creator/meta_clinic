@@ -3,7 +3,7 @@ module Clinic
     class Receiving
       # One request is a delivery with one or more lot allocations. Costs are per
       # input unit, unknown remains null; this does not order goods or bill fees.
-      def self.call(practice:, actor:, lines:, reason:, request_key:, supplier: nil, invoice_reference: nil, purchase_order: nil, shipment: nil, status: "received", recall: nil, received_at: Time.current, reconciliation: nil)
+      def self.call(practice:, actor:, lines:, reason:, request_key:, supplier: nil, invoice_reference: nil, purchase_order: nil, shipment: nil, status: "received", recall: nil, received_at: Current.business_time, reconciliation: nil)
         raise ArgumentError, "A receipt needs 1–100 lines." unless lines.is_a?(Array) && lines.size.between?(1, 100)
         raise ArgumentError, "Choose received or recall quarantine." unless %w[received quarantined].include?(status.to_s)
         raise ArgumentError, "Provide structured discrepancy counts." if reconciliation && !reconciliation.is_a?(Hash)

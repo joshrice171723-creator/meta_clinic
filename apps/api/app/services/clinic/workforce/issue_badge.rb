@@ -3,7 +3,7 @@ module Clinic
     class IssueBadge
       Result = Data.define(:badge, :token, :barcode_svg)
 
-      def self.call(employment:, actor_membership:, pin: nil, now: Time.current)
+      def self.call(employment:, actor_membership:, pin: nil, now: Current.business_time)
         raise ArgumentError, "Employment is not active" unless employment.active_for_work?(at: now)
         raise ArgumentError, "Actor and employee must belong to the same practice" unless actor_membership.practice_id == employment.practice_id
         validate_pin!(pin)

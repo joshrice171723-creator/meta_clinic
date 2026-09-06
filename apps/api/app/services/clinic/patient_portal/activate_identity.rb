@@ -3,7 +3,7 @@ module Clinic
     class ActivateIdentity
       class InvalidInvitation < StandardError; end
 
-      def self.call(token:, accepted_terms:, terms_version:, session:, now: Time.current)
+      def self.call(token:, accepted_terms:, terms_version:, session:, now: Current.business_time)
         raise InvalidInvitation unless accepted_terms && terms_version == Identity::TERMS_VERSION
 
         identity = nil

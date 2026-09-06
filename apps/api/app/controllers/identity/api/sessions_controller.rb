@@ -12,11 +12,14 @@ module Identity
       def csrf
         render json: { csrf_token: form_authenticity_token,
           development_login: DevelopmentAccess.allowed?(request),
+          environment: runtime_environment,
+          development_accounts: development_accounts,
+          business_date: Current.business_date.iso8601,
           clinic_available: !Rails.env.production? || Staging::DemoClinic.available_to?(current_user) }
       end
 
       def show
-        render json: { user: current_user.as_json(only: %i[id email_address admin]).merge(development_demo: !!development_demo?) }
+        render json: { user: session_user(current_user) }
       end
 
       def create
@@ -30,6 +33,7 @@ module Identity
       def development
         return head :not_found unless DevelopmentAccess.allowed?(request)
 
+        business_date = session[:development_business_date]
         profile = params[:profile]
         named_profile = params.key?(:profile)
         if named_profile
@@ -39,9 +43,14 @@ module Identity
           user = Development::DemoAccount.create!
         end
         establish_session(user)
+        session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
         session[:development_test_profile] = profile.to_s if named_profile
-        render json: { development_demo: true }, status: :created
+        preview = Development::TestAccounts.preview_account_for(user)
+        render json: {
+          user: session_user(user),
+          destination: preview&.fetch(:destination, nil) || "/portal"
+        }, status: :created
       end
 
       def destroy
@@ -50,7 +59,47 @@ module Identity
         head :no_content
       end
 
+      def development_date
+        return head :not_found unless DevelopmentAccess.allowed?(request)
+
+        value = params[:date].to_s
+        if value.present?
+          date = Date.iso8601(value)
+          unless (Date.new(2000, 1, 1)..Date.new(2100, 12, 31)).cover?(date)
+            return render json: { error: "Choose a date between 2000 and 2100." }, status: :unprocessable_entity
+          end
+          session[:development_business_date] = date.iso8601
+        else
+          session.delete(:development_business_date)
+          date = Date.current
+        end
+        Current.business_date = date
+        render json: { business_date: date.iso8601 }
+      rescue Date::Error
+        render json: { error: "Choose a valid date." }, status: :unprocessable_entity
+      end
+
       private
+
+      def session_user(user)
+        preview = Development::TestAccounts.preview_account_for(user) if development_demo?
+        user.as_json(only: %i[id email_address admin]).merge(
+          development_demo: !!development_demo?,
+          development_account_id: preview&.fetch(:id, nil)
+        )
+      end
+
+      def development_accounts
+        DevelopmentAccess.allowed?(request) ? Development::TestAccounts.preview_accounts : []
+      end
+
+      def runtime_environment
+        deployment = ENV["APP_DEPLOYMENT_ENV"].to_s.downcase
+        return "test" if Rails.env.test? || deployment == "staging"
+        return "production" if Rails.env.production? || deployment == "production"
+
+        "development"
+      end
 
       def invalid_credentials
         render json: { error: "Email or password is incorrect." }, status: :unauthorized

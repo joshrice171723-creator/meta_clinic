@@ -328,7 +328,7 @@ module Clinic
             supplier_reference = input.require(:supplier_reference).to_s.strip
             raise ArgumentError, "Shipment reference is required." if reference.blank?
             raise ArgumentError, "Supplier delivery reference is required." if supplier_reference.blank?
-            delivered_at = input[:delivered_at].present? ? Time.iso8601(input[:delivered_at].to_s) : Time.current
+            delivered_at = input[:delivered_at].present? ? Time.iso8601(input[:delivered_at].to_s) : Current.business_time
             shipment = current_practice.inventory_shipments.create!(
               actor: current_user,
               purchase_order: order,

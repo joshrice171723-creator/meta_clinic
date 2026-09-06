@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class RevokeAccess
-      def self.call(grant:, grantor:, at: Time.current)
+      def self.call(grant:, grantor:, at: Current.business_time)
         raise Denied, "The grantor must belong to the grant practice." unless grant.practice_id == grantor.clinic_membership&.practice_id
 
         Authorization.authorize!(actor: grantor, practice: grant.practice, action: "roles.manage", site: grant.site)

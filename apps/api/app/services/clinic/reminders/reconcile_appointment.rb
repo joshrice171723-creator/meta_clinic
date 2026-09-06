@@ -5,7 +5,7 @@ module Clinic
         reminders = Clinic::PatientReminder.where(practice_id: appointment.practice_id, source_type: "Clinic::Appointment", source_id: appointment.id).active
         reminders.find_each do |reminder|
           if appointment.status == "cancelled"
-            reminder.update!(status: "cancelled", cancelled_at: Time.current, cancel_reason: "source_appointment_cancelled")
+            reminder.update!(status: "cancelled", cancelled_at: Current.business_time, cancel_reason: "source_appointment_cancelled")
             reminder.outbox.update!(dispatch_state: "suppressed")
           elsif appointment.saved_change_to_starts_at?
             scheduled = appointment.starts_at - 72.hours

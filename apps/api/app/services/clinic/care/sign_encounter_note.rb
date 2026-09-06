@@ -3,7 +3,7 @@ require "digest"
 module Clinic
   module Care
     class SignEncounterNote
-      def self.call(note:, actor:, revision_no:, content_digest:, attestation_version:, signed_at: Time.current)
+      def self.call(note:, actor:, revision_no:, content_digest:, attestation_version:, signed_at: Current.business_time)
         Authorization.authorize!(actor: actor, practice: note.practice, action: "notes.sign", site: note.encounter.site)
         signer_membership = note.practice.memberships.find_by!(user: actor)
 

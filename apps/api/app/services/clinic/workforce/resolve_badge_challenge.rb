@@ -12,7 +12,7 @@ module Clinic
       )
       LIFETIME = 60.seconds
 
-      def self.call(kiosk_session:, badge_token:, pin: nil, input_method: "scanner", now: Time.current)
+      def self.call(kiosk_session:, badge_token:, pin: nil, input_method: "scanner", now: Current.business_time)
         raise Rejected, "Badge could not be verified" unless kiosk_session.active?(at: now)
         settings = EffectiveSettings.call(practice: kiosk_session.practice, site: kiosk_session.site, at: now)
         values = settings.fetch(:values)

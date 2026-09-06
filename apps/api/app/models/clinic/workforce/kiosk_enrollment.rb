@@ -19,7 +19,7 @@ module Clinic
       validates :token_digest, presence: true, length: { is: 64 }, uniqueness: true
       validates :status, inclusion: { in: %w[issued enrolled revoked expired] }
 
-      def available?(at: Time.current)
+      def available?(at: Current.business_time)
         status == "issued" && enrolled_at.nil? && revoked_at.nil? && expires_at > at
       end
     end

@@ -6,7 +6,7 @@ module Launch
     validates :title, length: { maximum: 200 }
     validates :summary, length: { maximum: 500 }
     scope :published, -> {
-      records = where("published_at <= ?", Time.current)
+      records = where("published_at <= ?", Current.business_time)
       DemoContent.enabled? ? records : records.where(sample: false)
     }
   end

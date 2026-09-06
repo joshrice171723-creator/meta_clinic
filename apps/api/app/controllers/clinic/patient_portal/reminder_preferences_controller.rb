@@ -17,7 +17,7 @@ module Clinic
         version = current ? current.version + 1 : 1
         preference = portal_practice.communication_preferences.create!(patient: portal_patient, category: "operational", channel: channel,
           setting: setting, quiet_hours_start: input[:quiet_hours_start].presence, quiet_hours_end: input[:quiet_hours_end].presence,
-          timezone: timezone, locale: input[:locale].presence || "en-US", effective_at: Time.current, source: "patient_portal", version: version)
+          timezone: timezone, locale: input[:locale].presence || "en-US", effective_at: Current.business_time, source: "patient_portal", version: version)
         record_portal_read("patient_portal.reminder_preferences.update")
         render json: { preference: preference_payload(preference) }, status: :created
       end

@@ -21,6 +21,16 @@ export type User = {
   email_address: string;
   admin: boolean;
   development_demo?: boolean;
+  development_account_id?: string | null;
+};
+export type RuntimeEnvironment =
+  "development" | "test" | "production" | "unknown";
+export type DevelopmentAccount = {
+  id: string;
+  label: string;
+  email_address: string;
+  account_type: "employee" | "customer";
+  destination: string;
 };
 export type PatientPortalContext = {
   schema_version: "patient-portal-context-v1";

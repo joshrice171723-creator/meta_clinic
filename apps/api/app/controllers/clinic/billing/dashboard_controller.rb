@@ -31,7 +31,7 @@ module Clinic
 
         value = params[:outlook_start].to_s
         date = Date.strptime("#{value}-01", "%Y-%m-%d") if /\A\d{4}-\d{2}\z/.match?(value)
-        current = Time.current.in_time_zone(current_practice.timezone).to_date.beginning_of_month
+        current = Current.business_time.in_time_zone(current_practice.timezone).to_date.beginning_of_month
         unless date && date.between?(current.next_month, current + 24.months)
           raise ArgumentError
         end

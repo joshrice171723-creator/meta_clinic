@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::Base
   protect_from_forgery with: :exception
   before_action :prevent_caching
+  around_action :use_business_date
 
   rescue_from ActionController::InvalidAuthenticityToken do
     render json: { error: "Your session expired. Please try again." }, status: :unprocessable_entity
@@ -13,6 +14,19 @@ class ApplicationController < ActionController::Base
   end
 
   private
+
+  def use_business_date
+    if DevelopmentAccess.allowed?(request) && session[:development_business_date].present?
+      begin
+        Current.business_date = Date.iso8601(session[:development_business_date])
+      rescue Date::Error
+        session.delete(:development_business_date)
+      end
+    end
+    yield
+  ensure
+    Current.reset
+  end
 
   def prevent_caching
     response.headers["Cache-Control"] = "no-store"

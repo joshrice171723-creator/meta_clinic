@@ -12,7 +12,7 @@ module Clinic
     validate :valid_effective_window
     validate :same_patient_and_practice
 
-    scope :current, ->(at = Time.current) { where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at) }
+    scope :current, ->(at = Current.business_time) { where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at) }
     scope :queue_providers, -> { where(participation_role: "queue_provider") }
 
     private

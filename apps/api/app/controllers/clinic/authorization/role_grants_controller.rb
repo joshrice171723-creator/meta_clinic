@@ -21,7 +21,7 @@ module Clinic
           role_version: role_version,
           scope_kind: enum_param!(input[:scope_kind], field: :scope_kind, allowed: %w[practice site]),
           site: site,
-          effective_from: input[:effective_from].present? ? time_param!(input[:effective_from], field: :effective_from) : Time.current,
+          effective_from: input[:effective_from].present? ? time_param!(input[:effective_from], field: :effective_from) : Current.business_time,
           effective_until: input[:effective_until].present? ? time_param!(input[:effective_until], field: :effective_until) : nil
         )
         render json: { grant: AuthorizationSerializer.role_grant(grant, detail: true) }, status: :created

@@ -93,6 +93,43 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "development account choices switch to persisted employee and customer principals" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      practice = Clinic::Practice.create!(name: "Development account switch test")
+      employee = User.create!(email_address: "clinician1@test.com", password: SecureRandom.hex(20))
+      membership = Clinic::Membership.create!(practice: practice, user: employee)
+      role = RoleVersion.create!(role_code: "dev-seed-clinician", version: 1)
+      membership.role_grants.create!(practice: practice, role_version: role, scope_kind: "practice",
+        effective_from: 1.minute.ago, revision: 1)
+
+      get "/api/csrf", headers: @headers
+      assert_response :success
+      assert_equal "development", response.parsed_body.fetch("environment")
+      choices = response.parsed_body.fetch("development_accounts")
+      assert_includes choices.pluck("id"), "employee-clinician"
+      assert_includes choices.pluck("id"), "customer-client-a"
+      assert_equal %w[customer employee], choices.pluck("account_type").uniq.sort
+
+      enter("employee-clinician")
+      assert_response :created
+      persisted = User.find_by!(email_address: "clinician1@test.com")
+      assert_equal persisted.id, response.parsed_body.dig("user", "id")
+      assert_equal "employee-clinician", response.parsed_body.dig("user", "development_account_id")
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
+      assert_equal persisted.id, MemberSession.order(:id).last.user_id
+      get "/api/session", headers: @headers
+      assert_equal persisted.id, response.parsed_body.dig("user", "id")
+
+      enter("customer-client-a")
+      assert_response :created
+      customer = User.find_by!(email_address: "test-client-a@example.invalid")
+      assert_equal customer.id, response.parsed_body.dig("user", "id")
+      assert_equal "customer-client-a", response.parsed_body.dig("user", "development_account_id")
+      assert_equal "/portal", response.parsed_body.fetch("destination")
+    end
+  end
+
   test "admin is explicitly scoped and ordinary test clients cannot self-elevate" do
     local_mode do
       Development::TestAccounts.prepare!

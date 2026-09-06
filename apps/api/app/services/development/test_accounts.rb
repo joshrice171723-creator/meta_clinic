@@ -11,8 +11,32 @@ module Development
       "disabled" => { email: "test-disabled@example.invalid", admin: false, active: false }
     }.transform_values(&:freeze).freeze
 
+    PREVIEW_ACCOUNTS = [
+      { id: "employee-administrator", email: "admin@test.com", label: "Administrator", account_type: "employee",
+        destination: "/clinic", role_code: "dev-seed-administrator" },
+      { id: "employee-clinician", email: "clinician1@test.com", label: "Clinician", account_type: "employee",
+        destination: "/clinic", role_code: "dev-seed-clinician" },
+      { id: "employee-staff", email: "staff1@test.com", label: "Clinic staff", account_type: "employee",
+        destination: "/clinic", role_code: "dev-seed-staff" },
+      { id: "employee-front-desk", email: "frontdesk@test.com", label: "Front desk", account_type: "employee",
+        destination: "/clinic", role_code: "dev-seed-front-desk" },
+      { id: "employee-inventory", email: "inventory1@test.com", label: "Inventory coordinator", account_type: "employee",
+        destination: "/clinic/inventory", role_code: "dev-seed-inventory" },
+      { id: "employee-billing", email: "billing1@test.com", label: "Billing specialist", account_type: "employee",
+        destination: "/clinic/billing", role_code: "dev-seed-billing" },
+      { id: "employee-read-only", email: "reader@test.com", label: "Read-only employee", account_type: "employee",
+        destination: "/clinic", role_code: "dev-seed-reader" },
+      { id: "customer-client-a", profile: "client-a", label: "Customer A", account_type: "customer",
+        destination: "/portal" },
+      { id: "customer-client-b", profile: "client-b", label: "Customer B", account_type: "customer",
+        destination: "/portal" },
+      { id: "customer-patient", profile: "patient", label: "Patient account", account_type: "customer",
+        destination: "/patient-portal" }
+    ].map(&:freeze).freeze
+
     def self.reserved_email?(email)
-      PROFILES.values.any? { |profile| profile[:email] == email }
+      PROFILES.values.any? { |profile| profile[:email] == email } ||
+        PREVIEW_ACCOUNTS.any? { |account| account[:email] == email }
     end
 
     def self.omni?(user)
@@ -29,6 +53,9 @@ module Development
     end
 
     def self.matches?(user, profile)
+      preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
+      return preview_user(preview, authenticate: false)&.id == user&.id if preview
+
       settings = PROFILES[profile]
       return false unless settings && user.email_address == settings[:email]
       return OmniAccess.profile_for(user).present? if settings[:omni]
@@ -38,10 +65,29 @@ module Development
 
     def self.sign_in_account(profile)
       ensure_local!
+      preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
+      return preview_user(preview) if preview
+
       settings = PROFILES[profile]
       return unless settings && settings[:active]
       user = User.find_by(email_address: settings[:email])
       user if user && user.active? && matches?(user, profile) && user.authenticate(password_for(profile))
+    end
+
+    def self.preview_accounts
+      ensure_local!
+      PREVIEW_ACCOUNTS.filter_map do |account|
+        user = preview_user(account, authenticate: false)
+        next unless user
+
+        account.slice(:id, :label, :account_type, :destination).merge(email_address: user.email_address)
+      end
+    end
+
+    def self.preview_account_for(user)
+      return unless user
+
+      PREVIEW_ACCOUNTS.find { |account| preview_user(account, authenticate: false)&.id == user.id }
     end
 
     def self.prepare!
@@ -128,6 +174,28 @@ module Development
       raise Unavailable, "Named test accounts require explicitly enabled local development."
     end
     private_class_method :ensure_local!
+
+    def self.preview_user(account, authenticate: true)
+      return unless account
+      if account[:profile]
+        profile = account.fetch(:profile)
+        settings = PROFILES.fetch(profile)
+        user = User.find_by(email_address: settings.fetch(:email))
+        return unless user&.active? && user.admin? == settings.fetch(:admin)
+        return unless !authenticate || user.authenticate(password_for(profile))
+
+        return user
+      end
+
+      user = User.find_by(email_address: account.fetch(:email))
+      membership = user&.clinic_membership
+      return unless user&.active? && membership&.active?
+
+      grant_matches = membership.role_grants.active.joins(:role_version)
+        .exists?(role_versions: { role_code: account.fetch(:role_code) })
+      user if grant_matches
+    end
+    private_class_method :preview_user
 
     def self.password_for(profile)
       # A per-installation opaque verifier proves fixture ownership without a published

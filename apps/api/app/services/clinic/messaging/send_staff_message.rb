@@ -12,7 +12,8 @@ module Clinic
 
         due_at = response_due_at.present? ? response_due_at.to_time : nil
         if message_class != "routine"
-          raise ArgumentError, "A response target is required for this message class." unless due_at && due_at > Time.current && due_at <= 30.days.from_now
+          business_now = Current.business_time
+          raise ArgumentError, "A response target is required for this message class." unless due_at && due_at > business_now && due_at <= business_now + 30.days
           raise ArgumentError, "An accountable staff member is required for this message class." unless assignee_membership_id.present?
         end
         assignee = assignee_membership_id.present? ? StaffPolicy.member_in_conversation!(conversation: conversation, membership_id: assignee_membership_id) : nil
@@ -40,7 +41,7 @@ module Clinic
             if message_class != "routine"
               message.create_request!(practice: practice, assignee_membership: assignee.membership, due_at: due_at)
             end
-            now = Time.current
+            now = Current.business_time
             conversation.members.active.where.not(membership_id: member.id).find_each do |recipient|
               message.receipts.create!(practice: practice, recipient_membership: recipient.membership, delivered_at: now)
               preference = Clinic::StaffNotificationPreference.find_or_create_by!(practice_id: practice.id, membership_id: recipient.membership_id)

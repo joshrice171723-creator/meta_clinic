@@ -4,7 +4,7 @@ module Clinic
       def self.call(practice:, actor:, conversation:)
         member = StaffPolicy.authorize!(practice: practice, actor: actor, action: "staff_messaging.read", site_id: conversation.site_id)
         StaffPolicy.member_in_conversation!(conversation: conversation, membership_id: member.id)
-        now = Time.current
+        now = Current.business_time
         conversation.messages.where.not(sender_membership_id: member.id).find_each do |message|
           message.receipts.where(recipient_membership_id: member.id, read_at: nil).update_all(read_at: now, presented_at: now)
         end

@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class GrantAccess
-      def self.call(grantor:, membership:, role_version:, scope_kind:, site: nil, effective_from: Time.current, effective_until: nil)
+      def self.call(grantor:, membership:, role_version:, scope_kind:, site: nil, effective_from: Current.business_time, effective_until: nil)
         raise Denied, "A grant cannot elevate its own account." if grantor.id == membership.user_id
         practice = membership.practice
         Authorization.authorize!(actor: grantor, practice: practice, action: "roles.manage", site: site)

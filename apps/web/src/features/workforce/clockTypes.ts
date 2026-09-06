@@ -1,3 +1,5 @@
+import { businessNow } from "../../shared/businessDate";
+
 export type PunchEvent = "clock_in" | "break_start" | "break_end" | "clock_out";
 
 export type BadgeRecord = {
@@ -139,7 +141,7 @@ export function formatMinutes(minutes: number | null) {
 }
 
 export function currentWeekStart() {
-  const date = new Date();
+  const date = businessNow();
   const day = date.getDay();
   date.setDate(date.getDate() - day);
   return date.toISOString().slice(0, 10);
