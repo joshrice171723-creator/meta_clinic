@@ -350,6 +350,8 @@ export type ClinicCapabilities = {
   staff_messaging_send?: boolean;
   staff_messaging_create_conversation?: boolean;
   staff_messaging_acknowledge?: boolean;
+  staff_messaging_transition?: boolean;
+  staff_messaging_escalate?: boolean;
   reminders?: boolean;
   reminders_write?: boolean;
   billing: boolean;

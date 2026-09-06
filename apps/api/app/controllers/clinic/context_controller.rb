@@ -40,6 +40,8 @@ module Clinic
           staff_messaging_send: allowed?("staff_messaging.send"),
           staff_messaging_create_conversation: allowed?("staff_messaging.create_conversation"),
           staff_messaging_acknowledge: allowed?("staff_messaging.acknowledge"),
+          staff_messaging_transition: allowed?("staff_messaging.transition"),
+          staff_messaging_escalate: allowed?("staff_messaging.escalate"),
           reminders: allowed?("reminders.read"),
           reminders_write: allowed?("reminders.write"),
           billing: allowed?("billing.read") || allowed?("billing.write"),
