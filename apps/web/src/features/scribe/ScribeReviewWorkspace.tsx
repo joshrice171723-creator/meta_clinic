@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ReactNode,
@@ -66,6 +67,8 @@ export type ScribeReviewWorkspaceProps = {
     sectionKey: ScribeDraftSection["section_key"],
   ) => void | Promise<void>;
   pendingAction?: string | null;
+  onUnsavedEditsChange?: (hasUnsavedEdits: boolean) => void;
+  discardEditsToken?: number;
 };
 
 const encounterStatusLabels: Record<ScribeEncounter["status"], string> = {
@@ -690,11 +693,18 @@ export function ScribeReviewWorkspace({
   onAcceptSection,
   onRejectSection,
   pendingAction = null,
+  onUnsavedEditsChange,
+  discardEditsToken,
 }: ScribeReviewWorkspaceProps) {
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(
     null,
   );
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const editContextRef = useRef<{
+    encounterId: number;
+    baseline: Record<string, string>;
+  } | null>(null);
+  const discardTokenRef = useRef(discardEditsToken);
 
   const encounter = state.kind === "ready" ? state.encounter : undefined;
   const draft = useMemo(
@@ -706,26 +716,49 @@ export function ScribeReviewWorkspace({
     [encounter, draft],
   );
   const reviewSummary = reviewStateSummary(draft, source);
-  const hasUnsavedEdits = hasUnsavedDraftEdits(draft, edits);
+  const hasUnsavedEdits = draft
+    ? hasUnsavedDraftEdits(draft, edits)
+    : Object.entries(edits).some(
+        ([key, value]) =>
+          value !== (editContextRef.current?.baseline[key] ?? ""),
+      );
   const staleDraft = Boolean(
     draft && ["superseded", "deleted"].includes(draft.status),
   );
 
   useEffect(() => {
-    setSelectedSegmentId(null);
-    setEdits(
-      draft
-        ? Object.fromEntries(
-            draft.sections
-              .filter((section) => section.human_content !== null)
-              .map((section) => [
-                section.section_key,
-                section.human_content ?? "",
-              ]),
-          )
-        : {},
+    if (!encounter || !draft) return;
+    const serverEdits = Object.fromEntries(
+      draft.sections.map((section) => [
+        section.section_key,
+        section.human_content ?? "",
+      ]),
     );
-  }, [draft?.id, draft?.version]);
+    const previous = editContextRef.current;
+    setSelectedSegmentId(null);
+    setEdits((current) => {
+      if (!previous || previous.encounterId !== encounter.id) return serverEdits;
+      return Object.fromEntries(
+        draft.sections.map((section) => {
+          const key = section.section_key;
+          const wasDirty =
+            key in current && current[key] !== (previous.baseline[key] ?? "");
+          return [key, wasDirty ? current[key] : serverEdits[key]];
+        }),
+      );
+    });
+    editContextRef.current = { encounterId: encounter.id, baseline: serverEdits };
+  }, [encounter?.id, draft?.id, draft?.version]);
+
+  useEffect(() => {
+    if (discardTokenRef.current === discardEditsToken) return;
+    discardTokenRef.current = discardEditsToken;
+    setEdits({ ...(editContextRef.current?.baseline ?? {}) });
+  }, [discardEditsToken]);
+
+  useEffect(() => {
+    onUnsavedEditsChange?.(hasUnsavedEdits);
+  }, [hasUnsavedEdits, onUnsavedEditsChange]);
 
   useEffect(() => {
     if (!hasUnsavedEdits || typeof window === "undefined") return;
@@ -1080,10 +1113,26 @@ export function ScribeReviewWorkspace({
                 </Typography>
                 {hasUnsavedEdits && (
                   <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
-                    Unsaved reviewer edits are visible only in this review
-                    session. Save them through the server-authorized integration
-                    or discard them before leaving; approval and export remain
-                    blocked.
+                    <Stack spacing={1}>
+                      <Typography>
+                        Unsaved reviewer edits are visible only in this review
+                        session. Save them through the server-authorized integration
+                        or discard them before leaving; approval and export remain
+                        blocked.
+                      </Typography>
+                      <Button
+                        color="warning"
+                        variant="outlined"
+                        disabled={pendingAction !== null}
+                        onClick={() => {
+                          const baseline = editContextRef.current?.baseline ?? {};
+                          setEdits({ ...baseline });
+                        }}
+                        sx={{ alignSelf: "flex-start" }}
+                      >
+                        Discard unsaved edits
+                      </Button>
+                    </Stack>
                   </Alert>
                 )}
                 <Box

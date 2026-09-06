@@ -41,13 +41,13 @@ module Clinic
 
         def ingest_transcript(encounter:, actor:, content:, segments: [], metadata: {})
           authorize!(encounter, actor, "scribe.write")
-          ensure_processing_allowed!(encounter)
           content = content.to_s.strip
           raise ArgumentError, "A transcript is required." if content.blank?
           raise ArgumentError, "The transcript is too large." if content.bytesize > 250_000
           digest = Digest::SHA256.hexdigest(content)
           source = nil
           encounter.with_lock do
+            ensure_processing_allowed!(encounter)
             source = encounter.sources.find_by(content_digest: digest, status: %w[ready incomplete])
             unless source
               source = encounter.sources.create!(practice: encounter.practice, imported_by: actor, source_type: "transcript",
@@ -68,13 +68,14 @@ module Clinic
 
         def generate_draft(encounter:, actor:)
           authorize!(encounter, actor, "scribe.write")
-          ensure_processing_allowed!(encounter)
-          source = encounter.sources.where(status: "ready").order(:id).last || raise(ArgumentError, "A ready transcript is required.")
-          source_segments = source.segments.order(:sequence).to_a
-          sections = DraftGenerator.call(source_segments)
-          output_digest = Digest::SHA256.hexdigest(sections.values.map { |value| value.fetch(:content).to_s }.join("\u0000"))
           draft = nil
           encounter.with_lock do
+            ensure_processing_allowed!(encounter)
+            source = encounter.sources.where(status: "ready").order(:id).last || raise(ArgumentError, "A ready transcript is required.")
+            raise ArgumentError, "A ready transcript is required." unless source.status == "ready"
+            source_segments = source.segments.order(:sequence).to_a
+            sections = DraftGenerator.call(source_segments)
+            output_digest = Digest::SHA256.hexdigest(sections.values.map { |value| value.fetch(:content).to_s }.join("\u0000"))
             encounter.drafts.where(status: %w[draft in_review]).update_all(status: "superseded")
             draft = encounter.drafts.create!(practice: encounter.practice, source: source, created_by: actor, status: "in_review",
               template_id: encounter.template_id, template_version: encounter.template_version,

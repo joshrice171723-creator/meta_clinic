@@ -86,6 +86,8 @@ export function LiveScribeReviewWorkspace() {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [outcomeUnknown, setOutcomeUnknown] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [hasUnsavedReviewEdits, setHasUnsavedReviewEdits] = useState(false);
+  const [discardEditsToken, setDiscardEditsToken] = useState(0);
 
   const isCurrent = useCallback(
     (requestScope: string) => mounted.current && scopeRef.current === requestScope,
@@ -121,6 +123,7 @@ export function LiveScribeReviewWorkspace() {
     setActionError(null);
     setOutcomeUnknown(null);
     setConfirmation(null);
+    setHasUnsavedReviewEdits(false);
   }, [scopeKey]);
 
   const loadEncounter = useCallback(async (encounterId: number) => {
@@ -206,6 +209,10 @@ export function LiveScribeReviewWorkspace() {
 
   const selectEncounter = (encounterId: number) => {
     if (encounterId === selectedEncounterRef.current) return;
+    if (hasUnsavedReviewEdits) {
+      setActionError("Save or discard the unsaved reviewer edits before switching encounters.");
+      return;
+    }
     selectedEncounterRef.current = encounterId;
     setSelectedEncounterId(encounterId);
     setEncounter(null);
@@ -291,6 +298,10 @@ export function LiveScribeReviewWorkspace() {
     const encounterId = selectedEncounterRef.current;
     const content = transcript.trim();
     if (!encounterId || !content) return Promise.resolve();
+    if (hasUnsavedReviewEdits) {
+      setActionError("Save or discard the unsaved reviewer edits before importing another transcript.");
+      return Promise.reject(new Error("Unsaved reviewer edits must be resolved first."));
+    }
     return runMutation("source", async () => {
       await api(`/api/clinic/scribe/encounters/${encounterId}/sources`, {
         method: "POST",
@@ -306,6 +317,10 @@ export function LiveScribeReviewWorkspace() {
   const generateDraft = () => {
     const encounterId = selectedEncounterRef.current;
     if (!encounterId) return Promise.resolve();
+    if (hasUnsavedReviewEdits) {
+      setActionError("Save or discard the unsaved reviewer edits before generating another draft.");
+      return Promise.reject(new Error("Unsaved reviewer edits must be resolved first."));
+    }
     return runMutation("generate", async () => {
       await api(`/api/clinic/scribe/encounters/${encounterId}/generate`, { method: "POST", body: {} });
       if (isCurrent(scopeKey) && selectedEncounterRef.current === encounterId) await loadEncounter(encounterId);
@@ -395,6 +410,22 @@ export function LiveScribeReviewWorkspace() {
   return (
     <Stack spacing={2.5}>
       {actionError && <Alert severity="error">{actionError}</Alert>}
+      {hasUnsavedReviewEdits && (
+        <Alert
+          severity="warning"
+          action={
+            <Button
+              color="inherit"
+              disabled={pendingAction !== null}
+              onClick={() => setDiscardEditsToken((current) => current + 1)}
+            >
+              Discard edits
+            </Button>
+          }
+        >
+          Save or explicitly discard reviewer edits before changing the encounter or source revision.
+        </Alert>
+      )}
       {outcomeUnknown && (
         <Alert severity="warning" action={<Button color="inherit" onClick={() => void loadIndex(selectedEncounterRef.current ?? undefined)}>Reload</Button>}>
           {outcomeUnknown}
@@ -446,8 +477,8 @@ export function LiveScribeReviewWorkspace() {
             </Stack>}
             <TextField label="Imported transcript" multiline minRows={5} value={transcript} onChange={(event) => setTranscript(event.target.value)} disabled={!processingAllowed || pendingAction !== null} helperText="Paste only an authorized transcript. The server stores it as protected source evidence; no microphone or cloud provider is used here." slotProps={{ htmlInput: { maxLength: 250000 } }} />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button variant="contained" disabled={!processingAllowed || !transcript.trim() || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void importSource().catch(() => undefined)}>Import transcript</Button>
-              <Button variant="outlined" disabled={!processingAllowed || !encounter.sources.some(({ status }) => status === "ready") || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void generateDraft().catch(() => undefined)}>Generate local grounded draft</Button>
+              <Button variant="contained" disabled={!processingAllowed || !transcript.trim() || hasUnsavedReviewEdits || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void importSource().catch(() => undefined)}>Import transcript</Button>
+              <Button variant="outlined" disabled={!processingAllowed || !encounter.sources.some(({ status }) => status === "ready") || hasUnsavedReviewEdits || pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => void generateDraft().catch(() => undefined)}>Generate local grounded draft</Button>
               {canDelete && <Button color="error" variant="outlined" disabled={pendingAction !== null || Boolean(outcomeUnknown)} onClick={() => setConfirmation({ kind: "delete", encounterId: encounter.id, encounterVersion: encounter.version, scopeKey })}>Delete encounter content</Button>}
             </Stack>
           </Stack>
@@ -458,6 +489,8 @@ export function LiveScribeReviewWorkspace() {
         key={`${scopeKey}:${encounter?.id ?? "none"}`}
         state={reviewState}
         pendingAction={pendingAction}
+        onUnsavedEditsChange={setHasUnsavedReviewEdits}
+        discardEditsToken={discardEditsToken}
         onRetry={() => selectedEncounterRef.current ? void loadEncounter(selectedEncounterRef.current) : void loadIndex()}
         onSaveSection={canWrite && draft ? (draftId, sectionKey, content) => reviewSection(draftId, draft.version, sectionKey, "edit", content) : undefined}
         onAcceptSection={canWrite && draft ? (draftId, sectionKey) => reviewSection(draftId, draft.version, sectionKey, "accept") : undefined}
