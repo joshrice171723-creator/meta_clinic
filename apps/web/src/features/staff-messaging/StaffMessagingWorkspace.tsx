@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -22,6 +22,12 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 
 export type StaffMessageClass =
   "routine" | "time_sensitive" | "urgent" | "safety_critical";
+
+export type StaffRequestTransitionState =
+  | "acknowledged"
+  | "in_progress"
+  | "resolved"
+  | "declined";
 
 export type StaffMessage = {
   id: number;
@@ -54,6 +60,9 @@ export type StaffConversation = {
   lastMessageAt: string;
   lastMessageClass: StaffMessageClass;
   messages: StaffMessage[];
+  messagePage?: number;
+  messageTotalPages?: number;
+  loadingEarlierMessages?: boolean;
 };
 
 export type StaffMessagingState = {
@@ -63,6 +72,9 @@ export type StaffMessagingState = {
   canAcknowledge: boolean;
   canTransition?: boolean;
   canEscalate?: boolean;
+  conversationPage?: number;
+  conversationTotalPages?: number;
+  loadingMoreConversations?: boolean;
   loading?: boolean;
   error?: string | null;
 };
@@ -73,7 +85,11 @@ type StaffMessagingWorkspaceProps = {
   onSend?: (conversationId: number, body: string) => void | Promise<void>;
   onAcknowledge?: (messageId: number) => void | Promise<void>;
   onTransitionRequest?: (requestId: number, state: "acknowledged" | "in_progress") => void | Promise<void>;
+  onResolveRequest?: (requestId: number) => void | Promise<void>;
+  onDeclineRequest?: (requestId: number) => void | Promise<void>;
   onEscalateRequest?: (requestId: number) => void | Promise<void>;
+  onLoadMoreConversations?: () => void | Promise<void>;
+  onLoadEarlierMessages?: (conversationId: number) => void | Promise<void>;
   onRetry?: () => void;
 };
 
@@ -203,16 +219,26 @@ function MessageCard({
   canTransition,
   canEscalate,
   onTransitionRequest,
+  onResolveRequest,
+  onDeclineRequest,
   onEscalateRequest,
+  pendingActions,
 }: {
   message: StaffMessage;
   canAcknowledge: boolean;
-  onAcknowledge?: (messageId: number) => void;
+  onAcknowledge?: (messageId: number) => void | Promise<void>;
   canTransition?: boolean;
   canEscalate?: boolean;
   onTransitionRequest?: (requestId: number, state: "acknowledged" | "in_progress") => void | Promise<void>;
+  onResolveRequest?: (requestId: number) => void | Promise<void>;
+  onDeclineRequest?: (requestId: number) => void | Promise<void>;
   onEscalateRequest?: (requestId: number) => void | Promise<void>;
+  pendingActions: ReadonlySet<string>;
 }) {
+  const request = message.request;
+  const requestIsActive = request && !["resolved", "declined", "expired"].includes(request.state);
+  const acknowledgementKey = `acknowledge:${message.id}`;
+
   return (
     <Paper
       component="article"
@@ -281,30 +307,41 @@ function MessageCard({
                 size="small"
                 variant="outlined"
                 startIcon={<MarkEmailReadOutlinedIcon />}
-                onClick={() => onAcknowledge?.(message.id)}
+                disabled={pendingActions.has(acknowledgementKey)}
+                onClick={() => void onAcknowledge?.(message.id)}
               >
                 Acknowledge
               </Button>
             )}
           </Stack>
         )}
-        {message.request && !["resolved", "declined", "expired"].includes(message.request.state) && (
+        {request && requestIsActive && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
             <Typography variant="body2" color="text.secondary">
-              Request: {message.request.state.replaceAll("_", " ")}
+              Request: {request.state.replaceAll("_", " ")}
             </Typography>
-            {canTransition && message.request.state === "open" && (
-              <Button size="small" variant="outlined" onClick={() => void onTransitionRequest?.(message.request!.id, "acknowledged")}>
+            {canTransition && request.state === "open" && (
+              <Button size="small" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onTransitionRequest?.(request.id, "acknowledged")}>
                 Acknowledge request
               </Button>
             )}
-            {canTransition && ["open", "acknowledged"].includes(message.request.state) && (
-              <Button size="small" variant="outlined" onClick={() => void onTransitionRequest?.(message.request!.id, "in_progress")}>
+            {canTransition && ["open", "acknowledged"].includes(request.state) && (
+              <Button size="small" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onTransitionRequest?.(request.id, "in_progress")}>
                 Start request
               </Button>
             )}
+            {canTransition && onResolveRequest && (
+              <Button size="small" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onResolveRequest?.(request.id)}>
+                Resolve
+              </Button>
+            )}
+            {canTransition && onDeclineRequest && (
+              <Button size="small" color="inherit" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onDeclineRequest?.(request.id)}>
+                Decline
+              </Button>
+            )}
             {canEscalate && (
-              <Button size="small" color="warning" variant="outlined" onClick={() => void onEscalateRequest?.(message.request!.id)}>
+              <Button size="small" color="warning" variant="outlined" disabled={pendingActions.has(`escalate:${request.id}`)} onClick={() => void onEscalateRequest?.(request.id)}>
                 Escalate
               </Button>
             )}
@@ -320,10 +357,19 @@ export function StaffMessagingWorkspace({
   onSelectConversation,
   onSend,
   onAcknowledge,
+  onTransitionRequest,
+  onResolveRequest,
+  onDeclineRequest,
+  onEscalateRequest,
+  onLoadMoreConversations,
+  onLoadEarlierMessages,
   onRetry,
 }: StaffMessagingWorkspaceProps) {
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [sendingConversationIds, setSendingConversationIds] = useState<Set<number>>(new Set());
+  const sendingConversationKeys = useRef(new Set<number>());
+  const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
+  const pendingActionKeys = useRef(new Set<string>());
   const selectedConversation = useMemo(
     () =>
       state.conversations.find(
@@ -380,18 +426,49 @@ export function StaffMessagingWorkspace({
   }
 
   const sendMessage = async () => {
+    const conversationId = selectedConversation.id;
+    const draft = drafts[conversationId] || "";
     const body = draft.trim();
-    if (!body || !state.canSend || sending) return;
-    setSending(true);
+    if (!body || !state.canSend || sendingConversationKeys.current.has(conversationId)) return;
+    sendingConversationKeys.current.add(conversationId);
+    setSendingConversationIds((current) => new Set(current).add(conversationId));
     try {
-      await onSend?.(selectedConversation.id, body);
-      setDraft("");
+      await onSend?.(conversationId, body);
+      setDrafts((current) => current[conversationId] === draft
+        ? { ...current, [conversationId]: "" }
+        : current);
     } catch {
       // The adapter owns the user-visible failure. Keep the draft for retry.
     } finally {
-      setSending(false);
+      sendingConversationKeys.current.delete(conversationId);
+      setSendingConversationIds((current) => {
+        const next = new Set(current);
+        next.delete(conversationId);
+        return next;
+      });
     }
   };
+
+  const runAction = async (key: string, action: () => void | Promise<void>) => {
+    if (pendingActionKeys.current.has(key)) return;
+    pendingActionKeys.current.add(key);
+    setPendingActions((current) => new Set(current).add(key));
+    try {
+      await action();
+    } catch {
+      // The live adapter owns the user-visible mutation error.
+    } finally {
+      pendingActionKeys.current.delete(key);
+      setPendingActions((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const selectedDraft = drafts[selectedConversation.id] || "";
+  const sending = sendingConversationIds.has(selectedConversation.id);
 
   return (
     <Box
@@ -560,6 +637,13 @@ export function StaffMessagingWorkspace({
                 </ListItemButton>
               ))}
             </List>
+            {(state.conversationPage || 1) < (state.conversationTotalPages || 1) && (
+              <Box sx={{ p: 1.5 }}>
+                <Button fullWidth variant="outlined" disabled={state.loadingMoreConversations} onClick={() => void onLoadMoreConversations?.()}>
+                  {state.loadingMoreConversations ? "Loading conversations…" : "Load more conversations"}
+                </Button>
+              </Box>
+            )}
           </Paper>
 
           <Paper
@@ -616,16 +700,24 @@ export function StaffMessagingWorkspace({
             </Box>
             <Divider />
             <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
+              {(selectedConversation.messagePage || 1) > 1 && (
+                <Button variant="outlined" disabled={selectedConversation.loadingEarlierMessages} onClick={() => void onLoadEarlierMessages?.(selectedConversation.id)}>
+                  {selectedConversation.loadingEarlierMessages ? "Loading earlier messages…" : "Load earlier messages"}
+                </Button>
+              )}
               {selectedConversation.messages.map((message) => (
                 <MessageCard
                   key={message.id}
                   message={message}
                   canAcknowledge={state.canAcknowledge}
-                  onAcknowledge={onAcknowledge}
+                  onAcknowledge={(messageId) => runAction(`acknowledge:${messageId}`, () => onAcknowledge?.(messageId))}
                   canTransition={state.canTransition}
                   canEscalate={state.canEscalate}
-                  onTransitionRequest={onTransitionRequest}
-                  onEscalateRequest={onEscalateRequest}
+                  onTransitionRequest={(requestId, requestState) => runAction(`request:${requestId}`, () => onTransitionRequest?.(requestId, requestState))}
+                  onResolveRequest={(requestId) => runAction(`request:${requestId}`, () => onResolveRequest?.(requestId))}
+                  onDeclineRequest={(requestId) => runAction(`request:${requestId}`, () => onDeclineRequest?.(requestId))}
+                  onEscalateRequest={(requestId) => runAction(`escalate:${requestId}`, () => onEscalateRequest?.(requestId))}
+                  pendingActions={pendingActions}
                 />
               ))}
               <Divider sx={{ my: 0.5 }} />
@@ -642,9 +734,9 @@ export function StaffMessagingWorkspace({
                     placeholder="Share the next accountable step…"
                     multiline
                     minRows={3}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    disabled={!state.canSend}
+                    value={selectedDraft}
+                    onChange={(event) => setDrafts((current) => ({ ...current, [selectedConversation.id]: event.target.value }))}
+                    disabled={!state.canSend || sending}
                     slotProps={{ htmlInput: { maxLength: 10000 } }}
                     helperText={
                       state.canSend
@@ -667,7 +759,7 @@ export function StaffMessagingWorkspace({
                       type="submit"
                       variant="contained"
                       endIcon={<SendRoundedIcon />}
-                      disabled={!state.canSend || sending || draft.trim().length === 0}
+                      disabled={!state.canSend || sending || selectedDraft.trim().length === 0}
                     >
                       Send message
                     </Button>
