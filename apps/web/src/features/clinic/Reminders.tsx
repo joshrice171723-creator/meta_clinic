@@ -5,6 +5,7 @@ import type { PatientReminder } from "../../api/contracts";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   MenuItem,
   Paper,
@@ -21,7 +22,16 @@ type StaffConversation = {
   status: string;
   participants: { id: number; email: string; active: boolean }[];
 };
-type StaffConversationResponse = { conversations: StaffConversation[] };
+type StaffConversationPagination = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+};
+type StaffConversationResponse = {
+  conversations: StaffConversation[];
+  pagination: StaffConversationPagination;
+};
 
 const HANDOFF_REASON_LABELS: Record<string, string> = {
   delivery_failed: "Delivery failed",
@@ -43,9 +53,7 @@ function StaffHandoffControl({
   const activeConversations = conversations.filter(
     (conversation) => conversation.status === "active",
   );
-  const [conversationId, setConversationId] = useState(() =>
-    activeConversations[0] ? String(activeConversations[0].id) : "",
-  );
+  const [conversationId, setConversationId] = useState("");
   const selectedConversation = activeConversations.find(
     (conversation) => String(conversation.id) === conversationId,
   );
@@ -53,29 +61,23 @@ function StaffHandoffControl({
     selectedConversation?.participants.filter(
       (participant) => participant.active,
     ) || [];
-  const [assigneeId, setAssigneeId] = useState(() =>
-    activeParticipants[0] ? String(activeParticipants[0].id) : "",
-  );
+  const [assigneeId, setAssigneeId] = useState("");
 
   useEffect(() => {
-    if (
-      activeConversations.length > 0 &&
-      !activeConversations.some(
-        (conversation) => String(conversation.id) === conversationId,
-      )
-    ) {
-      setConversationId(String(activeConversations[0].id));
+    if (conversationId && !selectedConversation) {
+      setConversationId("");
+      setAssigneeId("");
     }
-  }, [activeConversations, conversationId]);
+  }, [conversationId, selectedConversation]);
 
   useEffect(() => {
     if (
-      activeParticipants.length > 0 &&
+      assigneeId &&
       !activeParticipants.some(
         (participant) => String(participant.id) === assigneeId,
       )
     ) {
-      setAssigneeId(String(activeParticipants[0].id));
+      setAssigneeId("");
     }
   }, [activeParticipants, assigneeId]);
 
@@ -121,6 +123,9 @@ function StaffHandoffControl({
           value={conversationId}
           onChange={(event) => setConversationId(event.target.value)}
         >
+          <MenuItem disabled value="">
+            Choose a conversation
+          </MenuItem>
           {activeConversations.map((conversation) => (
             <MenuItem key={conversation.id} value={String(conversation.id)}>
               {conversation.title ||
@@ -136,14 +141,28 @@ function StaffHandoffControl({
           name="handoff[assignee_membership_id]"
           label="Assigned staff member"
           value={assigneeId}
+          disabled={!selectedConversation}
           onChange={(event) => setAssigneeId(event.target.value)}
         >
+          <MenuItem disabled value="">
+            Choose an assignee
+          </MenuItem>
           {activeParticipants.map((participant) => (
             <MenuItem key={participant.id} value={String(participant.id)}>
               {participant.email}
             </MenuItem>
           ))}
         </TextField>
+        <TextField
+          required
+          fullWidth
+          size="small"
+          type="datetime-local"
+          name="handoff[due_at]"
+          label="Response due"
+          slotProps={{ inputLabel: { shrink: true } }}
+          helperText="Choose a future time within 30 days."
+        />
       </Form>
     </Box>
   );
@@ -244,8 +263,9 @@ function HandoffEnabledReminderRows({
   canRetry: boolean;
   onRefresh: () => void;
 }) {
+  const [conversationPage, setConversationPage] = useState(1);
   const conversations = useResource<StaffConversationResponse>(
-    "/api/clinic/staff-messaging/conversations?per_page=100",
+    `/api/clinic/staff-messaging/conversations?per_page=100&page=${conversationPage}`,
   );
   if (!conversations.data && !conversations.error) {
     return (
@@ -268,6 +288,35 @@ function HandoffEnabledReminderRows({
           Staff conversations are unavailable. {conversations.error}
         </Alert>
       )}
+      {conversations.data && conversations.data.pagination.total_pages > 1 && (
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ mb: 2 }}
+          aria-label="Staff conversation pages"
+        >
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={conversationPage <= 1}
+            onClick={() => setConversationPage((page) => page - 1)}
+          >
+            Previous conversations
+          </Button>
+          <Typography variant="body2" color="text.secondary">
+            Page {conversations.data.pagination.page} of {conversations.data.pagination.total_pages}
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={conversationPage >= conversations.data.pagination.total_pages}
+            onClick={() => setConversationPage((page) => page + 1)}
+          >
+            More conversations
+          </Button>
+        </Stack>
+      )}
       <ReminderRows
         reminders={reminders}
         canRetry={canRetry}
@@ -281,8 +330,17 @@ function HandoffEnabledReminderRows({
 export function Reminders() {
   const { capabilities } = useClinic();
   const [recoveryNotice, setRecoveryNotice] = useState("");
+  const reminderIdParam = new URLSearchParams(window.location.search).get(
+    "reminder_id",
+  );
+  const reminderId =
+    reminderIdParam && /^[1-9]\d*$/.test(reminderIdParam)
+      ? reminderIdParam
+      : null;
   const resource = useResource<ReminderResponse>(
-    "/api/clinic/reminders?per_page=50",
+    reminderId
+      ? `/api/clinic/reminders?reminder_id=${reminderId}&per_page=50`
+      : "/api/clinic/reminders?per_page=50",
   );
   const reminders = resource.data?.reminders || [];
   return (
@@ -328,6 +386,19 @@ export function Reminders() {
         </Paper>
       </Stack>
       {resource.error && <Alert severity="error">{resource.error}</Alert>}
+      {reminderId && (
+        <Alert
+          severity="info"
+          action={
+            <Button color="inherit" size="small" href="/clinic/reminders">
+              Back to all reminders
+            </Button>
+          }
+          sx={{ mb: 2 }}
+        >
+          Showing the source reminder for a staff follow-up.
+        </Alert>
+      )}
       {recoveryNotice && <Alert severity="info" sx={{ mb: 2 }}>{recoveryNotice}</Alert>}
       {capabilities.reminders_write && (
         <Box sx={{ mb: 2 }}>
