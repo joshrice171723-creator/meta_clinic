@@ -45,7 +45,7 @@ module Clinic
           reminders: allowed?("reminders.read"),
           reminders_write: allowed?("reminders.write"),
           billing: allowed?("billing.read") || allowed?("billing.write"),
-          billing_read: allowed?("billing.read"),
+          billing_read: allowed?("billing.read") || allowed?("billing.write"),
           subscription_catalog_read: allowed?("subscription_catalog.read"),
           billing_invoice_draft: allowed?("billing.invoice_draft"),
           billing_invoice_post: allowed?("billing.invoice_post"),
