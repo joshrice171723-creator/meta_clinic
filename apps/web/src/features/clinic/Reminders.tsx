@@ -1,10 +1,14 @@
 import { useResource, Form, Field } from "../../shared/ui";
+import { useState } from "react";
+import { useClinic } from "./Workspace";
 import type { PatientReminder } from "../../api/contracts";
 import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
 
 type ReminderResponse = { reminders: PatientReminder[] };
 
 export function Reminders() {
+  const { capabilities } = useClinic();
+  const [recoveryNotice, setRecoveryNotice] = useState("");
   const resource = useResource<ReminderResponse>(
     "/api/clinic/reminders?per_page=50",
   );
@@ -27,8 +31,8 @@ export function Reminders() {
             Patient reminders
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Policy-gated, synthetic delivery only. Reminder bodies never appear
-            in operational diagnostics.
+            Delivery is simulated; external sending is disabled. Reminder bodies
+            never appear in operational diagnostics.
           </Typography>
         </Box>
         <Paper
@@ -36,7 +40,7 @@ export function Reminders() {
           sx={{ p: 2, border: "1px solid #d6e1dd", minWidth: 230 }}
         >
           <Typography variant="body2" color="text.secondary">
-            Queue health
+            Loaded reminders
           </Typography>
           <Typography variant="h6">
             {
@@ -52,6 +56,19 @@ export function Reminders() {
         </Paper>
       </Stack>
       {resource.error && <Alert severity="error">{resource.error}</Alert>}
+      {recoveryNotice && <Alert severity="info" sx={{ mb: 2 }}>{recoveryNotice}</Alert>}
+      {capabilities.reminders_write && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Recover up to 50 due items. Uncertain delivery is held for review and is never automatically resent.
+          </Typography>
+          <Form endpoint="/api/clinic/reminders/recover" submit="Recover due reminders"
+            onSuccess={(result) => {
+              if (result) setRecoveryNotice(`Examined ${result.examined}; processed ${result.dispatched}; uncertain ${result.delivery_unknown}; retry limit reached ${result.retry_exhausted}; suppressed ${result.suppressed}; unchanged ${result.unchanged}; skipped ${result.skipped}.`);
+              resource.refresh();
+            }} />
+        </Box>
+      )}
       <Paper
         elevation={0}
         sx={{
@@ -104,7 +121,7 @@ export function Reminders() {
                   }
                 />
               </Stack>
-              {reminder.status === "failed" && (
+              {capabilities.reminders_write && reminder.status === "failed" && (
                 <Form
                   endpoint={`/api/clinic/reminders/${reminder.id}/retry`}
                   submit="Retry with policy check"
@@ -117,7 +134,7 @@ export function Reminders() {
           ))}
         </Stack>
       </Paper>
-      <Paper
+      {capabilities.reminders_write && <Paper
         elevation={0}
         sx={{
           p: { xs: 2, md: 3 },
@@ -176,7 +193,7 @@ export function Reminders() {
             type="datetime-local"
           />
         </Form>
-      </Paper>
+      </Paper>}
     </Box>
   );
 }

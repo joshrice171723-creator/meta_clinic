@@ -34,6 +34,7 @@ Rails.application.routes.draw do
       post :delivery_events, on: :member, action: :record_delivery
     end
     resources :reminders, controller: "reminders", only: %i[index show create] do
+      post :recover, on: :collection
       post :pause, on: :member
       post :cancel, on: :member
       post :retry, on: :member
