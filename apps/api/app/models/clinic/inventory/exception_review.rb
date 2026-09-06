@@ -80,7 +80,10 @@ module Clinic
         text = value.to_s
         raise ArgumentError, "Choose a valid #{label}." unless /\A[1-9][0-9]*\z/.match?(text)
 
-        text.to_i
+        identifier = text.to_i
+        raise ArgumentError, "Choose a valid #{label}." if identifier > 9_223_372_036_854_775_807
+
+        identifier
       end
       private_class_method :canonical_id!
 
