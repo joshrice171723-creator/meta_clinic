@@ -1,0 +1,265 @@
+import { useMemo, useState, type FormEvent } from "react";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Chip,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  FormGroup,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Radio,
+  RadioGroup,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
+import { api } from "../../api/client";
+import { LoadState, useResource } from "../../shared/ui";
+import type { EmploymentAdminData } from "./foundationTypes";
+
+function localDateTime() {
+  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000);
+  return now.toISOString().slice(0, 16);
+}
+
+export function EmploymentAdminPage() {
+  const { data, error, refresh } = useResource<EmploymentAdminData>(
+    "/api/clinic/workforce/employments",
+  );
+  const [staffMemberId, setStaffMemberId] = useState("");
+  const [accountMode, setAccountMode] = useState<"existing" | "new">("existing");
+  const [membershipId, setMembershipId] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [siteIds, setSiteIds] = useState<number[]>([]);
+  const [effectiveFrom, setEffectiveFrom] = useState(localDateTime);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ severity: "success" | "error"; text: string } | null>(null);
+  const [activationToken, setActivationToken] = useState<string | null>(null);
+
+  const availableStaff = useMemo(
+    () => data?.staff_members.filter((member) => !member.linked) ?? [],
+    [data],
+  );
+  if (!data) return <LoadState error={error} />;
+
+  const reset = () => {
+    setStaffMemberId("");
+    setMembershipId("");
+    setEmailAddress("");
+    setSiteIds([]);
+    setEffectiveFrom(localDateTime());
+  };
+  const toggleSite = (siteId: number) =>
+    setSiteIds((current) =>
+      current.includes(siteId)
+        ? current.filter((id) => id !== siteId)
+        : [...current, siteId],
+    );
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setFeedback(null);
+    setActivationToken(null);
+    try {
+      const isoEffectiveFrom = new Date(effectiveFrom).toISOString();
+      if (accountMode === "existing") {
+        await api("/api/clinic/workforce/employments", {
+          method: "POST",
+          body: {
+            employment: {
+              staff_member_id: staffMemberId,
+              membership_id: membershipId,
+              site_ids: siteIds,
+              effective_from: isoEffectiveFrom,
+            },
+          },
+        });
+        setFeedback({ severity: "success", text: "The clinic account is now linked to this employee." });
+      } else {
+        const result = await api<{
+          invitation: { activation_token_once: string; expires_at: string };
+        }>("/api/clinic/workforce/onboarding", {
+          method: "POST",
+          body: {
+            employee_invitation: {
+              staff_member_id: staffMemberId,
+              email_address: emailAddress,
+              site_ids: siteIds,
+              effective_from: isoEffectiveFrom,
+            },
+          },
+        });
+        setActivationToken(result.invitation.activation_token_once);
+        setFeedback({
+          severity: "success",
+          text: `Invitation created. The token expires ${new Date(result.invitation.expires_at).toLocaleString()}.`,
+        });
+      }
+      reset();
+      refresh();
+    } catch (reason) {
+      setFeedback({
+        severity: "error",
+        text: reason instanceof Error ? reason.message : "Unable to set up workforce access.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+  const changeStatus = async (id: number, status: "active" | "inactive") => {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      await api(`/api/clinic/workforce/employments/${id}`, {
+        method: "PATCH",
+        body: { employment: { status } },
+      });
+      setFeedback({
+        severity: "success",
+        text: status === "active" ? "Workforce access reactivated." : "Workforce access inactivated. The clinic account was not changed.",
+      });
+      refresh();
+    } catch (reason) {
+      setFeedback({ severity: "error", text: reason instanceof Error ? reason.message : "Unable to update workforce access." });
+    } finally {
+      setSaving(false);
+    }
+  };
+  const revokeInvitation = async (id: number) => {
+    setSaving(true);
+    setFeedback(null);
+    setActivationToken(null);
+    try {
+      await api(`/api/clinic/workforce/onboarding/${id}`, {
+        method: "PATCH",
+        body: { employee_invitation: { action: "revoke" } },
+      });
+      setFeedback({ severity: "success", text: "The employee invitation was revoked." });
+      refresh();
+    } catch (reason) {
+      setFeedback({ severity: "error", text: reason instanceof Error ? reason.message : "Unable to revoke the invitation." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Stack spacing={3}>
+      <Stack spacing={0.75}>
+        <Typography variant="overline" color="text.secondary">TEAM / WORKFORCE</Typography>
+        <Typography variant="h1">Employee access</Typography>
+        <Typography color="text.secondary">
+          Connect each directory employee to one clinic account and the sites where they may work.
+        </Typography>
+      </Stack>
+      {feedback && <Alert severity={feedback.severity}>{feedback.text}</Alert>}
+      {activationToken && (
+        <Alert severity="warning">
+          <Typography fontWeight={700}>Share this activation token securely now.</Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            It is shown only in this response. APPly does not send it by email.
+          </Typography>
+          <TextField fullWidth value={activationToken} label="One-time activation token" slotProps={{ htmlInput: { readOnly: true } }} />
+        </Alert>
+      )}
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Stack component="form" spacing={2.5} onSubmit={submit}>
+          <Stack spacing={0.5}>
+            <Typography variant="h2">Add workforce access</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Existing-account choices are limited to active memberships in this practice. A new account is created only after the employee activates the invitation.
+            </Typography>
+          </Stack>
+          <FormControl fullWidth required>
+            <InputLabel>Directory employee</InputLabel>
+            <Select label="Directory employee" value={staffMemberId} onChange={(event) => setStaffMemberId(event.target.value)}>
+              {availableStaff.map((member) => (
+                <MenuItem key={member.id} value={String(member.id)}>
+                  {member.display_name} — {member.job_title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <RadioGroup row value={accountMode} onChange={(event) => setAccountMode(event.target.value as "existing" | "new")}>
+              <FormControlLabel value="existing" control={<Radio />} label="Link existing clinic account" />
+              <FormControlLabel value="new" control={<Radio />} label="Invite a new employee account" />
+            </RadioGroup>
+          </FormControl>
+          {accountMode === "existing" ? (
+            <FormControl fullWidth required>
+              <InputLabel>Clinic account</InputLabel>
+              <Select label="Clinic account" value={membershipId} onChange={(event) => setMembershipId(event.target.value)}>
+                {data.membership_options.map((membership) => (
+                  <MenuItem key={membership.id} value={String(membership.id)}>{membership.email_address}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <TextField label="Employee email" type="email" value={emailAddress} onChange={(event) => setEmailAddress(event.target.value)} required autoComplete="email" />
+          )}
+          <FormControl component="fieldset" required>
+            <Typography component="legend" variant="subtitle2">Eligible work sites</Typography>
+            <FormGroup row>
+              {data.sites.map((site) => (
+                <FormControlLabel key={site.id} control={<Checkbox checked={siteIds.includes(site.id)} onChange={() => toggleSite(site.id)} />} label={site.name} />
+              ))}
+            </FormGroup>
+          </FormControl>
+          <TextField label="Effective from" type="datetime-local" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} required slotProps={{ inputLabel: { shrink: true } }} />
+          <Button type="submit" variant="contained" startIcon={accountMode === "existing" ? <LinkOutlinedIcon /> : <PersonAddAltOutlinedIcon />} disabled={saving || !staffMemberId || siteIds.length === 0 || (accountMode === "existing" ? !membershipId : !emailAddress)}>
+            {saving ? "Saving…" : accountMode === "existing" ? "Link employee" : "Create invitation"}
+          </Button>
+        </Stack>
+      </Paper>
+
+      {data.invitations.length > 0 && (
+        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+          <Typography variant="h2" sx={{ mb: 2 }}>Pending invitations</Typography>
+          <Stack spacing={0} divider={<Divider flexItem />}>
+            {data.invitations.map((invitation) => (
+              <Stack key={invitation.id} direction={{ xs: "column", md: "row" }} spacing={2} sx={{ py: 2, alignItems: { md: "center" }, justifyContent: "space-between" }}>
+                <Stack spacing={0.25}>
+                  <Typography fontWeight={700}>{invitation.display_name}</Typography>
+                  <Typography variant="body2" color="text.secondary">{invitation.email_address}</Typography>
+                  <Typography variant="body2">Expires {new Date(invitation.expires_at).toLocaleString()}</Typography>
+                </Stack>
+                <Button color="warning" disabled={saving} onClick={() => revokeInvitation(invitation.id)}>Revoke invitation</Button>
+              </Stack>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Typography variant="h2" sx={{ mb: 2 }}>Current employment links</Typography>
+        <Stack spacing={0} divider={<Divider flexItem />}>
+          {data.employments.map((employment) => (
+            <Stack key={employment.id} direction={{ xs: "column", md: "row" }} spacing={2} sx={{ py: 2, alignItems: { md: "center" }, justifyContent: "space-between" }}>
+              <Stack spacing={0.5}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <Typography fontWeight={700}>{employment.staff_member.display_name}</Typography>
+                  <Chip size="small" color={employment.active_for_work ? "success" : "default"} label={employment.active_for_work ? "Active" : "Inactive"} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary">{employment.membership_summary.email_address}</Typography>
+                <Typography variant="body2">{employment.sites.filter((site) => site.active).map((site) => site.name).join(", ") || "No eligible sites"}</Typography>
+              </Stack>
+              <Button color={employment.status === "active" ? "warning" : "primary"} disabled={saving} onClick={() => changeStatus(employment.id, employment.status === "active" ? "inactive" : "active")}>
+                {employment.status === "active" ? "Inactivate workforce access" : "Reactivate workforce access"}
+              </Button>
+            </Stack>
+          ))}
+          {data.employments.length === 0 && <Typography color="text.secondary">No employees have workforce access yet.</Typography>}
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
