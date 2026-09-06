@@ -9,3 +9,5 @@
 - Actual sandbox credentials/listener/account onboarding were confirmed in the earlier handoff. Checkout payment, subsequent live sandbox renewal, refunds and full visual/manual acceptance remain unverified. These tests use local invented records and stubbed responses, never real Stripe requests.
 
 The user authorized ordinary Git publication, not staging or production deployment. GitHub CI may run normally now that testing is authorized. This record does not close the manual acceptance gate.
+
+Post-push CI reported a duplicate `destination_address` column during an existing inventory migration, two inventory Ruby lint offenses, and inventory frontend formatting. These inventory issues were left unchanged under the explicit exclusion. Four non-inventory formatting issues were corrected in a follow-up. Security scanning, documentation checks and delivery-contract checks passed in that CI run; full CI is not green.
