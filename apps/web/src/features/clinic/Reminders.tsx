@@ -610,7 +610,7 @@ export function Reminders() {
   useEffect(() => {
     if (!selected) return;
     setMessage(
-      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected)}. Please reply to confirm or call us if you need to reschedule.`,
+      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected)}. Reply YA to confirm or NA if you need to reschedule.`,
     );
     setNotice("");
     setError("");
