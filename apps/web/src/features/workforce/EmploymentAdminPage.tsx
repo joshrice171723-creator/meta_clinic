@@ -162,7 +162,7 @@ export function EmploymentAdminPage() {
       {feedback && <Alert severity={feedback.severity}>{feedback.text}</Alert>}
       {activationToken && (
         <Alert severity="warning">
-          <Typography fontWeight={700}>Share this activation token securely now.</Typography>
+          <Typography sx={{ fontWeight: 700 }}>Share this activation token securely now.</Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
             It is shown only in this response. APPly does not send it by email.
           </Typography>
@@ -228,7 +228,7 @@ export function EmploymentAdminPage() {
             {data.invitations.map((invitation) => (
               <Stack key={invitation.id} direction={{ xs: "column", md: "row" }} spacing={2} sx={{ py: 2, alignItems: { md: "center" }, justifyContent: "space-between" }}>
                 <Stack spacing={0.25}>
-                  <Typography fontWeight={700}>{invitation.display_name}</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>{invitation.display_name}</Typography>
                   <Typography variant="body2" color="text.secondary">{invitation.email_address}</Typography>
                   <Typography variant="body2">Expires {new Date(invitation.expires_at).toLocaleString()}</Typography>
                 </Stack>
@@ -246,7 +246,7 @@ export function EmploymentAdminPage() {
             <Stack key={employment.id} direction={{ xs: "column", md: "row" }} spacing={2} sx={{ py: 2, alignItems: { md: "center" }, justifyContent: "space-between" }}>
               <Stack spacing={0.5}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-                  <Typography fontWeight={700}>{employment.staff_member.display_name}</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>{employment.staff_member.display_name}</Typography>
                   <Chip size="small" color={employment.active_for_work ? "success" : "default"} label={employment.active_for_work ? "Active" : "Inactive"} />
                 </Stack>
                 <Typography variant="body2" color="text.secondary">{employment.membership_summary.email_address}</Typography>
