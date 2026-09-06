@@ -11,6 +11,10 @@ type ApiConversation = { id: number; title: string | null; kind: StaffConversati
 type Pagination = { page: number; per_page: number; total: number; total_pages: number };
 type ConversationIndex = { conversations: ApiConversation[]; pagination: Pagination };
 type ConversationDetail = { conversation: ApiConversation; messages: ApiMessage[]; pagination: Pagination };
+type RecoveryResult = {
+  outbox: { considered: number; delivered: number; retried: number; quarantined: number; skipped: number };
+  overdue_requests: { considered: number; escalated: number; blocked: number; skipped: number };
+};
 
 const PAGE_SIZE = 50;
 const emptyState: StaffMessagingState = { conversations: [], selectedConversationId: 0, canSend: false, canAcknowledge: false, conversationPage: 1, conversationTotalPages: 1 };
@@ -55,6 +59,7 @@ export function LiveStaffMessagingWorkspace() {
   const mounted = useRef(true);
   const indexRequestVersion = useRef(0);
   const detailRequestVersion = useRef(0);
+  const recoveryRequestVersion = useRef(0);
   const selectedConversationId = useRef(0);
   const stateRef = useRef<StaffMessagingState>({ ...emptyState, loading: true });
   const sendKeys = useRef(new Map<string, string>());
@@ -62,6 +67,7 @@ export function LiveStaffMessagingWorkspace() {
   const inFlightMutations = useRef(new Set<string>());
   const createAttempt = useRef<{ signature: string; key: string } | null>(null);
   const creatingRef = useRef(false);
+  const recoveringRef = useRef(false);
 
   const [state, setState] = useState<StaffMessagingState>(stateRef.current);
   stateRef.current = state;
@@ -75,6 +81,13 @@ export function LiveStaffMessagingWorkspace() {
   const [resolution, setResolution] = useState<{ requestId: number; conversationId: number } | null>(null);
   const [resolutionCode, setResolutionCode] = useState("");
   const [resolving, setResolving] = useState(false);
+  const [recovery, setRecovery] = useState<{ conversationId: number; title: string } | null>(null);
+  const [recoveryParticipants, setRecoveryParticipants] = useState<ApiParticipant[]>([]);
+  const [recoveryTargetId, setRecoveryTargetId] = useState("");
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryResult, setRecoveryResult] = useState<RecoveryResult | null>(null);
 
   const isCurrentScope = useCallback((requestScope: string) => mounted.current && scopeKeyRef.current === requestScope, []);
 
@@ -84,18 +97,21 @@ export function LiveStaffMessagingWorkspace() {
       mounted.current = false;
       indexRequestVersion.current += 1;
       detailRequestVersion.current += 1;
+      recoveryRequestVersion.current += 1;
     };
   }, []);
 
   useEffect(() => {
     indexRequestVersion.current += 1;
     detailRequestVersion.current += 1;
+    recoveryRequestVersion.current += 1;
     selectedConversationId.current = 0;
     sendKeys.current.clear();
     escalationKeys.current.clear();
     inFlightMutations.current.clear();
     createAttempt.current = null;
     creatingRef.current = false;
+    recoveringRef.current = false;
     setCreating(false);
     setCreateOpen(false);
     setParticipants([]);
@@ -106,6 +122,13 @@ export function LiveStaffMessagingWorkspace() {
     setResolution(null);
     setResolutionCode("");
     setResolving(false);
+    setRecovery(null);
+    setRecoveryParticipants([]);
+    setRecoveryTargetId("");
+    setRecoveryLoading(false);
+    setRecovering(false);
+    setRecoveryError(null);
+    setRecoveryResult(null);
   }, [scopeKey]);
 
   const loadConversation = useCallback(async (conversationId: number) => {
@@ -121,6 +144,9 @@ export function LiveStaffMessagingWorkspace() {
       setState((current) => ({ ...current, selectedConversationId: conversation.id, conversations: current.conversations.map((item) => item.id === conversation.id ? conversation : item) }));
       try {
         await api<void>(`/api/clinic/staff-messaging/conversations/${conversationId}/read`, { method: "POST", body: {} });
+        if (isCurrentScope(requestScope) && selectedConversationId.current === conversationId) {
+          setState((current) => ({ ...current, conversations: current.conversations.map((item) => item.id === conversationId ? { ...item, unread: false } : item) }));
+        }
       } catch (reason) {
         if (isCurrentScope(requestScope) && selectedConversationId.current === conversationId) setActionError(errorMessage(reason, "Unable to mark this conversation as read."));
       }
@@ -154,7 +180,14 @@ export function LiveStaffMessagingWorkspace() {
   const selectConversation = (conversationId: number) => {
     if (conversationId === selectedConversationId.current) return;
     const previousConversationId = selectedConversationId.current;
+    recoveryRequestVersion.current += 1;
     selectedConversationId.current = conversationId;
+    setRecovery(null);
+    setRecoveryParticipants([]);
+    setRecoveryTargetId("");
+    setRecoveryLoading(false);
+    setRecoveryError(null);
+    setRecoveryResult(null);
     setActionError(null);
     setState((current) => ({ ...current, selectedConversationId: conversationId, conversations: current.conversations.map((item) => item.id === previousConversationId ? { ...item, loadingEarlierMessages: false } : item) }));
     void loadConversation(conversationId);
@@ -284,6 +317,83 @@ export function LiveStaffMessagingWorkspace() {
     }
   };
 
+  const openRecovery = async () => {
+    const conversationId = selectedConversationId.current;
+    if (!conversationId) return;
+    const selected = stateRef.current.conversations.find((conversation) => conversation.id === conversationId);
+    const requestScope = scopeKey;
+    const requestVersion = ++recoveryRequestVersion.current;
+    setActionError(null);
+    setRecovery({ conversationId, title: selected?.title || "Selected conversation" });
+    setRecoveryParticipants([]);
+    setRecoveryTargetId("");
+    setRecoveryError(null);
+    setRecoveryResult(null);
+    setRecoveryLoading(true);
+    try {
+      const detail = await api<ConversationDetail>(`/api/clinic/staff-messaging/conversations/${conversationId}?page=1&per_page=1`);
+      if (!isCurrentScope(requestScope) || requestVersion !== recoveryRequestVersion.current || selectedConversationId.current !== conversationId) return;
+      if (detail.conversation.id !== conversationId) {
+        setRecoveryError("The participant response did not match the selected conversation.");
+        return;
+      }
+      setRecovery({ conversationId, title: detail.conversation.title || "Untitled conversation" });
+      setRecoveryParticipants(detail.conversation.participants.filter((participant) => participant.active && participant.id !== membership_id));
+    } catch (reason) {
+      if (isCurrentScope(requestScope) && requestVersion === recoveryRequestVersion.current && selectedConversationId.current === conversationId) {
+        setRecoveryError(errorMessage(reason, "Unable to load this conversation's active participants."));
+      }
+    } finally {
+      if (isCurrentScope(requestScope) && requestVersion === recoveryRequestVersion.current && selectedConversationId.current === conversationId) setRecoveryLoading(false);
+    }
+  };
+
+  const closeRecovery = () => {
+    if (recoveringRef.current) return;
+    recoveryRequestVersion.current += 1;
+    setRecovery(null);
+    setRecoveryParticipants([]);
+    setRecoveryTargetId("");
+    setRecoveryLoading(false);
+    setRecoveryError(null);
+    setRecoveryResult(null);
+  };
+
+  const recoverConversation = async () => {
+    if (!recovery) return;
+    const conversationId = recovery.conversationId;
+    const requestScope = scopeKey;
+    const requestVersion = recoveryRequestVersion.current;
+    const target = recoveryTargetId ? recoveryParticipants.find((participant) => String(participant.id) === recoveryTargetId) : undefined;
+    if (recoveryTargetId && !target) {
+      setRecoveryError("Choose an active backup from this conversation.");
+      return;
+    }
+
+    await withMutationLock(`${scopeKey}:recover:${conversationId}`, async () => {
+      recoveringRef.current = true;
+      setRecovering(true);
+      setRecoveryError(null);
+      setRecoveryResult(null);
+      try {
+        const result = await api<RecoveryResult>(`/api/clinic/staff-messaging/conversations/${conversationId}/recover`, {
+          method: "POST",
+          body: { recovery: { target_membership_id: target?.id ?? null } },
+        });
+        if (!isCurrentScope(requestScope) || requestVersion !== recoveryRequestVersion.current || selectedConversationId.current !== conversationId) return;
+        setRecoveryResult(result);
+        await loadConversation(conversationId);
+      } catch (reason) {
+        if (isCurrentScope(requestScope) && requestVersion === recoveryRequestVersion.current && selectedConversationId.current === conversationId) {
+          setRecoveryError(errorMessage(reason, "Unable to recover this conversation."));
+        }
+      } finally {
+        recoveringRef.current = false;
+        if (isCurrentScope(requestScope) && requestVersion === recoveryRequestVersion.current && selectedConversationId.current === conversationId) setRecovering(false);
+      }
+    });
+  };
+
   const resolveRequest = async () => {
     if (!resolution || resolving || !resolutionCode.trim()) return;
     const requestScope = scopeKey;
@@ -336,14 +446,54 @@ export function LiveStaffMessagingWorkspace() {
   return (
     <Stack spacing={2}>
       {actionError && <Alert severity="error" action={<Button color="inherit" onClick={() => setActionError(null)}>Dismiss</Button>}>{actionError}</Alert>}
-      {capability(capabilities, "staff_messaging_create_conversation") && <Button variant="outlined" sx={{ alignSelf: "flex-start" }} onClick={() => void openCreate()}>New conversation</Button>}
-      <StaffMessagingWorkspace key={scopeKey} state={state} onSelectConversation={selectConversation} onSend={send} onAcknowledge={acknowledge} onTransitionRequest={transitionRequest} onResolveRequest={(requestId) => { setResolutionCode(""); setResolution({ requestId, conversationId: selectedConversationId.current }); }} onDeclineRequest={(requestId) => transitionRequest(requestId, "declined")} onEscalateRequest={escalateRequest} onLoadMoreConversations={loadMoreConversations} onLoadEarlierMessages={loadEarlierMessages} onRetry={() => void load()} />
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        {capability(capabilities, "staff_messaging_create_conversation") && <Button variant="outlined" onClick={() => void openCreate()}>New conversation</Button>}
+        {capability(capabilities, "staff_messaging_escalate") && state.selectedConversationId > 0 && <Button variant="outlined" onClick={() => void openRecovery()}>Recover conversation</Button>}
+      </Stack>
+      <StaffMessagingWorkspace key={scopeKey} state={state} onSelectConversation={selectConversation} onSend={send} onAcknowledge={acknowledge} onTransitionRequest={transitionRequest} onResolveRequest={(requestId) => { setActionError(null); setResolutionCode(""); setResolution({ requestId, conversationId: selectedConversationId.current }); }} onDeclineRequest={(requestId) => transitionRequest(requestId, "declined")} onEscalateRequest={escalateRequest} onLoadMoreConversations={loadMoreConversations} onLoadEarlierMessages={loadEarlierMessages} onRetry={() => void load()} />
       <Dialog open={resolution !== null} onClose={() => { if (!resolving) setResolution(null); }} fullWidth maxWidth="sm">
         <DialogTitle>Resolve staff request</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} inputProps={{ maxLength: 120 }} sx={{ mt: 1 }} />
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {actionError && <Alert severity="error">{actionError}</Alert>}
+            <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} inputProps={{ maxLength: 120 }} />
+          </Stack>
         </DialogContent>
         <DialogActions><Button disabled={resolving} onClick={() => setResolution(null)}>Cancel</Button><Button disabled={resolving || !resolutionCode.trim()} onClick={() => void resolveRequest()}>{resolving ? "Resolving…" : "Resolve request"}</Button></DialogActions>
+      </Dialog>
+      <Dialog open={recovery !== null} onClose={closeRecovery} fullWidth maxWidth="sm">
+        <DialogTitle>Recover {recovery?.title}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {recoveryError && <Alert severity="error">{recoveryError}</Alert>}
+            {actionError && <Alert severity="error">{actionError}</Alert>}
+            <Alert severity="info">
+              Without a backup, recovery only reconciles in-app notifications. Overdue staff requests remain held.
+            </Alert>
+            <FormControl fullWidth disabled={recoveryLoading || recovering}>
+              <InputLabel id="recovery-backup-label">Backup staff member (optional)</InputLabel>
+              <Select
+                labelId="recovery-backup-label"
+                label="Backup staff member (optional)"
+                value={recoveryTargetId}
+                onChange={(event) => { setRecoveryTargetId(event.target.value); setRecoveryError(null); setRecoveryResult(null); }}
+              >
+                <MenuItem value="">No backup — reconcile in-app only</MenuItem>
+                {recoveryParticipants.map((participant) => <MenuItem key={participant.id} value={String(participant.id)}>{participant.email}</MenuItem>)}
+              </Select>
+            </FormControl>
+            {recoveryLoading && <Alert severity="info">Loading active conversation participants…</Alert>}
+            {recoveryResult && (
+              <Alert severity={recoveryResult.overdue_requests.blocked > 0 ? "warning" : "success"}>
+                In-app outbox events: {recoveryResult.outbox.delivered} delivered, {recoveryResult.outbox.retried} queued for retry, {recoveryResult.outbox.quarantined} quarantined, and {recoveryResult.outbox.skipped} skipped out of {recoveryResult.outbox.considered} considered. Overdue requests: {recoveryResult.overdue_requests.escalated} escalated, {recoveryResult.overdue_requests.blocked} held without an eligible backup, and {recoveryResult.overdue_requests.skipped} skipped out of {recoveryResult.overdue_requests.considered} considered. No external messages were sent.
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={recovering} onClick={closeRecovery}>Close</Button>
+          <Button disabled={recoveryLoading || recovering} variant="contained" onClick={() => void recoverConversation()}>{recovering ? "Recovering…" : "Run recovery"}</Button>
+        </DialogActions>
       </Dialog>
       <Dialog open={createOpen} onClose={closeCreate} fullWidth maxWidth="sm">
         <DialogTitle>New staff conversation</DialogTitle>
