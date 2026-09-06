@@ -21,6 +21,11 @@ export type WorkforceEmployment = {
     email_address: string;
     active: boolean;
   };
+  roles: Array<{
+    role_code: string;
+    scope_kind: "practice" | "site";
+    site_id: number | null;
+  }>;
   sites: Array<
     WorkforceSite & {
       active: boolean;
@@ -40,17 +45,25 @@ export type EmploymentAdminData = {
     linked: boolean;
   }>;
   membership_options: Array<{ id: number; email_address: string }>;
+  role_options: Array<{
+    id: number;
+    role_code: string;
+    version: number;
+    permissions: string[];
+  }>;
   invitations: Array<{
     id: number;
     staff_member_id: number;
     display_name: string;
     email_address: string;
+    role_code: string;
     expires_at: string;
   }>;
   sites: WorkforceSite[];
 };
 
-export type WorkforceSettingValue = string | number | boolean | null | Record<string, unknown>;
+export type WorkforceSettingValue =
+  string | number | boolean | null | Record<string, unknown>;
 export type WorkforceSettingValues = Record<string, WorkforceSettingValue>;
 
 export type WorkforceSettingsVersion = {

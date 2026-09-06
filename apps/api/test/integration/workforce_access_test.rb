@@ -24,7 +24,7 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
 
     @manager = create_user("workforce-manager")
     @manager_membership = @practice.memberships.create!(user: @manager)
-    grant_permissions!(@manager_membership, "workforce.admin", "workforce.settings",
+    grant_permissions!(@manager_membership, "roles.manage", "workforce.admin", "workforce.settings",
       "workforce.payroll.configure", "workforce.payroll.export")
 
     @foreign_practice = Clinic::Practice.create!(name: "Foreign Workforce Clinic", timezone: "UTC")
@@ -73,6 +73,18 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal false, capabilities.fetch("billing_read")
   end
 
+  test "employee location selection persists only within assigned sites" do
+    @employment.employment_sites.create!(practice: @practice, site: @other_site,
+      active: true, effective_from: 1.hour.ago)
+    login(@employee)
+    patch "/api/clinic/context", params: { site_id: @other_site.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/context", headers: @headers
+    assert_equal @other_site.id, response.parsed_body.dig("current_site", "id")
+    patch "/api/clinic/context", params: { site_id: @foreign_site.id }, headers: csrf_headers, as: :json
+    assert_response :not_found
+  end
+
   test "tenant ID tampering cannot cross employment settings or payroll boundaries" do
     login(@manager)
 
@@ -106,6 +118,37 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
 
     get "/api/clinic/workforce/payroll-exports", params: { site_id: @foreign_site.id }, headers: @headers
     assert_response :not_found
+  end
+
+  test "employee administration creates the directory record employment and role together" do
+    employee_role = RoleVersion.find_or_create_by!(role_code: "workforce-employee", version: 1)
+    linked_user = create_user("linked-workforce-employee")
+    linked_membership = @practice.memberships.create!(user: linked_user)
+    login(@manager)
+
+    assert_difference("Clinic::Staff::Member.count", 1) do
+      assert_difference("Clinic::Workforce::Employment.count", 1) do
+        assert_difference("Clinic::RoleGrant.count", 1) do
+          post "/api/clinic/workforce/employments", params: {
+            employment: {
+              display_name: "Morgan Reed",
+              job_title: "Medical assistant",
+              membership_id: linked_membership.id,
+              role_version_id: employee_role.id,
+              site_ids: [ @assigned_site.id ],
+              effective_from: Time.current.iso8601
+            }
+          }, headers: csrf_headers, as: :json
+          assert_response :created
+        end
+      end
+    end
+
+    employment = Clinic::Workforce::Employment.find(response.parsed_body.dig("employment", "id"))
+    assert_equal "Morgan Reed", employment.staff_member.display_name
+    assert_equal linked_membership.id, employment.membership_id
+    assert_equal [ "workforce-employee" ],
+      employment.membership.role_grants.active.includes(:role_version).map { |grant| grant.role_version.role_code }
   end
 
   test "inactive employment removes workforce self-service without changing host identity" do

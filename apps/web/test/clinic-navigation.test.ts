@@ -68,9 +68,29 @@ describe("clinic-local navigation", () => {
     expect(app).toContain('window.addEventListener("popstate", restore)');
     expect(app).toContain("<Workspace\n        key={user.id}");
     expect(workspace).toContain("const { navigate } = useClinicNavigation();");
-    expect(workspace).toContain(
-      "event.preventDefault();\n                navigate(",
+    expect(workspace).toMatch(/event\.preventDefault\(\);\s+navigate\(/);
+  });
+
+  it("uses Workforce Employees as the single employee administration destination", () => {
+    const app = readSource(new URL("../src/App.tsx", import.meta.url));
+    const workspace = readSource(
+      new URL("../src/features/clinic/Workspace.tsx", import.meta.url),
     );
+    const employees = readSource(
+      new URL(
+        "../src/features/workforce/EmploymentAdminPage.tsx",
+        import.meta.url,
+      ),
+    );
+
+    expect(workspace).not.toContain('href: "/clinic/staff"');
+    expect(app).toContain(
+      '<ClinicLegacyRedirect to="/clinic/workforce/employees" />',
+    );
+    expect(employees).toContain('label="Employee name"');
+    expect(employees).toContain('label="Job title"');
+    expect(employees).toContain('label="Access role"');
+    expect(employees).toContain('label="Create a new employee login"');
   });
 
   it("keeps schedule paging and board refresh/listeners component-local", () => {

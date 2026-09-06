@@ -12,6 +12,7 @@ module Clinic
 
       belongs_to :staff_member, class_name: "Clinic::Staff::Member"
       belongs_to :invited_by_membership, class_name: "Clinic::Membership"
+      belongs_to :role_version
 
       encrypts :email_address
       normalizes :email_address, with: ->(email) { email.strip.downcase }

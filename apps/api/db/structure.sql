@@ -18058,6 +18058,7 @@ CREATE TABLE public.clinic_workforce_employee_invitations (
     site_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    role_version_id bigint NOT NULL,
     CONSTRAINT workforce_employee_invitations_state CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'activated'::character varying, 'revoked'::character varying])::text[])) AND (expires_at > invited_at) AND ((cardinality(site_ids) >= 1) AND (cardinality(site_ids) <= 100))))
 );
 
@@ -19480,6 +19481,13 @@ CREATE UNIQUE INDEX workforce_availability_current ON public.clinic_workforce_av
 
 
 --
+-- Name: index_clinic_workforce_employee_invitations_on_role_version_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_workforce_employee_invitations_on_role_version_id ON public.clinic_workforce_employee_invitations USING btree (role_version_id);
+
+
+--
 -- Name: workforce_employee_invitations_email; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -20266,6 +20274,14 @@ ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
 
 
 --
+-- Name: clinic_workforce_employee_invitations fk_rails_a17da6a96d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_employee_invitations
+    ADD CONSTRAINT fk_rails_a17da6a96d FOREIGN KEY (role_version_id) REFERENCES public.role_versions(id);
+
+
+--
 -- Name: clinic_workforce_employee_invitations fk_rails_e1122d2ea4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20355,9 +20371,11 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260906001800'),
 ('20260906001720'),
 ('20260906001710'),
 ('20260906001700'),
+('20260906001600'),
 ('20260906001500'),
 ('20260906001400'),
 ('20260906001300'),

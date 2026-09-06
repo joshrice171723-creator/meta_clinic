@@ -102,12 +102,6 @@ export function ClinicNavigation({
       allowed: capabilities.inventory,
     },
     {
-      href: "/clinic/staff",
-      label: "Employees",
-      Icon: PeopleAltIcon,
-      allowed: capabilities.staff,
-    },
-    {
       href: "/clinic/workforce",
       label: "Workforce",
       Icon: PeopleAltIcon,

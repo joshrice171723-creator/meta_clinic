@@ -1,13 +1,18 @@
 module Clinic
   module Workforce
     class LinkEmployment
-      def self.call(practice:, staff_member:, membership:, site_ids:, effective_from:, actor:)
+      def self.call(practice:, membership:, site_ids:, effective_from:, actor:, role_version: nil,
+        staff_member: nil, display_name: nil, job_title: nil)
         Access.new(actor: actor, practice: practice).authorize!("workforce.admin")
         normalized_site_ids = normalize_site_ids(site_ids)
 
         ApplicationRecord.transaction do
           locked_practice = Clinic::Practice.lock.find(practice.id)
-          locked_staff = Clinic::Staff::Member.lock.find(staff_member.id)
+          locked_staff = if staff_member
+            Clinic::Staff::Member.lock.find(staff_member.id)
+          else
+            locked_practice.staff_members.create!(display_name: display_name, job_title: job_title)
+          end
           locked_membership = Clinic::Membership.includes(:user).lock.find(membership.id)
           sites = Clinic::Site.lock.where(id: normalized_site_ids).order(:id).to_a
 
@@ -25,6 +30,8 @@ module Clinic
           end
           Clinic::AuditRecorder.record!(practice: locked_practice, actor: actor,
             action_code: "workforce.onboarding.revoke", outcome: :committed) if revoked_invitation
+          RoleAssignment.grant!(actor: actor, membership: locked_membership,
+            role_version: role_version, sites: sites, effective_from: effective_from)
           employment
         end
       rescue ActiveRecord::RecordNotUnique

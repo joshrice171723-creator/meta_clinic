@@ -32,14 +32,24 @@ Migrations `20260906001000`–`20260906001400` are applied to isolated `apply_wo
 - Existing backend race verification passed (allocation, address, room/revision races, inventory, restricted history role).
 - PostgreSQL verification passed legacy upgrade, concurrent inventory/settings, backup restore and fresh migrations.
 
+## Unified employee administration — Shortcut sc-382
+
+- `/clinic/workforce/employees` is now the single admin surface for employee name, job title, clinic login linkage or invitation, workforce role, assigned sites and effective date.
+- The duplicate Employees navigation item is removed. `/clinic/staff` remains a backwards-compatible redirect to Workforce Employees.
+- New-login activation creates the user, clinic membership, employment, employment sites and role grants in one database transaction. A role-assignment failure rolls the entire activation back.
+- Existing-account linkage creates the staff directory record, employment, sites and workforce role in one transaction. Roles remain clinic-scoped authorization data on the linked membership rather than employment attributes.
+- Focused backend verification passes: 14 runs, 101 assertions, no failures. Focused navigation verification passes: 8 tests. Eager loading, targeted RuboCop, `git diff --check` and `ruby bin/verify-web` pass.
+- The full web suite passes 199 tests with two unrelated existing failures in Staff Messaging copy and Tracking Board CSS scoping. Typecheck remains blocked only by existing MUI API errors in Reminders and Staff Messaging; no employee-workforce type errors were reported.
+- Shortcut story: https://app.shortcut.com/apply-1/story/382
+
 ## Continuing checks / known gaps
 
 - Rerun clock/timecard/API and payroll tests after focused corrections; complete integrated happy-path coverage and source review.
-- The full web suite initially had three failures: workforce SVG injection (corrected to image rendering), plus unrelated staff-messaging copy and tracking CSS assertions. Rerun required.
+- The full web suite has two unrelated failures: staff-messaging copy and tracking CSS assertions. The workforce SVG correction passes.
 - Full web build currently encounters preexisting MUI API incompatibilities in Reminders and StaffMessaging; workforce typography correction is applied. Do not claim a passing build.
-- Managed restart initially failed stopping a stale API PID; managed start is recovering without resetting data. Confirm final HTTP/runtime health.
+- Managed restart initially failed stopping a stale API PID. The repository HTTP/session/CSRF verification subsequently passed without resetting data.
 - Browser automation initialization timed out twice. No live screenshot, physical scanner, camera or responsive visual proof yet.
-- Shortcut OAuth refresh was rejected during delivery. Existing claimed story work continues, but final tracker updates remain pending reconnection; no unclaimed expansion.
+- Shortcut OAuth was refreshed and story sc-382 is claimed. Final tracker status should remain In Review until human review.
 - No deployment, external email, real employee/patient data or live provider activity occurred.
 
 Keep existing source/plan paths; update this checkpoint with final commits and evidence rather than create another queue.

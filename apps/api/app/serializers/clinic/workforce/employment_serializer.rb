@@ -19,6 +19,9 @@ module Clinic
             email_address: employment.membership.user.email_address,
             active: employment.membership.active && employment.membership.user.active
           },
+          roles: employment.membership.role_grants.active.includes(:role_version)
+            .select { |grant| grant.role_version.role_code.start_with?("workforce-") }
+            .map { |grant| { role_code: grant.role_version.role_code, scope_kind: grant.scope_kind, site_id: grant.site_id } },
           sites: employment.employment_sites.includes(:site).order(:site_id).map do |assignment|
             {
               id: assignment.site.id,

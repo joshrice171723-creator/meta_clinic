@@ -6,7 +6,7 @@ class WorkforceFoundationTest < ActiveSupport::TestCase
     @manager = User.create!(email_address: "manager-#{SecureRandom.hex(6)}@example.com",
       password: "Manager-password-123!", active: true)
     @manager_membership = Clinic::Membership.create!(practice: @practice, user: @manager)
-    grant_permissions!(@manager_membership, "workforce.admin", "workforce.settings")
+    grant_permissions!(@manager_membership, "roles.manage", "workforce.admin", "workforce.settings")
     @employee = User.create!(email_address: "employee-#{SecureRandom.hex(6)}@example.com",
       password: "Employee-password-123!", active: true)
     @employee_membership = Clinic::Membership.create!(practice: @practice, user: @employee)
@@ -22,6 +22,8 @@ class WorkforceFoundationTest < ActiveSupport::TestCase
 
     assert employment.active_for_work?
     assert employment.eligible_site?(@site)
+    assert_equal [ "workforce-employee" ],
+      @employee_membership.role_grants.active.includes(:role_version).map { |grant| grant.role_version.role_code }
     assert_equal employment, Clinic::Workforce::Access.new(actor: @employee, practice: @practice).own_employment
 
     employment.update!(status: :inactive)
@@ -67,22 +69,62 @@ class WorkforceFoundationTest < ActiveSupport::TestCase
   end
 
   test "employee invitation creates a fresh staff account without exposing its password" do
-    invited_staff = Clinic::Staff::Member.create!(practice: @practice,
-      display_name: "Jordan Patel", job_title: "Medical assistant", active: true)
     invited_email = "new-employee-#{SecureRandom.hex(6)}@example.com"
     invitation = Clinic::Workforce::EmployeeOnboarding.invite!(practice: @practice,
-      staff_member: invited_staff, email_address: invited_email, site_ids: [ @site.id ],
+      display_name: "Jordan Patel", job_title: "Medical assistant",
+      email_address: invited_email, site_ids: [ @site.id ],
       effective_from: Time.current, actor: @manager)
 
     assert invitation[:token].present?
     assert_not_equal invitation[:token], invitation[:invitation].token_digest
+    assert_equal "Jordan Patel", invitation[:invitation].staff_member.display_name
     result = Clinic::Workforce::EmployeeOnboarding.activate!(token: invitation[:token],
       password: "New-employee-password!", password_confirmation: "New-employee-password!")
 
     assert_equal invited_email, result[:user].email_address
     assert result[:employment].active_for_work?
+    assert_equal invitation[:invitation].staff_member_id, result[:employment].staff_member_id
+    assert_equal [ "workforce-employee" ],
+      result[:employment].membership.role_grants.active.includes(:role_version)
+        .map { |grant| grant.role_version.role_code }
     assert_nil invitation[:invitation].reload.token_digest
     assert_nil User.find(result[:user].id).password
+  end
+
+  test "employee creation rolls back when the manager cannot assign the selected role" do
+    badge_permission = Permission.find_or_create_by!(action_code: "workforce.badges")
+    administrator_role = RoleVersion.find_or_create_by!(role_code: "workforce-administrator", version: 1)
+    RoleVersionPermission.find_or_create_by!(role_version: administrator_role, permission: badge_permission)
+    administrator_role = RoleVersion.includes(:permissions).find(administrator_role.id)
+
+    assert_no_difference("Clinic::Staff::Member.count") do
+      assert_no_difference("Clinic::Workforce::EmployeeInvitation.count") do
+        assert_raises(Clinic::Authorization::Denied) do
+          Clinic::Workforce::EmployeeOnboarding.invite!(practice: @practice,
+            display_name: "Riley Chen", job_title: "Practice administrator",
+            email_address: "riley-#{SecureRandom.hex(6)}@example.com",
+            role_version: administrator_role, site_ids: [ @site.id ],
+            effective_from: Time.current, actor: @manager)
+        end
+      end
+    end
+  end
+
+  test "employee activation rolls back when the inviter can no longer assign roles" do
+    invitation = Clinic::Workforce::EmployeeOnboarding.invite!(practice: @practice,
+      display_name: "Alex Rivera", job_title: "Medical assistant",
+      email_address: "alex-#{SecureRandom.hex(6)}@example.com",
+      site_ids: [ @site.id ], effective_from: Time.current, actor: @manager)
+    revoke_all_permissions!(@manager_membership)
+
+    assert_no_difference([ "User.count", "Clinic::Membership.count", "Clinic::Workforce::Employment.count",
+      "Clinic::RoleGrant.count" ]) do
+      assert_raises(Clinic::Workforce::EmployeeOnboarding::InvalidInvitation) do
+        Clinic::Workforce::EmployeeOnboarding.activate!(token: invitation[:token],
+          password: "New-employee-password!", password_confirmation: "New-employee-password!")
+      end
+    end
+    assert invitation[:invitation].reload.pending?
   end
 
   test "invitation refuses an email already owned by any global account" do

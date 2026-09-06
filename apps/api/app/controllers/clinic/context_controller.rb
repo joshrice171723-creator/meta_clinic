@@ -1,16 +1,8 @@
 module Clinic
   class ContextController < ApiController
     def show
-      sites = accessible_clinic_sites
-      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.allowed_permission?(permission) }
-        sites = current_practice.sites
-      end
-      if workforce_employment
-        assigned_ids = workforce_employment.employment_sites.active.effective_at(Time.current).select(:site_id)
-        sites = current_practice.sites.where(id: sites.select(:id)).or(current_practice.sites.where(id: assigned_ids))
-      end
-      sites = sites.order(:code, :id)
-      current_site = current_clinic_site
+      sites = context_sites.order(:code, :id)
+      current_site = sites.find_by(id: session[:clinic_site_id])
       session.delete(:clinic_site_id) if session[:clinic_site_id].present? && current_site.nil?
       if current_site.nil? && sites.one?
         current_site = sites.first
@@ -85,12 +77,24 @@ module Clinic
     end
 
     def update
-      site = accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id))
+      site = context_sites.find(requested_id!(params[:site_id], :site_id))
       session[:clinic_site_id] = site.id
       render json: { current_site: FacilitySerializer.site(site) }
     end
 
     private
+
+    def context_sites
+      sites = accessible_clinic_sites
+      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.allowed_permission?(permission) }
+        sites = current_practice.sites
+      end
+      if workforce_employment
+        assigned_ids = workforce_employment.employment_sites.active.effective_at(Time.current).select(:site_id)
+        sites = current_practice.sites.where(id: sites.select(:id)).or(current_practice.sites.where(id: assigned_ids))
+      end
+      sites
+    end
 
     def workforce_employment
       return @workforce_employment if defined?(@workforce_employment)

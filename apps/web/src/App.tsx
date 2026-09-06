@@ -22,7 +22,6 @@ import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
 import { Facilities } from "./features/clinic/Facilities";
 import { Patients } from "./features/clinic/Patients";
-import { Staff } from "./features/clinic/Staff";
 import { WorkforceApp } from "./features/workforce/WorkforceApp";
 import { EmployeeActivationPage } from "./features/workforce/EmployeeActivationPage";
 import { KioskClockPage } from "./features/workforce/KioskClockPage";
@@ -46,10 +45,19 @@ import {
   clinicRoute,
   clinicRouteHref,
   clinicTarget,
+  useClinicNavigation,
   type ClinicHomeView,
   type ClinicNavigateOptions,
   type ClinicRoute,
 } from "./features/clinic/clinicNavigation";
+
+function ClinicLegacyRedirect({ to }: { to: string }) {
+  const { navigate } = useClinicNavigation();
+  useEffect(() => {
+    navigate(to, { replace: true });
+  }, [navigate, to]);
+  return <LoadState />;
+}
 
 function LaunchLayout({
   user,
@@ -200,7 +208,7 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
   ) : path.startsWith("/clinic/inventory") ? (
     <InventoryApp path={path} />
   ) : path === "/clinic/staff" ? (
-    <Staff />
+    <ClinicLegacyRedirect to="/clinic/workforce/employees" />
   ) : path.startsWith("/clinic/workforce") ? (
     <WorkforceApp path={path} />
   ) : path === "/clinic/front-desk" ? (
