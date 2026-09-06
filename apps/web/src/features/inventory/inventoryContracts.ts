@@ -401,7 +401,7 @@ export type InventoryData = {
   audit_events: InventoryAuditEvent[];
 };
 
-export type InventoryActivityData = Pick<
+export type InventoryReadContext = Pick<
   InventoryData,
   | "schema_version"
   | "dataset_version"
@@ -413,7 +413,9 @@ export type InventoryActivityData = Pick<
   | "users"
   | "current_user_id"
   | "capabilities"
-> & {
+>;
+
+export type InventoryActivityData = InventoryReadContext & {
   activity_page: {
     query: string;
     total_count: number;
@@ -428,3 +430,29 @@ export type InventoryActivityData = Pick<
     stock_unit: string;
   })[];
 };
+
+export type InventoryCatalogRead = {
+  q?: string;
+  status?: "all" | "attention" | "in_range";
+  sort?: "name" | "available_asc" | "available_desc";
+  page?: number;
+};
+export type InventoryCatalogData = InventoryReadContext &
+  Pick<InventoryData, "products" | "packages"> & {
+    catalog_page: {
+      query: string;
+      status: NonNullable<InventoryCatalogRead["status"]>;
+      sort: NonNullable<InventoryCatalogRead["sort"]>;
+      page: number;
+      page_count: number;
+      page_size: number;
+      total_count: number;
+      filtered_count: number;
+    };
+    can_create_purchase_order: boolean;
+    attention_count: number;
+    attention: (Pick<
+      InventoryLot,
+      "id" | "product_id" | "lot_number" | "expiration_date" | "status"
+    > & { product_name: string })[];
+  };

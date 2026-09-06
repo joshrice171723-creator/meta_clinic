@@ -17,6 +17,8 @@ import type {
   InventoryBalance,
   InventoryData,
   InventoryActivityData,
+  InventoryCatalogData,
+  InventoryCatalogRead,
   InventoryProduct,
   InventoryRecall,
   InventoryCategory,
@@ -341,7 +343,7 @@ function inventoryUnitDefinition(unit: string, quantity: string) {
 function unitLabel(data: InventoryData, productId: string) {
   return product(data, productId)?.base_unit ?? "unavailable unit";
 }
-function packageFor(data: InventoryData, packageId?: string) {
+function packageFor(data: Pick<InventoryData, "packages">, packageId?: string) {
   return data.packages.find((item) => item.id === packageId);
 }
 function money(value: Decimal, currency?: string) {
@@ -376,7 +378,7 @@ export function inventoryDateTime(value?: string, timezone?: string) {
       }).format(new Date(value))
     : "—";
 }
-function capability(data: InventoryData, key: string) {
+function capability(data: Pick<InventoryData, "capabilities">, key: string) {
   return data.capabilities[key] === true;
 }
 function product(data: InventoryData, id: string) {
@@ -1975,7 +1977,9 @@ function PermissionNote({
 export function InventoryApp({ path }: { path: string }) {
   const { registerBlocker } = useClinicNavigation();
   const screen = screenForPath(path);
-  const [data, setData] = useState<InventoryData | InventoryActivityData>();
+  const [data, setData] = useState<
+    InventoryData | InventoryActivityData | InventoryCatalogData
+  >();
   const readVersion = useRef(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -2004,14 +2008,30 @@ export function InventoryApp({ path }: { path: string }) {
   }, [registerBlocker, uncertainMutation]);
 
   useEffect(() => {
-    if (!data || "activity_page" in data || !needsPurchaseOrderFacility) return;
+    if (
+      !data ||
+      "activity_page" in data ||
+      "catalog_page" in data ||
+      !needsPurchaseOrderFacility
+    )
+      return;
     if (purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder))
       return;
     window.location.replace("/clinic/facilities");
   }, [data, needsPurchaseOrderFacility]);
 
   const load = async (
-    activityRead: { q?: string; before?: string | null } = {},
+    read: InventoryCatalogRead & { before?: string | null } = screen ===
+      "catalog" &&
+    data &&
+    "catalog_page" in data
+      ? {
+          q: data.catalog_page.query,
+          status: data.catalog_page.status,
+          sort: data.catalog_page.sort,
+          page: data.catalog_page.page,
+        }
+      : {},
   ) => {
     const version = ++readVersion.current;
     setLoading(true);
@@ -2023,19 +2043,26 @@ export function InventoryApp({ path }: { path: string }) {
       try {
         const query = new URLSearchParams();
         if (screen === "activity") query.set("view", "ledger");
-        if (activityRead.q) query.set("q", activityRead.q);
-        if (activityRead.before) query.set("before", activityRead.before);
+        if (screen === "catalog") query.set("view", "table");
+        if (read.status) query.set("status", read.status);
+        if (read.sort) query.set("sort", read.sort);
+        if (read.page) query.set("page", String(read.page));
+        if (read.q) query.set("q", read.q);
+        if (read.before) query.set("before", read.before);
         const endpoint =
           screen === "activity"
             ? `/api/clinic/inventory/activity?${query}`
-            : "/api/clinic/inventory/bootstrap";
+            : screen === "catalog"
+              ? `/api/clinic/inventory/catalog?${query}`
+              : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
-          data: InventoryData | InventoryActivityData;
+          data: InventoryData | InventoryActivityData | InventoryCatalogData;
         }>(endpoint, { signal: controller.signal });
         if (version !== readVersion.current) return;
         if (
           !payload.data ||
-          (screen === "activity") !== "activity_page" in payload.data
+          (screen === "activity") !== "activity_page" in payload.data ||
+          (screen === "catalog") !== "catalog_page" in payload.data
         )
           throw new Error(
             "The inventory service returned an incomplete response.",
@@ -2166,6 +2193,7 @@ export function InventoryApp({ path }: { path: string }) {
   if (
     needsPurchaseOrderFacility &&
     !("activity_page" in data) &&
+    !("catalog_page" in data) &&
     !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
   )
     return (
@@ -2276,11 +2304,15 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "catalog_page" in data ? (
+              <CatalogScreen
+                data={data}
+                loading={loading}
+                error={error}
+                onRead={load}
+              />
             ) : (
               <>
-                {screen === "catalog" && (
-                  <CatalogScreen data={data} onRefresh={load} />
-                )}
                 {screen === "catalog_new" && (
                   <CatalogCreateScreen data={data} busy={busy} run={run} />
                 )}
@@ -2340,61 +2372,40 @@ export function InventoryApp({ path }: { path: string }) {
   );
 }
 
-function CatalogScreen({
+export function CatalogScreen({
   data,
-  onRefresh,
+  loading = false,
+  error = "",
+  onRead,
 }: {
-  data: InventoryData;
-  onRefresh: () => Promise<void>;
+  data: InventoryCatalogData;
+  loading?: boolean;
+  error?: string;
+  onRead: (read: InventoryCatalogRead) => Promise<void>;
 }) {
-  const pageSize = 20;
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "attention" | "in_range"
-  >("all");
-  const [sort, setSort] = useState<"name" | "available_asc" | "available_desc">(
-    "name",
-  );
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredProducts = data.products.filter((item) => {
-    const itemLots = data.lots
-      .filter((candidate) => candidate.product_id === item.id)
-      .map((candidate) => candidate.lot_number)
-      .join(" ");
-    const locationNames = data.balances
-      .filter((balance) => balance.product_id === item.id)
-      .map((balance) => location(data, balance.location_id)?.name ?? "")
-      .join(" ");
-    const searchable =
-      `${item.name} ${item.ndc} ${item.preferred_supplier} ${item.package_id} ${itemLots} ${locationNames}`.toLowerCase();
-    const matchesQuery =
-      !normalizedQuery || searchable.includes(normalizedQuery);
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "attention" && item.low_stock) ||
-      (statusFilter === "in_range" && !item.low_stock);
-    return matchesQuery && matchesStatus;
-  });
-  const products = [...filteredProducts].sort((left, right) => {
-    if (sort === "available_asc")
-      return decimalCompare(left.available_units, right.available_units);
-    if (sort === "available_desc")
-      return decimalCompare(right.available_units, left.available_units);
-    return left.name.localeCompare(right.name);
-  });
-  const pageCount = Math.max(1, Math.ceil(products.length / pageSize));
-  const visibleProducts = products.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => {
-    setPage((current) => Math.min(current, pageCount));
-  }, [pageCount]);
-  const activeFilter = normalizedQuery || statusFilter !== "all";
-  const canCreatePurchaseOrder = purchaseOrderFacilities(data).some(
-    facilityCanReceivePurchaseOrder,
-  );
-  if (data.products.length === 0)
+  const result = data.catalog_page;
+  const {
+    page,
+    page_count: pageCount,
+    page_size: pageSize,
+    status: statusFilter,
+    sort,
+  } = result;
+  const [query, setQuery] = useState(result.query);
+  useEffect(() => setQuery(result.query), [result.query]);
+  const applied = { q: result.query, status: statusFilter, sort, page };
+  const onRefresh = () => onRead(applied);
+  const activeFilter =
+    result.query || statusFilter !== "all" || sort !== "name";
+  const canCreatePurchaseOrder = data.can_create_purchase_order;
+  if (result.total_count === 0)
     return (
       <Card title="Product catalog">
+        {error && (
+          <Alert severity="error">
+            {error} The previous catalog page remains visible.
+          </Alert>
+        )}
         <p className="inventory-lead">
           No catalog items yet. Add the first product definition to begin
           purchasing and receiving stock. No inventory records are currently
@@ -2412,7 +2423,7 @@ function CatalogScreen({
       </Card>
     );
   return (
-    <div className="inventory-stack">
+    <div className="inventory-stack" aria-busy={loading}>
       <div className="inventory-catalog-topline">
         <div>
           <h2>Catalog</h2>
@@ -2463,62 +2474,90 @@ function CatalogScreen({
             </p>
           </div>
         </div>
-        <div className="inventory-toolbar">
-          <Field label="Search inventory">
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Product, NDC, lot, supplier"
-            />
-          </Field>
-          <Field label="Stock status">
-            <select
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value as typeof statusFilter);
-                setPage(1);
-              }}
-            >
-              <option value="all">All products</option>
-              <option value="attention">Needs attention</option>
-              <option value="in_range">In range</option>
-            </select>
-          </Field>
-          <Field label="Sort by">
-            <select
-              value={sort}
-              onChange={(event) => {
-                setSort(event.target.value as typeof sort);
-                setPage(1);
-              }}
-            >
-              <option value="name">Product name</option>
-              <option value="available_asc">Available: low to high</option>
-              <option value="available_desc">Available: high to low</option>
-            </select>
-          </Field>
+        <form
+          className="inventory-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!loading) void onRead({ ...applied, q: query.trim(), page: 1 });
+          }}
+        >
+          <TextField
+            size="small"
+            label="Search inventory"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Product, NDC, lot, supplier"
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            select
+            size="small"
+            label="Stock status"
+            value={statusFilter}
+            disabled={loading}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                status: event.target.value as typeof statusFilter,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="all">All products</MenuItem>
+            <MenuItem value="attention">Needs attention</MenuItem>
+            <MenuItem value="in_range">In range</MenuItem>
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Sort by"
+            value={sort}
+            disabled={loading}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                sort: event.target.value as typeof sort,
+                page: 1,
+              })
+            }
+          >
+            <MenuItem value="name">Product name</MenuItem>
+            <MenuItem value="available_asc">Available: low to high</MenuItem>
+            <MenuItem value="available_desc">Available: high to low</MenuItem>
+          </TextField>
+          <Button type="submit" variant="outlined" disabled={loading}>
+            Search inventory
+          </Button>
           {activeFilter && (
-            <button
-              className="inventory-button outline inventory-reset-button"
+            <Button
+              variant="outlined"
               type="button"
+              disabled={loading}
               onClick={() => {
                 setQuery("");
-                setStatusFilter("all");
-                setSort("name");
-                setPage(1);
+                void onRead({ q: "", status: "all", sort: "name", page: 1 });
               }}
             >
               Reset view
-            </button>
+            </Button>
           )}
-        </div>
+        </form>
         <p className="inventory-results-count" role="status">
-          Showing {products.length === 0 ? 0 : (page - 1) * pageSize + 1}–
-          {Math.min(page * pageSize, products.length)} of {products.length} products.
+          {loading
+            ? "Loading catalog…"
+            : `Showing ${result.filtered_count === 0 ? 0 : (page - 1) * pageSize + 1}–${Math.min(page * pageSize, result.filtered_count)} of ${result.filtered_count} matching products (${result.total_count} total).`}
+          {result.query && ` Search: ${result.query}.`}
         </p>
+        {error && (
+          <Alert severity="error">
+            {error} The previous catalog page remains visible.
+          </Alert>
+        )}
+        {data.products.length === 0 && (
+          <p className="inventory-empty-state" role="status">
+            No products match this view. Change the search or reset the view.
+          </p>
+        )}
         <div className="inventory-table-wrap">
           <table>
             <caption className="sr-only">Inventory catalog</caption>
@@ -2530,10 +2569,11 @@ function CatalogScreen({
                 <th>On hand</th>
                 <th>Reorder point</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {visibleProducts.map((item) => (
+              {data.products.map((item) => (
                 <tr key={item.id}>
                   <td data-label="Product">
                     <strong>{item.name}</strong>
@@ -2548,7 +2588,7 @@ function CatalogScreen({
                     {item.ndc || item.device_identifier || "Not recorded"}
                   </td>
                   <td data-label="Available" className="numeric">
-                    {number(item.available_units)} {item.base_unit}s
+                    {number(item.available_units)} {item.base_unit}
                   </td>
                   <td data-label="On hand" className="numeric">
                     {number(item.on_hand_units)}
@@ -2572,14 +2612,12 @@ function CatalogScreen({
                         Create purchase order
                       </a>
                     )}
-                    {item.low_stock && (
-                      canCreatePurchaseOrder && (
-                        <a
-                          href={`/clinic/inventory/replenishment?product_id=${item.id}`}
-                        >
-                          Start replenishment
-                        </a>
-                      )
+                    {item.low_stock && canCreatePurchaseOrder && (
+                      <a
+                        href={`/clinic/inventory/replenishment?product_id=${item.id}`}
+                      >
+                        Start replenishment
+                      </a>
                     )}
                     {capability(data, "inventory.catalog") && (
                       <ReorderPointEditor item={item} onSaved={onRefresh} />
@@ -2592,47 +2630,50 @@ function CatalogScreen({
         </div>
         {pageCount > 1 && (
           <nav className="inventory-pagination" aria-label="Catalog pagination">
-            <button
-              className="inventory-button outline"
+            <Button
+              variant="outlined"
               type="button"
-              disabled={page === 1}
-              onClick={() => setPage((current) => current - 1)}
+              disabled={loading || page === 1}
+              onClick={() => void onRead({ ...applied, page: page - 1 })}
             >
               Previous
-            </button>
+            </Button>
             <span aria-live="polite">
               Page {page} of {pageCount}
             </span>
-            <button
-              className="inventory-button outline"
+            <Button
+              variant="outlined"
               type="button"
-              disabled={page === pageCount}
-              onClick={() => setPage((current) => current + 1)}
+              disabled={loading || page === pageCount}
+              onClick={() => void onRead({ ...applied, page: page + 1 })}
             >
               Next
-            </button>
+            </Button>
           </nav>
         )}
       </Card>
       <Card title="Attention queue">
+        {data.attention_count > 0 && (
+          <p className="inventory-results-count">
+            Showing {data.attention.length} of {data.attention_count} held or
+            recalled lots.{" "}
+            <a href="/clinic/inventory/lots">View stock by lot</a>
+          </p>
+        )}
         <ul className="inventory-list">
-          {data.lots
-            .filter((item) => item.status !== "active")
-            .map((item) => (
-              <li key={item.id}>
-                <Badge tone="danger">{item.status}</Badge>
-                <div>
-                  <strong>Lot {item.lot_number}</strong>
-                  <small>
-                    {product(data, item.product_id)?.name} · expires{" "}
-                    {inventoryDate(item.expiration_date, data.timezone)}
-                  </small>
-                </div>
-              </li>
-            ))}
-          {data.lots.every((item) => item.status === "active") && (
-            <li>No held or recalled lots.</li>
-          )}
+          {data.attention.map((item) => (
+            <li key={item.id}>
+              <Badge tone="danger">{item.status}</Badge>
+              <div>
+                <strong>Lot {item.lot_number}</strong>
+                <small>
+                  {item.product_name} · expires{" "}
+                  {inventoryDate(item.expiration_date, data.timezone)}
+                </small>
+              </div>
+            </li>
+          ))}
+          {data.attention_count === 0 && <li>No held or recalled lots.</li>}
         </ul>
       </Card>
     </div>

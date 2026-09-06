@@ -129,6 +129,8 @@ begin
   raise "Decimal/retry wire contract failed" unless details.dig("product", "available_quantity") == "0.000001" && details.fetch("batches").length == 1 && details.fetch("batches").first.fetch("receipts").length == 1
   ledger = JSON.parse(request.call("/api/clinic/inventory/activity?view=ledger&q=split").body).fetch("data")
   raise "Bounded inventory ledger contract failed" unless ledger.dig("activity_page", "filtered_count") == 1 && ledger.fetch("movements").length == 1 && ledger.fetch("movements").first.fetch("quantity_units") == "0.000001" && !ledger.key?("products")
+  catalog = JSON.parse(request.call("/api/clinic/inventory/catalog?view=table&q=SPLIT-VERIFY").body).fetch("data")
+  raise "Bounded inventory catalog contract failed" unless catalog.dig("catalog_page", "filtered_count") == 1 && catalog.fetch("products").length == 1 && catalog.fetch("products").first.fetch("available_units") == "0.000001" && !catalog.key?("movements")
   phase = "portal and logout"
   documents = JSON.parse(request.call("/api/paperworks").body).fetch("paperworks")
   raise "Unexpected assigned documents" unless documents.length == 1

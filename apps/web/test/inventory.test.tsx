@@ -5,6 +5,7 @@ import { ApiError } from "../src/api/client";
 import {
   InventoryApp,
   ActivityScreen,
+  CatalogScreen,
   ReceivingScreen,
   benchmarkPackagePrice,
   inferInventoryUnits,
@@ -29,10 +30,96 @@ import {
 import type {
   InventoryData,
   InventoryActivityData,
+  InventoryCatalogData,
   InventoryPurchaseOrder,
 } from "../src/features/inventory/inventoryContracts";
 
 describe("inventory integration", () => {
+  it("renders catalog counts, exact stock, attention totals and failed reads", () => {
+    const data: InventoryCatalogData = {
+      schema_version: "inventory-wire-v1",
+      dataset_version: "bulk_v3",
+      data_version: 1,
+      as_of: "2026-09-05T12:00:00Z",
+      timezone: "America/Chicago",
+      practice: { id: 1, name: "Catalog fixture", timezone: "America/Chicago" },
+      users: [],
+      current_user_id: "1",
+      capabilities: {},
+      configuration: { status: "configured", version: 1, reason: "Fixture" },
+      catalog_page: {
+        query: "",
+        status: "all",
+        sort: "name",
+        page: 2,
+        page_count: 3,
+        page_size: 20,
+        total_count: 45,
+        filtered_count: 45,
+      },
+      products: [
+        {
+          id: "21",
+          name: "Catalog fixture liquid",
+        schedule: null,
+        preferred_supplier: null,
+          category: "medication",
+          ndc: "",
+          device_identifier: "",
+          active: true,
+          package_id: "pkg_21",
+          base_unit: "mL",
+          units_per_package: "1.25",
+          reorder_point_units: "1",
+          available_units: "2.5",
+          on_hand_units: "2.5",
+          low_stock: false,
+        },
+      ],
+      packages: [],
+      can_create_purchase_order: true,
+      attention_count: 25,
+      attention: [
+        {
+          id: "1",
+          product_id: "21",
+          product_name: "Catalog fixture liquid",
+          lot_number: "HELD-FIXTURE",
+          expiration_date: "2099-01-01",
+          status: "quarantined",
+        },
+      ],
+    };
+    const render = (extra = {}) =>
+      renderToStaticMarkup(
+        <CatalogScreen data={data} onRead={async () => {}} {...extra} />,
+      );
+    const html = render();
+    expect(html).toContain("45 total");
+    expect(html).toContain("2.5");
+    expect(html).not.toContain("mLs");
+    expect(html).toContain("HELD-FIXTURE");
+    expect(html).toContain("25");
+    expect(html).toContain("Catalog pagination");
+    expect(html).toContain("product_id=21");
+    expect(render({ error: "Read failed" })).toContain(
+      "The previous catalog page remains visible.",
+    );
+    expect(render({ loading: true })).toContain("Loading catalog");
+    data.products = [];
+    data.catalog_page = {
+      ...data.catalog_page,
+      query: "no match",
+      filtered_count: 0,
+      page: 1,
+      page_count: 1,
+    };
+    expect(render()).toContain("No products match this view");
+    expect(render()).toContain("Reset view");
+    data.catalog_page.total_count = 0;
+    expect(render()).toContain("No catalog items yet");
+  });
+
   it("renders server ledger totals, exact units, paging and read failures", () => {
     const data: InventoryActivityData = {
       schema_version: "inventory-wire-v1",

@@ -18,7 +18,11 @@ module Clinic
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
-      def catalog = bootstrap
+      def catalog
+        return bootstrap unless params[:view] == "table"
+
+        render json: { data: InventoryWire.catalog(practice: current_practice, actor: current_user, query: params[:q], status: params[:status], sort: params[:sort], page: params[:page]) }
+      end
 
       def create_location
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.configure")
