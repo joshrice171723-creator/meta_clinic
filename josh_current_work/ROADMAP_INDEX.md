@@ -10,6 +10,7 @@ This index connects the capability roadmaps. Each capability has a roadmap, an i
 | Staff messaging | [ROADMAP.md](staff%20messaging/ROADMAP.md) | [STAFF_MESSAGING_BUILD_PLAN.md](staff%20messaging/STAFF_MESSAGING_BUILD_PLAN.md) | [STAFF_MESSAGING_AUDIT_PLAN.md](staff%20messaging/STAFF_MESSAGING_AUDIT_PLAN.md) | Provides authenticated operational communication, acknowledgement, handoff, and escalation for staff. |
 | Patient portal | [ROADMAP.md](patient%20portal/ROADMAP.md) | [PATIENT_PORTAL_BUILD_PLAN.md](patient%20portal/PATIENT_PORTAL_BUILD_PLAN.md) | [PATIENT_PORTAL_AUDIT_PLAN.md](patient%20portal/PATIENT_PORTAL_AUDIT_PLAN.md) | Provides patient-scoped access to approved care, scheduling, billing, documents, results, and bounded requests. |
 | AI scribe | [ROADMAP.md](ai%20scribe/ROADMAP.md) | [AI_SCRIBE_BUILD_PLAN.md](ai%20scribe/AI_SCRIBE_BUILD_PLAN.md) | [AI_SCRIBE_AUDIT_PLAN.md](ai%20scribe/AI_SCRIBE_AUDIT_PLAN.md) | Produces reviewable encounter drafts; approved outputs may link to the official record and create follow-up work. |
+| Professional learning record | [ROADMAP.md](clinician%20learning/ROADMAP.md) | [CLINICIAN_LEARNING_BUILD_PLAN.md](clinician%20learning/CLINICIAN_LEARNING_BUILD_PLAN.md) | [CLINICIAN_LEARNING_AUDIT_PLAN.md](clinician%20learning/CLINICIAN_LEARNING_AUDIT_PLAN.md) | Opens source-cited evidence review from clinical work and lets a clinician explicitly document private, non-accredited learning; any future CME award remains under prospective accredited-provider authority. |
 | Cash-pay billing | [ROADMAP.md](cash%20pay%20billing/ROADMAP.md) | [CASH_PAY_BILLING_BUILD_PLAN.md](cash%20pay%20billing/CASH_PAY_BILLING_BUILD_PLAN.md) | [CASH_PAY_BILLING_AUDIT_PLAN.md](cash%20pay%20billing/CASH_PAY_BILLING_AUDIT_PLAN.md) | Provides staff receivables, cash drawer control, manager reconciliation, receipts, and gated check/card integrations while Rails remains the financial authority. |
 | Employee workforce | [ROADMAP.md](employee%20workforce/ROADMAP.md) | [EMPLOYEE_WORKFORCE_BUILD_PLAN.md](employee%20workforce/EMPLOYEE_WORKFORCE_BUILD_PLAN.md) | [EMPLOYEE_WORKFORCE_AUDIT_PLAN.md](employee%20workforce/EMPLOYEE_WORKFORCE_AUDIT_PLAN.md) | Plans employee account linking, location-configurable badge clocking, hours, employee schedules, optional self-service and payroll exports. Reuses host identity and sites; employee shifts are separate from patient appointments. |
 
@@ -25,6 +26,7 @@ The 2026-09-06 forgotten-work implementation is integrated locally; see the date
 - Capabilities integrate through stable opaque IDs and typed service/API contracts. No capability reads another capability’s tables directly or trusts browser-supplied actor, tenant, role, consent, approval, or audit metadata.
 - Patient reminders may create or update an operational task in staff messaging for failed delivery, unresolved patient response, or escalation. Staff messaging must not expose reminder message bodies unless separately authorized.
 - AI scribe may link an approved draft or follow-up task to an encounter; it must not autonomously send patient reminders, staff messages, or official-record updates.
+- Professional learning may receive an explicitly selected, authorized clinical-context reference from Care or Scribe and return source-cited educational material. It must not read capability tables directly, write to the official record, create a learning moment without clinician confirmation, expose private reflections to managers, or call non-accredited activity CME.
 - Staff messaging may receive operational events from reminders or scribe, but acknowledgement and escalation status must remain authoritative in staff messaging.
 - Each capability keeps its own state machine, provenance, audit details, retention behavior, and release gate. Cross-capability events must be idempotent, traceable with a correlation ID, and safe to replay.
 - Shared platform concerns—authorization, notification providers, audit logging, feature flags, observability, retention, incident response, and accessibility standards—must be reviewed against every capability’s audit plan.
@@ -36,7 +38,9 @@ The 2026-09-06 forgotten-work implementation is integrated locally; see the date
 3. Build and audit the patient portal foundation and lifecycle before exposing any patient-facing clinical or financial content.
 4. Build and audit patient reminders, integrating reminder failures and unresolved responses with staff messaging and the portal.
 5. Build and audit AI scribe with strict consent, provenance, human approval, and official-record boundaries.
-6. Run an integrated pilot proving cross-capability isolation, event idempotency, audit correlation, failure recovery, and safe rollback.
+6. Establish professional-learning claims, privacy, source, and attestation policy; then build the standalone general-education evidence and private-record foundation without depending on patient context or accreditation.
+7. Add professional-learning entry points to confirmed Care and Scribe workflows only after their typed context, wrong-patient, and stale-state boundaries pass the capability audit.
+8. Run an integrated pilot proving cross-capability isolation, event idempotency, audit correlation, failure recovery, truthful status, and safe rollback.
 
 ## How to use the documents
 
