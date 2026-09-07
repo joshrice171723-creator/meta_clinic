@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { api } from "../../../api/client";
 import { LoadState, useResource } from "../../../shared/ui";
@@ -15,14 +15,41 @@ export type StripeConnectionStatus = {
   last_synced_at?: string | null;
 };
 
+export type StripeSetupReturnMarker = "return" | "refresh" | null;
+
+export function stripeSetupReturnMarker(): StripeSetupReturnMarker {
+  if (typeof window === "undefined") return null;
+  const marker = new URLSearchParams(window.location.search).get(
+    "stripe_setup",
+  );
+  return marker === "return" || marker === "refresh" ? marker : null;
+}
+
+function clearStripeSetupReturnMarker() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("stripe_setup");
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
 export function StripeConnectPanel() {
   const resource = useResource<StripeConnectionStatus>(
     "/api/clinic/stripe_connect",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [returnMarker, setReturnMarker] = useState<StripeSetupReturnMarker>(
+    stripeSetupReturnMarker,
+  );
+  const returnCheckStarted = useRef(false);
   const data = resource.data;
-  const act = async (action: "onboard" | "refresh") => {
+  const act = async (
+    action: "onboard" | "refresh",
+    clearReturnMarker = false,
+  ) => {
     setBusy(true);
     setError("");
     try {
@@ -43,6 +70,10 @@ export function StripeConnectPanel() {
         }
         window.location.assign(url.href);
       } else {
+        if (clearReturnMarker) {
+          clearStripeSetupReturnMarker();
+          setReturnMarker(null);
+        }
         resource.refresh();
       }
     } catch (e) {
@@ -55,22 +86,54 @@ export function StripeConnectPanel() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!data || !returnMarker || returnCheckStarted.current) return;
+    returnCheckStarted.current = true;
+    void act("refresh", true);
+  }, [data, returnMarker]);
+
+  const retryReturnCheck = () => {
+    returnCheckStarted.current = true;
+    void act("refresh", true);
+  };
+
   if (!data) return <LoadState error={resource.error} />;
-  const ready = data.charges_enabled && data.payouts_enabled;
+  const paymentsReady = data.charges_enabled;
+  const setupComplete = paymentsReady && data.payouts_enabled;
   return (
     <Stack spacing={2.5}>
       {(error || resource.error) && (
         <Alert severity="error">{error || resource.error}</Alert>
       )}
-      <Alert severity={ready ? "success" : data.connected ? "warning" : "info"}>
+      <Alert
+        severity={
+          setupComplete ? "success" : data.connected ? "warning" : "info"
+        }
+      >
         {!data.configured
           ? "Platform sandbox configuration is required before clinic setup can begin."
-          : ready
-            ? "Stripe sandbox is ready to collect membership payments for this clinic."
-            : data.connected
-              ? "Clinic onboarding is incomplete. Finish setup in Stripe, then check the connection again."
-              : "Connect this clinic to Stripe before patients enroll in paid memberships."}
+          : setupComplete
+            ? "Stripe sandbox is ready to collect eligible invoice and membership payments for this clinic."
+            : paymentsReady
+              ? "Card payments are available for eligible invoice and membership payments. Payout setup is still incomplete in Stripe."
+              : data.connected
+                ? "Clinic onboarding is incomplete. Finish setup in Stripe, then check the connection again."
+                : "Connect this clinic to Stripe before collecting eligible invoice or membership payments."}
       </Alert>
+      {returnMarker && busy && (
+        <Alert severity="info">Checking the clinic’s Stripe connection…</Alert>
+      )}
+      {returnMarker && error && (
+        <Button
+          variant="outlined"
+          disabled={busy}
+          onClick={retryReturnCheck}
+          sx={{ alignSelf: "flex-start" }}
+        >
+          Retry connection check
+        </Button>
+      )}
       <Box
         className="billing-stripe-status"
         aria-label="Stripe connection status"
@@ -94,9 +157,9 @@ export function StripeConnectPanel() {
       </Box>
       <Stack spacing={0.75}>
         <Typography>
-          Membership payments and monthly renewals are direct charges on the
-          clinic’s connected account. Stripe processing fees and payouts belong
-          to the clinic.
+          Eligible invoice payments, membership payments, and monthly renewals
+          are direct charges on the clinic’s connected account. Stripe
+          processing fees and payouts belong to the clinic.
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Stripe collects bank and business details on its own website. APPly

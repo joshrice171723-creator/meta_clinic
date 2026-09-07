@@ -115,16 +115,15 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
           <Stack spacing={2.5}>
             <Box>
               <Typography variant="h6" component="h2">
-                Stripe membership payments
+                Stripe payments
               </Typography>
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ mt: 0.5 }}
               >
-                Connect the clinic before publishing a paid monthly membership.
-                This setup is separate from APPly’s future clinic software
-                subscription.
+                Connect this clinic to collect eligible invoice balances and
+                membership payments through Stripe’s hosted checkout.
               </Typography>
             </Box>
             <StripeConnectPanel />

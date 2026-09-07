@@ -4,9 +4,11 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
   class Gateway
     attr_reader :calls, :session
 
-    def initialize(amount_cents: 12_500)
+    def initialize(amount_cents: 12_500, cards_active: true, payouts_active: true)
       @amount_cents = amount_cents
+      @cards_active = cards_active
       @calls = []
+      @payouts_active = payouts_active
     end
 
     def request(method, path, **options)
@@ -18,8 +20,8 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
           "metadata" => { "apply_connection" => "invoice-connection" },
           "defaults" => { "responsibilities" => { "fees_collector" => "stripe", "losses_collector" => "stripe" } },
           "configuration" => { "merchant" => { "capabilities" => {
-            "card_payments" => { "status" => "active" },
-            "stripe_balance" => { "payouts" => { "status" => "active" } }
+            "card_payments" => { "status" => @cards_active ? "active" : "inactive" },
+            "stripe_balance" => { "payouts" => { "status" => @payouts_active ? "active" : "inactive" } }
           } } }
         }
       when [ :post, "/v1/checkout/sessions" ]
@@ -104,6 +106,23 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
     refute_includes fields.to_json, @patient.display_name
     refute_includes fields.to_json, @invoice.lines.first.description_snapshot
     refute fields.keys.any? { |key| key.include?("payment_method_types") }
+  end
+
+  test "allows direct invoice checkout when cards are active and payouts are inactive" do
+    @connection.update!(payouts_enabled: false)
+    gateway = Gateway.new(payouts_active: false)
+
+    result = start_payment(gateway, "invoice-payouts-inactive")
+
+    assert_equal "processing", result.state
+    assert gateway.calls.any? { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
+  end
+
+  test "denies direct invoice checkout when card payments are inactive" do
+    gateway = Gateway.new(cards_active: false, payouts_active: true)
+
+    assert_raises(ArgumentError, match: /card payments/) { start_payment(gateway, "invoice-cards-inactive") }
+    refute gateway.calls.any? { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
   end
 
   test "does not allow balance mutations until confirmed unpaid cancellation" do

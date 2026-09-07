@@ -15,7 +15,7 @@ module Clinic
       def self.patient_checkout_available?(practice)
         record = connection(practice)
         StripeGateway.configured? && record&.account_id.present? &&
-          record.charges_enabled && record.payouts_enabled
+          record.charges_enabled
       end
 
       def self.authorize!(practice, actor)

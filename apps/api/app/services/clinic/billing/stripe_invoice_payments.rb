@@ -19,9 +19,8 @@ module Clinic
         connection = StripeConnect.connection(invoice.practice)
         raise ArgumentError, "The clinic must complete Stripe onboarding first." unless connection&.account_id
         account = StripeConnect.verified_account(connection, gateway)
-        unless account.dig("configuration", "merchant", "capabilities", "card_payments", "status") == "active" &&
-          account.dig("configuration", "merchant", "capabilities", "stripe_balance", "payouts", "status") == "active"
-          raise ArgumentError, "Stripe has not enabled clinic payments and payouts."
+        unless account.dig("configuration", "merchant", "capabilities", "card_payments", "status") == "active"
+          raise ArgumentError, "Stripe has not enabled clinic card payments."
         end
 
         checkout = ApplicationRecord.transaction do

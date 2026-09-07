@@ -36,6 +36,7 @@ import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { CashDrawerOperations } from "./CashDrawerOperations";
 import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
+import { stripeSetupReturnMarker } from "./billing/StripeConnectPanel";
 import { patientReferenceLabel } from "./patientReference";
 import {
   clearInvoicePaymentReturnMarker,
@@ -317,7 +318,9 @@ function BillingConfirm({
 
 export function BillingDashboard() {
   const context = useClinic();
-  const [activeTab, setActiveTab] = useState("invoices");
+  const [activeTab, setActiveTab] = useState(() =>
+    stripeSetupReturnMarker() ? "subscriptions" : "invoices",
+  );
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [currency, setCurrency] = useState("");
   const [invoicePage, setInvoicePage] = useState(1);
@@ -381,23 +384,28 @@ export function BillingDashboard() {
     setCheckoutReturnError("");
     Promise.allSettled(
       pending.map((payment) =>
-        api(`/api/clinic/invoices/${payment.invoice_id}/online_payment/reconcile`, {
-          method: "POST",
-        }),
+        api(
+          `/api/clinic/invoices/${payment.invoice_id}/online_payment/reconcile`,
+          {
+            method: "POST",
+          },
+        ),
       ),
-    ).then((results) => {
-      const failed = results.some((result) => result.status === "rejected");
-      if (failed) {
-        setCheckoutReturnError(
-          "Payment status could not be refreshed for every active checkout. Retry before recording another payment.",
-        );
-        return;
-      }
-      refresh();
-      detailResource.refresh();
-      clearInvoicePaymentReturnMarker();
-      setCheckoutReturn(null);
-    }).finally(() => setCheckingCheckoutReturn(false));
+    )
+      .then((results) => {
+        const failed = results.some((result) => result.status === "rejected");
+        if (failed) {
+          setCheckoutReturnError(
+            "Payment status could not be refreshed for every active checkout. Retry before recording another payment.",
+          );
+          return;
+        }
+        refresh();
+        detailResource.refresh();
+        clearInvoicePaymentReturnMarker();
+        setCheckoutReturn(null);
+      })
+      .finally(() => setCheckingCheckoutReturn(false));
   }, [checkoutReturn, checkoutReturnRetry, data]);
 
   const retryCheckoutReturn = () => {
@@ -604,11 +612,7 @@ export function BillingDashboard() {
         <Alert
           severity="error"
           action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={retryCheckoutReturn}
-            >
+            <Button color="inherit" size="small" onClick={retryCheckoutReturn}>
               Retry
             </Button>
           }

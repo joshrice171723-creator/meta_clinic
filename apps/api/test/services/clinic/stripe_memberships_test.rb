@@ -4,12 +4,14 @@ class StripeMembershipsTest < ActiveSupport::TestCase
   class Gateway
     attr_reader :calls, :session
 
-    def initialize(reference:, amount_cents:)
+    def initialize(reference:, amount_cents:, cards_active: true, payouts_active: true)
       @reference = reference
       @amount_cents = amount_cents
+      @cards_active = cards_active
       @calls = []
       @invoices = {}
       @payments = {}
+      @payouts_active = payouts_active
     end
 
     def attach_subscription(invoice:, fee_percent: "2.1")
@@ -46,7 +48,8 @@ class StripeMembershipsTest < ActiveSupport::TestCase
           "metadata" => { "apply_connection" => "membership-connection" },
           "defaults" => { "responsibilities" => { "fees_collector" => "stripe", "losses_collector" => "stripe" } },
           "configuration" => { "merchant" => { "capabilities" => {
-            "card_payments" => { "status" => "active" }, "stripe_balance" => { "payouts" => { "status" => "active" } }
+            "card_payments" => { "status" => @cards_active ? "active" : "inactive" },
+            "stripe_balance" => { "payouts" => { "status" => @payouts_active ? "active" : "inactive" } }
           } } }
         }
       when [:post, "/v1/checkout/sessions"]
@@ -136,6 +139,26 @@ class StripeMembershipsTest < ActiveSupport::TestCase
     assert_equal "2.1", fields.fetch("subscription_data[application_fee_percent]")
     assert_equal 53, checkout.application_fee_cents
     assert_not_includes fields.to_json, @patient.display_name
+  end
+
+  test "allows direct membership checkout when cards are active and payouts are inactive" do
+    @connection.update!(payouts_enabled: false)
+    gateway = Gateway.new(reference: nil, amount_cents: 2500, payouts_active: false)
+
+    Clinic::Billing::StripeMembershipPayments.start(agreement: @agreement, actor: @patient_user,
+      request_key: "start-membership-payouts-inactive", gateway: gateway)
+
+    assert gateway.calls.any? { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
+  end
+
+  test "denies direct membership checkout when card payments are inactive" do
+    gateway = Gateway.new(reference: nil, amount_cents: 2500, cards_active: false)
+
+    assert_raises(ArgumentError, match: /card payments/) do
+      Clinic::Billing::StripeMembershipPayments.start(agreement: @agreement, actor: @patient_user,
+        request_key: "start-membership-cards-inactive", gateway: gateway)
+    end
+    refute gateway.calls.any? { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
   end
 
   test "a signed paid invoice creates one cycle, payment, receipt, and access period across replay" do
