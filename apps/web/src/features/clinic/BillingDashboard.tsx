@@ -1184,6 +1184,7 @@ export function BillingDashboard() {
                       context.capabilities.billing_payment_record === true ||
                       context.capabilities.billing === true
                     }
+                    allowPaidRefresh
                     onChanged={() => {
                       refresh();
                       detailResource.refresh();

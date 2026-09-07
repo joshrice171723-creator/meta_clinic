@@ -857,6 +857,7 @@ function CheckoutSettlement({
               (clinic.capabilities.billing_payment_record === true ||
                 clinic.capabilities.billing === true)
             }
+            allowPaidRefresh
             onChanged={() => onFinancialChange(invoice.id)}
           />
           {onlinePaymentPending && (

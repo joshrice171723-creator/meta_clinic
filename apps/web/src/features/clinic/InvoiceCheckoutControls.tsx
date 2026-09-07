@@ -57,12 +57,14 @@ export function InvoiceCheckoutControls({
   endpoint,
   actionLabel,
   actionsEnabled = true,
+  allowPaidRefresh = false,
   onChanged,
 }: {
   onlinePayment: InvoiceOnlinePayment;
   endpoint: string;
   actionLabel: "Pay securely" | "Collect online";
   actionsEnabled?: boolean;
+  allowPaidRefresh?: boolean;
   onChanged: () => void;
 }) {
   const [payment, setPayment] = useState(onlinePayment);
@@ -140,6 +142,8 @@ export function InvoiceCheckoutControls({
   const pending = ["processing", "needs_reconciliation"].includes(payment.state);
   const canStart =
     actionsEnabled && payment.state === "available" && payment.eligible;
+  const canRefreshPaid =
+    allowPaidRefresh && actionsEnabled && payment.state === "paid";
   return (
     <Stack spacing={1.25} sx={{ mt: 2 }}>
       <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -163,7 +167,7 @@ export function InvoiceCheckoutControls({
       )}
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="info">{notice}</Alert>}
-      {(canStart || (pending && actionsEnabled)) && (
+      {(canStart || (pending && actionsEnabled) || canRefreshPaid) && (
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
           {(canStart || payment.state === "processing") && (
             <Button variant="contained" disabled={busy !== null} onClick={() => void run("start")}>
@@ -173,6 +177,16 @@ export function InvoiceCheckoutControls({
           {pending && (
             <Button variant="outlined" disabled={busy !== null} onClick={() => void run("reconcile")}>
               {busy === "reconcile" ? "Checking…" : "Refresh payment status"}
+            </Button>
+          )}
+          {canRefreshPaid && (
+            <Button
+              variant="outlined"
+              disabled={busy !== null}
+              onClick={() => void run("reconcile")}
+              sx={{ minHeight: 44 }}
+            >
+              {busy === "reconcile" ? "Checking…" : "Refresh Stripe payment"}
             </Button>
           )}
           {pending && payment.can_cancel && (
