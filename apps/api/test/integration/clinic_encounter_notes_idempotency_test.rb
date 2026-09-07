@@ -404,6 +404,105 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     Rails.logger = original_logger if original_logger
   end
 
+  test "patient instructions are serialized validated and covered by the signed content digest" do
+    instructions = "Rest today and call if the fever returns."
+    params = create_params(request_key: "note-instructions-create")
+    params[:encounter_note][:patient_instructions] = "  #{instructions}  "
+    post "/api/clinic/encounters/#{@encounter.id}/notes", params: params, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal instructions, response.parsed_body.dig("note", "current_revision", "body", "patient_instructions")
+
+    note = @encounter.notes.sole
+    revision = note.revisions.sole
+    without_instructions = Clinic::Care::SoapNotePayload.dump(
+      template_id: "adult-physical-exam-detailed",
+      template_version: 1,
+      sections: create_params(request_key: "unused").fetch(:encounter_note)
+        .slice(:subjective, :objective, :assessment, :plan)
+    )
+    post "/api/clinic/notes/#{note.id}/signatures", params: { signature: {
+      revision_no: revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(without_instructions),
+      attestation_version: "instructions-v1"
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_empty note.signatures.reload
+
+    post "/api/clinic/notes/#{note.id}/signatures", params: { signature: {
+      revision_no: revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(revision.encrypted_body),
+      attestation_version: "instructions-v1"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal instructions, response.parsed_body.dig("note", "current_revision", "body", "patient_instructions")
+
+    other_encounter = @practice.encounters.create!(patient: @patient, site: @site,
+      started_at: Time.utc(2026, 9, 2, 16), status: "open")
+    too_long = create_params(request_key: "note-instructions-too-long")
+    too_long[:encounter_note][:patient_instructions] = "x" * 5_001
+    post "/api/clinic/encounters/#{other_encounter.id}/notes", params: too_long, headers: csrf_headers, as: :json
+    assert_response :bad_request
+    assert_equal "patient_instructions", response.parsed_body.fetch("field")
+    assert_empty other_encounter.notes
+  end
+
+  test "legacy omitted instructions use the expected immutable revision for exact retries" do
+    create = create_params(request_key: "note-instructions-legacy-create")
+    create[:encounter_note][:patient_instructions] = "Keep the original directions."
+    post "/api/clinic/encounters/#{@encounter.id}/notes", params: create, headers: csrf_headers, as: :json
+    assert_response :created
+    note = @encounter.notes.sole
+
+    legacy_revise = revise_params(request_key: "note-instructions-legacy-revise")
+    post "/api/clinic/notes/#{note.id}/revisions", params: legacy_revise, headers: csrf_headers, as: :json
+    assert_response :created
+    inherited_revision = response.parsed_body.fetch("revision")
+    assert_equal "Keep the original directions.", inherited_revision.dig("body", "patient_instructions")
+
+    changed_revise = revise_params(request_key: "note-instructions-change", subjective: "Later content")
+    changed_revise[:revision][:expected_revision] = 2
+    changed_revise[:revision][:patient_instructions] = "Use the later directions."
+    post "/api/clinic/notes/#{note.id}/revisions", params: changed_revise, headers: csrf_headers, as: :json
+    assert_response :created
+
+    post "/api/clinic/notes/#{note.id}/revisions", params: legacy_revise, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal inherited_revision.fetch("id"), response.parsed_body.dig("revision", "id")
+    assert_equal 3, note.revisions.reload.count
+
+    signed_revision = note.revisions.order(:revision_no).last
+    Clinic::Care::SignEncounterNote.call(
+      note: note, actor: @user, revision_no: signed_revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(signed_revision.encrypted_body),
+      attestation_version: "instructions-correction-v1"
+    )
+    legacy_correction = correction_params(
+      request_key: "note-instructions-legacy-correction", revision: signed_revision
+    )
+    post "/api/clinic/notes/#{note.id}/corrections", params: legacy_correction, headers: csrf_headers, as: :json
+    assert_response :created
+    inherited_correction = response.parsed_body.fetch("revision")
+    assert_equal "Use the later directions.", inherited_correction.dig("body", "patient_instructions")
+
+    correction_revision = note.revisions.find(inherited_correction.fetch("id"))
+    Clinic::Care::SignEncounterNote.call(
+      note: note, actor: @user, revision_no: correction_revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(correction_revision.encrypted_body),
+      attestation_version: "instructions-correction-v2"
+    )
+    later_correction = correction_params(
+      request_key: "note-instructions-later-correction", revision: correction_revision
+    )
+    later_correction[:correction][:patient_instructions] = "Use the newest directions."
+    post "/api/clinic/notes/#{note.id}/corrections", params: later_correction, headers: csrf_headers, as: :json
+    assert_response :created
+
+    post "/api/clinic/notes/#{note.id}/corrections", params: legacy_correction, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal inherited_correction.fetch("id"), response.parsed_body.dig("revision", "id")
+    assert_equal 5, note.revisions.reload.count
+  end
+
   private
 
   def create_params(request_key:, subjective: "Synthetic SOAP draft")

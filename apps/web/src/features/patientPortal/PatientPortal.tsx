@@ -26,6 +26,7 @@ import { useResource } from "../../shared/ui";
 import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 import { PatientSubscriptions } from "./PatientSubscriptions";
 import { PatientAppointmentRequests } from "./PatientAppointmentRequests";
+import { AfterVisitInstructions } from "./AfterVisitInstructions";
 import { patientPortalLabel } from "./patientPortalLabels";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
@@ -137,7 +138,7 @@ export function PatientPortal({
                 {context?.practice.name || "Your clinic"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Your membership. Your wellbeing.
+                Your visits, instructions, and billing in one place.
               </Typography>
             </Box>
             <Stack
@@ -146,10 +147,11 @@ export function PatientPortal({
               direction="row"
               sx={{ gap: { xs: 0.5, sm: 2 }, flexWrap: "wrap" }}
             >
-              <Button href="#memberships">Explore plans</Button>
-              <Button href="#appointments">Request appointment</Button>
-              <Button href="#my-memberships">My memberships</Button>
+              <Button href="#visit-instructions">Visit instructions</Button>
+              <Button href="#appointments">Appointments</Button>
               <Button href="#billing">Billing</Button>
+              <Button href="#my-memberships">My memberships</Button>
+              <Button href="#memberships">Explore plans</Button>
               {!user?.development_demo && (
                 <Button
                   onClick={async () => {
@@ -207,12 +209,7 @@ export function PatientPortal({
                   bgcolor: "#203f34",
                   color: "#f6f7ed",
                   borderRadius: 3,
-                  px: { xs: 3, md: 6 },
-                  py: { xs: 4, md: 5.5 },
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "1.25fr 0.75fr" },
-                  alignItems: "center",
-                  gap: 4,
+                  p: { xs: 3, md: 4 },
                 }}
               >
                 <Box>
@@ -220,50 +217,38 @@ export function PatientPortal({
                     component="h1"
                     sx={{
                       fontFamily: "Georgia, serif",
-                      fontSize: { xs: 42, sm: 56, md: 64 },
-                      lineHeight: 1.05,
-                      letterSpacing: "-0.045em",
+                      fontSize: { xs: 32, md: 40 },
+                      lineHeight: 1.15,
+                      letterSpacing: "-0.025em",
                       maxWidth: 600,
                     }}
                   >
-                    A little more care.
-                    <br />
-                    <Box component="span" sx={{ color: "#d9e6b8" }}>
-                      A lot more you.
-                    </Box>
+                    Your care, between visits.
                   </Typography>
-                </Box>
-                <Box>
                   <Typography
                     sx={{
+                      mt: 1.5,
                       color: "#e0e8de",
-                      fontSize: 18,
+                      fontSize: 16,
                       lineHeight: 1.65,
-                      maxWidth: 380,
+                      maxWidth: 680,
                     }}
                   >
-                    Make room for your wellbeing with a membership built around
-                    the services that matter to you.
+                    Return to your care team's visit instructions, manage an
+                    appointment, or review your balance.
                   </Typography>
                   <Button
-                    href="#memberships"
+                    href="#visit-instructions"
                     variant="contained"
-                    size="large"
                     sx={{
-                      mt: 3,
+                      mt: 2,
                       bgcolor: "#d9e6b8",
                       color: "#203f34",
                       "&:hover": { bgcolor: "#e7efd1" },
                     }}
                   >
-                    Find my membership
+                    View visit instructions
                   </Button>
-                  <Typography
-                    variant="body2"
-                    sx={{ mt: 1.5, color: "#e0e8de" }}
-                  >
-                    Clear inclusions. Your choice of plan.
-                  </Typography>
                 </Box>
               </Box>
               <Box
@@ -329,12 +314,21 @@ export function PatientPortal({
                 </Stack>
               </Box>
               {!switching && (
+                <AfterVisitInstructions
+                  key={`instructions-${context.patient.id}`}
+                  patientId={context.patient.id}
+                  timezone={context.practice.timezone}
+                />
+              )}
+              {!switching && (
+                <PatientAppointmentRequests key={`appointments-${context.patient.id}`} />
+              )}
+              {!switching && (
                 <PatientSubscriptions
-                  key={context.patient.id}
+                  key={`subscriptions-${context.patient.id}`}
                   onChanged={resource.refresh}
                 />
               )}
-              {!switching && <PatientAppointmentRequests key={context.patient.id} />}
               <Paper
                 id="billing"
                 variant="outlined"

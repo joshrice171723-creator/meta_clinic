@@ -26,7 +26,7 @@ module Clinic
 
       def create
         input = parameter_hash!(:encounter_note,
-          %i[note_kind template_id template_version subjective objective assessment plan request_key])
+          %i[note_kind template_id template_version subjective objective assessment plan patient_instructions request_key])
         encounter = current_practice.encounters.find(requested_id!(params[:encounter_id], :encounter_id))
         note_kind = enum_param!(input[:note_kind].presence || "soap", field: :note_kind, allowed: %w[soap])
         note = Clinic::Care::CreateEncounterNote.call(
@@ -43,15 +43,19 @@ module Clinic
 
       def revise
         input = parameter_hash!(:revision,
-          %i[template_id template_version subjective objective assessment plan expected_revision request_key])
+          %i[template_id template_version subjective objective assessment plan patient_instructions expected_revision request_key])
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
         raise ArgumentError, "Only SOAP drafts can be revised from this endpoint." unless note.note_kind == "soap"
+        expected_revision = bounded_integer!(input[:expected_revision], field: :expected_revision,
+          min: 1, max: 2_147_483_647)
+        authorize_note_write!(note.encounter)
 
         revision = Clinic::Care::ReviseEncounterNote.call(
           note: note,
           actor: current_user,
-          encrypted_body: soap_payload(input),
-          expected_revision: bounded_integer!(input[:expected_revision], field: :expected_revision, min: 1, max: 2_147_483_647),
+          encrypted_body: soap_payload(input,
+            fallback_patient_instructions: patient_instructions_for_revision(note, revision_no: expected_revision)),
+          expected_revision: expected_revision,
           payload_version: SoapNotePayload::VERSION,
           request_key: request_key!(input[:request_key])
         )
@@ -63,7 +67,7 @@ module Clinic
 
       def correct
         input = parameter_hash!(:correction,
-          %i[template_id template_version subjective objective assessment plan reason expected_revision_id expected_revision request_key])
+          %i[template_id template_version subjective objective assessment plan patient_instructions reason expected_revision_id expected_revision request_key])
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
         raise ArgumentError, "Only signed SOAP notes can be corrected from this endpoint." unless note.note_kind == "soap"
 
@@ -71,10 +75,13 @@ module Clinic
           min: 1, max: 2_147_483_647)
         expected_revision = bounded_integer!(input[:expected_revision], field: :expected_revision,
           min: 1, max: 2_147_483_647)
+        authorize_note_write!(note.encounter)
         revision = Clinic::Care::CorrectEncounterNote.call(
           note: note,
           actor: current_user,
           encrypted_body: soap_correction_payload(input,
+            fallback_patient_instructions: patient_instructions_for_revision(note,
+              revision_id: corrected_revision_id, revision_no: expected_revision),
             corrected_revision_id: corrected_revision_id, corrected_revision_no: expected_revision),
           corrected_revision_id: corrected_revision_id,
           expected_revision: expected_revision,
@@ -107,28 +114,53 @@ module Clinic
           action: "notes.read", site: encounter.site)
       end
 
-      def soap_payload(input)
+      def authorize_note_write!(encounter)
+        Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+          action: "notes.write", site: encounter.site)
+      end
+
+      def soap_payload(input, fallback_patient_instructions: nil)
         SoapNotePayload.dump(
           template_id: required_string!(input[:template_id], field: :template_id, maximum: 100),
           template_version: bounded_integer!(input[:template_version], field: :template_version, min: 1, max: 1_000_000),
           sections: %i[subjective objective assessment plan].to_h do |field|
             [ field, optional_string(input[field], field: field, maximum: SoapNotePayload::MAX_SECTION_LENGTH) || "" ]
-          end
+          end,
+          patient_instructions: patient_instructions(input, fallback: fallback_patient_instructions)
         )
       end
 
-      def soap_correction_payload(input, corrected_revision_id:, corrected_revision_no:)
+      def soap_correction_payload(input, corrected_revision_id:, corrected_revision_no:, fallback_patient_instructions: nil)
         SoapNotePayload.dump_correction(
           template_id: required_string!(input[:template_id], field: :template_id, maximum: 100),
           template_version: bounded_integer!(input[:template_version], field: :template_version, min: 1, max: 1_000_000),
           sections: %i[subjective objective assessment plan].to_h do |field|
             [ field, optional_string(input[field], field: field, maximum: SoapNotePayload::MAX_SECTION_LENGTH) || "" ]
           end,
+          patient_instructions: patient_instructions(input, fallback: fallback_patient_instructions),
           corrected_revision_id: corrected_revision_id,
           corrected_revision_no: corrected_revision_no,
           reason: required_string!(input[:reason], field: :reason, maximum: SoapNotePayload::MAX_CORRECTION_REASON_LENGTH),
           source: { kind: "manual" }
         )
+      end
+
+      def patient_instructions(input, fallback: nil)
+        return fallback unless input.key?(:patient_instructions)
+
+        optional_string(
+          input[:patient_instructions], field: :patient_instructions,
+          maximum: SoapNotePayload::MAX_PATIENT_INSTRUCTIONS_LENGTH
+        )
+      end
+
+      def patient_instructions_for_revision(note, revision_no:, revision_id: nil)
+        revisions = note.revisions.where(revision_no: revision_no)
+        revisions = revisions.where(id: revision_id) if revision_id
+        revision = revisions.first
+        return unless revision
+
+        SoapNotePayload.load!(revision.encrypted_body)[:patient_instructions]
       end
 
       def request_key!(value)

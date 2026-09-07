@@ -725,6 +725,11 @@
     "/api/patient_portal/subscriptions(.:format)"
   ],
   [
+    "api_patient_portal_visit_instructions",
+    "GET",
+    "/api/patient_portal/visit_instructions(.:format)"
+  ],
+  [
     "api_session",
     "GET",
     "/api/session(.:format)"

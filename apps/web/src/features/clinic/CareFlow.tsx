@@ -1227,7 +1227,11 @@ export function SoapNoteForm({
   const { registerBlocker } = useClinicNavigation();
   const savedBody = note?.current_revision?.body;
   const initialSections = savedBody?.sections ?? EMPTY_SOAP_SECTIONS;
+  const initialPatientInstructions = savedBody?.patient_instructions ?? "";
   const [sections, setSections] = useState<SoapNoteSections>(initialSections);
+  const [patientInstructions, setPatientInstructions] = useState(
+    initialPatientInstructions,
+  );
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
     version: number;
@@ -1252,7 +1256,7 @@ export function SoapNoteForm({
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const dirty = SOAP_SECTION_LABELS.some(
     ([key]) => sections[key] !== initialSections[key],
-  );
+  ) || patientInstructions !== initialPatientInstructions;
   const signed = note?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
@@ -1262,6 +1266,7 @@ export function SoapNoteForm({
   useEffect(() => {
     if (saveAttemptRef.current) return;
     setSections(initialSections);
+    setPatientInstructions(initialPatientInstructions);
     if (savedBody) {
       setAppliedTemplate({
         id: savedBody.template_id,
@@ -1271,6 +1276,7 @@ export function SoapNoteForm({
   }, [
     savedBody?.template_id,
     savedBody?.template_version,
+    savedBody?.patient_instructions,
     note?.current_revision?.revision_no,
   ]);
 
@@ -1329,6 +1335,7 @@ export function SoapNoteForm({
       template_id: appliedTemplate.id,
       template_version: appliedTemplate.version,
       ...sections,
+      patient_instructions: patientInstructions,
     };
     try {
       if (
@@ -1480,6 +1487,7 @@ export function SoapNoteForm({
     const body = reconciled.current_revision?.body;
     if (body) {
       setSections(body.sections);
+      setPatientInstructions(body.patient_instructions ?? "");
       setAppliedTemplate({
         id: body.template_id,
         version: body.template_version,
@@ -1574,6 +1582,7 @@ export function SoapNoteForm({
     if (!note || !savedBody || !note.current_revision || !signed) return;
     if (!correctionReason.trim() || !correctionConfirmed) return;
     setSections(savedBody.sections);
+    setPatientInstructions(savedBody.patient_instructions ?? "");
     setAppliedTemplate({
       id: savedBody.template_id,
       version: savedBody.template_version,
@@ -1661,6 +1670,16 @@ export function SoapNoteForm({
             />
           ),
         )}
+        <TextField
+          label="Patient instructions"
+          value={patientInstructions}
+          onChange={(event) => setPatientInstructions(event.target.value)}
+          multiline
+          minRows={4}
+          slotProps={{ htmlInput: { maxLength: 5_000 } }}
+          disabled={editorDisabled}
+          helperText="Optional. These exact instructions are available to the patient portal only after this revision is signed and the encounter is completed."
+        />
       </Stack>
       {!canWrite && !signed && (
         <Alert severity="info">
@@ -1783,6 +1802,14 @@ export function SoapNoteForm({
                 </Typography>
               </Box>
             ))}
+            <Box>
+              <Typography sx={{ fontWeight: 700 }}>
+                Patient instructions
+              </Typography>
+              <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                {savedBody?.patient_instructions || "No patient instructions recorded."}
+              </Typography>
+            </Box>
             <TextField
               label="Reason for correction"
               value={correctionReason}

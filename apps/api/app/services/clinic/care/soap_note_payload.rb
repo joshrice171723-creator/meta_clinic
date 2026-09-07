@@ -7,23 +7,26 @@ module Clinic
       CORRECTION_VERSION = 2
       SECTION_KEYS = %i[subjective objective assessment plan].freeze
       MAX_SECTION_LENGTH = 50_000
+      MAX_PATIENT_INSTRUCTIONS_LENGTH = 5_000
       MAX_CORRECTION_REASON_LENGTH = 2_000
 
-      def self.dump(template_id:, template_version:, sections:)
+      def self.dump(template_id:, template_version:, sections:, patient_instructions: nil)
         template = NoteTemplateCatalog.fetch!(template_id.to_s, template_version)
         normalized = normalize_sections!(sections)
-
-        JSON.generate(
+        payload = {
           schema: "soap-note-v1",
           note_kind: "soap",
           template_id: template[:id],
           template_version: template[:version],
           sections: normalized
-        )
+        }
+        instructions = normalize_patient_instructions!(patient_instructions)
+        payload[:patient_instructions] = instructions if instructions
+        JSON.generate(payload)
       end
 
       def self.dump_correction(template_id:, template_version:, sections:, corrected_revision_id:,
-        corrected_revision_no:, reason:, source: { kind: "manual" })
+        corrected_revision_no:, reason:, patient_instructions: nil, source: { kind: "manual" })
         template = NoteTemplateCatalog.fetch!(template_id.to_s, template_version)
         normalized = normalize_sections!(sections)
         correction = normalize_correction!(
@@ -33,14 +36,17 @@ module Clinic
           source: source
         )
 
-        JSON.generate(
+        payload = {
           schema: "soap-note-v2",
           note_kind: "soap",
           template_id: template[:id],
           template_version: template[:version],
           sections: normalized,
           correction: correction
-        )
+        }
+        instructions = normalize_patient_instructions!(patient_instructions)
+        payload[:patient_instructions] = instructions if instructions
+        JSON.generate(payload)
       end
 
       def self.load!(value)
@@ -57,7 +63,8 @@ module Clinic
           note_kind: payload[:note_kind],
           template_id: template[:id],
           template_version: template[:version],
-          sections: sections
+          sections: sections,
+          patient_instructions: normalize_patient_instructions!(payload[:patient_instructions])
         }
         if payload[:schema] == "soap-note-v2"
           correction = payload[:correction]
@@ -104,6 +111,7 @@ module Clinic
             template_id: replacement.fetch(:template_id),
             template_version: replacement.fetch(:template_version),
             sections: replacement.fetch(:sections),
+            patient_instructions: replacement[:patient_instructions],
             corrected_revision_id: correction.fetch(:corrected_revision_id),
             corrected_revision_no: correction.fetch(:corrected_revision_no),
             reason: correction.fetch(:reason),
@@ -126,6 +134,17 @@ module Clinic
         normalized
       end
       private_class_method :normalize_sections!
+
+      def self.normalize_patient_instructions!(value)
+        text = value.to_s.strip
+        return nil if text.empty?
+        if text.length > MAX_PATIENT_INSTRUCTIONS_LENGTH
+          raise ArgumentError, "Patient instructions must be at most #{MAX_PATIENT_INSTRUCTIONS_LENGTH} characters."
+        end
+
+        text
+      end
+      private_class_method :normalize_patient_instructions!
 
       def self.normalize_correction!(corrected_revision_id:, corrected_revision_no:, reason:, source:)
         revision_id = positive_integer!(corrected_revision_id, "The corrected revision is invalid.")

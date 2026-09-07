@@ -324,6 +324,7 @@ Rails.application.routes.draw do
         get :receipt, on: :member
       end
       get "context", to: "context#show"
+      get "visit_instructions", to: "visit_instructions#index"
       get "reminders", to: "reminders#index"
       post "reminders/:id/actions", to: "reminders#action"
       get "reminder_preferences", to: "reminder_preferences#show"

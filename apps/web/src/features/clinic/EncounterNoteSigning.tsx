@@ -202,6 +202,15 @@ export function EncounterNoteSigning({
                 <Divider sx={{ mt: 1 }} />
               </Box>
             ))}
+            <Box>
+              <Typography sx={{ fontWeight: 700 }}>
+                Patient instructions
+              </Typography>
+              <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                {body.patient_instructions || "No patient instructions recorded."}
+              </Typography>
+              <Divider sx={{ mt: 1 }} />
+            </Box>
             <FormControlLabel
               control={
                 <Checkbox
