@@ -6,7 +6,6 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     host! "localhost:3000"
     @origin = "http://localhost:3000"
     @sample = Launch::Material.create!(title: "Sample operations", body: "Synthetic lesson", sample: true, published_at: Time.current)
-    @private_material = Launch::Material.create!(title: "Non-sample content", body: "Synthetic restricted test", sample: false, published_at: Time.current)
   end
 
   def with_environment(name = "development", flag: "1")
@@ -35,7 +34,9 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     get "/api/session", headers: headers
     assert_response :success
     assert_equal true, response.parsed_body.dig("user", "development_demo")
-    User.find(response.parsed_body.dig("user", "id"))
+    user = User.find(response.parsed_body.dig("user", "id"))
+    assert_equal "employee-#{user.id}", response.parsed_body.dig("user", "development_account_id")
+    user
   end
 
   test "disabled by default and in production even when explicitly flagged" do
@@ -66,41 +67,19 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "demo is isolated, non-admin, sample-only and can finish the walkthrough without a password" do
+  test "default local login uses the validated clinic administrator profile without a password" do
     with_environment do
       first = enter_demo
-      assert_not first.admin?
-      assert_equal "Test Clinic", first.clinic_membership.practice.name
-      document = first.paperworks.sole
-      assert document.demo?
-      get "/api/inquiries", headers: headers
-      assert_response :forbidden
-      get "/api/materials", headers: headers
-      assert_equal [ @sample.id ], response.parsed_body["materials"].pluck("id")
-      get "/api/materials/#{@private_material.id}", headers: headers
-      assert_response :not_found
-      post "/api/materials/#{@private_material.id}/start", headers: csrf, as: :json
-      assert_response :not_found
-      post "/api/materials/#{@sample.id}/start", headers: csrf, as: :json
+      assert first.admin?
+      assert_equal Development::RoleAccounts::PRACTICE_NAME, first.clinic_membership.practice.name
+      assert first.clinic_membership.role_grants.active.joins(:role_version)
+        .exists?(role_versions: { role_code: "clinic-administrator" })
+      get "/api/clinic", headers: headers
       assert_response :success
-      post "/api/materials/#{@sample.id}/complete", headers: csrf, as: :json
-      assert_equal "completed", response.parsed_body["status"]
-      post "/api/paperworks/#{document.id}/start", headers: csrf, as: :json
-      assert_response :success
-      payload = { consent: true, signature_name: "Alex Example", content_digest: document.content_digest }
-      post "/api/paperworks/#{document.id}/sign", params: payload.merge(consent: false), headers: csrf, as: :json
-      assert_response :unprocessable_entity
-      post "/api/paperworks/#{document.id}/sign", params: payload.merge(content_digest: "stale"), headers: csrf, as: :json
-      assert_response :conflict
-      post "/api/paperworks/#{document.id}/sign", params: payload, headers: csrf, as: :json
-      assert_response :success
-      assert_equal "completed", document.reload.status
+
       second = enter_demo
-      assert_not_equal first.id, second.id
-      assert_not_equal first.clinic_membership.practice_id, second.clinic_membership.practice_id
-      get "/api/paperworks/#{document.id}", headers: headers
-      assert_response :not_found
-      assert_equal "not_started", second.paperworks.sole.status
+      assert_equal first.id, second.id
+      assert_equal first.clinic_membership.practice_id, second.clinic_membership.practice_id
     end
   end
 
@@ -114,17 +93,23 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "demo mode cannot sign non-demo documents or elevate to administrator" do
+  test "default local session stops working when its employee profile is no longer eligible" do
     with_environment do
       user = enter_demo
-      document = user.paperworks.create!(title: "Restricted test", body: "Synthetic non-demo", document_version: "test-v1", demo: false)
+      user.clinic_membership.update!(active: false)
+      get "/api/session", headers: headers
+      assert_response :unauthorized
+    end
+  end
+
+  test "local access cannot sign restricted documents" do
+    with_environment do
+      user = enter_demo
+      document = user.paperworks.create!(title: "Restricted agreement", body: "Agreement", document_version: "test-v1", demo: false)
       post "/api/paperworks/#{document.id}/start", headers: csrf, as: :json
       post "/api/paperworks/#{document.id}/sign", params: { consent: true, signature_name: "Alex Example", content_digest: document.content_digest }, headers: csrf, as: :json
       assert_response :unauthorized
       assert_nil document.reload.signed_at
-      user.update!(admin: true)
-      get "/api/session", headers: headers
-      assert_response :unauthorized
     end
   end
 

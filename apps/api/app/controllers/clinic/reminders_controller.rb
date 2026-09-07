@@ -24,14 +24,17 @@ module Clinic
       end
       history = enum_param!(params[:history], field: :history, allowed: %w[all sent]) if params[:history].present?
       reminders = reminders.joins(:delivery_attempts).distinct if history == "sent"
-      order = history == "sent" ? { updated_at: :desc, id: :desc } : { scheduled_at: :asc, id: :asc }
+      attention = boolean_or_default(params[:attention], field: :attention) if params.key?(:attention)
+      reminders = Clinic::Reminders::ExceptionQueue.call(scope: reminders) if attention
+      detailed = history == "sent" || attention
+      order = detailed ? { updated_at: :desc, id: :desc } : { scheduled_at: :asc, id: :asc }
       records, pagination = paginated_records(reminders, order: order)
       records = records.to_a
       appointment_ids = records.filter_map { |reminder| reminder.source_id if reminder.source_type == "Clinic::Appointment" }
       appointments = current_practice.appointments.where(id: appointment_ids).index_by(&:id)
       handoffs = Clinic::Reminders::StaffHandoff.summaries(reminders: records, actor: current_user)
       render json: { reminders: records.map { |reminder|
-        PatientReminderSerializer.call(reminder, detail: history == "sent", actor: current_user,
+        PatientReminderSerializer.call(reminder, detail: detailed, actor: current_user,
           staff_handoff: handoffs.fetch(reminder.id), include_content: true, appointment: appointments[reminder.source_id])
       }, pagination: pagination }
     end

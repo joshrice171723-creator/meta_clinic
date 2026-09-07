@@ -39,17 +39,15 @@ module Identity
 
         business_date = session[:development_business_date]
         profile = params[:profile]
-        named_profile = params.key?(:profile)
-        if named_profile
-          user = profile.is_a?(String) && Development::TestAccounts.sign_in_account(profile)
-          return render json: { error: "This account is unavailable. It may be disabled or need local setup." }, status: :unauthorized unless user
-        else
-          user = Development::DemoAccount.create!
-        end
+        default_user = Development::DemoAccount.create! unless params.key?(:profile)
+        profile = "employee-#{default_user.id}" if default_user
+        user = profile.is_a?(String) && Development::TestAccounts.sign_in_account(profile)
+        return render json: { error: "This account is unavailable. It may be disabled or need local setup." }, status: :unauthorized unless user
+
         establish_session(user)
         session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
-        session[:development_test_profile] = profile.to_s if named_profile
+        session[:development_test_profile] = profile
         preview = Development::TestAccounts.preview_account_for(user, profile: profile)
         render json: {
           user: session_user(user),

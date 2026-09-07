@@ -66,7 +66,7 @@ describe("clinic-local navigation", () => {
     );
     expect(app).toContain("window.history[method]");
     expect(app).toContain('window.addEventListener("popstate", restore)');
-    expect(app).toContain("<Workspace\n        key={user.id}");
+    expect(app).toMatch(/<Workspace\s+key=\{user.id\}/);
     expect(workspace).toContain("const { navigate } = useClinicNavigation();");
     expect(workspace).toMatch(/event\.preventDefault\(\);\s+navigate\(/);
   });

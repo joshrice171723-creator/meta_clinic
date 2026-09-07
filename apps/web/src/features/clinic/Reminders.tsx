@@ -6,6 +6,7 @@ import { useClinic } from "./Workspace";
 import type { Appointment, PatientReminder } from "../../api/contracts";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined";
 import {
@@ -68,10 +69,12 @@ const HANDOFF_REASON_LABELS: Record<string, string> = {
 function StaffHandoffControl({
   reminder,
   conversations,
+  currentMembershipId,
   onSuccess,
 }: {
   reminder: PatientReminder;
   conversations: StaffConversation[];
+  currentMembershipId: number;
   onSuccess: () => void;
 }) {
   const activeConversations = conversations.filter(
@@ -184,6 +187,7 @@ function StaffHandoffControl({
           {activeParticipants.map((participant) => (
             <MenuItem key={participant.id} value={String(participant.id)}>
               {participant.email}
+              {participant.id === currentMembershipId ? " (you)" : ""}
             </MenuItem>
           ))}
         </TextField>
@@ -202,20 +206,53 @@ function StaffHandoffControl({
   );
 }
 
-function PersistedStaffHandoff({ reminder }: { reminder: PatientReminder }) {
+function PersistedStaffHandoff({
+  reminder,
+  currentMembershipId,
+}: {
+  reminder: PatientReminder;
+  currentMembershipId: number;
+}) {
   const request = reminder.staff_handoff.request;
   if (!request) return null;
+  const assignedToCurrentMember =
+    request.assignee_membership_id === currentMembershipId;
+  const requiresNewFollowUp = ["declined", "expired"].includes(request.state);
 
   return (
-    <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: "center" }}>
-      <Chip
-        size="small"
-        variant="outlined"
-        label={`Staff follow-up: ${request.state.replaceAll("_", " ")}`}
-      />
-      <Typography variant="caption" color="text.secondary">
-        Assigned staff membership #{request.assignee_membership_id}
-      </Typography>
+    <Stack sx={{ mt: 1.5, gap: 1, alignItems: "flex-start" }}>
+      <Stack
+        direction="row"
+        sx={{ gap: 1, alignItems: "center", flexWrap: "wrap" }}
+      >
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`Staff follow-up: ${request.state.replaceAll("_", " ")}`}
+          color={requiresNewFollowUp ? "warning" : "default"}
+        />
+        <Typography variant="caption" color="text.secondary">
+          {assignedToCurrentMember
+            ? "Assigned to you"
+            : request.assignee_membership_id
+              ? `Assigned staff membership #${request.assignee_membership_id}`
+              : "Unassigned"}
+          {request.due_at ? ` · Due ${dateTimeLabel(request.due_at)}` : ""}
+        </Typography>
+      </Stack>
+      {requiresNewFollowUp && (
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" size="small" href="/clinic/messages">
+              Open staff messages
+            </Button>
+          }
+        >
+          This staff request ended without a recorded resolution. It remains
+          in this worklist for clinic review.
+        </Alert>
+      )}
     </Stack>
   );
 }
@@ -224,11 +261,15 @@ function ReminderRows({
   reminders,
   canRetry,
   conversations,
+  currentMembershipId,
+  attentionQueue = false,
   onRefresh,
 }: {
   reminders: PatientReminder[];
   canRetry: boolean;
   conversations?: StaffConversation[];
+  currentMembershipId: number;
+  attentionQueue?: boolean;
   onRefresh: () => void;
 }) {
   return (
@@ -273,11 +314,21 @@ function ReminderRows({
               onSuccess={onRefresh}
             />
           )}
-          <PersistedStaffHandoff reminder={reminder} />
+          <PersistedStaffHandoff
+            reminder={reminder}
+            currentMembershipId={currentMembershipId}
+          />
+          {attentionQueue && !reminder.staff_handoff.eligible && (
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              Staff follow-up details are outside your current conversation
+              membership. Review this reminder with a staff messaging member.
+            </Alert>
+          )}
           {conversations && !reminder.staff_handoff.request && (
             <StaffHandoffControl
               reminder={reminder}
               conversations={conversations}
+              currentMembershipId={currentMembershipId}
               onSuccess={onRefresh}
             />
           )}
@@ -290,10 +341,53 @@ function ReminderRows({
 function HandoffEnabledReminderRows({
   reminders,
   canRetry,
+  canCreateHandoff,
+  currentMembershipId,
   onRefresh,
 }: {
   reminders: PatientReminder[];
   canRetry: boolean;
+  canCreateHandoff: boolean;
+  currentMembershipId: number;
+  onRefresh: () => void;
+}) {
+  if (!canCreateHandoff) {
+    return (
+      <>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          You can review reminder exceptions. Creating a staff follow-up also
+          requires reminder and staff messaging access.
+        </Alert>
+        <ReminderRows
+          reminders={reminders}
+          canRetry={canRetry}
+          currentMembershipId={currentMembershipId}
+          attentionQueue
+          onRefresh={onRefresh}
+        />
+      </>
+    );
+  }
+
+  return (
+    <ConversationBackedReminderRows
+      reminders={reminders}
+      canRetry={canRetry}
+      currentMembershipId={currentMembershipId}
+      onRefresh={onRefresh}
+    />
+  );
+}
+
+function ConversationBackedReminderRows({
+  reminders,
+  canRetry,
+  currentMembershipId,
+  onRefresh,
+}: {
+  reminders: PatientReminder[];
+  canRetry: boolean;
+  currentMembershipId: number;
   onRefresh: () => void;
 }) {
   const [conversationPage, setConversationPage] = useState(1);
@@ -309,6 +403,8 @@ function HandoffEnabledReminderRows({
         <ReminderRows
           reminders={reminders}
           canRetry={canRetry}
+          currentMembershipId={currentMembershipId}
+          attentionQueue
           onRefresh={onRefresh}
         />
       </>
@@ -318,7 +414,8 @@ function HandoffEnabledReminderRows({
     <>
       {conversations.error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          Staff conversations are unavailable. {conversations.error}
+          Staff conversations are unavailable. You can still review these
+          reminder exceptions. {conversations.error}
         </Alert>
       )}
       {conversations.data && conversations.data.pagination.total_pages > 1 && (
@@ -356,6 +453,8 @@ function HandoffEnabledReminderRows({
         reminders={reminders}
         canRetry={canRetry}
         conversations={conversations.data?.conversations}
+        currentMembershipId={currentMembershipId}
+        attentionQueue
         onRefresh={onRefresh}
       />
     </>
@@ -420,6 +519,102 @@ function reminderStatus(status: string) {
   return labels[status] || status.replaceAll("_", " ");
 }
 
+function NeedsAttention({ query }: { query: string }) {
+  const { capabilities, membership_id } = useClinic();
+  const [page, setPage] = useState(1);
+  const params = new URLSearchParams({
+    attention: "true",
+    per_page: "25",
+    page: String(page),
+  });
+  if (query.trim()) params.set("q", query.trim());
+  const resource = useResource<ReminderResponse>(
+    `/api/clinic/reminders?${params}`,
+  );
+  const reminders = resource.data?.reminders || [];
+  const canCreateHandoff =
+    capabilities.reminders_write === true &&
+    capabilities.staff_messaging_read === true &&
+    capabilities.staff_messaging_send === true;
+
+  useEffect(() => setPage(1), [query]);
+
+  if (!resource.data && !resource.error) {
+    return (
+      <Stack direction="row" sx={{ gap: 1.5, alignItems: "center", py: 5 }}>
+        <CircularProgress size={20} />
+        <Typography>Loading reminders that need attention…</Typography>
+      </Stack>
+    );
+  }
+  if (resource.error) {
+    return (
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={resource.refresh}>
+            Retry
+          </Button>
+        }
+      >
+        The reminder worklist could not be loaded. {resource.error}
+      </Alert>
+    );
+  }
+  if (reminders.length === 0) {
+    return (
+      <Box sx={{ py: 7, textAlign: "center" }}>
+        <ReportProblemOutlinedIcon
+          sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
+        />
+        <Typography variant="h6">No reminders need attention</Typography>
+        <Typography color="text.secondary">
+          Failed or uncertain deliveries and patient requests for help or
+          rescheduling will appear here.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <>
+      <Alert severity="info" icon={false} sx={{ mb: 2 }}>
+        Assign each follow-up to an active staff conversation. Items leave this
+        list after the linked staff request is resolved.
+      </Alert>
+      <HandoffEnabledReminderRows
+        reminders={reminders}
+        canRetry={capabilities.reminders_write === true}
+        canCreateHandoff={canCreateHandoff}
+        currentMembershipId={membership_id}
+        onRefresh={resource.refresh}
+      />
+      {resource.data && resource.data.pagination.total_pages > 1 && (
+        <Stack direction="row" sx={{ alignItems: "center", gap: 1, pt: 2 }}>
+          <Button
+            variant="outlined"
+            disabled={page <= 1}
+            onClick={() => setPage((value) => value - 1)}
+          >
+            Previous
+          </Button>
+          <Typography variant="body2" color="text.secondary">
+            Page {page} of {resource.data.pagination.total_pages} ·{" "}
+            {resource.data.pagination.total} needing attention
+          </Typography>
+          <Button
+            variant="outlined"
+            disabled={page >= resource.data.pagination.total_pages}
+            onClick={() => setPage((value) => value + 1)}
+          >
+            Next
+          </Button>
+        </Stack>
+      )}
+    </>
+  );
+}
+
 function MessageHistory({
   query,
   reminderId,
@@ -427,7 +622,7 @@ function MessageHistory({
   query: string;
   reminderId: string | null;
 }) {
-  const { capabilities } = useClinic();
+  const { capabilities, membership_id } = useClinic();
   const [page, setPage] = useState(1);
   const params = new URLSearchParams({
     history: "sent",
@@ -513,7 +708,10 @@ function MessageHistory({
                 ? `${lastAttempt.provider.replaceAll("_", " ")} · ${lastAttempt.masked_destination || reminder.endpoint.masked_value} · ${lastAttempt.completed_at ? new Date(lastAttempt.completed_at).toLocaleString() : "attempt in progress"}`
                 : reminder.endpoint.masked_value}
             </Typography>
-            <PersistedStaffHandoff reminder={reminder} />
+            <PersistedStaffHandoff
+              reminder={reminder}
+              currentMembershipId={membership_id}
+            />
             {capabilities.reminders_write && reminder.status === "failed" && (
               <Form
                 endpoint={`/api/clinic/reminders/${reminder.id}/retry`}
@@ -565,7 +763,7 @@ export function Reminders() {
     value.setDate(value.getDate() + 14);
     return value;
   }, []);
-  const [tab, setTab] = useState(reminderId ? 1 : 0);
+  const [tab, setTab] = useState(reminderId ? 2 : 0);
   const [from, setFrom] = useState(dateInput(today));
   const [to, setTo] = useState(dateInput(initialEnd));
   const [patientQuery, setPatientQuery] = useState("");
@@ -654,7 +852,7 @@ export function Reminders() {
           : "The reminder is queued. Delivery will stay gated until a test provider is configured.",
       );
       setCreatedReminderId(null);
-      setTab(1);
+      setTab(2);
     } catch (caught) {
       setError(
         createdReminderId || savedThisAttempt
@@ -738,6 +936,13 @@ export function Reminders() {
             label="Upcoming appointments"
           />
           <Tab
+            id="reminders-attention-tab"
+            aria-controls="reminders-attention-panel"
+            icon={<ReportProblemOutlinedIcon />}
+            iconPosition="start"
+            label="Needs attention"
+          />
+          <Tab
             id="reminders-history-tab"
             aria-controls="reminders-history-panel"
             icon={<HistoryOutlinedIcon />}
@@ -749,10 +954,18 @@ export function Reminders() {
         <Box
           role="tabpanel"
           id={
-            tab === 0 ? "reminders-upcoming-panel" : "reminders-history-panel"
+            tab === 0
+              ? "reminders-upcoming-panel"
+              : tab === 1
+                ? "reminders-attention-panel"
+                : "reminders-history-panel"
           }
           aria-labelledby={
-            tab === 0 ? "reminders-upcoming-tab" : "reminders-history-tab"
+            tab === 0
+              ? "reminders-upcoming-tab"
+              : tab === 1
+                ? "reminders-attention-tab"
+                : "reminders-history-tab"
           }
           sx={{ p: { xs: 2, md: 3 } }}
         >
@@ -994,6 +1207,8 @@ export function Reminders() {
                 </Paper>
               )}
             </Box>
+          ) : tab === 1 ? (
+            <NeedsAttention query={deferredQuery} />
           ) : (
             <MessageHistory query={deferredQuery} reminderId={reminderId} />
           )}

@@ -74,7 +74,7 @@ module Clinic
     end
 
     def require_clinic
-      render_error("No active clinic assignment. Ask your developer to provision access.", :forbidden) unless clinic_membership
+      render_error("No active clinic assignment. Contact your clinic administrator.", :forbidden) unless clinic_membership
     end
 
     def require_capability(capability, any_site: false)

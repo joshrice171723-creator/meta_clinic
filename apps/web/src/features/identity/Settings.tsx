@@ -243,7 +243,7 @@ export function AppearanceSettings({
         <div className="development-settings">
           <Card title="Workspace view">
             <p>
-              Choose the workspace view for this clinic.
+              Choose a workspace view. Omni access and permissions stay the same.
             </p>
             <Form
               endpoint="/api/development_access"

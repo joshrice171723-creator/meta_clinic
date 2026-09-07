@@ -26,10 +26,10 @@ describe("development account preview", () => {
         ]}
       />,
     );
-    expect(html).toContain("Development");
+    expect(html).toContain("Omni");
     expect(html).toContain("Patient portal");
     expect(html).toContain("Employee portal");
-    expect(html).toContain("Omni development");
+    expect(html).toContain("Omni");
     expect(html).toContain("Select patient account");
     expect(html).toContain("Log in");
     expect(html).toContain("Choose a portal and account, then log in");
@@ -46,7 +46,7 @@ describe("development account preview", () => {
       <Login developmentLogin={false} environment="production" />,
     );
     expect(html).toContain("Production");
-    expect(html).not.toContain("Development account preview");
+    expect(html).not.toContain("Account access");
     expect(html).not.toContain("App date");
     expect(html).toContain("Email address");
   });
@@ -68,7 +68,7 @@ describe("development account preview", () => {
     );
     expect(html).toContain("<aside");
     expect(html).toContain("development-toolbar");
-    expect(html).toContain('aria-label="Developer tools"');
-    expect(html).toContain("Developer tools");
+    expect(html).toContain('aria-label="Workspace tools"');
+    expect(html).toContain("Workspace tools");
   });
 });

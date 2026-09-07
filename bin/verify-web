@@ -106,9 +106,10 @@ begin
   raise "Disabled login accepted" unless post.call("/api/development_session", { profile: "disabled" }).code == "401"
   raise "Failed login granted access" unless request.call("/api/session").code == "401"
   raise "Disabled login exposed settings" unless request.call("/api/settings").code == "401"
-  raise "Local demo login failed" unless post.call("/api/development_session").code == "201"
+  raise "Default local login failed" unless post.call("/api/development_session").code == "201"
   user = JSON.parse(request.call("/api/session").body).fetch("user")
-  raise "Demo contract failed" unless user.fetch("development_demo") && !user.fetch("admin")
+  raise "Default local account contract failed" unless user.fetch("development_demo") && user.fetch("admin") &&
+    user.fetch("development_account_id") == "employee-#{user.fetch("id")}"
   clinic = JSON.parse(request.call("/api/clinic").body)
   raise "Missing clinic capabilities" unless clinic.fetch("capabilities").fetch("inventory_access") && clinic.fetch("inventory_actions").fetch("receive")
   phase = "account settings contract"
@@ -137,6 +138,7 @@ begin
   catalog = JSON.parse(request.call("/api/clinic/inventory/catalog?view=table&q=SPLIT-VERIFY").body).fetch("data")
   raise "Bounded inventory catalog contract failed" unless catalog.dig("catalog_page", "filtered_count") == 1 && catalog.fetch("products").length == 1 && catalog.fetch("products").first.fetch("available_units") == "0.000001" && !catalog.key?("movements")
   phase = "portal and logout"
+  raise "Portal account login failed" unless post.call("/api/development_session", { profile: "client-a" }).code == "201"
   documents = JSON.parse(request.call("/api/paperworks").body).fetch("paperworks")
   raise "Unexpected assigned documents" unless documents.length == 1
   document = documents.first
@@ -144,7 +146,7 @@ begin
   raise "Logout failed" unless post.call("/api/session", {}, method: "DELETE").code == "204"
   raise "Protected content after logout" unless request.call("/api/clinic").code == "401"
   raise "Settings exposed after logout" unless request.call("/api/settings").code == "401"
-  puts "PASS: real frontend proxy → Rails session/CSRF/origin, named test roles/isolation, account settings/conflict, fresh demo, synthetic clinic, exact decimal receipt/retry, portal and logout"
+  puts "PASS: frontend proxy → Rails session/CSRF/origin, named roles/isolation, account settings/conflict, clinic access, exact decimal receipt/retry, portal and logout"
 rescue => error
   warn "FAIL during #{phase}: #{error.class}; raw diagnostics suppressed"
   exit 1

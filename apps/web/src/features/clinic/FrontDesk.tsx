@@ -157,6 +157,10 @@ function AppointmentDayQueue({
   const [noticePatientId, setNoticePatientId] = useState<number>();
   const [refreshedAt, setRefreshedAt] = useState<Date>();
   const [reschedule, setReschedule] = useState<RescheduleDraft>();
+  const [confirmation, setConfirmation] = useState<{
+    appointment: FrontDeskAppointment;
+    action: "start" | "cancelled" | "no_show";
+  } | null>(null);
   const path = buildAppointmentQueuePath({
     date,
     siteId,
@@ -172,17 +176,13 @@ function AppointmentDayQueue({
   async function transition(
     appointment: FrontDeskAppointment,
     to: AppointmentTransition,
+    confirmed = false,
   ) {
     const patientName = appointment.patient?.display_name || "this patient";
-    if (
-      to !== "confirmed" &&
-      !window.confirm(
-        to === "cancelled"
-          ? `Cancel ${patientName}’s appointment? This does not notify the patient.`
-          : `Mark ${patientName} as a no-show for this appointment?`,
-      )
-    )
+    if (to !== "confirmed" && !confirmed) {
+      setConfirmation({ appointment, action: to });
       return;
+    }
 
     const actionKey = `${appointment.id}:${to}`;
     setBusyAction(actionKey);
@@ -209,14 +209,15 @@ function AppointmentDayQueue({
     }
   }
 
-  async function startVisit(appointment: FrontDeskAppointment) {
+  async function startVisit(
+    appointment: FrontDeskAppointment,
+    confirmed = false,
+  ) {
     const patientName = appointment.patient?.display_name || "this patient";
-    if (
-      !window.confirm(
-        `Start ${patientName}’s visit? This records an open clinical encounter.`,
-      )
-    )
+    if (!confirmed) {
+      setConfirmation({ appointment, action: "start" });
       return;
+    }
 
     const actionKey = `${appointment.id}:start`;
     setBusyAction(actionKey);
@@ -554,6 +555,62 @@ function AppointmentDayQueue({
           </Stack>
         </nav>
       )}
+      <Dialog
+        open={confirmation !== null}
+        onClose={() => setConfirmation(null)}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="appointment-action-title"
+      >
+        <DialogTitle id="appointment-action-title">
+          {confirmation?.action === "start"
+            ? "Start visit"
+            : confirmation?.action === "cancelled"
+              ? "Cancel appointment"
+              : "Mark as no-show"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontWeight: 700 }}>
+            {confirmation?.appointment.patient?.display_name ||
+              "Patient record"}
+          </Typography>
+          {confirmation && (
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+              {appointmentTimeRange(confirmation.appointment, timezone)} ·{" "}
+              {siteLabel(sites, confirmation.appointment.site_id)}
+            </Typography>
+          )}
+          <Typography sx={{ mt: 2 }}>
+            {confirmation?.action === "start"
+              ? "Start this visit when care begins. This opens the patient's clinical encounter."
+              : confirmation?.action === "cancelled"
+                ? "Cancel this appointment? This updates the schedule and cancels pending reminders. It does not send a cancellation message to the patient."
+                : "Record that the patient did not attend this appointment?"}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmation(null)}>Go back</Button>
+          <Button
+            variant="contained"
+            color={confirmation?.action === "start" ? "primary" : "error"}
+            onClick={() => {
+              if (!confirmation || busyAction) return;
+              const confirmed = confirmation;
+              setConfirmation(null);
+              if (confirmed.action === "start")
+                void startVisit(confirmed.appointment, true);
+              else
+                void transition(confirmed.appointment, confirmed.action, true);
+            }}
+          >
+            {confirmation?.action === "start"
+              ? "Start visit"
+              : confirmation?.action === "cancelled"
+                ? "Cancel appointment"
+                : "Mark as no-show"}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <RescheduleDialog
         draft={reschedule}
         clinicTimezone={timezone}

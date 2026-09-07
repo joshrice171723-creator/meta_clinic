@@ -1,11 +1,16 @@
 import {
+  Component,
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ComponentType,
   type ReactNode,
 } from "react";
+import { Button } from "@mui/material";
 import type {
   DevelopmentAccount,
   RuntimeEnvironment,
@@ -14,43 +19,11 @@ import type {
 import { api, ApiError, csrf, loginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
-import { Home } from "./features/launch/Home";
-import { Portal } from "./features/launch/Portal";
-import { Contact } from "./features/launch/Contact";
-import { Inquiries } from "./features/launch/Inquiries";
-import { PaperworkPage, Paperworks } from "./features/launch/Paperwork";
-import { Training } from "./features/launch/Training";
-import { Login } from "./features/identity/Login";
 import {
   DevelopmentControls,
   EnvironmentLabel,
 } from "./features/identity/DevelopmentAccountSwitcher";
-import { Settings } from "./features/identity/Settings";
 import { SessionGuard } from "./features/identity/SessionGuard";
-import { Workspace } from "./features/clinic/Workspace";
-import { Overview } from "./features/clinic/TrackingBoardPage";
-import { Operations } from "./features/clinic/Operations";
-import { Facilities } from "./features/clinic/Facilities";
-import { Patients } from "./features/clinic/Patients";
-import { WorkforceApp } from "./features/workforce/WorkforceApp";
-import { EmployeeActivationPage } from "./features/workforce/EmployeeActivationPage";
-import { KioskClockPage } from "./features/workforce/KioskClockPage";
-import { FrontDesk } from "./features/clinic/FrontDesk";
-import { Billing } from "./features/clinic/Billing";
-import { BillingDashboard } from "./features/clinic/BillingDashboard";
-import { SubscriptionCatalog } from "./features/clinic/subscriptions/SubscriptionCatalog";
-import { PatientStorefrontPreview } from "./features/clinic/subscriptions/PatientStorefrontPreview";
-import { Reminders } from "./features/clinic/Reminders";
-import { EncounterPage, Schedule } from "./features/clinic/CareFlow";
-import {
-  ChartSelectionPage,
-  chartSelectionProps,
-} from "./features/clinic/ChartSelectionPage";
-import { InventoryApp } from "./features/inventory/InventoryApp";
-import { PatientPortal } from "./features/patientPortal/PatientPortal";
-import { PatientPortalActivation } from "./features/patientPortal/PatientPortalActivation";
-import { StaffMessagingPage } from "./features/staff-messaging/LiveStaffMessagingWorkspace";
-import { ScribeReviewPage } from "./features/scribe/LiveScribeReviewWorkspace";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -61,6 +34,190 @@ import {
   type ClinicNavigateOptions,
   type ClinicRoute,
 } from "./features/clinic/clinicNavigation";
+
+function lazyNamed<Module, Props>(
+  load: () => Promise<Module>,
+  select: (module: Module) => ComponentType<Props>,
+) {
+  return lazy(() => load().then((module) => ({ default: select(module) })));
+}
+
+const Home = lazyNamed(() => import("./features/launch/Home"), (m) => m.Home);
+const Portal = lazyNamed(
+  () => import("./features/launch/Portal"),
+  (m) => m.Portal,
+);
+const Contact = lazyNamed(
+  () => import("./features/launch/Contact"),
+  (m) => m.Contact,
+);
+const Inquiries = lazyNamed(
+  () => import("./features/launch/Inquiries"),
+  (m) => m.Inquiries,
+);
+const loadPaperwork = () => import("./features/launch/Paperwork");
+const Paperworks = lazyNamed(loadPaperwork, (m) => m.Paperworks);
+const PaperworkPage = lazyNamed(loadPaperwork, (m) => m.PaperworkPage);
+const Training = lazyNamed(
+  () => import("./features/launch/Training"),
+  (m) => m.Training,
+);
+const Login = lazyNamed(
+  () => import("./features/identity/Login"),
+  (m) => m.Login,
+);
+const Settings = lazyNamed(
+  () => import("./features/identity/Settings"),
+  (m) => m.Settings,
+);
+const Workspace = lazyNamed(
+  () => import("./features/clinic/Workspace"),
+  (m) => m.Workspace,
+);
+const Overview = lazyNamed(
+  () => import("./features/clinic/TrackingBoardPage"),
+  (m) => m.Overview,
+);
+const Operations = lazyNamed(
+  () => import("./features/clinic/Operations"),
+  (m) => m.Operations,
+);
+const Facilities = lazyNamed(
+  () => import("./features/clinic/Facilities"),
+  (m) => m.Facilities,
+);
+const Patients = lazyNamed(
+  () => import("./features/clinic/Patients"),
+  (m) => m.Patients,
+);
+const WorkforceApp = lazyNamed(
+  () => import("./features/workforce/WorkforceApp"),
+  (m) => m.WorkforceApp,
+);
+const EmployeeActivationPage = lazyNamed(
+  () => import("./features/workforce/EmployeeActivationPage"),
+  (m) => m.EmployeeActivationPage,
+);
+const KioskClockPage = lazyNamed(
+  () => import("./features/workforce/KioskClockPage"),
+  (m) => m.KioskClockPage,
+);
+const FrontDesk = lazyNamed(
+  () => import("./features/clinic/FrontDesk"),
+  (m) => m.FrontDesk,
+);
+const Billing = lazyNamed(
+  () => import("./features/clinic/Billing"),
+  (m) => m.Billing,
+);
+const BillingDashboard = lazyNamed(
+  () => import("./features/clinic/BillingDashboard"),
+  (m) => m.BillingDashboard,
+);
+const SubscriptionCatalog = lazyNamed(
+  () => import("./features/clinic/subscriptions/SubscriptionCatalog"),
+  (m) => m.SubscriptionCatalog,
+);
+const PatientStorefrontPreview = lazyNamed(
+  () => import("./features/clinic/subscriptions/PatientStorefrontPreview"),
+  (m) => m.PatientStorefrontPreview,
+);
+const Reminders = lazyNamed(
+  () => import("./features/clinic/Reminders"),
+  (m) => m.Reminders,
+);
+const loadCareFlow = () => import("./features/clinic/CareFlow");
+const Schedule = lazyNamed(loadCareFlow, (m) => m.Schedule);
+const EncounterPage = lazyNamed(loadCareFlow, (m) => m.EncounterPage);
+const ChartSelectionPage = lazy(() =>
+  import("./features/clinic/ChartSelectionPage").then((module) => ({
+    default: ({ search }: { search: string }) => (
+      <module.ChartSelectionPage {...module.chartSelectionProps(search)} />
+    ),
+  })),
+);
+const InventoryApp = lazyNamed(
+  () => import("./features/inventory/InventoryApp"),
+  (m) => m.InventoryApp,
+);
+const PatientPortal = lazyNamed(
+  () => import("./features/patientPortal/PatientPortal"),
+  (m) => m.PatientPortal,
+);
+const PatientPortalActivation = lazyNamed(
+  () => import("./features/patientPortal/PatientPortalActivation"),
+  (m) => m.PatientPortalActivation,
+);
+const StaffMessagingPage = lazyNamed(
+  () => import("./features/staff-messaging/LiveStaffMessagingWorkspace"),
+  (m) => m.StaffMessagingPage,
+);
+const ScribeReviewPage = lazyNamed(
+  () => import("./features/scribe/LiveScribeReviewWorkspace"),
+  (m) => m.ScribeReviewPage,
+);
+
+function RoutePending({ root = false }: { root?: boolean }) {
+  const status = <LoadState />;
+  return root ? (
+    <main id="main" className="wrap inner-page">
+      {status}
+    </main>
+  ) : (
+    status
+  );
+}
+
+function RouteFailure({ root = false }: { root?: boolean }) {
+  const message = (
+    <>
+      <LoadState error="This page could not load. Check your connection, then reload the page." />
+      <Button variant="contained" onClick={() => window.location.reload()}>
+        Reload page
+      </Button>
+    </>
+  );
+  return root ? (
+    <main id="main" className="wrap inner-page">
+      {message}
+    </main>
+  ) : (
+    message
+  );
+}
+
+class RouteErrorBoundary extends Component<
+  { children: ReactNode; root?: boolean },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? (
+      <RouteFailure root={this.props.root} />
+    ) : (
+      this.props.children
+    );
+  }
+}
+
+function RouteBoundary({
+  children,
+  root = false,
+}: {
+  children: ReactNode;
+  root?: boolean;
+}) {
+  return (
+    <RouteErrorBoundary root={root}>
+      <Suspense fallback={<RoutePending root={root} />}>{children}</Suspense>
+    </RouteErrorBoundary>
+  );
+}
 
 function ClinicLegacyRedirect({ to }: { to: string }) {
   const { navigate } = useClinicNavigation();
@@ -198,7 +355,9 @@ function ClinicHome({
           tabIndex={-1}
           aria-label="Tracking Board"
         >
-          <Overview active={active && view === "tracking"} />
+          <RouteBoundary>
+            <Overview active={active && view === "tracking"} />
+          </RouteBoundary>
         </div>
       )}
       {(visited.has("schedule") || view === "schedule") && (
@@ -209,7 +368,9 @@ function ClinicHome({
           tabIndex={-1}
           aria-label="Schedule"
         >
-          <Schedule />
+          <RouteBoundary>
+            <Schedule />
+          </RouteBoundary>
         </div>
       )}
     </>
@@ -220,42 +381,46 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
   const { path, search } = route;
   const encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
     patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
-  return path === "/clinic/operations" ? (
-    <Operations />
-  ) : path === "/clinic/facilities" ? (
-    <Facilities />
-  ) : path === "/clinic/chart-selection" ? (
-    <ChartSelectionPage {...chartSelectionProps(search)} />
-  ) : path === "/clinic/patients" ? (
-    <Patients />
-  ) : encounter ? (
-    <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
-  ) : patient ? (
-    <Patients id={patient[1]} />
-  ) : path.startsWith("/clinic/inventory") ? (
-    <InventoryApp path={path} />
-  ) : path === "/clinic/staff" ? (
-    <ClinicLegacyRedirect to="/clinic/workforce/employees" />
-  ) : path.startsWith("/clinic/workforce") ? (
-    <WorkforceApp path={path} />
-  ) : path === "/clinic/front-desk" ? (
-    <FrontDesk />
-  ) : path === "/clinic/billing/patients" ? (
-    <Billing />
-  ) : path === "/clinic/billing" ? (
-    <BillingDashboard />
-  ) : path === "/clinic/subscriptions" ? (
-    <SubscriptionCatalog />
-  ) : path === "/clinic/subscriptions/patient-preview" ? (
-    <PatientStorefrontPreview />
-  ) : path === "/clinic/reminders" ? (
-    <Reminders />
-  ) : path === "/clinic/messages" ? (
-    <StaffMessagingPage />
-  ) : path === "/clinic/scribe" ? (
-    <ScribeReviewPage />
-  ) : (
-    <h1>Page not found.</h1>
+  return (
+    <RouteBoundary key={clinicRouteHref(route)}>
+      {path === "/clinic/operations" ? (
+        <Operations />
+      ) : path === "/clinic/facilities" ? (
+        <Facilities />
+      ) : path === "/clinic/chart-selection" ? (
+        <ChartSelectionPage search={search} />
+      ) : path === "/clinic/patients" ? (
+        <Patients />
+      ) : encounter ? (
+        <EncounterPage patientId={encounter[1]} encounterId={encounter[2]} />
+      ) : patient ? (
+        <Patients id={patient[1]} />
+      ) : path.startsWith("/clinic/inventory") ? (
+        <InventoryApp path={path} />
+      ) : path === "/clinic/staff" ? (
+        <ClinicLegacyRedirect to="/clinic/workforce/employees" />
+      ) : path.startsWith("/clinic/workforce") ? (
+        <WorkforceApp path={path} />
+      ) : path === "/clinic/front-desk" ? (
+        <FrontDesk />
+      ) : path === "/clinic/billing/patients" ? (
+        <Billing />
+      ) : path === "/clinic/billing" ? (
+        <BillingDashboard />
+      ) : path === "/clinic/subscriptions" ? (
+        <SubscriptionCatalog />
+      ) : path === "/clinic/subscriptions/patient-preview" ? (
+        <PatientStorefrontPreview />
+      ) : path === "/clinic/reminders" ? (
+        <Reminders />
+      ) : path === "/clinic/messages" ? (
+        <StaffMessagingPage />
+      ) : path === "/clinic/scribe" ? (
+        <ScribeReviewPage />
+      ) : (
+        <h1>Page not found.</h1>
+      )}
+    </RouteBoundary>
   );
 }
 
@@ -388,7 +553,9 @@ function ClinicApplication({
   const home = route.path === "/clinic";
   const page =
     route.path === "/clinic/settings" ? (
-      <Settings user={user} />
+      <RouteBoundary key={clinicRouteHref(route)}>
+        <Settings user={user} />
+      </RouteBoundary>
     ) : (
       <ClinicPage route={route} />
     );
@@ -398,20 +565,22 @@ function ClinicApplication({
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <Workspace
-        key={user.id}
-        user={user}
-        path={route.path}
-        homeView={route.homeView}
-        developmentAccounts={developmentAccounts}
-        environment={environment}
-        businessDate={businessDate}
-      >
-        <div hidden={!home}>
-          <ClinicHome view={route.homeView} active={home} />
-        </div>
-        {!home && page}
-      </Workspace>
+      <RouteBoundary root>
+        <Workspace
+          key={user.id}
+          user={user}
+          path={route.path}
+          homeView={route.homeView}
+          developmentAccounts={developmentAccounts}
+          environment={environment}
+          businessDate={businessDate}
+        >
+          <div hidden={!home}>
+            <ClinicHome view={route.homeView} active={home} />
+          </div>
+          {!home && page}
+        </Workspace>
+      </RouteBoundary>
     </ClinicNavigationProvider>
   );
 }
@@ -494,9 +663,24 @@ export function App() {
     );
   const user = session.user || null;
   let page: ReactNode;
-  if (path === "/patient-portal/activate") return <PatientPortalActivation />;
-  if (path === "/workforce/activate") return <EmployeeActivationPage />;
-  if (path === "/workforce/kiosk") return <KioskClockPage />;
+  if (path === "/patient-portal/activate")
+    return (
+      <RouteBoundary root>
+        <PatientPortalActivation />
+      </RouteBoundary>
+    );
+  if (path === "/workforce/activate")
+    return (
+      <RouteBoundary root>
+        <EmployeeActivationPage />
+      </RouteBoundary>
+    );
+  if (path === "/workforce/kiosk")
+    return (
+      <RouteBoundary root>
+        <KioskClockPage />
+      </RouteBoundary>
+    );
   if (path.startsWith("/clinic") && user) {
     return (
       <SessionGuard key={user.id}>
@@ -512,12 +696,14 @@ export function App() {
   if (path === "/patient-portal" && user)
     return (
       <SessionGuard key={user.id}>
-        <PatientPortal
-          user={user}
-          developmentAccounts={configuration.development_accounts}
-          environment={configuration.environment}
-          businessDate={configuration.business_date}
-        />
+        <RouteBoundary root>
+          <PatientPortal
+            user={user}
+            developmentAccounts={configuration.development_accounts}
+            environment={configuration.environment}
+            businessDate={configuration.business_date}
+          />
+        </RouteBoundary>
       </SessionGuard>
     );
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
@@ -555,20 +741,22 @@ export function App() {
       clinicAvailable={configuration.clinic_available}
       environment={configuration.environment}
     >
-      {publicPage
-        ? page
-        : user && (
-            <SessionGuard key={user.id}>
-              <MemberLayout
-                key={user.id}
-                user={user}
-                developmentAccounts={configuration.development_accounts}
-                businessDate={configuration.business_date}
-              >
-                {page}
-              </MemberLayout>
-            </SessionGuard>
-          )}
+      {publicPage ? (
+        <RouteBoundary root>{page}</RouteBoundary>
+      ) : (
+        user && (
+          <SessionGuard key={user.id}>
+            <MemberLayout
+              key={user.id}
+              user={user}
+              developmentAccounts={configuration.development_accounts}
+              businessDate={configuration.business_date}
+            >
+              <RouteBoundary>{page}</RouteBoundary>
+            </MemberLayout>
+          </SessionGuard>
+        )
+      )}
     </LaunchLayout>
   );
 }
