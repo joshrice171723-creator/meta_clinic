@@ -184,12 +184,19 @@ export function PatientSubscriptions({
                     gap: 1.5,
                   }}
                 >
-                  <Box>
-                    <Typography variant="h5" component="h4">
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="h5"
+                      component="h4"
+                      sx={{ overflowWrap: "anywhere" }}
+                    >
                       {patientPortalLabel(subscription.terms.package_name) ||
                         "Selected plan"}
                     </Typography>
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                    <Typography
+                      color="text.secondary"
+                      sx={{ mt: 0.5, overflowWrap: "anywhere" }}
+                    >
                       {patientPortalLabel(subscription.terms.family_name) ||
                         "Membership"}{" "}
                       · Membership #{subscription.id}
@@ -225,7 +232,9 @@ export function PatientSubscriptions({
                 </Stack>
 
                 {subscription.terms.description && (
-                  <Typography>{subscription.terms.description}</Typography>
+                  <Typography sx={{ overflowWrap: "anywhere" }}>
+                    {subscription.terms.description}
+                  </Typography>
                 )}
 
                 {renewalNeedsPayment(subscription) && (
