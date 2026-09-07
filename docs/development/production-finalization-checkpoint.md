@@ -244,3 +244,15 @@ The focused existing staff-messaging test passed one file and four tests, includ
 Clinical-history record and review forms now distinguish rejected validation from an unconfirmed mutation outcome. A timeout, server failure, transport failure, or explicit `outcome_unconfirmed` response keeps the original form values and request key locked for an exact retry, disables cancel and field changes, and registers the existing clinic navigation and browser unload blockers. Ordinary rejected requests, including validation errors, remain editable and receive a new request key only after the user changes the form. This prevents a possibly committed record or review from being repeated under a new idempotency key.
 
 The focused recovery-classification test passed one file and two tests, covering network failure, timeout, server failure, explicit unconfirmed outcome, and editable 422 rejection. The combined `apps/web` `npm run typecheck` passed after messaging presentation commit `61456bd`. The test is helper-level; no mounted dialog, live clinical-history write, broad suite, browser flow, or build was run.
+
+## Inventory recalled-receipt retry hardening — September 7
+
+`46f8046 Preserve recalled receipt retries` fixes an exact replay gap in `Inventory::ManagementController#create_receipt`. A previously committed recall-quarantined receipt can now resolve its tenant-scoped linked recall after that case closes, but only when the same receipt request key already exists. The controller continues to require `recall.lock`; `Receiving` remains the authority that compares the complete stored payload digest. A changed same-key request is rejected, and a new key for the closed recall remains rejected without creating a receipt.
+
+The intended focused command was executed through the Windows-safe Ruby wrapper and captured at `apps/api/tmp/production-finalization/inventory-recall-retry-test.log`:
+
+```text
+ruby bin/postgres exec env RAILS_ENV=test ruby bin/rails test test/integration/clinic_workspace_test.rb
+```
+
+It did **not** run tests: Rails stopped before discovery with three pending migrations (`20260907000800_create_invoice_stripe_checkouts`, `20260907000900_create_lab_result_follow_ups`, and `20260907001000_create_previsit_notes`). Therefore this checkpoint records **0 tests / 0 assertions** from that attempt and makes no passing-test claim. The added integration regression covers exact replay after closure, altered same-key rejection, and new-key rejection, but it requires a migrated isolated test database before it can be treated as executed proof. `git diff --check` was clean before the source commit; no broad suite, migration, provider action, or browser workflow was run.
