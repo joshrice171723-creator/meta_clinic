@@ -15,9 +15,11 @@ class PatientPortalVisitInstructionsTest < ActionDispatch::IntegrationTest
     @patient = @practice.patients.create!(display_name: "Visit Instructions Patient", reference: "VISIT-INSTRUCTIONS")
     @identity.update!(patient: @patient)
     @site = @practice.sites.create!(code: "VISIT-INSTRUCTIONS")
-    @clinician = User.create!(email_address: "visit-instructions-clinician@example.invalid", password: SecureRandom.hex(18))
+    @clinician_password = SecureRandom.hex(18)
+    @clinician = User.create!(email_address: "visit-instructions-clinician@example.invalid", password: @clinician_password)
     @membership = @practice.memberships.create!(user: @clinician)
-    grant_permissions!(@membership, "notes.write", "notes.sign", scope_kind: "site", site: @site)
+    grant_permissions!(@membership, "patients.read")
+    grant_permissions!(@membership, "notes.read", "notes.write", "notes.sign", scope_kind: "site", site: @site)
 
     post "/api/development_session", params: { profile: "patient" }, headers: csrf_headers, as: :json
     assert_response :created
@@ -101,11 +103,107 @@ class PatientPortalVisitInstructionsTest < ActionDispatch::IntegrationTest
     assert_equal 0, response.parsed_body.dig("pagination", "total")
   end
 
+  test "portal detail uses the released selector and never resurrects or exposes private SOAP content" do
+    encounter = completed_encounter(patient: @patient, started_at: Time.utc(2026, 8, 8, 9))
+    note = create_note(encounter, instructions: "Continue hydration until follow-up.", sign: true)
+    signed_revision = note.revisions.sole
+    correction = Clinic::Care::CorrectEncounterNote.call(
+      note: note,
+      actor: @clinician,
+      encrypted_body: correction_payload(signed_revision, patient_instructions: nil),
+      corrected_revision_id: signed_revision.id,
+      expected_revision: signed_revision.revision_no,
+      request_key: "portal-detail-unsigned-correction"
+    )
+
+    get portal_detail_path(encounter), headers: @headers
+    assert_response :success
+    item = response.parsed_body.fetch("item")
+    assert_equal %w[encounter_id instructions patient_name practice_name signed_at timezone visit_at], item.keys.sort
+    assert_equal [
+      encounter.id, "Continue hydration until follow-up.", @patient.display_name, @practice.name, @practice.timezone
+    ], item.values_at("encounter_id", "instructions", "patient_name", "practice_name", "timezone")
+    %w[Visit\ history Exam Assessment Plan].each { |private_text| assert_not_includes response.body, private_text }
+
+    Clinic::Care::SignEncounterNote.call(
+      note: note,
+      actor: @clinician,
+      revision_no: correction.revision_no,
+      content_digest: Digest::SHA256.hexdigest(correction.encrypted_body),
+      attestation_version: "portal-instructions-v1"
+    )
+    get portal_detail_path(encounter), headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.fetch("item")
+
+    open_encounter = @practice.encounters.create!(
+      patient: @patient, site: @site, started_at: Time.utc(2026, 8, 9, 9), status: "open"
+    )
+    create_note(open_encounter, instructions: "Open visit directions.", sign: true)
+    get portal_detail_path(open_encounter), headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.fetch("item")
+
+    unsigned = completed_encounter(patient: @patient, started_at: Time.utc(2026, 8, 10, 9))
+    create_note(unsigned, instructions: "Unsigned visit directions.", sign: false)
+    get portal_detail_path(unsigned), headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.fetch("item")
+  end
+
+  test "portal and staff handout routes enforce owning patient tenant and note permissions" do
+    encounter = completed_encounter(patient: @patient, started_at: Time.utc(2026, 8, 11, 9))
+    create_note(encounter, instructions: "Return in one week.", sign: true)
+    other_patient = @practice.patients.create!(display_name: "Other Handout Patient", reference: "OTHER-HANDOUT")
+    other_encounter = completed_encounter(patient: other_patient, started_at: Time.utc(2026, 8, 12, 9))
+    create_note(other_encounter, instructions: "Private other patient directions.", sign: true)
+    foreign_encounter = create_foreign_note.encounter
+
+    get portal_detail_path(other_encounter), headers: @headers
+    assert_response :not_found
+    get portal_detail_path(foreign_encounter), headers: @headers
+    assert_response :not_found
+
+    login_staff
+    get staff_handout_path(encounter), headers: @headers
+    assert_response :success
+    item = response.parsed_body.fetch("item")
+    assert_equal "Return in one week.", item.fetch("instructions")
+    assert_equal @patient.display_name, item.fetch("patient_name")
+    assert_not_includes response.body, "Visit history"
+    assert @practice.audit_events.where(action_code: "visit_instructions.read", outcome: "released").exists?
+
+    get staff_handout_path(other_encounter), headers: @headers
+    assert_response :not_found
+    get staff_handout_path(foreign_encounter, patient: foreign_encounter.patient), headers: @headers
+    assert_response :not_found
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read")
+    get staff_handout_path(encounter), headers: @headers
+    assert_response :forbidden
+  end
+
   private
 
   def csrf_headers
     get "/api/csrf", headers: @headers
     @headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token"))
+  end
+
+  def portal_detail_path(encounter)
+    "/api/patient_portal/visit_instructions/#{encounter.id}"
+  end
+
+  def staff_handout_path(encounter, patient: @patient)
+    "/api/clinic/patients/#{patient.id}/encounters/#{encounter.id}/visit_instructions"
+  end
+
+  def login_staff
+    post "/api/session",
+      params: { email_address: @clinician.email_address, password: @clinician_password },
+      headers: csrf_headers, as: :json
+    assert_response :success
   end
 
   def completed_encounter(patient:, started_at:, practice: @practice, site: @site)

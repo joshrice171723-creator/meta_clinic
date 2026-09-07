@@ -315,6 +315,11 @@
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/previsit_note(.:format)"
   ],
   [
+    "api_clinic_patient_encounter_visit_instructions",
+    "GET",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/visit_instructions(.:format)"
+  ],
+  [
     "api_clinic_patient_encounter_vital_signs",
     "GET",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/vital_signs(.:format)"
@@ -681,8 +686,8 @@
   ],
   [
     "api_patient_portal",
-    "POST",
-    "/api/patient_portal/reminders/:id/actions(.:format)"
+    "GET",
+    "/api/patient_portal/visit_instructions/:encounter_id(.:format)"
   ],
   [
     "api_patient_portal_appointment_previsit_note",
@@ -1718,6 +1723,11 @@
     null,
     "POST",
     "/api/patient_portal/reminder_preferences(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/reminders/:id/actions(.:format)"
   ],
   [
     null,

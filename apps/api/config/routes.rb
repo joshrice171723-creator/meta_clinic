@@ -187,6 +187,7 @@ Rails.application.routes.draw do
         resource :vital_signs, controller: "care/vital_signs", only: %i[show create]
       end
       get "encounters/:encounter_id/previsit_note", to: "care/previsit_notes#show", as: :encounter_previsit_note
+      get "encounters/:encounter_id/visit_instructions", to: "care/visit_instructions#show", as: :encounter_visit_instructions
       resources :observations, controller: "care/observations", only: %i[index create]
       resources :lab_reports, controller: "care/lab_reports", only: %i[index show create] do
         post :versions, on: :member, action: :create_version
@@ -330,6 +331,7 @@ Rails.application.routes.draw do
       end
       get "context", to: "context#show"
       get "visit_instructions", to: "visit_instructions#index"
+      get "visit_instructions/:encounter_id", to: "visit_instructions#show"
       get "reminders", to: "reminders#index"
       post "reminders/:id/actions", to: "reminders#action"
       get "reminder_preferences", to: "reminder_preferences#show"

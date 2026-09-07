@@ -61,6 +61,7 @@ import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 import { appendPrevisitNote, PrevisitNoteImport } from "./PrevisitNoteImport";
 import { VitalSignsEntry } from "./VitalSignsEntry";
+import { VisitInstructionHandout } from "../../shared/VisitInstructionHandout";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
@@ -2073,6 +2074,7 @@ export function ProviderEncounterWorkflow({
   const [recordedObservations, setRecordedObservations] = useState<
     Observation[]
   >([]);
+  const [handoutOpen, setHandoutOpen] = useState(false);
   const observations = Array.from(
     new Map(
       [...initialObservations, ...recordedObservations].map((observation) => [
@@ -2229,6 +2231,25 @@ export function ProviderEncounterWorkflow({
               </TableBody>
             </Table>
           </TableContainer>
+          {encounter.status === "completed" &&
+            capabilities.notes_read === true && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setHandoutOpen(true)}
+                >
+                  Patient handout
+                </Button>
+              </Box>
+            )}
+          {handoutOpen && (
+            <VisitInstructionHandout
+              key={`${patient.id}:${encounter.id}`}
+              endpoint={`/api/clinic/patients/${patient.id}/encounters/${encounter.id}/visit_instructions`}
+              onClose={() => setHandoutOpen(false)}
+            />
+          )}
           {capabilities.observations_write === true && (
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
               <VitalSignsEntry

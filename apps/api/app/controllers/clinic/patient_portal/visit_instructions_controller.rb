@@ -7,7 +7,7 @@ module Clinic
       def index
         page = positive_param(:page, default: 1)
         per_page = positive_param(:per_page, default: DEFAULT_PER_PAGE, maximum: MAX_PER_PAGE)
-        items = instruction_items
+        items = Clinic::Care::ReleasedVisitInstructions.items(practice: portal_practice, patient: portal_patient)
         total = items.length
         visible = items.slice((page - 1) * per_page, per_page) || []
 
@@ -15,35 +15,17 @@ module Clinic
         render json: { items: visible, pagination: { page:, per_page:, total: } }
       end
 
-      private
-
-      def instruction_items
-        notes = Clinic::EncounterNote.where(
-          practice: portal_practice, patient: portal_patient, note_kind: "soap"
-        ).joins(:encounter).where(
-          clinic_encounters: { status: "completed" }
-        ).where.not(
-          clinic_encounters: { ended_at: nil }
-        ).includes(:encounter, revisions: :signatures)
-
-        notes.filter_map do |note|
-          revision = note.revisions.select { |candidate| candidate.signatures.any? }.max_by(&:revision_no)
-          next unless revision
-
-          instructions = Clinic::Care::SoapNotePayload.load!(revision.encrypted_body)[:patient_instructions]
-          next if instructions.blank?
-
-          signature = revision.signatures.max_by { |candidate| [ candidate.signed_at, candidate.id ] }
-          {
-            encounter_id: note.encounter_id,
-            visit_at: note.encounter.started_at&.iso8601(6),
-            signed_at: signature.signed_at.iso8601(6),
-            instructions:
-          }
-        end.sort_by do |item|
-          [ item.fetch(:visit_at), item.fetch(:encounter_id) ]
-        end.reverse
+      def show
+        encounter = portal_practice.encounters.where(patient: portal_patient)
+          .find(integer_id!(params[:encounter_id], field: :encounter_id))
+        item = Clinic::Care::ReleasedVisitInstructions.handout(
+          practice: portal_practice, patient: portal_patient, encounter: encounter
+        )
+        record_portal_read("patient_portal.visit_instructions.read")
+        render json: { item: item }
       end
+
+      private
 
       def positive_param(name, default:, maximum: 1_000_000)
         return default unless params[name].present?

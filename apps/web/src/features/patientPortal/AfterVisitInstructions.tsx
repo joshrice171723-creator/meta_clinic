@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useResource } from "../../shared/ui";
+import { VisitInstructionHandout } from "../../shared/VisitInstructionHandout";
 
 type VisitInstruction = {
   encounter_id: number;
@@ -44,6 +45,10 @@ export function AfterVisitInstructions({
   timezone: string;
 }) {
   const [page, setPage] = useState(1);
+  const [handout, setHandout] = useState<{
+    patientId: number;
+    encounterId: number;
+  } | null>(null);
   const resource = useResource<VisitInstructionsResponse>(
     `/api/patient_portal/visit_instructions?page=${page}&per_page=25`,
   );
@@ -151,6 +156,15 @@ export function AfterVisitInstructions({
                 >
                   {item.instructions}
                 </Typography>
+                <Button
+                  size="small"
+                  sx={{ mt: 1 }}
+                  onClick={() =>
+                    setHandout({ patientId, encounterId: item.encounter_id })
+                  }
+                >
+                  Print instructions
+                </Button>
               </Box>
             ))}
           </Stack>
@@ -178,6 +192,13 @@ export function AfterVisitInstructions({
             </Stack>
           )}
       </Stack>
+      {handout?.patientId === patientId && (
+        <VisitInstructionHandout
+          key={`${patientId}:${handout.encounterId}`}
+          endpoint={`/api/patient_portal/visit_instructions/${handout.encounterId}`}
+          onClose={() => setHandout(null)}
+        />
+      )}
     </Paper>
   );
 }
