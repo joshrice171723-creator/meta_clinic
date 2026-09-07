@@ -710,7 +710,7 @@ export function StaffMessagingWorkspace({
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ mt: 0.4 }}
+                    sx={{ mt: 0.4, overflowWrap: "anywhere" }}
                   >
                     {selectedConversation.kind} conversation ·{" "}
                     {selectedConversation.participants.join(" · ")}
