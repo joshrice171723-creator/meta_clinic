@@ -21,7 +21,8 @@ module Apply
     COMMANDS = %w[start stop restart status setup refresh reset-data].freeze
     PROCESS_ROLES = {
       "api" => {port_key: :api, directory: "apps/api"},
-      "web" => {port_key: :web, directory: "apps/web"}
+      "web" => {port_key: :web, directory: "apps/web"},
+      "worker" => {directory: "apps/api"}
     }.freeze
 
     attr_reader :root
@@ -243,12 +244,12 @@ module Apply
       end
       phase("Migrate the development database", category: "database") { migrate_database! }
       phase("Validate application ports", category: "server") { require_ports_available_or_owned! }
-      phase("Start Rails and Vite", category: "server") { spawn_missing_services!(started_roles) }
+      phase("Start application services", category: "server") { spawn_missing_services!(started_roles) }
       phase("Verify migrations and database access", category: "database") { require_database_ready! }
       phase("Verify HTTP readiness", category: "server") { require_http_readiness! }
       phase("Verify managed process ownership", category: "server") do
         PROCESS_ROLES.each do |role, configuration|
-          check = process_check(role, @ports.fetch(configuration.fetch(:port_key)))
+          check = process_check(role, process_port(configuration))
           fail_with("#{check.name} failed ownership verification: #{check.detail}") unless check.ok
         end
       end
@@ -519,7 +520,7 @@ module Apply
 
       phase("Inspect managed processes", category: "server") do
         PROCESS_ROLES.each do |role, configuration|
-          checks << process_check(role, @ports.fetch(configuration.fetch(:port_key)))
+          checks << process_check(role, process_port(configuration))
         end
       end
 
@@ -567,7 +568,8 @@ module Apply
 
     def require_ports_available_or_owned!
       PROCESS_ROLES.each do |role, configuration|
-        port = @ports.fetch(configuration.fetch(:port_key))
+        port = process_port(configuration)
+        next unless port
         next unless port_in_use?(port)
         check = process_check(role, port)
         fail_with("port #{port} is not owned by this checkout: #{check.detail}") unless check.ok
@@ -576,8 +578,12 @@ module Apply
 
     def process_check(role, port)
       record = read_pid_record(role)
-      return Check.new(name: "#{role} process", ok: false, detail: "port #{port} is not listening") unless port_in_use?(port)
-      return Check.new(name: "#{role} process", ok: false, detail: "port #{port} has no checkout PID record") unless record
+      if port
+        return Check.new(name: "#{role} process", ok: false, detail: "port #{port} is not listening") unless port_in_use?(port)
+        return Check.new(name: "#{role} process", ok: false, detail: "port #{port} has no checkout PID record") unless record
+      else
+        return Check.new(name: "#{role} process", ok: false, detail: "no checkout PID record") unless record
+      end
       pid = record.fetch("pid")
       return Check.new(name: "#{role} process", ok: false, detail: "recorded PID #{pid} is not running") unless process_alive?(pid)
       if unsafe_process_group?(pid)
@@ -592,6 +598,10 @@ module Apply
       unless process_directory_matches?(pid, role)
         return Check.new(name: "#{role} process", ok: false, detail: "PID #{pid} is not rooted in this checkout")
       end
+      unless port
+        return Check.new(name: "#{role} process", ok: true, detail: "managed PID #{pid}")
+      end
+
       listeners = listener_pids(port)
       return Check.new(name: "#{role} process", ok: false, detail: "could not resolve the port #{port} listener") if listeners.empty?
       owned = listeners.all? { |listener| descendant_or_group_member?(pid, listener) }
@@ -659,7 +669,21 @@ module Apply
       FileUtils.mkdir_p(@log_root)
       FileUtils.mkdir_p(@pid_root)
       PROCESS_ROLES.each do |role, configuration|
-        next if port_in_use?(@ports.fetch(configuration.fetch(:port_key)))
+        port = process_port(configuration)
+        if port
+          next if port_in_use?(port)
+        else
+          record = read_pid_record(role)
+          if record && process_alive?(record.fetch("pid"))
+            check = process_check(role, nil)
+            fail_with("#{check.name} failed ownership verification: #{check.detail}") unless check.ok
+            next
+          end
+          if File.file?(pid_path(role))
+            fail_with("refusing to replace an invalid #{role} PID record") unless record
+            File.delete(pid_path(role))
+          end
+        end
 
         Thread.handle_interrupt(Interrupt => :never) do
           spawn_role(role)
@@ -681,10 +705,13 @@ module Apply
         "APPLY_DEVELOPMENT_DATABASE" => @database,
         "RAILS_ENV" => "development"
       }
-      command, directory = if role == "api"
+      command, directory = case role
+      when "api"
         [[RbConfig.ruby, "bin/postgres", "exec", "bundle", "exec", "rails", "server", "-b", "127.0.0.1", "-p", @ports.fetch(:api).to_s], @api_root]
-      else
+      when "web"
         [["npm", "run", "dev"], @web_root]
+      when "worker"
+        [[RbConfig.ruby, "bin/postgres", "exec", "bundle", "exec", "ruby", "bin/clinic-worker", "--interval", "15"], @api_root]
       end
       process_options = {chdir: directory, out: log, err: log}
       process_options[Gem.win_platform? ? :new_pgroup : :pgroup] = true
@@ -751,7 +778,20 @@ module Apply
       validate_record_for_stop!(role, record)
 
       if Gem.win_platform?
-        system("taskkill", "/PID", pid.to_s, "/T", "/F", out: File::NULL, err: File::NULL)
+        if role == "worker"
+          graceful_requested = true
+          begin
+            Process.kill("INT", pid)
+          rescue Errno::ESRCH
+            nil
+          rescue SystemCallError, ArgumentError
+            graceful_requested = false
+          end
+          stopped = graceful_requested && wait_until(30) { !process_alive?(pid) }
+          system("taskkill", "/PID", pid.to_s, "/T", "/F", out: File::NULL, err: File::NULL) unless stopped
+        else
+          system("taskkill", "/PID", pid.to_s, "/T", "/F", out: File::NULL, err: File::NULL)
+        end
         fail_with("could not stop #{role} PID #{pid}") unless wait_until(8) { !process_alive?(pid) }
       else
         begin
@@ -759,7 +799,7 @@ module Apply
         rescue Errno::ESRCH
           nil
         end
-        stopped = wait_until(8) { !process_alive?(pid) }
+        stopped = wait_until(role == "worker" ? 30 : 8) { !process_alive?(pid) }
         unless stopped
           Process.kill("KILL", -Process.getpgid(pid))
           fail_with("could not stop #{role} PID #{pid}") unless wait_until(2) { !process_alive?(pid) }
@@ -811,15 +851,20 @@ module Apply
 
     def require_stoppable_scope!
       PROCESS_ROLES.each do |role, configuration|
-        port = @ports.fetch(configuration.fetch(:port_key))
+        port = process_port(configuration)
         record = read_pid_record(role)
-        if port_in_use?(port)
+        if port && port_in_use?(port)
           check = process_check(role, port)
           fail_with("refusing to stop #{role}: #{check.detail}") unless check.ok
         elsif record && process_alive?(record.fetch("pid"))
           validate_record_for_stop!(role, record)
         end
       end
+    end
+
+    def process_port(configuration)
+      port_key = configuration[:port_key]
+      @ports.fetch(port_key) if port_key
     end
 
     def require_http_readiness!
