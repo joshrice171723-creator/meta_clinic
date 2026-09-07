@@ -715,7 +715,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
 
     receiver = User.create!(email_address: "separate-receiver@example.invalid", password: @password)
     receiver_membership = @practice.memberships.create!(user: receiver)
-    grant_permissions!(receiver_membership, "inventory.read", "inventory.receive", "recall.lock")
+    grant_permissions!(receiver_membership, "inventory.read", "inventory.receive", "recall.lock", "recall.dispose")
     submit "/api/session", {}, method: :delete
     submit "/api/session", { email_address: receiver.email_address, password: @password }
     assert_response :success
@@ -744,7 +744,12 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal recall.id, receipt.lines.sole.batch.active_holds.sole.recall_id
     assert_not receipt.lines.sole.batch.available?
 
-    recall.update!(status: "closed")
+    batch = receipt.lines.sole.batch
+    Clinic::Inventory::RecallDisposition.execute!(recall: recall, actor: receiver, batch_id: batch.id,
+      quantity: batch.quantity, method: "return_to_supplier", evidence_reference: "Synthetic return evidence",
+      reason: "Synthetic recalled stock disposition", request_key: SecureRandom.uuid)
+    Clinic::Inventory::RecallCase.close!(recall: recall, actor: receiver, reason: "Synthetic closure",
+      evidence_reference: "Synthetic closure evidence", request_key: SecureRandom.uuid)
     assert_no_difference "Clinic::Inventory::Receipt.count" do
       submit "/api/clinic/inventory/receipts", receipt_request
       assert_response :success
