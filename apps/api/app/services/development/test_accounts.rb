@@ -54,7 +54,10 @@ module Development
 
     def self.matches?(user, profile)
       database_account = preview_accounts.find { |account| account.fetch(:id) == profile }
-      return database_account.fetch(:email_address) == user&.email_address if database_account
+      if database_account
+        database_user = dynamic_preview_user(database_account)
+        return database_user.id == user&.id if database_user
+      end
 
       preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
       return preview_user(preview, authenticate: false)&.id == user&.id if preview
@@ -69,7 +72,10 @@ module Development
     def self.sign_in_account(profile)
       ensure_local!
       database_account = preview_accounts.find { |account| account.fetch(:id) == profile }
-      return User.find_by(email_address: database_account.fetch(:email_address)) if database_account
+      if database_account
+        database_user = dynamic_preview_user(database_account)
+        return database_user if database_user
+      end
 
       preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
       return preview_user(preview) if preview
@@ -205,6 +211,17 @@ module Development
       user if grant_matches
     end
     private_class_method :preview_user
+
+    def self.dynamic_preview_user(account)
+      prefix = case account.fetch(:account_type)
+      when "employee" then "employee"
+      when "patient" then "patient"
+      else return
+      end
+      user_id = account.fetch(:id).match(/\A#{prefix}-(\d+)\z/)&.captures&.first
+      User.find_by(id: user_id, active: true) if user_id
+    end
+    private_class_method :dynamic_preview_user
 
     def self.employee_accounts
       Clinic::Membership.active.joins(:user)

@@ -134,6 +134,23 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "dynamic development account ids resolve without exposing account addresses" do
+    local_mode do
+      practice = Clinic::Practice.create!(name: "Dynamic account clinic")
+      employee = User.create!(email_address: "dynamic-employee@example.invalid", password: SecureRandom.hex(20))
+      membership = Clinic::Membership.create!(practice: practice, user: employee)
+      role = RoleVersion.create!(role_code: "dynamic-account-role", version: 1)
+      membership.role_grants.create!(practice: practice, role_version: role, scope_kind: "practice",
+        effective_from: 1.minute.ago, revision: 1)
+
+      account = Development::TestAccounts.preview_accounts.find { |candidate| candidate[:id] == "employee-#{employee.id}" }
+      assert account
+      assert_not account.key?(:email_address)
+      assert_equal employee, Development::TestAccounts.sign_in_account(account.fetch(:id))
+      assert Development::TestAccounts.matches?(employee, account.fetch(:id))
+    end
+  end
+
   test "admin is explicitly scoped and ordinary test clients cannot self-elevate" do
     local_mode do
       Development::TestAccounts.prepare!
