@@ -8,6 +8,13 @@ module Clinic
         appointments = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
         appointments = appointments.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
         appointments = appointments.where(site_id: requested_id!(params[:site_id], :site_id)) if params[:site_id].present?
+        if params[:date].present?
+          date = date_param!(params[:date], field: :date)
+          zone = ActiveSupport::TimeZone[current_practice.timezone]
+          raise ArgumentError, "The clinic timezone is unavailable." unless zone
+
+          appointments = appointments.where(starts_at: zone.local(date.year, date.month, date.day)...zone.local(date.next_day.year, date.next_day.month, date.next_day.day))
+        end
         appointments = appointments.where(booked_clinician_id: requested_id!(params[:booked_clinician_id], :booked_clinician_id)) if params[:booked_clinician_id].present?
         appointments = appointments.where(status: %w[scheduled confirmed]).where("starts_at >= ?", Current.business_time) if params[:upcoming] == "true"
         appointments = appointments.where(status: enum_param!(params[:status], field: :status, allowed: Clinic::Appointment::TRANSITIONS.keys)) if params[:status].present?
@@ -54,14 +61,29 @@ module Clinic
       end
 
       def transition
-        input = parameter_hash!(:transition, %i[to])
+        input = parameter_hash!(:transition, %i[to expected_status])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
         updated = Clinic::Scheduling::TransitionAppointment.call(
           appointment: appointment,
           actor: current_user,
-          to: enum_param!(input[:to], field: :to, allowed: Clinic::Appointment::TRANSITIONS.fetch(appointment.status, []))
+          to: enum_param!(input[:to], field: :to, allowed: Clinic::Appointment::TRANSITIONS.keys),
+          expected_status: input[:expected_status].presence && enum_param!(input[:expected_status], field: :expected_status, allowed: Clinic::Appointment::TRANSITIONS.keys)
         )
         render json: { appointment: AppointmentSerializer.call(updated) }
+      end
+
+      def update
+        input = parameter_hash!(:appointment, %i[starts_at ends_at expected_updated_at request_key])
+        appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
+        updated = Clinic::Scheduling::RescheduleAppointment.call(
+          appointment: appointment, actor: current_user,
+          starts_at: time_param!(input[:starts_at], field: :starts_at),
+          ends_at: time_param!(input[:ends_at], field: :ends_at),
+          expected_updated_at: time_param!(input[:expected_updated_at], field: :expected_updated_at),
+          request_key: request_key
+        )
+        render json: { appointment: AppointmentSerializer.call(updated), request_key: request_key }
       end
 
       private

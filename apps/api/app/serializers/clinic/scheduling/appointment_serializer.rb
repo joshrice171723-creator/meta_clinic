@@ -18,7 +18,11 @@ module Clinic
           starts_at: appointment.starts_at&.iso8601(6),
           ends_at: appointment.ends_at&.iso8601(6),
           status: appointment.status,
-          encounter_id: appointment.encounter&.id
+          updated_at: appointment.updated_at&.iso8601(6),
+          encounter_id: appointment.encounter&.id,
+          encounter_status: appointment.encounter&.status,
+          encounter_started_at: appointment.encounter&.started_at&.iso8601(6),
+          encounter_ended_at: appointment.encounter&.ended_at&.iso8601(6)
         }
       end
     end

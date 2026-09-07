@@ -42,7 +42,8 @@ module Clinic
           practice_id: reminder.practice_id,
           patient_id: reminder.patient_id
         )
-        appointment.nil? || appointment.status == "cancelled"
+        appointment.nil? || appointment.status == "cancelled" ||
+          (%w[completed no_show].include?(appointment.status) && %w[appointment preparation].include?(reminder.category))
       end
       private_class_method :source_cancelled?
 
