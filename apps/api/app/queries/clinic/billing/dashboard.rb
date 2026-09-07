@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class Dashboard
-      def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil)
+      def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil, patient_identity_access: false)
         local_now = now.in_time_zone(practice.timezone)
         period_start = local_now.beginning_of_month
         period_end = period_start.next_month
@@ -37,9 +37,49 @@ module Clinic
           payment_activity: payment_activity(practice),
           payment_count: Clinic::PaymentEvent.where(practice: practice).count,
           card_collection: { available: false, reason: "Stripe card entry and saved payment methods are not connected to this workspace." },
-          income_outlook: IncomeOutlook.call(practice: practice, now: now, months: outlook_months, start_month: outlook_start)
+          income_outlook: IncomeOutlook.call(practice: practice, now: now, months: outlook_months, start_month: outlook_start),
+          unbilled_encounters: unbilled_encounters(practice, available: patient_identity_access)
         }
       end
+
+      def self.unbilled_encounters(practice, available:)
+        return { available: false, total: nil, items: [] } unless available
+
+        active_encounter_ids = practice.invoices.where.not(status: "void").where.not(encounter_id: nil).select(:encounter_id)
+        scope = Clinic::Encounter.where(practice: practice, status: "completed").where.not(ended_at: nil)
+          .where.not(id: active_encounter_ids)
+        total = scope.count
+        encounters = scope.includes(:patient, :site).order(ended_at: :asc, id: :asc).limit(25).to_a
+        previous_void_by_encounter = practice.invoices.where(status: "void", encounter_id: encounters.map(&:id))
+          .order(voided_at: :desc, id: :desc)
+          .each_with_object({}) do |invoice, result|
+            result[invoice.encounter_id] ||= invoice.id
+          end
+
+        {
+          available: true,
+          total: total,
+          items: encounters.map do |encounter|
+            {
+              encounter_id: encounter.id,
+              patient: {
+                id: encounter.patient.id,
+                display_name: encounter.patient.display_name,
+                reference: encounter.patient.reference
+              },
+              site: encounter.site && {
+                id: encounter.site.id,
+                code: encounter.site.code,
+                name: encounter.site.name
+              },
+              started_at: encounter.started_at.iso8601,
+              ended_at: encounter.ended_at.iso8601,
+              previous_void_invoice_id: previous_void_by_encounter[encounter.id]
+            }
+          end
+        }
+      end
+      private_class_method :unbilled_encounters
 
       def self.currency_metrics(invoices, currency, period_start, period_end, practice)
         scoped = invoices.where(currency: currency).where.not(status: "void")

@@ -12,11 +12,17 @@ module Clinic
           filter: invoice_filter_param,
           sort: invoice_sort_param,
           outlook_months: outlook_months_param,
-          outlook_start: outlook_start_param
+          outlook_start: outlook_start_param,
+          patient_identity_access: patient_identity_access?
         )
       end
 
       private
+
+      def patient_identity_access?
+        current_ability.allowed_permission?("patients.identity.read") ||
+          current_ability.allowed_permission?("patients.read")
+      end
 
       def outlook_months_param
         value = params[:outlook_months].presence || "6"

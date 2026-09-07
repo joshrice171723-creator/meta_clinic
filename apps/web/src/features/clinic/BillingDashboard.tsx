@@ -36,6 +36,7 @@ import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { CashDrawerOperations } from "./CashDrawerOperations";
 import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
+import { patientReferenceLabel } from "./patientReference";
 
 export type BillingInvoiceFilter =
   | "all"
@@ -348,7 +349,17 @@ export function BillingDashboard() {
         <p role="alert">Billing access is not enabled for this account.</p>
       </>
     );
-  if (!data) return <LoadState error={error} />;
+  if (!data)
+    return error ? (
+      <div className="billing-page">
+        <LoadState error={error} />
+        <Button onClick={refresh} variant="outlined">
+          Retry billing dashboard
+        </Button>
+      </div>
+    ) : (
+      <LoadState />
+    );
   if (data.schema_version !== "clinic-billing-v1")
     return (
       <LoadState error="Unable to verify the billing response. Reload and try again." />
@@ -360,6 +371,7 @@ export function BillingDashboard() {
     null;
   const primaryOpenInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
   const openQueueCount = totalOpenInvoiceCount(data.metrics.currencies);
+  const checkoutQueue = data.unbilled_encounters;
   const clearActionState = () => {
     setConfirmAction(null);
     setActionError("");
@@ -626,6 +638,101 @@ export function BillingDashboard() {
           </Button>
         </div>
       </section>
+      {checkoutQueue.available && (
+        <section className="clinic-card billing-ledger-card">
+          <div className="billing-section-heading billing-ledger-heading">
+            <div>
+              <h2>Completed visits awaiting checkout</h2>
+              <p className="billing-subtitle">
+                These completed visits have no active invoice. Start checkout to
+                review stored charges, packages, and staff-entered lines.
+              </p>
+            </div>
+            <strong>{checkoutQueue.total ?? 0} awaiting checkout</strong>
+          </div>
+          {checkoutQueue.items.length === 0 ? (
+            <p className="billing-clear-state">
+              No completed visits are awaiting checkout.
+            </p>
+          ) : (
+            <>
+              <TableContainer className="billing-table-wrap">
+                <Table className="billing-ledger-table" size="small">
+                  <caption className="sr-only">
+                    Completed visits awaiting checkout
+                  </caption>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Patient</TableCell>
+                      <TableCell>Site</TableCell>
+                      <TableCell>Completed</TableCell>
+                      <TableCell>Invoice state</TableCell>
+                      <TableCell>Checkout</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {checkoutQueue.items.map((encounter) => {
+                      const site = encounter.site
+                        ? `${encounter.site.name} · ${encounter.site.code}`
+                        : "No site recorded";
+                      const href = `/clinic/billing/patients?patient_id=${encodeURIComponent(String(encounter.patient.id))}&encounter_id=${encodeURIComponent(String(encounter.encounter_id))}`;
+                      return (
+                        <TableRow key={encounter.encounter_id}>
+                          <TableCell component="th" scope="row">
+                            <strong>{encounter.patient.display_name}</strong>
+                            <Typography color="text.secondary" variant="body2">
+                              {patientReferenceLabel(encounter.patient.reference)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell data-label="Site">{site}</TableCell>
+                          <TableCell data-label="Completed">
+                            {date(
+                              encounter.ended_at,
+                              data.practice.timezone,
+                              true,
+                            )}
+                          </TableCell>
+                          <TableCell data-label="Invoice state">
+                            <Typography variant="body2">
+                              No active invoice
+                            </Typography>
+                            {encounter.previous_void_invoice_id && (
+                              <Typography
+                                color="text.secondary"
+                                variant="body2"
+                              >
+                                Previous invoice #
+                                {encounter.previous_void_invoice_id} was voided
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell data-label="Checkout">
+                            <Button
+                              component="a"
+                              href={href}
+                              variant="outlined"
+                            >
+                              Start checkout
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {checkoutQueue.total !== null &&
+                checkoutQueue.total > checkoutQueue.items.length && (
+                  <p className="billing-fine-print">
+                    Showing the oldest {checkoutQueue.items.length} visits.
+                    Complete checkout for these visits, then refresh to bring
+                    the next visits into the queue.
+                  </p>
+                )}
+            </>
+          )}
+        </section>
+      )}
       <Tabs
         className="billing-workspace-tabs"
         value={activeTab}

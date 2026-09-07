@@ -125,6 +125,41 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     assert_equal 2, @practice.invoices.count
   end
 
+  test "billing queue includes completed encounters until an active invoice exists and restores voided checkout" do
+    open_appointment = appointment_for(@other_patient, starts_at: Time.utc(2026, 9, 7, 10))
+    open_encounter = Clinic::Scheduling::CreateEncounter.call(
+      practice: @practice, actor: @actor, patient: @other_patient, appointment: open_appointment, site: @site,
+      started_at: open_appointment.starts_at
+    )
+    appointment = appointment_for(@patient)
+    encounter = Clinic::Scheduling::CreateEncounter.call(
+      practice: @practice, actor: @actor, patient: @patient, appointment: appointment, site: @site,
+      started_at: appointment.starts_at
+    )
+    Clinic::Scheduling::CloseEncounter.call(
+      encounter: encounter, actor: @actor, ended_at: appointment.starts_at + 30.minutes,
+      request_key: "checkout-queue-close"
+    )
+
+    queue = Clinic::Billing::Dashboard.call(practice: @practice, patient_identity_access: true)
+      .fetch(:unbilled_encounters)
+    assert_equal [ encounter.id ], queue.fetch(:items).map { |item| item.fetch(:encounter_id) }
+    assert_not_includes queue.fetch(:items).map { |item| item.fetch(:encounter_id) }, open_encounter.id
+
+    invoice = draft_invoice(encounter: encounter, request_key: "checkout-queue-invoice")
+    Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @actor)
+    assert_empty Clinic::Billing::Dashboard.call(practice: @practice, patient_identity_access: true)
+      .dig(:unbilled_encounters, :items)
+
+    Clinic::Billing::InvoiceAdjustments.void(
+      invoice: invoice, actor: @actor, reason: "Checkout needs replacement", request_key: "checkout-queue-void"
+    )
+    restored = Clinic::Billing::Dashboard.call(practice: @practice, patient_identity_access: true)
+      .dig(:unbilled_encounters, :items).sole
+    assert_equal encounter.id, restored.fetch(:encounter_id)
+    assert_equal invoice.id, restored.fetch(:previous_void_invoice_id)
+  end
+
   test "checkout shows the draft amount and only posts the revision reviewed by staff" do
     invoice = draft_invoice(request_key: "checkout-reviewed-revision")
     ledger = Clinic::Billing::PatientLedger.call(practice: @practice, patient: @patient)

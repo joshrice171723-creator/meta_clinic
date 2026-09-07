@@ -118,6 +118,36 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "completed checkout queue is practice scoped and requires patient identity access" do
+    patient = @practice.patients.first
+    foreign_patient = @other.patients.second
+    completed_at = Time.current.change(usec: 0)
+    encounter = @practice.encounters.create!(
+      patient: patient, status: "completed", started_at: completed_at - 30.minutes, ended_at: completed_at
+    )
+    @other.encounters.create!(
+      patient: foreign_patient, status: "completed", started_at: completed_at - 30.minutes, ended_at: completed_at
+    )
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "billing.read")
+    get "/api/clinic/billing", headers: @headers
+    assert_response :success
+    assert_equal({ "available" => false, "total" => nil, "items" => [] }, response.parsed_body.fetch("unbilled_encounters"))
+    assert_not_includes response.body, patient.display_name
+    assert_not_includes response.body, foreign_patient.display_name
+
+    grant_permissions!(@membership, "patients.identity.read")
+    get "/api/clinic/billing", headers: @headers
+    assert_response :success
+    queue = response.parsed_body.fetch("unbilled_encounters")
+    assert_equal true, queue.fetch("available")
+    assert_equal [ encounter.id ], queue.fetch("items").map { |item| item.fetch("encounter_id") }
+    assert_equal patient.display_name, queue.dig("items", 0, "patient", "display_name")
+    assert_not_includes response.body, foreign_patient.display_name
+    assert_equal "no-store", response.headers["Cache-Control"]
+  end
+
   test "billing dashboard credit on a paid invoice cannot offset another invoice balance" do
     patient = @practice.patients.first
     paid, unpaid = [ "75.00", "40.00" ].map do |amount|

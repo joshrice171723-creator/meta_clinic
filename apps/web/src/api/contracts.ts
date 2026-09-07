@@ -560,6 +560,18 @@ export type BillingDashboard = {
     amount: Decimal;
     created_at: string;
   }[];
+  unbilled_encounters: {
+    available: boolean;
+    total: number | null;
+    items: {
+      encounter_id: number;
+      patient: { id: number; display_name: string; reference: string };
+      site: { id: number; code: string; name: string } | null;
+      started_at: string;
+      ended_at: string;
+      previous_void_invoice_id: number | null;
+    }[];
+  };
 };
 export type CashDrawer = {
   id: number;
