@@ -18,21 +18,26 @@ describe("development account preview", () => {
             destination: "/clinic",
           },
           {
-            id: "customer-client-a",
-            label: "Customer A",
-            account_type: "customer",
-            email_address: "test-client-a@example.invalid",
-            destination: "/portal",
+            id: "patient-14",
+            label: "Alex Patient",
+            account_type: "patient",
+            email_address: "patient@example.test",
+            destination: "/patient-portal",
           },
         ]}
       />,
     );
-    expect(html).toContain("Development environment");
+    expect(html).toContain("Development");
+    expect(html).toContain("Patient portal");
     expect(html).toContain("Employee portal");
-    expect(html).toContain("Customer portal");
-    expect(html).toContain("Active account");
+    expect(html).toContain("Select patient account");
+    expect(html).toContain("Log in");
+    expect(html).toContain("Choose a portal and account, then log in");
     expect(html).toContain("2032-04-15");
     expect(html).toContain("Uses the real current time with this date.");
+    expect(html).not.toContain("Email address");
+    expect(html).not.toContain("Password");
+    expect(html).not.toContain(">Sign in<");
     expect(html.toLowerCase()).not.toContain("omni");
   });
 

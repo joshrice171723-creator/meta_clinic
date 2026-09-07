@@ -34,68 +34,85 @@ export function Login({
       <div className="inner-page-copy">
         <p className="eyebrow">YOUR NEXT CHAPTER, ORGANIZED</p>
         <h1>
-          {employeePortal ? "Your workday." : "Your launch."}
+          {developmentLogin
+            ? "Choose an account."
+            : employeePortal
+              ? "Your workday."
+              : "Your launch."}
           <br />
           <em>
-            {employeePortal ? "One place to work." : "One place to start."}
+            {developmentLogin
+              ? "Start testing immediately."
+              : employeePortal
+                ? "One place to work."
+                : "One place to start."}
           </em>
         </h1>
         <p>
-          {employeePortal
-            ? "Sign in to work in your clinic and access the employee tools assigned to your account."
-            : "Sign in to review your paperwork and work through onboarding and training."}
+          {developmentLogin
+            ? "Choose a patient or employee account to enter the app without a password."
+            : employeePortal
+              ? "Sign in to work in your clinic and access the employee tools assigned to your account."
+              : "Sign in to review your paperwork and work through onboarding and training."}
         </p>
-        <p className="page-fine-print">
-          APPly provides your account after payment. There is no public signup.
-          Need access help? <a href="/contact">Contact us.</a>
-        </p>
+        {!developmentLogin && (
+          <p className="page-fine-print">
+            APPly provides your account after payment. There is no public
+            signup. Need access help? <a href="/contact">Contact us.</a>
+          </p>
+        )}
       </div>
       <section className="form-card login-card">
         <EnvironmentLabel environment={environment} />
-        <div className="portal-type-links" aria-label="Choose account type">
-          <a aria-current={!employeePortal ? "page" : undefined} href="/login">
-            Customer portal
-          </a>
-          <a
-            aria-current={employeePortal ? "page" : undefined}
-            href="/login?next=%2Fclinic"
-          >
-            Employee portal
-          </a>
-        </div>
-        <h2>{employeePortal ? "Employee portal" : "Customer portal"}</h2>
-        <p>
-          {employeePortal
-            ? "Clinic employees use the account provided by their organization."
-            : "Customers use the account provided by APPly."}
-        </p>
-        <Form endpoint="/api/session" submit="Sign in" onSuccess={done}>
-          <Field
-            name="email_address"
-            label="Email address"
-            type="email"
-            maxLength={254}
-            autoComplete="username"
-          />
-          <Field
-            name="password"
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-          />
-        </Form>
-        {developmentLogin && (
+        {developmentLogin ? (
           <>
-            <hr />
-            <h3>Development account preview</h3>
+            <h2>Development account preview</h2>
             <p className="form-note">
-              Choose an employee or customer account. Actions are recorded as
-              the selected account.
+              Choose a portal and account, then log in. Actions are recorded as
+              that account.
             </p>
             <DevelopmentControls
               accounts={developmentAccounts}
               businessDate={businessDate}
             />
+          </>
+        ) : (
+          <>
+            <div className="portal-type-links" aria-label="Choose account type">
+              <a
+                aria-current={!employeePortal ? "page" : undefined}
+                href="/login"
+              >
+                Customer portal
+              </a>
+              <a
+                aria-current={employeePortal ? "page" : undefined}
+                href="/login?next=%2Fclinic"
+              >
+                Employee portal
+              </a>
+            </div>
+            <h2>{employeePortal ? "Employee portal" : "Customer portal"}</h2>
+            <p>
+              {employeePortal
+                ? "Clinic employees use the account provided by their organization."
+                : "Customers use the account provided by APPly."}
+            </p>
+            <Form endpoint="/api/session" submit="Sign in" onSuccess={done}>
+              <Field
+                name="email_address"
+                label="Email address"
+                type="email"
+                maxLength={254}
+                autoComplete="username"
+              />
+              <Field
+                name="password"
+                label="Password"
+                type="password"
+                autoComplete="current-password"
+              />
+            </Form>
           </>
         )}
       </section>

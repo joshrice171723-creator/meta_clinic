@@ -53,6 +53,9 @@ module Development
     end
 
     def self.matches?(user, profile)
+      database_account = preview_accounts.find { |account| account.fetch(:id) == profile }
+      return database_account.fetch(:email_address) == user&.email_address if database_account
+
       preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
       return preview_user(preview, authenticate: false)&.id == user&.id if preview
 
@@ -65,6 +68,9 @@ module Development
 
     def self.sign_in_account(profile)
       ensure_local!
+      database_account = preview_accounts.find { |account| account.fetch(:id) == profile }
+      return User.find_by(email_address: database_account.fetch(:email_address)) if database_account
+
       preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
       return preview_user(preview) if preview
 
@@ -76,18 +82,21 @@ module Development
 
     def self.preview_accounts
       ensure_local!
-      PREVIEW_ACCOUNTS.filter_map do |account|
-        user = preview_user(account, authenticate: false)
-        next unless user
-
-        account.slice(:id, :label, :account_type, :destination).merge(email_address: user.email_address)
-      end
+      employee_accounts + patient_accounts
     end
 
-    def self.preview_account_for(user)
+    def self.preview_account_for(user, profile: nil)
       return unless user
 
-      PREVIEW_ACCOUNTS.find { |account| preview_user(account, authenticate: false)&.id == user.id }
+      legacy = PREVIEW_ACCOUNTS.find do |account|
+        account.fetch(:id) == profile && preview_user(account, authenticate: false)&.id == user.id
+      end
+      return legacy if legacy
+
+      accounts = preview_accounts
+      accounts.find { |account| account.fetch(:id) == profile && account.fetch(:email_address) == user.email_address } ||
+        accounts.find { |account| account.fetch(:email_address) == user.email_address } ||
+        PREVIEW_ACCOUNTS.find { |account| preview_user(account, authenticate: false)&.id == user.id }
     end
 
     def self.prepare!
@@ -196,6 +205,37 @@ module Development
       user if grant_matches
     end
     private_class_method :preview_user
+
+    def self.employee_accounts
+      Clinic::Membership.active.joins(:user)
+        .where(users: { active: true }).where.not(users: { email_address: PROFILES.fetch("omni").fetch(:email) })
+        .includes(:practice, :user)
+        .order("users.email_address", :id).map do |membership|
+          user = membership.user
+          {
+            id: "employee-#{user.id}",
+            label: user.email_address.split("@").first.tr("._-", " ").titleize,
+            email_address: user.email_address,
+            account_type: "employee",
+            destination: "/clinic"
+          }
+        end
+    end
+    private_class_method :employee_accounts
+
+    def self.patient_accounts
+      Clinic::PatientPortal::Identity.available.joins(:user).where(users: { active: true })
+        .includes(:patient, :user).order("users.email_address", :id).map do |identity|
+          {
+            id: "patient-#{identity.user_id}",
+            label: identity.patient.display_name,
+            email_address: identity.user.email_address,
+            account_type: "patient",
+            destination: "/patient-portal"
+          }
+        end
+    end
+    private_class_method :patient_accounts
 
     def self.password_for(profile)
       # A per-installation opaque verifier proves fixture ownership without a published

@@ -346,7 +346,7 @@ export function Workspace({
                       className="clinic-topbar"
                       aria-label="Clinic context"
                     >
-                      <span className="clinic-topbar-context">
+                      <div className="clinic-topbar-context">
                         <EnvironmentLabel environment={environment} />
                         {user.development_demo ? (
                           <DevelopmentControls
@@ -362,7 +362,7 @@ export function Workspace({
                             )}
                           </span>
                         )}
-                      </span>
+                      </div>
                       <span className="clinic-topbar-actions">
                         <span className="clinic-topbar-location">
                           {data.practice.name}

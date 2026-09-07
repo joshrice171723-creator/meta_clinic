@@ -46,7 +46,7 @@ module Identity
         session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
         session[:development_test_profile] = profile.to_s if named_profile
-        preview = Development::TestAccounts.preview_account_for(user)
+        preview = Development::TestAccounts.preview_account_for(user, profile: profile)
         render json: {
           user: session_user(user),
           destination: preview&.fetch(:destination, nil) || "/portal"
@@ -82,7 +82,8 @@ module Identity
       private
 
       def session_user(user)
-        preview = Development::TestAccounts.preview_account_for(user) if development_demo?
+        preview = Development::TestAccounts.preview_account_for(user,
+          profile: session[:development_test_profile]) if development_demo?
         user.as_json(only: %i[id email_address admin]).merge(
           development_demo: !!development_demo?,
           development_account_id: preview&.fetch(:id, nil)

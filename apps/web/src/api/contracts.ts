@@ -29,7 +29,7 @@ export type DevelopmentAccount = {
   id: string;
   label: string;
   email_address: string;
-  account_type: "employee" | "customer";
+  account_type: "employee" | "patient";
   destination: string;
 };
 export type PatientPortalContext = {

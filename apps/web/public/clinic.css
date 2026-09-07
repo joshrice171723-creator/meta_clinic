@@ -14,7 +14,6 @@
 .clinic-main { min-width:0; }
 .clinic-topbar { display:flex; justify-content:space-between; gap:16px; padding:28px 38px; background:#fff; border-bottom:1px solid #dbe1dc; font-size:10px; letter-spacing:1px; }
 .clinic-topbar-context { display:flex; align-items:center; gap:12px; flex-wrap:wrap; letter-spacing:0; }
-.clinic-topbar .development-account-switcher { min-width:min(420px,100%); }
 .clinic-topbar a { letter-spacing:0; font-size:12px; }
 .clinic-safety { padding:12px 38px; background:#f1ebda; color:#75623c; font-size:10px; line-height:1.8; }
 .clinic-content { padding:22px 38px 70px; max-width:1520px; margin:auto; }

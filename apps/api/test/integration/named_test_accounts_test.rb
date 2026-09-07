@@ -93,7 +93,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "development account choices switch to persisted employee and customer principals" do
+  test "development account choices include every persisted employee and patient principal" do
     local_mode do
       Development::TestAccounts.prepare!
       practice = Clinic::Practice.create!(name: "Development account switch test")
@@ -107,26 +107,30 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_equal "development", response.parsed_body.fetch("environment")
       choices = response.parsed_body.fetch("development_accounts")
-      assert_includes choices.pluck("id"), "employee-clinician"
-      assert_includes choices.pluck("id"), "customer-client-a"
-      assert_equal %w[customer employee], choices.pluck("account_type").uniq.sort
+      patient = User.find_by!(email_address: "synthetic-patient@example.invalid")
+      assert_includes choices.pluck("id"), "employee-#{employee.id}"
+      assert_includes choices.pluck("id"), "patient-#{patient.id}"
+      assert_equal Clinic::Membership.active.joins(:user).where(users: { active: true })
+        .where.not(users: { email_address: Development::TestAccounts::PROFILES.fetch("omni").fetch(:email) }).count,
+        choices.count { |account| account.fetch("account_type") == "employee" }
+      assert_equal Clinic::PatientPortal::Identity.available.joins(:user).where(users: { active: true }).count,
+        choices.count { |account| account.fetch("account_type") == "patient" }
 
-      enter("employee-clinician")
+      enter("employee-#{employee.id}")
       assert_response :created
       persisted = User.find_by!(email_address: "clinician1@test.com")
       assert_equal persisted.id, response.parsed_body.dig("user", "id")
-      assert_equal "employee-clinician", response.parsed_body.dig("user", "development_account_id")
+      assert_equal "employee-#{employee.id}", response.parsed_body.dig("user", "development_account_id")
       assert_equal "/clinic", response.parsed_body.fetch("destination")
       assert_equal persisted.id, MemberSession.order(:id).last.user_id
       get "/api/session", headers: @headers
       assert_equal persisted.id, response.parsed_body.dig("user", "id")
 
-      enter("customer-client-a")
+      enter("patient-#{patient.id}")
       assert_response :created
-      customer = User.find_by!(email_address: "test-client-a@example.invalid")
-      assert_equal customer.id, response.parsed_body.dig("user", "id")
-      assert_equal "customer-client-a", response.parsed_body.dig("user", "development_account_id")
-      assert_equal "/portal", response.parsed_body.fetch("destination")
+      assert_equal patient.id, response.parsed_body.dig("user", "id")
+      assert_equal "patient-#{patient.id}", response.parsed_body.dig("user", "development_account_id")
+      assert_equal "/patient-portal", response.parsed_body.fetch("destination")
     end
   end
 

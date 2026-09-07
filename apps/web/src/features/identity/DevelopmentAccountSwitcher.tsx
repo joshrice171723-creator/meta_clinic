@@ -1,16 +1,15 @@
-import { useId, useState } from "react";
+import { useState, type MouseEvent } from "react";
 import {
   Alert,
   Button,
   FormControl,
-  InputLabel,
-  ListSubheader,
   MenuItem,
   Select,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
-  type SelectChangeEvent,
 } from "@mui/material";
 import type {
   DevelopmentAccount,
@@ -27,10 +26,10 @@ export function EnvironmentLabel({
     environment === "production"
       ? "Production"
       : environment === "test"
-        ? "Test environment"
+        ? "Test"
         : environment === "development"
-          ? "Development environment"
-          : "Checking environment";
+          ? "Development"
+          : "Checking";
   return (
     <span className={`environment-label environment-${environment}`}>
       {label}
@@ -40,86 +39,57 @@ export function EnvironmentLabel({
 
 export function DevelopmentAccountSwitcher({
   accounts,
-  activeId,
+  portalType,
+  selectedId,
+  onSelect,
+  disabled,
 }: {
   accounts: DevelopmentAccount[];
-  activeId?: string | null;
+  portalType: DevelopmentAccount["account_type"];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  disabled: boolean;
 }) {
-  const labelId = useId();
-  const [switching, setSwitching] = useState(false);
-  const [error, setError] = useState("");
-  const employeeAccounts = accounts.filter(
-    (account) => account.account_type === "employee",
+  const visibleAccounts = accounts.filter(
+    (account) => account.account_type === portalType,
   );
-  const customerAccounts = accounts.filter(
-    (account) => account.account_type === "customer",
+  const selectedAccount = visibleAccounts.find(
+    (account) => account.id === selectedId,
   );
-
-  const switchAccount = async (event: SelectChangeEvent<string>) => {
-    const profile = event.target.value;
-    if (!profile || profile === activeId) return;
-    setSwitching(true);
-    setError("");
-    try {
-      const result = await api<{ destination: string }>(
-        "/api/development_session",
-        { method: "POST", body: { profile } },
-      );
-      window.location.assign(result.destination);
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Unable to switch development accounts.",
-      );
-      setSwitching(false);
-    }
-  };
+  const portalLabel = portalType === "patient" ? "patient" : "employee";
 
   return (
     <Stack className="development-account-switcher" spacing={0.75}>
-      <FormControl size="small" disabled={switching || accounts.length === 0}>
-        <InputLabel id={labelId}>Active account</InputLabel>
+      <FormControl
+        size="small"
+        disabled={disabled || visibleAccounts.length === 0}
+      >
         <Select
-          labelId={labelId}
-          label="Active account"
-          value={activeId || ""}
-          onChange={switchAccount}
-          displayEmpty={false}
-          sx={{ minWidth: 260, bgcolor: "background.paper" }}
+          className="development-account-select"
+          value={selectedAccount?.id || ""}
+          onChange={(event) => onSelect(event.target.value)}
+          displayEmpty
+          renderValue={() =>
+            selectedAccount?.label || `Select ${portalLabel} account`
+          }
+          inputProps={{ "aria-label": `Select ${portalLabel} account` }}
+          sx={{ minWidth: 0, bgcolor: "background.paper" }}
         >
           <MenuItem value="" disabled>
-            Choose an account
+            Select {portalLabel} account
           </MenuItem>
-          {employeeAccounts.length > 0 && (
-            <ListSubheader>Employee portal</ListSubheader>
-          )}
-          {employeeAccounts.map((account) => (
-            <MenuItem key={account.id} value={account.id}>
-              {account.label} — {account.email_address}
-            </MenuItem>
-          ))}
-          {customerAccounts.length > 0 && (
-            <ListSubheader>Customer portal</ListSubheader>
-          )}
-          {customerAccounts.map((account) => (
+          {visibleAccounts.map((account) => (
             <MenuItem key={account.id} value={account.id}>
               {account.label} — {account.email_address}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
-      {switching && (
-        <Typography variant="caption" role="status">
-          Switching account…
-        </Typography>
-      )}
-      {accounts.length === 0 && (
+      {visibleAccounts.length === 0 && (
         <Typography variant="caption">
-          No prepared development accounts are available.
+          No {portalLabel} accounts are available.
         </Typography>
       )}
-      {error && <Alert severity="error">{error}</Alert>}
     </Stack>
   );
 }
@@ -152,9 +122,15 @@ export function DevelopmentDatePicker({
   };
 
   return (
-    <Stack spacing={0.75}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+    <Stack className="development-date-picker" spacing={0.5}>
+      <Stack
+        className="development-date-row"
+        direction="row"
+        spacing={0.75}
+        sx={{ alignItems: "center" }}
+      >
         <TextField
+          className="development-date-input"
           label="App date"
           type="date"
           size="small"
@@ -164,10 +140,10 @@ export function DevelopmentDatePicker({
           slotProps={{ inputLabel: { shrink: true } }}
         />
         <Button size="small" disabled={saving} onClick={() => void save("")}>
-          Use today
+          Today
         </Button>
       </Stack>
-      <Typography variant="caption">
+      <Typography className="development-date-note" variant="caption">
         Uses the real current time with this date.
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
@@ -184,15 +160,82 @@ export function DevelopmentControls({
   activeId?: string | null;
   businessDate: string;
 }) {
+  const activeAccount = accounts.find((account) => account.id === activeId);
+  const [portalType, setPortalType] = useState<
+    DevelopmentAccount["account_type"]
+  >(activeAccount?.account_type || "patient");
+  const [selectedId, setSelectedId] = useState(activeAccount?.id || "");
+  const [switching, setSwitching] = useState(false);
+  const [error, setError] = useState("");
+
+  const selectPortal = (
+    _event: MouseEvent<HTMLElement>,
+    nextPortal: DevelopmentAccount["account_type"] | null,
+  ) => {
+    if (!nextPortal || nextPortal === portalType) return;
+    setPortalType(nextPortal);
+    setSelectedId("");
+    setError("");
+  };
+
+  const logIn = async () => {
+    if (!selectedId) return;
+    setSwitching(true);
+    setError("");
+    try {
+      const result = await api<{ destination: string }>(
+        "/api/development_session",
+        { method: "POST", body: { profile: selectedId } },
+      );
+      window.location.assign(result.destination);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to enter the selected account.",
+      );
+      setSwitching(false);
+    }
+  };
+
   return (
-    <Stack
-      className="development-controls"
-      direction={{ xs: "column", md: "row" }}
-      spacing={1.5}
-      sx={{ alignItems: { xs: "stretch", md: "flex-start" } }}
-    >
-      <DevelopmentAccountSwitcher accounts={accounts} activeId={activeId} />
-      <DevelopmentDatePicker businessDate={businessDate} />
+    <Stack className="development-controls" spacing={0.75}>
+      <ToggleButtonGroup
+        className="development-portal-toggle"
+        value={portalType}
+        exclusive
+        size="small"
+        onChange={selectPortal}
+        aria-label="Portal type"
+      >
+        <ToggleButton value="patient">Patient portal</ToggleButton>
+        <ToggleButton value="employee">Employee portal</ToggleButton>
+      </ToggleButtonGroup>
+      <Stack
+        className="development-control-row"
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
+        <DevelopmentAccountSwitcher
+          accounts={accounts}
+          portalType={portalType}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          disabled={switching}
+        />
+        <DevelopmentDatePicker businessDate={businessDate} />
+        <Button
+          className="development-login-button"
+          variant="contained"
+          size="small"
+          disabled={switching || !selectedId}
+          onClick={() => void logIn()}
+        >
+          {switching ? "Entering…" : "Log in"}
+        </Button>
+      </Stack>
+      {error && <Alert severity="error">{error}</Alert>}
     </Stack>
   );
 }
