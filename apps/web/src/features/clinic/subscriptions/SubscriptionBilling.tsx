@@ -312,7 +312,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                           <strong>
                             {subscription.processor === "stripe"
                               ? "Stripe sandbox"
-                              : "Local development processor"}
+                              : "Local payment processor"}
                           </strong>
                         </div>
                         <div>

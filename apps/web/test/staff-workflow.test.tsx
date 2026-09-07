@@ -82,11 +82,11 @@ describe("administrative clinic foundation", () => {
     expect(frontDesk).not.toContain("provider assignment");
   });
 
-  it("uses the identity-only lookup and keeps billing read-only", () => {
+  it("uses the identity-only lookup and gates invoice posting separately", () => {
     const billing = source("Billing.tsx");
     expect(billing).toContain("/api/clinic/patients/lookup");
     expect(billing).toContain("capabilities.billing_read !== true");
-    expect(billing).not.toContain("billing_invoice_post");
+    expect(billing).toContain("capabilities.billing_invoice_post === true");
     expect(billing).not.toContain("payment_allocations");
     expect(billing).not.toContain("/clinic/patients/${patient.id}");
   });

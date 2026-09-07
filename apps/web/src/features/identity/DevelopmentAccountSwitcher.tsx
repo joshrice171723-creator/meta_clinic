@@ -28,7 +28,7 @@ export function EnvironmentLabel({
       : environment === "test"
         ? "Test"
         : environment === "development"
-          ? "Development"
+          ? "Omni"
           : "Checking";
   return (
     <span className={`environment-label environment-${environment}`}>
@@ -60,7 +60,7 @@ export function DevelopmentAccountSwitcher({
     portalType === "patient"
       ? "patient"
       : portalType === "omni"
-        ? "Omni development"
+        ? "Omni"
         : "employee";
 
   return (
@@ -120,7 +120,7 @@ export function DevelopmentDatePicker({
       setError(
         caught instanceof Error
           ? caught.message
-          : "Unable to change the development date.",
+          : "Unable to change the app date.",
       );
       setSaving(false);
     }
@@ -215,7 +215,7 @@ export function DevelopmentControls({
       >
         <ToggleButton value="patient">Patient portal</ToggleButton>
         <ToggleButton value="employee">Employee portal</ToggleButton>
-        <ToggleButton value="omni">Omni development</ToggleButton>
+        <ToggleButton value="omni">Omni</ToggleButton>
       </ToggleButtonGroup>
       <Stack
         className="development-control-row"
@@ -263,7 +263,7 @@ export function DevelopmentToolbar({
     <Stack
       component="aside"
       className={`development-toolbar ${className}`.trim()}
-      aria-label="Developer tools"
+      aria-label="Workspace tools"
       direction={{ xs: "column", lg: "row" }}
       spacing={1.5}
     >
@@ -273,7 +273,7 @@ export function DevelopmentToolbar({
         spacing={1}
         sx={{ alignItems: "center" }}
       >
-        <Typography component="h2">Developer tools</Typography>
+        <Typography component="h2">Workspace tools</Typography>
         <EnvironmentLabel environment={environment} />
       </Stack>
       <DevelopmentControls

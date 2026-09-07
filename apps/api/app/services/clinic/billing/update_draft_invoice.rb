@@ -3,14 +3,14 @@ module Clinic
     class UpdateDraftInvoice
       def self.call(practice:, actor:, invoice:, currency:, lines:)
         Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.invoice_draft", legacy_action: "billing.write")
-        invoice = practice.invoices.lock.find(invoice.id)
-        raise ArgumentError, "Only draft invoices can be edited." unless invoice.status == "draft"
-        patient = practice.patients.find(invoice.patient_id)
         raise ArgumentError, "An invoice needs at least one line." unless lines.is_a?(Array) && lines.any?
         currency = currency.to_s
         raise ArgumentError, "Currency must be a three-letter uppercase code." unless currency.match?(/\A[A-Z]{3}\z/)
 
         ApplicationRecord.transaction do
+          invoice = practice.invoices.lock.find(invoice.id)
+          raise ArgumentError, "Only draft invoices can be edited." unless invoice.status == "draft"
+          patient = practice.patients.find(invoice.patient_id)
           invoice.update!(currency: currency)
           invoice.lines.to_a.each(&:destroy!)
           lines.each do |line|
@@ -22,6 +22,7 @@ module Clinic
               description_snapshot: line.fetch(:description_snapshot).to_s
             )
           end
+          invoice.touch
           invoice.reload
         end
       end

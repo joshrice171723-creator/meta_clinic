@@ -479,6 +479,7 @@ export type BillingPatientLedger = {
     currency: string;
     status: "draft" | "posted" | "void";
     created_at: string;
+    updated_at: string;
     total_amount: Decimal;
     allocated_amount: Decimal;
     credit_amount: Decimal;

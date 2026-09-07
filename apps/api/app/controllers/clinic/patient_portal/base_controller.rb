@@ -29,7 +29,7 @@ module Clinic
       def require_development_patient
         return if Development::TestAccounts.patient?(current_user) || development_omni_preview?
 
-        render json: { error: "The patient portal is available only for its assigned synthetic account." }, status: :not_found
+        render json: { error: "The patient portal is available only for its assigned account." }, status: :not_found
       end
 
       def require_portal_identity

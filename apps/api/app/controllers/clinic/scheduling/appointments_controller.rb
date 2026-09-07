@@ -28,13 +28,13 @@ module Clinic
           )
           appointments = appointments.where(patient_id: matching_patients.select(:id))
         end
-        paginate(appointments.includes(:encounter, patient: :communication_endpoints), key: :appointments,
+        paginate(appointments.includes(:encounter, :room, patient: :communication_endpoints), key: :appointments,
           serializer: ->(appointment) { AppointmentSerializer.call(appointment) }, order: { starts_at: :asc, id: :asc })
       end
 
       def show
         appointment_scope = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
-        appointment = appointment_scope.includes(:encounter, :patient).find(requested_id!(params[:id], :id))
+        appointment = appointment_scope.includes(:encounter, :room, :patient).find(requested_id!(params[:id], :id))
         require_capability_with_legacy("appointments.read", "patients.read", site: appointment.site)
         render json: { appointment: AppointmentSerializer.call(appointment) }
       end

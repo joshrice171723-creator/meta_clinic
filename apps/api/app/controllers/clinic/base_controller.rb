@@ -62,7 +62,7 @@ module Clinic
       return unless Rails.env.production?
       return if Staging::DemoClinic.available_to?(current_user)
 
-      render_error("The clinic workspace is a local synthetic prototype and is not released.", :not_found)
+      render_error("The clinic workspace is unavailable.", :not_found)
     end
 
     def clinic_membership

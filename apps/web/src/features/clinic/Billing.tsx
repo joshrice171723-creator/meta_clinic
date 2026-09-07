@@ -7,6 +7,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   InputAdornment,
   List,
@@ -27,11 +31,16 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   BillingInvoiceDetail,
+  BillingInvoiceSummary,
   BillingPatientLedger,
   Patient,
 } from "../../api/contracts";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
+import {
+  CashDrawerOperations,
+  hasPendingCashAttempt,
+} from "./CashDrawerOperations";
 import { useClinic } from "./Workspace";
 
 function money(value: string, currency: string) {
@@ -109,7 +118,9 @@ export function Billing() {
       return;
     }
     let active = true;
-    setLedger({});
+    setLedger((current) =>
+      current.data?.patient.id === selectedPatientId ? current : {},
+    );
     api<BillingPatientLedger>(
       `/api/clinic/patients/${selectedPatientId}/billing_ledger`,
     )
@@ -125,12 +136,15 @@ export function Billing() {
       })
       .catch((error: unknown) => {
         if (active)
-          setLedger({
+          setLedger((current) => ({
+            ...(current.data?.patient.id === selectedPatientId
+              ? { data: current.data }
+              : {}),
             error:
               error instanceof Error
                 ? error.message
                 : "Unable to load this patient ledger.",
-          });
+          }));
       });
     return () => {
       active = false;
@@ -305,7 +319,7 @@ export function Billing() {
                 patient.
               </Typography>
             </Paper>
-          ) : ledger.error ? (
+          ) : ledger.error && !ledger.data ? (
             <Alert severity="error">{ledger.error}</Alert>
           ) : !ledger.data ? (
             <Paper
@@ -315,18 +329,22 @@ export function Billing() {
               <CircularProgress aria-label="Loading patient ledger" />
             </Paper>
           ) : (
-            <LedgerDetails
-              ledger={ledger.data}
-              selectedInvoice={selectedInvoice}
-              selectInvoice={setSelectedInvoiceId}
-              canDraft={capabilities.billing_invoice_draft === true}
-              checkoutEncounterId={checkoutEncounterId}
-              checkoutInvoice={checkoutInvoice}
-              onFinancialChange={(invoiceId) => {
-                if (invoiceId) setSelectedInvoiceId(invoiceId);
-                setReloadLedger((version) => version + 1);
-              }}
-            />
+            <Stack spacing={2}>
+              {ledger.error && <Alert severity="error">{ledger.error}</Alert>}
+              <LedgerDetails
+                ledger={ledger.data}
+                selectedInvoice={selectedInvoice}
+                selectInvoice={setSelectedInvoiceId}
+                canDraft={capabilities.billing_invoice_draft === true}
+                canPost={capabilities.billing_invoice_post === true}
+                checkoutEncounterId={checkoutEncounterId}
+                checkoutInvoice={checkoutInvoice}
+                onFinancialChange={(invoiceId) => {
+                  if (invoiceId) setSelectedInvoiceId(invoiceId);
+                  setReloadLedger((version) => version + 1);
+                }}
+              />
+            </Stack>
           )}
         </Box>
       </Box>
@@ -339,6 +357,7 @@ function LedgerDetails({
   selectedInvoice,
   selectInvoice,
   canDraft,
+  canPost,
   checkoutEncounterId,
   checkoutInvoice,
   onFinancialChange,
@@ -347,6 +366,7 @@ function LedgerDetails({
   selectedInvoice?: BillingPatientLedger["invoices"][number];
   selectInvoice: (id: number) => void;
   canDraft: boolean;
+  canPost: boolean;
   checkoutEncounterId: number | null;
   checkoutInvoice: {
     active?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
@@ -528,12 +548,243 @@ function LedgerDetails({
           onSaved={onFinancialChange}
         />
       )}
+      <CheckoutSettlement
+        invoice={selectedInvoice}
+        canPost={canPost}
+        onFinancialChange={onFinancialChange}
+      />
       <PaymentHistory
         payments={ledger.payments}
         invoices={ledger.invoices}
         onFinancialChange={onFinancialChange}
       />
     </Stack>
+  );
+}
+
+function billingInvoiceSummary(
+  invoice: BillingPatientLedger["invoices"][number],
+): BillingInvoiceSummary {
+  return {
+    id: invoice.id,
+    status: invoice.status,
+    currency: invoice.currency,
+    total: invoice.total_amount,
+    allocated: invoice.allocated_amount,
+    balance: invoice.balance_amount,
+    created_at: invoice.created_at,
+  };
+}
+
+function deterministicPostError(reason: unknown) {
+  return (
+    reason instanceof ApiError &&
+    (reason.status === 400 || reason.status === 404 || reason.status === 422)
+  );
+}
+
+function CheckoutSettlement({
+  invoice,
+  canPost,
+  onFinancialChange,
+}: {
+  invoice?: BillingPatientLedger["invoices"][number];
+  canPost: boolean;
+  onFinancialChange: (invoiceId?: number) => void;
+}) {
+  const clinic = useClinic();
+  const [confirmation, setConfirmation] = useState<{
+    invoiceId: number;
+    total: string;
+    currency: string;
+    updatedAt: string;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [cashPending, setCashPending] = useState(() =>
+    hasPendingCashAttempt(clinic),
+  );
+  const [postedInvoiceId, setPostedInvoiceId] = useState<number | null>(null);
+  const [postAttempt, setPostAttempt] = useState<{
+    invoiceId: number;
+    requestKey: string;
+    updatedAt: string;
+  } | null>(null);
+
+  const postInvoice = async () => {
+    if (!canPost || busy || (!confirmation && !postAttempt)) return;
+    const attempt = postAttempt ?? {
+      invoiceId: confirmation!.invoiceId,
+      requestKey: crypto.randomUUID(),
+      updatedAt: confirmation!.updatedAt,
+    };
+    setPostAttempt(attempt);
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await api(`/api/clinic/invoices/${attempt.invoiceId}/post`, {
+        method: "POST",
+        body: {
+          invoice_post: {
+            request_key: attempt.requestKey,
+            expected_updated_at: attempt.updatedAt,
+          },
+        },
+      });
+      setPostAttempt(null);
+      setConfirmation(null);
+      setPostedInvoiceId(attempt.invoiceId);
+      setNotice(
+        `Invoice #${attempt.invoiceId} posted. Enter the cash actually received before recording payment.`,
+      );
+      onFinancialChange(attempt.invoiceId);
+    } catch (reason) {
+      if (deterministicPostError(reason)) {
+        setPostAttempt(null);
+        setConfirmation(null);
+      }
+      setError(
+        deterministicPostError(reason)
+          ? reason instanceof Error
+            ? reason.message
+            : "The invoice could not be posted."
+          : `${reason instanceof Error ? reason.message : "The posting outcome could not be confirmed."} Refresh the ledger, then retry only this same posting if the invoice is still a draft.`,
+      );
+      onFinancialChange(attempt.invoiceId);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const postingPending = postAttempt !== null;
+  const selectedDraft =
+    invoice?.status === "draft" &&
+    invoice.id !== postedInvoiceId &&
+    !cashPending;
+  const collectionInvoice =
+    invoice && (invoice.status === "posted" || invoice.id === postedInvoiceId)
+      ? { ...billingInvoiceSummary(invoice), status: "posted" as const }
+      : null;
+  return (
+    <>
+      {(selectedDraft || postingPending) && (
+        <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography component="h2" variant="h2">
+                Post invoice
+              </Typography>
+              <Typography
+                color="text.secondary"
+                variant="body2"
+                sx={{ mt: 0.5 }}
+              >
+                Posting locks the recorded lines and makes the balance eligible
+                for collection.
+              </Typography>
+            </Box>
+            {error && (
+              <Alert severity={postingPending ? "warning" : "error"}>
+                {error}
+              </Alert>
+            )}
+            {!canPost ? (
+              <Alert severity="info">
+                This account can edit the draft but cannot post it to the
+                ledger.
+              </Alert>
+            ) : postingPending ? (
+              <Alert severity="warning">
+                <Stack spacing={1.25}>
+                  <Typography variant="body2">
+                    Posting outcome for invoice #{postAttempt.invoiceId} is
+                    pending confirmation. The same request key remains locked to
+                    this invoice.
+                  </Typography>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <Button
+                      disabled={busy}
+                      onClick={() => void postInvoice()}
+                      variant="contained"
+                    >
+                      {busy ? "Posting…" : "Retry same posting"}
+                    </Button>
+                    <Button
+                      disabled={busy}
+                      onClick={() => onFinancialChange(postAttempt.invoiceId)}
+                    >
+                      Refresh ledger
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Alert>
+            ) : (
+              <Button
+                onClick={() => {
+                  setError("");
+                  setConfirmation({
+                    invoiceId: invoice!.id,
+                    total: invoice!.total_amount,
+                    currency: invoice!.currency,
+                    updatedAt: invoice!.updated_at,
+                  });
+                }}
+                sx={{ alignSelf: "flex-start" }}
+                variant="contained"
+              >
+                Review and post invoice #{invoice?.id}
+              </Button>
+            )}
+          </Stack>
+        </Paper>
+      )}
+      {notice && <Alert severity="success">{notice}</Alert>}
+      {(collectionInvoice || cashPending) && !postingPending && (
+        <CashDrawerOperations
+          invoice={collectionInvoice}
+          onPendingChange={setCashPending}
+          onRecorded={onFinancialChange}
+        />
+      )}
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={confirmation !== null && !postingPending}
+        onClose={busy ? undefined : () => setConfirmation(null)}
+      >
+        <DialogTitle>Post invoice #{confirmation?.invoiceId}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            <Typography>
+              Confirm the recorded total of{" "}
+              {money(
+                confirmation?.total ?? "0",
+                confirmation?.currency ?? "USD",
+              )}
+              .
+            </Typography>
+            <Alert severity="warning">
+              Posting locks the current line items and makes this balance
+              eligible for collection.
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setConfirmation(null)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={busy}
+            onClick={() => void postInvoice()}
+            variant="contained"
+          >
+            {busy ? "Posting…" : "Confirm and post"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

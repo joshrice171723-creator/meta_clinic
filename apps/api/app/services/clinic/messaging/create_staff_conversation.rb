@@ -25,7 +25,7 @@ module Clinic
         ) do
           ApplicationRecord.transaction do
             conversation = Clinic::StaffConversation.create!(
-              site_id: site_id, kind: kind, title: title, created_by_membership: member,
+              practice: practice, site_id: site_id, kind: kind, title: title, created_by_membership: member,
               retention_class: "routine", last_message_at: nil
             )
             ids.each do |membership_id|

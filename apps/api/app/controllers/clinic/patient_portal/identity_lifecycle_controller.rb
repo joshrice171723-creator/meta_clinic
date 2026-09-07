@@ -18,7 +18,7 @@ module Clinic
       private
 
       def require_synthetic_portal
-        render_error("Patient portal lifecycle is available only for synthetic local access.", :not_found) unless Rails.env.test? || DevelopmentAccess.allowed?(request)
+        render_error("Patient portal lifecycle is unavailable.", :not_found) unless Rails.env.test? || DevelopmentAccess.allowed?(request)
       end
     end
   end

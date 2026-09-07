@@ -386,6 +386,10 @@ function AppointmentDayQueue({
           select
           label="Site"
           value={siteId}
+          slotProps={{
+            select: { displayEmpty: true },
+            inputLabel: { shrink: true },
+          }}
           onChange={(event) => {
             setSiteId(event.target.value);
             setPage(1);
@@ -597,8 +601,9 @@ function AppointmentRow({
   const actions = appointmentActions(appointment);
   const status = appointmentStatus(appointment);
   const patientName = appointment.patient?.display_name || "Patient record";
+  const reference = appointment.patient?.reference;
   const patientReference =
-    appointment.patient?.reference || `#${appointment.patient_id}`;
+    reference && !/^SYN[-_]/i.test(reference) ? reference : null;
   const anyActionBusy = busyAction.length > 0;
   const patientPath = `/clinic/patients/${appointment.patient_id}`;
   const chartPath = appointment.encounter_id
@@ -624,11 +629,11 @@ function AppointmentRow({
         ) : (
           <strong>{patientName}</strong>
         )}
-        <span>{patientReference}</span>
+        {patientReference && <span>{patientReference}</span>}
       </div>
       <div data-label="Location">
         <strong>{siteLabel(sites, appointment.site_id)}</strong>
-        {appointment.room_id && <span>Room {appointment.room_id}</span>}
+        {appointment.room_code && <span>Room {appointment.room_code}</span>}
       </div>
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />

@@ -50,7 +50,7 @@ export function Login({
         </h1>
         <p>
           {developmentLogin
-            ? "Choose a patient, employee role, or Omni development access to enter the app without a password."
+            ? "Choose a patient, employee role, or Omni access to enter the app without a password."
             : employeePortal
               ? "Sign in to work in your clinic and access the employee tools assigned to your account."
               : "Sign in to review your paperwork and work through onboarding and training."}
@@ -66,7 +66,7 @@ export function Login({
         <EnvironmentLabel environment={environment} />
         {developmentLogin ? (
           <>
-            <h2>Development account preview</h2>
+            <h2>Account access</h2>
             <p className="form-note">
               Choose a portal and account, then log in. Actions are recorded as
               that account.

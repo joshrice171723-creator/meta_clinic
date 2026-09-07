@@ -9,7 +9,8 @@ module Clinic
           currency: invoice.currency,
           status: invoice.status,
           rounding_policy_version: invoice.rounding_policy_version,
-          created_at: invoice.created_at
+          created_at: invoice.created_at,
+          updated_at: invoice.updated_at.iso8601(6)
         }
         total = invoice.lines.sum { |line| line.posted_amount || 0 }
         allocated = invoice.payment_allocations.sum { |allocation| allocation.amount || 0 }

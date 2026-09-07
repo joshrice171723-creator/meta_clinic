@@ -256,7 +256,7 @@ module Development
     def self.omni_account
       return [] unless preview_user({ profile: "omni" }, authenticate: false)
 
-      [ { id: "omni", label: "Omni development access", account_type: "omni", destination: "/clinic" } ]
+      [ { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic" } ]
     end
     private_class_method :omni_account
 

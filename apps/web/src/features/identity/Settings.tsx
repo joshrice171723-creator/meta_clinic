@@ -241,12 +241,9 @@ export function AppearanceSettings({
       </Card>
       {settings.development_access && (
         <div className="development-settings">
-          <Card title="Development view">
+          <Card title="Workspace view">
             <p>
-              Swap the OmniLogin account’s development view label without
-              signing out. All views retain unrestricted access to this local
-              synthetic clinic; this control exists only on the loopback
-              development server.
+              Choose the workspace view for this clinic.
             </p>
             <Form
               endpoint="/api/development_access"

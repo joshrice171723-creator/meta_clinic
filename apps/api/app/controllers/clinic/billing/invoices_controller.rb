@@ -62,10 +62,11 @@ module Clinic
       end
 
       def post
-        input = params[:invoice_post].present? ? parameter_hash!(:invoice_post, %i[request_key]) : {}
+        input = params[:invoice_post].present? ? parameter_hash!(:invoice_post, %i[request_key expected_updated_at]) : {}
         request_key = input.key?(:request_key) ? required_string!(input[:request_key], field: :request_key, maximum: 160) : SecureRandom.uuid
         invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
-        updated = Clinic::Billing::PostInvoice.call(invoice: invoice, actor: current_user, request_key: request_key)
+        expected_updated_at = input.key?(:expected_updated_at) ? required_string!(input[:expected_updated_at], field: :expected_updated_at, maximum: 40) : nil
+        updated = Clinic::Billing::PostInvoice.call(invoice: invoice, actor: current_user, request_key: request_key, expected_updated_at: expected_updated_at)
         render json: { invoice: InvoiceSerializer.call(updated, detail: true), request_key: request_key }
       end
 

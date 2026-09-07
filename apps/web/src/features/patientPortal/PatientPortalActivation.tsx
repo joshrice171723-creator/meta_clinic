@@ -69,14 +69,14 @@ export function PatientPortalActivation() {
             >
               <Field
                 name="consent"
-                label="I agree to the patient portal terms for this synthetic development account."
+                label="I agree to the patient portal terms for this account."
                 type="checkbox"
               />
             </Form>
           )}
           <Typography variant="body2" color="text.secondary">
             Step-up authentication and self-service recovery are not enabled in
-            this synthetic portal. Contact the clinic support team if you lose
+            this patient portal. Contact the clinic support team if you lose
             access. Do not use the portal for emergencies.
           </Typography>
         </Stack>

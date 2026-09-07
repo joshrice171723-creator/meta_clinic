@@ -6,7 +6,7 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     @practice = Clinic::Practice.create!(name: "Appointment Checkout Test Practice", organization: @organization, timezone: "UTC")
     @actor = User.create!(email_address: "appointment-checkout@example.invalid", password: SecureRandom.hex(20))
     @membership = @practice.memberships.create!(user: @actor)
-    grant_permissions!(@membership, "appointments.book", "appointments.status_transition", "encounters.write", "billing.invoice_draft")
+    grant_permissions!(@membership, "appointments.book", "appointments.status_transition", "encounters.write", "billing.invoice_draft", "billing.invoice_post")
     @site = @practice.sites.create!(code: "CHECKOUT")
     @patient = @practice.patients.create!(display_name: "SYN_Checkout, Avery", reference: "SYN-CHECKOUT-001")
     @other_patient = @practice.patients.create!(display_name: "SYN_Checkout, Briar", reference: "SYN-CHECKOUT-002")
@@ -123,6 +123,43 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     assert_equal 1, @practice.invoices.where(encounter_id: encounter.id).count
     assert_nil legacy.encounter_id
     assert_equal 2, @practice.invoices.count
+  end
+
+  test "checkout shows the draft amount and only posts the revision reviewed by staff" do
+    invoice = draft_invoice(request_key: "checkout-reviewed-revision")
+    ledger = Clinic::Billing::PatientLedger.call(practice: @practice, patient: @patient)
+    reviewed = ledger.fetch(:invoices).sole
+    assert_equal "85.0", reviewed.fetch(:total_amount)
+    assert_equal "0.0", ledger.fetch(:currencies).sole.fetch(:invoiced_amount)
+
+    travel 1.second do
+      Clinic::Billing::UpdateDraftInvoice.call(
+        practice: @practice, actor: @actor, invoice: invoice, currency: "USD",
+        lines: [ { quantity: "1", unit_amount: "95.00", description_snapshot: "Office visit" } ]
+      )
+    end
+    assert_raises(ArgumentError) do
+      Clinic::Billing::PostInvoice.call(
+        invoice: invoice, actor: @actor, request_key: "checkout-stale-post",
+        expected_updated_at: reviewed.fetch(:updated_at)
+      )
+    end
+    assert_equal "draft", invoice.reload.status
+    current_revision = invoice.updated_at.iso8601(6)
+    posted = Clinic::Billing::PostInvoice.call(
+      invoice: invoice, actor: @actor, request_key: "checkout-current-post", expected_updated_at: current_revision
+    )
+    assert_equal "posted", posted.status
+    assert_equal posted.id, Clinic::Billing::PostInvoice.call(
+      invoice: invoice, actor: @actor, request_key: "checkout-current-post", expected_updated_at: current_revision
+    ).id
+    assert_raises(ArgumentError) do
+      Clinic::Billing::UpdateDraftInvoice.call(
+        practice: @practice, actor: @actor, invoice: invoice, currency: "USD",
+        lines: [ { quantity: "1", unit_amount: "5.00", description_snapshot: "Changed visit" } ]
+      )
+    end
+    assert_equal BigDecimal("95"), invoice.lines.reload.sum(:posted_amount)
   end
 
   private

@@ -137,7 +137,8 @@ export function SessionGuard({ children }: { children: ReactNode }) {
             severity="warning"
             action={<Button onClick={() => void check(false)}>Retry</Button>}
           >
-            Your session could not be confirmed. Reconnect to reopen your workspace.
+            Your session could not be confirmed. Reconnect to reopen your
+            workspace.
           </Alert>
         ) : (
           <Typography role="status">Checking your session…</Typography>
