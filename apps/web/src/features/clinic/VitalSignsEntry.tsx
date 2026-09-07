@@ -61,6 +61,13 @@ function dateLabel(value: string) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
+export function isLatestVitalLoad(
+  currentSequence: number,
+  requestSequence: number,
+) {
+  return currentSequence === requestSequence;
+}
+
 export function VitalSignsEntry({
   patientId,
   patientName,
@@ -85,6 +92,7 @@ export function VitalSignsEntry({
   const [outcomeUnknown, setOutcomeUnknown] = useState(false);
   const [error, setError] = useState("");
   const attempt = useRef<Attempt | null>(null);
+  const loadSequence = useRef(0);
 
   const endpoint = `/api/clinic/patients/${patientId}/encounters/${encounterId}/vital_signs`;
   const readings = useMemo(() => {
@@ -130,7 +138,9 @@ export function VitalSignsEntry({
   }, [blocked, outcomeUnknown, registerBlocker]);
 
   const reset = () => {
+    loadSequence.current += 1;
     setDefinitions(null);
+    setLoading(false);
     setValues({});
     setUnits({});
     setObservedAt("");
@@ -142,6 +152,9 @@ export function VitalSignsEntry({
     attempt.current = null;
   };
   const load = async () => {
+    const requestSequence = ++loadSequence.current;
+    const requestIsLatest = () =>
+      isLatestVitalLoad(loadSequence.current, requestSequence);
     setLoading(true);
     setError("");
     try {
@@ -150,15 +163,17 @@ export function VitalSignsEntry({
         throw new Error(
           "The vital-sign measurement options did not match this encounter.",
         );
+      if (!requestIsLatest()) return;
       setDefinitions(result);
     } catch (reason) {
+      if (!requestIsLatest()) return;
       setError(
         reason instanceof Error
           ? reason.message
           : "Vital-sign measurement options could not be loaded.",
       );
     } finally {
-      setLoading(false);
+      if (requestIsLatest()) setLoading(false);
     }
   };
   const openDialog = () => {
