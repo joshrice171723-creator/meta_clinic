@@ -1,5 +1,61 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("../src/shared/ui", () => ({
+  LoadState: () => null,
+  useResource: () => ({
+    data: {
+      catalog: [],
+      can_purchase: true,
+      processor: "development_fixture",
+      payment: { checkout_available: false, next_step: "clinic_follow_up" },
+      subscriptions: [
+        {
+          id: 81,
+          invoice_id: 91,
+          version_id: 101,
+          state: "pending_payment",
+          processor: "development_fixture",
+          checkout_status: null,
+          renewal_status: null,
+          renewal_canceled: false,
+          last_synced_at: null,
+          renewal_amount_due: null,
+          renewal_invoice_status: null,
+          amount: "25.00",
+          currency: "USD",
+          balance: "25.00",
+          invoice_status: "posted",
+          starts_at: null,
+          ends_at: null,
+          cancellation_effective_at: null,
+          events: [],
+          terms: {
+            family_id: 1,
+            family_name: "Memberships",
+            package_id: 1,
+            package_name: "Monthly membership",
+            description: "",
+            tier: "",
+            amount: "25.00",
+            currency: "USD",
+            duration: 1,
+            duration_unit: "months",
+            renewal: "automatic",
+            cancellation: "end_of_term",
+            refund_policy: "manual_review",
+            terms: "",
+            eligibility_review: false,
+            max_per_patient: 1,
+            available_from: null,
+            available_until: null,
+            components: [],
+          },
+        },
+      ],
+    },
+    refresh: () => {},
+  }),
+}));
 import { PackageCard } from "../src/features/clinic/subscriptions/PackageCard";
 import { MembershipCard } from "../src/features/clinic/subscriptions/MembershipCard";
 import { draftMembershipTerms } from "../src/features/clinic/subscriptions/draftMembershipTerms";
@@ -8,6 +64,7 @@ import {
   membershipPrice,
 } from "../src/features/patientPortal/MembershipCatalog";
 import { patientPortalLabel } from "../src/features/patientPortal/patientPortalLabels";
+import { PatientSubscriptions } from "../src/features/patientPortal/PatientSubscriptions";
 import {
   subscriptionMoney,
   type PackageTerms,
@@ -256,6 +313,15 @@ describe("subscription purchase presentation", () => {
       "Cancellation takes effect at the end of the current paid period.",
     );
     expect(html).not.toContain("no automatic charge");
+  });
+  it("keeps an automatic membership in the clinic payment path until checkout is available", () => {
+    const html = renderToStaticMarkup(
+      <PatientSubscriptions onChanged={() => {}} />,
+    );
+    expect(html).toContain("Payment arrangements are pending with the clinic.");
+    expect(html).toContain("membership becomes active after payment is verified.");
+    expect(html).not.toContain("Resume Stripe Checkout");
+    expect(html).not.toContain("Request test payment");
   });
   it("browsing offers labeled selectable components without claiming purchase", () => {
     const html = renderToStaticMarkup(

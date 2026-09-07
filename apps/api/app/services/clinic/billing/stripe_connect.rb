@@ -12,6 +12,12 @@ module Clinic
           application_fee_percent: "2.1", mode: "test", last_synced_at: record&.last_synced_at&.iso8601 }
       end
 
+      def self.patient_checkout_available?(practice)
+        record = connection(practice)
+        StripeGateway.configured? && record&.account_id.present? &&
+          record.charges_enabled && record.payouts_enabled
+      end
+
       def self.authorize!(practice, actor)
         Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.publish")
         Authorization.authorize_with_legacy!(practice: practice, actor: actor, action: "billing.payment_record", legacy_action: "billing.write")

@@ -59,6 +59,20 @@ class StripeConnectTest < ActiveSupport::TestCase
     assert_equal "test", status[:mode]
   end
 
+  test "patient checkout readiness requires configured payment acceptance" do
+    assert_not Clinic::Billing::StripeConnect.patient_checkout_available?(@practice)
+
+    Clinic::Billing::StripeConnection.create!(practice: @practice, connected_by: @actor,
+      reference: "portal-readiness", account_id: "acct_portal", charges_enabled: true, payouts_enabled: false)
+    assert_not Clinic::Billing::StripeConnect.patient_checkout_available?(@practice)
+
+    Clinic::Billing::StripeConnect.connection(@practice).update!(payouts_enabled: true)
+    assert Clinic::Billing::StripeConnect.patient_checkout_available?(@practice)
+
+    ENV.delete("STRIPE_SANDBOX_KEY")
+    assert_not Clinic::Billing::StripeConnect.patient_checkout_available?(@practice)
+  end
+
   test "unauthorized and foreign-practice actors cannot onboard" do
     other = Clinic::Practice.create!(name: "Other Test Clinic")
     assert_raises(Clinic::Authorization::Denied) { Clinic::Billing::StripeConnect.onboard(practice: other, actor: @actor, gateway: Gateway.new) }

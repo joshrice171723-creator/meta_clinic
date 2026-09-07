@@ -68,7 +68,10 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
     catalog: PublishedPackage[];
     subscriptions: Subscription[];
     can_purchase: boolean;
-    processor: "stripe" | "development_fixture";
+    payment?: {
+      checkout_available: boolean;
+      next_step: "checkout" | "clinic_follow_up";
+    };
   }>("/api/patient_portal/subscriptions");
   const [selected, setSelected] = useState<PublishedPackage | null>(null);
   const [selections, setSelections] = useState<number[]>([]);
@@ -102,6 +105,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
     return false;
   };
   const data = resource.data;
+  const checkoutAvailable = data?.payment?.checkout_available === true;
   const choose = (p: PublishedPackage) => {
     setSelected(p);
     setSelections([]);
@@ -246,6 +250,15 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                     not need to submit another membership request.
                   </Alert>
                 )}
+                {!checkoutAvailable &&
+                  ["pending_payment", "review_approved", "payment_failed"].includes(
+                    subscription.state,
+                  ) && (
+                    <Alert severity="info">
+                      Payment arrangements are pending with the clinic. This
+                      membership becomes active after payment is verified.
+                    </Alert>
+                  )}
 
                 <Box
                   sx={{
@@ -346,6 +359,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
 
                 <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                   {data.can_purchase &&
+                    checkoutAvailable &&
                     ([
                       "pending_payment",
                       "review_approved",
@@ -380,10 +394,11 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                             : subscription.processor === "stripe" ||
                                 subscription.terms.renewal === "automatic"
                               ? "Resume Stripe Checkout"
-                              : "Request test payment"}
+                              : "Continue to payment"}
                       </Button>
                     )}
                   {data.can_purchase &&
+                    checkoutAvailable &&
                     subscription.processor === "stripe" &&
                     ([
                       "processing",
@@ -527,9 +542,9 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                   {quote.renewal === "automatic"
                     ? "This membership renews every month at the exact price shown until canceled. Cancellation stops future charges after the current paid period. "
                     : "This creates a subscription invoice. "}
-                  {data?.processor === "stripe" || quote.renewal === "automatic"
-                    ? "Payment details are entered securely in Stripe Checkout. This setup uses sandbox payments."
-                    : "Payments use a local test processor; no real money moves."}
+                  {checkoutAvailable
+                    ? "Payment details are entered securely in Stripe Checkout."
+                    : "Payment arrangements are completed with the clinic after you submit this membership request."}
                 </Alert>
               )}
             </Stack>
@@ -573,8 +588,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                     );
                     if (
                       !quote.eligibility_review &&
-                      (data?.processor === "stripe" ||
-                        quote.renewal === "automatic")
+                      checkoutAvailable
                     ) {
                       const payment = await api<{ checkout_url?: string }>(
                         `/api/patient_portal/subscriptions/${created.id}/pay`,
@@ -590,7 +604,9 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                       setNotice(
                         quote.eligibility_review
                           ? "Membership request received. The clinic must approve eligibility before payment."
-                          : "Membership request received. Your payment step is available below.",
+                          : checkoutAvailable
+                            ? "Membership request received. Continue to payment to activate it."
+                            : "Membership request received. The clinic will contact you to arrange payment.",
                       );
                     }
                   }
@@ -602,10 +618,9 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                 : quote
                   ? quote.eligibility_review
                     ? "Submit for clinic review"
-                    : data?.processor === "stripe" ||
-                        quote.renewal === "automatic"
+                    : checkoutAvailable
                       ? "Confirm and continue to Stripe"
-                      : "Confirm membership"
+                      : "Submit membership request"
                   : "Review exact price"}
             </Button>
           </DialogActions>

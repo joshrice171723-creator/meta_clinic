@@ -17,10 +17,15 @@ module Clinic
 
       def index
         record_portal_read("patient_portal.subscriptions.read")
+        checkout_available = Billing::StripeConnect.patient_checkout_available?(portal_practice)
         render json: { catalog: Care::SubscriptionProjection.catalog(practice: portal_practice),
           subscriptions: agreements.order(id: :desc).map { |r| Care::SubscriptionProjection.agreement(r).except(:patient_id) },
           can_purchase: patient_portal_identity.present? && !development_omni_preview?,
-          processor: Billing::StripeConnect.connection(portal_practice)&.account_id ? "stripe" : "development_fixture" }
+          processor: Billing::StripeConnect.connection(portal_practice)&.account_id ? "stripe" : "development_fixture",
+          payment: {
+            checkout_available: checkout_available,
+            next_step: checkout_available ? "checkout" : "clinic_follow_up"
+          } }
       end
 
       def quote
@@ -49,7 +54,7 @@ module Clinic
         intent = Billing::SubscriptionPayments.start(agreement: agreement, actor: current_user, request_key: params[:request_key])
         render json: { subscription: Care::SubscriptionProjection.agreement(agreement).except(:patient_id),
           processor: "development_fixture", payment_state: intent.state,
-          message: "Test payment requested. Clinic billing staff can deliver the processor fixture and reconcile the result." }, status: :accepted
+          message: "Payment arrangements are pending with the clinic. Your membership will activate after payment is verified." }, status: :accepted
       end
 
       def cancel
