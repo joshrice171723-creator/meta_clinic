@@ -1429,6 +1429,16 @@ function InvoiceDetail({
           variant="outlined"
         />
       </Box>
+      {invoice.status === "void" && (
+        <Alert severity="info" sx={{ mx: 2.5, mb: 2.5 }}>
+          {invoice.void_reason
+            ? `Void reason: ${invoice.void_reason}`
+            : "This invoice was voided."}
+          {invoice.voided_at
+            ? ` Recorded ${date(invoice.voided_at, true)}.`
+            : ""}
+        </Alert>
+      )}
       <Divider />
       <Box
         sx={{
@@ -1515,7 +1525,14 @@ function LedgerAmount({
   label: string;
   value: string;
   currency: string;
-  entries: { id: number; amount: string; created_at: string }[];
+  entries: {
+    id: number;
+    amount: string;
+    created_at: string;
+    reason?: string | null;
+    issued_at?: string | null;
+    issued_by_membership_id?: number | null;
+  }[];
 }) {
   return (
     <Box>
@@ -1531,9 +1548,17 @@ function LedgerAmount({
         </Typography>
       ) : (
         entries.map((entry) => (
-          <Typography key={entry.id} color="text.secondary" variant="body2">
-            {money(entry.amount, currency)} · {date(entry.created_at, true)}
-          </Typography>
+          <Box key={entry.id}>
+            <Typography color="text.secondary" variant="body2">
+              {money(entry.amount, currency)} ·{" "}
+              {date(entry.issued_at ?? entry.created_at, true)}
+            </Typography>
+            {entry.reason && (
+              <Typography color="text.secondary" variant="body2">
+                Reason: {entry.reason}
+              </Typography>
+            )}
+          </Box>
         ))
       )}
     </Box>

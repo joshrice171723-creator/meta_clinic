@@ -96,6 +96,7 @@ export function CashDrawerOperations({
   );
   const [siteId, setSiteId] = useState(sites[0]?.id?.toString() ?? "");
   const [selectedDrawerId, setSelectedDrawerId] = useState("");
+  const [newDrawerMode, setNewDrawerMode] = useState(false);
   const [openingFloat, setOpeningFloat] = useState("");
   const [tenderedAmount, setTenderedAmount] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
@@ -130,6 +131,8 @@ export function CashDrawerOperations({
     [drawers.data],
   );
   useEffect(() => {
+    if (!drawers.data) return;
+    if (newDrawerMode && !cashAttempt) return;
     if (
       !allDrawers.some(
         (candidate) => candidate.id.toString() === selectedDrawerId,
@@ -139,7 +142,14 @@ export function CashDrawerOperations({
         cashAttempt?.drawerId.toString() ?? openDrawers[0]?.id.toString() ?? "",
       );
     }
-  }, [allDrawers, cashAttempt, openDrawers, selectedDrawerId]);
+  }, [
+    allDrawers,
+    cashAttempt,
+    drawers.data,
+    newDrawerMode,
+    openDrawers,
+    selectedDrawerId,
+  ]);
   const drawer =
     allDrawers.find(
       (candidate) => candidate.id.toString() === selectedDrawerId,
@@ -176,13 +186,15 @@ export function CashDrawerOperations({
     setBusy("open");
     setError("");
     try {
-      await api("/api/clinic/cash_drawers", {
+      const result = await api<{ drawer: CashDrawer }>("/api/clinic/cash_drawers", {
         method: "POST",
         body: {
           drawer: { site_id: Number(siteId), opening_float: openingFloat },
         },
       });
       setOpeningFloat("");
+      setSelectedDrawerId(result.drawer.id.toString());
+      setNewDrawerMode(false);
       setNotice(
         "Cash drawer opened. Record every cash payment through this drawer.",
       );
@@ -292,6 +304,8 @@ export function CashDrawerOperations({
       );
       setCountedCash("");
       setExplanation("");
+      setSelectedDrawerId(result.drawer.id.toString());
+      setNewDrawerMode(false);
       drawers.refresh();
     } catch (reason) {
       reportError(reason, "The cash drawer could not be closed.");
@@ -335,6 +349,33 @@ export function CashDrawerOperations({
       setBusy(null);
     }
   };
+
+  if (!drawers.data) {
+    return (
+      <Paper component="section" variant="outlined" sx={{ mt: 3, p: 2.5 }}>
+        <Typography component="h2" variant="h2">
+          Cash drawer
+        </Typography>
+        {drawers.error ? (
+          <Alert
+            severity="error"
+            sx={{ mt: 2 }}
+            action={
+              <Button color="inherit" onClick={drawers.refresh}>
+                Retry
+              </Button>
+            }
+          >
+            {drawers.error}
+          </Alert>
+        ) : (
+          <Typography role="status" sx={{ mt: 1 }}>
+            Refreshing drawer totals…
+          </Typography>
+        )}
+      </Paper>
+    );
+  }
 
   return (
     <Paper component="section" variant="outlined" sx={{ mt: 3 }}>
@@ -399,12 +440,79 @@ export function CashDrawerOperations({
             </Stack>
           </Alert>
         )}
+        {drawer?.status === "closed" && (
+          <Stack spacing={1.5}>
+            <Alert severity="info">
+              Closed drawer · Counted {money(drawer.counted_cash ?? "0", invoice?.currency ?? "USD")} · Discrepancy {money(drawer.discrepancy ?? "0", invoice?.currency ?? "USD")} · {drawer.reconciliation_status === "reconciled" ? "Manager reconciled" : "Awaiting manager reconciliation"}
+            </Alert>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                disabled={cashAttempt !== null || busy !== null}
+                onClick={() => setNewDrawerMode(true)}
+                variant="outlined"
+              >
+                Open another drawer
+              </Button>
+              {openDrawers.length > 0 && (
+                <TextField
+                  select
+                  label="Choose available open drawer"
+                  onChange={(event) => {
+                    setSelectedDrawerId(event.target.value);
+                    setNewDrawerMode(false);
+                  }}
+                  sx={{ minWidth: 240 }}
+                  value=""
+                >
+                  <MenuItem disabled value="">
+                    Select an open drawer
+                  </MenuItem>
+                  {openDrawers.map((candidate) => (
+                    <MenuItem key={candidate.id} value={candidate.id}>
+                      {sites.find((site) => site.id === candidate.site_id)
+                        ?.code ?? `Location ${candidate.site_id}`}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Stack>
+            {drawer.reconciliation_status === "pending" &&
+              capabilities.billing_cash_reconcile === true && (
+                <Stack
+                  component="form"
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={1.5}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void reconcileDrawer();
+                  }}
+                >
+                  <TextField
+                    label="Manager reconciliation note"
+                    value={reconciliationNote}
+                    disabled={cashAttempt !== null || busy !== null}
+                    onChange={(event) => setReconciliationNote(event.target.value)}
+                    sx={{ flex: 1 }}
+                  />
+                  <Button
+                    disabled={busy !== null || cashAttempt !== null}
+                    type="submit"
+                    variant="contained"
+                  >
+                    {busy === "reconcile"
+                      ? "Reconciling…"
+                      : "Reconcile discrepancy"}
+                  </Button>
+                </Stack>
+              )}
+          </Stack>
+        )}
         {!drawer && cashAttempt ? (
           <Alert severity="info">
             Refreshing the drawer for the locked cash payment. The pending
             request remains unchanged.
           </Alert>
-        ) : !drawer ? (
+        ) : !drawer || (newDrawerMode && !cashAttempt) ? (
           <Stack
             component="form"
             direction={{ xs: "column", md: "row" }}
@@ -493,7 +601,7 @@ export function CashDrawerOperations({
                 </Box>
               ))}
             </Box>
-            {(payable || cashAttempt) && (
+            {((drawer.status === "open" && payable) || cashAttempt) && (
               <Stack
                 component="form"
                 direction={{ xs: "column", md: "row" }}
@@ -547,68 +655,40 @@ export function CashDrawerOperations({
                 Print receipt
               </Button>
             )}
-            <Divider />
-            <Stack
-              component="form"
-              direction={{ xs: "column", md: "row" }}
-              spacing={1.5}
-              onSubmit={(event) => {
-                event.preventDefault();
-                void closeDrawer();
-              }}
-            >
-              <TextField
-                label="Counted cash"
-                inputMode="decimal"
-                value={countedCash}
-                onChange={(event) => setCountedCash(event.target.value)}
-              />
-              <TextField
-                label="Short / over explanation (optional)"
-                value={explanation}
-                onChange={(event) => setExplanation(event.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <Button
-                disabled={!permitted || busy !== null || cashAttempt !== null}
-                type="submit"
-                variant="outlined"
-              >
-                {busy === "close" ? "Closing…" : "Close drawer"}
-              </Button>
-            </Stack>
-            {drawer.status === "closed" &&
-              drawer.reconciliation_status === "pending" &&
-              capabilities.billing_cash_reconcile === true && (
+            {drawer.status === "open" && (
+              <>
+                <Divider />
                 <Stack
                   component="form"
                   direction={{ xs: "column", md: "row" }}
                   spacing={1.5}
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void reconcileDrawer();
+                    void closeDrawer();
                   }}
                 >
                   <TextField
-                    label="Manager reconciliation note"
-                    value={reconciliationNote}
-                    disabled={cashAttempt !== null}
-                    onChange={(event) =>
-                      setReconciliationNote(event.target.value)
-                    }
+                    label="Counted cash"
+                    inputMode="decimal"
+                    value={countedCash}
+                    onChange={(event) => setCountedCash(event.target.value)}
+                  />
+                  <TextField
+                    label="Short / over explanation (optional)"
+                    value={explanation}
+                    onChange={(event) => setExplanation(event.target.value)}
                     sx={{ flex: 1 }}
                   />
                   <Button
-                    disabled={busy !== null || cashAttempt !== null}
+                    disabled={!permitted || busy !== null || cashAttempt !== null}
                     type="submit"
-                    variant="contained"
+                    variant="outlined"
                   >
-                    {busy === "reconcile"
-                      ? "Reconciling…"
-                      : "Reconcile discrepancy"}
+                    {busy === "close" ? "Closing…" : "Close drawer"}
                   </Button>
                 </Stack>
-              )}
+              </>
+            )}
           </>
         )}
         {!permitted && (

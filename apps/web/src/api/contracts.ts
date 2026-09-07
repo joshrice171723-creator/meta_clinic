@@ -498,6 +498,9 @@ export type BillingPatientLedger = {
       credit_available_amount: Decimal;
       void_eligible: boolean;
     };
+    void_reason?: string | null;
+    voided_at?: string | null;
+    voided_by_membership_id?: number | null;
     lines: {
       id: number;
       description: string;
@@ -512,7 +515,14 @@ export type BillingPatientLedger = {
       amount: Decimal;
       created_at: string;
     }[];
-    credits: { id: number; amount: Decimal; created_at: string }[];
+    credits: {
+      id: number;
+      amount: Decimal;
+      created_at: string;
+      reason?: string | null;
+      issued_at?: string | null;
+      issued_by_membership_id?: number | null;
+    }[];
   }[];
   payments: {
     id: number;
