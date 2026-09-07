@@ -93,6 +93,21 @@ type BookingDraft = {
   visitTypeId: string;
 };
 
+type BookingAttempt = {
+  body: {
+    appointment: {
+      patient_id: string;
+      starts_at: string;
+      ends_at: string;
+      site_id: string;
+      room_id: string;
+      booked_clinician_id: string;
+      visit_type_id: string;
+      request_key: string;
+    };
+  };
+};
+
 export function bookingDraftHasChanges(
   draft: BookingDraft,
   baseline: BookingDraft,
@@ -441,6 +456,10 @@ function BookingForm({
   const [visitTypeId, setVisitTypeId] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
+    null,
+  );
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
   const dirty = bookingDraftHasChanges(
@@ -506,20 +525,24 @@ function BookingForm({
     return () => controller.abort();
   }, [replacementPatientId]);
   useEffect(() => {
-    if (!dirty || typeof window === "undefined") return;
+    if ((!dirty && !outcomeUnconfirmed) || typeof window === "undefined")
+      return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, outcomeUnconfirmed]);
   useEffect(
     () =>
       registerBlocker(
-        dirty
+        outcomeUnconfirmed
           ? () =>
-              "This appointment draft has unsaved changes. Leave scheduling and discard them?"
-          : null,
+              "The scheduling outcome is unknown. Retry the exact request before leaving scheduling."
+          : dirty
+            ? () =>
+                "This appointment draft has unsaved changes. Leave scheduling and discard them?"
+            : null,
       ),
-    [dirty, registerBlocker],
+    [dirty, outcomeUnconfirmed, registerBlocker],
   );
   const resourceError =
     patients.error ||
@@ -591,6 +614,8 @@ function BookingForm({
     setClinicianId("");
     setVisitTypeId("");
     setShowDetails(false);
+    setBookingAttempt(null);
+    setOutcomeUnconfirmed(false);
   };
   return (
     <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
@@ -651,36 +676,55 @@ function BookingForm({
           onSubmit={async (event) => {
             event.preventDefault();
             setSubmitError("");
-            if (!patientId)
+            if (!bookingAttempt && !patientId)
               return setSubmitError("Select a patient before scheduling.");
-            if (intervalError) return setSubmitError(intervalError);
+            if (!bookingAttempt && intervalError)
+              return setSubmitError(intervalError);
+            const attempt =
+              bookingAttempt ??
+              ({
+                body: {
+                  appointment: {
+                    patient_id: patientId,
+                    starts_at: new Date(startsAt).toISOString(),
+                    ends_at: new Date(endsAt).toISOString(),
+                    site_id: siteId,
+                    room_id: roomId,
+                    booked_clinician_id: clinicianId,
+                    visit_type_id: visitTypeId,
+                    request_key: crypto.randomUUID(),
+                  },
+                },
+              } satisfies BookingAttempt);
+            setBookingAttempt(attempt);
             setBusy(true);
             try {
               const result = await api<{ appointment: Appointment }>(
                 "/api/clinic/appointments",
                 {
                   method: "POST",
-                  body: {
-                    appointment: {
-                      patient_id: patientId,
-                      starts_at: new Date(startsAt).toISOString(),
-                      ends_at: new Date(endsAt).toISOString(),
-                      site_id: siteId,
-                      room_id: roomId,
-                      booked_clinician_id: clinicianId,
-                      visit_type_id: visitTypeId,
-                    },
-                  },
+                  body: attempt.body,
                 },
               );
               setCreated(result.appointment);
+              setBookingAttempt(null);
+              setOutcomeUnconfirmed(false);
               reset();
               onCreated?.(result.appointment);
             } catch (reason) {
+              const unknown =
+                !(reason instanceof ApiError) ||
+                reason.status === 408 ||
+                reason.status >= 500 ||
+                reason.code === "outcome_unconfirmed";
+              setOutcomeUnconfirmed(unknown);
+              if (!unknown) setBookingAttempt(null);
               setSubmitError(
-                reason instanceof Error
-                  ? reason.message
-                  : "The appointment could not be scheduled.",
+                unknown
+                  ? "The scheduling outcome is unknown. Retry this exact request before editing or leaving scheduling."
+                  : reason instanceof Error
+                    ? reason.message
+                    : "The appointment could not be scheduled.",
               );
             } finally {
               setBusy(false);
@@ -692,6 +736,7 @@ function BookingForm({
               label="Patient"
               select
               required
+              disabled={busy || outcomeUnconfirmed}
               value={patientId}
               onChange={(event) => {
                 const nextPatientId = event.target.value;
@@ -730,6 +775,7 @@ function BookingForm({
                 label="Starts"
                 type="datetime-local"
                 required
+                disabled={busy || outcomeUnconfirmed}
                 value={startsAt}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -748,6 +794,7 @@ function BookingForm({
                 label="Ends"
                 type="datetime-local"
                 required
+                disabled={busy || outcomeUnconfirmed}
                 value={endsAt}
                 error={Boolean(intervalError)}
                 helperText={
@@ -770,6 +817,7 @@ function BookingForm({
                   key={minutes}
                   size="small"
                   variant="outlined"
+                  disabled={busy || outcomeUnconfirmed}
                   onClick={() => setDuration(minutes)}
                 >
                   {minutes} min
@@ -783,6 +831,7 @@ function BookingForm({
             <Button
               variant="text"
               onClick={() => setShowDetails((value) => !value)}
+              disabled={busy || outcomeUnconfirmed}
               sx={{ alignSelf: "flex-start" }}
               aria-expanded={showDetails}
             >
@@ -799,7 +848,7 @@ function BookingForm({
                   pt: 0.5,
                 }}
               >
-                <FormControl fullWidth>
+                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
                   <InputLabel id="site-label">Site</InputLabel>
                   <Select
                     labelId="site-label"
@@ -818,7 +867,10 @@ function BookingForm({
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl fullWidth disabled={!siteId}>
+                <FormControl
+                  fullWidth
+                  disabled={!siteId || busy || outcomeUnconfirmed}
+                >
                   <InputLabel id="room-label">Room</InputLabel>
                   <Select
                     labelId="room-label"
@@ -834,7 +886,7 @@ function BookingForm({
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl fullWidth>
+                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
                   <InputLabel id="clinician-label">Booked clinician</InputLabel>
                   <Select
                     labelId="clinician-label"
@@ -854,7 +906,7 @@ function BookingForm({
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl fullWidth>
+                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
                   <InputLabel id="visit-type-label">Visit type</InputLabel>
                   <Select
                     labelId="visit-type-label"
@@ -889,21 +941,27 @@ function BookingForm({
                 type="button"
                 color="inherit"
                 onClick={reset}
-                disabled={busy}
+                disabled={busy || outcomeUnconfirmed}
               >
                 Clear
               </Button>
               <Button
                 type="submit"
                 variant="contained"
-                disabled={busy || !selectablePatients.length}
+                disabled={
+                  busy || (!outcomeUnconfirmed && !selectablePatients.length)
+                }
                 startIcon={
                   busy ? (
                     <CircularProgress size={18} color="inherit" />
                   ) : undefined
                 }
               >
-                {busy ? "Scheduling…" : "Schedule appointment"}
+                {busy
+                  ? "Scheduling…"
+                  : outcomeUnconfirmed
+                    ? "Retry same request"
+                    : "Schedule appointment"}
               </Button>
             </Stack>
           </Stack>
