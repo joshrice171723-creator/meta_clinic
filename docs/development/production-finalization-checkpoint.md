@@ -264,3 +264,15 @@ ruby bin/postgres exec env RAILS_ENV=test APPLY_TEST_DATABASE=apply_finalization
 ```
 
 Rails requested `-i/--include` instead of `-n/--name`; the command completed in 10.081288 seconds with **1 run, 20 assertions, 0 failures, 0 errors, 0 skips**. The captured log is `apps/api/tmp/production-finalization/inventory-recall-retry-isolated-test.log`. The regression fixture now performs a real authorized recall disposition and closure before retrying, rather than attempting an invalid direct status update. This is one affected integration test only; no broad suite, migration, provider action, or browser workflow was run.
+
+## Appointment-create idempotency verification — September 7
+
+`3ac545c Cover appointment create idempotency` adds a focused HTTP regression for the keyed appointment-create contract. It proves one appointment and one `appointments.book` operation receipt for first submission plus exact replay, rejects changed same-key appointment data with `409 idempotency_conflict` without another row, and proves the same key can create independently in a second practice. It also preserves one legacy unkeyed create response. The test exercises the frozen controller and `BookAppointment` source supplied by the scheduling lane; it does not stage those shared source files.
+
+Executed against the isolated finalization database:
+
+```text
+ruby bin/postgres exec env RAILS_ENV=test APPLY_TEST_DATABASE=apply_finalization_20260907_a SCHEMA=tmp/finalization-structure.sql ruby bin/rails test test/integration/appointment_create_idempotency_test.rb
+```
+
+Result: **2 runs, 23 assertions, 0 failures, 0 errors, 0 skips** in 2.312743 seconds. Captured output: `apps/api/tmp/production-finalization/appointment-create-idempotency-test.log`. This check does not exercise a concurrent two-process submission, provider action, browser flow, migration, or broad suite; concurrent same-key serialization remains delegated to the existing `Clinic::Idempotency` advisory-lock implementation.
