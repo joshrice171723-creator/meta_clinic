@@ -1,4 +1,13 @@
-import type { Pagination, Patient } from "../../api/contracts";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { useRef, useState } from "react";
+import type { Encounter, Pagination, Patient } from "../../api/contracts";
 import {
   Card,
   createdPath,
@@ -30,7 +39,7 @@ function currentPage() {
 export function Patients({ id }: { id?: string }) {
   const clinic = useClinic();
   const page = currentPage();
-  const { data, error } = useResource<{
+  const { data, error, refresh } = useResource<{
     patients?: Patient[];
     patient?: Patient;
     notes?: LegacyNote[];
@@ -39,32 +48,13 @@ export function Patients({ id }: { id?: string }) {
   if (!data) return <LoadState error={error} />;
   if (data.patient)
     return (
-      <>
-        <a href="/clinic/patients">← Patients</a>
-        <h1>{data.patient.display_name}</h1>
-        {patientReferenceLabel(data.patient.reference) && (
-          <p>Reference: {patientReferenceLabel(data.patient.reference)}</p>
-        )}
-        {clinic.capabilities.patients_write && (
-          <Card title="Edit registration details">
-            <PatientRegistrationForm patient={data.patient} />
-          </Card>
-        )}
-        <PatientDetails patient={data.patient} />
-        <PatientSupport patientId={Number(id)} />
-        <Card title="Legacy unsigned drafts">
-          <p>These drafts are not encounter notes and cannot be signed.</p>
-          {data.notes?.map((n) => (
-            <article className="care-legacy-note" key={n.id}>
-              <p className="preserve-lines">{n.body}</p>
-              <small>
-                Account {n.author_id} · {n.created_at} (UTC) · Unsigned draft
-              </small>
-            </article>
-          ))}
-          {data.notes?.length === 0 && <p>No draft entries.</p>}
-        </Card>
-      </>
+      <PatientRecord
+        key={data.patient.id}
+        canEditRegistration={clinic.capabilities.patients_write}
+        notes={data.notes}
+        onRegistrationSaved={refresh}
+        patient={data.patient}
+      />
     );
   return (
     <>
@@ -124,6 +114,162 @@ export function Patients({ id }: { id?: string }) {
         </Card>
       )}
     </>
+  );
+}
+
+function PatientRecord({
+  canEditRegistration,
+  notes,
+  onRegistrationSaved,
+  patient,
+}: {
+  canEditRegistration: boolean;
+  notes?: LegacyNote[];
+  onRegistrationSaved: () => void;
+  patient: Patient;
+}) {
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [registrationDirty, setRegistrationDirty] = useState(false);
+  const [discardPending, setDiscardPending] = useState(false);
+  const registrationDialogRef = useRef<HTMLDivElement>(null);
+  const closeRegistration = () => {
+    if (registrationDialogRef.current?.querySelector("fieldset[disabled]"))
+      return;
+    if (registrationDirty) setDiscardPending(true);
+    else setRegistrationOpen(false);
+  };
+  const reference = patientReferenceLabel(patient.reference);
+  return (
+    <>
+      <a href="/clinic/patients">← Patients</a>
+      <h1>{patient.display_name}</h1>
+      {reference && <p>Reference: {reference}</p>}
+      <ActiveEncounterAction patientId={patient.id} />
+      {canEditRegistration && (
+        <>
+          <Button onClick={() => setRegistrationOpen(true)} variant="outlined">
+            Edit registration
+          </Button>
+          <Dialog
+            fullWidth
+            maxWidth="md"
+            onClose={closeRegistration}
+            open={registrationOpen}
+          >
+            <DialogTitle>Edit registration details</DialogTitle>
+            <DialogContent ref={registrationDialogRef}>
+              <div
+                onChange={() => {
+                  if (!registrationDirty) setRegistrationDirty(true);
+                }}
+              >
+                <PatientRegistrationForm
+                  patient={patient}
+                  onSuccess={() => {
+                    setRegistrationDirty(false);
+                    setDiscardPending(false);
+                    setRegistrationOpen(false);
+                    onRegistrationSaved();
+                  }}
+                />
+              </div>
+              {discardPending && (
+                <Alert
+                  action={
+                    <>
+                      <Button
+                        color="inherit"
+                        onClick={() => setDiscardPending(false)}
+                        size="small"
+                      >
+                        Keep editing
+                      </Button>
+                      <Button
+                        color="inherit"
+                        onClick={() => {
+                          if (
+                            registrationDialogRef.current?.querySelector(
+                              "fieldset[disabled]",
+                            )
+                          )
+                            return;
+                          setDiscardPending(false);
+                          setRegistrationDirty(false);
+                          setRegistrationOpen(false);
+                        }}
+                        size="small"
+                      >
+                        Discard changes
+                      </Button>
+                    </>
+                  }
+                  severity="warning"
+                  sx={{ mt: 2 }}
+                >
+                  You have unsaved registration changes.
+                </Alert>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={closeRegistration}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+        </>
+      )}
+      <PatientDetails patient={patient} />
+      <PatientSupport patientId={patient.id} />
+      <Card title="Legacy unsigned drafts">
+        <p>These drafts are not encounter notes and cannot be signed.</p>
+        {notes?.map((n) => (
+          <article className="care-legacy-note" key={n.id}>
+            <p className="preserve-lines">{n.body}</p>
+            <small>
+              Account {n.author_id} · {n.created_at} (UTC) · Unsigned draft
+            </small>
+          </article>
+        ))}
+        {notes?.length === 0 && <p>No draft entries.</p>}
+      </Card>
+    </>
+  );
+}
+
+function ActiveEncounterAction({ patientId }: { patientId: number }) {
+  const { data, error } = useResource<{
+    encounters: Encounter[];
+  }>(`/api/clinic/patients/${patientId}/encounters?status=open&per_page=1`);
+  if (!data && !error)
+    return (
+      <Card title="Active visit">
+        <p>Checking for an open visit…</p>
+      </Card>
+    );
+  if (error)
+    return (
+      <Card title="Active visit">
+        <p>Unable to check for an open visit.</p>
+      </Card>
+    );
+  const encounter = data?.encounters[0];
+  if (!encounter)
+    return (
+      <Card title="Active visit">
+        <p>No open visit is recorded.</p>
+      </Card>
+    );
+  return (
+    <Card title="Active visit">
+      <p>
+        An open visit started {new Date(encounter.started_at).toLocaleString()}.
+      </p>
+      <Button
+        component="a"
+        href={`/clinic/patients/${patientId}/encounters/${encounter.id}`}
+        variant="contained"
+      >
+        Open visit
+      </Button>
+    </Card>
   );
 }
 
@@ -373,7 +519,10 @@ function PatientDetails({ patient }: { patient: Patient }) {
         </p>
       </Card>
       <PatientClinicalHistory patientId={patient.id} />
-      <PatientLabReports patientId={patient.id} />
+      <PatientLabReports
+        patientId={patient.id}
+        patientName={patient.display_name}
+      />
     </div>
   );
 }
