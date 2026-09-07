@@ -25,6 +25,7 @@ import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 import { PatientSubscriptions } from "./PatientSubscriptions";
+import { PatientAppointmentRequests } from "./PatientAppointmentRequests";
 import { patientPortalLabel } from "./patientPortalLabels";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
@@ -91,6 +92,7 @@ export function PatientPortal({
               sx={{ gap: { xs: 0.5, sm: 2 }, flexWrap: "wrap" }}
             >
               <Button href="#memberships">Explore plans</Button>
+              <Button href="#appointments">Request appointment</Button>
               <Button href="#my-memberships">My memberships</Button>
               <Button href="#billing">Billing</Button>
               {!user?.development_demo && (
@@ -252,6 +254,7 @@ export function PatientPortal({
                   onChanged={resource.refresh}
                 />
               )}
+              {!switching && <PatientAppointmentRequests key={context.patient.id} />}
               <Paper
                 id="billing"
                 variant="outlined"

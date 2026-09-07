@@ -15,6 +15,10 @@ Rails.application.routes.draw do
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do
       post :transition, on: :member
     end
+    resources :appointment_requests, controller: "operations/appointment_requests", only: :index do
+      post :approve, on: :member
+      post :decline, on: :member
+    end
     get "tracking_board", to: "scheduling/tracking_board#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"

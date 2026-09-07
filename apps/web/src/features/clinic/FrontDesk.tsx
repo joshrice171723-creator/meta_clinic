@@ -43,6 +43,7 @@ import {
   type FrontDeskAppointmentResponse,
 } from "./frontDeskModel";
 import { useClinic } from "./Workspace";
+import { AppointmentRequestQueue } from "./AppointmentRequestQueue";
 import "./frontDesk.css";
 
 function allowed(capability: boolean | undefined) {
@@ -57,6 +58,8 @@ export function FrontDesk() {
   const canReadAppointments = allowed(capabilities.appointments_read);
   const canBilling = allowed(capabilities.billing_read);
   const booking = bookingAvailability(capabilities);
+  const [appointmentRequestRevision, setAppointmentRequestRevision] =
+    useState(0);
 
   return (
     <div className="front-desk-page">
@@ -95,20 +98,31 @@ export function FrontDesk() {
       </header>
 
       {canReadAppointments ? (
-        <AppointmentDayQueue
-          sites={clinic.sites}
-          currentSiteId={clinic.current_site?.id ?? null}
-          timezone={clinic.practice.timezone}
-          canPatients={canPatients}
-          canBilling={canBilling}
-          canTransition={
-            allowed(capabilities.appointments_status_transition) ||
-            allowed(capabilities.appointments)
-          }
-          canStartVisit={allowed(capabilities.encounters)}
-          canReschedule={booking.visible}
-          canReviewReminders={allowed(capabilities.reminders)}
-        />
+        <>
+          <AppointmentDayQueue
+            sites={clinic.sites}
+            currentSiteId={clinic.current_site?.id ?? null}
+            timezone={clinic.practice.timezone}
+            canPatients={canPatients}
+            canBilling={canBilling}
+            canTransition={
+              allowed(capabilities.appointments_status_transition) ||
+              allowed(capabilities.appointments)
+            }
+            canStartVisit={allowed(capabilities.encounters)}
+            canReschedule={booking.visible}
+            canReviewReminders={allowed(capabilities.reminders)}
+            appointmentRequestRevision={appointmentRequestRevision}
+          />
+          {booking.visible && (
+            <AppointmentRequestQueue
+              currentSiteId={clinic.current_site?.id ?? null}
+              onAppointmentBooked={() =>
+                setAppointmentRequestRevision((revision) => revision + 1)
+              }
+            />
+          )}
+        </>
       ) : (
         <Alert severity="info">
           The appointment queue is unavailable for this account.
@@ -130,6 +144,7 @@ function AppointmentDayQueue({
   canStartVisit,
   canReschedule,
   canReviewReminders,
+  appointmentRequestRevision,
 }: {
   sites: ClinicSite[];
   currentSiteId: number | null;
@@ -140,6 +155,7 @@ function AppointmentDayQueue({
   canStartVisit: boolean;
   canReschedule: boolean;
   canReviewReminders: boolean;
+  appointmentRequestRevision: number;
 }) {
   const today = useMemo(
     () => clinicDateValue(new Date(), timezone),
@@ -173,6 +189,10 @@ function AppointmentDayQueue({
   useEffect(() => {
     if (appointments.data) setRefreshedAt(new Date());
   }, [appointments.data]);
+
+  useEffect(() => {
+    if (appointmentRequestRevision) appointments.refresh();
+  }, [appointmentRequestRevision]);
 
   async function transition(
     appointment: FrontDeskAppointment,

@@ -5102,9 +5102,11 @@ CREATE TABLE public.clinic_patient_portal_appointment_requests (
     status character varying DEFAULT 'pending'::character varying NOT NULL,
     requested_at timestamp(6) without time zone CONSTRAINT clinic_patient_portal_appointment_request_requested_at_not_null NOT NULL,
     reviewed_at timestamp(6) without time zone,
-    review_note character varying,
+    review_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    appointment_id bigint,
+    reviewed_by_membership_id bigint,
     CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])) AND (ends_at > starts_at)))
 );
 
@@ -11317,6 +11319,13 @@ CREATE UNIQUE INDEX clinic_patient_memberships_practice_id ON public.clinic_pati
 
 
 --
+-- Name: clinic_patient_portal_appointment_requests_appointment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_portal_appointment_requests_appointment ON public.clinic_patient_portal_appointment_requests USING btree (practice_id, appointment_id) WHERE (appointment_id IS NOT NULL);
+
+
+--
 -- Name: clinic_patient_portal_appointment_requests_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -16312,6 +16321,14 @@ ALTER TABLE ONLY public.clinic_patient_memberships
 
 
 --
+-- Name: clinic_patient_portal_appointment_requests fk_patient_portal_appointment_requests_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
+    ADD CONSTRAINT fk_patient_portal_appointment_requests_appointment FOREIGN KEY (practice_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, id);
+
+
+--
 -- Name: clinic_patient_portal_appointment_requests fk_patient_portal_appointment_requests_identity; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16333,6 +16350,14 @@ ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
 
 ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
     ADD CONSTRAINT fk_patient_portal_appointment_requests_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_portal_appointment_requests fk_patient_portal_appointment_requests_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
+    ADD CONSTRAINT fk_patient_portal_appointment_requests_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -21221,6 +21246,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000600'),
 ('20260907000530'),
 ('20260907000520'),
 ('20260907000510'),

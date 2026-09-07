@@ -34,9 +34,12 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     patient = User.find_by!(email_address: "synthetic-patient@example.invalid")
     assert_equal 1, Clinic::PatientPortal::Identity.available.where(user_id: patient.id).count
 
+    get "/api/patient_portal/appointment_requests", headers: @headers
+    assert_response :success
+    assert response.parsed_body.key?("appointment_requests")
+    assert response.parsed_body.key?("options")
     post "/api/patient_portal/appointment_requests", params: {}, headers: local_csrf, as: :json
-    assert_response :not_found
-    assert_equal "patient_portal_billing_only", response.parsed_body.fetch("code")
+    assert_response :bad_request
     post "/api/patient_portal/requests", params: {}, headers: local_csrf, as: :json
     assert_response :not_found
     get "/api/patient_portal/reminders", headers: @headers
