@@ -83,6 +83,25 @@ export function encounterDetailPath(
   return `/api/clinic/encounters/${encodeURIComponent(String(encounterId))}?patient_id=${encodeURIComponent(String(patientId))}`;
 }
 
+type BookingDraft = {
+  patientId: string;
+  startsAt: string;
+  endsAt: string;
+  siteId: string;
+  roomId: string;
+  clinicianId: string;
+  visitTypeId: string;
+};
+
+export function bookingDraftHasChanges(
+  draft: BookingDraft,
+  baseline: BookingDraft,
+) {
+  return (Object.keys(baseline) as Array<keyof BookingDraft>).some(
+    (field) => draft[field] !== baseline[field],
+  );
+}
+
 export function operationReceiptPath(requestKey: string) {
   return `/api/clinic/operation_receipts/${encodeURIComponent(requestKey)}`;
 }
@@ -392,10 +411,20 @@ function BookingForm({
   identityLookup?: boolean;
   initialPatientId?: number;
 }) {
-  const defaults = appointmentDefaults();
-  const [patientId, setPatientId] = useState(
-    initialPatientId ? String(initialPatientId) : "",
-  );
+  const { registerBlocker } = useClinicNavigation();
+  const [baseline, setBaseline] = useState<BookingDraft>(() => {
+    const defaults = appointmentDefaults();
+    return {
+      patientId: initialPatientId ? String(initialPatientId) : "",
+      startsAt: defaults.startsAt,
+      endsAt: defaults.endsAt,
+      siteId: "",
+      roomId: "",
+      clinicianId: "",
+      visitTypeId: "",
+    };
+  });
+  const [patientId, setPatientId] = useState(baseline.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
     number | undefined
   >(initialPatientId);
@@ -404,8 +433,8 @@ function BookingForm({
   const [replacementPatientLoading, setReplacementPatientLoading] = useState(
     Boolean(initialPatientId),
   );
-  const [startsAt, setStartsAt] = useState(defaults.startsAt);
-  const [endsAt, setEndsAt] = useState(defaults.endsAt);
+  const [startsAt, setStartsAt] = useState(baseline.startsAt);
+  const [endsAt, setEndsAt] = useState(baseline.endsAt);
   const [siteId, setSiteId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [clinicianId, setClinicianId] = useState("");
@@ -414,6 +443,10 @@ function BookingForm({
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
+  const dirty = bookingDraftHasChanges(
+    { patientId, startsAt, endsAt, siteId, roomId, clinicianId, visitTypeId },
+    baseline,
+  );
   const patients = useResource<{ patients: Patient[] }>(
     identityLookup
       ? "/api/clinic/patients/lookup?per_page=100"
@@ -472,6 +505,22 @@ function BookingForm({
       });
     return () => controller.abort();
   }, [replacementPatientId]);
+  useEffect(() => {
+    if (!dirty || typeof window === "undefined") return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  useEffect(
+    () =>
+      registerBlocker(
+        dirty
+          ? () =>
+              "This appointment draft has unsaved changes. Leave scheduling and discard them?"
+          : null,
+      ),
+    [dirty, registerBlocker],
+  );
   const resourceError =
     patients.error ||
     facilities.error ||
@@ -524,6 +573,15 @@ function BookingForm({
   };
   const reset = () => {
     const next = appointmentDefaults();
+    setBaseline({
+      patientId: "",
+      startsAt: next.startsAt,
+      endsAt: next.endsAt,
+      siteId: "",
+      roomId: "",
+      clinicianId: "",
+      visitTypeId: "",
+    });
     setPatientId("");
     setReplacementPatientId(undefined);
     setStartsAt(next.startsAt);

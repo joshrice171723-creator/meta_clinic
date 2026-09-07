@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { bookingAvailability } from "../src/features/clinic/CareFlow";
+import {
+  bookingAvailability,
+  bookingDraftHasChanges,
+} from "../src/features/clinic/CareFlow";
 import { clinicLandingDestination } from "../src/features/clinic/Workspace";
 
 const source = (name: string) =>
@@ -10,6 +13,29 @@ const source = (name: string) =>
   );
 
 describe("administrative clinic foundation", () => {
+  it("only blocks navigation after the appointment draft changes", () => {
+    const baseline = {
+      patientId: "",
+      startsAt: "2026-09-07T09:00",
+      endsAt: "2026-09-07T09:30",
+      siteId: "",
+      roomId: "",
+      clinicianId: "",
+      visitTypeId: "",
+    };
+
+    expect(bookingDraftHasChanges({ ...baseline }, baseline)).toBe(false);
+    expect(
+      bookingDraftHasChanges({ ...baseline, patientId: "110" }, baseline),
+    ).toBe(true);
+    expect(
+      bookingDraftHasChanges(
+        { ...baseline, startsAt: "2026-09-07T10:00" },
+        baseline,
+      ),
+    ).toBe(true);
+  });
+
   it("maps legacy, atomic-book, and read-only scheduling capabilities", () => {
     expect(bookingAvailability({ appointments: true })).toEqual({
       visible: true,
