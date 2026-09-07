@@ -168,7 +168,7 @@ module Clinic
         end
 
         def generate_provider_draft!(encounter:, actor:, source:, sections:, uncertain_sections:, provider:, model:,
-          model_version:, prompt_digest:, template_id: DEFAULT_TEMPLATE_ID)
+          model_version:, prompt_digest:, expected_provider_input_digest:, template_id: DEFAULT_TEMPLATE_ID)
           authorize!(encounter, actor, "scribe.write")
           template = TemplateCatalog.fetch_active!(template_id)
           normalized = normalize_provider_sections(sections)
@@ -180,6 +180,10 @@ module Clinic
               source.encounter_id == encounter.id && source.practice_id == encounter.practice_id && source.status == "ready"
             state = input_state(encounter, template_id: template.template_id, template_version: template.version,
               lock_labs: true)
+            unless ActiveSupport::SecurityUtils.secure_compare(
+                provider_input_digest(encounter, state), expected_provider_input_digest.to_s)
+              raise ActiveRecord::StaleObjectError.new(encounter, "generate")
+            end
             raise ActiveRecord::StaleObjectError.new(source, "generate") unless state[:source]&.id == source.id
             ensure_selected_labs_current!(encounter, state[:lab_versions])
             normalized = DraftGenerator.append_lab_results(normalized, state[:lab_versions])
@@ -211,6 +215,26 @@ module Clinic
               input_digest: draft.input_digest, output_digest: draft.output_digest, template_version: draft.template_version)
           end
           [draft, document.reload]
+        end
+
+        def capture_provider_inputs!(encounter:, actor:)
+          authorize!(encounter, actor, "scribe.write")
+          encounter.with_lock do
+            ensure_processing_allowed!(encounter)
+            state = input_state(encounter, template_id: encounter.template_id,
+              template_version: encounter.template_version, lock_labs: true)
+            if state[:lab_versions].any?
+              Authorization.authorize!(actor: actor, practice: encounter.practice, action: "patients.read",
+                subject: encounter.patient)
+              Authorization.authorize!(actor: actor, practice: encounter.practice, action: "notes.read", any_site: true)
+            end
+            ensure_selected_labs_current!(encounter, state[:lab_versions])
+            {
+              digest: provider_input_digest(encounter, state),
+              reviewer_context: encounter.context_content,
+              lab_reports: provider_lab_reports(state[:lab_versions])
+            }
+          end
         end
 
         def review!(draft:, actor:, action:, section_key:, content: nil, expected_version: nil)
@@ -520,6 +544,28 @@ module Clinic
             draft.encounter.context_digest.nil? && draft.encounter.clinical_encounter_id.nil? && state[:lab_versions].empty? &&
             state[:source]&.id == draft.source_id &&
             draft.input_digest == state[:source]&.content_digest
+        end
+
+        def provider_input_digest(encounter, state)
+          provider_sources = state[:sources].reject { |source| source["kind"] == "transcript" }
+          Digest::SHA256.hexdigest(JSON.generate(provider_sources))
+        end
+
+        def provider_lab_reports(versions)
+          versions.map do |version|
+            report = version.lab_report
+            {
+              lab_report_id: report.id,
+              lab_report_version_id: version.id,
+              content_digest: version.content_digest,
+              source_name: report.source_name,
+              title: version.title,
+              status: version.status,
+              collected_at: version.collected_at.iso8601,
+              issued_at: version.issued_at.iso8601,
+              results: version.results
+            }
+          end
         end
 
         def validate_clinical_encounter!(practice, patient, site, clinical_encounter)

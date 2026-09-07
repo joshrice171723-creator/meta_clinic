@@ -25,6 +25,12 @@ Delivery intake now reads a focused, paginated API response, supports searching 
 
 Two focused receiving cases passed, covering pending allocation versus received quantity, reconciliation without stock, pagination, product search, and tenant isolation. The frontend build and affected typecheck passed (`tmp/production-finalization/web-delivery-intake-build.log` and `web-delivery-intake-typecheck.log`). Live verification used a fictional three-package order with two already allocated: two more packages were blocked, one package was accepted, and the app opened the exact new delivery in Receiving. No inventory receipt was posted during this handoff check.
 
+## Reviewed labs and context in AI Scribe — implemented, live provider verification deferred
+
+The real recording-provider request now includes saved reviewer-authored context and selected current reviewed lab versions, including source/version identifiers, dates, values, and units. Provider output is rejected and rolled back if those captured inputs change before persistence. Exact selected lab evidence remains appended to Objective, with normal draft review and provenance preserved. Manual lab entry is available in the patient record under Lab reports → New report; the existing selection UI remains the source of the AI inputs.
+
+Focused local verification passed: recording processing, provenance and stale-context rejection (4 runs, 37 assertions), plus the actual adapter request contract and malformed HTTP-error handling (2 runs, 12 assertions). Logs are `apps/api/tmp/finalization-scribe-provider-context.log` and `finalization-scribe-open-router-contract.log`. No live provider calls were made after the user's explicit choice to continue without live AI verification. The earlier fictional recording attempt returned HTTP 402; the exact Nemotron endpoint remains listed as free, but OpenRouter API authentication and account restrictions still apply. Live output quality remains unverified.
+
 ## Local runtime recovery
 
 Docker and WSL are running again after the interrupted WSL shutdown. Both stale Docker runtime socket locations were preserved in recovery folders before a coordinated clean restart. Databases and Docker volumes were retained. The user's WSL settings now cap the VM at 2 GB RAM and two processors, with 1 GB swap; the original `.wslconfig` is backed up beside it. Ubuntu's existing OpenClaw service was restored. APPly's managed API, web, worker, and PostgreSQL startup passed.

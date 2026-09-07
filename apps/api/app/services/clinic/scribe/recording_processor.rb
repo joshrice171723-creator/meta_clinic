@@ -38,8 +38,10 @@ module Clinic
           return availability unless provider.configured?
 
           audio = assembled_audio(recording)
+          provider_inputs = Workflow.capture_provider_inputs!(encounter: recording.encounter, actor: actor)
           record_event!(recording, actor, "recording_processing", model: provider.model)
-          result = provider.process(audio: audio, format: audio_format(recording.mime_type), duration_ms: recording.duration_ms)
+          result = provider.process(audio: audio, format: audio_format(recording.mime_type), duration_ms: recording.duration_ms,
+            reviewer_context: provider_inputs[:reviewer_context], lab_reports: provider_inputs[:lab_reports])
           source = draft = nil
           Recording.transaction do
             recording.encounter.lock!
@@ -60,7 +62,8 @@ module Clinic
                 source: source, sections: result.fetch(:sections),
                 uncertain_sections: result.fetch(:uncertain_sections), provider: result.fetch(:provider),
                 model: result.fetch(:model), model_version: result.fetch(:model_version),
-                prompt_digest: result.fetch(:prompt_digest))
+                prompt_digest: result.fetch(:prompt_digest),
+                expected_provider_input_digest: provider_inputs.fetch(:digest))
               record_event!(recording, actor, "recording_processing_ready", source_id: source.id,
                 draft_id: draft.id, provider: result.fetch(:provider), model: result.fetch(:model),
                 provider_request_id: result[:provider_request_id])
@@ -68,7 +71,10 @@ module Clinic
           end
           { status: "ready", message: "Transcript and SOAP draft are ready for review.", source_id: source.id, draft_id: draft&.id }
         rescue OpenRouter::Error => error
-          record_failure(recording, actor, error.code)
+          record_failure(recording, actor, error.code,
+            http_status: error.http_status, provider_code: error.provider_code)
+        rescue ActiveRecord::StaleObjectError
+          record_failure(recording, actor, "provider_inputs_changed")
         rescue ArgumentError => error
           record_failure(recording, actor, "recording_invalid")
         end
@@ -115,9 +121,11 @@ module Clinic
           { "audio/webm" => "webm", "audio/ogg" => "ogg", "audio/mp4" => "m4a" }.fetch(base_type)
         end
 
-        def record_failure(recording, actor, code)
-          record_event!(recording, actor, "recording_processing_failed", code: code)
-          Rails.logger.warn("scribe_recording_processing_failed recording_id=#{recording.id} code=#{code}")
+        def record_failure(recording, actor, code, details = {})
+          metadata = { code: code }.merge(details).compact
+          record_event!(recording, actor, "recording_processing_failed", metadata)
+          Rails.logger.warn("scribe_recording_processing_failed recording_id=#{recording.id} " \
+            "code=#{code} http_status=#{details[:http_status]} provider_code=#{details[:provider_code]}")
           { status: "failed", message: "The AI note could not be created. The saved recording is available for an explicit retry.", code: code }
         end
 
