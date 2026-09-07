@@ -25,7 +25,11 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BillingPatientLedger, Patient } from "../../api/contracts";
+import type {
+  BillingInvoiceDetail,
+  BillingPatientLedger,
+  Patient,
+} from "../../api/contracts";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
@@ -44,6 +48,15 @@ function date(value: string, includeTime = false) {
 
 function isZero(value: string) {
   return /^0+(?:\.0+)?$/.test(value);
+}
+
+function queryId(name: string) {
+  const value = new URLSearchParams(window.location.search).get(name);
+  return value &&
+    /^[1-9]\d*$/.test(value) &&
+    Number.isSafeInteger(Number(value))
+    ? Number(value)
+    : null;
 }
 
 function invoiceState(invoice: BillingPatientLedger["invoices"][number]) {
@@ -66,16 +79,10 @@ export function Billing() {
   const { capabilities } = useClinic();
   const [query, setQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
-    () => {
-      const value = new URLSearchParams(window.location.search).get(
-        "patient_id",
-      );
-      return value &&
-        /^[1-9]\d*$/.test(value) &&
-        Number.isSafeInteger(Number(value))
-        ? Number(value)
-        : null;
-    },
+    () => queryId("patient_id"),
+  );
+  const [checkoutEncounterId] = useState<number | null>(() =>
+    queryId("encounter_id"),
   );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     null,
@@ -88,6 +95,12 @@ export function Billing() {
     data?: BillingPatientLedger;
     error?: string;
   }>({});
+  const [checkoutInvoice, setCheckoutInvoice] = useState<{
+    active?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
+    voided?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
+    error?: string;
+    checking?: boolean;
+  }>(() => ({ checking: checkoutEncounterId !== null }));
 
   useEffect(() => {
     if (!selectedPatientId) {
@@ -103,7 +116,11 @@ export function Billing() {
       .then((data) => {
         if (active) {
           setLedger({ data });
-          setSelectedInvoiceId(data.invoices[0]?.id ?? null);
+          setSelectedInvoiceId((current) =>
+            current && data.invoices.some((invoice) => invoice.id === current)
+              ? current
+              : (data.invoices[0]?.id ?? null),
+          );
         }
       })
       .catch((error: unknown) => {
@@ -119,6 +136,47 @@ export function Billing() {
       active = false;
     };
   }, [reloadLedger, selectedPatientId]);
+
+  useEffect(() => {
+    if (!selectedPatientId || !checkoutEncounterId) {
+      setCheckoutInvoice({});
+      return;
+    }
+    let active = true;
+    setCheckoutInvoice({ checking: true });
+    api<{
+      invoices: Pick<
+        BillingInvoiceDetail,
+        "id" | "encounter_id" | "status"
+      >[];
+    }>(
+      `/api/clinic/patients/${selectedPatientId}/invoices?encounter_id=${checkoutEncounterId}`,
+    )
+      .then(({ invoices }) => {
+        if (!active) return;
+        const linked = invoices.filter(
+          (invoice) => invoice.encounter_id === checkoutEncounterId,
+        );
+        const activeInvoice = linked.find((invoice) => invoice.status !== "void");
+        setCheckoutInvoice({
+          active: activeInvoice,
+          voided: linked.find((invoice) => invoice.status === "void"),
+        });
+        if (activeInvoice) setSelectedInvoiceId(activeInvoice.id);
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setCheckoutInvoice({
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unable to verify this encounter's checkout invoice.",
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [checkoutEncounterId, reloadLedger, selectedPatientId]);
 
   const matches = useMemo(
     () =>
@@ -162,7 +220,9 @@ export function Billing() {
               Find a patient
             </Typography>
             <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-              Search by the clinic reference or recorded name.
+              {checkoutEncounterId
+                ? "Patient selection is fixed to this completed encounter."
+                : "Search by the clinic reference or recorded name."}
             </Typography>
             <TextField
               fullWidth
@@ -201,6 +261,10 @@ export function Billing() {
                 <ListItemButton
                   key={patient.id}
                   onClick={() => setSelectedPatientId(patient.id)}
+                  disabled={
+                    checkoutEncounterId !== null &&
+                    patient.id !== selectedPatientId
+                  }
                   selected={selectedPatientId === patient.id}
                   sx={{ alignItems: "flex-start", px: 2.5, py: 1.5 }}
                 >
@@ -257,9 +321,12 @@ export function Billing() {
               selectedInvoice={selectedInvoice}
               selectInvoice={setSelectedInvoiceId}
               canDraft={capabilities.billing_invoice_draft === true}
-              onFinancialChange={() =>
-                setReloadLedger((version) => version + 1)
-              }
+              checkoutEncounterId={checkoutEncounterId}
+              checkoutInvoice={checkoutInvoice}
+              onFinancialChange={(invoiceId) => {
+                if (invoiceId) setSelectedInvoiceId(invoiceId);
+                setReloadLedger((version) => version + 1);
+              }}
             />
           )}
         </Box>
@@ -273,13 +340,22 @@ function LedgerDetails({
   selectedInvoice,
   selectInvoice,
   canDraft,
+  checkoutEncounterId,
+  checkoutInvoice,
   onFinancialChange,
 }: {
   ledger: BillingPatientLedger;
   selectedInvoice?: BillingPatientLedger["invoices"][number];
   selectInvoice: (id: number) => void;
   canDraft: boolean;
-  onFinancialChange: () => void;
+  checkoutEncounterId: number | null;
+  checkoutInvoice: {
+    active?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
+    voided?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
+    error?: string;
+    checking?: boolean;
+  };
+  onFinancialChange: (invoiceId?: number) => void;
 }) {
   return (
     <Stack spacing={3}>
@@ -329,9 +405,42 @@ function LedgerDetails({
           ))}
         </Box>
       )}
-      {canDraft && (
+      {checkoutEncounterId && checkoutInvoice.error && (
+        <Alert severity="error">{checkoutInvoice.error}</Alert>
+      )}
+      {checkoutEncounterId && checkoutInvoice.checking && (
+        <Alert severity="info">
+          Verifying this encounter's checkout invoice…
+        </Alert>
+      )}
+      {checkoutEncounterId && checkoutInvoice.active && (
+        <Alert severity="info">
+          Encounter #{checkoutEncounterId} is linked to active invoice #
+          {checkoutInvoice.active.id}. Review or continue that invoice below.
+        </Alert>
+      )}
+      {checkoutEncounterId && checkoutInvoice.voided && !checkoutInvoice.active && (
+        <Alert severity="info">
+          The prior checkout invoice for encounter #{checkoutEncounterId} was
+          voided. A new draft will be recorded as its replacement.
+        </Alert>
+      )}
+      {checkoutEncounterId &&
+        !canDraft &&
+        !checkoutInvoice.active &&
+        !checkoutInvoice.error &&
+        !checkoutInvoice.checking && (
+          <Alert severity="warning">
+            This account can review billing but cannot create a checkout draft.
+          </Alert>
+        )}
+      {canDraft &&
+        !checkoutInvoice.active &&
+        !checkoutInvoice.error &&
+        !checkoutInvoice.checking && (
         <DraftInvoiceForm
           patientId={ledger.patient.id}
+          encounterId={checkoutEncounterId}
           onCreated={onFinancialChange}
         />
       )}
@@ -429,10 +538,12 @@ function LedgerDetails({
 
 function DraftInvoiceForm({
   patientId,
+  encounterId,
   onCreated,
 }: {
   patientId: number;
-  onCreated: () => void;
+  encounterId: number | null;
+  onCreated: (invoiceId: number) => void;
 }) {
   const [currency, setCurrency] = useState("USD");
   const [description, setDescription] = useState("");
@@ -470,13 +581,17 @@ function DraftInvoiceForm({
     const retryKey = requestKeyRef.current || crypto.randomUUID();
     requestKeyRef.current = retryKey;
     try {
-      const result = await api<{ invoice: { id: number } }>(
+      const result = await api<{
+        invoice: Pick<BillingInvoiceDetail, "id" | "encounter_id">;
+        replayed: boolean;
+      }>(
         `/api/clinic/patients/${patientId}/invoices`,
         {
           method: "POST",
           body: {
             invoice: {
               currency,
+              ...(encounterId ? { encounter_id: encounterId } : {}),
               request_key: retryKey,
               lines: [
                 {
@@ -489,12 +604,21 @@ function DraftInvoiceForm({
           },
         },
       );
+      if (encounterId && result.invoice.encounter_id !== encounterId) {
+        throw new Error(
+          "The saved invoice did not match this encounter. Review the billing ledger before trying again.",
+        );
+      }
       setDescription("");
       setQuantity("1");
       setUnitAmount("");
       requestKeyRef.current = null;
-      setNotice(`Draft invoice #${result.invoice.id} created.`);
-      onCreated();
+      setNotice(
+        result.replayed
+          ? `Checkout invoice #${result.invoice.id} was already recorded and has been reopened.`
+          : `${encounterId ? "Checkout draft" : "Draft invoice"} #${result.invoice.id} created.`,
+      );
+      onCreated(result.invoice.id);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -509,11 +633,13 @@ function DraftInvoiceForm({
   return (
     <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
       <Typography component="h2" variant="h2">
-        Start a draft invoice
+        {encounterId
+          ? `Start checkout for encounter #${encounterId}`
+          : "Start a draft invoice"}
       </Typography>
       <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-        Drafts remain editable only through a later approved workflow; posting
-        is a separate protected action.
+        Enter the confirmed billable lines. The clinic does not infer prices
+        from the visit record. Posting remains a separate protected action.
       </Typography>
       <Box
         component="form"
@@ -554,7 +680,11 @@ function DraftInvoiceForm({
           value={description}
         />
         <Button disabled={busy} type="submit" variant="contained">
-          {busy ? "Creating…" : "Create draft"}
+          {busy
+            ? "Creating…"
+            : encounterId
+              ? "Create checkout draft"
+              : "Create draft"}
         </Button>
       </Box>
       {error && (

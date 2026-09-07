@@ -9,6 +9,10 @@ module Clinic
       def index
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
         invoices = patient.invoices.includes(:lines, :payment_allocations, :credit_notes)
+        if params[:encounter_id].present?
+          encounter = current_practice.encounters.where(patient_id: patient.id).find(requested_id!(params[:encounter_id], :encounter_id))
+          invoices = invoices.where(encounter_id: encounter.id)
+        end
         invoices = invoices.where(status: enum_param!(params[:status], field: :status, allowed: %w[draft posted void])) if params[:status].present?
         paginate(invoices, key: :invoices, serializer: ->(invoice) { InvoiceSerializer.call(invoice) }, order: { created_at: :desc, id: :desc })
       end
@@ -20,7 +24,7 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:invoice, %i[currency request_key], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
+        input = parameter_hash!(:invoice, %i[currency encounter_id request_key], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
         lines = Array(input[:lines])
         raise Clinic::Api::RequestParameters::Invalid.new("lines must contain 1–100 entries.", field: :lines) unless lines.size.between?(1, 100)
         line_attributes = lines.map.with_index do |line, index|
@@ -37,16 +41,24 @@ module Clinic
           }
         end
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
+        encounter = if input[:encounter_id].present?
+          current_practice.encounters.where(patient_id: patient.id).find(requested_id!(input[:encounter_id], :encounter_id))
+        end
         request_key = input.key?(:request_key) ? required_string!(input[:request_key], field: :request_key, maximum: 160) : SecureRandom.uuid
         invoice = Clinic::Billing::DraftInvoice.call(
           practice: current_practice,
           actor: current_user,
           patient: patient,
+          encounter: encounter,
           currency: required_string!(input[:currency], field: :currency, maximum: 3),
           lines: line_attributes,
           request_key: request_key
         )
-        render json: { invoice: InvoiceSerializer.call(invoice, detail: true), request_key: request_key }, status: :created
+        render json: {
+          invoice: InvoiceSerializer.call(invoice, detail: true),
+          replayed: !invoice.previously_new_record?,
+          request_key: request_key
+        }, status: invoice.previously_new_record? ? :created : :ok
       end
 
       def post

@@ -2139,6 +2139,15 @@ function VisitWrapUp({
           <Button href="/clinic" variant="outlined">
             Return to tracking board
           </Button>
+          {current.status === "completed" &&
+            context.capabilities.billing_read === true && (
+              <Button
+                href={`/clinic/billing/patients?patient_id=${patient.id}&encounter_id=${current.id}`}
+                variant="contained"
+              >
+                Continue to checkout
+              </Button>
+            )}
         </Stack>
       </Stack>
     </Paper>

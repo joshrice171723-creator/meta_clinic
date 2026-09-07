@@ -5,6 +5,7 @@ module Clinic
     include Auditable
 
     belongs_to :patient, class_name: "Clinic::Care::Patient"
+    belongs_to :encounter, class_name: "Clinic::Encounter", optional: true
     has_many :lines, class_name: "Clinic::InvoiceLine", dependent: :restrict_with_error
     has_many :payment_allocations, class_name: "Clinic::PaymentAllocation", dependent: :restrict_with_error
     has_many :payment_collection_intents, class_name: "Clinic::PaymentCollectionIntent", dependent: :restrict_with_error
@@ -28,5 +29,16 @@ module Clinic
 
     validates :currency, presence: true, format: { with: /\A[A-Z]{3}\z/ }
     validates :rounding_policy_version, :status, presence: true
+    validate :checkout_encounter_is_completed_and_scoped
+
+    private
+
+    def checkout_encounter_is_completed_and_scoped
+      return unless encounter
+
+      errors.add(:encounter, "must belong to this practice") if encounter.practice_id != practice_id
+      errors.add(:encounter, "must belong to this patient") if encounter.patient_id != patient_id
+      errors.add(:encounter, "must be completed before checkout") unless encounter.status == "completed" && encounter.ended_at.present?
+    end
   end
 end

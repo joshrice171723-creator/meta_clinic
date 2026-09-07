@@ -448,6 +448,7 @@ export type BillingInvoiceSummary = {
 export type BillingInvoiceDetail = {
   id: number;
   patient_id: number;
+  encounter_id: number | null;
   currency: string;
   status: "draft" | "posted" | "void";
   rounding_policy_version: string;

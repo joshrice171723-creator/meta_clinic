@@ -5,6 +5,7 @@ module Clinic
         payload = {
           id: invoice.id,
           patient_id: invoice.patient_id,
+          encounter_id: invoice.encounter_id,
           currency: invoice.currency,
           status: invoice.status,
           rounding_policy_version: invoice.rounding_policy_version,
