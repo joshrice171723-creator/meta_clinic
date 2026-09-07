@@ -149,7 +149,7 @@ describe("subscription purchase presentation", () => {
       "Program introduction",
       "A custom tier",
       "synthetic materials explained by the clinic",
-      "Dev seed exact service",
+      "exact service",
       service.description,
       "lowercase terms",
       "Keep this exact line.",
@@ -157,6 +157,7 @@ describe("subscription purchase presentation", () => {
       "renew manually",
     ])
       expect(html).toContain(value);
+    expect(html).not.toContain("Dev seed exact service");
     expect(html).not.toContain("no automatic renewal");
   });
   it("builds the immediate preview from current input and catalog services without a client total", () => {
@@ -227,7 +228,10 @@ describe("subscription purchase presentation", () => {
       "Women's Wellness",
     );
     expect(patientPortalLabel("Dev seed flexible services")).toBe(
-      "Flexible services",
+      "flexible services",
+    );
+    expect(patientPortalLabel("lowercase clinic label")).toBe(
+      "lowercase clinic label",
     );
     expect(patientPortalLabel("SYN_Mercer, Alex")).toBe("Mercer, Alex");
     expect(patientPortalLabel("SYN-BASE-001")).toBe("BASE-001");
@@ -282,7 +286,7 @@ describe("subscription purchase presentation", () => {
         catalog={[]}
       />,
     );
-    expect(html).toContain("no published plans available");
+    expect(html).toContain("has not published a membership");
     expect(html).not.toContain("$89");
   });
   it("preserves exact money beyond JavaScript numeric precision", () => {
@@ -319,7 +323,9 @@ describe("subscription purchase presentation", () => {
       <PatientSubscriptions onChanged={() => {}} />,
     );
     expect(html).toContain("Payment arrangements are pending with the clinic.");
-    expect(html).toContain("membership becomes active after payment is verified.");
+    expect(html).toContain(
+      "membership becomes active after payment is verified.",
+    );
     expect(html).not.toContain("Resume Stripe Checkout");
     expect(html).not.toContain("Request test payment");
   });

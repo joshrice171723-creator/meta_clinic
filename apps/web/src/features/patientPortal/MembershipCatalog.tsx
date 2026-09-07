@@ -2,6 +2,19 @@ import { useState } from "react";
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import type { PublishedPackage } from "../clinic/subscriptions/contracts";
 import { MembershipCard } from "../clinic/subscriptions/MembershipCard";
+import { patientPortalLabel } from "./patientPortalLabels";
+
+function patientFacingTerms(terms: PublishedPackage["terms"]) {
+  return {
+    ...terms,
+    family_name: patientPortalLabel(terms.family_name) || "Membership",
+    package_name: patientPortalLabel(terms.package_name) || "Selected plan",
+    components: terms.components.map((component) => ({
+      ...component,
+      name: patientPortalLabel(component.name) || "Included service",
+    })),
+  };
+}
 export {
   membershipPrice,
   membershipTerm,
@@ -39,26 +52,42 @@ export function MembershipCatalog({
   const plans = catalog.filter((p) => p.terms.family_id === activeFamily);
   if (!catalog.length)
     return (
-      <Box sx={{ py: 6 }}>
-        <Typography variant="h5" component="h2">
-          New memberships are on their way.
+      <Box
+        component="section"
+        id="memberships"
+        sx={{ mt: 3, pt: 4, borderTop: "1px solid", borderColor: "divider" }}
+      >
+        <Typography variant="h5" component="h3">
+          Available memberships
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }}>
-          There are no published plans available right now. Check with your
-          clinic about upcoming options.
+          Your clinic has not published a membership that is available to join
+          at this time.
         </Typography>
       </Box>
     );
   return (
-    <Box component="section" id="memberships" sx={{ scrollMarginTop: 24 }}>
+    <Box
+      component="section"
+      id="memberships"
+      sx={{
+        mt: 3,
+        pt: 4,
+        borderTop: "1px solid",
+        borderColor: "divider",
+        scrollMarginTop: 24,
+      }}
+    >
       <Stack
         direction={{ xs: "column", md: "row" }}
         sx={{ justifyContent: "space-between", gap: 2, mb: 3 }}
       >
         <Box>
-          <Typography variant="h2">Find your fit.</Typography>
+          <Typography variant="h5" component="h3">
+            Available memberships
+          </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Choose a program. Compare what’s included. Make it yours.
+            Compare the plans and services your clinic currently offers.
           </Typography>
         </Box>
         <Typography
@@ -89,7 +118,7 @@ export function MembershipCatalog({
             id={`program-${id}`}
             aria-controls={`program-panel-${id}`}
             value={id}
-            label={name}
+            label={patientPortalLabel(name) || "Membership program"}
           />
         ))}
       </Tabs>
@@ -107,73 +136,23 @@ export function MembershipCatalog({
         aria-labelledby={`program-${activeFamily}`}
         sx={{
           display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            md: `repeat(${Math.min(plans.length, 3)}, minmax(0, 1fr))`,
-          },
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
           gap: 2.5,
         }}
       >
         {plans.map((plan) => {
+          const terms = patientFacingTerms(plan.terms);
           return (
             <MembershipCard
               key={plan.id}
-              terms={plan.terms}
+              terms={terms}
               busy={busy}
               canPurchase={canPurchase}
               onChoose={() => onChoose(plan)}
             />
           );
         })}
-      </Box>
-      <Box
-        sx={{
-          py: 4,
-          mt: 2,
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-          gap: 3,
-        }}
-      >
-        {[
-          [
-            "01",
-            "Choose your starting point",
-            "Compare the services and term that fit your goals.",
-          ],
-          [
-            "02",
-            "Make it personal",
-            "Pick available service options and review any added cost.",
-          ],
-          [
-            "03",
-            "Review, then join",
-            "See your exact price and the clinic’s terms before confirming.",
-          ],
-        ].map(([n, title, description]) => (
-          <Stack direction="row" spacing={2} key={n}>
-            <Typography
-              sx={{
-                fontFamily: "Georgia, serif",
-                fontSize: 26,
-                color: "primary.main",
-              }}
-            >
-              {n}
-            </Typography>
-            <Box>
-              <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5 }}
-              >
-                {description}
-              </Typography>
-            </Box>
-          </Stack>
-        ))}
       </Box>
     </Box>
   );

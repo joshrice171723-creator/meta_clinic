@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Alert,
   Box,
@@ -21,6 +22,7 @@ import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { PackageCard } from "../clinic/subscriptions/PackageCard";
 import { MembershipCatalog } from "./MembershipCatalog";
+import { patientPortalLabel } from "./patientPortalLabels";
 import {
   stateLabel,
   subscriptionDate,
@@ -48,6 +50,20 @@ function renewalNeedsPayment(subscription: Subscription) {
   );
 }
 
+function patientFacingTerms(terms: PackageTerms): PackageTerms {
+  const displayComponent = (component: PackageTerms["components"][number]) => ({
+    ...component,
+    name: patientPortalLabel(component.name) || "Included service",
+  });
+  return {
+    ...terms,
+    family_name: patientPortalLabel(terms.family_name) || "Membership",
+    package_name: patientPortalLabel(terms.package_name) || "Selected plan",
+    components: terms.components.map(displayComponent),
+    selected_components: terms.selected_components?.map(displayComponent),
+  };
+}
+
 function openStripeCheckout(checkoutUrl: string) {
   const url = new URL(checkoutUrl);
   if (
@@ -62,7 +78,13 @@ function openStripeCheckout(checkoutUrl: string) {
   window.location.assign(url.href);
 }
 
-export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
+export function PatientSubscriptions({
+  onChanged,
+  catalogTarget,
+}: {
+  onChanged: () => void;
+  catalogTarget?: Element | null;
+}) {
   const phone = useMediaQuery("(max-width:599px)");
   const resource = useResource<{
     catalog: PublishedPackage[];
@@ -137,25 +159,13 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
             Checkout session below.
           </Alert>
         )}
-        {data && (
-          <MembershipCatalog
-            catalog={data.catalog}
-            busy={busy}
-            canPurchase={data.can_purchase}
-            onChoose={choose}
-          />
-        )}
-        <Typography
-          variant="h2"
-          id="my-memberships"
-          sx={{ pt: 3, scrollMarginTop: 24 }}
-        >
-          Your memberships
+        <Typography variant="h5" component="h3">
+          Selected plan
         </Typography>
         {data && !data.subscriptions.length && (
           <Typography color="text.secondary">
-            Once you join, your membership, payment status, and receipts will
-            appear here.
+            You do not have a selected membership. Available memberships appear
+            below when your clinic publishes them.
           </Typography>
         )}
         <Stack spacing={2}>
@@ -175,12 +185,14 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                   }}
                 >
                   <Box>
-                    <Typography variant="h5" component="h3">
-                      {subscription.terms.package_name}
+                    <Typography variant="h5" component="h4">
+                      {patientPortalLabel(subscription.terms.package_name) ||
+                        "Selected plan"}
                     </Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      {subscription.terms.family_name} · Membership #
-                      {subscription.id}
+                      {patientPortalLabel(subscription.terms.family_name) ||
+                        "Membership"}{" "}
+                      · Membership #{subscription.id}
                     </Typography>
                   </Box>
                   <Stack
@@ -211,6 +223,10 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                     </Typography>
                   </Stack>
                 </Stack>
+
+                {subscription.terms.description && (
+                  <Typography>{subscription.terms.description}</Typography>
+                )}
 
                 {renewalNeedsPayment(subscription) && (
                   <Alert severity="warning">
@@ -251,15 +267,20 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                   </Alert>
                 )}
                 {!checkoutAvailable &&
-                  ["pending_payment", "review_approved", "payment_failed"].includes(
-                    subscription.state,
-                  ) && (
+                  [
+                    "pending_payment",
+                    "review_approved",
+                    "payment_failed",
+                  ].includes(subscription.state) && (
                     <Alert severity="info">
                       Payment arrangements are pending with the clinic. This
                       membership becomes active after payment is verified.
                     </Alert>
                   )}
 
+                <Typography variant="h6" component="h5">
+                  Billing information
+                </Typography>
                 <Box
                   sx={{
                     display: "grid",
@@ -330,11 +351,27 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                     {subscription.terms.selected_components
                       .map(
                         (component) =>
-                          `${component.name} (${component.quantity}/${component.frequency})`,
+                          `${patientPortalLabel(component.name) || "Included service"} (${component.quantity}/${component.frequency})`,
                       )
                       .join(", ")}
                   </Typography>
                 ) : null}
+                {subscription.terms.terms && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ whiteSpace: "pre-wrap" }}
+                  >
+                    Terms: {subscription.terms.terms}
+                  </Typography>
+                )}
+                <Typography variant="body2" color="text.secondary">
+                  Cancellation: {stateLabel(subscription.terms.cancellation)} ·
+                  Refund policy:{" "}
+                  {subscription.terms.refund_policy === "manual_review"
+                    ? "Clinic review required"
+                    : "No refunds"}
+                </Typography>
                 {subscription.renewal_status && (
                   <Typography variant="body2" color="text.secondary">
                     Stripe subscription:{" "}
@@ -494,9 +531,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
           aria-labelledby="subscription-confirm-title"
         >
           <DialogTitle id="subscription-confirm-title">
-            {quote
-              ? "Your membership, ready to review."
-              : "Make this membership yours."}
+            {quote ? "Review selected plan" : "Choose plan options"}
           </DialogTitle>
           <DialogContent
             sx={{ "& > .MuiStack-root > .MuiPaper-root": { border: 0, p: 0 } }}
@@ -504,10 +539,10 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
             <Stack spacing={2}>
               <Stepper activeStep={quote ? 1 : 0} sx={{ py: 1 }}>
                 <Step>
-                  <StepLabel>Personalize</StepLabel>
+                  <StepLabel>Options</StepLabel>
                 </Step>
                 <Step>
-                  <StepLabel>Review & confirm</StepLabel>
+                  <StepLabel>Review</StepLabel>
                 </Step>
               </Stepper>
               <Typography color="text.secondary">
@@ -525,7 +560,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
               {error && <Alert severity="error">{error}</Alert>}
               {selected && (
                 <PackageCard
-                  terms={quote || selected.terms}
+                  terms={patientFacingTerms(quote || selected.terms)}
                   selections={selections}
                   onSelect={
                     quote
@@ -586,10 +621,7 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
                         },
                       },
                     );
-                    if (
-                      !quote.eligibility_review &&
-                      checkoutAvailable
-                    ) {
+                    if (!quote.eligibility_review && checkoutAvailable) {
                       const payment = await api<{ checkout_url?: string }>(
                         `/api/patient_portal/subscriptions/${created.id}/pay`,
                         {
@@ -691,8 +723,11 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
             <Stack spacing={2}>
               {receiptTarget && (
                 <Typography color="text.secondary">
-                  {receiptTarget.terms.family_name} /{" "}
-                  {receiptTarget.terms.package_name}
+                  {patientPortalLabel(receiptTarget.terms.family_name) ||
+                    "Membership"}{" "}
+                  /{" "}
+                  {patientPortalLabel(receiptTarget.terms.package_name) ||
+                    "Selected plan"}
                 </Typography>
               )}
               {!receipts?.length && (
@@ -751,6 +786,17 @@ export function PatientSubscriptions({ onChanged }: { onChanged: () => void }) {
           </DialogActions>
         </Dialog>
       </Stack>
+      {data && catalogTarget
+        ? createPortal(
+            <MembershipCatalog
+              catalog={data.catalog}
+              busy={busy}
+              canPurchase={data.can_purchase}
+              onChoose={choose}
+            />,
+            catalogTarget,
+          )
+        : null}
     </Box>
   );
 }

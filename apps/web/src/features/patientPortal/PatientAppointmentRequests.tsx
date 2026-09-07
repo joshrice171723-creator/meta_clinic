@@ -14,7 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import {
@@ -25,7 +25,8 @@ import { PatientPrevisitNote } from "./PatientPrevisitNote";
 
 type Site = { id: number; code: string; name: string };
 type VisitType = { id: number; code: string };
-type AppointmentSnapshot = ConfirmableAppointment;
+export type UpcomingAppointment = ConfirmableAppointment;
+type AppointmentSnapshot = UpcomingAppointment;
 type AppointmentRequest = {
   id: number;
   request_key: string;
@@ -56,7 +57,15 @@ function dateTime(value: string) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
-export function PatientAppointmentRequests() {
+export function PatientAppointmentRequests({
+  hideHeader = false,
+  onUpcomingAppointments,
+  onUpcomingAppointmentsError,
+}: {
+  hideHeader?: boolean;
+  onUpcomingAppointments?: (appointments: UpcomingAppointment[]) => void;
+  onUpcomingAppointmentsError?: (error: string) => void;
+}) {
   const resource = useResource<AppointmentRequestResponse>(
     "/api/patient_portal/appointment_requests",
   );
@@ -96,6 +105,30 @@ export function PatientAppointmentRequests() {
   const minimum = useMemo(() => localDateTime(new Date()), []);
   const intervalValid =
     new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
+  const effectiveUpcomingAppointments = useMemo(
+    () =>
+      resource.data?.upcoming_appointments.map((appointment) => {
+        const override = appointmentOverrides[appointment.id];
+        return override?.sourceUpdatedAt === appointment.updated_at
+          ? override.appointment
+          : appointment;
+      }),
+    [appointmentOverrides, resource.data?.upcoming_appointments],
+  );
+
+  useEffect(() => {
+    if (effectiveUpcomingAppointments) {
+      onUpcomingAppointments?.(effectiveUpcomingAppointments);
+      onUpcomingAppointmentsError?.("");
+    } else if (resource.error) {
+      onUpcomingAppointmentsError?.(resource.error);
+    }
+  }, [
+    onUpcomingAppointments,
+    onUpcomingAppointmentsError,
+    effectiveUpcomingAppointments,
+    resource.error,
+  ]);
 
   async function submit() {
     if (!siteId || !intervalValid) return;
@@ -139,28 +172,37 @@ export function PatientAppointmentRequests() {
   }
 
   return (
-    <Paper
-      id="appointments"
-      variant="outlined"
-      sx={{ p: { xs: 2, md: 3 }, scrollMarginTop: 24 }}
-    >
+    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3.5 } }}>
       <Stack spacing={2.5}>
-        <Box>
-          <Typography variant="h5" component="h2">
-            Appointments
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Confirm an upcoming visit, share a note with your care team, or
-            request a new appointment. Your clinic reviews requests to book or
-            change a visit.
-          </Typography>
-        </Box>
+        {!hideHeader && (
+          <Box>
+            <Typography variant="h5" component="h2">
+              Appointments
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+              Confirm an upcoming visit, share a note with your care team, or
+              request a new appointment. Your clinic reviews requests to book or
+              change a visit.
+            </Typography>
+          </Box>
+        )}
         {!resource.data && !resource.error && (
           <Typography role="status">
             Loading appointment request options…
           </Typography>
         )}
-        {resource.error && <Alert severity="error">{resource.error}</Alert>}
+        {resource.error && (
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={resource.refresh}>
+                Retry
+              </Button>
+            }
+          >
+            Your appointments could not be loaded. {resource.error}
+          </Alert>
+        )}
         {resource.data && (
           <>
             {notice && (
@@ -174,7 +216,7 @@ export function PatientAppointmentRequests() {
               </Alert>
             )}
             <Stack spacing={1.25}>
-              <Typography variant="h6" component="h3">
+              <Typography variant="h6" component="h2">
                 Your upcoming appointments
               </Typography>
               {resource.data.upcoming_appointments.length === 0 && (
@@ -198,10 +240,12 @@ export function PatientAppointmentRequests() {
                   return (
                     <Box
                       key={appointment.id}
+                      id={`appointment-${appointment.id}`}
                       sx={{
                         borderTop: "1px solid",
                         borderColor: "divider",
                         pt: 1.5,
+                        scrollMarginTop: 24,
                       }}
                     >
                       <Stack
@@ -311,7 +355,7 @@ export function PatientAppointmentRequests() {
               )}
             </Stack>
             <Box>
-              <Typography variant="h6" component="h3" sx={{ mb: 0.5 }}>
+              <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
                 Request a new appointment
               </Typography>
               <Box
@@ -421,7 +465,7 @@ export function PatientAppointmentRequests() {
               </Stack>
             </Box>
             <Stack spacing={1.25}>
-              <Typography variant="h6" component="h3">
+              <Typography variant="h6" component="h2">
                 Your requests
               </Typography>
               {resource.data.appointment_requests.length === 0 && (

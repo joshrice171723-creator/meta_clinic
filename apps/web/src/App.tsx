@@ -699,7 +699,10 @@ export function App() {
       </SessionGuard>
     );
   }
-  if (path === "/patient-portal" && user)
+  if (
+    (path === "/patient-portal" || path === "/patient-portal/settings") &&
+    user
+  )
     return (
       <SessionGuard key={user.id}>
         <RouteBoundary root>
