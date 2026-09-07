@@ -66,6 +66,10 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
     def mark_complete_unpaid
       @session = @session.merge("status" => "complete", "payment_status" => "unpaid", "payment_intent" => "pi_invoice", "url" => nil)
     end
+
+    def mark_refunded(amount_cents)
+      @refunded_cents = amount_cents
+    end
   end
 
   setup do
@@ -202,6 +206,28 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("5.00"), payment.refund_events.sum(:amount)
     assert_equal 1, payment.refund_events.count
     assert_equal BigDecimal("125.00"), payment.allocations.sum(:amount)
+    assert_equal "posted", @invoice.reload.status
+  end
+
+  test "recovers a missed refund when reconciling an already settled checkout" do
+    gateway = Gateway.new
+    checkout = start_payment(gateway, "invoice-missed-refund").checkout
+    gateway.mark_paid
+    Clinic::Billing::StripeInvoicePayments.reconcile(checkout: checkout, actor: @actor, gateway: gateway)
+
+    payment = Clinic::PaymentEvent.find_by!(external_event_reference: "stripe:acct_invoice:pi_invoice")
+    assert_empty payment.refund_events
+    gateway.mark_refunded(500)
+
+    2.times do
+      result = Clinic::Billing::StripeInvoicePayments.reconcile(checkout: checkout, actor: @actor, gateway: gateway)
+      assert_equal "paid", result.state
+    end
+
+    assert_equal BigDecimal("5.00"), payment.refund_events.sum(:amount)
+    assert_equal 1, payment.refund_events.count
+    assert_equal BigDecimal("125.00"), payment.allocations.sum(:amount)
+    assert_equal "succeeded", checkout.collection_intent.reload.state
     assert_equal "posted", @invoice.reload.status
   end
 

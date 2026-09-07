@@ -320,6 +320,12 @@ module Clinic
             action_code: "stripe.invoice_payment.reconciled", outcome: :committed,
             resource_version_ref: "collection_intent:#{intent.id}")
         end
+        ledger_payment ||= PaymentEvent.find_by(practice: checkout.practice,
+          external_event_reference: "stripe:#{checkout.account_id}:#{payment_id}")
+        raise StripeGateway::Unavailable, "Reconcile the original payment before this refund." unless ledger_payment
+
+        apply_refund(checkout: checkout, payment: ledger_payment, provider_payment: payment, charge: charge,
+          expected_charge_id: charge_id, actor: actor)
         Result.new(checkout: checkout, state: "paid", checkout_url: nil)
       rescue ArgumentError, KeyError
         raise StripeGateway::Invalid, "Stripe payment evidence is invalid."
