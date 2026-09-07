@@ -40,12 +40,13 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id])
+        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id request_key])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = find_optional(current_practice.sites, input[:site_id], :site_id)
         room = find_optional(current_practice.rooms, input[:room_id], :room_id)
         clinician = find_optional(current_practice.clinician_profiles, input[:booked_clinician_id], :booked_clinician_id)
         visit_type = find_optional(current_practice.visit_types, input[:visit_type_id], :visit_type_id)
+        request_key = input[:request_key].presence && required_string!(input[:request_key], field: :request_key, maximum: 160)
         appointment = Clinic::Scheduling::BookAppointment.call(
           practice: current_practice,
           actor: current_user,
@@ -55,9 +56,10 @@ module Clinic
           booked_clinician: clinician,
           visit_type: visit_type,
           starts_at: time_param!(input[:starts_at], field: :starts_at),
-          ends_at: time_param!(input[:ends_at], field: :ends_at)
+          ends_at: time_param!(input[:ends_at], field: :ends_at),
+          request_key: request_key
         )
-        render json: { appointment: AppointmentSerializer.call(appointment) }, status: :created
+        render json: { appointment: AppointmentSerializer.call(appointment), request_key: request_key }, status: :created
       end
 
       def transition
