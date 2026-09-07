@@ -27,7 +27,9 @@ export function clinicDateValue(date: Date, timezone: string) {
       month: "2-digit",
       day: "2-digit",
     }).formatToParts(date);
-    const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const value = Object.fromEntries(
+      parts.map((part) => [part.type, part.value]),
+    );
     return `${value.year}-${value.month}-${value.day}`;
   } catch {
     return date.toISOString().slice(0, 10);

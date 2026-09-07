@@ -1,7 +1,6 @@
 class HardenMemberSessions < ActiveRecord::Migration[8.1]
   def change
     add_column :member_sessions, :last_activity_at, :datetime, null: false, default: -> { "CURRENT_TIMESTAMP" }
-    add_index :member_sessions, :expires_at
     create_table :identity_login_throttles, id: false do |t|
       t.string :key_digest, null: false, primary_key: true, limit: 64
       t.integer :attempts, null: false

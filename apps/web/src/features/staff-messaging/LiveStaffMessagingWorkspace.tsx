@@ -449,7 +449,7 @@ export function LiveStaffMessagingWorkspace() {
   return (
     <Stack spacing={2}>
       {actionError && <Alert severity="error" action={<Button color="inherit" onClick={() => setActionError(null)}>Dismiss</Button>}>{actionError}</Alert>}
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
         {capability(capabilities, "staff_messaging_create_conversation") && <Button variant="outlined" onClick={() => void openCreate()}>New conversation</Button>}
         {capability(capabilities, "staff_messaging_escalate") && state.selectedConversationId > 0 && <Button variant="outlined" onClick={() => void openRecovery()}>Recover conversation</Button>}
       </Stack>
@@ -459,7 +459,7 @@ export function LiveStaffMessagingWorkspace() {
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {actionError && <Alert severity="error">{actionError}</Alert>}
-            <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} inputProps={{ maxLength: 80 }} />
+            <TextField autoFocus fullWidth required disabled={resolving} label="Resolution code or reason" value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} slotProps={{ htmlInput: { maxLength: 80 } }} />
           </Stack>
         </DialogContent>
         <DialogActions><Button disabled={resolving} onClick={() => setResolution(null)}>Cancel</Button><Button disabled={resolving || !resolutionCode.trim()} onClick={() => void resolveRequest()}>{resolving ? "Resolving…" : "Resolve request"}</Button></DialogActions>
@@ -506,7 +506,7 @@ export function LiveStaffMessagingWorkspace() {
               <InputLabel id="conversation-kind-label">Conversation type</InputLabel>
               <Select labelId="conversation-kind-label" label="Conversation type" value={createKind} onChange={(event) => setCreateKind(event.target.value as StaffConversation["kind"])}><MenuItem value="direct">Direct</MenuItem><MenuItem value="team">Team</MenuItem><MenuItem value="role">Role</MenuItem></Select>
             </FormControl>
-            {createKind !== "direct" && <TextField disabled={creating} label="Conversation title" value={createTitle} onChange={(event) => setCreateTitle(event.target.value)} inputProps={{ maxLength: 120 }} />}
+            {createKind !== "direct" && <TextField disabled={creating} label="Conversation title" value={createTitle} onChange={(event) => setCreateTitle(event.target.value)} slotProps={{ htmlInput: { maxLength: 120 } }} />}
             <FormControl fullWidth disabled={creating}>
               <InputLabel id="conversation-recipient-label">Staff participant</InputLabel>
               <Select labelId="conversation-recipient-label" label="Staff participant" value={recipientId} onChange={(event) => setRecipientId(event.target.value)}>{participants.map((participant) => <MenuItem key={participant.id} value={String(participant.id)}>{participant.email}</MenuItem>)}</Select>

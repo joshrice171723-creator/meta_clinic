@@ -1,4 +1,4 @@
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import PlayArrowOutlinedIcon from "@mui/icons-material/PlayArrowOutlined";
@@ -40,7 +40,7 @@ import {
   type AppointmentTransition,
   type FrontDeskAppointment,
   type FrontDeskAppointmentResponse,
-} from "./frontDesk";
+} from "./frontDeskModel";
 import { useClinic } from "./Workspace";
 import "./frontDesk.css";
 
@@ -69,7 +69,7 @@ export function FrontDesk() {
             start a visit when care begins.
           </Typography>
         </div>
-        <Stack direction="row" gap={1} flexWrap="wrap">
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
           {booking.visible && (
             <Button
               component="a"
@@ -140,7 +140,10 @@ function AppointmentDayQueue({
   canReschedule: boolean;
   canReviewReminders: boolean;
 }) {
-  const today = useMemo(() => clinicDateValue(new Date(), timezone), [timezone]);
+  const today = useMemo(
+    () => clinicDateValue(new Date(), timezone),
+    [timezone],
+  );
   const [date, setDate] = useState(today);
   const [siteId, setSiteId] = useState(
     currentSiteId === null ? "" : String(currentSiteId),
@@ -526,10 +529,10 @@ function AppointmentDayQueue({
       {pagination && pagination.total_pages > 1 && (
         <nav className="front-desk-pagination" aria-label="Appointment pages">
           <Typography color="text.secondary" variant="body2">
-            Page {pagination.page} of {pagination.total_pages} · {pagination.total}{" "}
-            appointments
+            Page {pagination.page} of {pagination.total_pages} ·{" "}
+            {pagination.total} appointments
           </Typography>
-          <Stack direction="row" gap={1}>
+          <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
               disabled={pagination.page <= 1}
@@ -594,7 +597,8 @@ function AppointmentRow({
   const actions = appointmentActions(appointment);
   const status = appointmentStatus(appointment);
   const patientName = appointment.patient?.display_name || "Patient record";
-  const patientReference = appointment.patient?.reference || `#${appointment.patient_id}`;
+  const patientReference =
+    appointment.patient?.reference || `#${appointment.patient_id}`;
   const anyActionBusy = busyAction.length > 0;
   const patientPath = `/clinic/patients/${appointment.patient_id}`;
   const chartPath = appointment.encounter_id
@@ -660,7 +664,12 @@ function AppointmentRow({
           </Button>
         )}
         {chartPath && canPatients && (
-          <Button component="a" href={chartPath} size="small" variant="contained">
+          <Button
+            component="a"
+            href={chartPath}
+            size="small"
+            variant="contained"
+          >
             Open chart
           </Button>
         )}
@@ -694,9 +703,7 @@ function AppointmentRow({
             disabled={anyActionBusy}
             onClick={() => void onTransition(appointment, "no_show")}
           >
-            {busyAction === `${appointment.id}:no_show`
-              ? "Saving…"
-              : "No show"}
+            {busyAction === `${appointment.id}:no_show` ? "Saving…" : "No show"}
           </Button>
         )}
         {canBilling && (
@@ -751,9 +758,9 @@ function RescheduleDialog({
     >
       <DialogTitle id="reschedule-title">Reschedule appointment</DialogTitle>
       <DialogContent>
-        <Stack gap={2} sx={{ pt: 1 }}>
+        <Stack spacing={2} sx={{ pt: 1 }}>
           <div>
-            <Typography fontWeight={700}>{patientName}</Typography>
+            <Typography sx={{ fontWeight: 700 }}>{patientName}</Typography>
             <Typography color="text.secondary" variant="body2">
               Site, room, clinician, and visit type stay the same.
             </Typography>
@@ -776,7 +783,9 @@ function RescheduleDialog({
                 onChange({
                   ...draft,
                   startsAt: event.target.value,
-                  requestKey: draft.error ? crypto.randomUUID() : draft.requestKey,
+                  requestKey: draft.error
+                    ? crypto.randomUUID()
+                    : draft.requestKey,
                   error: "",
                 });
             }}
@@ -792,7 +801,9 @@ function RescheduleDialog({
                 onChange({
                   ...draft,
                   endsAt: event.target.value,
-                  requestKey: draft.error ? crypto.randomUUID() : draft.requestKey,
+                  requestKey: draft.error
+                    ? crypto.randomUUID()
+                    : draft.requestKey,
                   error: "",
                 });
             }}
@@ -838,7 +849,11 @@ function IdentityLookup() {
   );
 
   return (
-    <Paper component="section" variant="outlined" className="front-desk-identity">
+    <Paper
+      component="section"
+      variant="outlined"
+      className="front-desk-identity"
+    >
       <div>
         <Typography component="h2" variant="h2">
           Patient identity lookup
@@ -899,5 +914,7 @@ function handleMutationError(
     error instanceof Error
       ? error.message
       : "The action could not be completed.";
-  setError(`${message} The action was not retried. Refresh the schedule before trying again.`);
+  setError(
+    `${message} The action was not retried. Refresh the schedule before trying again.`,
+  );
 }

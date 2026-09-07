@@ -145,10 +145,7 @@ export function Billing() {
     let active = true;
     setCheckoutInvoice({ checking: true });
     api<{
-      invoices: Pick<
-        BillingInvoiceDetail,
-        "id" | "encounter_id" | "status"
-      >[];
+      invoices: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">[];
     }>(
       `/api/clinic/patients/${selectedPatientId}/invoices?encounter_id=${checkoutEncounterId}`,
     )
@@ -157,7 +154,9 @@ export function Billing() {
         const linked = invoices.filter(
           (invoice) => invoice.encounter_id === checkoutEncounterId,
         );
-        const activeInvoice = linked.find((invoice) => invoice.status !== "void");
+        const activeInvoice = linked.find(
+          (invoice) => invoice.status !== "void",
+        );
         setCheckoutInvoice({
           active: activeInvoice,
           voided: linked.find((invoice) => invoice.status === "void"),
@@ -419,12 +418,14 @@ function LedgerDetails({
           {checkoutInvoice.active.id}. Review or continue that invoice below.
         </Alert>
       )}
-      {checkoutEncounterId && checkoutInvoice.voided && !checkoutInvoice.active && (
-        <Alert severity="info">
-          The prior checkout invoice for encounter #{checkoutEncounterId} was
-          voided. A new draft will be recorded as its replacement.
-        </Alert>
-      )}
+      {checkoutEncounterId &&
+        checkoutInvoice.voided &&
+        !checkoutInvoice.active && (
+          <Alert severity="info">
+            The prior checkout invoice for encounter #{checkoutEncounterId} was
+            voided. A new draft will be recorded as its replacement.
+          </Alert>
+        )}
       {checkoutEncounterId &&
         !canDraft &&
         !checkoutInvoice.active &&
@@ -438,12 +439,12 @@ function LedgerDetails({
         !checkoutInvoice.active &&
         !checkoutInvoice.error &&
         !checkoutInvoice.checking && (
-        <DraftInvoiceForm
-          patientId={ledger.patient.id}
-          encounterId={checkoutEncounterId}
-          onCreated={onFinancialChange}
-        />
-      )}
+          <DraftInvoiceForm
+            patientId={ledger.patient.id}
+            encounterId={checkoutEncounterId}
+            onCreated={onFinancialChange}
+          />
+        )}
       <Paper variant="outlined">
         <Box sx={{ p: 2.5 }}>
           <Typography component="h2" variant="h2">
@@ -584,26 +585,23 @@ function DraftInvoiceForm({
       const result = await api<{
         invoice: Pick<BillingInvoiceDetail, "id" | "encounter_id">;
         replayed: boolean;
-      }>(
-        `/api/clinic/patients/${patientId}/invoices`,
-        {
-          method: "POST",
-          body: {
-            invoice: {
-              currency,
-              ...(encounterId ? { encounter_id: encounterId } : {}),
-              request_key: retryKey,
-              lines: [
-                {
-                  quantity: quantity.trim(),
-                  unit_amount: unitAmount.trim(),
-                  description_snapshot: description.trim(),
-                },
-              ],
-            },
+      }>(`/api/clinic/patients/${patientId}/invoices`, {
+        method: "POST",
+        body: {
+          invoice: {
+            currency,
+            ...(encounterId ? { encounter_id: encounterId } : {}),
+            request_key: retryKey,
+            lines: [
+              {
+                quantity: quantity.trim(),
+                unit_amount: unitAmount.trim(),
+                description_snapshot: description.trim(),
+              },
+            ],
           },
         },
-      );
+      });
       if (encounterId && result.invoice.encounter_id !== encounterId) {
         throw new Error(
           "The saved invoice did not match this encounter. Review the billing ledger before trying again.",
