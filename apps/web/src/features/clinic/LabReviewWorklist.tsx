@@ -37,7 +37,10 @@ function dateLabel(value: string | null) {
   const date = new Date(value);
   return Number.isNaN(date.valueOf())
     ? "Reported date not recorded"
-    : date.toLocaleString();
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 }
 
 export function LabReviewWorklist() {

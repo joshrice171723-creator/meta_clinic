@@ -50,7 +50,12 @@ const filters: {
 function dateLabel(value: string | null) {
   if (!value) return "No due date";
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+  return Number.isNaN(date.valueOf())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 }
 
 export function OperationFollowUps() {
