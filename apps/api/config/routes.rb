@@ -168,6 +168,7 @@ Rails.application.routes.draw do
       post "controlled/:id/investigate", to: "inventory/management#investigate_control"
       post "controlled/:id/certify", to: "inventory/management#certify_control"
     end
+    get "lab_reports/review_queue", to: "care/lab_reports#review_queue"
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       get :lookup, on: :collection, to: "care/patients#lookup"
       get :billing_ledger, on: :member, to: "billing/patient_ledgers#show"

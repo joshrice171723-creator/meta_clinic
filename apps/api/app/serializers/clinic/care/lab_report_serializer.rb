@@ -36,6 +36,25 @@ module Clinic
         }
       end
 
+      def self.review_queue_item(report)
+        version = report.current_version
+        {
+          patient: {
+            id: report.patient.id,
+            display_name: report.patient.display_name,
+            reference: report.patient.reference
+          },
+          report_id: report.id,
+          current_version: {
+            id: version.id,
+            title: version.title,
+            status: version.status,
+            issued_at: iso(version.issued_at),
+            result_count: version.results.size
+          }
+        }
+      end
+
       def self.iso(value)
         value&.iso8601(6)
       end

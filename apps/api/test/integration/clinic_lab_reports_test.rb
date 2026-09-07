@@ -102,6 +102,108 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "review queue returns only visible unreviewed current versions oldest first without result values" do
+    oldest = create_report(
+      patient: @patient,
+      key: "queue-oldest",
+      issued_at: Time.utc(2026, 9, 6, 10),
+      title: "Oldest unreviewed report",
+      results: [
+        { name: "First", value: "queue-secret-one" },
+        { name: "Second", value: "queue-secret-two" }
+      ]
+    )
+    amended = create_report(
+      patient: @patient,
+      key: "queue-amended-base",
+      issued_at: Time.utc(2026, 9, 6, 9),
+      title: "Superseded report"
+    )
+    superseded_version = amended.current_version
+    amended_version = Clinic::Care::LabReports.append_version(
+      practice: @practice,
+      actor: @actor,
+      patient: @patient,
+      report: amended,
+      request_key: "queue-amended-version",
+      confirmed_patient: true,
+      expected_current_version_id: superseded_version.id,
+      version: lab_version_attributes(
+        issued_at: Time.utc(2026, 9, 6, 11),
+        title: "Current amended report",
+        status: "amended"
+      )
+    ).value
+    reviewed = create_report(
+      patient: @patient,
+      key: "queue-reviewed",
+      issued_at: Time.utc(2026, 9, 6, 8),
+      title: "Reviewed report"
+    )
+    Clinic::Care::LabReports.review(
+      practice: @practice,
+      actor: @actor,
+      patient: @patient,
+      report: reviewed,
+      version: reviewed.current_version,
+      request_key: "queue-reviewed-decision",
+      confirmed_patient: true
+    )
+
+    foreign_actor = User.create!(email_address: "foreign-lab-queue@example.invalid", password: SecureRandom.hex(18))
+    foreign_membership = @other_practice.memberships.create!(user: foreign_actor)
+    grant_permissions!(foreign_membership, "patients.read", "notes.read", "observations.write")
+    create_report(
+      practice: @other_practice,
+      actor: foreign_actor,
+      patient: @other_patient,
+      key: "queue-foreign",
+      issued_at: Time.utc(2026, 9, 6, 7),
+      title: "Foreign report"
+    )
+
+    get review_queue_path, params: { page: 1, per_page: 1 }, headers: @headers
+    assert_response :success
+    first_page = response.parsed_body
+    assert_equal({ "page" => 1, "per_page" => 1, "total" => 2 }, first_page.fetch("pagination"))
+    assert_equal true, first_page.fetch("can_review")
+    first_item = first_page.fetch("items").sole
+    assert_equal oldest.id, first_item.fetch("report_id")
+    assert_equal @patient.id, first_item.dig("patient", "id")
+    assert_equal 2, first_item.dig("current_version", "result_count")
+    assert_equal "final", first_item.dig("current_version", "status")
+    assert_nil first_item.dig("current_version", "results")
+    refute_includes JSON.generate(first_page), "queue-secret-one"
+
+    get review_queue_path, params: { page: 2, per_page: 1 }, headers: @headers
+    assert_response :success
+    second_item = response.parsed_body.fetch("items").sole
+    assert_equal amended.id, second_item.fetch("report_id")
+    assert_equal amended_version.id, second_item.dig("current_version", "id")
+    assert_not_equal superseded_version.id, second_item.dig("current_version", "id")
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read", "notes.read")
+    get review_queue_path, headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.fetch("can_review")
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read")
+    get review_queue_path, headers: @headers
+    assert_response :forbidden
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "notes.read")
+    get review_queue_path, headers: @headers
+    assert_response :forbidden
+
+    assert_recognizes(
+      { controller: "clinic/care/lab_reports", action: "review_queue" },
+      { path: review_queue_path, method: :get }
+    )
+  end
+
   private
 
   def reports_path(patient: @patient)
@@ -114,6 +216,33 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
 
   def review_path(report, version)
     "#{versions_path(report)}/#{version.id}/review"
+  end
+
+  def review_queue_path
+    "/api/clinic/lab_reports/review_queue"
+  end
+
+  def create_report(practice: @practice, actor: @actor, patient: @patient, key:, issued_at:, title:, results: nil)
+    Clinic::Care::LabReports.create(
+      practice: practice,
+      actor: actor,
+      patient: patient,
+      request_key: key,
+      confirmed_patient: true,
+      source_name: "Queue laboratory",
+      external_report_id: key,
+      version: lab_version_attributes(issued_at:, title:, results:)
+    ).value
+  end
+
+  def lab_version_attributes(issued_at:, title:, status: "final", results: nil)
+    {
+      title: title,
+      status: status,
+      collected_at: issued_at - 1.hour,
+      issued_at: issued_at,
+      results: results || [ { name: "Queue result", value: "recorded" } ]
+    }
   end
 
   def create_params(request_key:)

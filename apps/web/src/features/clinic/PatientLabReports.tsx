@@ -110,6 +110,17 @@ const initialPage = () => {
   const page = Number(new URLSearchParams(window.location.search).get("page"));
   return Number.isSafeInteger(page) && page > 0 ? page : 1;
 };
+const initialDirectReview = () => {
+  const params = new URLSearchParams(window.location.search);
+  const reportId = Number(params.get("lab_report_id"));
+  const versionId = Number(params.get("lab_version_id"));
+  return Number.isSafeInteger(reportId) &&
+    reportId > 0 &&
+    Number.isSafeInteger(versionId) &&
+    versionId > 0
+    ? { reportId, versionId }
+    : null;
+};
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "Date not recorded";
   const date = new Date(value);
@@ -145,10 +156,12 @@ export function PatientLabReports({
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [reviewRetryPending, setReviewRetryPending] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [directReviewError, setDirectReviewError] = useState("");
   const attempt = useRef<{ key: string; body: unknown; path: string } | null>(
     null,
   );
   const reviewAttempt = useRef<{ key: string; path: string } | null>(null);
+  const directReview = useRef(initialDirectReview());
   const canRead =
     capabilities.patients === true && capabilities.notes_read === true;
   const canWrite =
@@ -175,6 +188,52 @@ export function PatientLabReports({
       );
     return () => controller.abort();
   }, [canRead, page, patientId, reload]);
+  useEffect(() => {
+    const target = directReview.current;
+    if (!canRead || !data || !target) return;
+    directReview.current = null;
+    const controller = new AbortController();
+    api<{ report: LabReport }>(
+      `/api/clinic/patients/${patientId}/lab_reports/${target.reportId}`,
+      { signal: controller.signal },
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        const report = result.report;
+        const version =
+          report.current_version_id === target.versionId &&
+          report.current_version.id === target.versionId &&
+          report.current_version.reviewed_at === null
+            ? report.current_version
+            : null;
+        if (
+          report.id !== target.reportId ||
+          report.patient_id !== patientId ||
+          !version
+        ) {
+          setHistory(report);
+          setDirectReviewError(
+            "This report version is no longer current or has already been reviewed. The report history is open so you can check the current record.",
+          );
+          return;
+        }
+        if (canReview) {
+          setReviewTarget({ report, version });
+          setReviewConfirmed(false);
+        } else {
+          setHistory(report);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (controller.signal.aborted) return;
+        setDirectReviewError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to open the selected lab report.",
+        );
+      });
+    return () => controller.abort();
+  }, [canRead, canReview, data, patientId]);
   const save = async () => {
     if (
       !canWrite ||
@@ -361,6 +420,9 @@ export function PatientLabReports({
         </Typography>
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
+      {directReviewError && (
+        <Alert severity="warning">{directReviewError}</Alert>
+      )}
       {notice && <Alert severity="success">{notice}</Alert>}
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1.5}>

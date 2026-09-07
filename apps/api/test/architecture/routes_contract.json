@@ -245,6 +245,11 @@
     "/api/clinic/invoices/:id(.:format)"
   ],
   [
+    "api_clinic_lab_reports_review_queue",
+    "GET",
+    "/api/clinic/lab_reports/review_queue(.:format)"
+  ],
+  [
     "api_clinic_message_intent",
     "GET",
     "/api/clinic/message_intents/:id(.:format)"

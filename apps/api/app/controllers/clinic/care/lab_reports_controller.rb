@@ -2,7 +2,7 @@ module Clinic
   module Care
     class LabReportsController < Clinic::ApiController
       before_action -> { require_capability("patients.read") }
-      before_action -> { require_capability("notes.read", any_site: true) }, only: %i[index show]
+      before_action -> { require_capability("notes.read", any_site: true) }, only: %i[index show review_queue]
 
       VERSION_FIELDS = %i[title status collected_at issued_at].freeze
       RESULT_FIELDS = %i[name code value unit reference_range flag].freeze
@@ -19,6 +19,32 @@ module Clinic
           reports: reports.map { |report| LabReportSerializer.report(report) },
           pagination: { page:, per_page:, total: },
           can_write: can_write?, can_review: can_review?
+        }
+      end
+
+      def review_queue
+        page = page_param
+        per_page = per_page_param
+        visible_patient_ids = current_practice.patients.accessible_by(current_ability, :read).select(:id)
+        relation = current_practice.lab_reports
+          .where(patient_id: visible_patient_ids)
+          .joins(:current_version)
+          .where(clinic_lab_report_versions: { reviewed_at: nil })
+        total = relation.count
+        reports = relation.includes(:patient, :current_version)
+          .order("clinic_lab_report_versions.issued_at ASC", "clinic_lab_report_versions.id ASC", "clinic_lab_reports.id ASC")
+          .offset((page - 1) * per_page).limit(per_page)
+        Clinic::AuditRecorder.record!(
+          practice: current_practice,
+          actor: current_user,
+          action_code: "lab_report.read",
+          outcome: :released,
+          resource_version_ref: "lab_report:review_queue:page/#{page}:per_page/#{per_page}"
+        )
+        render json: {
+          items: reports.map { |report| LabReportSerializer.review_queue_item(report) },
+          pagination: { page:, per_page:, total: },
+          can_review: can_review?
         }
       end
 

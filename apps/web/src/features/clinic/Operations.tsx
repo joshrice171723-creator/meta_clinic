@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { ClinicOverview } from "../../api/contracts";
 import { Card } from "../../shared/ui";
+import { LabReviewWorklist } from "./LabReviewWorklist";
 import { OperationFollowUps } from "./OperationFollowUps";
 import { useClinic, useClinicOverview } from "./Workspace";
 
@@ -19,7 +20,8 @@ export function OperationsView({
       <p className="eyebrow">PRACTICE OPERATIONS</p>
       <h1>Operations</h1>
       <p className="clinic-lead">
-        Keep follow-ups moving, review supplies, and manage the clinic's daily work.
+        Keep follow-ups moving, review supplies, and manage the clinic's daily
+        work.
       </p>
       {followUps}
       <div className="clinic-stats">
@@ -114,7 +116,12 @@ export function Operations() {
       <OperationsView
         clinic={overview}
         facilitiesRead={context.capabilities.facilities_read === true}
-        followUps={<OperationFollowUps />}
+        followUps={
+          <>
+            <LabReviewWorklist />
+            <OperationFollowUps />
+          </>
+        }
       />
       <Card title="Care workflow access">
         <ul className="clinic-feature-list">
@@ -124,7 +131,8 @@ export function Operations() {
                 Schedule and encounters →
               </a>
               <p>
-                Schedule appointments, open visits, and review encounter history.
+                Schedule appointments, open visits, and review encounter
+                history.
               </p>
             </li>
           )}
