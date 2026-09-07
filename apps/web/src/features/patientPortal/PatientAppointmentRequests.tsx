@@ -17,21 +17,15 @@ import {
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import {
+  PatientAppointmentConfirmation,
+  type ConfirmableAppointment,
+} from "./PatientAppointmentConfirmation";
 import { PatientPrevisitNote } from "./PatientPrevisitNote";
 
 type Site = { id: number; code: string; name: string };
 type VisitType = { id: number; code: string };
-type AppointmentSnapshot = {
-  id: number;
-  starts_at: string;
-  ends_at: string;
-  status: string;
-  updated_at: string;
-  site: Site | null;
-  room: { id: number; code: string } | null;
-  clinician: { id: number; display_name: string } | null;
-  visit_type: VisitType | null;
-};
+type AppointmentSnapshot = ConfirmableAppointment;
 type AppointmentRequest = {
   id: number;
   request_key: string;
@@ -89,6 +83,16 @@ export function PatientAppointmentRequests() {
     appointment: AppointmentSnapshot;
     kind: "reschedule" | "cancel";
   } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    appointment: AppointmentSnapshot;
+    sourceUpdatedAt: string;
+  } | null>(null);
+  const [appointmentOverrides, setAppointmentOverrides] = useState<
+    Record<
+      number,
+      { appointment: AppointmentSnapshot; sourceUpdatedAt: string }
+    >
+  >({});
   const minimum = useMemo(() => localDateTime(new Date()), []);
   const intervalValid =
     new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
@@ -143,11 +147,12 @@ export function PatientAppointmentRequests() {
       <Stack spacing={2.5}>
         <Box>
           <Typography variant="h5" component="h2">
-            Request an appointment
+            Appointments
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Choose a preferred window, location, and visit type. The clinic will
-            review it before any appointment is booked.
+            Confirm an upcoming visit, share a note with your care team, or
+            request a new appointment. Your clinic reviews requests to book or
+            change a visit.
           </Typography>
         </Box>
         {!resource.data && !resource.error && (
@@ -177,81 +182,133 @@ export function PatientAppointmentRequests() {
                   You have no upcoming appointments to change.
                 </Typography>
               )}
-              {resource.data.upcoming_appointments.map((appointment) => {
-                const pendingChange = resource.data?.appointment_requests.find(
-                  (request) =>
-                    request.status === "pending" &&
-                    request.source_appointment?.id === appointment.id,
-                );
-                return (
-                  <Box
-                    key={appointment.id}
-                    sx={{
-                      borderTop: "1px solid",
-                      borderColor: "divider",
-                      pt: 1.5,
-                    }}
-                  >
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={1}
-                      sx={{ justifyContent: "space-between" }}
+              {resource.data.upcoming_appointments.map(
+                (originalAppointment) => {
+                  const override = appointmentOverrides[originalAppointment.id];
+                  const appointment =
+                    override?.sourceUpdatedAt === originalAppointment.updated_at
+                      ? override.appointment
+                      : originalAppointment;
+                  const pendingChange =
+                    resource.data?.appointment_requests.find(
+                      (request) =>
+                        request.status === "pending" &&
+                        request.source_appointment?.id === appointment.id,
+                    );
+                  return (
+                    <Box
+                      key={appointment.id}
+                      sx={{
+                        borderTop: "1px solid",
+                        borderColor: "divider",
+                        pt: 1.5,
+                      }}
                     >
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          {dateTime(appointment.starts_at)} –{" "}
-                          {dateTime(appointment.ends_at)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {appointment.site?.name ||
-                            appointment.site?.code ||
-                            "Location not recorded"}
-                          {appointment.room
-                            ? ` · Room ${appointment.room.code}`
-                            : ""}
-                          {appointment.visit_type
-                            ? ` · ${appointment.visit_type.code}`
-                            : ""}
-                        </Typography>
-                      </Box>
-                      {pendingChange ? (
-                        <Chip
-                          size="small"
-                          color="info"
-                          label={`${pendingChange.request_kind === "cancel" ? "Cancellation" : "Reschedule"} request pending`}
-                        />
-                      ) : (
-                        <Stack direction="row" spacing={1}>
-                          <Button
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        sx={{ justifyContent: "space-between" }}
+                      >
+                        <Box>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            {dateTime(appointment.starts_at)} –{" "}
+                            {dateTime(appointment.ends_at)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {appointment.site?.name ||
+                              appointment.site?.code ||
+                              "Location not recorded"}
+                            {appointment.room
+                              ? ` · Room ${appointment.room.code}`
+                              : ""}
+                            {appointment.visit_type
+                              ? ` · ${appointment.visit_type.code}`
+                              : ""}
+                          </Typography>
+                        </Box>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          sx={{
+                            alignItems: "center",
+                            columnGap: 1,
+                            flexWrap: "wrap",
+                            maxWidth: "100%",
+                            rowGap: 1,
+                          }}
+                        >
+                          <Chip
                             size="small"
-                            variant="outlined"
-                            onClick={() =>
-                              setChange({ appointment, kind: "reschedule" })
+                            color={
+                              appointment.status === "confirmed"
+                                ? "success"
+                                : "default"
                             }
-                          >
-                            Request reschedule
-                          </Button>
-                          <Button
-                            size="small"
-                            color="error"
-                            onClick={() =>
-                              setChange({ appointment, kind: "cancel" })
+                            label={
+                              appointment.status === "confirmed"
+                                ? "Confirmed"
+                                : "Scheduled"
                             }
-                          >
-                            Request cancellation
-                          </Button>
+                          />
+                          {pendingChange ? (
+                            <Chip
+                              size="small"
+                              color="info"
+                              label={`${pendingChange.request_kind === "cancel" ? "Cancellation" : "Reschedule"} request pending`}
+                            />
+                          ) : (
+                            <>
+                              {appointment.can_confirm && (
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  disabled={confirmation !== null}
+                                  onClick={() =>
+                                    setConfirmation({
+                                      appointment,
+                                      sourceUpdatedAt:
+                                        originalAppointment.updated_at,
+                                    })
+                                  }
+                                >
+                                  Confirm appointment
+                                </Button>
+                              )}
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                disabled={confirmation !== null}
+                                onClick={() =>
+                                  setChange({ appointment, kind: "reschedule" })
+                                }
+                              >
+                                Request reschedule
+                              </Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                disabled={confirmation !== null}
+                                onClick={() =>
+                                  setChange({ appointment, kind: "cancel" })
+                                }
+                              >
+                                Request cancellation
+                              </Button>
+                            </>
+                          )}
                         </Stack>
-                      )}
-                    </Stack>
-                    <Box sx={{ mt: 1 }}>
-                      <PatientPrevisitNote
-                        appointmentId={appointment.id}
-                        appointmentLabel={`${dateTime(appointment.starts_at)} · ${appointment.site?.name || appointment.site?.code || "Location not recorded"}${appointment.room ? ` · Room ${appointment.room.code}` : ""}`}
-                      />
+                      </Stack>
+                      <Box sx={{ mt: 1 }}>
+                        <PatientPrevisitNote
+                          appointmentId={appointment.id}
+                          appointmentLabel={`${dateTime(appointment.starts_at)} · ${appointment.site?.name || appointment.site?.code || "Location not recorded"}${appointment.room ? ` · Room ${appointment.room.code}` : ""}`}
+                        />
+                      </Box>
                     </Box>
-                  </Box>
-                );
-              })}
+                  );
+                },
+              )}
             </Stack>
             <Box>
               <Typography variant="h6" component="h3" sx={{ mb: 0.5 }}>
@@ -456,6 +513,24 @@ export function PatientAppointmentRequests() {
                   : "Your preferred reschedule time was sent to the clinic for review.",
               );
               resource.refresh();
+            }}
+          />
+        )}
+        {confirmation && (
+          <PatientAppointmentConfirmation
+            appointment={confirmation.appointment}
+            onClose={() => setConfirmation(null)}
+            onReload={resource.refresh}
+            onConfirmed={(appointment) => {
+              setAppointmentOverrides((current) => ({
+                ...current,
+                [appointment.id]: {
+                  appointment,
+                  sourceUpdatedAt: confirmation.sourceUpdatedAt,
+                },
+              }));
+              setConfirmation(null);
+              setNotice("Your appointment was confirmed.");
             }}
           />
         )}

@@ -3,7 +3,7 @@ module Clinic
     class AppointmentRequestsController < BaseController
       REQUEST_INCLUDES = [ :site, :visit_type, :source_site, :patient,
         { appointment: [ :site, :room, :booked_clinician, :visit_type ] } ].freeze
-      APPOINTMENT_INCLUDES = [ :site, :room, :booked_clinician, :visit_type ].freeze
+      APPOINTMENT_INCLUDES = [ :site, :room, :booked_clinician, :visit_type, :encounter ].freeze
 
       rescue_from ActiveRecord::StaleObjectError do
         render json: {
@@ -18,10 +18,21 @@ module Clinic
       def index
         requests = AppointmentRequest.for_practice(portal_practice)
           .where(patient: portal_patient).includes(*REQUEST_INCLUDES).recent.limit(20)
+        appointments = upcoming_appointments.to_a
+        pending_change_ids = AppointmentConfirmation.pending_change_ids(
+          practice: portal_practice,
+          patient: portal_patient,
+          appointment_ids: appointments.map(&:id)
+        )
         record_portal_read("patient_portal.appointment_request.read")
         render json: {
           appointment_requests: requests.map { |request| AppointmentRequestSerializer.call(request) },
-          upcoming_appointments: upcoming_appointments.map { |appointment| AppointmentRequestSerializer.appointment(appointment) },
+          upcoming_appointments: appointments.map do |appointment|
+            AppointmentConfirmation.portal_appointment(
+              appointment,
+              pending_change: pending_change_ids.include?(appointment.id)
+            )
+          end,
           options: request_options
         }
       end

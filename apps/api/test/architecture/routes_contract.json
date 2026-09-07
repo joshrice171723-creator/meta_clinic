@@ -690,6 +690,11 @@
     "/api/patient_portal/visit_instructions/:encounter_id(.:format)"
   ],
   [
+    "api_patient_portal_appointment_confirmation",
+    "PUT",
+    "/api/patient_portal/appointments/:appointment_id/confirmation(.:format)"
+  ],
+  [
     "api_patient_portal_appointment_previsit_note",
     "GET",
     "/api/patient_portal/appointments/:appointment_id/previsit_note(.:format)"

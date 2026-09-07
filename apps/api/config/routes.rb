@@ -340,6 +340,8 @@ Rails.application.routes.draw do
       resources :appointments, only: [] do
         resource :previsit_note, only: %i[show create]
       end
+      put "appointments/:appointment_id/confirmation", to: "appointment_confirmations#update",
+        as: :appointment_confirmation
       resources :requests, controller: "requests", only: %i[index create]
       patch "development_patient", to: "development_patient#update"
       post "invitation/activate", to: "activation#create"
