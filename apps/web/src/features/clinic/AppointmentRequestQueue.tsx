@@ -54,7 +54,27 @@ function inputTime(value: string) {
 
 function dateTime(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+  return Number.isNaN(date.valueOf())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
+}
+
+function dateTimeRange(start: string, end: string) {
+  const startsAt = new Date(start);
+  const endsAt = new Date(end);
+  if (Number.isNaN(startsAt.valueOf()) || Number.isNaN(endsAt.valueOf())) {
+    return `${dateTime(start)} – ${dateTime(end)}`;
+  }
+
+  const day = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+  const time = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
+  if (startsAt.toDateString() === endsAt.toDateString()) {
+    return `${day.format(startsAt)} · ${time.format(startsAt)} – ${time.format(endsAt)}`;
+  }
+  return `${dateTime(start)} – ${dateTime(end)}`;
 }
 
 export function AppointmentRequestQueue({
@@ -129,7 +149,7 @@ export function AppointmentRequestQueue({
               <Typography variant="body2" color="text.secondary">
                 {request.request_kind === "cancel"
                   ? "Cancellation requested"
-                  : `Requested ${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}`}
+                  : `Requested ${dateTimeRange(request.starts_at || "", request.ends_at || "")}`}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {request.source_appointment
@@ -324,16 +344,19 @@ function ReviewDialog({
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Alert severity="info">
             {isNewBooking
-              ? `${request.patient.display_name} requested ${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}. Confirm the actual booking details below.`
+              ? `${request.patient.display_name} requested ${dateTimeRange(request.starts_at || "", request.ends_at || "")}. Confirm the actual booking details below.`
               : isCancellation
                 ? `${request.patient.display_name} requested cancellation of the current appointment. Review the appointment below before approving.`
-                : `${request.patient.display_name} requested ${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}. Review the current appointment and preferred replacement time below.`}
+                : `${request.patient.display_name} requested ${dateTimeRange(request.starts_at || "", request.ends_at || "")}. Review the current appointment and preferred replacement time below.`}
           </Alert>
           {!isNewBooking && request.source_appointment && (
             <Typography variant="body2" color="text.secondary">
               Current appointment:{" "}
-              {dateTime(request.source_appointment.starts_at)} –{" "}
-              {dateTime(request.source_appointment.ends_at)} at{" "}
+              {dateTimeRange(
+                request.source_appointment.starts_at,
+                request.source_appointment.ends_at,
+              )}{" "}
+              at{" "}
               {request.source_appointment.site?.name ||
                 request.source_appointment.site?.code ||
                 "Location not recorded"}
