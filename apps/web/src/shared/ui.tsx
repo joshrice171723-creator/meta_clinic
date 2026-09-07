@@ -8,6 +8,15 @@ export function ErrorMessage({ message }: { message: string }) {
     </p>
   );
 }
+
+export function applyResourceResultIfActive<T>(
+  signal: AbortSignal,
+  data: T,
+  apply: (data: T) => void,
+) {
+  if (!signal.aborted) apply(data);
+}
+
 export function useResource<T>(
   path: string,
   { retainDataOnRefresh = false }: { retainDataOnRefresh?: boolean } = {},
@@ -26,7 +35,11 @@ export function useResource<T>(
         : { path },
     );
     api<T>(path, { signal: abort.signal })
-      .then((data) => setResult({ path, data }))
+      .then((data) =>
+        applyResourceResultIfActive(abort.signal, data, (activeData) =>
+          setResult({ path, data: activeData }),
+        ),
+      )
       .catch((error: unknown) => {
         if (abort.signal.aborted) return;
         if (error instanceof ApiError && error.status === 401) {
