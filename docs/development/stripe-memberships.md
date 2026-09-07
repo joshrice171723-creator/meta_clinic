@@ -12,11 +12,11 @@ Create `apps/api/tmp/stripe-sandbox.json` privately (the directory is Git-ignore
 {
   "STRIPE_SANDBOX_KEY": "",
   "STRIPE_CONNECT_WEBHOOK_SECRET": "",
-  "STRIPE_RETURN_ORIGIN": "http://127.0.0.1:3200"
+  "STRIPE_RETURN_ORIGIN": "http://127.0.0.1:3000"
 }
 ```
 
-Save a newly created `rk_test_` restricted server key in the first field. Do not commit this file or paste its contents into chat. Server environment variables with the same names override the private file; test environments use environment variables only. Changing the private file does not require restarting Rails. Adding the Stripe gem to a running server does require a restart.
+Save a newly created `rk_test_` restricted server key in the first field. Do not commit this file or paste its contents into chat. Server environment variables with the same names override the private file; test environments use environment variables only. Changing the private file does not require restarting Rails. Adding the Stripe gem to a running server does require a restart. Open APPly with the exact configured return origin. Browsing through the `localhost` alias creates a different cookie scope and will not carry a `127.0.0.1` session through hosted Checkout.
 
 Restricted-key permissions must cover the actual calls below. Stripe's Dashboard may group Accounts v2 creation under configuration permissions. If a call is denied, review the denied endpoint and grant its specific resource; do not enable every product.
 
@@ -27,16 +27,16 @@ Restricted-key permissions must cover the actual calls below. Stripe's Dashboard
 
 No payout/transfer/refund creation permission is needed by APPly. Stripe onboarding selects full Dashboard access, US/USD, merchant card payments and Stripe as fees/losses collector. The account is verified again before payment. The clinic owns its processing fees and payout account. Clinic business/bank details and any agreements are completed by the user on Stripe's hosted page.
 
-For a clean local start, follow [getting started](getting-started.md), using the existing database and port environment settings. Do not reset a populated database. The current review runtime uses `apply_sc269_development`, web port `3200` and API port `3201`. Migrations `20260906000200` through `20260906000400` are additive. Preserve the existing publication migration and runtime privilege requirements.
+For a clean local start, follow [getting started](getting-started.md), using the existing database and port environment settings. Do not reset a populated database. The canonical local runtime uses web port `3000` and API port `3001`. Migrations `20260906000200` through `20260906000400` are additive. Preserve the existing publication migration and runtime privilege requirements.
 
 Install the official [Stripe CLI](https://docs.stripe.com/cli). On this Windows workspace, the official binary is available privately at `apps/api/tmp/stripe-cli/stripe.exe`. From the repository root, start the listener after saving the key:
 
 ```powershell
-$env:APPLY_API_PORT = '3201'
+$env:APPLY_API_PORT = '3001'
 ruby bin/stripe-listen
 ```
 
-Keep that terminal open. The helper passes the key in the child process environment, saves the listener's signing secret into the private JSON file without printing it, and forwards only the listed membership events to `http://127.0.0.1:3201/stripe/connect/webhook`. It does not generate events, run tests or create charges. A stale `STRIPE_CONNECT_WEBHOOK_SECRET` environment override must be removed or updated to match the listener. No public tunnel or Dashboard webhook destination is needed for this local listener.
+Keep that terminal open. The helper passes the key in the child process environment, saves the listener's signing secret into the private JSON file without printing it, and forwards only the listed membership events to `http://127.0.0.1:3001/stripe/connect/webhook`. It does not generate events, run tests or create charges. A stale `STRIPE_CONNECT_WEBHOOK_SECRET` environment override must be removed or updated to match the listener. No public tunnel or Dashboard webhook destination is needed for this local listener.
 
 The subscribed snapshot events are `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `invoice.payment_failed`, `invoice.payment_action_required`, `customer.subscription.updated`, `customer.subscription.deleted` and `charge.refunded`. Connected-account event routing is mandatory. Account onboarding status is explicitly refreshed through **Check connection**; Accounts v2 thin events are not consumed.
 
@@ -44,9 +44,9 @@ The subscribed snapshot events are `checkout.session.completed`, `checkout.sessi
 
 Joshua authorized a light automated-testing pass during the non-inventory integration. Focused automated checks support the manual walkthrough below; they do not establish Stripe payment or user acceptance. The earlier testing pause is preserved in the dated handoff as historical evidence.
 
-1. Open `http://127.0.0.1:3200/login`, choose **OmniLogin**, then open `http://127.0.0.1:3200/clinic/billing`. Select **Stripe setup**. After the listener is ready, reload and choose **Connect clinic with Stripe**. Complete the sandbox onboarding yourself, return, and choose **Check connection**. Both card payments and payouts must be enabled.
+1. Open `http://127.0.0.1:3000/login`, choose **OmniLogin**, then open `http://127.0.0.1:3000/clinic/billing`. Select **Stripe setup**. After the listener is ready, reload and choose **Connect clinic with Stripe**. Complete the sandbox onboarding yourself, return, and choose **Check connection**. Both card payments and payouts must be enabled.
 2. Open **Subscriptions** in the clinic sidebar. Create/edit a membership with a positive USD monthly price, automatic renewal, one-month duration, end-of-term cancellation and maximum one purchase per patient. Publish its immutable version. Existing service-selection and eligibility review rules still apply.
-3. Sign out and choose **Open assigned patient portal** at the login page. On `http://127.0.0.1:3200/patient-portal`, select the published membership, review the server quote and enroll. The preview portal cannot purchase. Complete only sandbox Checkout using Stripe's documented sandbox payment details.
+3. Sign out and choose **Open assigned patient portal** at the login page. On `http://127.0.0.1:3000/patient-portal`, select the published membership, review the server quote and enroll. The preview portal cannot purchase. Complete only sandbox Checkout using Stripe's documented sandbox payment details.
 4. On return, select **Check payment status** if delivery has not arrived. A browser return alone grants nothing. Once Stripe confirms full payment, inspect the paid dates and receipt. Return as Omni to **Billing → Subscriptions**, then inspect the corresponding invoice and payment in the other Billing tabs. Stripe should show a connected-account subscription with `application_fee_percent = 2.1`; each successful invoice's payment must have the matching rounded fee.
 5. Abandon another unpaid Checkout to review the pending state. It can be resumed or canceled; repeated requests reuse the original session. A expired Checkout is reconciled before another enrollment is allowed. Unknown provider outcomes require recovery, not a second payment.
 6. On each real sandbox monthly renewal, paid invoice evidence creates one new local invoice/payment/receipt and updates the paid interval. Failed, incomplete or past-due collection does not extend access. The patient can reopen an outstanding hosted Stripe invoice and then check payment status. **Refresh from Stripe** backfills missed paid invoice history without creating charges.
