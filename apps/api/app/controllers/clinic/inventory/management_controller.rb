@@ -94,6 +94,10 @@ module Clinic
         render json: { data: InventoryWire.purchasing(practice: current_practice, actor: current_user, query: params[:q], status: params[:order_status], page: params[:page]) }
       end
       def receiving
+        if params[:view] == "intake"
+          return render json: { data: InventoryWire.delivery_intake(practice: current_practice, actor: current_user,
+            query: params[:q], page: params[:page], purchase_order_id: params[:purchase_order_id]) }
+        end
         return bootstrap unless params[:view] == "deliveries"
 
         render json: { data: InventoryWire.receiving(practice: current_practice, actor: current_user, query: params[:q], status: params[:delivery_status], page: params[:page], shipment_id: params[:shipment_id]) }
@@ -345,7 +349,8 @@ module Clinic
             shipment
           end
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: shipment.id }, status: :created
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: shipment.id), status: :created
       end
 
       def create_receipt

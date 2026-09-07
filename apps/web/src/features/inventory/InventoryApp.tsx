@@ -41,6 +41,8 @@ import type {
   InventoryOrderRead,
   InventoryDeliveryData,
   InventoryDeliveryRead,
+  InventoryShipmentIntakeData,
+  InventoryShipmentIntakeRead,
   InventoryReceivingDetail,
   InventoryReceivingLotLookup,
   InventoryProduct,
@@ -2451,6 +2453,7 @@ export function InventoryApp({ path }: { path: string }) {
     | InventoryStockData
     | InventoryOrderData
     | InventoryDeliveryData
+    | InventoryShipmentIntakeData
   >();
   const readVersion = useRef(0);
   const [error, setError] = useState("");
@@ -2496,6 +2499,7 @@ export function InventoryApp({ path }: { path: string }) {
       "stock_page" in data ||
       "order_page" in data ||
       "delivery_page" in data ||
+      "intake_page" in data ||
       !needsPurchaseOrderFacility
     )
       return;
@@ -2515,7 +2519,8 @@ export function InventoryApp({ path }: { path: string }) {
       InventoryControlledRead &
       InventoryStockRead &
       InventoryOrderRead &
-      InventoryDeliveryRead & { before?: string | null },
+      InventoryDeliveryRead &
+      InventoryShipmentIntakeRead & { before?: string | null },
   ) => {
     const read: InventoryCatalogRead &
       InventoryPlanRead &
@@ -2527,7 +2532,8 @@ export function InventoryApp({ path }: { path: string }) {
       InventoryControlledRead &
       InventoryStockRead &
       InventoryOrderRead &
-      InventoryDeliveryRead & { before?: string | null } = {
+      InventoryDeliveryRead &
+      InventoryShipmentIntakeRead & { before?: string | null } = {
       ...(needsPurchaseOrderFacility
         ? {
             plan_mode: (screen === "purchase_order_new"
@@ -2618,15 +2624,24 @@ export function InventoryApp({ path }: { path: string }) {
                                 shipment_id:
                                   data.delivery_page.selected_shipment_id,
                               }
-                            : needsPurchaseOrderFacility &&
+                            : screen === "shipment_new" &&
                                 data &&
-                                "plan_page" in data
+                                "intake_page" in data
                               ? {
-                                  q: data.plan_page.query,
-                                  plan_mode: data.plan_page.mode,
-                                  page: data.plan_page.page,
+                                  q: data.intake_page.query,
+                                  page: data.intake_page.page,
+                                  purchase_order_id:
+                                    data.intake_page.selected_order_id,
                                 }
-                              : {})),
+                              : needsPurchaseOrderFacility &&
+                                  data &&
+                                  "plan_page" in data
+                                ? {
+                                    q: data.plan_page.query,
+                                    plan_mode: data.plan_page.mode,
+                                    page: data.plan_page.page,
+                                  }
+                                : {})),
     };
     const version = ++readVersion.current;
     setLoading(true);
@@ -2642,6 +2657,7 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "lots") query.set("view", "positions");
         if (screen === "purchasing") query.set("view", "batches");
         if (screen === "receiving") query.set("view", "deliveries");
+        if (screen === "shipment_new") query.set("view", "intake");
         if (screen === "supplier_pricing") query.set("view", "table");
         if (screen === "locations") query.set("view", "tree");
         if (screen === "exceptions") query.set("view", "queue");
@@ -2679,6 +2695,12 @@ export function InventoryApp({ path }: { path: string }) {
             : read.shipment_id;
         if (screen === "receiving" && shipmentId)
           query.set("shipment_id", shipmentId);
+        const purchaseOrderId =
+          read.purchase_order_id === undefined
+            ? routeQuery.get("purchase_order_id")
+            : read.purchase_order_id;
+        if (screen === "shipment_new" && purchaseOrderId)
+          query.set("purchase_order_id", purchaseOrderId);
         if (screen === "lots" && routeQuery.get("product_id"))
           query.set("product_id", routeQuery.get("product_id")!);
         if (screen === "activity" && routeQuery.get("lot_id"))
@@ -2715,9 +2737,11 @@ export function InventoryApp({ path }: { path: string }) {
                               ? `/api/clinic/inventory/supplier-pricing?${query}`
                               : screen === "receiving"
                                 ? `/api/clinic/inventory/receiving?${query}`
-                                : needsPurchaseOrderFacility
-                                  ? `/api/clinic/inventory/replenishment?${query}`
-                                  : "/api/clinic/inventory/bootstrap";
+                                : screen === "shipment_new"
+                                  ? `/api/clinic/inventory/receiving?${query}`
+                                  : needsPurchaseOrderFacility
+                                    ? `/api/clinic/inventory/replenishment?${query}`
+                                    : "/api/clinic/inventory/bootstrap";
         const payload = await api<{
           data:
             | InventoryData
@@ -2732,7 +2756,8 @@ export function InventoryApp({ path }: { path: string }) {
             | InventoryControlledData
             | InventoryStockData
             | InventoryOrderData
-            | InventoryDeliveryData;
+            | InventoryDeliveryData
+            | InventoryShipmentIntakeData;
         }>(endpoint, { signal: controller.signal });
         if (version !== readVersion.current) return;
         if (
@@ -2748,7 +2773,8 @@ export function InventoryApp({ path }: { path: string }) {
           needsPurchaseOrderFacility !== "plan_page" in payload.data ||
           (screen === "lots") !== "stock_page" in payload.data ||
           (screen === "purchasing") !== "order_page" in payload.data ||
-          (screen === "receiving") !== "delivery_page" in payload.data
+          (screen === "receiving") !== "delivery_page" in payload.data ||
+          (screen === "shipment_new") !== "intake_page" in payload.data
         )
           throw new Error(
             "The inventory service returned an incomplete response.",
@@ -2829,6 +2855,7 @@ export function InventoryApp({ path }: { path: string }) {
           "receiving",
           "replenishment",
           "purchase_order_new",
+          "shipment_new",
           "exceptions",
           "recalls",
           "counts",
@@ -2848,6 +2875,7 @@ export function InventoryApp({ path }: { path: string }) {
           "receiving",
           "replenishment",
           "purchase_order_new",
+          "shipment_new",
           "exceptions",
           "recalls",
           "counts",
@@ -2879,6 +2907,7 @@ export function InventoryApp({ path }: { path: string }) {
           "receiving",
           "replenishment",
           "purchase_order_new",
+          "shipment_new",
           "exceptions",
           "recalls",
           "counts",
@@ -2942,6 +2971,7 @@ export function InventoryApp({ path }: { path: string }) {
     !("stock_page" in data) &&
     !("order_page" in data) &&
     !("delivery_page" in data) &&
+    !("intake_page" in data) &&
     !purchaseOrderFacilities(data).some(facilityCanReceivePurchaseOrder)
   )
     return (
@@ -3158,6 +3188,16 @@ export function InventoryApp({ path }: { path: string }) {
                 error={error}
                 onRead={load}
               />
+            ) : "intake_page" in data ? (
+              <ShipmentCreateScreen
+                data={data}
+                busy={busy}
+                readBlocked={Boolean(uncertainMutation)}
+                loading={loading}
+                error={error}
+                run={run}
+                onRead={load}
+              />
             ) : (
               <>
                 {screen === "catalog_new" && (
@@ -3165,9 +3205,6 @@ export function InventoryApp({ path }: { path: string }) {
                 )}
                 {screen === "configure" && (
                   <InventoryConfigureScreen data={data} busy={busy} run={run} />
-                )}
-                {screen === "shipment_new" && (
-                  <ShipmentCreateScreen data={data} busy={busy} run={run} />
                 )}
               </>
             )}
@@ -4429,43 +4466,80 @@ function PurchaseCartWorkspace({
 function ShipmentCreateScreen({
   data,
   busy,
+  readBlocked,
+  loading,
+  error,
   run,
+  onRead,
 }: {
-  data: InventoryData;
+  data: InventoryShipmentIntakeData;
   busy: boolean;
+  readBlocked: boolean;
+  loading: boolean;
+  error: string;
   run: InventoryRun;
+  onRead: (read: InventoryShipmentIntakeRead) => Promise<void>;
 }) {
-  const openOrders = data.purchase_orders.filter((order) =>
-    ["sent", "partially_received"].includes(order.status),
-  );
-  const requestedOrderId = new URLSearchParams(window.location.search).get(
-    "purchase_order_id",
-  );
-  const initialOrder =
-    openOrders.find((order) => order.id === requestedOrderId) ?? openOrders[0];
-  const [orderId, setOrderId] = useState(initialOrder?.id ?? "");
-  const order = openOrders.find((record) => record.id === orderId);
-  const initialLine = order?.lines.find(
-    (line) =>
-      decimalCompare(
-        decimalSubtract(line.ordered_packages, line.received_packages),
-        "0",
-      ) > 0,
-  );
-  const [lineId, setLineId] = useState(initialLine?.id ?? "");
-  const line =
-    order?.lines.find((record) => record.id === lineId) ?? initialLine;
-  const remaining = line
-    ? nonNegative(
-        decimalSubtract(line.ordered_packages, line.received_packages),
-      )
-    : "0";
-  const [packages, setPackages] = useState(remaining);
+  const result = data.intake_page;
+  const order = data.selected_order;
+  const [query, setQuery] = useState(result.query);
+  const [lineId, setLineId] = useState("");
+  const [packages, setPackages] = useState("");
   const [reference, setReference] = useState("");
   const [supplierReference, setSupplierReference] = useState("");
+  useEffect(() => setQuery(result.query), [result.query]);
+  useEffect(() => {
+    const firstAvailable = order?.lines.find(
+      (candidate) => decimalCompare(candidate.available_packages, "0") > 0,
+    );
+    setLineId(firstAvailable?.id ?? order?.lines[0]?.id ?? "");
+    setPackages("");
+  }, [order?.id]);
+  const line = order?.lines.find((record) => record.id === lineId) ?? null;
+  const availablePackages = line?.available_packages ?? "0";
+  const writeDisabled = busy || loading || readBlocked;
+  const hasWholePositivePackages =
+    /^\d+$/.test(packages) && decimalCompare(packages, "0") > 0;
+  const canSubmit =
+    !writeDisabled &&
+    Boolean(order) &&
+    Boolean(line) &&
+    capability(data, "inventory.receive") &&
+    hasWholePositivePackages &&
+    decimalCompare(packages, availablePackages) <= 0 &&
+    Boolean(reference.trim()) &&
+    Boolean(supplierReference.trim());
+  const selectedOption = order
+    ? {
+        id: order.id,
+        number: order.number,
+        status: order.status,
+        supplier: order.supplier,
+        destination: order.destination,
+      }
+    : null;
+  const orderOptions =
+    selectedOption &&
+    !data.order_options.some((option) => option.id === selectedOption.id)
+      ? [selectedOption, ...data.order_options]
+      : data.order_options;
+  const selectOrder = (purchaseOrderId: string) =>
+    void onRead({
+      q: result.query,
+      page: result.page,
+      purchase_order_id: purchaseOrderId,
+    });
+  const submitSearch = (event: FormEvent) => {
+    event.preventDefault();
+    void onRead({
+      q: query.trim(),
+      page: 1,
+      purchase_order_id: result.selected_order_id,
+    });
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!order || !line) return;
+    if (!canSubmit || !order || !line) return;
     void run(
       "/api/clinic/inventory/shipments",
       {
@@ -4479,29 +4553,16 @@ function ShipmentCreateScreen({
       },
       "Delivery recorded",
       `${number(packages)} packages are ready for receiving and put-away.`,
-      () => window.location.assign("/clinic/inventory/receiving"),
+      (payload) => {
+        const shipmentId = payload.id;
+        window.location.assign(
+          shipmentId
+            ? `/clinic/inventory/receiving?shipment_id=${encodeURIComponent(String(shipmentId))}`
+            : "/clinic/inventory/receiving",
+        );
+      },
     );
   };
-  if (!order || !line)
-    return (
-      <Card title="Record delivered shipment">
-        <p>No sent purchase order is ready for delivery intake.</p>
-        <div className="inventory-form-actions">
-          <a
-            className="inventory-button outline"
-            href="/clinic/inventory/purchasing/new"
-          >
-            Create purchase order
-          </a>
-          <a
-            className="inventory-button outline"
-            href="/clinic/inventory/purchasing"
-          >
-            Back to purchasing
-          </a>
-        </div>
-      </Card>
-    );
   return (
     <div className="inventory-stack">
       <a className="inventory-back-link" href="/clinic/inventory/purchasing">
@@ -4514,132 +4575,162 @@ function ShipmentCreateScreen({
             delivered; inventory is not available until Receiving confirms the
             lot and put-away details.
           </p>
+          <form className="inventory-toolbar" onSubmit={submitSearch}>
+            <TextField
+              size="small"
+              label="Search open purchase orders"
+              placeholder="Order number, supplier, or destination"
+              value={query}
+              disabled={writeDisabled}
+              onChange={(event) => setQuery(event.target.value)}
+              slotProps={{ htmlInput: { maxLength: 100 } }}
+            />
+            <Button type="submit" variant="outlined" disabled={writeDisabled}>
+              Search orders
+            </Button>
+          </form>
+          <p className="inventory-results-count" role="status">
+            {loading
+              ? "Loading open purchase orders…"
+              : `Showing ${result.filtered_count === 0 ? 0 : (result.page - 1) * result.page_size + 1}–${Math.min(result.page * result.page_size, result.filtered_count)} of ${result.filtered_count} open purchase orders.`}
+          </p>
+          {error && (
+            <Alert severity="error">
+              {error} The previous selection remains available.
+            </Alert>
+          )}
           <form className="inventory-form-grid" onSubmit={submit}>
-            <Field label="Purchase order">
-              <select
-                value={order.id}
-                onChange={(event) => {
-                  const nextOrder = openOrders.find(
-                    (record) => record.id === event.target.value,
-                  );
-                  const nextLine = nextOrder?.lines.find(
-                    (candidate) =>
-                      decimalCompare(
-                        decimalSubtract(
-                          candidate.ordered_packages,
-                          candidate.received_packages,
-                        ),
-                        "0",
-                      ) > 0,
-                  );
-                  setOrderId(event.target.value);
-                  setLineId(nextLine?.id ?? "");
-                  setPackages(
-                    nextLine
-                      ? nonNegative(
-                          decimalSubtract(
-                            nextLine.ordered_packages,
-                            nextLine.received_packages,
-                          ),
-                        )
-                      : "0",
-                  );
-                }}
-              >
-                {openOrders.map((record) => (
-                  <option key={record.id} value={record.id}>
+            <TextField
+              select
+              label="Purchase order"
+              value={order?.id ?? ""}
+              disabled={writeDisabled || orderOptions.length === 0}
+              onChange={(event) => selectOrder(event.target.value)}
+              helperText="Sent and partially received orders only."
+            >
+              {orderOptions.length === 0 ? (
+                <MenuItem value="">No open purchase orders found</MenuItem>
+              ) : (
+                orderOptions.map((record) => (
+                  <MenuItem key={record.id} value={record.id}>
                     {record.number} · {record.status.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {order.lines.length > 1 && (
-              <Field label="Order line">
-                <select
+                    {record.supplier ? ` · ${record.supplier}` : ""}
+                  </MenuItem>
+                ))
+              )}
+            </TextField>
+            {result.page_count > 1 && (
+              <div className="inventory-form-actions">
+                <Button
+                  type="button"
+                  variant="outlined"
+                  disabled={writeDisabled || result.page === 1}
+                  onClick={() =>
+                    void onRead({
+                      q: result.query,
+                      page: result.page - 1,
+                      purchase_order_id: result.selected_order_id,
+                    })
+                  }
+                >
+                  Previous page
+                </Button>
+                <span aria-live="polite">
+                  Page {result.page} of {result.page_count}
+                </span>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  disabled={writeDisabled || result.page === result.page_count}
+                  onClick={() =>
+                    void onRead({
+                      q: result.query,
+                      page: result.page + 1,
+                      purchase_order_id: result.selected_order_id,
+                    })
+                  }
+                >
+                  Next page
+                </Button>
+              </div>
+            )}
+            {order && line && (
+              <>
+                <TextField
+                  select
+                  label="Order line"
                   value={line.id}
+                  disabled={writeDisabled}
                   onChange={(event) => {
-                    const nextLine = order.lines.find(
-                      (record) => record.id === event.target.value,
-                    );
                     setLineId(event.target.value);
-                    setPackages(
-                      nextLine
-                        ? nonNegative(
-                            decimalSubtract(
-                              nextLine.ordered_packages,
-                              nextLine.received_packages,
-                            ),
-                          )
-                        : "0",
-                    );
+                    setPackages("");
                   }}
                 >
                   {order.lines.map((record) => (
-                    <option key={record.id} value={record.id}>
-                      {product(data, record.product_id)?.name ?? record.id}
-                    </option>
+                    <MenuItem key={record.id} value={record.id}>
+                      {record.product_name} ·{" "}
+                      {number(record.available_packages)} packages available
+                    </MenuItem>
                   ))}
-                </select>
-              </Field>
+                </TextField>
+                <TextField
+                  label="Packages delivered"
+                  type="number"
+                  value={packages}
+                  disabled={
+                    writeDisabled || decimalCompare(availablePackages, "0") <= 0
+                  }
+                  onChange={(event) => setPackages(event.target.value)}
+                  slotProps={{
+                    htmlInput: {
+                      min: 1,
+                      max: Number(availablePackages),
+                      step: 1,
+                    },
+                  }}
+                  helperText={`${number(line.ordered_packages)} ordered · ${number(line.received_packages)} received · ${number(line.allocated_packages)} allocated · ${number(availablePackages)} available`}
+                  required
+                />
+                {decimalCompare(availablePackages, "0") <= 0 && (
+                  <Alert severity="info">
+                    This line is fully allocated to open deliveries. Select
+                    another line or wait for receiving to reconcile an existing
+                    delivery.
+                  </Alert>
+                )}
+                <TextField
+                  label="Internal shipment reference"
+                  value={reference}
+                  disabled={writeDisabled}
+                  onChange={(event) => setReference(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 80 } }}
+                  helperText="A unique receiving record, such as SHIP-2026-001."
+                  required
+                />
+                <TextField
+                  label="Supplier delivery reference"
+                  value={supplierReference}
+                  disabled={writeDisabled}
+                  onChange={(event) => setSupplierReference(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 120 } }}
+                  helperText="Use the packing slip, tracking, or delivery number."
+                  required
+                />
+              </>
             )}
-            <Field label="Product">
-              <input
-                value={
-                  product(data, line.product_id)?.name ?? "Unknown catalog item"
-                }
-                readOnly
-              />
-            </Field>
-            <Field
-              label="Packages delivered"
-              hint={`${number(decimalMultiply(packages || "0", line.units_per_package))} ${unitLabel(data, line.product_id)} total · ${number(remaining)} remaining on PO`}
-            >
-              <input
-                type="number"
-                min={1}
-                max={Number(remaining)}
-                step={1}
-                value={packages}
-                onChange={(event) => setPackages(event.target.value)}
-                required
-              />
-            </Field>
-            <Field
-              label="Internal shipment reference"
-              hint="A unique receiving record, such as SHIP-2026-001."
-            >
-              <input
-                value={reference}
-                onChange={(event) => setReference(event.target.value)}
-                maxLength={80}
-                required
-              />
-            </Field>
-            <Field
-              label="Supplier delivery reference"
-              hint="Use the packing slip, tracking, or delivery number."
-            >
-              <input
-                value={supplierReference}
-                onChange={(event) => setSupplierReference(event.target.value)}
-                maxLength={120}
-                required
-              />
-            </Field>
+            {!order && (
+              <Alert severity="info">
+                No matching open purchase orders. Search again or create and
+                send a purchase order before recording delivery.
+              </Alert>
+            )}
             <div className="inventory-form-actions">
               <PermissionNote
                 allowed={capability(data, "inventory.receive")}
                 permission="inventory.receive"
               />
               <ConfirmButton
-                disabled={
-                  busy ||
-                  !capability(data, "inventory.receive") ||
-                  !validDecimal(packages) ||
-                  decimalCompare(packages || "0", remaining) > 0 ||
-                  !reference.trim() ||
-                  !supplierReference.trim()
-                }
+                disabled={!canSubmit}
                 onConfirm={() => {
                   const fake = new Event("submit") as unknown as FormEvent;
                   submit(fake);
@@ -4654,14 +4745,18 @@ function ShipmentCreateScreen({
           <div className="inventory-stack compact">
             <DataPoint
               label="PO status"
-              value={order.status.replaceAll("_", " ")}
-              detail="Only sent orders can receive deliveries"
+              value={order?.status.replaceAll("_", " ") ?? "Not selected"}
+              detail={order?.destination ?? "Select an open purchase order"}
               tone="blue"
             />
             <DataPoint
               label="This shipment"
               value={`${number(packages)} packages`}
-              detail={`${number(decimalMultiply(packages || "0", line.units_per_package))} ${unitLabel(data, line.product_id)}`}
+              detail={
+                line
+                  ? `${number(decimalMultiply(packages || "0", line.units_per_package))} ${line.stock_unit}`
+                  : "Choose a purchase-order line"
+              }
             />
             <DataPoint
               label="Next screen"

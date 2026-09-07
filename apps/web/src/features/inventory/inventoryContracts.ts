@@ -964,3 +964,48 @@ export type InventoryDeliveryData = InventoryReceivingDetail & {
     status: string;
   }[];
 };
+
+export type InventoryShipmentIntakeRead = {
+  q?: string;
+  page?: number;
+  purchase_order_id?: string | null;
+};
+
+export type InventoryShipmentIntakeLine = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  stock_unit: string;
+  ordered_packages: Decimal;
+  received_packages: Decimal;
+  allocated_packages: Decimal;
+  available_packages: Decimal;
+  units_per_package: Decimal;
+};
+
+export type InventoryShipmentIntakeData = InventoryReadContext & {
+  intake_page: {
+    query: string;
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+    selected_order_id: string | null;
+  };
+  order_options: {
+    id: string;
+    number: string;
+    status: string;
+    supplier: string | null;
+    destination: string | null;
+  }[];
+  selected_order: {
+    id: string;
+    number: string;
+    status: string;
+    supplier: string | null;
+    destination: string | null;
+    lines: InventoryShipmentIntakeLine[];
+  } | null;
+};

@@ -349,6 +349,23 @@ module Clinic
           recalls: recalls.map { |recall| { id: recall.id.to_s, product_id: product.id.to_s, lot_numbers: [ lot.number ], reference: recall.reference, required_disposition: recall.required_disposition } } }
       end
 
+      def delivery_intake(practice:, actor:, **filters)
+        result = ReceivingQuery.intake(practice: practice, **filters)
+        order_option = ->(order) { { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, destination: order.destination } }
+        selected = result.selected
+        context(practice: practice, actor: actor).merge(
+          intake_page: { query: result.query, page: result.page, page_count: result.page_count, page_size: ReceivingQuery::PAGE_SIZE,
+            total_count: result.total_count, filtered_count: result.filtered_count, selected_order_id: selected&.id&.to_s },
+          order_options: result.orders.map(&order_option),
+          selected_order: selected && order_option.call(selected).merge(lines: selected.lines.map do |line|
+            allocated = result.allocations.fetch(line.id, 0).to_d
+            { id: line.id.to_s, product_id: line.product_id.to_s, product_name: line.product_name, stock_unit: line.stock_unit,
+              ordered_packages: line.ordered_quantity.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F"),
+              allocated_packages: allocated.to_s("F"), available_packages: [ line.remaining_quantity - allocated, 0.to_d ].max.to_s("F"),
+              units_per_package: line.conversion_factor.to_d.to_s("F") }
+          end))
+      end
+
       def receiving(practice:, actor:, **filters)
         result = ReceivingQuery.call(practice: practice, **filters)
         selected = result.selected && Shipment.where(practice_id: practice.id).includes(:reconciliation, :shipment_lines, { receipts: { lines: { batch: :lot } } }, { purchase_order: [ :supplier, { lines: :product } ] }).find(result.selected.id)

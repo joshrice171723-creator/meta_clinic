@@ -223,6 +223,47 @@ class Clinic::Inventory::ReceivingTest < ActiveSupport::TestCase
     assert_empty @product.batches
   end
 
+  test "delivery intake subtracts pending allocations without double counting received packages" do
+    read = -> { Clinic::Inventory::InventoryWire.delivery_intake(practice: @practice, actor: @actor, purchase_order_id: @order.id) }
+    line = read.call.fetch(:selected_order).fetch(:lines).sole
+    assert_equal "2.0", line.fetch(:allocated_packages)
+    assert_equal "0.0", line.fetch(:received_packages)
+    assert_equal "1.0", line.fetch(:available_packages)
+    assert_equal "7.25", line.fetch(:units_per_package)
+
+    receive
+    line = read.call.fetch(:selected_order).fetch(:lines).sole
+    assert_equal "0.0", line.fetch(:allocated_packages)
+    assert_equal "2.0", line.fetch(:received_packages)
+    assert_equal "1.0", line.fetch(:available_packages)
+  end
+
+  test "delivery intake pages open orders and selects exact tenant scoped records outside the page" do
+    Clinic::Inventory::ReceivingQuery::PAGE_SIZE.times { order_for(@practice) }
+    other_practice = Clinic::Practice.create!(name: "Other intake clinic")
+    other_actor = User.create!(email_address: "other-intake@example.invalid", password: SecureRandom.hex(20))
+    other_practice.memberships.create!(user: other_actor)
+    other_order = order_for(other_practice, actor: other_actor)
+
+    result = Clinic::Inventory::ReceivingQuery.intake(practice: @practice, purchase_order_id: @order.id)
+    assert_equal Clinic::Inventory::ReceivingQuery::PAGE_SIZE, result.orders.length
+    assert_equal 2, result.page_count
+    assert_equal 26, result.total_count
+    assert_not_includes result.orders.map(&:id), @order.id
+    assert_equal @order.id, result.selected.id
+    searched = Clinic::Inventory::ReceivingQuery.intake(practice: @practice, query: @product.name)
+    assert_equal [ @order.id ], searched.orders.map(&:id)
+    assert_raises(ActiveRecord::RecordNotFound) do
+      Clinic::Inventory::ReceivingQuery.intake(practice: @practice, purchase_order_id: other_order.id)
+    end
+
+    receive(input: @input.merge(amount: "0"), reconciliation: { missing_packages: "2", exception: "short_delivery" })
+    line = Clinic::Inventory::InventoryWire.delivery_intake(practice: @practice, actor: @actor, purchase_order_id: @order.id)
+      .fetch(:selected_order).fetch(:lines).sole
+    assert_equal "0.0", line.fetch(:allocated_packages)
+    assert_equal "3.0", line.fetch(:available_packages)
+  end
+
   private
 
   def order_for(practice, actor: @actor)
