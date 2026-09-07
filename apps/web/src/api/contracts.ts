@@ -28,8 +28,7 @@ export type RuntimeEnvironment =
 export type DevelopmentAccount = {
   id: string;
   label: string;
-  email_address: string;
-  account_type: "employee" | "patient";
+  account_type: "employee" | "patient" | "omni";
   destination: string;
 };
 export type PatientPortalContext = {

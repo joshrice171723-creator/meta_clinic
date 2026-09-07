@@ -56,7 +56,12 @@ export function DevelopmentAccountSwitcher({
   const selectedAccount = visibleAccounts.find(
     (account) => account.id === selectedId,
   );
-  const portalLabel = portalType === "patient" ? "patient" : "employee";
+  const portalLabel =
+    portalType === "patient"
+      ? "patient"
+      : portalType === "omni"
+        ? "Omni development"
+        : "employee";
 
   return (
     <Stack className="development-account-switcher" spacing={0.75}>
@@ -80,7 +85,7 @@ export function DevelopmentAccountSwitcher({
           </MenuItem>
           {visibleAccounts.map((account) => (
             <MenuItem key={account.id} value={account.id}>
-              {account.label} — {account.email_address}
+              {account.label}
             </MenuItem>
           ))}
         </Select>
@@ -210,6 +215,7 @@ export function DevelopmentControls({
       >
         <ToggleButton value="patient">Patient portal</ToggleButton>
         <ToggleButton value="employee">Employee portal</ToggleButton>
+        <ToggleButton value="omni">Omni development</ToggleButton>
       </ToggleButtonGroup>
       <Stack
         className="development-control-row"
@@ -236,6 +242,45 @@ export function DevelopmentControls({
         </Button>
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  );
+}
+
+export function DevelopmentToolbar({
+  accounts,
+  activeId,
+  businessDate,
+  environment,
+  className = "",
+}: {
+  accounts: DevelopmentAccount[];
+  activeId?: string | null;
+  businessDate: string;
+  environment: RuntimeEnvironment;
+  className?: string;
+}) {
+  return (
+    <Stack
+      component="aside"
+      className={`development-toolbar ${className}`.trim()}
+      aria-label="Developer tools"
+      direction={{ xs: "column", lg: "row" }}
+      spacing={1.5}
+    >
+      <Stack
+        className="development-toolbar-heading"
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center" }}
+      >
+        <Typography component="h2">Developer tools</Typography>
+        <EnvironmentLabel environment={environment} />
+      </Stack>
+      <DevelopmentControls
+        accounts={accounts}
+        activeId={activeId}
+        businessDate={businessDate}
+      />
     </Stack>
   );
 }

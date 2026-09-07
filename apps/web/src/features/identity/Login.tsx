@@ -50,7 +50,7 @@ export function Login({
         </h1>
         <p>
           {developmentLogin
-            ? "Choose a patient or employee account to enter the app without a password."
+            ? "Choose a patient, employee role, or Omni development access to enter the app without a password."
             : employeePortal
               ? "Sign in to work in your clinic and access the employee tools assigned to your account."
               : "Sign in to review your paperwork and work through onboarding and training."}

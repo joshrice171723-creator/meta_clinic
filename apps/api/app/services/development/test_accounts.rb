@@ -82,7 +82,7 @@ module Development
 
     def self.preview_accounts
       ensure_local!
-      employee_accounts + patient_accounts
+      employee_accounts + patient_accounts + omni_account
     end
 
     def self.preview_account_for(user, profile: nil)
@@ -94,8 +94,8 @@ module Development
       return legacy if legacy
 
       accounts = preview_accounts
-      accounts.find { |account| account.fetch(:id) == profile && account.fetch(:email_address) == user.email_address } ||
-        accounts.find { |account| account.fetch(:email_address) == user.email_address } ||
+      accounts.find { |account| account.fetch(:id) == profile && account[:email_address] == user.email_address } ||
+        accounts.find { |account| account[:email_address] == user.email_address } ||
         PREVIEW_ACCOUNTS.find { |account| preview_user(account, authenticate: false)&.id == user.id }
     end
 
@@ -209,13 +209,12 @@ module Development
     def self.employee_accounts
       Clinic::Membership.active.joins(:user)
         .where(users: { active: true }).where.not(users: { email_address: PROFILES.fetch("omni").fetch(:email) })
-        .includes(:practice, :user)
+        .includes(:practice, :user, role_grants: :role_version)
         .order("users.email_address", :id).map do |membership|
-          user = membership.user
+          roles = membership.role_grants.active.map { |grant| role_label(grant.role_version.role_code) }.uniq.sort
           {
-            id: "employee-#{user.id}",
-            label: user.email_address.split("@").first.tr("._-", " ").titleize,
-            email_address: user.email_address,
+            id: "employee-#{membership.user_id}",
+            label: roles.presence || "Employee",
             account_type: "employee",
             destination: "/clinic"
           }
@@ -229,13 +228,24 @@ module Development
           {
             id: "patient-#{identity.user_id}",
             label: identity.patient.display_name,
-            email_address: identity.user.email_address,
             account_type: "patient",
             destination: "/patient-portal"
           }
         end
     end
     private_class_method :patient_accounts
+
+    def self.omni_account
+      return [] unless preview_user({ profile: "omni" }, authenticate: false)
+
+      [ { id: "omni", label: "Omni development access", account_type: "omni", destination: "/clinic" } ]
+    end
+    private_class_method :omni_account
+
+    def self.role_label(role_code)
+      role_code.delete_prefix("dev-seed-").tr("-_", " ").titleize
+    end
+    private_class_method :role_label
 
     def self.password_for(profile)
       # A per-installation opaque verifier proves fixture ownership without a published
