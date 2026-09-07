@@ -71,6 +71,9 @@ export type ScribeExport = {
   status: ScribeExportStatus;
   payload_digest: string;
   exported_at: string | null;
+  encounter_note_id?: number | null;
+  encounter_note_revision_id?: number | null;
+  chart_written?: boolean;
 };
 
 export type ScribeDraft = {
@@ -144,6 +147,13 @@ export type ScribeEncounter = {
   updated_at?: string | null;
   context_content?: string | null;
   version: number;
+  clinical_encounter_id?: number | null;
+  lab_selections?: Array<{
+    id: number;
+    lab_report_version_id: number;
+    content_digest: string;
+    status: string;
+  }>;
   sources: ScribeSource[];
   drafts: ScribeDraft[];
   documents?: ScribeDocument[];

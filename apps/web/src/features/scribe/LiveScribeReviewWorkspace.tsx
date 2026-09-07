@@ -31,6 +31,7 @@ import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { ScribePatientPicker, type PatientOption } from "./ScribePatientPicker";
 import { ScribeAudioMeter } from "./ScribeAudioMeter";
+import { ScribeChartAndLabs } from "./ScribeChartAndLabs";
 import { useScribeRecording } from "./ScribeRecordingProvider";
 import {
   ScribeReviewWorkspace,
@@ -1509,6 +1510,30 @@ export function LiveScribeReviewWorkspace() {
                       )}
                     </Stack>
                   </Box>
+                )}
+                {encounter && patient && (
+                  <ScribeChartAndLabs
+                    scribeEncounterId={encounter.id}
+                    patientId={patient.id}
+                    clinicalEncounterId={encounter.clinical_encounter_id}
+                    expectedVersion={encounter.version}
+                    labSelections={encounter.lab_selections ?? []}
+                    canBind={
+                      canWrite &&
+                      capabilities.notes_write === true &&
+                      processingAllowed
+                    }
+                    canSelectLabs={
+                      canWrite &&
+                      capabilities.patients === true &&
+                      capabilities.notes_read === true &&
+                      processingAllowed
+                    }
+                    hasUnsavedReview={
+                      hasUnsavedReviewEdits || hasUnsavedContext
+                    }
+                    onChanged={() => void loadEncounter(encounter.id)}
+                  />
                 )}
                 <Box
                   sx={{

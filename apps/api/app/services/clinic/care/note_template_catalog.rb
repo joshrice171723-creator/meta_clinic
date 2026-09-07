@@ -4,6 +4,21 @@ module Clinic
       SOURCE_URL = "https://www.timeofcare.com/physical-exam-template-adult-12-years-and-older/".freeze
       TEMPLATES = [
         {
+          id: "scribe-reviewed-soap",
+          version: 1,
+          label: "Reviewed Scribe SOAP note",
+          note_kind: "soap",
+          source_label: "APPly Scribe clinician-reviewed draft",
+          source_url: "",
+          caution: "Review every section before saving or signing this note.",
+          sections: {
+            subjective: "",
+            objective: "",
+            assessment: "",
+            plan: ""
+          }.freeze
+        }.freeze,
+        {
           id: "adult-physical-exam-detailed",
           version: 1,
           label: "Adult physical exam (12+), detailed",

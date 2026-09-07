@@ -394,6 +394,8 @@ export type ClinicCapabilities = {
   encounters_assign_provider?: boolean;
   notes_read: boolean;
   notes_write: boolean;
+  notes_sign?: boolean;
+  observations_write?: boolean;
   documents: boolean;
   messages: boolean;
   staff_messaging_read?: boolean;
@@ -705,6 +707,7 @@ export type EncounterNote = EncounterNoteSummary & {
     created_at: string;
     signed: boolean;
     body?: SoapNoteBody;
+    content_digest?: string;
   } | null;
   revisions: {
     id: number;
@@ -714,6 +717,14 @@ export type EncounterNote = EncounterNoteSummary & {
     payload_version: number;
     created_at: string;
     signed: boolean;
+  }[];
+  signatures?: {
+    id: number;
+    revision_id: number;
+    signer_membership_id: number;
+    content_digest: string;
+    attestation_version: string;
+    signed_at: string;
   }[];
 };
 export type ClinicTrackingBoardVisit = {

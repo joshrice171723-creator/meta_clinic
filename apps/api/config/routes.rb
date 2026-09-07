@@ -166,6 +166,10 @@ Rails.application.routes.draw do
       patch "clinical_history/:kind/:id", to: "care/clinical_history#update", as: nil
       resources :encounters, controller: "scheduling/encounters", only: %i[index create]
       resources :observations, controller: "care/observations", only: %i[index create]
+      resources :lab_reports, controller: "care/lab_reports", only: %i[index show create] do
+        post :versions, on: :member, action: :create_version
+        post "versions/:version_id/review", on: :member, action: :review, as: :review_version
+      end
       resources :address_versions, controller: "care/patient_addresses", only: %i[index create]
       resources :documents, controller: "documents", only: :index
       resources :message_intents, controller: "messaging/message_intents", only: %i[index create]
@@ -244,6 +248,8 @@ Rails.application.routes.draw do
       resources :encounters, controller: "encounters", only: %i[index create show destroy] do
         resources :recordings, only: %i[index create]
         patch :context, on: :member
+        post :bind_clinical_encounter, on: :member
+        post :lab_selections, on: :member
         post :consent, on: :member
         post :sources, on: :member
         post :generate, on: :member

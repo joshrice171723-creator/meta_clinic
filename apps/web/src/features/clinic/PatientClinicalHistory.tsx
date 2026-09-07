@@ -237,9 +237,11 @@ function RecordChips({
 export function PatientClinicalHistory({
   patientId,
   encounterId,
+  onChanged,
 }: {
   patientId: number;
   encounterId?: number;
+  onChanged?: () => void;
 }) {
   const path = `/api/clinic/patients/${encodeURIComponent(String(patientId))}/clinical_history${
     encounterId
@@ -319,6 +321,7 @@ export function PatientClinicalHistory({
       setEditor(null);
       setNotice(`${singularLabels[editor.kind]} record saved.`);
       history.refresh();
+      onChanged?.();
     } catch (error) {
       setMutationError(
         error instanceof Error
@@ -374,6 +377,7 @@ export function PatientClinicalHistory({
         `${HISTORY_LABELS[reviewTopic as HistoryKind] || humanize(reviewTopic)} review recorded.`,
       );
       history.refresh();
+      onChanged?.();
     } catch (error) {
       setReviewError(
         error instanceof Error

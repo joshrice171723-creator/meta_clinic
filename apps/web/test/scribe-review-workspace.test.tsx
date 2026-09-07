@@ -189,6 +189,7 @@ describe("synthetic AI scribe review workspace", () => {
       unresolved: true,
       approved: false,
       exported: false,
+      chartWritten: false,
     });
     const resolvedDraft: ScribeDraft = {
       ...draft,
@@ -201,19 +202,34 @@ describe("synthetic AI scribe review workspace", () => {
     };
     expect(
       reviewStateSummary({ ...resolvedDraft, status: "approved" }, readySource),
-    ).toEqual({ unresolved: false, approved: true, exported: false });
+    ).toEqual({
+      unresolved: false,
+      approved: true,
+      exported: false,
+      chartWritten: false,
+    });
     expect(
       reviewStateSummary(
         { ...resolvedDraft, status: "exported", export_state: "exported" },
         readySource,
       ),
-    ).toEqual({ unresolved: false, approved: true, exported: true });
+    ).toEqual({
+      unresolved: false,
+      approved: true,
+      exported: true,
+      chartWritten: false,
+    });
     expect(
       reviewStateSummary(
         { ...resolvedDraft, status: "approved" },
         { ...readySource, status: "incomplete" },
       ),
-    ).toEqual({ unresolved: true, approved: true, exported: false });
+    ).toEqual({
+      unresolved: true,
+      approved: true,
+      exported: false,
+      chartWritten: false,
+    });
     expect(
       hasUnsavedDraftEdits(draft, {
         objective: "Reviewer-edited synthetic observation.",
@@ -263,7 +279,12 @@ describe("synthetic AI scribe review workspace", () => {
         ],
         sections: resolvedSections,
       }),
-    ).toEqual({ unresolved: false, approved: false, exported: false });
+    ).toEqual({
+      unresolved: false,
+      approved: false,
+      exported: false,
+      chartWritten: false,
+    });
     expect(
       reviewStateSummary(
         { ...draft, current: false, sections: resolvedSections },

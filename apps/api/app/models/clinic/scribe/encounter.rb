@@ -7,12 +7,15 @@ module Clinic
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :site, class_name: "Clinic::Site", optional: true
+      belongs_to :clinical_encounter, class_name: "Clinic::Encounter", optional: true
       belongs_to :created_by, class_name: "User"
       belongs_to :context_authored_by, class_name: "User", optional: true
       has_many :sources, class_name: "Clinic::Scribe::Source", foreign_key: :encounter_id, dependent: :restrict_with_error
       has_many :drafts, class_name: "Clinic::Scribe::Draft", foreign_key: :encounter_id, dependent: :restrict_with_error
       has_many :documents, class_name: "Clinic::Scribe::Document", foreign_key: :encounter_id, dependent: :restrict_with_error
       has_many :events, class_name: "Clinic::Scribe::Event", foreign_key: :encounter_id, dependent: :restrict_with_error
+      has_many :lab_selections, class_name: "Clinic::Scribe::LabSelection", foreign_key: :encounter_id,
+        dependent: :restrict_with_error
 
       encrypts :context_content
 
@@ -22,6 +25,7 @@ module Clinic
       validates :context_source_type, inclusion: { in: %w[reviewer_authored] }, allow_nil: true
       validate :patient_belongs_to_practice
       validate :site_belongs_to_practice
+      validate :clinical_encounter_matches_context
 
       def processing_allowed?
         consent_status == "accepted" && deleted_at.nil? && !consent_withdrawn_at
@@ -35,6 +39,16 @@ module Clinic
 
       def site_belongs_to_practice
         errors.add(:site, "must belong to the selected practice") if site && site.practice_id != practice_id
+      end
+
+      def clinical_encounter_matches_context
+        return unless clinical_encounter
+
+        errors.add(:clinical_encounter, "must belong to the selected practice") if clinical_encounter.practice_id != practice_id
+        errors.add(:clinical_encounter, "must belong to the selected patient") if clinical_encounter.patient_id != patient_id
+        if site_id.present? && clinical_encounter.site_id != site_id
+          errors.add(:clinical_encounter, "must belong to the selected site")
+        end
       end
     end
   end

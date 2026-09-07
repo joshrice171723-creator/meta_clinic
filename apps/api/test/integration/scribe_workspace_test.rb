@@ -10,7 +10,8 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "scribe-#{SecureRandom.hex(5)}@example.invalid", password: PASSWORD)
     @practice = Clinic::Practice.create!(name: "Scribe Workspace Clinic", timezone: "UTC")
     @membership = @practice.memberships.create!(user: @user)
-    grant_permissions!(@membership, "scribe.read", "scribe.write", "scribe.approve", "scribe.export", "scribe.delete")
+    grant_permissions!(@membership, "scribe.read", "scribe.write", "scribe.approve", "scribe.export", "scribe.delete",
+      "patients.read", "observations.write", "notes.read", "notes.write")
     @site = @practice.sites.create!(code: "SCRIBE", name: "Scribe clinic", status: "active")
     @patient = @practice.patients.create!(display_name: "Rivera, Avery", reference: "PAT-SCRIBE-001")
     login
@@ -129,6 +130,145 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     assert Clinic::Scribe::Draft.find(generated.dig("draft", "id")).sections.all? { |section| section.effective_content == "deleted" }
   end
 
+  test "bound export writes one unsigned SOAP chart note and idempotent replay returns the same record" do
+    clinical_encounter = create_clinical_encounter
+    encounter = create_context_encounter
+    post "/api/clinic/scribe/encounters/#{encounter.fetch('id')}/bind_clinical_encounter",
+      params: { clinical_encounter: { clinical_encounter_id: clinical_encounter.id,
+        expected_version: encounter.fetch("version") } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal clinical_encounter.id, response.parsed_body.dig("encounter", "clinical_encounter_id")
+
+    accept_consent(encounter.fetch("id"))
+    current = save_sections(generate(encounter.fetch("id")).fetch("draft"), subjective: "Reviewed symptom history").fetch("draft")
+    current = review_all(current)
+    post "/api/clinic/scribe/drafts/#{current.fetch('id')}/approve",
+      params: { expected_version: current.fetch("version") }, headers: csrf_headers, as: :json
+    assert_response :success
+    approved = response.parsed_body.fetch("draft")
+
+    export_key = "scribe-chart-#{SecureRandom.hex(8)}"
+    export_params = { export: { destination: "parent_record_adapter", idempotency_key: export_key,
+      confirmed: true, expected_version: approved.fetch("version") } }
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: export_params,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    first = response.parsed_body.fetch("export")
+    assert_equal true, first.fetch("chart_written")
+
+    note = clinical_encounter.notes.find(first.fetch("encounter_note_id"))
+    revision = note.revisions.find(first.fetch("encounter_note_revision_id"))
+    assert_empty note.signatures
+    payload = Clinic::Care::SoapNotePayload.load!(revision.encrypted_body)
+    assert_equal "scribe-reviewed-soap", payload.fetch(:template_id)
+    assert_equal "Reviewed symptom history", payload.dig(:sections, :subjective)
+
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: export_params,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    replay = response.parsed_body.fetch("export")
+    assert_equal first.slice("id", "encounter_note_id", "encounter_note_revision_id"),
+      replay.slice("id", "encounter_note_id", "encounter_note_revision_id")
+    assert_equal 1, clinical_encounter.notes.where(note_kind: "soap").count
+  end
+
+  test "a corrected current lab version makes a reviewed Scribe draft stale" do
+    report = Clinic::Care::LabReports.create(
+      practice: @practice, actor: @user, patient: @patient, request_key: "lab-create-#{SecureRandom.hex(8)}",
+      confirmed_patient: true, source_name: "Clinic laboratory", external_report_id: nil,
+      version: lab_version_attributes(status: "final", value: "4.2")
+    ).value
+    first_version = report.current_version
+    Clinic::Care::LabReports.review(practice: @practice, actor: @user, patient: @patient, report: report,
+      version: first_version, request_key: "lab-review-#{SecureRandom.hex(8)}", confirmed_patient: true)
+
+    encounter = create_context_encounter
+    accept_consent(encounter.fetch("id"))
+    encounter = get_encounter(encounter.fetch("id"))
+    limited_user = User.create!(email_address: "scribe-lab-limited-#{SecureRandom.hex(5)}@example.invalid", password: PASSWORD)
+    limited_membership = @practice.memberships.create!(user: limited_user)
+    grant_permissions!(limited_membership, "scribe.write", "patients.read")
+    assert_raises Clinic::Authorization::Denied do
+      Clinic::Scribe::Workflow.replace_lab_selections!(encounter: Clinic::Scribe::Encounter.find(encounter.fetch("id")),
+        actor: limited_user, lab_report_versions: [first_version], expected_version: encounter.fetch("version"))
+    end
+    assert_empty Clinic::Scribe::LabSelection.where(encounter_id: encounter.fetch("id"))
+
+    post "/api/clinic/scribe/encounters/#{encounter.fetch('id')}/lab_selections",
+      params: { lab_selections: { lab_report_version_ids: [first_version.id],
+        expected_version: encounter.fetch("version") } }, headers: csrf_headers, as: :json
+    assert_response :success
+    generated = generate(encounter.fetch("id")).fetch("draft")
+    objective = generated.fetch("sections").find { |section| section.fetch("section_key") == "objective" }
+    assert_includes objective.fetch("effective_content"), "Clinic laboratory"
+    assert_includes objective.fetch("effective_content"), "Potassium [2823-3]: 4.2 mmol/L"
+    assert_equal [first_version.id], objective.dig("provenance", "lab_report_version_ids")
+    assert_equal first_version.id,
+      generated.fetch("input_sources").find { |source| source.fetch("kind") == "lab_report_version" }
+        .fetch("lab_report_version_id")
+    current = save_sections(generated, subjective: "Reviewed lab visit history").fetch("draft")
+    current = review_all(current)
+
+    corrected = Clinic::Care::LabReports.append_version(
+      practice: @practice, actor: @user, patient: @patient, report: report,
+      request_key: "lab-correction-#{SecureRandom.hex(8)}", confirmed_patient: true,
+      expected_current_version_id: first_version.id,
+      version: lab_version_attributes(status: "corrected", value: "4.6")
+    ).value
+    Clinic::Care::LabReports.review(practice: @practice, actor: @user, patient: @patient, report: report,
+      version: corrected, request_key: "lab-correction-review-#{SecureRandom.hex(8)}", confirmed_patient: true)
+
+    post "/api/clinic/scribe/drafts/#{current.fetch('id')}/approve",
+      params: { expected_version: current.fetch("version") }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "stale_record", response.parsed_body.fetch("code")
+
+    post "/api/clinic/scribe/encounters/#{encounter.fetch('id')}/consent",
+      params: { consent: { decision: "withdrawn", method: "in_person" } }, headers: csrf_headers, as: :json
+    assert_response :success
+    withdrawn = response.parsed_body.fetch("encounter")
+    assert_empty Clinic::Scribe::LabSelection.where(encounter_id: encounter.fetch("id"))
+    post "/api/clinic/scribe/encounters/#{encounter.fetch('id')}/lab_selections",
+      params: { lab_selections: { lab_report_version_ids: [corrected.id],
+        expected_version: withdrawn.fetch("version") } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_empty Clinic::Scribe::LabSelection.where(encounter_id: encounter.fetch("id"))
+  end
+
+  test "export refuses to overwrite an existing SOAP chart note" do
+    clinical_encounter = create_clinical_encounter
+    Clinic::Care::CreateEncounterNote.call(
+      practice: @practice, actor: @user, encounter: clinical_encounter, note_kind: "soap",
+      encrypted_body: Clinic::Care::SoapNotePayload.dump(
+        template_id: "scribe-reviewed-soap", template_version: 1,
+        sections: { subjective: "Existing chart draft", objective: "", assessment: "", plan: "" }
+      ),
+      request_key: "existing-soap-#{SecureRandom.hex(8)}"
+    )
+    post "/api/clinic/scribe/encounters", params: { encounter: {
+      patient_id: @patient.id, clinical_encounter_id: clinical_encounter.id,
+      context: { content: "Reviewer supplied context", source_type: "reviewer_authored" }
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    encounter = response.parsed_body.fetch("encounter")
+    accept_consent(encounter.fetch("id"))
+    current = save_sections(generate(encounter.fetch("id")).fetch("draft"), subjective: "New Scribe draft").fetch("draft")
+    current = review_all(current)
+    post "/api/clinic/scribe/drafts/#{current.fetch('id')}/approve",
+      params: { expected_version: current.fetch("version") }, headers: csrf_headers, as: :json
+    assert_response :success
+    approved = response.parsed_body.fetch("draft")
+
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: { export: {
+      destination: "parent_record_adapter", idempotency_key: "no-overwrite-#{SecureRandom.hex(8)}",
+      confirmed: true, expected_version: approved.fetch("version")
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "already has a SOAP note"
+    assert_equal 1, clinical_encounter.notes.where(note_kind: "soap").count
+    assert_empty Clinic::Scribe::Export.where(draft_id: approved.fetch("id"))
+  end
+
   private
 
   def create_context_encounter
@@ -136,6 +276,19 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
       context: { content: "Reviewer supplied context", source_type: "reviewer_authored" } } }, headers: csrf_headers, as: :json
     assert_response :created
     response.parsed_body.fetch("encounter")
+  end
+
+  def create_clinical_encounter
+    @practice.encounters.create!(patient: @patient, site: @site, started_at: Time.current, status: "in_progress")
+  end
+
+  def lab_version_attributes(status:, value:)
+    {
+      title: "Basic metabolic panel", status: status,
+      collected_at: Time.current - 1.hour, issued_at: Time.current,
+      results: [ { name: "Potassium", code: "2823-3", value: value, unit: "mmol/L",
+        reference_range: "3.5-5.1", flag: nil } ]
+    }
   end
 
   def accept_consent(encounter_id)

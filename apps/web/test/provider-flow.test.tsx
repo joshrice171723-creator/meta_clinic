@@ -315,8 +315,8 @@ describe("provider encounter workflow", () => {
       />,
     );
     expect(html).toContain("Draft revision 1");
-    expect(html).toContain("unsigned draft");
-    expect(html).toContain("not an exam occurrence");
+    expect(html).toContain("unsigned chart draft");
+    expect(html).toContain("does not sign the note or close the encounter");
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-live="polite"');
   });
@@ -582,7 +582,7 @@ describe("provider encounter workflow", () => {
         canWrite
       />,
     );
-    expect(editorHtml).toContain("This exact revision is signed and read-only");
+    expect(editorHtml).toContain("This signed revision is read-only");
     expect(editorHtml).not.toContain("Save new revision");
     expect(editorHtml).not.toContain(
       "Template text is editable and remains unverified",

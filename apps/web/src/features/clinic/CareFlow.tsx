@@ -27,6 +27,10 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   InputLabel,
@@ -55,6 +59,8 @@ import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { patientReferenceLabel } from "./patientReference";
+import { PatientLabReports } from "./PatientLabReports";
+import { EncounterNoteSigning } from "./EncounterNoteSigning";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -1057,17 +1063,21 @@ export function templateWouldOverwrite(
 export function SoapNoteForm({
   encounterId,
   patientId,
+  patientName,
   note,
   templates,
   canWrite,
+  canSign = false,
   onCreated,
   onRefresh,
 }: {
   encounterId: number;
   patientId?: number;
+  patientName?: string;
   note?: EncounterNote;
   templates: NoteTemplate[];
   canWrite: boolean;
+  canSign?: boolean;
   onCreated?: (note: EncounterNote) => void;
   onRefresh?: () => void;
 }) {
@@ -1089,6 +1099,7 @@ export function SoapNoteForm({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saveState, setSaveState] = useState<NoteSaveState>("idle");
+  const [resetConfirmation, setResetConfirmation] = useState(false);
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const dirty = SOAP_SECTION_LABELS.some(
@@ -1380,14 +1391,8 @@ export function SoapNoteForm({
   };
 
   const resetSaveAttempt = () => {
-    if (
-      busy ||
-      !saveAttemptRef.current ||
-      !window.confirm(
-        "Forget this local save request key without sending another request? Confirm the note status independently before retrying.",
-      )
-    )
-      return;
+    if (busy || !saveAttemptRef.current) return;
+    setResetConfirmation(false);
     saveAttemptRef.current = null;
     setRequestKey(null);
     setSaveState("idle");
@@ -1399,7 +1404,7 @@ export function SoapNoteForm({
       {note && savedBody && (
         <Alert severity={signed ? "info" : "warning"}>
           {signed
-            ? "This exact revision is signed and read-only. Signing is not available from this editor."
+            ? "This signed revision is read-only."
             : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
@@ -1486,11 +1491,47 @@ export function SoapNoteForm({
           </Button>
         )}
         {requestKey && !busy && (
-          <Button variant="text" onClick={resetSaveAttempt}>
+          <Button variant="text" onClick={() => setResetConfirmation(true)}>
             Reset save attempt
           </Button>
         )}
+        {note && patientId && canSign && (
+          <EncounterNoteSigning
+            note={note}
+            patientId={patientId}
+            patientName={patientName}
+            encounterId={encounterId}
+            canSign={canSign}
+            disabled={
+              busy ||
+              dirty ||
+              !noteSaveAllowsMutation(saveState) ||
+              Boolean(saveAttemptRef.current)
+            }
+            onSigned={() => onRefresh?.()}
+          />
+        )}
       </Stack>
+      <Dialog
+        open={resetConfirmation}
+        onClose={() => !busy && setResetConfirmation(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Reset save attempt?</DialogTitle>
+        <DialogContent>
+          Check the saved note before clearing this request key. Resetting does
+          not send another save request.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResetConfirmation(false)} disabled={busy}>
+            Go back
+          </Button>
+          <Button onClick={resetSaveAttempt} disabled={busy}>
+            Reset attempt
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Typography variant="caption" color="text.secondary">
         {signed
           ? "This signed SOAP chart is read-only here."
@@ -1502,16 +1543,22 @@ export function SoapNoteForm({
 
 function ExistingSoapNote({
   patientId,
+  patientName,
   encounterId,
   noteId,
   templates,
   canWrite,
+  canSign,
+  onChanged,
 }: {
   patientId: number;
+  patientName?: string;
   encounterId: number;
   noteId: number;
   templates: NoteTemplate[];
   canWrite: boolean;
+  canSign: boolean;
+  onChanged?: () => void;
 }) {
   const resource = useResource<{ note: EncounterNote }>(
     `/api/clinic/notes/${noteId}`,
@@ -1524,16 +1571,29 @@ function ExistingSoapNote({
   return (
     <SoapNoteForm
       patientId={patientId}
+      patientName={patientName}
       encounterId={encounterId}
       note={resource.data.note}
       templates={templates}
       canWrite={canWrite}
-      onRefresh={resource.refresh}
+      canSign={canSign}
+      onRefresh={() => {
+        resource.refresh();
+        onChanged?.();
+      }}
     />
   );
 }
 
-function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
+function SoapNoteWorkspace({
+  encounter,
+  patientName,
+  onChanged,
+}: {
+  encounter: EncounterDetail;
+  patientName?: string;
+  onChanged?: () => void;
+}) {
   const context = useClinic();
   const [created, setCreated] = useState<EncounterNote | null>(null);
   const templates = useResource<{ templates: NoteTemplate[] }>(
@@ -1552,10 +1612,13 @@ function SoapNoteWorkspace({ encounter }: { encounter: EncounterDetail }) {
   return noteId ? (
     <ExistingSoapNote
       patientId={encounter.patient_id}
+      patientName={patientName}
       encounterId={encounter.id}
       noteId={noteId}
       templates={templates.data.templates}
       canWrite={context.capabilities.notes_write}
+      canSign={context.capabilities.notes_sign === true}
+      onChanged={onChanged}
     />
   ) : context.capabilities.notes_write ? (
     <SoapNoteForm
@@ -1622,6 +1685,7 @@ export function ProviderEncounterWorkflow({
   timezone,
   noteWorkspace,
   careSummaryState = { status: "unlinked" },
+  onCareSummaryRefresh,
   onEncounterRefresh,
 }: {
   patient: Patient;
@@ -1630,6 +1694,7 @@ export function ProviderEncounterWorkflow({
   timezone: string;
   noteWorkspace: ReactNode;
   careSummaryState?: CareSummaryLoadState;
+  onCareSummaryRefresh?: () => void;
   onEncounterRefresh?: () => void;
 }) {
   const [chartConfirmed, setChartConfirmed] = useState(false);
@@ -1908,7 +1973,11 @@ export function ProviderEncounterWorkflow({
             <PatientClinicalHistory
               patientId={patient.id}
               encounterId={encounter.id}
+              onChanged={onCareSummaryRefresh}
             />
+            <Box id="chart-labs">
+              <PatientLabReports patientId={patient.id} />
+            </Box>
             {noteWorkspace}
             <VisitWrapUp
               patient={patient}
@@ -1948,6 +2017,9 @@ function VisitWrapUp({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [closeState, setCloseState] = useState<CloseState>("idle");
+  const [confirmation, setConfirmation] = useState<"close" | "reset" | null>(
+    null,
+  );
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const requestKeyRef = useRef<string | null>(null);
   const current = completed ?? encounter;
@@ -1978,14 +2050,8 @@ function VisitWrapUp({
   };
 
   const endVisit = async () => {
-    if (
-      busy ||
-      closeState !== "idle" ||
-      !window.confirm(
-        "Close this encounter now? Save note changes first. Closing records only the encounter end time; note signing, discharge, checkout, and handoff remain separate.",
-      )
-    )
-      return;
+    if (busy || closeState !== "idle") return;
+    setConfirmation(null);
     const key = closeRequestKey(requestKeyRef.current);
     requestKeyRef.current = key;
     setRequestKey(key);
@@ -2085,14 +2151,8 @@ function VisitWrapUp({
   };
 
   const resetCloseAttempt = () => {
-    if (
-      busy ||
-      !requestKeyRef.current ||
-      !window.confirm(
-        "Forget this local close request key without sending another request? Confirm the encounter status independently before starting a new close attempt.",
-      )
-    )
-      return;
+    if (busy || !requestKeyRef.current) return;
+    setConfirmation(null);
     requestKeyRef.current = null;
     setRequestKey(null);
     setCloseState("idle");
@@ -2126,7 +2186,7 @@ function VisitWrapUp({
             <Button
               variant="contained"
               color="warning"
-              onClick={() => void endVisit()}
+              onClick={() => setConfirmation("close")}
               disabled={busy || closeState !== "idle"}
             >
               {busy ? "Closing encounter…" : "Close encounter"}
@@ -2144,7 +2204,7 @@ function VisitWrapUp({
             </Button>
           )}
           {requestKey && closeState !== "committed" && !busy && (
-            <Button variant="text" onClick={resetCloseAttempt}>
+            <Button variant="text" onClick={() => setConfirmation("reset")}>
               Reset close attempt
             </Button>
           )}
@@ -2162,6 +2222,44 @@ function VisitWrapUp({
             )}
         </Stack>
       </Stack>
+      <Dialog
+        open={confirmation !== null}
+        onClose={() => !busy && setConfirmation(null)}
+        maxWidth="sm"
+        fullWidth
+        aria-labelledby="encounter-close-title"
+      >
+        <DialogTitle id="encounter-close-title">
+          {confirmation === "reset"
+            ? "Reset close attempt?"
+            : "Close encounter?"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1 }}>
+            {patient.display_name} · Encounter #{encounter.id}
+          </Typography>
+          <Typography color="text.secondary">
+            {confirmation === "reset"
+              ? "Resetting clears this local request key. Verify the encounter status before sending another close request."
+              : "Save your note changes before continuing. Closing records the encounter end time; you can continue to checkout afterward."}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmation(null)} disabled={busy}>
+            Go back
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            disabled={busy}
+            onClick={() =>
+              confirmation === "reset" ? resetCloseAttempt() : void endVisit()
+            }
+          >
+            {confirmation === "reset" ? "Reset attempt" : "Confirm close"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }
@@ -2305,8 +2403,13 @@ export function EncounterPage({
                 : { status: "loading" }
           }
           onEncounterRefresh={encounter.refresh}
+          onCareSummaryRefresh={careSummary.refresh}
           noteWorkspace={
-            <SoapNoteWorkspace encounter={encounter.data.encounter} />
+            <SoapNoteWorkspace
+              encounter={encounter.data.encounter}
+              patientName={patient.data.patient.display_name}
+              onChanged={encounter.refresh}
+            />
           }
         />
       }

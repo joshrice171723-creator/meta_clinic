@@ -201,6 +201,9 @@ export function reviewStateSummary(
       draft.status === "exported" ||
       draft.export_state === "exported" ||
       draft.exports.some((record) => record.status === "exported"),
+    chartWritten: draft.exports.some(
+      (record) => record.status === "exported" && record.chart_written === true,
+    ),
   };
 }
 
@@ -1176,10 +1179,21 @@ export function ScribeReviewWorkspace({
                 onClick={() => onExport?.(draft.id)}
                 aria-describedby="scribe-export-help"
               >
-                {reviewSummary.exported
-                  ? "Export recorded"
-                  : "Request separate export"}
+                {reviewSummary.chartWritten
+                  ? "Saved to chart"
+                  : reviewSummary.exported
+                    ? "Export recorded"
+                    : "Request separate export"}
               </Button>
+              {reviewSummary.chartWritten &&
+                encounter.clinical_encounter_id && (
+                  <Button
+                    size="small"
+                    href={`/clinic/patients/${encounter.patient_id}/encounters/${encounter.clinical_encounter_id}`}
+                  >
+                    Open chart note
+                  </Button>
+                )}
             </Stack>
           </Stack>
         </Stack>

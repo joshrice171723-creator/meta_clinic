@@ -6,6 +6,7 @@ module Clinic
       def encounter(encounter, detail: true)
         payload = {
           id: encounter.id, patient_id: encounter.patient_id, site_id: encounter.site_id,
+          clinical_encounter_id: encounter.clinical_encounter_id,
           patient: { id: encounter.patient.id, reference: encounter.patient.reference, display_name: encounter.patient.display_name },
           status: encounter.status, consent_status: encounter.consent_status,
           consent_policy_version: encounter.consent_policy_version, consent_method: encounter.consent_method,
@@ -19,6 +20,8 @@ module Clinic
         payload.merge(
           context_content: encounter.deleted_at ? nil : encounter.context_content,
           sources: encounter.sources.order(:id).map { |source| source(source) },
+          lab_selections: encounter.lab_selections.includes(lab_report_version: :lab_report)
+            .order(:lab_report_version_id).map { |selection| lab_selection(selection) },
           documents: encounter.documents.includes(drafts: [:sections, :exports]).order(:id).map { |document| document(document) },
           drafts: ordered_drafts(encounter).map { |draft| draft(draft) },
           events: encounter.events.order(:created_at, :id).map { |event| event(event) }
@@ -67,7 +70,33 @@ module Clinic
       def export(export)
         {
           id: export.id, destination: export.destination, version_checksum: export.version_checksum,
-          status: export.status, payload_digest: export.payload_digest, exported_at: export.exported_at&.iso8601(6)
+          status: export.status, payload_digest: export.payload_digest, exported_at: export.exported_at&.iso8601(6),
+          encounter_note_id: export.encounter_note_id,
+          encounter_note_revision_id: export.encounter_note_revision_id,
+          chart_written: export.chart_written?
+        }
+      end
+
+      def lab_selection(selection)
+        version = selection.lab_report_version
+        report = version.lab_report
+        {
+          id: selection.id,
+          lab_report_id: report.id,
+          lab_report_version_id: version.id,
+          current_version_id: report.current_version_id,
+          source_name: report.source_name,
+          title: version.title,
+          status: version.status,
+          version_number: version.version_number,
+          content_digest: version.content_digest,
+          collected_at: version.collected_at&.iso8601(6),
+          issued_at: version.issued_at&.iso8601(6),
+          reviewed_at: version.reviewed_at&.iso8601(6),
+          reviewed_by_membership_id: version.reviewed_by_membership_id,
+          results: version.results,
+          selected_at: selection.selected_at&.iso8601(6),
+          selected_by_id: selection.selected_by_id
         }
       end
 

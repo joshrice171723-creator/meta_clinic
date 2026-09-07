@@ -72,7 +72,7 @@ module Clinic
           attestation_version: required_string!(input[:attestation_version], field: :attestation_version, maximum: 80),
           signed_at: Current.business_time
         )
-        render json: { signature: signature_json(signature) }, status: :created
+        render json: { signature: signature_json(signature), note: EncounterNoteSerializer.call(note.reload, detail: true) }, status: :created
       end
 
       private

@@ -16,6 +16,7 @@ module Clinic
           draft.update!(status: "deleted", deleted_at: Current.business_time)
         end
         encounter.documents.find_each { |document| document.update!(status: "deleted", current_draft: nil) }
+        encounter.lab_selections.destroy_all
         encounter.update!(context_content: nil, context_digest: nil, context_source_type: nil,
           context_authored_by: nil, context_updated_at: Current.business_time)
       end

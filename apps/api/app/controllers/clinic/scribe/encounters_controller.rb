@@ -2,7 +2,8 @@ module Clinic
   module Scribe
     class EncountersController < Clinic::ApiController
       before_action -> { require_capability("scribe.read") }, only: %i[index show]
-      before_action -> { require_capability("scribe.write") }, only: %i[create context consent sources generate]
+      before_action -> { require_capability("scribe.write") },
+        only: %i[create context consent sources generate bind_clinical_encounter lab_selections]
       before_action -> { require_capability("scribe.delete") }, only: :destroy
 
       def index
@@ -25,13 +26,51 @@ module Clinic
       end
 
       def create
-        input = params.require(:encounter).permit(:patient_id, :site_id, context: %i[content source_type]).to_h.with_indifferent_access
+        input = params.require(:encounter).permit(:patient_id, :site_id, :clinical_encounter_id,
+          context: %i[content source_type]).to_h.with_indifferent_access
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = input[:site_id].present? ? current_practice.sites.find(requested_id!(input[:site_id], :site_id)) : nil
+        clinical_encounter = if input[:clinical_encounter_id].present?
+          current_practice.encounters.where(patient_id: patient.id)
+            .find(requested_id!(input[:clinical_encounter_id], :clinical_encounter_id))
+        end
         context = input[:context]&.with_indifferent_access
         encounter = Workflow.create_encounter(practice: current_practice, actor: current_user, patient: patient, site: site,
+          clinical_encounter: clinical_encounter,
           context: context && { content: context[:content].to_s, source_type: context[:source_type].to_s })
         render json: { encounter: Serializer.encounter(encounter) }, status: :created
+      end
+
+      def bind_clinical_encounter
+        encounter = scoped_encounter
+        input = parameter_hash!(:clinical_encounter, %i[clinical_encounter_id expected_version])
+        clinical_encounter = current_practice.encounters.where(patient_id: encounter.patient_id)
+          .find(requested_id!(input[:clinical_encounter_id], :clinical_encounter_id))
+        updated = Workflow.bind_clinical_encounter!(encounter: encounter, actor: current_user,
+          clinical_encounter: clinical_encounter,
+          expected_version: bounded_integer!(input[:expected_version], field: :expected_version,
+            min: 0, max: 2_147_483_647))
+        render json: { encounter: Serializer.encounter(updated) }
+      end
+
+      def lab_selections
+        encounter = scoped_encounter
+        Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: "patients.read",
+          subject: encounter.patient)
+        Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: "notes.read",
+          any_site: true)
+        input = parameter_hash!(:lab_selections, %i[expected_version], arrays: %i[lab_report_version_ids])
+        version_ids = input.fetch(:lab_report_version_ids, []).map.with_index do |value, index|
+          requested_id!(value, "lab_report_version_ids[#{index}]")
+        end
+        versions_by_id = Clinic::Care::LabReportVersion.where(practice_id: current_practice.id,
+          patient_id: encounter.patient_id, id: version_ids).index_by(&:id)
+        versions = version_ids.map { |id| versions_by_id.fetch(id) { raise ActiveRecord::RecordNotFound } }
+        updated = Workflow.replace_lab_selections!(encounter: encounter, actor: current_user,
+          lab_report_versions: versions,
+          expected_version: bounded_integer!(input[:expected_version], field: :expected_version,
+            min: 0, max: 2_147_483_647))
+        render json: { encounter: Serializer.encounter(updated) }
       end
 
       def context

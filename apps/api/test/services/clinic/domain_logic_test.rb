@@ -145,6 +145,10 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       attestation_version: "synthetic-attestation-v1"
     )
     assert_equal revision.id, signature.revision_id
+    replay = Clinic::Care::SignEncounterNote.call(note: note, actor: @actor, revision_no: 2,
+      content_digest: Digest::SHA256.hexdigest("synthetic-v2"), attestation_version: "synthetic-attestation-v1")
+    assert_equal signature.id, replay.id
+    assert_equal 1, note.signatures.count
     assert_raises(ArgumentError) do
       Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "overwrite", expected_revision: 2,
         request_key: "domain-note-revise-signed")

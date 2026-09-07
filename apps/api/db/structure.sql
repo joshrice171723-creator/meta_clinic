@@ -54,6 +54,43 @@ CREATE FUNCTION public.clinic_invoice_line_editable_draft() RETURNS trigger
 
 
 --
+-- Name: clinic_lab_report_versions_protect(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_lab_report_versions_protect() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'Lab report versions are append-only';
+  END IF;
+  IF OLD.practice_id IS DISTINCT FROM NEW.practice_id
+    OR OLD.patient_id IS DISTINCT FROM NEW.patient_id
+    OR OLD.lab_report_id IS DISTINCT FROM NEW.lab_report_id
+    OR OLD.version_number IS DISTINCT FROM NEW.version_number
+    OR OLD.title IS DISTINCT FROM NEW.title
+    OR OLD.status IS DISTINCT FROM NEW.status
+    OR OLD.collected_at IS DISTINCT FROM NEW.collected_at
+    OR OLD.issued_at IS DISTINCT FROM NEW.issued_at
+    OR OLD.results_payload IS DISTINCT FROM NEW.results_payload
+    OR OLD.entry_kind IS DISTINCT FROM NEW.entry_kind
+    OR OLD.content_digest IS DISTINCT FROM NEW.content_digest
+    OR OLD.recorded_by_membership_id IS DISTINCT FROM NEW.recorded_by_membership_id
+    OR OLD.recorded_at IS DISTINCT FROM NEW.recorded_at THEN
+    RAISE EXCEPTION 'Lab report version payloads are immutable';
+  END IF;
+  IF OLD.reviewed_at IS NOT NULL AND (
+    OLD.reviewed_at IS DISTINCT FROM NEW.reviewed_at
+    OR OLD.reviewed_by_membership_id IS DISTINCT FROM NEW.reviewed_by_membership_id
+  ) THEN
+    RAISE EXCEPTION 'Lab report review evidence is write-once';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: clinic_model_versions_immutable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4105,6 +4142,91 @@ ALTER SEQUENCE public.clinic_items_id_seq OWNED BY public.clinic_items.id;
 
 
 --
+-- Name: clinic_lab_report_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_lab_report_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    lab_report_id bigint NOT NULL,
+    version_number integer NOT NULL,
+    title text NOT NULL,
+    status character varying NOT NULL,
+    collected_at timestamp(6) with time zone NOT NULL,
+    issued_at timestamp(6) with time zone NOT NULL,
+    results_payload text NOT NULL,
+    entry_kind character varying DEFAULT 'manual'::character varying NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    reviewed_by_membership_id bigint,
+    reviewed_at timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_lab_report_versions_review_pair CHECK ((((reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_lab_report_versions_timeline CHECK ((issued_at >= collected_at)),
+    CONSTRAINT clinic_lab_report_versions_values CHECK (((version_number > 0) AND ((status)::text = ANY ((ARRAY['preliminary'::character varying, 'final'::character varying, 'amended'::character varying, 'corrected'::character varying, 'cancelled'::character varying])::text[])) AND ((entry_kind)::text = 'manual'::text) AND (length((content_digest)::text) = 64)))
+);
+
+
+--
+-- Name: clinic_lab_report_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_lab_report_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_lab_report_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_lab_report_versions_id_seq OWNED BY public.clinic_lab_report_versions.id;
+
+
+--
+-- Name: clinic_lab_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_lab_reports (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    source_name character varying(160) NOT NULL,
+    external_report_id text,
+    external_report_id_digest character varying(64),
+    current_version_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_lab_reports_values CHECK (((length(TRIM(BOTH FROM source_name)) > 0) AND ((external_report_id_digest IS NULL) OR (length((external_report_id_digest)::text) = 64))))
+);
+
+
+--
+-- Name: clinic_lab_reports_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_lab_reports_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_lab_reports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_lab_reports_id_seq OWNED BY public.clinic_lab_reports.id;
+
+
+--
 -- Name: clinic_medication_statements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5932,6 +6054,7 @@ CREATE TABLE public.clinic_scribe_encounters (
     context_source_type character varying,
     context_authored_by_id bigint,
     context_updated_at timestamp(6) without time zone,
+    clinical_encounter_id bigint,
     CONSTRAINT scribe_encounters_context_digest CHECK (((context_digest IS NULL) OR (length(TRIM(BOTH FROM context_digest)) = 64))),
     CONSTRAINT scribe_encounters_context_source CHECK (((context_source_type IS NULL) OR ((context_source_type)::text = 'reviewer_authored'::text))),
     CONSTRAINT scribe_encounters_state CHECK ((((status)::text = ANY ((ARRAY['awaiting_consent'::character varying, 'consented'::character varying, 'source_ready'::character varying, 'in_review'::character varying, 'approved'::character varying, 'exported'::character varying, 'consent_declined'::character varying, 'consent_withdrawn'::character varying, 'deleted'::character varying])::text[])) AND ((consent_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])) AND (template_version > 0)))
@@ -6011,6 +6134,9 @@ CREATE TABLE public.clinic_scribe_exports (
     exported_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    encounter_note_id bigint,
+    encounter_note_revision_id bigint,
+    CONSTRAINT scribe_exports_chart_links_together CHECK (((encounter_note_id IS NULL) = (encounter_note_revision_id IS NULL))),
     CONSTRAINT scribe_exports_values CHECK ((((destination)::text = 'parent_record_adapter'::text) AND ((status)::text = ANY ((ARRAY['exported'::character varying, 'failed'::character varying])::text[]))))
 );
 
@@ -6032,6 +6158,42 @@ CREATE SEQUENCE public.clinic_scribe_exports_id_seq
 --
 
 ALTER SEQUENCE public.clinic_scribe_exports_id_seq OWNED BY public.clinic_scribe_exports.id;
+
+
+--
+-- Name: clinic_scribe_lab_selections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_scribe_lab_selections (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    lab_report_version_id bigint NOT NULL,
+    selected_by_id bigint NOT NULL,
+    selected_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_scribe_lab_selections_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_scribe_lab_selections_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_scribe_lab_selections_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_scribe_lab_selections_id_seq OWNED BY public.clinic_scribe_lab_selections.id;
 
 
 --
@@ -8161,6 +8323,20 @@ ALTER TABLE ONLY public.clinic_items ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: clinic_lab_report_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_lab_report_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_lab_reports id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports ALTER COLUMN id SET DEFAULT nextval('public.clinic_lab_reports_id_seq'::regclass);
+
+
+--
 -- Name: clinic_medication_statements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -8487,6 +8663,13 @@ ALTER TABLE ONLY public.clinic_scribe_events ALTER COLUMN id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.clinic_scribe_exports ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_exports_id_seq'::regclass);
+
+
+--
+-- Name: clinic_scribe_lab_selections id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections ALTER COLUMN id SET DEFAULT nextval('public.clinic_scribe_lab_selections_id_seq'::regclass);
 
 
 --
@@ -9342,6 +9525,22 @@ ALTER TABLE ONLY public.clinic_items
 
 
 --
+-- Name: clinic_lab_report_versions clinic_lab_report_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions
+    ADD CONSTRAINT clinic_lab_report_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_lab_reports clinic_lab_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT clinic_lab_reports_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_medication_statements clinic_medication_statements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9715,6 +9914,14 @@ ALTER TABLE ONLY public.clinic_scribe_events
 
 ALTER TABLE ONLY public.clinic_scribe_exports
     ADD CONSTRAINT clinic_scribe_exports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_scribe_lab_selections clinic_scribe_lab_selections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT clinic_scribe_lab_selections_pkey PRIMARY KEY (id);
 
 
 --
@@ -10534,6 +10741,48 @@ CREATE UNIQUE INDEX clinic_invoices_practice_id ON public.clinic_invoices USING 
 
 
 --
+-- Name: clinic_lab_report_versions_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_report_versions_number ON public.clinic_lab_report_versions USING btree (practice_id, lab_report_id, version_number);
+
+
+--
+-- Name: clinic_lab_report_versions_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_report_versions_patient_id ON public.clinic_lab_report_versions USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_lab_report_versions_report_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_report_versions_report_id ON public.clinic_lab_report_versions USING btree (practice_id, patient_id, lab_report_id, id);
+
+
+--
+-- Name: clinic_lab_reports_external_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_reports_external_identity ON public.clinic_lab_reports USING btree (practice_id, patient_id, external_report_id_digest) WHERE (external_report_id_digest IS NOT NULL);
+
+
+--
+-- Name: clinic_lab_reports_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_reports_patient_id ON public.clinic_lab_reports USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_lab_reports_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_reports_practice_id ON public.clinic_lab_reports USING btree (practice_id, id);
+
+
+--
 -- Name: clinic_medication_statements_patient_data_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -11199,10 +11448,45 @@ CREATE UNIQUE INDEX clinic_scribe_drafts_scope ON public.clinic_scribe_drafts US
 
 
 --
+-- Name: clinic_scribe_encounters_clinical_encounter; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_scribe_encounters_clinical_encounter ON public.clinic_scribe_encounters USING btree (practice_id, clinical_encounter_id);
+
+
+--
 -- Name: clinic_scribe_encounters_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX clinic_scribe_encounters_practice_id ON public.clinic_scribe_encounters USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_scribe_encounters_practice_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_scribe_encounters_practice_patient_id ON public.clinic_scribe_encounters USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_scribe_exports_encounter_note; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_scribe_exports_encounter_note ON public.clinic_scribe_exports USING btree (practice_id, encounter_note_id);
+
+
+--
+-- Name: clinic_scribe_lab_selections_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_scribe_lab_selections_identity ON public.clinic_scribe_lab_selections USING btree (practice_id, encounter_id, lab_report_version_id);
+
+
+--
+-- Name: clinic_scribe_lab_selections_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_scribe_lab_selections_practice_id ON public.clinic_scribe_lab_selections USING btree (practice_id, id);
 
 
 --
@@ -13558,6 +13842,20 @@ CREATE TRIGGER clinic_invoices_preserve_identity BEFORE UPDATE ON public.clinic_
 
 
 --
+-- Name: clinic_lab_report_versions clinic_lab_report_versions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_lab_report_versions_protect BEFORE DELETE OR UPDATE ON public.clinic_lab_report_versions FOR EACH ROW EXECUTE FUNCTION public.clinic_lab_report_versions_protect();
+
+
+--
+-- Name: clinic_lab_reports clinic_lab_reports_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clinic_lab_reports FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'source_name', 'external_report_id', 'external_report_id_digest');
+
+
+--
 -- Name: clinic_medication_statements clinic_medication_statements_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -15463,6 +15761,70 @@ ALTER TABLE ONLY public.clinic_invoices
 
 
 --
+-- Name: clinic_lab_reports fk_lab_reports_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_current_version FOREIGN KEY (practice_id, patient_id, id, current_version_id) REFERENCES public.clinic_lab_report_versions(practice_id, patient_id, lab_report_id, id);
+
+
+--
+-- Name: clinic_lab_reports fk_lab_reports_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_lab_reports fk_lab_reports_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_lab_report_versions fk_lab_versions_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions
+    ADD CONSTRAINT fk_lab_versions_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_lab_report_versions fk_lab_versions_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions
+    ADD CONSTRAINT fk_lab_versions_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_lab_report_versions fk_lab_versions_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions
+    ADD CONSTRAINT fk_lab_versions_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_lab_report_versions fk_lab_versions_report; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions
+    ADD CONSTRAINT fk_lab_versions_report FOREIGN KEY (practice_id, patient_id, lab_report_id) REFERENCES public.clinic_lab_reports(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_lab_report_versions fk_lab_versions_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_report_versions
+    ADD CONSTRAINT fk_lab_versions_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_message_attachments fk_message_attachments_document; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17023,6 +17385,14 @@ ALTER TABLE ONLY public.clinic_inventory_holds
 
 
 --
+-- Name: clinic_scribe_lab_selections fk_rails_b3dbff35c5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_rails_b3dbff35c5 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_holds fk_rails_b490831fc1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17599,6 +17969,14 @@ ALTER TABLE ONLY public.clinic_scribe_drafts
 
 
 --
+-- Name: clinic_scribe_encounters fk_scribe_encounters_clinical_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_encounters
+    ADD CONSTRAINT fk_scribe_encounters_clinical_encounter FOREIGN KEY (practice_id, patient_id, clinical_encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
 -- Name: clinic_scribe_encounters fk_scribe_encounters_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17628,6 +18006,46 @@ ALTER TABLE ONLY public.clinic_scribe_events
 
 ALTER TABLE ONLY public.clinic_scribe_exports
     ADD CONSTRAINT fk_scribe_exports_draft FOREIGN KEY (practice_id, draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_exports fk_scribe_exports_encounter_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_exports
+    ADD CONSTRAINT fk_scribe_exports_encounter_note FOREIGN KEY (practice_id, encounter_note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_exports fk_scribe_exports_encounter_note_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_exports
+    ADD CONSTRAINT fk_scribe_exports_encounter_note_revision FOREIGN KEY (practice_id, encounter_note_id, encounter_note_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, note_id, id);
+
+
+--
+-- Name: clinic_scribe_lab_selections fk_scribe_lab_selections_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_scribe_lab_selections_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_scribe_lab_selections fk_scribe_lab_selections_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_scribe_lab_selections_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_lab_selections fk_scribe_lab_selections_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_scribe_lab_selections_version FOREIGN KEY (practice_id, patient_id, lab_report_version_id) REFERENCES public.clinic_lab_report_versions(practice_id, patient_id, id);
 
 
 --
@@ -19915,6 +20333,14 @@ ALTER TABLE ONLY public.clinic_workforce_export_batches
 
 
 --
+-- Name: clinic_scribe_lab_selections fk_rails_34933da4f2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_rails_34933da4f2 FOREIGN KEY (selected_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_workforce_employee_invitations fk_rails_3497a94c22; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20516,6 +20942,8 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000410'),
+('20260907000400'),
 ('20260907000300'),
 ('20260907000200'),
 ('20260907000100'),

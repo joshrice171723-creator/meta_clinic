@@ -1,3 +1,5 @@
+require "digest"
+
 module Clinic
   module Care
     module EncounterNoteSerializer
@@ -53,7 +55,8 @@ module Clinic
         }
         return payload unless note.note_kind == "soap"
 
-        payload.merge(body: SoapNotePayload.load!(revision.encrypted_body))
+        payload.merge(body: SoapNotePayload.load!(revision.encrypted_body),
+          content_digest: Digest::SHA256.hexdigest(revision.encrypted_body))
       end
     end
   end

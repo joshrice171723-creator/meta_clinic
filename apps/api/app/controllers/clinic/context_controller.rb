@@ -46,6 +46,8 @@ module Clinic
           encounters: allowed?("encounters.write"),
           encounters_assign_provider: allowed?("encounters.assign_provider"),
           notes_read: allowed?("notes.read"),
+          notes_sign: allowed?("notes.sign"),
+          observations_write: allowed?("observations.write"),
           notes_write: allowed?("notes.write"),
           documents: allowed?("documents.read"),
           messages: allowed?("messages.write"),
