@@ -28,7 +28,7 @@ module Clinic
           %i[request_key starts_at ends_at site_id room_id booked_clinician_id visit_type_id]
         )
         site = current_practice.sites.find(requested_id!(input[:site_id], :site_id))
-        visit_type = current_practice.visit_types.active.find(requested_id!(input[:visit_type_id], :visit_type_id))
+        visit_type = find_optional(current_practice.visit_types.active, input[:visit_type_id], :visit_type_id)
         result = Clinic::PatientPortal::ReviewAppointmentRequest.approve(
           practice: current_practice,
           actor: current_user,

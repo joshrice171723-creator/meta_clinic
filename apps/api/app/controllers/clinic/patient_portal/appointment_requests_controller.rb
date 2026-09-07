@@ -25,8 +25,8 @@ module Clinic
         raise ArgumentError, "Appointment requests must start in the future." unless starts_at > Current.business_time
         raise ArgumentError, "Choose a time window no longer than four hours." if ends_at - starts_at > 4.hours
 
-        site = input[:site_id].present? ? portal_practice.sites.where(status: "active").find(requested_id!(input[:site_id], :site_id)) : nil
-        visit_type = input[:visit_type_id].present? ? portal_practice.visit_types.active.find(requested_id!(input[:visit_type_id], :visit_type_id)) : nil
+        site = input[:site_id].present? ? portal_practice.sites.where(status: "active").find(integer_id!(input[:site_id], field: :site_id)) : nil
+        visit_type = input[:visit_type_id].present? ? portal_practice.visit_types.active.find(integer_id!(input[:visit_type_id], field: :visit_type_id)) : nil
         conflict = portal_patient.appointments.where(status: %w[scheduled confirmed])
           .where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
         raise ArgumentError, "That time overlaps an existing appointment." if conflict

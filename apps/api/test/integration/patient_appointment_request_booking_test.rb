@@ -316,6 +316,8 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
       session.post "/api/session", params: { email_address: user.email_address, password: password }, headers: headers, as: :json
       assert_equal 200, session.response.status
     end
+    session.get "/api/csrf", headers: @headers
+    headers = @headers.merge("X-CSRF-Token" => session.response.parsed_body.fetch("csrf_token"))
     [ session, headers ]
   end
 end

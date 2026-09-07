@@ -7,7 +7,7 @@ module Clinic
       Result = Data.define(:request, :appointment, :replayed)
 
       def self.approve(practice:, actor:, request:, request_key:, starts_at:, ends_at:, site:, room: nil,
-        booked_clinician: nil, visit_type:)
+        booked_clinician: nil, visit_type: nil)
         authorize_booking = -> {
           Clinic::Authorization.authorize_with_legacy!(
             actor: actor,
@@ -33,7 +33,7 @@ module Clinic
             site_id: site.id,
             room_id: room&.id,
             booked_clinician_id: booked_clinician&.id,
-            visit_type_id: visit_type.id
+            visit_type_id: visit_type&.id
           },
           resource: request,
           authorization: -> {
