@@ -4002,6 +4002,7 @@ CREATE TABLE public.clinic_invoices (
     rounding_policy_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    encounter_id bigint,
     CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0)))
 );
 
@@ -7264,6 +7265,18 @@ ALTER SEQUENCE public.contact_messages_id_seq OWNED BY public.contact_messages.i
 
 
 --
+-- Name: identity_login_throttles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.identity_login_throttles (
+    key_digest character varying(64) NOT NULL,
+    attempts integer NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT identity_login_throttles_positive_attempts CHECK ((attempts > 0))
+);
+
+
+--
 -- Name: identity_preferences; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7379,7 +7392,8 @@ CREATE TABLE public.member_sessions (
     user_id bigint NOT NULL,
     expires_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    last_activity_at timestamp(6) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -9912,6 +9926,14 @@ ALTER TABLE ONLY public.contact_messages
 
 
 --
+-- Name: identity_login_throttles identity_login_throttles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.identity_login_throttles
+    ADD CONSTRAINT identity_login_throttles_pkey PRIMARY KEY (key_digest);
+
+
+--
 -- Name: identity_preferences identity_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10404,6 +10426,13 @@ CREATE UNIQUE INDEX clinic_insurance_claims_practice_id ON public.clinic_insuran
 --
 
 CREATE UNIQUE INDEX clinic_invoice_lines_practice_id ON public.clinic_invoice_lines USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_invoices_one_active_per_encounter; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_invoices_one_active_per_encounter ON public.clinic_invoices USING btree (practice_id, encounter_id) WHERE ((encounter_id IS NOT NULL) AND ((status)::text <> 'void'::text));
 
 
 --
@@ -12399,6 +12428,13 @@ CREATE UNIQUE INDEX index_clinic_subscription_packages_on_practice_id_and_id ON 
 --
 
 CREATE UNIQUE INDEX index_clinic_subscription_versions_on_practice_id_and_id ON public.clinic_subscription_versions USING btree (practice_id, id);
+
+
+--
+-- Name: index_identity_login_throttles_on_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_identity_login_throttles_on_expires_at ON public.identity_login_throttles USING btree (expires_at);
 
 
 --
@@ -15316,6 +15352,14 @@ ALTER TABLE ONLY public.clinic_invoice_lines
 
 ALTER TABLE ONLY public.clinic_invoice_lines
     ADD CONSTRAINT fk_invoice_lines_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_invoices fk_invoices_checkout_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoices
+    ADD CONSTRAINT fk_invoices_checkout_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
 
 
 --
@@ -20372,6 +20416,8 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000200'),
+('20260907000100'),
 ('20260906001900'),
 ('20260906001800'),
 ('20260906001720'),
