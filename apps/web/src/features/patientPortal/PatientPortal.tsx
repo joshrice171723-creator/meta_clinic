@@ -27,10 +27,7 @@ import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 import { PatientSubscriptions } from "./PatientSubscriptions";
 import { patientPortalLabel } from "./patientPortalLabels";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
-import {
-  DevelopmentControls,
-  EnvironmentLabel,
-} from "../identity/DevelopmentAccountSwitcher";
+import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
 
 export function PatientPortal({
   user,
@@ -51,6 +48,14 @@ export function PatientPortal({
   const context = resource.data;
   return (
     <ThemeProvider theme={membershipTheme}>
+      {user?.development_demo && (
+        <DevelopmentToolbar
+          accounts={developmentAccounts}
+          activeId={user.development_account_id}
+          businessDate={businessDate}
+          environment={environment}
+        />
+      )}
       <Box
         component="main"
         id="main"
@@ -68,10 +73,10 @@ export function PatientPortal({
         <Stack spacing={3} sx={{ maxWidth: 1200, mx: "auto" }}>
           <Stack
             direction="row"
+            component="header"
             sx={{ justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}
           >
             <Box>
-              <EnvironmentLabel environment={environment} />
               <Typography sx={{ fontWeight: 700, fontSize: 20 }}>
                 {context?.practice.name || "Your clinic"}
               </Typography>
@@ -88,13 +93,7 @@ export function PatientPortal({
               <Button href="#memberships">Explore plans</Button>
               <Button href="#my-memberships">My memberships</Button>
               <Button href="#billing">Billing</Button>
-              {user?.development_demo ? (
-                <DevelopmentControls
-                  accounts={developmentAccounts}
-                  activeId={user.development_account_id}
-                  businessDate={businessDate}
-                />
-              ) : (
+              {!user?.development_demo && (
                 <Button
                   onClick={async () => {
                     try {

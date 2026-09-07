@@ -274,35 +274,8 @@
   flex: 1 1 520px;
   min-width: 0;
 }
-.clinic-theme .clinic-topbar .development-controls {
-  min-width: 0;
-  flex: 1 1 auto;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.clinic-theme .clinic-topbar .development-account-switcher {
-  width: clamp(170px, 19vw, 220px);
-  min-width: 0;
-}
-.clinic-theme .clinic-topbar .development-control-row {
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
-}
-.clinic-theme .clinic-topbar .development-portal-toggle button {
-  white-space: nowrap;
-}
-.clinic-theme .clinic-topbar .development-account-select {
-  width: 100%;
-}
-.clinic-theme .clinic-topbar .development-date-picker {
-  min-width: 0;
-}
-.clinic-theme .clinic-topbar .development-date-input {
-  width: 148px;
-}
-.clinic-theme .clinic-topbar .development-date-note {
-  display: none;
+.clinic-theme .clinic-topbar-development {
+  justify-content: flex-end;
 }
 .clinic-theme .clinic-topbar-actions {
   display: inline-flex;
@@ -366,11 +339,8 @@
     width: 100%;
     max-width: 100%;
   }
-  .clinic-theme .clinic-topbar .development-controls {
-    width: 100%;
-  }
-  .clinic-theme .clinic-topbar .development-control-row {
-    flex-wrap: wrap;
+  .clinic-theme .clinic-development-toolbar {
+    padding-left: 64px;
   }
   .clinic-theme .clinic-topbar-actions {
     width: 100%;

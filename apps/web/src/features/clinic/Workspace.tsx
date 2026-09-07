@@ -33,10 +33,7 @@ import {
   useClinicAppearance,
 } from "./Appearance";
 import { ScribeRecordingProvider } from "../scribe/ScribeRecordingProvider";
-import {
-  DevelopmentControls,
-  EnvironmentLabel,
-} from "../identity/DevelopmentAccountSwitcher";
+import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
 
 const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
@@ -341,28 +338,30 @@ export function Workspace({
                   }
                   developmentPreview={!!user.development_demo}
                 >
+                  {!scribePage && user.development_demo && (
+                    <DevelopmentToolbar
+                      className="clinic-development-toolbar"
+                      accounts={developmentAccounts}
+                      activeId={user.development_account_id}
+                      businessDate={businessDate}
+                      environment={environment}
+                    />
+                  )}
                   {!scribePage && (
                     <header
-                      className="clinic-topbar"
+                      className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}
                       aria-label="Clinic context"
                     >
-                      <div className="clinic-topbar-context">
-                        <EnvironmentLabel environment={environment} />
-                        {user.development_demo ? (
-                          <DevelopmentControls
-                            accounts={developmentAccounts}
-                            activeId={user.development_account_id}
-                            businessDate={businessDate}
-                          />
-                        ) : (
+                      {!user.development_demo && (
+                        <div className="clinic-topbar-context">
                           <span>
                             Signed in as <strong>{user.email_address}</strong>
                             {data.credentials.length > 0 && (
                               <>, {data.credentials.join(", ")}</>
                             )}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                       <span className="clinic-topbar-actions">
                         <span className="clinic-topbar-location">
                           {data.practice.name}
