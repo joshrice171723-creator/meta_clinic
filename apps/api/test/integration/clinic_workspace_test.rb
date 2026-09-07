@@ -75,9 +75,11 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal [ second.id ], response.parsed_body.fetch("sites").map { |site| site.fetch("id") }
   end
 
-  test "billing dashboard is practice scoped and does not expose patient names" do
+  test "billing dashboard projects and searches invoice patients only with identity access" do
     patient = @practice.patients.first
-    patient_name = patient.display_name
+    patient.update!(display_name: "Revenue patient", reference: "BILL-REF-42")
+    foreign_patient = @other.patients.first
+    foreign_patient.update!(display_name: "Foreign revenue patient", reference: "FOREIGN-REF-42")
     invoice = Clinic::Billing::DraftInvoice.call(
       practice: @practice,
       actor: @user,
@@ -95,21 +97,54 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       currency: "USD",
       amount: "10.00"
     )
+
+    foreign_invoice = Clinic::Billing::DraftInvoice.call(
+      practice: @other,
+      actor: @other_user,
+      patient: foreign_patient,
+      currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "9.00", description_snapshot: "Foreign billing dashboard line" } ]
+    )
+    Clinic::Billing::PostInvoice.call(invoice: foreign_invoice, actor: @other_user)
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "billing.read")
     get "/api/clinic/billing", headers: @headers
 
     assert_response :success
     assert_equal "clinic-billing-v1", response.parsed_body.fetch("schema_version")
     assert_equal @practice.id, response.parsed_body.dig("practice", "id")
     assert response.parsed_body.dig("metrics", "invoice_count") >= 1
-    assert_not_includes response.body, patient_name
+    assert_not_includes response.body, patient.display_name
+    assert_not_includes response.body, patient.reference
+    assert_not response.parsed_body.fetch("recent_invoices").any? { |row| row.key?("patient") }
     assert response.parsed_body.fetch("recent_invoices").all? { |invoice| invoice["total"].is_a?(String) }
     assert response.parsed_body.fetch("recent_payments").all? { |payment| payment["amount"].is_a?(String) }
     assert_equal 1, response.parsed_body.dig("metrics", "currencies", 0, "open_invoice_count")
 
-    revoke_all_permissions!(@membership)
-    grant_permissions!(@membership, "billing.read")
-    get "/api/clinic/billing", headers: @headers
+    get "/api/clinic/billing", params: { q: invoice.id.to_s }, headers: @headers
     assert_response :success
+    assert_equal [ invoice.id ], response.parsed_body.fetch("recent_invoices").map { |row| row.fetch("id") }
+
+    get "/api/clinic/billing", params: { q: patient.display_name }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("recent_invoices")
+
+    grant_permissions!(@membership, "patients.identity.read")
+    get "/api/clinic/billing", params: { q: patient.display_name }, headers: @headers
+    assert_response :success
+    rows = response.parsed_body.fetch("recent_invoices")
+    assert_equal [ invoice.id ], rows.map { |row| row.fetch("id") }
+    assert_equal({ "id" => patient.id, "display_name" => patient.display_name, "reference" => patient.reference }, rows.sole.fetch("patient"))
+
+    get "/api/clinic/billing", params: { q: patient.reference }, headers: @headers
+    assert_response :success
+    assert_equal [ invoice.id ], response.parsed_body.fetch("recent_invoices").map { |row| row.fetch("id") }
+
+    get "/api/clinic/billing", params: { q: foreign_patient.display_name }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("recent_invoices")
+
     post "/api/clinic/invoices/#{invoice.id}/post", headers: csrf_headers, as: :json
     assert_response :forbidden
 

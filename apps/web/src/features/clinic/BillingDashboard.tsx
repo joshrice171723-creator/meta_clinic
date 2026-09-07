@@ -61,6 +61,17 @@ type AuditedBillingInvoiceDetail = BillingInvoiceDetail & {
   }[];
 };
 
+type BillingInvoiceWithPatient =
+  BillingWorkspaceData["recent_invoices"][number] & {
+    patient?: { id: number; display_name: string; reference: string | null };
+  };
+type BillingWorkspaceDataWithPatients = Omit<
+  BillingWorkspaceData,
+  "recent_invoices"
+> & {
+  recent_invoices: BillingInvoiceWithPatient[];
+};
+
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
@@ -309,9 +320,10 @@ export function BillingDashboard() {
   const [query, setQuery] = useState("");
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<BillingInvoiceSort>("recent");
-  const { data, error, refresh } = useResource<BillingWorkspaceData>(
-    `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
-  );
+  const { data, error, refresh } =
+    useResource<BillingWorkspaceDataWithPatients>(
+      `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
+    );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     null,
   );
@@ -329,6 +341,8 @@ export function BillingDashboard() {
     requestKey: string;
   } | null>(null);
   const visibleInvoices = data?.recent_invoices ?? [];
+  const supportsPatientIdentity =
+    context.capabilities.patient_identity_read === true;
   const selectedInvoice =
     visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
     visibleInvoices.find(
@@ -681,7 +695,9 @@ export function BillingDashboard() {
                           <TableCell component="th" scope="row">
                             <strong>{encounter.patient.display_name}</strong>
                             <Typography color="text.secondary" variant="body2">
-                              {patientReferenceLabel(encounter.patient.reference)}
+                              {patientReferenceLabel(
+                                encounter.patient.reference,
+                              )}
                             </Typography>
                           </TableCell>
                           <TableCell data-label="Site">{site}</TableCell>
@@ -785,11 +801,19 @@ export function BillingDashboard() {
               }}
             >
               <TextField
-                label="Search invoices"
+                label={
+                  supportsPatientIdentity
+                    ? "Search invoices by number, patient name or reference"
+                    : "Search invoices by number, status or currency"
+                }
                 size="small"
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Invoice number, status or currency"
+                placeholder={
+                  supportsPatientIdentity
+                    ? "Invoice number, patient name or reference"
+                    : "Invoice number, status or currency"
+                }
                 fullWidth
               />
               <Button type="submit" variant="outlined">
@@ -910,6 +934,32 @@ export function BillingDashboard() {
                           >
                             #{invoice.id}
                           </Button>
+                          {invoice.patient ? (
+                            <>
+                              <Button
+                                size="small"
+                                href={`/clinic/billing/patients?patient_id=${invoice.patient.id}`}
+                              >
+                                {invoice.patient.display_name}
+                              </Button>
+                              {patientReferenceLabel(
+                                invoice.patient.reference,
+                              ) && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {patientReferenceLabel(
+                                    invoice.patient.reference,
+                                  )}
+                                </Typography>
+                              )}
+                            </>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              Patient identity unavailable
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell data-label="State">
                           <span className={`billing-badge billing-${state}`}>
@@ -1009,9 +1059,18 @@ export function BillingDashboard() {
             {selectedInvoice ? (
               <>
                 <div className="billing-detail-meta">
-                  <span>
-                    Linked patient record · #{selectedDetail?.patient_id ?? "—"}
-                  </span>
+                  {selectedInvoice.patient ? (
+                    <a
+                      href={`/clinic/billing/patients?patient_id=${selectedInvoice.patient.id}`}
+                    >
+                      {selectedInvoice.patient.display_name}
+                      {patientReferenceLabel(selectedInvoice.patient.reference)
+                        ? ` · ${patientReferenceLabel(selectedInvoice.patient.reference)}`
+                        : ""}
+                    </a>
+                  ) : (
+                    <span>Patient identity unavailable for this account</span>
+                  )}
                   <span>
                     Created{" "}
                     {date(selectedInvoice.created_at, data.practice.timezone)}

@@ -12,7 +12,8 @@ module Clinic
         per_page = Integer(per_page)
         raise ArgumentError, "Billing page must be positive." unless page.positive?
         raise ArgumentError, "Billing page size must be between 1 and 100." unless per_page.between?(1, 100)
-        invoice_scope = invoice_scope(invoices, query: query, filter: filter, now: local_now)
+        invoice_scope = invoice_scope(invoices, practice: practice, query: query, filter: filter, now: local_now,
+          patient_identity_access: patient_identity_access)
         invoice_scope = invoice_scope.order(invoice_order(sort))
         invoice_total = invoice_scope.count
         invoice_pages = invoice_total.zero? ? 0 : (invoice_total.to_f / per_page).ceil
@@ -28,10 +29,11 @@ module Clinic
             void_count: invoices.where(status: "void").count,
             currencies: currencies.map { |currency| currency_metrics(invoices, currency, period_start, period_end, practice) }
           },
-          recent_invoices: invoice_scope.includes(:lines, :payment_allocations, :credit_notes)
+          recent_invoices: invoice_scope.includes(:lines, :payment_allocations, :credit_notes,
+            *(patient_identity_access ? [ :patient ] : []))
             .limit(per_page)
             .offset((page - 1) * per_page)
-            .map { |invoice| invoice_summary(invoice, now: local_now) },
+            .map { |invoice| invoice_summary(invoice, now: local_now, patient_identity_access: patient_identity_access) },
           invoice_pagination: { page: page, per_page: per_page, total: invoice_total, total_pages: invoice_pages },
           recent_payments: recent_payments(practice),
           payment_activity: payment_activity(practice),
@@ -106,13 +108,24 @@ module Clinic
       end
       private_class_method :currency_metrics
 
-      def self.invoice_scope(invoices, query:, filter:, now:)
+      def self.invoice_scope(invoices, practice:, query:, filter:, now:, patient_identity_access:)
         scope = invoices
         text = query.to_s.strip
-        scope = scope.where(
-          "CAST(clinic_invoices.id AS TEXT) ILIKE :query OR clinic_invoices.status ILIKE :query OR clinic_invoices.currency ILIKE :query",
-          query: "%#{ActiveRecord::Base.sanitize_sql_like(text)}%"
-        ) unless text.empty?
+        unless text.empty?
+          escaped = "%#{ActiveRecord::Base.sanitize_sql_like(text)}%"
+          invoice_match = "CAST(clinic_invoices.id AS TEXT) ILIKE :query OR clinic_invoices.status ILIKE :query OR clinic_invoices.currency ILIKE :query"
+          if patient_identity_access
+            patients = Clinic::Care::PatientNameSearch.search(
+              scope: practice.patients,
+              practice_id: practice.id,
+              query: text
+            )
+            scope = scope.where("#{invoice_match} OR clinic_invoices.patient_id IN (:patient_ids)",
+              query: escaped, patient_ids: patients.select(:id))
+          else
+            scope = scope.where(invoice_match, query: escaped)
+          end
+        end
 
         case filter.to_s
         when "all" then scope
@@ -180,12 +193,12 @@ module Clinic
       end
       private_class_method :open_invoice_count
 
-      def self.invoice_summary(invoice, now: Current.business_time)
+      def self.invoice_summary(invoice, now: Current.business_time, patient_identity_access: false)
         total = invoice.lines.sum(&:posted_amount)
         allocated = invoice.payment_allocations.sum(&:amount)
         credited = invoice.credit_notes.sum(&:amount)
         age_days = [ ((now - invoice.created_at) / 1.day).floor, 0 ].max
-        {
+        summary = {
           id: invoice.id,
           status: invoice.status,
           currency: invoice.currency,
@@ -197,6 +210,14 @@ module Clinic
           age_bucket: age_bucket(age_days),
           created_at: invoice.created_at.iso8601
         }
+        if patient_identity_access
+          summary[:patient] = {
+            id: invoice.patient.id,
+            display_name: invoice.patient.display_name,
+            reference: invoice.patient.reference
+          }
+        end
+        summary
       end
       private_class_method :invoice_summary
 
