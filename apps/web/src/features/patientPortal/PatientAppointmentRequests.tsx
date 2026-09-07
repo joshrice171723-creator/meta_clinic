@@ -54,7 +54,27 @@ function localDateTime(value: Date) {
 
 function dateTime(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+  return Number.isNaN(date.valueOf())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
+}
+
+function dateTimeRange(start: string, end: string) {
+  const startsAt = new Date(start);
+  const endsAt = new Date(end);
+  if (Number.isNaN(startsAt.valueOf()) || Number.isNaN(endsAt.valueOf())) {
+    return `${dateTime(start)} – ${dateTime(end)}`;
+  }
+
+  const day = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+  const time = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
+  if (startsAt.toDateString() === endsAt.toDateString()) {
+    return `${day.format(startsAt)} · ${time.format(startsAt)} – ${time.format(endsAt)}`;
+  }
+  return `${dateTime(start)} – ${dateTime(end)}`;
 }
 
 export function PatientAppointmentRequests({
@@ -255,8 +275,10 @@ export function PatientAppointmentRequests({
                       >
                         <Box>
                           <Typography sx={{ fontWeight: 700 }}>
-                            {dateTime(appointment.starts_at)} –{" "}
-                            {dateTime(appointment.ends_at)}
+                            {dateTimeRange(
+                              appointment.starts_at,
+                              appointment.ends_at,
+                            )}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             {appointment.site?.name ||
@@ -491,7 +513,7 @@ export function PatientAppointmentRequests({
                       <Typography sx={{ fontWeight: 700 }}>
                         {request.request_kind === "cancel"
                           ? "Cancellation requested"
-                          : `${request.request_kind === "reschedule" ? "Reschedule requested: " : ""}${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}`}
+                          : `${request.request_kind === "reschedule" ? "Reschedule requested: " : ""}${dateTimeRange(request.starts_at || "", request.ends_at || "")}`}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {request.source_appointment
@@ -664,9 +686,9 @@ function AppointmentChangeDialog({
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Alert severity="info">
-            Current appointment: {dateTime(appointment.starts_at)} –{" "}
-            {dateTime(appointment.ends_at)}. The clinic will review this request
-            before changing your appointment.
+            Current appointment:{" "}
+            {dateTimeRange(appointment.starts_at, appointment.ends_at)}. The
+            clinic will review this request before changing your appointment.
           </Alert>
           {error && <Alert severity="error">{error}</Alert>}
           {kind === "cancel" ? (
