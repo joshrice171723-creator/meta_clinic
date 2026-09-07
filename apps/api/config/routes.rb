@@ -21,6 +21,7 @@ Rails.application.routes.draw do
       post :close, on: :member
       post :provider_assignment, on: :member, to: "scheduling/provider_assignments#create"
       resources :notes, controller: "care/encounter_notes", only: %i[index create]
+      resources :medication_administrations, controller: "care/medication_administrations", only: %i[index create]
     end
     resources :notes, controller: "care/encounter_notes", only: :show do
       post :revisions, on: :member, action: :revise

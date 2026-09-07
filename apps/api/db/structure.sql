@@ -4235,6 +4235,89 @@ ALTER SEQUENCE public.clinic_lab_reports_id_seq OWNED BY public.clinic_lab_repor
 
 
 --
+-- Name: clinic_medication_administration_movements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_medication_administration_movements (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    medication_administration_id bigint CONSTRAINT clinic_medication_administr_medication_administration__not_null NOT NULL,
+    inventory_entry_id bigint CONSTRAINT clinic_medication_administration_mo_inventory_entry_id_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    stock_snapshot text CONSTRAINT clinic_medication_administration_moveme_stock_snapshot_not_null NOT NULL
+);
+
+
+--
+-- Name: clinic_medication_administration_movements_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_medication_administration_movements_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_medication_administration_movements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_medication_administration_movements_id_seq OWNED BY public.clinic_medication_administration_movements.id;
+
+
+--
+-- Name: clinic_medication_administrations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_medication_administrations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    administered_by_membership_id bigint CONSTRAINT clinic_medication_administr_administered_by_membership_not_null NOT NULL,
+    product_id bigint NOT NULL,
+    dose_text text NOT NULL,
+    route_text text NOT NULL,
+    administration_site_text text,
+    quantity numeric(12,6) NOT NULL,
+    stock_unit character varying(20) NOT NULL,
+    administered_at timestamp(6) with time zone NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    medication_snapshot text NOT NULL,
+    CONSTRAINT clinic_medication_administrations_quantity CHECK (((quantity > (0)::numeric) AND (quantity <= (1000000)::numeric) AND (quantity = round(quantity, 6)))),
+    CONSTRAINT clinic_medication_administrations_stock_unit CHECK (((stock_unit)::text = ANY ((ARRAY['package'::character varying, 'each'::character varying, 'tablet'::character varying, 'capsule'::character varying, 'vial'::character varying, 'mL'::character varying, 'g'::character varying])::text[]))),
+    CONSTRAINT clinic_medication_administrations_timeline CHECK ((administered_at <= recorded_at)),
+    CONSTRAINT clinic_medication_administrations_values CHECK (((length(TRIM(BOTH FROM dose_text)) > 0) AND (length(TRIM(BOTH FROM route_text)) > 0) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+);
+
+
+--
+-- Name: clinic_medication_administrations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_medication_administrations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_medication_administrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_medication_administrations_id_seq OWNED BY public.clinic_medication_administrations.id;
+
+
+--
 -- Name: clinic_medication_statements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -8345,6 +8428,20 @@ ALTER TABLE ONLY public.clinic_lab_reports ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
+-- Name: clinic_medication_administration_movements id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administration_movements ALTER COLUMN id SET DEFAULT nextval('public.clinic_medication_administration_movements_id_seq'::regclass);
+
+
+--
+-- Name: clinic_medication_administrations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations ALTER COLUMN id SET DEFAULT nextval('public.clinic_medication_administrations_id_seq'::regclass);
+
+
+--
 -- Name: clinic_medication_statements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -9546,6 +9643,22 @@ ALTER TABLE ONLY public.clinic_lab_report_versions
 
 ALTER TABLE ONLY public.clinic_lab_reports
     ADD CONSTRAINT clinic_lab_reports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_medication_administration_movements clinic_medication_administration_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administration_movements
+    ADD CONSTRAINT clinic_medication_administration_movements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_medication_administrations clinic_medication_administrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT clinic_medication_administrations_pkey PRIMARY KEY (id);
 
 
 --
@@ -10788,6 +10901,48 @@ CREATE UNIQUE INDEX clinic_lab_reports_patient_id ON public.clinic_lab_reports U
 --
 
 CREATE UNIQUE INDEX clinic_lab_reports_practice_id ON public.clinic_lab_reports USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_medication_admin_movements_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_admin_movements_entry ON public.clinic_medication_administration_movements USING btree (practice_id, inventory_entry_id);
+
+
+--
+-- Name: clinic_medication_admin_movements_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_admin_movements_identity ON public.clinic_medication_administration_movements USING btree (practice_id, medication_administration_id, inventory_entry_id);
+
+
+--
+-- Name: clinic_medication_admin_movements_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_admin_movements_practice_id ON public.clinic_medication_administration_movements USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_medication_administrations_encounter_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_medication_administrations_encounter_timeline ON public.clinic_medication_administrations USING btree (practice_id, patient_id, encounter_id, administered_at, id);
+
+
+--
+-- Name: clinic_medication_administrations_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_administrations_practice_id ON public.clinic_medication_administrations USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_medication_administrations_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_administrations_retry ON public.clinic_medication_administrations USING btree (practice_id, request_key);
 
 
 --
@@ -13878,6 +14033,20 @@ CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clin
 
 
 --
+-- Name: clinic_medication_administration_movements clinic_medication_administration_movements_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_medication_administration_movements_immutable BEFORE DELETE OR UPDATE ON public.clinic_medication_administration_movements FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_medication_administrations clinic_medication_administrations_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_medication_administrations_immutable BEFORE DELETE OR UPDATE ON public.clinic_medication_administrations FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_medication_statements clinic_medication_statements_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -15860,6 +16029,78 @@ ALTER TABLE ONLY public.clinic_lab_report_versions
 
 ALTER TABLE ONLY public.clinic_lab_report_versions
     ADD CONSTRAINT fk_lab_versions_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_medication_administration_movements fk_medication_admin_movements_administration; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administration_movements
+    ADD CONSTRAINT fk_medication_admin_movements_administration FOREIGN KEY (practice_id, medication_administration_id) REFERENCES public.clinic_medication_administrations(practice_id, id);
+
+
+--
+-- Name: clinic_medication_administration_movements fk_medication_admin_movements_entry; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administration_movements
+    ADD CONSTRAINT fk_medication_admin_movements_entry FOREIGN KEY (practice_id, inventory_entry_id) REFERENCES public.clinic_inventory_entries(practice_id, id);
+
+
+--
+-- Name: clinic_medication_administration_movements fk_medication_admin_movements_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administration_movements
+    ADD CONSTRAINT fk_medication_admin_movements_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_medication_administrations fk_medication_administrations_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_medication_administrations_actor FOREIGN KEY (practice_id, administered_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_medication_administrations fk_medication_administrations_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_medication_administrations_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_medication_administrations fk_medication_administrations_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_medication_administrations_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_medication_administrations fk_medication_administrations_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_medication_administrations_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_medication_administrations fk_medication_administrations_product; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_medication_administrations_product FOREIGN KEY (practice_id, product_id) REFERENCES public.clinic_pharmacy_products(practice_id, id);
+
+
+--
+-- Name: clinic_medication_administrations fk_medication_administrations_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_medication_administrations_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -20980,6 +21221,9 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000530'),
+('20260907000520'),
+('20260907000510'),
 ('20260907000500'),
 ('20260907000410'),
 ('20260907000400'),

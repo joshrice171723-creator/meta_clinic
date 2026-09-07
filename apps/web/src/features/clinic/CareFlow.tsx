@@ -62,6 +62,7 @@ import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
+import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 
 function patientDisplayLabel(
@@ -2166,6 +2167,12 @@ export function ProviderEncounterWorkflow({
                 patientName={patient.display_name}
               />
             </Box>
+            <MedicationAdministrations
+              encounter={encounter}
+              patient={patient}
+              timezone={timezone}
+              onChanged={onCareSummaryRefresh}
+            />
             {noteWorkspace}
             <VisitWrapUp
               patient={patient}

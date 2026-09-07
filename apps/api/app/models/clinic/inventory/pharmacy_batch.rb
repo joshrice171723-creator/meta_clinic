@@ -42,7 +42,7 @@ module Clinic
             )
         )
       SQL
-      scope :usable, ->(day = Current.business_date) { where(NO_HOLD_SQL).where(STOCK_DESTINATION_SQL).where("expires_on >= ?", day) }
+      scope :usable, ->(day = Current.business_date) { where(NO_HOLD_SQL).where(STOCK_DESTINATION_SQL).where("clinic_pharmacy_batches.expires_on >= ?", day) }
 
       def quantity
         self[:on_hand]
