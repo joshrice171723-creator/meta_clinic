@@ -14,6 +14,7 @@ module Clinic
       belongs_to :lab_report, class_name: "Clinic::Care::LabReport", inverse_of: :report_versions
       belongs_to :recorded_by_membership, class_name: "Clinic::Membership"
       belongs_to :reviewed_by_membership, class_name: "Clinic::Membership", optional: true
+      has_one :follow_up, class_name: "Clinic::Care::LabResultFollowUp", dependent: :restrict_with_error
 
       encrypts :title, :results_payload
       enum :status, STATUSES.index_with(&:itself), prefix: true, validate: true

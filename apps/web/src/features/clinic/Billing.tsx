@@ -49,6 +49,7 @@ import {
   type InvoiceLineDraft,
 } from "./InvoiceLineEditor";
 import { patientReferenceLabel } from "./patientReference";
+import { InvoiceCheckoutControls } from "./InvoiceCheckoutControls";
 import { useClinic } from "./Workspace";
 
 function money(value: string, currency: string) {
@@ -735,7 +736,7 @@ function CheckoutSettlement({
       setConfirmation(null);
       setPostedInvoiceId(attempt.invoiceId);
       setNotice(
-        `Invoice #${attempt.invoiceId} posted. Enter the cash actually received before recording payment.`,
+        `Invoice #${attempt.invoiceId} posted. Choose how to collect the remaining balance.`,
       );
       onFinancialChange(attempt.invoiceId);
     } catch (reason) {
@@ -765,6 +766,11 @@ function CheckoutSettlement({
     invoice && (invoice.status === "posted" || invoice.id === postedInvoiceId)
       ? { ...billingInvoiceSummary(invoice), status: "posted" as const }
       : null;
+  const onlinePaymentPending =
+    invoice?.status === "posted" &&
+    ["processing", "needs_reconciliation"].includes(
+      invoice.online_payment.state,
+    );
   return (
     <>
       {(selectedDraft || postingPending) && (
@@ -839,9 +845,31 @@ function CheckoutSettlement({
         </Paper>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {invoice?.status === "posted" && !postingPending && (
+        <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
+          <InvoiceCheckoutControls
+            key={invoice.id}
+            onlinePayment={invoice.online_payment}
+            endpoint={`/api/clinic/invoices/${invoice.id}/online_payment`}
+            actionLabel="Collect online"
+            actionsEnabled={
+              !cashPending &&
+              (clinic.capabilities.billing_payment_record === true ||
+                clinic.capabilities.billing === true)
+            }
+            onChanged={() => onFinancialChange(invoice.id)}
+          />
+          {onlinePaymentPending && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Refresh or cancel the online checkout before recording a different
+              payment method.
+            </Alert>
+          )}
+        </Paper>
+      )}
       {(collectionInvoice || cashPending) && !postingPending && (
         <CashDrawerOperations
-          invoice={collectionInvoice}
+          invoice={onlinePaymentPending ? null : collectionInvoice}
           refreshVersion={financialRevision}
           onPendingChange={setCashPending}
           onRecorded={onFinancialChange}

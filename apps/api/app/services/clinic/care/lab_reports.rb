@@ -58,6 +58,9 @@ module Clinic
             raise ActiveRecord::StaleObjectError.new(locked, "update")
           end
           current = locked.report_versions.find(expected_id)
+          LabResultFollowUps.supersede_open!(
+            practice:, actor:, patient:, report: locked, version: current
+          )
           lab_version = create_version!(report: locked, member:, number: current.version_number + 1, attributes: version_payload)
           locked.update!(current_version: lab_version)
           audit!(practice:, actor:, action: "lab_report.version.create", report: locked, version: lab_version)
@@ -66,13 +69,18 @@ module Clinic
         confirmed_result!(outcome)
       end
 
-      def self.review(practice:, actor:, patient:, report:, version:, request_key:, confirmed_patient:)
+      def self.review(practice:, actor:, patient:, report:, version:, request_key:, confirmed_patient:, follow_up: nil)
         patient = practice.patients.find(patient.id)
         report = practice.lab_reports.where(patient:).find(report.id)
         version = report.report_versions.find(version.id)
         authorize_review!(practice:, actor:, patient:)
         confirm_patient!(confirmed_patient)
+        follow_up_payload = LabResultFollowUps.normalize_optional_decision(follow_up)
         payload = { patient_id: patient.id, report_id: report.id, version_id: version.id, confirmed_patient: true }
+        if follow_up_payload
+          payload[:follow_up_disposition] = follow_up_payload.fetch(:disposition)
+          payload[:follow_up_note] = follow_up_payload[:instructions]
+        end
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.version.review", request_key:, payload:, resource: version,
           authorization: -> { authorize_review!(practice:, actor:, patient:) }, authorization_action: "notes.write",
@@ -91,6 +99,10 @@ module Clinic
 
           locked_version.update!(reviewed_by_membership: member, reviewed_at: Current.business_time)
           audit!(practice:, actor:, action: "lab_report.version.review", report: locked_report, version: locked_version)
+          LabResultFollowUps.create_for_review!(
+            practice:, actor:, patient:, report: locked_report, version: locked_version,
+            member:, decision: follow_up_payload
+          )
           locked_version
         end
         confirmed_result!(outcome)

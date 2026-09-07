@@ -245,6 +245,11 @@
     "/api/clinic/invoices/:id(.:format)"
   ],
   [
+    "api_clinic_lab_reports_follow_up_queue",
+    "GET",
+    "/api/clinic/lab_reports/follow_up_queue(.:format)"
+  ],
+  [
     "api_clinic_lab_reports_review_queue",
     "GET",
     "/api/clinic/lab_reports/review_queue(.:format)"
@@ -830,6 +835,11 @@
     "/api/clinic/encounters/:id/close(.:format)"
   ],
   [
+    "complete_follow_up_api_clinic_patient_lab_report",
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/follow_up/complete(.:format)"
+  ],
+  [
     "consent_api_clinic_scribe_encounter",
     "POST",
     "/api/clinic/scribe/encounters/:id/consent(.:format)"
@@ -1068,6 +1078,11 @@
     "reconcile_ledger_api_clinic_subscription",
     "POST",
     "/api/clinic/subscriptions/:id/reconcile_ledger(.:format)"
+  ],
+  [
+    "record_follow_up_api_clinic_patient_lab_report",
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/follow_up(.:format)"
   ],
   [
     "recover_api_clinic_reminders",

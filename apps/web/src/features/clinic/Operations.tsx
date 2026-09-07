@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ClinicOverview } from "../../api/contracts";
 import { Card } from "../../shared/ui";
 import { LabReviewWorklist } from "./LabReviewWorklist";
+import { LabFollowUpWorklist } from "./LabFollowUpWorklist";
 import { OperationFollowUps } from "./OperationFollowUps";
 import { useClinic, useClinicOverview } from "./Workspace";
 
@@ -119,6 +120,7 @@ export function Operations() {
         followUps={
           <>
             <LabReviewWorklist />
+            <LabFollowUpWorklist />
             <OperationFollowUps />
           </>
         }

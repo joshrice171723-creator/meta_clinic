@@ -172,6 +172,7 @@ Rails.application.routes.draw do
       post "controlled/:id/certify", to: "inventory/management#certify_control"
     end
     get "lab_reports/review_queue", to: "care/lab_reports#review_queue"
+    get "lab_reports/follow_up_queue", to: "care/lab_reports#follow_up_queue"
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       get :lookup, on: :collection, to: "care/patients#lookup"
       get :billing_ledger, on: :member, to: "billing/patient_ledgers#show"
@@ -187,6 +188,8 @@ Rails.application.routes.draw do
       resources :lab_reports, controller: "care/lab_reports", only: %i[index show create] do
         post :versions, on: :member, action: :create_version
         post "versions/:version_id/review", on: :member, action: :review, as: :review_version
+        post "versions/:version_id/follow_up", on: :member, action: :record_follow_up, as: :record_follow_up
+        post "versions/:version_id/follow_up/complete", on: :member, action: :complete_follow_up, as: :complete_follow_up
       end
       resources :address_versions, controller: "care/patient_addresses", only: %i[index create]
       resources :documents, controller: "documents", only: :index

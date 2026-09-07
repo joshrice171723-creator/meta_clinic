@@ -11,6 +11,7 @@ module Clinic
       belongs_to :current_version, class_name: "Clinic::Care::LabReportVersion", optional: true
       has_many :report_versions, -> { order(version_number: :asc) },
         class_name: "Clinic::Care::LabReportVersion", dependent: :restrict_with_error
+      has_many :follow_ups, class_name: "Clinic::Care::LabResultFollowUp", dependent: :restrict_with_error
 
       encrypts :external_report_id
       attr_readonly :practice_id, :patient_id, :source_name, :external_report_id, :external_report_id_digest

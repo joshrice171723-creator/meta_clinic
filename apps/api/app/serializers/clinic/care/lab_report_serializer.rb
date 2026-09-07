@@ -32,7 +32,43 @@ module Clinic
           recorded_at: iso(value.recorded_at),
           recorded_by: value.recorded_by_membership_id,
           reviewed_at: iso(value.reviewed_at),
-          reviewed_by: value.reviewed_by_membership_id
+          reviewed_by: value.reviewed_by_membership_id,
+          follow_up: follow_up(value.follow_up)
+        }
+      end
+
+      def self.follow_up(value)
+        return unless value
+
+        {
+          id: value.id,
+          state: value.state,
+          instructions: value.instructions,
+          outcome: value.outcome,
+          recorded_at: iso(value.recorded_at),
+          recorded_by: value.recorded_by_membership_id,
+          completed_at: iso(value.completed_at),
+          completed_by: value.completed_by_membership_id,
+          superseded_at: iso(value.superseded_at)
+        }
+      end
+
+      def self.follow_up_queue_item(value)
+        version = value.lab_report_version
+        {
+          patient: {
+            id: value.patient.id,
+            display_name: value.patient.display_name,
+            reference: value.patient.reference
+          },
+          report_id: value.lab_report_id,
+          version: {
+            id: version.id,
+            version_number: version.version_number,
+            title: version.title,
+            issued_at: iso(version.issued_at)
+          },
+          follow_up: follow_up(value)
         }
       end
 

@@ -91,6 +91,55 @@ $$;
 
 
 --
+-- Name: clinic_lab_result_follow_ups_protect(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_lab_result_follow_ups_protect() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'Lab result follow-ups cannot be deleted';
+  END IF;
+
+  IF OLD.id IS DISTINCT FROM NEW.id
+    OR OLD.practice_id IS DISTINCT FROM NEW.practice_id
+    OR OLD.patient_id IS DISTINCT FROM NEW.patient_id
+    OR OLD.lab_report_id IS DISTINCT FROM NEW.lab_report_id
+    OR OLD.lab_report_version_id IS DISTINCT FROM NEW.lab_report_version_id
+    OR OLD.instructions IS DISTINCT FROM NEW.instructions
+    OR OLD.recorded_by_membership_id IS DISTINCT FROM NEW.recorded_by_membership_id
+    OR OLD.recorded_at IS DISTINCT FROM NEW.recorded_at
+    OR OLD.created_at IS DISTINCT FROM NEW.created_at
+    OR OLD.state <> 'open'
+    OR NEW.state NOT IN ('completed', 'superseded') THEN
+    RAISE EXCEPTION 'Lab result follow-up evidence is immutable';
+  END IF;
+
+  IF NEW.state = 'completed' AND (
+    NEW.outcome IS NULL
+    OR NEW.completed_at IS NULL
+    OR NEW.completed_by_membership_id IS NULL
+    OR NEW.superseded_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'Completed lab result follow-up evidence is incomplete';
+  END IF;
+
+  IF NEW.state = 'superseded' AND (
+    NEW.outcome IS NOT NULL
+    OR NEW.completed_at IS NOT NULL
+    OR NEW.completed_by_membership_id IS NOT NULL
+    OR NEW.superseded_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Superseded lab result follow-up evidence is incomplete';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: clinic_model_versions_immutable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4289,6 +4338,50 @@ CREATE SEQUENCE public.clinic_lab_reports_id_seq
 --
 
 ALTER SEQUENCE public.clinic_lab_reports_id_seq OWNED BY public.clinic_lab_reports.id;
+
+
+--
+-- Name: clinic_lab_result_follow_ups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_lab_result_follow_ups (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    lab_report_id bigint NOT NULL,
+    lab_report_version_id bigint NOT NULL,
+    state character varying NOT NULL,
+    instructions text,
+    outcome text,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    completed_by_membership_id bigint,
+    completed_at timestamp(6) with time zone,
+    superseded_at timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_lab_follow_ups_state_evidence CHECK (((((state)::text = 'open'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL)) OR (((state)::text = 'completed'::text) AND (instructions IS NOT NULL) AND (outcome IS NOT NULL) AND (completed_at IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (superseded_at IS NULL)) OR (((state)::text = 'not_required'::text) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL)) OR (((state)::text = 'superseded'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NOT NULL)))),
+    CONSTRAINT clinic_lab_follow_ups_values CHECK ((((state)::text = ANY ((ARRAY['open'::character varying, 'completed'::character varying, 'not_required'::character varying, 'superseded'::character varying])::text[])) AND ((instructions IS NULL) OR ((char_length(TRIM(BOTH FROM instructions)) >= 1) AND (char_length(TRIM(BOTH FROM instructions)) <= 1000))) AND ((outcome IS NULL) OR ((char_length(TRIM(BOTH FROM outcome)) >= 1) AND (char_length(TRIM(BOTH FROM outcome)) <= 1000)))))
+);
+
+
+--
+-- Name: clinic_lab_result_follow_ups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_lab_result_follow_ups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_lab_result_follow_ups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_lab_result_follow_ups_id_seq OWNED BY public.clinic_lab_result_follow_ups.id;
 
 
 --
@@ -8501,6 +8594,13 @@ ALTER TABLE ONLY public.clinic_lab_reports ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
+-- Name: clinic_lab_result_follow_ups id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups ALTER COLUMN id SET DEFAULT nextval('public.clinic_lab_result_follow_ups_id_seq'::regclass);
+
+
+--
 -- Name: clinic_medication_administration_movements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -9727,6 +9827,14 @@ ALTER TABLE ONLY public.clinic_lab_reports
 
 
 --
+-- Name: clinic_lab_result_follow_ups clinic_lab_result_follow_ups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT clinic_lab_result_follow_ups_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_medication_administration_movements clinic_medication_administration_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10940,6 +11048,27 @@ CREATE UNIQUE INDEX clinic_invoices_patient_id ON public.clinic_invoices USING b
 --
 
 CREATE UNIQUE INDEX clinic_invoices_practice_id ON public.clinic_invoices USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_lab_follow_ups_open_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_lab_follow_ups_open_queue ON public.clinic_lab_result_follow_ups USING btree (practice_id, state, recorded_at, id) WHERE ((state)::text = 'open'::text);
+
+
+--
+-- Name: clinic_lab_follow_ups_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_follow_ups_practice_id ON public.clinic_lab_result_follow_ups USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_lab_follow_ups_version_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_lab_follow_ups_version_id ON public.clinic_lab_result_follow_ups USING btree (practice_id, patient_id, lab_report_id, lab_report_version_id);
 
 
 --
@@ -14163,6 +14292,13 @@ CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clin
 
 
 --
+-- Name: clinic_lab_result_follow_ups clinic_lab_result_follow_ups_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_lab_result_follow_ups_protect BEFORE DELETE OR UPDATE ON public.clinic_lab_result_follow_ups FOR EACH ROW EXECUTE FUNCTION public.clinic_lab_result_follow_ups_protect();
+
+
+--
 -- Name: clinic_medication_administration_movements clinic_medication_administration_movements_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -16102,6 +16238,54 @@ ALTER TABLE ONLY public.clinic_invoices
 
 ALTER TABLE ONLY public.clinic_invoices
     ADD CONSTRAINT fk_invoices_voider_membership FOREIGN KEY (practice_id, voided_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_completer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_completer FOREIGN KEY (practice_id, completed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_report; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_report FOREIGN KEY (practice_id, patient_id, lab_report_id) REFERENCES public.clinic_lab_reports(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_version FOREIGN KEY (practice_id, patient_id, lab_report_id, lab_report_version_id) REFERENCES public.clinic_lab_report_versions(practice_id, patient_id, lab_report_id, id);
 
 
 --
@@ -21422,6 +21606,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000900'),
 ('20260907000800'),
 ('20260907000700'),
 ('20260907000600'),

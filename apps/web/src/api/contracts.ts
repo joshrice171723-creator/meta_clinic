@@ -519,6 +519,7 @@ export type BillingPatientLedger = {
     allocated_amount: Decimal;
     credit_amount: Decimal;
     balance_amount: Decimal;
+    online_payment: InvoiceOnlinePayment;
     adjustment_limits: {
       credit_available_amount: Decimal;
       void_eligible: boolean;

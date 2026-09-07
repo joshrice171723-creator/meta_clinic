@@ -10,8 +10,11 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  FormLabel,
   MenuItem,
   Paper,
+  Radio,
+  RadioGroup,
   Stack,
   Table,
   TableBody,
@@ -50,6 +53,18 @@ export type LabReportVersion = {
   recorded_by: number | null;
   reviewed_at: string | null;
   reviewed_by: number | null;
+  follow_up: LabFollowUp | null;
+};
+export type LabFollowUp = {
+  id: number;
+  state: "open" | "completed" | "not_required" | "superseded";
+  instructions: string | null;
+  outcome: string | null;
+  recorded_at: string;
+  recorded_by: number;
+  completed_at: string | null;
+  completed_by: number | null;
+  superseded_at: string | null;
 };
 export type LabReport = {
   id: number;
@@ -128,6 +143,15 @@ const formatDateTime = (value: string | null | undefined) => {
     ? date.toLocaleString()
     : "Date not recorded";
 };
+const followUpLabel = (followUp: LabFollowUp | null) => {
+  if (!followUp) return "Follow-up decision not recorded";
+  return {
+    open: "Follow-up open",
+    completed: "Follow-up completed",
+    not_required: "No follow-up needed",
+    superseded: "Follow-up superseded by a corrected version",
+  }[followUp.state];
+};
 
 export function PatientLabReports({
   patientId,
@@ -154,13 +178,29 @@ export function PatientLabReports({
     version: LabReportVersion;
   } | null>(null);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [reviewDisposition, setReviewDisposition] = useState<
+    "required" | "not_required" | null
+  >(null);
+  const [reviewFollowUpNote, setReviewFollowUpNote] = useState("");
   const [reviewRetryPending, setReviewRetryPending] = useState(false);
+  const [followUpTarget, setFollowUpTarget] = useState<{
+    report: LabReport;
+    version: LabReportVersion;
+    action: "set" | "complete";
+  } | null>(null);
+  const [followUpDisposition, setFollowUpDisposition] = useState<
+    "required" | "not_required" | null
+  >(null);
+  const [followUpNote, setFollowUpNote] = useState("");
+  const [followUpOutcome, setFollowUpOutcome] = useState("");
+  const [followUpRetryPending, setFollowUpRetryPending] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [directReviewError, setDirectReviewError] = useState("");
   const attempt = useRef<{ key: string; body: unknown; path: string } | null>(
     null,
   );
-  const reviewAttempt = useRef<{ key: string; path: string } | null>(null);
+  const reviewAttempt = useRef<{ body: unknown; path: string } | null>(null);
+  const followUpAttempt = useRef<{ body: unknown; path: string } | null>(null);
   const directReview = useRef(initialDirectReview());
   const canRead =
     capabilities.patients === true && capabilities.notes_read === true;
@@ -202,8 +242,7 @@ export function PatientLabReports({
         const report = result.report;
         const version =
           report.current_version_id === target.versionId &&
-          report.current_version.id === target.versionId &&
-          report.current_version.reviewed_at === null
+          report.current_version.id === target.versionId
             ? report.current_version
             : null;
         if (
@@ -213,15 +252,33 @@ export function PatientLabReports({
         ) {
           setHistory(report);
           setDirectReviewError(
-            "This report version is no longer current or has already been reviewed. The report history is open so you can check the current record.",
+            "This report version is no longer current. The report history is open so you can check the current record.",
           );
           return;
         }
-        if (canReview) {
+        if (!version.reviewed_at && canReview) {
           setReviewTarget({ report, version });
           setReviewConfirmed(false);
+          setReviewDisposition(null);
+          setReviewFollowUpNote("");
+        } else if (
+          version.reviewed_at &&
+          version.follow_up === null &&
+          canReview
+        ) {
+          setFollowUpTarget({ report, version, action: "set" });
+          setFollowUpDisposition(null);
+          setFollowUpNote("");
+        } else if (version.follow_up?.state === "open" && canReview) {
+          setFollowUpTarget({ report, version, action: "complete" });
+          setFollowUpOutcome("");
         } else {
           setHistory(report);
+          if (version.reviewed_at) {
+            setDirectReviewError(
+              "This lab version has already been reviewed. The report history is open so you can check its follow-up record.",
+            );
+          }
         }
       })
       .catch((reason: unknown) => {
@@ -336,10 +393,26 @@ export function PatientLabReports({
   };
   const review = async () => {
     const target = reviewTarget;
-    if (!canReview || !target || !reviewConfirmed) return;
+    if (
+      !canReview ||
+      !target ||
+      !reviewConfirmed ||
+      !reviewDisposition ||
+      (reviewDisposition === "required" && !reviewFollowUpNote.trim())
+    )
+      return;
     const current = reviewAttempt.current ?? {
-      key: crypto.randomUUID(),
       path: `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}/versions/${target.version.id}/review`,
+      body: {
+        review: {
+          request_key: crypto.randomUUID(),
+          confirmed_patient: true,
+          follow_up_disposition: reviewDisposition,
+          ...(reviewFollowUpNote.trim()
+            ? { follow_up_note: reviewFollowUpNote.trim() }
+            : {}),
+        },
+      },
     };
     reviewAttempt.current = current;
     setBusy(true);
@@ -347,9 +420,13 @@ export function PatientLabReports({
     try {
       await api(current.path, {
         method: "POST",
-        body: { review: { request_key: current.key, confirmed_patient: true } },
+        body: current.body,
       });
-      setNotice("Lab version marked reviewed.");
+      setNotice(
+        reviewDisposition === "required"
+          ? "Lab version reviewed and follow-up recorded."
+          : "Lab version reviewed with no follow-up needed.",
+      );
       reviewAttempt.current = null;
       setReviewRetryPending(false);
       setReviewTarget(null);
@@ -370,6 +447,106 @@ export function PatientLabReports({
         setError(
           "The review outcome is unknown. Retry this exact review request.",
         );
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  const recordFollowUp = async () => {
+    const target = followUpTarget;
+    if (
+      !canReview ||
+      !target ||
+      target.action !== "set" ||
+      !followUpDisposition ||
+      (followUpDisposition === "required" && !followUpNote.trim())
+    )
+      return;
+    const current = followUpAttempt.current ?? {
+      path: `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}/versions/${target.version.id}/follow_up`,
+      body: {
+        follow_up: {
+          request_key: crypto.randomUUID(),
+          disposition: followUpDisposition,
+          ...(followUpNote.trim() ? { note: followUpNote.trim() } : {}),
+        },
+      },
+    };
+    followUpAttempt.current = current;
+    setBusy(true);
+    setError("");
+    try {
+      await api(current.path, { method: "POST", body: current.body });
+      setNotice(
+        followUpDisposition === "required"
+          ? "Follow-up recorded."
+          : "No follow-up needed recorded.",
+      );
+      followUpAttempt.current = null;
+      setFollowUpRetryPending(false);
+      setFollowUpTarget(null);
+      setReload((value) => value + 1);
+      if (history?.id === target.report.id) setHistory(null);
+    } catch (reason) {
+      if (
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        reason.code !== "outcome_unconfirmed"
+      ) {
+        followUpAttempt.current = null;
+        setFollowUpRetryPending(false);
+        setError(reason.message);
+      } else {
+        setFollowUpRetryPending(true);
+        setError("The follow-up outcome is unknown. Retry this exact request.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  const completeFollowUp = async () => {
+    const target = followUpTarget;
+    if (
+      !canReview ||
+      !target ||
+      target.action !== "complete" ||
+      !followUpOutcome.trim()
+    )
+      return;
+    const current = followUpAttempt.current ?? {
+      path: `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}/versions/${target.version.id}/follow_up/complete`,
+      body: {
+        follow_up: {
+          request_key: crypto.randomUUID(),
+          outcome: followUpOutcome.trim(),
+        },
+      },
+    };
+    followUpAttempt.current = current;
+    setBusy(true);
+    setError("");
+    try {
+      await api(current.path, { method: "POST", body: current.body });
+      setNotice("Lab follow-up completed.");
+      followUpAttempt.current = null;
+      setFollowUpRetryPending(false);
+      setFollowUpTarget(null);
+      setReload((value) => value + 1);
+      if (history?.id === target.report.id) setHistory(null);
+    } catch (reason) {
+      if (
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        reason.code !== "outcome_unconfirmed"
+      ) {
+        followUpAttempt.current = null;
+        setFollowUpRetryPending(false);
+        setError(reason.message);
+      } else {
+        setFollowUpRetryPending(true);
+        setError("The follow-up outcome is unknown. Retry this exact request.");
       }
     } finally {
       setBusy(false);
@@ -460,6 +637,7 @@ export function PatientLabReports({
                   <TableCell>Report</TableCell>
                   <TableCell>Results</TableCell>
                   <TableCell>Review</TableCell>
+                  <TableCell>Follow-up</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
@@ -493,6 +671,11 @@ export function PatientLabReports({
                         : "Needs review"}
                     </TableCell>
                     <TableCell>
+                      {report.current_version.reviewed_at
+                        ? followUpLabel(report.current_version.follow_up)
+                        : "Set during review"}
+                    </TableCell>
+                    <TableCell>
                       <Stack direction="row">
                         {!report.current_version.reviewed_at && canReview && (
                           <Button
@@ -505,11 +688,51 @@ export function PatientLabReports({
                                 version: report.current_version,
                               });
                               setReviewConfirmed(false);
+                              setReviewDisposition(null);
+                              setReviewFollowUpNote("");
                             }}
                           >
                             Review
                           </Button>
                         )}
+                        {report.current_version.reviewed_at &&
+                          report.current_version.follow_up === null &&
+                          canReview && (
+                            <Button
+                              size="small"
+                              disabled={busy || followUpRetryPending}
+                              onClick={() => {
+                                setError("");
+                                setFollowUpTarget({
+                                  report,
+                                  version: report.current_version,
+                                  action: "set",
+                                });
+                                setFollowUpDisposition(null);
+                                setFollowUpNote("");
+                              }}
+                            >
+                              Set follow-up
+                            </Button>
+                          )}
+                        {report.current_version.follow_up?.state === "open" &&
+                          canReview && (
+                            <Button
+                              size="small"
+                              disabled={busy || followUpRetryPending}
+                              onClick={() => {
+                                setError("");
+                                setFollowUpTarget({
+                                  report,
+                                  version: report.current_version,
+                                  action: "complete",
+                                });
+                                setFollowUpOutcome("");
+                              }}
+                            >
+                              Complete follow-up
+                            </Button>
+                          )}
                         <Button
                           size="small"
                           startIcon={<HistoryOutlinedIcon />}
@@ -611,13 +834,70 @@ export function PatientLabReports({
                           if (history) {
                             setReviewTarget({ report: history, version });
                             setReviewConfirmed(false);
+                            setReviewDisposition(null);
+                            setReviewFollowUpNote("");
                           }
                         }}
                       >
                         Mark reviewed
                       </Button>
                     )}
+                  {version.reviewed_at &&
+                    version.id === history?.current_version_id &&
+                    version.follow_up === null &&
+                    canReview && (
+                      <Button
+                        disabled={busy || followUpRetryPending}
+                        onClick={() => {
+                          if (history) {
+                            setFollowUpTarget({
+                              report: history,
+                              version,
+                              action: "set",
+                            });
+                            setFollowUpDisposition(null);
+                            setFollowUpNote("");
+                          }
+                        }}
+                      >
+                        Set follow-up
+                      </Button>
+                    )}
+                  {version.follow_up?.state === "open" &&
+                    version.id === history?.current_version_id &&
+                    canReview && (
+                      <Button
+                        disabled={busy || followUpRetryPending}
+                        onClick={() => {
+                          if (history) {
+                            setFollowUpTarget({
+                              report: history,
+                              version,
+                              action: "complete",
+                            });
+                            setFollowUpOutcome("");
+                          }
+                        }}
+                      >
+                        Complete follow-up
+                      </Button>
+                    )}
                 </Stack>
+                {version.reviewed_at && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 1 }}
+                  >
+                    {followUpLabel(version.follow_up)}
+                    {version.follow_up?.instructions
+                      ? ` · Instructions: ${version.follow_up.instructions}`
+                      : ""}
+                    {version.follow_up?.outcome
+                      ? ` · Outcome: ${version.follow_up.outcome}`
+                      : ""}
+                  </Typography>
+                )}
                 {version.results.map((row) => (
                   <Typography key={`${version.id}-${row.name}`} variant="body2">
                     {row.name}: {row.value}
@@ -704,6 +984,50 @@ export function PatientLabReports({
               }
               label="I confirmed this lab version belongs to the selected patient."
             />
+            <Box>
+              <FormLabel required>Follow-up decision</FormLabel>
+              <RadioGroup
+                aria-label="Follow-up decision"
+                value={reviewDisposition ?? ""}
+                onChange={(event) =>
+                  setReviewDisposition(
+                    event.target.value as "required" | "not_required",
+                  )
+                }
+              >
+                <FormControlLabel
+                  value="not_required"
+                  disabled={busy || reviewRetryPending}
+                  control={<Radio />}
+                  label="No follow-up needed"
+                />
+                <FormControlLabel
+                  value="required"
+                  disabled={busy || reviewRetryPending}
+                  control={<Radio />}
+                  label="Follow-up needed"
+                />
+              </RadioGroup>
+            </Box>
+            <TextField
+              label={
+                reviewDisposition === "required"
+                  ? "Follow-up instructions"
+                  : "Follow-up note"
+              }
+              required={reviewDisposition === "required"}
+              multiline
+              minRows={3}
+              slotProps={{ htmlInput: { maxLength: 1000 } }}
+              disabled={!reviewDisposition || busy || reviewRetryPending}
+              value={reviewFollowUpNote}
+              onChange={(event) => setReviewFollowUpNote(event.target.value)}
+              helperText={
+                reviewDisposition === "required"
+                  ? "Enter concise instructions for the follow-up."
+                  : "Optional note for the recorded decision."
+              }
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -715,10 +1039,141 @@ export function PatientLabReports({
           </Button>
           <Button
             variant="contained"
-            disabled={!reviewConfirmed || busy}
+            disabled={
+              !reviewConfirmed ||
+              !reviewDisposition ||
+              (reviewDisposition === "required" &&
+                !reviewFollowUpNote.trim()) ||
+              busy
+            }
             onClick={() => void review()}
           >
             {reviewRetryPending ? "Retry exact review" : "Mark reviewed"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={followUpTarget !== null}
+        onClose={() =>
+          !busy && !followUpRetryPending && setFollowUpTarget(null)
+        }
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {followUpTarget?.action === "complete"
+            ? "Complete lab follow-up"
+            : "Set lab follow-up"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            {error && <Alert severity="error">{error}</Alert>}
+            {followUpTarget && (
+              <Typography>
+                {patientName ? `${patientName} · ` : ""}Patient #{patientId} ·{" "}
+                {followUpTarget.version.title} · Version{" "}
+                {followUpTarget.version.version_number}
+              </Typography>
+            )}
+            {followUpTarget?.action === "set" ? (
+              <>
+                <Box>
+                  <FormLabel required>Follow-up decision</FormLabel>
+                  <RadioGroup
+                    aria-label="Follow-up decision"
+                    value={followUpDisposition ?? ""}
+                    onChange={(event) =>
+                      setFollowUpDisposition(
+                        event.target.value as "required" | "not_required",
+                      )
+                    }
+                  >
+                    <FormControlLabel
+                      value="not_required"
+                      disabled={busy || followUpRetryPending}
+                      control={<Radio />}
+                      label="No follow-up needed"
+                    />
+                    <FormControlLabel
+                      value="required"
+                      disabled={busy || followUpRetryPending}
+                      control={<Radio />}
+                      label="Follow-up needed"
+                    />
+                  </RadioGroup>
+                </Box>
+                <TextField
+                  label={
+                    followUpDisposition === "required"
+                      ? "Follow-up instructions"
+                      : "Follow-up note"
+                  }
+                  required={followUpDisposition === "required"}
+                  multiline
+                  minRows={3}
+                  slotProps={{ htmlInput: { maxLength: 1000 } }}
+                  disabled={
+                    !followUpDisposition || busy || followUpRetryPending
+                  }
+                  value={followUpNote}
+                  onChange={(event) => setFollowUpNote(event.target.value)}
+                  helperText={
+                    followUpDisposition === "required"
+                      ? "Enter concise instructions for the follow-up."
+                      : "Optional note for the recorded decision."
+                  }
+                />
+              </>
+            ) : (
+              <>
+                {followUpTarget?.version.follow_up?.instructions && (
+                  <Typography variant="body2" color="text.secondary">
+                    Follow-up instructions:{" "}
+                    {followUpTarget.version.follow_up.instructions}
+                  </Typography>
+                )}
+                <TextField
+                  label="Follow-up outcome"
+                  required
+                  multiline
+                  minRows={3}
+                  slotProps={{ htmlInput: { maxLength: 1000 } }}
+                  disabled={busy || followUpRetryPending}
+                  value={followUpOutcome}
+                  onChange={(event) => setFollowUpOutcome(event.target.value)}
+                  helperText="Record the outcome before completing this follow-up."
+                />
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            disabled={busy || followUpRetryPending}
+            onClick={() => setFollowUpTarget(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={
+              busy ||
+              (followUpTarget?.action === "set"
+                ? !followUpDisposition ||
+                  (followUpDisposition === "required" && !followUpNote.trim())
+                : !followUpOutcome.trim())
+            }
+            onClick={() =>
+              void (followUpTarget?.action === "complete"
+                ? completeFollowUp()
+                : recordFollowUp())
+            }
+          >
+            {followUpRetryPending
+              ? "Retry exact request"
+              : followUpTarget?.action === "complete"
+                ? "Complete follow-up"
+                : "Record decision"}
           </Button>
         </DialogActions>
       </Dialog>
