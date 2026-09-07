@@ -31,6 +31,10 @@ import { membershipTheme } from "./membershipTheme";
 import { MembershipCard } from "./MembershipCard";
 import { draftMembershipTerms } from "./draftMembershipTerms";
 import {
+  catalogDisplayDescription,
+  catalogDisplayLabel,
+} from "./catalogDisplayLabel";
+import {
   subscriptionMoney,
   type AdminCatalog,
   type CatalogItem,
@@ -329,10 +333,11 @@ export function SubscriptionCatalog() {
                             </span>
                             <div>
                               <Typography component="h3">
-                                {item.name}
+                                {catalogDisplayLabel(item.name) || "Membership"}
                               </Typography>
                               <Typography>
-                                {item.description || "No description provided."}
+                                {catalogDisplayDescription(item.description) ||
+                                  "No description provided."}
                               </Typography>
                             </div>
                           </div>
@@ -341,7 +346,7 @@ export function SubscriptionCatalog() {
                               <Button
                                 startIcon={<EditOutlinedIcon />}
                                 onClick={() => editItem(kind, item)}
-                                aria-label={`Edit ${item.name}`}
+                                aria-label={`Edit ${catalogDisplayLabel(item.name) || "membership"}`}
                               >
                                 Edit
                               </Button>
@@ -379,7 +384,9 @@ export function SubscriptionCatalog() {
                                   setRetire({
                                     kind,
                                     id: item.id,
-                                    name: item.name,
+                                    name:
+                                      catalogDisplayLabel(item.name) ||
+                                      "Membership",
                                   })
                                 }
                               >
@@ -462,12 +469,14 @@ export function SubscriptionCatalog() {
                           </span>
                           <div>
                             <Typography variant="h6" component="h3">
-                              {p.name}
+                              {catalogDisplayLabel(p.name) || "Membership"}
                             </Typography>
                             <Typography>
-                              {data.families.find(
-                                (family) => family.id === p.family_id,
-                              )?.name || "Program not selected"}
+                              {catalogDisplayLabel(
+                                data.families.find(
+                                  (family) => family.id === p.family_id,
+                                )?.name || "",
+                              ) || "Program not selected"}
                             </Typography>
                           </div>
                         </div>
@@ -558,7 +567,9 @@ export function SubscriptionCatalog() {
                                   setRetire({
                                     kind: "package",
                                     id: p.id,
-                                    name: p.name,
+                                    name:
+                                      catalogDisplayLabel(p.name) ||
+                                      "Membership",
                                   })
                                 }
                               >
@@ -735,7 +746,7 @@ export function SubscriptionCatalog() {
                             .filter((f) => !f.retired)
                             .map((f) => (
                               <MenuItem key={f.id} value={f.id}>
-                                {f.name}
+                                {catalogDisplayLabel(f.name) || "Membership"}
                               </MenuItem>
                             ))}
                         </TextField>

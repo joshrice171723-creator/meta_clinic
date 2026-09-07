@@ -28,6 +28,7 @@ import {
   subscriptionMoney,
   type Subscription,
 } from "./contracts";
+import { catalogDisplayLabel } from "./catalogDisplayLabel";
 
 const FILTER_STATES = [
   "pending_review",
@@ -223,8 +224,13 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                         <Typography
                           sx={{ fontWeight: 650, overflowWrap: "anywhere" }}
                         >
-                          {subscription.terms.family_name} /{" "}
-                          {subscription.terms.package_name}
+                          {catalogDisplayLabel(
+                            subscription.terms.family_name,
+                          ) || "Membership"}{" "}
+                          /{" "}
+                          {catalogDisplayLabel(
+                            subscription.terms.package_name,
+                          ) || "Selected plan"}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Membership #{subscription.id} · Patient record #
