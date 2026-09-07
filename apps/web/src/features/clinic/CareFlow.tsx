@@ -59,6 +59,7 @@ import { CareIndicators, type CareSummaryLoadState } from "./CareIndicators";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
+import { appendPrevisitNote, PrevisitNoteImport } from "./PrevisitNoteImport";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
@@ -1631,6 +1632,22 @@ export function SoapNoteForm({
         </Box>
       ) : null}
       <Stack spacing={1} className="soap-sections">
+        {patientId != null && (
+          <PrevisitNoteImport
+            key={`${patientId}:${encounterId}`}
+            patientId={patientId}
+            encounterId={encounterId}
+            patientName={patientName}
+            subjective={sections.subjective}
+            disabled={editorDisabled}
+            onAppend={(source) =>
+              setSections((current) => ({
+                ...current,
+                subjective: appendPrevisitNote(current.subjective, source),
+              }))
+            }
+          />
+        )}
         <HistoryOfPresentIllness
           value={sections.subjective}
           onChange={(subjective) =>
@@ -1936,6 +1953,7 @@ function SoapNoteWorkspace({
     <SoapNoteForm
       encounterId={encounter.id}
       patientId={encounter.patient_id}
+      patientName={patientName}
       templates={templates.data.templates}
       canWrite
       onCreated={setCreated}

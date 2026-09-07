@@ -184,6 +184,7 @@ Rails.application.routes.draw do
       post "clinical_history/:kind", to: "care/clinical_history#create", as: nil
       patch "clinical_history/:kind/:id", to: "care/clinical_history#update", as: nil
       resources :encounters, controller: "scheduling/encounters", only: %i[index create]
+      get "encounters/:encounter_id/previsit_note", to: "care/previsit_notes#show", as: :encounter_previsit_note
       resources :observations, controller: "care/observations", only: %i[index create]
       resources :lab_reports, controller: "care/lab_reports", only: %i[index show create] do
         post :versions, on: :member, action: :create_version
@@ -330,6 +331,9 @@ Rails.application.routes.draw do
       get "reminder_preferences", to: "reminder_preferences#show"
       post "reminder_preferences", to: "reminder_preferences#update"
       resources :appointment_requests, only: %i[index create]
+      resources :appointments, only: [] do
+        resource :previsit_note, only: %i[show create]
+      end
       resources :requests, controller: "requests", only: %i[index create]
       patch "development_patient", to: "development_patient#update"
       post "invitation/activate", to: "activation#create"

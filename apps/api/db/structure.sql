@@ -166,6 +166,19 @@ $$;
 
 
 --
+-- Name: clinic_previsit_notes_protect(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_previsit_notes_protect() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Pre-visit note history is immutable';
+END;
+$$;
+
+
+--
 -- Name: erd_freeze_granted_role(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5993,6 +6006,45 @@ ALTER SEQUENCE public.clinic_practices_id_seq OWNED BY public.clinic_practices.i
 
 
 --
+-- Name: clinic_previsit_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_previsit_notes (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    appointment_id bigint NOT NULL,
+    version_number integer NOT NULL,
+    encrypted_text text NOT NULL,
+    submitted_by_user_id bigint NOT NULL,
+    request_key character varying(160) NOT NULL,
+    submitted_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_previsit_notes_values CHECK (((version_number > 0) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+);
+
+
+--
+-- Name: clinic_previsit_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_previsit_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_previsit_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_previsit_notes_id_seq OWNED BY public.clinic_previsit_notes.id;
+
+
+--
 -- Name: clinic_refund_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -8874,6 +8926,13 @@ ALTER TABLE ONLY public.clinic_practices ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: clinic_previsit_notes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_previsit_notes ALTER COLUMN id SET DEFAULT nextval('public.clinic_previsit_notes_id_seq'::regclass);
+
+
+--
 -- Name: clinic_refund_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -10144,6 +10203,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_products
 
 ALTER TABLE ONLY public.clinic_practices
     ADD CONSTRAINT clinic_practices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_previsit_notes clinic_previsit_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_previsit_notes
+    ADD CONSTRAINT clinic_previsit_notes_pkey PRIMARY KEY (id);
 
 
 --
@@ -11755,6 +11822,27 @@ CREATE INDEX clinic_precautions_encounter_status ON public.clinic_encounter_prec
 --
 
 CREATE INDEX clinic_precautions_patient_encounter_fk ON public.clinic_encounter_precautions USING btree (practice_id, patient_id, encounter_id);
+
+
+--
+-- Name: clinic_previsit_notes_appointment_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_previsit_notes_appointment_version ON public.clinic_previsit_notes USING btree (practice_id, patient_id, appointment_id, version_number);
+
+
+--
+-- Name: clinic_previsit_notes_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_previsit_notes_practice_id ON public.clinic_previsit_notes USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_previsit_notes_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_previsit_notes_request_key ON public.clinic_previsit_notes USING btree (practice_id, submitted_by_user_id, request_key);
 
 
 --
@@ -14453,6 +14541,13 @@ CREATE TRIGGER clinic_payment_events_immutable BEFORE DELETE OR UPDATE ON public
 
 
 --
+-- Name: clinic_previsit_notes clinic_previsit_notes_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_previsit_notes_protect BEFORE DELETE OR UPDATE ON public.clinic_previsit_notes FOR EACH ROW EXECUTE FUNCTION public.clinic_previsit_notes_protect();
+
+
+--
 -- Name: clinic_refund_events clinic_refund_events_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -16918,6 +17013,38 @@ ALTER TABLE ONLY public.clinic_encounter_precautions
 
 ALTER TABLE ONLY public.clinic_encounter_precautions
     ADD CONSTRAINT fk_precautions_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_previsit_notes fk_previsit_notes_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_previsit_notes
+    ADD CONSTRAINT fk_previsit_notes_appointment FOREIGN KEY (practice_id, patient_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_previsit_notes fk_previsit_notes_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_previsit_notes
+    ADD CONSTRAINT fk_previsit_notes_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_previsit_notes fk_previsit_notes_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_previsit_notes
+    ADD CONSTRAINT fk_previsit_notes_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_previsit_notes fk_previsit_notes_submitter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_previsit_notes
+    ADD CONSTRAINT fk_previsit_notes_submitter FOREIGN KEY (submitted_by_user_id) REFERENCES public.users(id);
 
 
 --
@@ -21606,6 +21733,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907001000'),
 ('20260907000900'),
 ('20260907000800'),
 ('20260907000700'),

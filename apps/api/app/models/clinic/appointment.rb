@@ -10,6 +10,7 @@ module Clinic
     belongs_to :booked_clinician, class_name: "Clinic::ClinicianProfile", optional: true
     belongs_to :visit_type, class_name: "Clinic::VisitType", optional: true
     has_one :encounter, class_name: "Clinic::Encounter", dependent: :restrict_with_error
+    has_many :previsit_notes, class_name: "Clinic::Care::PrevisitNote", dependent: :restrict_with_error
 
     scope :upcoming, ->(from = Current.business_time) { where("starts_at >= ?", from).order(:starts_at) }
     scope :for_clinician, ->(clinician) { where(booked_clinician_id: clinician.respond_to?(:id) ? clinician.id : clinician) }

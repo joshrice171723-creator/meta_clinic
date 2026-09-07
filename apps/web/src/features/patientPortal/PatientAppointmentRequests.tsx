@@ -17,6 +17,7 @@ import {
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { PatientPrevisitNote } from "./PatientPrevisitNote";
 
 type Site = { id: number; code: string; name: string };
 type VisitType = { id: number; code: string };
@@ -242,6 +243,12 @@ export function PatientAppointmentRequests() {
                         </Stack>
                       )}
                     </Stack>
+                    <Box sx={{ mt: 1 }}>
+                      <PatientPrevisitNote
+                        appointmentId={appointment.id}
+                        appointmentLabel={`${dateTime(appointment.starts_at)} · ${appointment.site?.name || appointment.site?.code || "Location not recorded"}${appointment.room ? ` · Room ${appointment.room.code}` : ""}`}
+                      />
+                    </Box>
                   </Box>
                 );
               })}
