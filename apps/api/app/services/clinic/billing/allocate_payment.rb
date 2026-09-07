@@ -33,7 +33,8 @@ module Clinic
             return existing
           end
           allocated = payment.allocations.lock.to_a.sum { |allocation| allocation.amount }
-          raise ArgumentError, "Payment cannot be allocated more than once." if allocated + allocation_amount > payment.amount
+          refunded = payment.refund_events.lock.to_a.sum { |refund| refund.amount }
+          raise ArgumentError, "Payment cannot be allocated more than once." if allocated + refunded + allocation_amount > payment.amount
           raise ArgumentError, "Invoice currency does not match the payment currency." unless payment.currency == invoice.currency
           invoice_total = invoice.lines.sum(:posted_amount)
           invoice_allocated = invoice.payment_allocations.lock.to_a.sum { |allocation| allocation.amount }
