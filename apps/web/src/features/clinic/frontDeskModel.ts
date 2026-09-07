@@ -70,6 +70,8 @@ export function appointmentActions(appointment: FrontDeskAppointment) {
     canStartVisit: !hasEncounter && activeAppointment,
     canReschedule:
       !hasEncounter && activeAppointment && Boolean(appointment.updated_at),
+    canScheduleReplacement:
+      !hasEncounter && ["cancelled", "no_show"].includes(appointment.status),
     canCancel: !hasEncounter && activeAppointment,
     canMarkNoShow: !hasEncounter && activeAppointment,
   };

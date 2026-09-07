@@ -28,6 +28,13 @@ export function normalizeClinicPath(pathname: string) {
   return path === "/clinic/schedule" ? "/clinic" : path;
 }
 
+function scheduleAliasSearch(search: string) {
+  const patientId = new URLSearchParams(search).get("patient_id");
+  if (!patientId || !/^[1-9]\d*$/.test(patientId)) return "";
+  const value = Number(patientId);
+  return Number.isSafeInteger(value) ? `?patient_id=${value}` : "";
+}
+
 export function clinicRoute(
   pathname: string,
   search = "",
@@ -40,7 +47,8 @@ export function clinicRoute(
       : undefined;
   return {
     path: normalizeClinicPath(originalPath),
-    search: originalPath === "/clinic/schedule" ? "" : search,
+    search:
+      originalPath === "/clinic/schedule" ? scheduleAliasSearch(search) : search,
     homeView:
       originalPath === "/clinic/schedule"
         ? "schedule"

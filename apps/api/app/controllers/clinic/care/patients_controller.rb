@@ -20,11 +20,21 @@ module Clinic
       # endpoint is deliberately separate from the patient detail surface.
       def lookup
         patients = current_practice.patients.accessible_by(current_ability, :read_identity)
-        patients = Clinic::Care::PatientNameSearch.search(
-          scope: patients,
-          practice_id: current_practice.id,
-          query: query_param
-        )
+        query = query_param
+        patient_id = params[:id].presence
+        if query.present? && patient_id.present?
+          raise Clinic::Api::RequestParameters::Invalid.new("q and id cannot be combined.", field: :id)
+        end
+
+        patients = if patient_id.present?
+          patients.where(id: requested_id!(patient_id, :id))
+        else
+          Clinic::Care::PatientNameSearch.search(
+            scope: patients,
+            practice_id: current_practice.id,
+            query: query
+          )
+        end
         paginate(patients, key: :patients, serializer: ->(patient) { PatientSerializer.call(patient) },
           order: { reference: :asc, id: :asc }, maximum: 100)
       end

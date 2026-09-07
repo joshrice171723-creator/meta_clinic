@@ -13,7 +13,7 @@ class ClinicPatientNameLookupS1Test < ActionDispatch::IntegrationTest
     grant_permissions!(membership, "patients.identity.read", "patients.write")
     @patient = @practice.patients.create!(display_name: "Amélie Searchable", reference: "REF-S1-918")
     other_practice = Clinic::Practice.create!(name: "Other lookup practice", organization: organization)
-    other_practice.patients.create!(display_name: "Amelie Hidden", reference: "OTHER-S1-919")
+    @other_patient = other_practice.patients.create!(display_name: "Amelie Hidden", reference: "OTHER-S1-919")
     login(membership_user)
   end
 
@@ -25,6 +25,30 @@ class ClinicPatientNameLookupS1Test < ActionDispatch::IntegrationTest
     get "/api/clinic/patients/lookup", params: { q: "S1-918" }, headers: @headers
     assert_response :success
     assert_equal [ @patient.id ], response.parsed_body.fetch("patients").pluck("id")
+  end
+
+  test "identity-only lookup resolves an exact local id without widening chart access" do
+    get "/api/clinic/patients/lookup", params: { id: @patient.id }, headers: @headers
+    assert_response :success
+    assert_equal [ @patient.id ], response.parsed_body.fetch("patients").pluck("id")
+    assert_equal %w[display_name id reference], response.parsed_body.fetch("patients").sole.keys.sort
+
+    get "/api/clinic/patients/#{@patient.id}", headers: @headers
+    assert_response :forbidden
+
+    get "/api/clinic/patients/lookup", params: { id: @other_patient.id }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("patients")
+
+    get "/api/clinic/patients/lookup", params: { id: "999999" }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("patients")
+
+    get "/api/clinic/patients/lookup", params: { id: "0" }, headers: @headers
+    assert_response :bad_request
+
+    get "/api/clinic/patients/lookup", params: { id: @patient.id, q: "amel" }, headers: @headers
+    assert_response :bad_request
   end
 
   test "changing a name refreshes its searchable prefixes" do

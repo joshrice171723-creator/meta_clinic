@@ -111,6 +111,9 @@ export function FrontDesk() {
             }
             canStartVisit={allowed(capabilities.encounters)}
             canReschedule={booking.visible}
+            canScheduleReplacement={
+              booking.visible && allowed(capabilities.patient_identity_read)
+            }
             canReviewReminders={allowed(capabilities.reminders)}
             appointmentRequestRevision={appointmentRequestRevision}
           />
@@ -143,6 +146,7 @@ function AppointmentDayQueue({
   canTransition,
   canStartVisit,
   canReschedule,
+  canScheduleReplacement,
   canReviewReminders,
   appointmentRequestRevision,
 }: {
@@ -154,6 +158,7 @@ function AppointmentDayQueue({
   canTransition: boolean;
   canStartVisit: boolean;
   canReschedule: boolean;
+  canScheduleReplacement: boolean;
   canReviewReminders: boolean;
   appointmentRequestRevision: number;
 }) {
@@ -542,6 +547,7 @@ function AppointmentDayQueue({
                 canTransition={canTransition}
                 canStartVisit={canStartVisit}
                 canReschedule={canReschedule}
+                canScheduleReplacement={canScheduleReplacement}
                 busyAction={busyAction}
                 onTransition={transition}
                 onStartVisit={startVisit}
@@ -655,6 +661,7 @@ function AppointmentRow({
   canTransition,
   canStartVisit,
   canReschedule,
+  canScheduleReplacement,
   busyAction,
   onTransition,
   onStartVisit,
@@ -668,6 +675,7 @@ function AppointmentRow({
   canTransition: boolean;
   canStartVisit: boolean;
   canReschedule: boolean;
+  canScheduleReplacement: boolean;
   busyAction: string;
   onTransition: (
     appointment: FrontDeskAppointment,
@@ -691,6 +699,7 @@ function AppointmentRow({
       (actions.canConfirm || actions.canCancel || actions.canMarkNoShow)) ||
     (canStartVisit && actions.canStartVisit) ||
     (canReschedule && actions.canReschedule) ||
+    (canScheduleReplacement && actions.canScheduleReplacement) ||
     Boolean(chartPath && canPatients) ||
     canBilling;
 
@@ -762,6 +771,18 @@ function AppointmentRow({
             onClick={() => onReschedule(appointment)}
           >
             Reschedule
+          </Button>
+        )}
+        {canScheduleReplacement && actions.canScheduleReplacement && (
+          <Button
+            component="a"
+            href={`/clinic/schedule?patient_id=${encodeURIComponent(String(appointment.patient_id))}`}
+            size="small"
+            variant="outlined"
+            disabled={anyActionBusy}
+            aria-label={`Schedule a replacement appointment for ${patientName}`}
+          >
+            Schedule replacement
           </Button>
         )}
         {canTransition && actions.canCancel && (

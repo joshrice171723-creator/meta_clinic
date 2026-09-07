@@ -25,6 +25,16 @@ describe("clinic-local navigation", () => {
       homeView: "schedule",
     });
     expect(clinicRouteHref(schedule)).toBe("/clinic");
+    const replacement = clinicRoute(
+      "/clinic/schedule",
+      "?page=3&patient_id=105&ignored=value",
+    );
+    expect(replacement).toEqual({
+      path: "/clinic",
+      search: "?patient_id=105",
+      homeView: "schedule",
+    });
+    expect(clinicRouteHref(replacement)).toBe("/clinic?patient_id=105");
     expect(clinicRoute("/clinic", "", "schedule").homeView).toBe("schedule");
   });
 

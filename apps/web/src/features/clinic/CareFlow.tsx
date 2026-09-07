@@ -357,13 +357,25 @@ function BookingForm({
   timezone,
   onCreated,
   identityLookup = false,
+  initialPatientId,
 }: {
   timezone: string;
   onCreated?: (appointment: Appointment) => void;
   identityLookup?: boolean;
+  initialPatientId?: number;
 }) {
   const defaults = appointmentDefaults();
-  const [patientId, setPatientId] = useState("");
+  const [patientId, setPatientId] = useState(
+    initialPatientId ? String(initialPatientId) : "",
+  );
+  const [replacementPatientId, setReplacementPatientId] = useState<
+    number | undefined
+  >(initialPatientId);
+  const [replacementPatient, setReplacementPatient] = useState<Patient>();
+  const [replacementPatientError, setReplacementPatientError] = useState("");
+  const [replacementPatientLoading, setReplacementPatientLoading] = useState(
+    Boolean(initialPatientId),
+  );
   const [startsAt, setStartsAt] = useState(defaults.startsAt);
   const [endsAt, setEndsAt] = useState(defaults.endsAt);
   const [siteId, setSiteId] = useState("");
@@ -391,6 +403,47 @@ function BookingForm({
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
+  useEffect(() => {
+    if (!replacementPatientId) {
+      setReplacementPatient(undefined);
+      setReplacementPatientError("");
+      setReplacementPatientLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setReplacementPatient(undefined);
+    setReplacementPatientError("");
+    setReplacementPatientLoading(true);
+    api<{ patients: Patient[] }>(
+      `/api/clinic/patients/lookup?id=${encodeURIComponent(String(replacementPatientId))}`,
+      { signal: controller.signal },
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        const patient = result.patients.find(
+          (candidate) => candidate.id === replacementPatientId,
+        );
+        if (!patient) {
+          setReplacementPatientError(
+            "The replacement patient could not be verified. Choose a patient before scheduling.",
+          );
+          return;
+        }
+        setReplacementPatient(patient);
+      })
+      .catch((reason: unknown) => {
+        if (controller.signal.aborted) return;
+        setReplacementPatientError(
+          reason instanceof Error
+            ? reason.message
+            : "The replacement patient could not be loaded.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReplacementPatientLoading(false);
+      });
+    return () => controller.abort();
+  }, [replacementPatientId]);
   const resourceError =
     patients.error ||
     facilities.error ||
@@ -405,6 +458,31 @@ function BookingForm({
     !visitTypes.data
   )
     return <LoadState error={resourceError} />;
+  const clearReplacementPatient = () => {
+    setPatientId("");
+    setReplacementPatientId(undefined);
+  };
+  if (replacementPatientId && replacementPatientLoading) return <LoadState />;
+  if (replacementPatientId && replacementPatientError)
+    return (
+      <Stack spacing={1.5}>
+        <Alert severity="error">{replacementPatientError}</Alert>
+        <Button
+          onClick={clearReplacementPatient}
+          sx={{ alignSelf: "flex-start" }}
+        >
+          Clear replacement patient
+        </Button>
+      </Stack>
+    );
+  const selectablePatients = replacementPatient
+    ? [
+        replacementPatient,
+        ...patients.data.patients.filter(
+          (patient) => patient.id !== replacementPatient.id,
+        ),
+      ]
+    : patients.data.patients;
   const availableRooms = siteId
     ? rooms.data.rooms.filter((room) => room.site_id === Number(siteId))
     : [];
@@ -419,6 +497,7 @@ function BookingForm({
   const reset = () => {
     const next = appointmentDefaults();
     setPatientId("");
+    setReplacementPatientId(undefined);
     setStartsAt(next.startsAt);
     setEndsAt(next.endsAt);
     setSiteId("");
@@ -459,6 +538,25 @@ function BookingForm({
           >
             Appointment #{created.id} scheduled for{" "}
             {clinicDateTime(created.starts_at, timezone)}.
+          </Alert>
+        )}
+        {replacementPatient && (
+          <Alert
+            severity="info"
+            sx={{ mb: 3 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={clearReplacementPatient}
+              >
+                Clear patient
+              </Button>
+            }
+          >
+            Scheduling a new appointment for{" "}
+            {patientDisplayLabel(replacementPatient)}. This does not reopen the
+            cancelled or no-show appointment.
           </Alert>
         )}
         <Box
@@ -509,10 +607,19 @@ function BookingForm({
               select
               required
               value={patientId}
-              onChange={(event) => setPatientId(event.target.value)}
+              onChange={(event) => {
+                const nextPatientId = event.target.value;
+                setPatientId(nextPatientId);
+                if (
+                  replacementPatientId &&
+                  nextPatientId !== String(replacementPatientId)
+                ) {
+                  setReplacementPatientId(undefined);
+                }
+              }}
               fullWidth
               helperText={
-                patients.data.patients.length
+                selectablePatients.length
                   ? "Choose the patient record for this visit."
                   : "No patients are available to schedule."
               }
@@ -520,7 +627,7 @@ function BookingForm({
               <MenuItem value="" disabled>
                 Select a patient
               </MenuItem>
-              {patients.data.patients.map((patient) => (
+              {selectablePatients.map((patient) => (
                 <MenuItem key={patient.id} value={patient.id.toString()}>
                   {patientDisplayLabel(patient)}
                 </MenuItem>
@@ -703,7 +810,7 @@ function BookingForm({
               <Button
                 type="submit"
                 variant="contained"
-                disabled={busy || !patients.data.patients.length}
+                disabled={busy || !selectablePatients.length}
                 startIcon={
                   busy ? (
                     <CircularProgress size={18} color="inherit" />
@@ -726,12 +833,14 @@ export function ScheduleView({
   pagination,
   onAppointmentCreated,
   onPageChange,
+  initialPatientId,
 }: {
   context: ClinicWorkspaceContext;
   appointments: Appointment[];
   pagination: PageInfo;
   onAppointmentCreated?: (appointment: Appointment) => void;
   onPageChange?: (page: number) => void;
+  initialPatientId?: number;
 }) {
   return (
     <Stack spacing={3}>
@@ -766,6 +875,7 @@ export function ScheduleView({
           identityLookup={
             bookingAvailability(context.capabilities).identityLookup
           }
+          initialPatientId={initialPatientId}
           onCreated={onAppointmentCreated}
         />
       )}
@@ -907,6 +1017,13 @@ export function ScheduleView({
 
 export function Schedule() {
   const context = useClinic();
+  const replacementPatientId = Number(
+    new URLSearchParams(window.location.search).get("patient_id"),
+  );
+  const initialPatientId =
+    Number.isSafeInteger(replacementPatientId) && replacementPatientId > 0
+      ? replacementPatientId
+      : undefined;
   const [page, setPage] = useState(1);
   const [createdAppointment, setCreatedAppointment] = useState<Appointment>();
   const { data, error } = useResource<{
@@ -935,6 +1052,7 @@ export function Schedule() {
       }}
       onAppointmentCreated={setCreatedAppointment}
       onPageChange={setPage}
+      initialPatientId={initialPatientId}
     />
   );
 }
