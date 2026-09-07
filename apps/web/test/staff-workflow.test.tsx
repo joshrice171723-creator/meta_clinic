@@ -75,7 +75,9 @@ describe("administrative clinic foundation", () => {
   it("uses explicit atomic capabilities and keeps check-in unavailable", () => {
     const frontDesk = source("FrontDesk.tsx");
     expect(frontDesk).toContain("bookingAvailability");
-    expect(frontDesk).toContain("Arrival and check-in actions are unavailable");
+    expect(frontDesk).toContain(
+      "The appointment queue is unavailable for this account.",
+    );
     expect(frontDesk).not.toContain("triage");
     expect(frontDesk).not.toContain("provider assignment");
   });

@@ -56,7 +56,9 @@ describe("clinic shell composition", () => {
       "SettingsIcon",
     ])
       expect(workspace).toContain(icon);
-    expect(workspace).toContain('className="clinic-topbar"');
+    expect(workspace).toMatch(
+      /className=\{`clinic-topbar\$\{user\.development_demo/,
+    );
     expect(workspace).toContain('className="clinic-topbar-location"');
     expect(workspace).toContain('path.startsWith("/clinic/scribe")');
     expect(workspace).toContain("data?.current_site?.name");

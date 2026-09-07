@@ -6,6 +6,12 @@ Rails.application.configure do
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 
+  # Windows cannot rotate a file while another Rails process has it open.
+  # bin/dev captures each service's output in its own managed log.
+  if Gem.win_platform?
+    config.logger = ActiveSupport::TaggedLogging.logger(STDOUT)
+  end
+
   # Do not eager load code on boot.
   config.eager_load = false
 

@@ -54,7 +54,7 @@ describe("staff messaging workspace", () => {
     expect(html).toContain(
       "You do not have permission to send in this conversation.",
     );
-    expect(html).toContain("Send message");
-    expect(html).toContain("backend adapter remains the authority");
+    expect(html).toMatch(/<textarea[^>]*disabled=""/);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Send message/);
   });
 });

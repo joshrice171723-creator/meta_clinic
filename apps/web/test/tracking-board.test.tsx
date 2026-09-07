@@ -919,7 +919,7 @@ describe("viewport-height clinic menu navigation", () => {
         expect(tokens.has(match[1]), match[1]).toBe(true);
       postcss.parse(css).walkRules((rule) => {
         for (const selector of rule.selectors)
-          expect(selector.startsWith(".clinic-theme ")).toBe(true);
+          expect(selector).toMatch(/^\.clinic-theme\s/);
       });
     }
     const css = readFileSync("src/features/clinic/clinicFrame.css", "utf8");
