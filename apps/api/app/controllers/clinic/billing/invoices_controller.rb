@@ -24,22 +24,10 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:invoice, %i[currency encounter_id request_key], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
+        input = parameter_hash!(:invoice, %i[currency encounter_id request_key], nested_arrays: { lines: %i[quantity unit_amount description_snapshot billing_service_id service_lock_version invoice_line_id] })
         lines = Array(input[:lines])
         raise Clinic::Api::RequestParameters::Invalid.new("lines must contain 1–100 entries.", field: :lines) unless lines.size.between?(1, 100)
-        line_attributes = lines.map.with_index do |line, index|
-          unless line.is_a?(ActionController::Parameters)
-            raise Clinic::Api::RequestParameters::Invalid.new("lines[#{index}] must be an object.", field: "lines[#{index}]")
-          end
-          allowed = %w[quantity unit_amount description_snapshot]
-          unknown = line.keys - allowed
-          raise Clinic::Api::RequestParameters::Invalid.new("#{unknown.first} is not a supported field.", field: "lines[#{index}]") if unknown.any?
-          {
-            quantity: decimal_string!(line[:quantity], field: "lines[#{index}].quantity"),
-            unit_amount: decimal_string!(line[:unit_amount], field: "lines[#{index}].unit_amount"),
-            description_snapshot: required_string!(line[:description_snapshot], field: "lines[#{index}].description_snapshot", maximum: 500)
-          }
-        end
+        line_attributes = invoice_line_attributes(lines)
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
         encounter = if input[:encounter_id].present?
           current_practice.encounters.where(patient_id: patient.id).find(requested_id!(input[:encounter_id], :encounter_id))
@@ -102,13 +90,10 @@ module Clinic
       end
 
       def update_draft
-        input = parameter_hash!(:invoice, %i[currency], nested_arrays: { lines: %i[quantity unit_amount description_snapshot] })
+        input = parameter_hash!(:invoice, %i[currency], nested_arrays: { lines: %i[quantity unit_amount description_snapshot billing_service_id service_lock_version invoice_line_id] })
         lines = Array(input[:lines])
         raise Clinic::Api::RequestParameters::Invalid.new("lines must contain 1–100 entries.", field: :lines) unless lines.size.between?(1, 100)
-        attributes = lines.map.with_index do |line, index|
-          raise Clinic::Api::RequestParameters::Invalid.new("lines[#{index}] must be an object.", field: "lines[#{index}]") unless line.is_a?(ActionController::Parameters)
-          { quantity: decimal_string!(line[:quantity], field: "lines[#{index}].quantity"), unit_amount: decimal_string!(line[:unit_amount], field: "lines[#{index}].unit_amount"), description_snapshot: required_string!(line[:description_snapshot], field: "lines[#{index}].description_snapshot", maximum: 500) }
-        end
+        attributes = invoice_line_attributes(lines)
         invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
         updated = Clinic::Billing::UpdateDraftInvoice.call(practice: current_practice, actor: current_user, invoice: invoice,
           currency: required_string!(input[:currency], field: :currency, maximum: 3), lines: attributes)
@@ -132,6 +117,45 @@ module Clinic
       end
 
       private
+
+      def invoice_line_attributes(lines)
+        lines.map.with_index do |line, index|
+          field = "lines[#{index}]"
+          unless line.is_a?(ActionController::Parameters)
+            raise Clinic::Api::RequestParameters::Invalid.new("#{field} must be an object.", field: field)
+          end
+
+          if line.key?(:invoice_line_id)
+            override = %w[unit_amount description_snapshot billing_service_id service_lock_version].find { |key| line.key?(key) }
+            if override
+              raise Clinic::Api::RequestParameters::Invalid.new("Retained invoice lines cannot include #{override}.", field: "#{field}.#{override}")
+            end
+            {
+              invoice_line_id: requested_id!(line[:invoice_line_id], "#{field}.invoice_line_id"),
+              quantity: decimal_string!(line[:quantity], field: "#{field}.quantity")
+            }
+          elsif line.key?(:billing_service_id)
+            override = %w[unit_amount description_snapshot].find { |key| line.key?(key) }
+            if override
+              raise Clinic::Api::RequestParameters::Invalid.new("Catalog invoice lines cannot override #{override}.", field: "#{field}.#{override}")
+            end
+            {
+              billing_service_id: requested_id!(line[:billing_service_id], "#{field}.billing_service_id"),
+              service_lock_version: bounded_integer!(line[:service_lock_version], field: "#{field}.service_lock_version", min: 0, max: 2_147_483_647),
+              quantity: decimal_string!(line[:quantity], field: "#{field}.quantity")
+            }
+          else
+            if line.key?(:service_lock_version)
+              raise Clinic::Api::RequestParameters::Invalid.new("Custom invoice lines cannot include service_lock_version.", field: "#{field}.service_lock_version")
+            end
+            {
+              quantity: decimal_string!(line[:quantity], field: "#{field}.quantity"),
+              unit_amount: decimal_string!(line[:unit_amount], field: "#{field}.unit_amount"),
+              description_snapshot: required_string!(line[:description_snapshot], field: "#{field}.description_snapshot", maximum: 500)
+            }
+          end
+        end
+      end
 
       def verify_patient_scope!(invoice)
         expected = requested_id!(params[:patient_id], :patient_id)

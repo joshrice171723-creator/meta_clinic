@@ -8,6 +8,7 @@ import { api } from "../../api/client";
 import { Card, ErrorMessage, LoadState } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
+import { patientReferenceLabel } from "./patientReference";
 
 type ChartSelectionPageProps = {
   mode: "current" | "previous";
@@ -181,8 +182,8 @@ export function ChartSelectionPage({
     return (
       <Card title="Most recent signed chart">
         <p>
-          Patient: <strong>{patient.display_name}</strong> · Reference:{" "}
-          {patient.reference}
+          Patient: <strong>{patient.display_name}</strong>
+          {patientReferenceLabel(patient.reference) && ` · Reference: ${patientReferenceLabel(patient.reference)}`}
         </p>
         {state.signedChart ? (
           <p>
@@ -213,8 +214,8 @@ export function ChartSelectionPage({
   return (
     <Card title="Select current chart">
       <p>
-        Patient: <strong>{patient.display_name}</strong> · Reference:{" "}
-        {patient.reference}
+        Patient: <strong>{patient.display_name}</strong>
+        {patientReferenceLabel(patient.reference) && ` · Reference: ${patientReferenceLabel(patient.reference)}`}
       </p>
       <p className="care-muted">
         Showing the {RECENT_ENCOUNTER_LIMIT} most recent encounter choices at

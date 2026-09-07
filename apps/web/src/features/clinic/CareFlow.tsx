@@ -54,6 +54,15 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
+import { patientReferenceLabel } from "./patientReference";
+
+function patientDisplayLabel(
+  patient?: Pick<Patient, "display_name" | "reference"> | null,
+) {
+  const name = patient?.display_name ?? "Patient";
+  const reference = patientReferenceLabel(patient?.reference);
+  return reference ? `${name} · ${reference}` : name;
+}
 
 export function encounterDetailPath(
   patientId: string | number,
@@ -488,7 +497,7 @@ function BookingForm({
               </MenuItem>
               {patients.data.patients.map((patient) => (
                 <MenuItem key={patient.id} value={patient.id.toString()}>
-                  {patient.display_name} · {patient.reference}
+                  {patientDisplayLabel(patient)}
                 </MenuItem>
               ))}
             </TextField>
@@ -805,15 +814,11 @@ export function ScheduleView({
                           <Link
                             href={`/clinic/patients/${appointment.patient_id}`}
                           >
-                            {appointment.patient?.display_name ?? "Patient"} ·{" "}
-                            {appointment.patient?.reference ??
-                              "Reference unavailable"}
+                            {patientDisplayLabel(appointment.patient)}
                           </Link>
                         ) : (
                           <Typography color="text.secondary">
-                            {appointment.patient?.display_name ?? "Patient"} ·{" "}
-                            {appointment.patient?.reference ??
-                              "Reference unavailable"}
+                            {patientDisplayLabel(appointment.patient)}
                           </Typography>
                         )}
                       </TableCell>
@@ -1488,8 +1493,8 @@ export function SoapNoteForm({
       </Stack>
       <Typography variant="caption" color="text.secondary">
         {signed
-          ? "This signed SOAP chart is read-only. Signing, treatment, discharge, encounter close, and checkout remain separate."
-          : "This is an unsigned draft only—not an exam occurrence, diagnosis, signature, treatment, discharge, encounter close, or checkout."}
+          ? "This signed SOAP chart is read-only here."
+          : "Saving stores an unsigned chart draft; it does not sign the note or close the encounter."}
       </Typography>
     </Box>
   );
@@ -1661,7 +1666,9 @@ export function ProviderEncounterWorkflow({
               <TableBody>
                 <TableRow>
                   <TableCell component="th">MRN</TableCell>
-                  <TableCell>{patient.reference || "Not recorded"}</TableCell>
+                  <TableCell>
+                    {patientReferenceLabel(patient.reference) || "Not recorded"}
+                  </TableCell>
                   <TableCell component="th">Date of Visit</TableCell>
                   <TableCell>
                     {clinicDateTime(encounter.started_at, timezone)}
@@ -1975,7 +1982,7 @@ function VisitWrapUp({
       busy ||
       closeState !== "idle" ||
       !window.confirm(
-        "Close this encounter now? This records only that the encounter ended. Save any note changes first. It is not discharge, checkout, treatment, signing, or handoff acceptance.",
+        "Close this encounter now? Save note changes first. Closing records only the encounter end time; note signing, discharge, checkout, and handoff remain separate.",
       )
     )
       return;
@@ -2099,13 +2106,13 @@ function VisitWrapUp({
         {current.status === "completed" ? (
           <Alert severity="success" role="status" aria-live="polite">
             Encounter ended {clinicDateTime(current.ended_at, timezone)}. Note
-            signing, discharge, checkout, treatment, and handoff acceptance
-            remain separate.
+            signing, discharge, checkout, and handoff remain separate.
           </Alert>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Close the encounter after documentation is saved. Closing is not
-            discharge, checkout, treatment, signing, or handoff acceptance.
+            Close after saving documentation. This records the encounter end
+            time only; note signing, discharge, checkout, and handoff remain
+            separate.
           </Typography>
         )}
         {error && <ErrorMessage message={error} />}
@@ -2172,6 +2179,7 @@ export function EncounterView({
   timezone: string;
   noteWorkspace?: ReactNode;
 }) {
+  const reference = patientReferenceLabel(patient.reference);
   return (
     <>
       <a href={`/clinic/patients/${patient.id}`}>← {patient.display_name}</a>
@@ -2183,7 +2191,9 @@ export function EncounterView({
             <div>
               <p className="eyebrow">ENCOUNTER #{encounter.id}</p>
               <h1>{patient.display_name}</h1>
-              <p className="clinic-lead">Reference: {patient.reference}</p>
+              {reference && (
+                <p className="clinic-lead">Reference: {reference}</p>
+              )}
             </div>
             <span className="care-status care-status-large">
               {statusLabel(encounter.status)}

@@ -30,6 +30,7 @@ module Clinic
               quantity: line.quantity.to_s("F"),
               unit_amount: line.unit_amount.to_s("F"),
               posted_amount: line.posted_amount.to_s("F"),
+              billing_service_id: line.billing_service_id,
               description: line.description_snapshot
             }
           },

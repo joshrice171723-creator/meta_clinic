@@ -93,6 +93,7 @@ class Ability
     "billing.read" => { action: :read, subjects: [ Clinic::Invoice ], scope: :practice },
     "billing.write" => { action: :create, subjects: [ Clinic::Invoice, Clinic::PaymentAllocation ], actions: %i[create update], scope: :practice },
     "billing.invoice_draft" => { action: :create, subjects: [ Clinic::Invoice ], scope: :practice },
+    "billing.catalog.manage" => { action: :manage, subjects: [ Clinic::BillingService ], scope: :practice },
     "billing.invoice_post" => { action: :post, subjects: [ Clinic::Invoice ], scope: :practice },
     "billing.payment_record" => { action: :create, subjects: [ Clinic::PaymentAllocation ], scope: :practice },
     "billing.cash_reconcile" => { action: :reconcile, subjects: [ Clinic::CashDrawerSession ], scope: :practice },

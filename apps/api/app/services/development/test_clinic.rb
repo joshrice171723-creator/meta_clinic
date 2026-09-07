@@ -23,7 +23,7 @@ module Development
       controlled.read controlled.count controlled.certify
       appointments.read appointments.book appointments.status_transition
       encounters.write encounters.assign_provider notes.read notes.write notes.sign observations.write messages.write staff_messaging.read staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge staff_messaging.transition staff_messaging.escalate staff_messaging.attach reminders.read reminders.write
-      documents.read billing.write billing.read billing.invoice_draft billing.invoice_post billing.payment_record roles.manage
+      documents.read billing.write billing.read billing.invoice_draft billing.invoice_post billing.payment_record billing.catalog.manage roles.manage
     ].freeze
 
     # Omni's historical role versions reference DEFAULT_PERMISSIONS. New local

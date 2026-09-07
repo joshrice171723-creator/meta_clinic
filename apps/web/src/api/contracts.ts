@@ -379,6 +379,7 @@ export type ClinicCapabilities = {
   appointments_status_transition?: boolean;
   staff_write?: boolean;
   billing_read?: boolean;
+  billing_catalog_manage?: boolean;
   subscription_catalog_read?: boolean;
   billing_invoice_draft?: boolean;
   billing_invoice_post?: boolean;
@@ -488,7 +489,9 @@ export type BillingPatientLedger = {
       id: number;
       description: string;
       quantity: Decimal;
+      unit_amount: Decimal;
       posted_amount: Decimal;
+      billing_service_id: number | null;
     }[];
     allocations: {
       id: number;

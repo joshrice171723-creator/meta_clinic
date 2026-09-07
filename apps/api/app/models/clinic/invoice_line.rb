@@ -18,6 +18,7 @@ module Clinic
 
     belongs_to :patient, class_name: "Clinic::Care::Patient"
     belongs_to :invoice, class_name: "Clinic::Invoice"
+    belongs_to :billing_service, class_name: "Clinic::BillingService", optional: true
 
     validates :quantity, :unit_amount, :posted_amount, numericality: { greater_than_or_equal_to: 0 }
     validates :quantity, numericality: { greater_than: 0 }
@@ -31,6 +32,7 @@ module Clinic
 
       errors.add(:invoice, "must belong to this practice") if invoice.practice_id != practice_id
       errors.add(:invoice, "must belong to this patient") if invoice.patient_id != patient_id
+      errors.add(:billing_service, "must belong to this practice") if billing_service && billing_service.practice_id != practice_id
     end
 
     def editable_draft_only

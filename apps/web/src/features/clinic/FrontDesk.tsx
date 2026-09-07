@@ -27,6 +27,7 @@ import { api, ApiError } from "../../api/client";
 import type { ClinicSite, EncounterDetail, Patient } from "../../api/contracts";
 import { useResource } from "../../shared/ui";
 import { bookingAvailability } from "./CareFlow";
+import { patientReferenceLabel } from "./patientReference";
 import {
   appointmentActions,
   appointmentStatus,
@@ -658,9 +659,7 @@ function AppointmentRow({
   const actions = appointmentActions(appointment);
   const status = appointmentStatus(appointment);
   const patientName = appointment.patient?.display_name || "Patient record";
-  const reference = appointment.patient?.reference;
-  const patientReference =
-    reference && !/^SYN[-_]/i.test(reference) ? reference : null;
+  const patientReference = patientReferenceLabel(appointment.patient?.reference);
   const anyActionBusy = busyAction.length > 0;
   const patientPath = `/clinic/patients/${appointment.patient_id}`;
   const chartPath = appointment.encounter_id
@@ -955,7 +954,7 @@ function IdentityLookup() {
           {patients.data.patients.map((patient) => (
             <li key={patient.id}>
               <strong>{patient.display_name}</strong>
-              <span>{patient.reference}</span>
+              {patientReferenceLabel(patient.reference) && <span>{patientReferenceLabel(patient.reference)}</span>}
             </li>
           ))}
         </ul>

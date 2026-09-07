@@ -49,6 +49,7 @@ Rails.application.routes.draw do
       post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
     end
     get "billing", to: "billing/dashboard#show"
+    resources :billing_services, only: %i[index create update]
     get "stripe_connect", to: "billing/stripe_connect#show"
     post "stripe_connect/onboard", to: "billing/stripe_connect#onboard"
     post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"

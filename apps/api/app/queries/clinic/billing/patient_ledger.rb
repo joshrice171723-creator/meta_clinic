@@ -53,7 +53,7 @@ module Clinic
           credit_amount: decimal(invoice_credit(invoice)),
           balance_amount: decimal(invoice_balance(invoice)),
           lines: invoice.lines.sort_by(&:id).map do |line|
-            { id: line.id, description: line.description_snapshot, quantity: decimal(line.quantity), posted_amount: decimal(line.posted_amount) }
+            { id: line.id, description: line.description_snapshot, quantity: decimal(line.quantity), unit_amount: decimal(line.unit_amount), posted_amount: decimal(line.posted_amount), billing_service_id: line.billing_service_id }
           end,
           allocations: invoice.payment_allocations.sort_by(&:created_at).map do |allocation|
             { id: allocation.id, payment_event_id: allocation.payment_event_id, amount: decimal(allocation.amount), created_at: allocation.created_at.iso8601 }

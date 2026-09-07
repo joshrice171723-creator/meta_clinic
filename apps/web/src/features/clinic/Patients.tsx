@@ -11,6 +11,7 @@ import {
 import { PatientSupport } from "./CareFlow";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { useClinic } from "./Workspace";
+import { patientReferenceLabel } from "./patientReference";
 
 type LegacyNote = {
   id: number;
@@ -40,7 +41,7 @@ export function Patients({ id }: { id?: string }) {
       <>
         <a href="/clinic/patients">← Patients</a>
         <h1>{data.patient.display_name}</h1>
-        <p>Reference: {data.patient.reference}</p>
+        {patientReferenceLabel(data.patient.reference) && <p>Reference: {patientReferenceLabel(data.patient.reference)}</p>}
         {clinic.capabilities.patients_write && (
           <Card title="Edit registration details">
             <PatientRegistrationForm patient={data.patient} />
@@ -91,7 +92,7 @@ export function Patients({ id }: { id?: string }) {
                     <td>
                       <strong>{p.display_name}</strong>
                     </td>
-                    <td>{p.reference}</td>
+                    <td>{patientReferenceLabel(p.reference) ?? "Not recorded"}</td>
                     <td>
                       <a href={`/clinic/patients/${p.id}`}>Open patient</a>
                     </td>
@@ -286,12 +287,12 @@ export function PatientRegistrationForm({
         value={patient?.display_name}
         maxLength={120}
       />
-      <Field
+      {(!patient?.reference || patientReferenceLabel(patient.reference)) && <Field
         name="clinic_patient[reference]"
         label="Clinic reference"
         value={patient?.reference}
         maxLength={32}
-      />
+      />}
       <PatientFields patient={patient} />
     </Form>
   );

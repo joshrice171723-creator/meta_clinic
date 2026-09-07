@@ -507,6 +507,11 @@ export function BillingDashboard() {
           >
             Print a receipt
           </Button>
+          {context.capabilities.billing_catalog_manage === true && (
+            <Button variant="outlined" href="/clinic/billing/services">
+              Services
+            </Button>
+          )}
           {context.capabilities.patient_identity_read === true && (
             <Button variant="contained" href="/clinic/billing/patients">
               Patient payments

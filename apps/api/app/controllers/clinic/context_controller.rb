@@ -69,6 +69,7 @@ module Clinic
           billing_invoice_post: allowed?("billing.invoice_post"),
           billing_payment_record: allowed?("billing.payment_record"),
           billing_cash_reconcile: allowed?("billing.cash_reconcile"),
+          billing_catalog_manage: allowed?("billing.catalog.manage"),
           roles: allowed?("roles.manage")
         },
         current_site: current_site && FacilitySerializer.site(current_site),

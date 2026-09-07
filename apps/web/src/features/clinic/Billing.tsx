@@ -41,6 +41,13 @@ import {
   CashDrawerOperations,
   hasPendingCashAttempt,
 } from "./CashDrawerOperations";
+import {
+  customInvoiceLine,
+  invoiceLineIsValid,
+  InvoiceLineEditor,
+  type InvoiceLineDraft,
+} from "./InvoiceLineEditor";
+import { patientReferenceLabel } from "./patientReference";
 import { useClinic } from "./Workspace";
 
 function money(value: string, currency: string) {
@@ -283,7 +290,9 @@ export function Billing() {
                 >
                   <ListItemText
                     primary={patient.display_name}
-                    secondary={patient.reference}
+                    secondary={
+                      patientReferenceLabel(patient.reference) ?? undefined
+                    }
                     slotProps={{
                       primary: { sx: { fontWeight: 650 } },
                       secondary: { sx: { fontVariantNumeric: "tabular-nums" } },
@@ -376,15 +385,18 @@ function LedgerDetails({
   };
   onFinancialChange: (invoiceId?: number) => void;
 }) {
+  const referenceLabel = patientReferenceLabel(ledger.patient.reference);
   return (
     <Stack spacing={3}>
       <Box>
         <Typography component="h2" variant="h2">
           {ledger.patient.display_name}
         </Typography>
-        <Typography color="text.secondary" variant="body2">
-          Clinic reference · {ledger.patient.reference}
-        </Typography>
+        {referenceLabel && (
+          <Typography color="text.secondary" variant="body2">
+            Clinic reference · {referenceLabel}
+          </Typography>
+        )}
       </Box>
       {ledger.currencies.length === 0 ? (
         <Alert severity="info">
@@ -798,33 +810,23 @@ function DraftInvoiceForm({
   onCreated: (invoiceId: number) => void;
 }) {
   const [currency, setCurrency] = useState("USD");
-  const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [unitAmount, setUnitAmount] = useState("");
+  const [lines, setLines] = useState<InvoiceLineDraft[]>([customInvoiceLine()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const requestKeyRef = useRef<string | null>(null);
+  const [retryPending, setRetryPending] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const decimal = /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/;
     if (!/^[A-Z]{3}$/.test(currency)) {
       setError("Use a three-letter uppercase currency code.");
       return;
     }
-    if (!decimal.test(quantity) || Number(quantity) <= 0) {
-      setError("Enter a positive quantity with up to six decimal places.");
-      return;
-    }
-    if (!decimal.test(unitAmount) || Number(unitAmount) < 0) {
+    if (!lines.length || !lines.every(invoiceLineIsValid)) {
       setError(
-        "Enter a non-negative unit amount with up to six decimal places.",
+        "Complete each invoice line with a positive quantity and its required charge details.",
       );
-      return;
-    }
-    if (!description.trim()) {
-      setError("Enter a line-item description.");
       return;
     }
     setBusy(true);
@@ -843,13 +845,19 @@ function DraftInvoiceForm({
             currency,
             ...(encounterId ? { encounter_id: encounterId } : {}),
             request_key: retryKey,
-            lines: [
-              {
-                quantity: quantity.trim(),
-                unit_amount: unitAmount.trim(),
-                description_snapshot: description.trim(),
-              },
-            ],
+            lines: lines.map((line) =>
+              line.kind === "catalog"
+                ? {
+                    billing_service_id: line.billing_service_id,
+                    service_lock_version: line.service_lock_version,
+                    quantity: line.quantity.trim(),
+                  }
+                : {
+                    quantity: line.quantity.trim(),
+                    unit_amount: line.unit_amount.trim(),
+                    description_snapshot: line.description_snapshot.trim(),
+                  },
+            ),
           },
         },
       });
@@ -858,10 +866,9 @@ function DraftInvoiceForm({
           "The saved invoice did not match this encounter. Review the billing ledger before trying again.",
         );
       }
-      setDescription("");
-      setQuantity("1");
-      setUnitAmount("");
+      setLines([customInvoiceLine()]);
       requestKeyRef.current = null;
+      setRetryPending(false);
       setNotice(
         result.replayed
           ? `Checkout invoice #${result.invoice.id} was already recorded and has been reopened.`
@@ -874,6 +881,15 @@ function DraftInvoiceForm({
           ? reason.message
           : "The draft invoice could not be created.",
       );
+      if (
+        deterministicPostError(reason) ||
+        (reason instanceof ApiError && reason.status === 409)
+      ) {
+        requestKeyRef.current = null;
+        setRetryPending(false);
+      } else {
+        setRetryPending(true);
+      }
     } finally {
       setBusy(false);
     }
@@ -887,58 +903,57 @@ function DraftInvoiceForm({
           : "Start a draft invoice"}
       </Typography>
       <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-        Enter the confirmed billable lines. The clinic does not infer prices
-        from the visit record. Posting remains a separate protected action.
+        Choose services or enter a custom charge. Review the invoice before
+        posting it for payment.
       </Typography>
       <Box
         component="form"
         onSubmit={(event) => void submit(event)}
-        sx={{
-          display: "grid",
-          gap: 1.5,
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 2fr auto" },
-          mt: 2,
-        }}
+        sx={{ mt: 2 }}
       >
-        <TextField
-          label="Currency"
-          onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-          slotProps={{
-            htmlInput: {
-              maxLength: 3,
-              style: { textTransform: "uppercase" },
-            },
-          }}
-          value={currency}
-        />
-        <TextField
-          label="Quantity"
-          inputMode="decimal"
-          onChange={(event) => setQuantity(event.target.value)}
-          value={quantity}
-        />
-        <TextField
-          label="Unit amount"
-          inputMode="decimal"
-          onChange={(event) => setUnitAmount(event.target.value)}
-          value={unitAmount}
-        />
-        <TextField
-          label="Line description"
-          onChange={(event) => setDescription(event.target.value)}
-          value={description}
-        />
-        <Button disabled={busy} type="submit" variant="contained">
+        <Box
+          component="fieldset"
+          disabled={busy || retryPending}
+          sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}
+        >
+          <TextField
+            label="Currency"
+            onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+            slotProps={{
+              htmlInput: {
+                maxLength: 3,
+                style: { textTransform: "uppercase" },
+              },
+            }}
+            value={currency}
+            sx={{ mb: 1.5, maxWidth: 220 }}
+          />
+          <InvoiceLineEditor
+            currency={currency}
+            lines={lines}
+            onChange={setLines}
+          />
+        </Box>
+        <Button
+          disabled={busy}
+          type="submit"
+          variant="contained"
+          sx={{ mt: 2 }}
+        >
           {busy
             ? "Creating…"
-            : encounterId
-              ? "Create checkout draft"
-              : "Create draft"}
+            : retryPending
+              ? "Retry same draft"
+              : encounterId
+                ? "Create checkout draft"
+                : "Create draft"}
         </Button>
       </Box>
       {error && (
         <Alert severity="error" sx={{ mt: 1.5 }}>
           {error}
+          {retryPending &&
+            " The save outcome is unknown. Retry this same draft to confirm whether it was recorded."}
         </Alert>
       )}
       {notice && (
@@ -958,12 +973,26 @@ function DraftInvoiceEditor({
   onSaved: () => void;
 }) {
   const [currency, setCurrency] = useState(invoice.currency);
-  const [quantity, setQuantity] = useState(invoice.lines[0]?.quantity ?? "1");
-  const [unitAmount, setUnitAmount] = useState(
-    invoice.lines[0]?.posted_amount ?? "",
-  );
-  const [description, setDescription] = useState(
-    invoice.lines[0]?.description ?? "",
+  const [lines, setLines] = useState<InvoiceLineDraft[]>(() =>
+    invoice.lines.length
+      ? invoice.lines.map((line) =>
+          line.billing_service_id
+            ? {
+                kind: "recorded" as const,
+                invoice_line_id: line.id,
+                quantity: line.quantity,
+                unit_amount: line.unit_amount,
+                description_snapshot: line.description,
+                currency: invoice.currency,
+              }
+            : {
+                kind: "custom" as const,
+                quantity: line.quantity,
+                unit_amount: line.unit_amount,
+                description_snapshot: line.description,
+              },
+        )
+      : [customInvoiceLine()],
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -971,11 +1000,12 @@ function DraftInvoiceEditor({
     event.preventDefault();
     if (
       !/^[A-Z]{3}$/.test(currency) ||
-      !quantity ||
-      !unitAmount ||
-      !description.trim()
+      !lines.length ||
+      !lines.every(invoiceLineIsValid)
     ) {
-      setError("Enter a currency, quantity, unit amount, and description.");
+      setError(
+        "Complete each invoice line with a positive quantity and its required charge details.",
+      );
       return;
     }
     setBusy(true);
@@ -986,13 +1016,24 @@ function DraftInvoiceEditor({
         body: {
           invoice: {
             currency,
-            lines: [
-              {
-                quantity,
-                unit_amount: unitAmount,
-                description_snapshot: description.trim(),
-              },
-            ],
+            lines: lines.map((line) =>
+              line.kind === "recorded"
+                ? {
+                    invoice_line_id: line.invoice_line_id,
+                    quantity: line.quantity.trim(),
+                  }
+                : line.kind === "catalog"
+                  ? {
+                      billing_service_id: line.billing_service_id,
+                      service_lock_version: line.service_lock_version,
+                      quantity: line.quantity.trim(),
+                    }
+                  : {
+                      quantity: line.quantity.trim(),
+                      unit_amount: line.unit_amount.trim(),
+                      description_snapshot: line.description_snapshot.trim(),
+                    },
+            ),
           },
         },
       });
@@ -1015,36 +1056,25 @@ function DraftInvoiceEditor({
       <Box
         component="form"
         onSubmit={(event) => void submit(event)}
-        sx={{
-          display: "grid",
-          gap: 1.5,
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 2fr auto" },
-          mt: 2,
-        }}
+        sx={{ mt: 2 }}
       >
         <TextField
           label="Currency"
           value={currency}
           onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+          sx={{ mb: 1.5, maxWidth: 220 }}
         />
-        <TextField
-          label="Quantity"
-          inputMode="decimal"
-          value={quantity}
-          onChange={(event) => setQuantity(event.target.value)}
+        <InvoiceLineEditor
+          currency={currency}
+          lines={lines}
+          onChange={setLines}
         />
-        <TextField
-          label="Unit amount"
-          inputMode="decimal"
-          value={unitAmount}
-          onChange={(event) => setUnitAmount(event.target.value)}
-        />
-        <TextField
-          label="Line description"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-        />
-        <Button disabled={busy} type="submit" variant="contained">
+        <Button
+          disabled={busy}
+          type="submit"
+          variant="contained"
+          sx={{ mt: 2 }}
+        >
           {busy ? "Saving…" : "Save draft"}
         </Button>
       </Box>

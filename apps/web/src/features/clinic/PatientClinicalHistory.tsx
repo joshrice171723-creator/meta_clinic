@@ -168,11 +168,13 @@ function SelectField({
   value,
   options,
   onChange,
+  emptyLabel = "Choose an option",
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
+  emptyLabel?: string;
 }) {
   return (
     <TextField
@@ -184,7 +186,7 @@ function SelectField({
     >
       {options.map((option) => (
         <MenuItem key={option || "blank"} value={option}>
-          {option ? humanize(option) : "Choose an outcome"}
+          {option ? humanize(option) : emptyLabel}
         </MenuItem>
       ))}
     </TextField>
@@ -560,7 +562,7 @@ export function PatientClinicalHistory({
       >
         <DialogTitle>
           {editor?.record ? "Edit" : "Add"}{" "}
-          {editor ? HISTORY_LABELS[editor.kind].toLowerCase() : "history"}
+          {editor ? singularLabels[editor.kind].toLowerCase() : "history"}
         </DialogTitle>
         <DialogContent dividers>
           {mutationError && (
@@ -611,12 +613,14 @@ export function PatientClinicalHistory({
               value={review.outcome}
               options={["", ...selectOptions.reviewOutcome]}
               onChange={(value) => changeReview("outcome", value)}
+              emptyLabel="Choose an outcome"
             />
             <SelectField
               label="Information source"
               value={review.information_source}
               options={["", ...selectOptions.reviewSource]}
               onChange={(value) => changeReview("information_source", value)}
+              emptyLabel="Choose a source"
             />
             <TextField
               label="Review notes"

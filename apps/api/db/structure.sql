@@ -1719,6 +1719,46 @@ ALTER SEQUENCE public.clinic_billing_receipts_id_seq OWNED BY public.clinic_bill
 
 
 --
+-- Name: clinic_billing_services; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_billing_services (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    name character varying(160) NOT NULL,
+    code character varying(50),
+    description character varying(500),
+    unit_amount numeric(14,2) NOT NULL,
+    currency character varying(3) NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_billing_services_code_value CHECK (((code IS NULL) OR (length(TRIM(BOTH FROM code)) > 0))),
+    CONSTRAINT clinic_billing_services_values CHECK (((length(TRIM(BOTH FROM name)) > 0) AND (unit_amount >= (0)::numeric) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: clinic_billing_services_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_billing_services_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_billing_services_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_billing_services_id_seq OWNED BY public.clinic_billing_services.id;
+
+
+--
 -- Name: clinic_cash_drawer_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3966,6 +4006,7 @@ CREATE TABLE public.clinic_invoice_lines (
     description_snapshot text NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    billing_service_id bigint,
     CONSTRAINT clinic_invoice_lines_values CHECK (((quantity > (0)::numeric) AND (unit_amount >= (0)::numeric) AND (posted_amount >= (0)::numeric) AND (length(TRIM(BOTH FROM description_snapshot)) > 0)))
 );
 
@@ -7707,6 +7748,13 @@ ALTER TABLE ONLY public.clinic_billing_receipts ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: clinic_billing_services id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_services ALTER COLUMN id SET DEFAULT nextval('public.clinic_billing_services_id_seq'::regclass);
+
+
+--
 -- Name: clinic_cash_drawer_sessions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -8819,6 +8867,14 @@ ALTER TABLE ONLY public.clinic_audit_resource_manifests
 
 ALTER TABLE ONLY public.clinic_billing_receipts
     ADD CONSTRAINT clinic_billing_receipts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_billing_services clinic_billing_services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_services
+    ADD CONSTRAINT clinic_billing_services_pkey PRIMARY KEY (id);
 
 
 --
@@ -10135,6 +10191,27 @@ CREATE UNIQUE INDEX clinic_audit_resource_manifests_practice_id ON public.clinic
 
 
 --
+-- Name: clinic_billing_services_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_billing_services_code ON public.clinic_billing_services USING btree (practice_id, code) WHERE (code IS NOT NULL);
+
+
+--
+-- Name: clinic_billing_services_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_billing_services_name ON public.clinic_billing_services USING btree (practice_id, name);
+
+
+--
+-- Name: clinic_billing_services_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_billing_services_practice_id ON public.clinic_billing_services USING btree (practice_id, id);
+
+
+--
 -- Name: clinic_care_needs_active_lookup; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10419,6 +10496,13 @@ CREATE UNIQUE INDEX clinic_history_reviews_request_key ON public.clinic_patient_
 --
 
 CREATE UNIQUE INDEX clinic_insurance_claims_practice_id ON public.clinic_insurance_claims USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_invoice_lines_billing_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_invoice_lines_billing_service ON public.clinic_invoice_lines USING btree (practice_id, billing_service_id);
 
 
 --
@@ -15339,6 +15423,14 @@ ALTER TABLE ONLY public.clinic_inventory_recall_closures
 
 
 --
+-- Name: clinic_invoice_lines fk_invoice_lines_billing_service; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_lines
+    ADD CONSTRAINT fk_invoice_lines_billing_service FOREIGN KEY (practice_id, billing_service_id) REFERENCES public.clinic_billing_services(practice_id, id);
+
+
+--
 -- Name: clinic_invoice_lines fk_invoice_lines_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20151,6 +20243,14 @@ ALTER TABLE ONLY public.clinic_workforce_export_batches
 
 
 --
+-- Name: clinic_billing_services fk_rails_a2650ce446; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_billing_services
+    ADD CONSTRAINT fk_rails_a2650ce446 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_workforce_employment_sites fk_rails_a301c07935; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20416,6 +20516,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000300'),
 ('20260907000200'),
 ('20260907000100'),
 ('20260906001900'),

@@ -10,24 +10,13 @@ module Clinic
         validate_checkout_encounter!(encounter) if encounter
         currency = currency.to_s
         raise ArgumentError, "Currency must be a three-letter uppercase code." unless currency.match?(/\A[A-Z]{3}\z/)
-        raise ArgumentError, "An invoice needs at least one line." unless lines.is_a?(Array) && lines.any?
-
-        normalized_lines = lines.map do |line|
-          quantity = Money.decimal(line.fetch(:quantity), name: "quantity", positive: true)
-          unit_amount = Money.decimal(line.fetch(:unit_amount), name: "unit amount")
-          {
-            quantity: quantity.to_s("F"),
-            unit_amount: unit_amount.to_s("F"),
-            posted_amount: Money.line_total(quantity: quantity, unit_amount: unit_amount),
-            description_snapshot: line.fetch(:description_snapshot).to_s
-          }
-        end
+        requested_lines = InvoiceLineInput.normalize(lines)
         key = request_key || SecureRandom.uuid
         idempotency_payload = {
           patient_id: patient.id,
           currency: currency,
           created_at: created_at,
-          lines: normalized_lines.map { |line| line.except(:posted_amount) }
+          lines: requested_lines
         }
         idempotency_payload[:encounter_id] = encounter.id if encounter
         outcome = Clinic::Idempotency.execute(
@@ -46,6 +35,7 @@ module Clinic
             practice.invoices.find_by(id: receipt.resource_id, patient_id: patient.id, encounter_id: encounter&.id)
           }
         ) do
+          normalized_lines = InvoiceLineInput.resolve!(practice: practice, currency: currency, lines: requested_lines)
           if encounter
             locked_encounter = practice.encounters.where(patient_id: patient.id).lock.find(encounter.id)
             validate_checkout_encounter!(locked_encounter)
@@ -63,14 +53,16 @@ module Clinic
           invoice = practice.invoices.create!(timestamp_attributes.merge(patient: patient, encounter: encounter,
             currency: currency, status: "draft", rounding_policy_version: Money::POLICY_VERSION))
           normalized_lines.each do |line|
-            invoice.lines.create!(timestamp_attributes.merge(
+            line_attributes = {
               practice: practice,
               patient: patient,
               quantity: line.fetch(:quantity),
               unit_amount: line.fetch(:unit_amount),
               posted_amount: line.fetch(:posted_amount),
               description_snapshot: line.fetch(:description_snapshot)
-            ))
+            }
+            line_attributes[:billing_service_id] = line[:billing_service_id] if line[:billing_service_id]
+            invoice.lines.create!(timestamp_attributes.merge(line_attributes))
           end
           invoice
         end
@@ -89,13 +81,15 @@ module Clinic
 
       def self.same_invoice_request?(invoice, currency:, lines:)
         existing_lines = invoice.lines.order(:id).map do |line|
-          {
+          attributes = {
             quantity: line.quantity.to_s("F"),
             unit_amount: line.unit_amount.to_s("F"),
             description_snapshot: line.description_snapshot.to_s
           }
+          attributes[:billing_service_id] = line.billing_service_id if line.billing_service_id
+          attributes
         end
-        requested_lines = lines.map { |line| line.slice(:quantity, :unit_amount, :description_snapshot) }
+        requested_lines = lines.map { |line| line.slice(:quantity, :unit_amount, :description_snapshot, :billing_service_id) }
         invoice.currency == currency && existing_lines == requested_lines
       end
       private_class_method :same_invoice_request?

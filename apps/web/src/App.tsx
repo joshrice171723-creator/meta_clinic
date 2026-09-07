@@ -114,6 +114,10 @@ const BillingDashboard = lazyNamed(
   () => import("./features/clinic/BillingDashboard"),
   (m) => m.BillingDashboard,
 );
+const BillingServiceCatalog = lazyNamed(
+  () => import("./features/clinic/BillingServiceCatalog"),
+  (m) => m.BillingServiceCatalog,
+);
 const SubscriptionCatalog = lazyNamed(
   () => import("./features/clinic/subscriptions/SubscriptionCatalog"),
   (m) => m.SubscriptionCatalog,
@@ -405,6 +409,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         <FrontDesk />
       ) : path === "/clinic/billing/patients" ? (
         <Billing />
+      ) : path === "/clinic/billing/services" ? (
+        <BillingServiceCatalog />
       ) : path === "/clinic/billing" ? (
         <BillingDashboard />
       ) : path === "/clinic/subscriptions" ? (
