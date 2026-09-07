@@ -1833,7 +1833,7 @@ function PaymentHistory({
                     {allocationPaymentId === payment.id ? (
                       <Stack
                         component="form"
-                        direction={{ xs: "column", sm: "row" }}
+                        direction={{ xs: "column", md: "row" }}
                         spacing={1}
                         onSubmit={(event) => {
                           event.preventDefault();
@@ -1942,7 +1942,7 @@ function PaymentHistory({
               {refundPaymentId === payment.id && (
                 <Stack
                   component="form"
-                  direction={{ xs: "column", sm: "row" }}
+                  direction={{ xs: "column", md: "row" }}
                   spacing={1}
                   sx={{ mt: 1.5 }}
                   onSubmit={(event) => {
