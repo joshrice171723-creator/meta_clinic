@@ -24,6 +24,7 @@ import {
   Button,
   Card as MuiCard,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   Collapse,
@@ -33,6 +34,7 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Link,
   MenuItem,
@@ -91,10 +93,15 @@ export function closeRequestKey(
 export const noteSaveRequestKey = closeRequestKey;
 
 export function noteSaveRequestBody(
-  operationCode: "notes.create" | "notes.revise",
+  operationCode: "notes.create" | "notes.revise" | "notes.correct",
   fields: Record<string, unknown>,
   requestKey: string,
   expectedRevision?: number,
+  correction?: {
+    reason: string;
+    expectedRevisionId: number;
+    expectedRevision: number;
+  },
 ) {
   return operationCode === "notes.create"
     ? {
@@ -104,13 +111,23 @@ export function noteSaveRequestBody(
           request_key: requestKey,
         },
       }
-    : {
+    : operationCode === "notes.revise"
+      ? {
         revision: {
           ...fields,
           expected_revision: expectedRevision,
           request_key: requestKey,
         },
-      };
+      }
+      : {
+          correction: {
+            ...fields,
+            reason: correction?.reason,
+            expected_revision_id: correction?.expectedRevisionId,
+            expected_revision: correction?.expectedRevision,
+            request_key: requestKey,
+          },
+        };
 }
 
 export function closeRequestBody(patientId: number, requestKey: string) {
@@ -187,7 +204,7 @@ export function encounterHasSignedSoapNote(encounter: EncounterDetail) {
 
 export function noteReceiptMatches(
   receipt: OperationReceipt,
-  operationCode: "notes.create" | "notes.revise",
+  operationCode: "notes.create" | "notes.revise" | "notes.correct",
   resourceId: number,
 ) {
   return (
@@ -205,7 +222,6 @@ export function noteReconciliationMatches(
 ) {
   return (
     noteSaveMatches(value, patientId, encounterId, noteId, expectedRevision) &&
-    !value.signed &&
     !value.current_revision?.signed &&
     Boolean(value.current_revision?.body)
   );
@@ -1032,9 +1048,15 @@ export function noteSaveFailureState(status?: number, message = "") {
 
 type NoteSaveAttempt = {
   requestKey: string;
-  operationCode: "notes.create" | "notes.revise";
+  operationCode: "notes.create" | "notes.revise" | "notes.correct";
   noteId: number | null;
   expectedRevision: number;
+};
+
+type CorrectionTarget = {
+  revisionId: number;
+  revisionNo: number;
+  reason: string;
 };
 
 class NoteReconciliationError extends Error {}
@@ -1101,13 +1123,21 @@ export function SoapNoteForm({
   const [saveState, setSaveState] = useState<NoteSaveState>("idle");
   const [resetConfirmation, setResetConfirmation] = useState(false);
   const [requestKey, setRequestKey] = useState<string | null>(null);
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionConfirmed, setCorrectionConfirmed] = useState(false);
+  const [correctionTarget, setCorrectionTarget] =
+    useState<CorrectionTarget | null>(null);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const dirty = SOAP_SECTION_LABELS.some(
     ([key]) => sections[key] !== initialSections[key],
   );
-  const signed = note?.signed || note?.current_revision?.signed || false;
+  const signed = note?.current_revision?.signed === true;
   const editorDisabled =
-    busy || !noteSaveAllowsMutation(saveState) || signed || !canWrite;
+    busy ||
+    !noteSaveAllowsMutation(saveState) ||
+    (signed && !correctionTarget) ||
+    !canWrite;
   useEffect(() => {
     if (saveAttemptRef.current) return;
     setSections(initialSections);
@@ -1146,22 +1176,26 @@ export function SoapNoteForm({
       !appliedTemplate ||
       busy ||
       !noteSaveAllowsMutation(saveState) ||
-      signed ||
+      (signed && !correctionTarget) ||
       !canWrite ||
-      !dirty
+      (!dirty && !correctionTarget)
     )
       return;
-    const operationCode = note?.current_revision
-      ? "notes.revise"
-      : "notes.create";
+    const operationCode = correctionTarget
+      ? "notes.correct"
+      : note?.current_revision
+        ? "notes.revise"
+        : "notes.create";
     const attempt: NoteSaveAttempt = {
       requestKey: noteSaveRequestKey(
         saveAttemptRef.current?.requestKey ?? null,
       ),
       operationCode,
       noteId: note?.id ?? null,
-      expectedRevision: note?.current_revision
-        ? note.current_revision.revision_no + 1
+      expectedRevision: correctionTarget
+        ? correctionTarget.revisionNo + 1
+        : note?.current_revision
+          ? note.current_revision.revision_no + 1
         : 1,
     };
     saveAttemptRef.current = attempt;
@@ -1176,9 +1210,15 @@ export function SoapNoteForm({
       ...sections,
     };
     try {
-      if (attempt.operationCode === "notes.revise" && note?.current_revision) {
+      if (
+        (attempt.operationCode === "notes.revise" ||
+          attempt.operationCode === "notes.correct") &&
+        note?.current_revision
+      ) {
         await api<{ revision: { revision_no: number } }>(
-          `/api/clinic/notes/${note.id}/revisions`,
+          attempt.operationCode === "notes.correct"
+            ? `/api/clinic/notes/${note.id}/corrections`
+            : `/api/clinic/notes/${note.id}/revisions`,
           {
             method: "POST",
             body: noteSaveRequestBody(
@@ -1186,6 +1226,13 @@ export function SoapNoteForm({
               fields,
               attempt.requestKey,
               note.current_revision.revision_no,
+              correctionTarget
+                ? {
+                    reason: correctionTarget.reason,
+                    expectedRevisionId: correctionTarget.revisionId,
+                    expectedRevision: correctionTarget.revisionNo,
+                  }
+                : undefined,
             ),
           },
         );
@@ -1319,10 +1366,13 @@ export function SoapNoteForm({
     }
     setSaveState("idle");
     setNotice(
-      `Unsigned draft ${attempt.operationCode === "notes.create" ? "created" : `revision ${attempt.expectedRevision} saved`} after note and encounter verification.`,
+      attempt.operationCode === "notes.correct"
+        ? `Unsigned correction revision ${attempt.expectedRevision} saved after note and encounter verification. Review and sign it separately.`
+        : `Unsigned draft ${attempt.operationCode === "notes.create" ? "created" : `revision ${attempt.expectedRevision} saved`} after note and encounter verification.`,
     );
     saveAttemptRef.current = null;
     setRequestKey(null);
+    if (attempt.operationCode === "notes.correct") setCorrectionTarget(null);
     if (attempt.operationCode === "notes.create") onCreated?.(reconciled);
     else onRefresh?.();
   };
@@ -1399,15 +1449,57 @@ export function SoapNoteForm({
     setError("");
   };
 
+  const startCorrection = () => {
+    if (!note || !savedBody || !note.current_revision || !signed) return;
+    if (!correctionReason.trim() || !correctionConfirmed) return;
+    setSections(savedBody.sections);
+    setAppliedTemplate({
+      id: savedBody.template_id,
+      version: savedBody.template_version,
+    });
+    setCorrectionTarget({
+      revisionId: note.current_revision.id,
+      revisionNo: note.current_revision.revision_no,
+      reason: correctionReason.trim(),
+    });
+    setCorrectionDialogOpen(false);
+    setCorrectionConfirmed(false);
+    setNotice(
+      `Preparing a correction to signed revision ${note.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
+    );
+  };
+
   return (
     <Box className="soap-workspace">
       {note && savedBody && (
         <Alert severity={signed ? "info" : "warning"}>
           {signed
-            ? "This signed revision is read-only."
+            ? `Signed revision ${note.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
+            : correctionTarget
+              ? `Correction in progress for signed revision ${correctionTarget.revisionNo}. Save creates an unsigned correction that must be reviewed and signed separately.`
             : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
+      {note?.revisions.length ? (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            Saved revision history
+          </Typography>
+          <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", mt: 0.75 }}>
+            {note.revisions.map((revision) => (
+              <Chip
+                key={revision.id}
+                size="small"
+                variant={
+                  revision.id === note.current_revision?.id ? "filled" : "outlined"
+                }
+                color={revision.signed ? "success" : "default"}
+                label={`Revision ${revision.revision_no}${revision.signed ? " · signed" : " · unsigned"}`}
+              />
+            ))}
+          </Stack>
+        </Box>
+      ) : null}
       <Stack spacing={1} className="soap-sections">
         <HistoryOfPresentIllness
           value={sections.subjective}
@@ -1463,20 +1555,35 @@ export function SoapNoteForm({
             : notice}
       </Box>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        {!signed && (
+        {(!signed || correctionTarget) && (
           <Button
             variant="contained"
             onClick={() => void save()}
             disabled={
               busy ||
               !canWrite ||
-              !dirty ||
+              (!dirty && !correctionTarget) ||
               !noteSaveAllowsMutation(saveState) ||
               !appliedTemplate ||
               !hasSoapContent(sections)
             }
           >
-            {busy ? "Saving…" : note ? "Save new revision" : "Save draft"}
+            {busy
+              ? "Saving…"
+              : correctionTarget
+                ? "Save unsigned correction"
+                : note
+                  ? "Save new revision"
+                  : "Save draft"}
+          </Button>
+        )}
+        {signed && !correctionTarget && canWrite && (
+          <Button
+            variant="contained"
+            onClick={() => setCorrectionDialogOpen(true)}
+            disabled={busy || !noteSaveAllowsMutation(saveState)}
+          >
+            Start correction
           </Button>
         )}
         {requestKey && (
@@ -1532,9 +1639,66 @@ export function SoapNoteForm({
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog
+        open={correctionDialogOpen}
+        onClose={() => !busy && setCorrectionDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Start correction to signed SOAP note</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="info">
+              This keeps signed revision {note?.current_revision?.revision_no} intact and creates a separate unsigned correction for review and signature.
+            </Alert>
+            <Typography color="text.secondary">
+              {patientName || `Patient #${patientId ?? "unavailable"}`} · Encounter #{encounterId} · Signed revision {note?.current_revision?.revision_no}
+            </Typography>
+            {SOAP_SECTION_LABELS.map(([key, label]) => (
+              <Box key={key}>
+                <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                  {savedBody?.sections[key] || "Not recorded"}
+                </Typography>
+              </Box>
+            ))}
+            <TextField
+              label="Reason for correction"
+              value={correctionReason}
+              onChange={(event) => setCorrectionReason(event.target.value)}
+              multiline
+              minRows={3}
+              required
+              slotProps={{ htmlInput: { maxLength: 2_000 } }}
+              helperText="This reason is saved with the correction."
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={correctionConfirmed}
+                  onChange={(event) => setCorrectionConfirmed(event.target.checked)}
+                />
+              }
+              label="I confirmed the displayed patient, encounter, signed revision, and copied note content."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setCorrectionDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={busy || !correctionConfirmed || !correctionReason.trim()}
+            onClick={startCorrection}
+          >
+            Start correction
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Typography variant="caption" color="text.secondary">
         {signed
-          ? "This signed SOAP chart is read-only here."
+          ? "The signed revision remains read-only. A correction is a separate unsigned revision until it is reviewed and signed."
           : "Saving stores an unsigned chart draft; it does not sign the note or close the encounter."}
       </Typography>
     </Box>
@@ -1976,7 +2140,10 @@ export function ProviderEncounterWorkflow({
               onChanged={onCareSummaryRefresh}
             />
             <Box id="chart-labs">
-              <PatientLabReports patientId={patient.id} />
+              <PatientLabReports
+                patientId={patient.id}
+                patientName={patient.display_name}
+              />
             </Box>
             {noteWorkspace}
             <VisitWrapUp

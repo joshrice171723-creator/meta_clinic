@@ -38,12 +38,21 @@ module Clinic
 
       def export
         require_capability("scribe.export")
-        input = parameter_hash!(:export, %i[destination idempotency_key confirmed expected_version])
+        input = parameter_hash!(:export,
+          %i[destination idempotency_key confirmed expected_version existing_note_action encounter_note_id
+            expected_note_revision_id expected_note_revision correction_reason])
         export = Workflow.export!(draft: @draft, actor: current_user,
           destination: required_string!(input[:destination], field: :destination, maximum: 60),
           idempotency_key: required_string!(input[:idempotency_key], field: :idempotency_key, maximum: 160),
           confirmed: input[:confirmed] == true,
-          expected_version: input[:expected_version].nil? ? nil : bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647))
+          expected_version: input[:expected_version].nil? ? nil : bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647),
+          existing_note_action: optional_string(input[:existing_note_action], field: :existing_note_action, maximum: 40),
+          encounter_note_id: optional_id(input[:encounter_note_id], :encounter_note_id),
+          expected_note_revision_id: optional_id(input[:expected_note_revision_id], :expected_note_revision_id),
+          expected_note_revision: input[:expected_note_revision].nil? ? nil : bounded_integer!(input[:expected_note_revision],
+            field: :expected_note_revision, min: 1, max: 2_147_483_647),
+          correction_reason: optional_string(input[:correction_reason], field: :correction_reason,
+            maximum: Clinic::Care::SoapNotePayload::MAX_CORRECTION_REASON_LENGTH))
         render json: { export: Serializer.export(export), draft: Serializer.draft(@draft.reload) }, status: :created
       end
 

@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ClinicCapabilities, Pagination } from "../../api/contracts";
 import { api } from "../../api/client";
 import { PatientRegistrationForm } from "../clinic/Patients";
+import { patientReferenceLabel } from "../clinic/patientReference";
 import { useClinic } from "../clinic/Workspace";
 
 export type PatientOption = {
@@ -213,16 +214,21 @@ export function ScribePatientPicker({
           setInputValue(next.slice(0, 100));
           setPage(1);
         }}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>
-            <Stack>
-              <Typography>{option.display_name}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Reference {option.reference}
-              </Typography>
-            </Stack>
-          </li>
-        )}
+        renderOption={(props, option) => {
+          const reference = patientReferenceLabel(option.reference);
+          return (
+            <li {...props} key={option.id}>
+              <Stack>
+                <Typography>{option.display_name}</Typography>
+                {reference && (
+                  <Typography variant="body2" color="text.secondary">
+                    Reference {reference}
+                  </Typography>
+                )}
+              </Stack>
+            </li>
+          );
+        }}
         renderInput={(params) => (
           <TextField
             {...params}

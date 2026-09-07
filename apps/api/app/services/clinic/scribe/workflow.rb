@@ -327,10 +327,19 @@ module Clinic
           draft.reload
         end
 
-        def export!(draft:, actor:, destination:, idempotency_key:, confirmed:, expected_version: nil)
+        def export!(draft:, actor:, destination:, idempotency_key:, confirmed:, expected_version: nil,
+          existing_note_action: nil, encounter_note_id: nil, expected_note_revision_id: nil,
+          expected_note_revision: nil, correction_reason: nil)
           authorize!(draft.encounter, actor, "scribe.export")
           raise ArgumentError, "Export confirmation is required." unless confirmed == true
           raise ArgumentError, "The export destination is not supported." unless destination.to_s == "parent_record_adapter"
+          existing_note_request = normalize_existing_note_request!(
+            action: existing_note_action,
+            encounter_note_id: encounter_note_id,
+            expected_note_revision_id: expected_note_revision_id,
+            expected_note_revision: expected_note_revision,
+            correction_reason: correction_reason
+          )
           export = nil
           draft.encounter.with_lock do
             clinical_encounter = draft.encounter.clinical_encounter ||
@@ -343,8 +352,9 @@ module Clinic
                 if export.persisted?
                   requested_checksum = expected_version.nil? ? export.version_checksum : checksum(draft, version: expected_version)
                   same_request = export.draft_id == draft.id && export.destination == destination.to_s &&
-                    export.version_checksum == requested_checksum && export.payload_digest == payload_digest
-                  raise ArgumentError, "The export key was already used for another version." unless same_request
+                    export.version_checksum == requested_checksum && export.payload_digest == payload_digest &&
+                    export_request_matches?(export, draft, existing_note_request)
+                  raise Clinic::Idempotency::Conflict, "The export key was already used for another version." unless same_request
                   next
                 end
                 ensure_processing_allowed!(draft.encounter)
@@ -352,21 +362,41 @@ module Clinic
                 ensure_fresh!(draft)
                 verify_expected_version!(draft, expected_version)
                 raise ArgumentError, "Only an approved current draft can be exported." unless draft.status == "approved"
-                if clinical_encounter.notes.where(note_kind: "soap").exists?
-                  raise ArgumentError,
-                    "This clinical encounter already has a SOAP note. Open the existing chart note to continue; Scribe export will not overwrite it."
-                end
                 version_checksum = checksum(draft)
-                encounter_note = Clinic::Care::CreateEncounterNote.call(
-                  practice: draft.practice,
-                  actor: actor,
-                  encounter: clinical_encounter,
-                  note_kind: "soap",
-                  encrypted_body: chart_note_payload(draft),
-                  payload_version: Clinic::Care::SoapNotePayload::VERSION,
-                  request_key: chart_note_request_key(idempotency_key)
-                )
-                encounter_note_revision = encounter_note.revisions.order(revision_no: :desc).first!
+                encounter_note = clinical_encounter.notes.where(note_kind: "soap").first
+                if encounter_note
+                  unless existing_note_request
+                    raise ArgumentError,
+                      "This clinical encounter already has a SOAP note. Open the existing chart note to continue; Scribe export will not overwrite it."
+                  end
+                  unless encounter_note.id == existing_note_request.fetch(:encounter_note_id)
+                    raise ActiveRecord::StaleObjectError.new(encounter_note, "correction")
+                  end
+                  encounter_note_revision = Clinic::Care::CorrectEncounterNote.call(
+                    note: encounter_note,
+                    actor: actor,
+                    encrypted_body: chart_note_correction_payload(draft, existing_note_request),
+                    corrected_revision_id: existing_note_request.fetch(:expected_note_revision_id),
+                    expected_revision: existing_note_request.fetch(:expected_note_revision),
+                    payload_version: Clinic::Care::SoapNotePayload::CORRECTION_VERSION,
+                    required_template_id: CHART_NOTE_TEMPLATE_ID,
+                    request_key: chart_note_correction_request_key(idempotency_key)
+                  )
+                else
+                  if existing_note_request
+                    raise ActiveRecord::StaleObjectError.new(clinical_encounter, "correction")
+                  end
+                  encounter_note = Clinic::Care::CreateEncounterNote.call(
+                    practice: draft.practice,
+                    actor: actor,
+                    encounter: clinical_encounter,
+                    note_kind: "soap",
+                    encrypted_body: chart_note_payload(draft),
+                    payload_version: Clinic::Care::SoapNotePayload::VERSION,
+                    request_key: chart_note_request_key(idempotency_key)
+                  )
+                  encounter_note_revision = encounter_note.revisions.order(revision_no: :desc).first!
+                end
                 export.assign_attributes(draft: draft, actor: actor, destination: destination, version_checksum: version_checksum,
                   status: "exported", payload_digest: payload_digest, exported_at: Current.business_time,
                   encounter_note: encounter_note, encounter_note_revision: encounter_note_revision)
@@ -539,8 +569,79 @@ module Clinic
           )
         end
 
+        def chart_note_correction_payload(draft, request)
+          Clinic::Care::SoapNotePayload.dump_correction(
+            template_id: CHART_NOTE_TEMPLATE_ID,
+            template_version: CHART_NOTE_TEMPLATE_VERSION,
+            sections: draft.effective_sections.symbolize_keys,
+            corrected_revision_id: request.fetch(:expected_note_revision_id),
+            corrected_revision_no: request.fetch(:expected_note_revision),
+            reason: request.fetch(:correction_reason),
+            source: { kind: "scribe_export", draft_id: draft.id, output_digest: draft.output_digest }
+          )
+        end
+
         def chart_note_request_key(idempotency_key)
           "scribe-chart-note:#{Digest::SHA256.hexdigest(idempotency_key.to_s)}"
+        end
+
+        def chart_note_correction_request_key(idempotency_key)
+          "scribe-chart-correction:#{Digest::SHA256.hexdigest(idempotency_key.to_s)}"
+        end
+
+        def normalize_existing_note_request!(action:, encounter_note_id:, expected_note_revision_id:,
+          expected_note_revision:, correction_reason:)
+          values = [encounter_note_id, expected_note_revision_id, expected_note_revision, correction_reason]
+          if action.to_s.blank?
+            if values.any?(&:present?)
+              raise ArgumentError, "Choose append_correction before supplying an existing chart note."
+            end
+            return nil
+          end
+          raise ArgumentError, "The existing note action is not supported." unless action.to_s == "append_correction"
+
+          note_id = positive_integer!(encounter_note_id, "Choose the existing chart note.")
+          revision_id = positive_integer!(expected_note_revision_id, "Choose the signed chart note revision.")
+          revision_no = positive_integer!(expected_note_revision, "Choose the signed chart note revision.")
+          reason = correction_reason.to_s.strip
+          raise ArgumentError, "Enter a correction reason." if reason.blank?
+          if reason.length > Clinic::Care::SoapNotePayload::MAX_CORRECTION_REASON_LENGTH
+            raise ArgumentError, "The correction reason is too long."
+          end
+
+          {
+            action: "append_correction",
+            encounter_note_id: note_id,
+            expected_note_revision_id: revision_id,
+            expected_note_revision: revision_no,
+            correction_reason: reason
+          }
+        end
+
+        def positive_integer!(value, message)
+          integer = Integer(value)
+          return integer if integer.positive?
+
+          raise ArgumentError, message
+        rescue TypeError, ArgumentError
+          raise ArgumentError, message
+        end
+
+        def export_request_matches?(export, draft, request)
+          revision = export.encounter_note_revision
+          return request.nil? unless revision
+
+          correction = Clinic::Care::SoapNotePayload.load!(revision.encrypted_body)[:correction]
+          return correction.nil? unless request
+
+          source = correction&.fetch(:source, nil)
+          export.encounter_note_id == request.fetch(:encounter_note_id) &&
+            correction&.values_at(:corrected_revision_id, :corrected_revision_no, :reason) ==
+              request.values_at(:expected_note_revision_id, :expected_note_revision, :correction_reason) &&
+            source&.values_at(:kind, :draft_id, :output_digest) ==
+              ["scribe_export", draft.id, draft.output_digest]
+        rescue ArgumentError
+          false
         end
 
         def normalize_segments(segments, content)

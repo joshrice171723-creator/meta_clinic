@@ -36,7 +36,11 @@ module Clinic
             if latest.signatures.exists?
               raise ArgumentError, "Signed note content is immutable; append a new correction revision."
             end
-            SoapNotePayload.assert_same_template!(latest.encrypted_body, encrypted_body) if note.note_kind == "soap"
+            if note.note_kind == "soap"
+              prepared = SoapNotePayload.prepare_revision(latest.encrypted_body, encrypted_body)
+              encrypted_body = prepared.fetch(:encrypted_body)
+              payload_version = prepared.fetch(:payload_version)
+            end
 
             revision = note.revisions.create!(
               practice: note.practice,

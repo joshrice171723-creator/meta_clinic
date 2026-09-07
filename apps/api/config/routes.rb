@@ -24,6 +24,7 @@ Rails.application.routes.draw do
     end
     resources :notes, controller: "care/encounter_notes", only: :show do
       post :revisions, on: :member, action: :revise
+      post :corrections, on: :member, action: :correct
       post :signatures, on: :member, action: :sign
     end
     resources :documents, controller: "documents", only: :show do

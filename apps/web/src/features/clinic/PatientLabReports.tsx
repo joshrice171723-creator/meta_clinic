@@ -23,7 +23,6 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
-import { Pager } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { localDateTimeInput } from "./frontDeskModel";
 
@@ -111,17 +110,32 @@ const initialPage = () => {
   const page = Number(new URLSearchParams(window.location.search).get("page"));
   return Number.isSafeInteger(page) && page > 0 ? page : 1;
 };
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "Date not recorded";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleString()
+    : "Date not recorded";
+};
 
-export function PatientLabReports({ patientId }: { patientId: number }) {
+export function PatientLabReports({
+  patientId,
+  patientName,
+}: {
+  patientId: number;
+  patientName?: string;
+}) {
   const { capabilities } = useClinic();
   const [data, setData] = useState<Index>();
   const [error, setError] = useState("");
   const [form, setForm] = useState<Form>(blankForm);
+  const [formBaseline, setFormBaseline] = useState<Form>(blankForm);
+  const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LabReport | null>(null);
   const [history, setHistory] = useState<LabReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const [page] = useState(initialPage);
+  const [page, setPage] = useState(initialPage);
   const [reload, setReload] = useState(0);
   const [retryPending, setRetryPending] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<{
@@ -129,6 +143,8 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
     version: LabReportVersion;
   } | null>(null);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [reviewRetryPending, setReviewRetryPending] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const attempt = useRef<{ key: string; body: unknown; path: string } | null>(
     null,
   );
@@ -227,7 +243,9 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
       attempt.current = null;
       setRetryPending(false);
       setEditing(null);
+      setFormOpen(false);
       setForm(blankForm());
+      setFormBaseline(blankForm());
       setNotice(
         editing ? "Correction version recorded." : "Lab report recorded.",
       );
@@ -241,9 +259,11 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
         if (reason.code !== "outcome_unconfirmed") attempt.current = null;
         setRetryPending(reason.code === "outcome_unconfirmed");
         setError(
-          reason.status === 409
-            ? "This report changed. Reload it before recording a correction."
-            : reason.message,
+          reason.code === "outcome_unconfirmed"
+            ? "The save outcome is unknown. Retry this unchanged report before editing it."
+            : reason.status === 409
+              ? "This report changed. Reload it before recording a correction."
+              : reason.message,
         );
       } else {
         setRetryPending(true);
@@ -272,29 +292,26 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
       });
       setNotice("Lab version marked reviewed.");
       reviewAttempt.current = null;
+      setReviewRetryPending(false);
       setReviewTarget(null);
       setReload((current) => current + 1);
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
-      if (reason instanceof ApiError && reason.code !== "outcome_unconfirmed") {
-        const currentReport = await api<{ report: LabReport }>(
-          `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}`,
-        );
-        if (
-          currentReport.report.versions?.some(
-            (version) =>
-              version.id === target.version.id && version.reviewed_at,
-          )
-        ) {
-          reviewAttempt.current = null;
-          setReviewTarget(null);
-          setNotice("Lab version is already reviewed.");
-          setReload((current) => current + 1);
-        } else setError(reason.message);
-      } else
+      if (
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        reason.code !== "outcome_unconfirmed"
+      ) {
+        reviewAttempt.current = null;
+        setReviewRetryPending(false);
+        setError(reason.message);
+      } else {
+        setReviewRetryPending(true);
         setError(
           "The review outcome is unknown. Retry this exact review request.",
         );
+      }
     } finally {
       setBusy(false);
     }
@@ -313,6 +330,19 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
           : "Unable to load report history.",
       );
     }
+  };
+  const formDirty = JSON.stringify(form) !== JSON.stringify(formBaseline);
+  const closeForm = () => {
+    if (busy || retryPending) return;
+    setFormOpen(false);
+    setEditing(null);
+    setForm(blankForm());
+    setFormBaseline(blankForm());
+  };
+  const requestCloseForm = () => {
+    if (busy || retryPending) return;
+    if (formDirty) setDiscardOpen(true);
+    else closeForm();
   };
   if (!canRead)
     return (
@@ -342,9 +372,13 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
             {canWrite && (
               <Button
                 startIcon={<AddIcon />}
+                disabled={formOpen || busy || retryPending}
                 onClick={() => {
                   setEditing(null);
-                  setForm(blankForm());
+                  const nextForm = blankForm();
+                  setForm(nextForm);
+                  setFormBaseline(nextForm);
+                  setFormOpen(true);
                 }}
               >
                 New report
@@ -376,8 +410,7 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {report.source_name} · {report.current_version.status} ·{" "}
-                        {report.current_version.issued_at ||
-                          "Date not recorded"}
+                        {formatDateTime(report.current_version.issued_at)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -399,6 +432,22 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row">
+                        {!report.current_version.reviewed_at && canReview && (
+                          <Button
+                            size="small"
+                            disabled={busy || reviewRetryPending}
+                            onClick={() => {
+                              setError("");
+                              setReviewTarget({
+                                report,
+                                version: report.current_version,
+                              });
+                              setReviewConfirmed(false);
+                            }}
+                          >
+                            Review
+                          </Button>
+                        )}
                         <Button
                           size="small"
                           startIcon={<HistoryOutlinedIcon />}
@@ -409,9 +458,13 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
                         {canWrite && (
                           <Button
                             size="small"
+                            disabled={formOpen || busy || retryPending}
                             onClick={() => {
                               setEditing(report);
-                              setForm(versionForm(report));
+                              const nextForm = versionForm(report);
+                              setForm(nextForm);
+                              setFormBaseline(nextForm);
+                              setFormOpen(true);
                             }}
                           >
                             Correct
@@ -426,21 +479,41 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
           )}
         </Stack>
       </Paper>
-      {data && (
-        <Pager
-          page={data.pagination.page}
-          total={data.pagination.total}
-          size={data.pagination.per_page}
-          path={`/clinic/patients/${patientId}?labs=1`}
-        />
+      {data && data.pagination.total > data.pagination.per_page && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Button
+            size="small"
+            disabled={page <= 1 || busy || retryPending}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            Previous
+          </Button>
+          <Typography variant="body2" color="text.secondary">
+            Page {data.pagination.page} of{" "}
+            {Math.ceil(data.pagination.total / data.pagination.per_page)}
+          </Typography>
+          <Button
+            size="small"
+            disabled={
+              data.pagination.page >=
+                Math.ceil(data.pagination.total / data.pagination.per_page) ||
+              busy ||
+              retryPending
+            }
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Next
+          </Button>
+        </Stack>
       )}
-      {canWrite && (
+      {canWrite && formOpen && (
         <LabForm
           form={form}
           setForm={setForm}
           editing={editing}
           busy={busy}
-          disabled={retryPending}
+          disabled={busy || retryPending}
+          onCancel={requestCloseForm}
           onSave={() => void save()}
         />
       )}
@@ -464,22 +537,24 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
                       Version {version.version_number} · {version.status}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Recorded {version.recorded_at} · {version.content_digest}
+                      Recorded {formatDateTime(version.recorded_at)}
                     </Typography>
                   </Box>
-                  {!version.reviewed_at && canReview && (
-                    <Button
-                      disabled={busy}
-                      onClick={() => {
-                        if (history) {
-                          setReviewTarget({ report: history, version });
-                          setReviewConfirmed(false);
-                        }
-                      }}
-                    >
-                      Mark reviewed
-                    </Button>
-                  )}
+                  {!version.reviewed_at &&
+                    version.id === history?.current_version_id &&
+                    canReview && (
+                      <Button
+                        disabled={busy}
+                        onClick={() => {
+                          if (history) {
+                            setReviewTarget({ report: history, version });
+                            setReviewConfirmed(false);
+                          }
+                        }}
+                      >
+                        Mark reviewed
+                      </Button>
+                    )}
                 </Stack>
                 {version.results.map((row) => (
                   <Typography key={`${version.id}-${row.name}`} variant="body2">
@@ -494,22 +569,57 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHistory(null)}>Close</Button>
+          <Button disabled={busy} onClick={() => setHistory(null)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={discardOpen}
+        onClose={() => !busy && !retryPending && setDiscardOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Discard report changes?</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            Your unsaved report changes will be discarded.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            disabled={busy || retryPending}
+            onClick={() => setDiscardOpen(false)}
+          >
+            Keep editing
+          </Button>
+          <Button
+            color="error"
+            disabled={busy || retryPending}
+            onClick={() => {
+              setDiscardOpen(false);
+              closeForm();
+            }}
+          >
+            Discard changes
+          </Button>
         </DialogActions>
       </Dialog>
       <Dialog
         open={reviewTarget !== null}
-        onClose={() => !busy && setReviewTarget(null)}
+        onClose={() => !busy && !reviewRetryPending && setReviewTarget(null)}
         fullWidth
         maxWidth="sm"
       >
         <DialogTitle>Review lab version</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={1.5}>
+            {error && <Alert severity="error">{error}</Alert>}
             {reviewTarget && (
               <>
                 <Typography>
-                  Patient #{patientId} · {reviewTarget.version.title} · Version{" "}
+                  {patientName ? `${patientName} · ` : ""}Patient #{patientId} ·{" "}
+                  {reviewTarget.version.title} · Version{" "}
                   {reviewTarget.version.version_number}
                 </Typography>
                 {reviewTarget.version.results.map((row) => (
@@ -526,7 +636,7 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
               control={
                 <Checkbox
                   checked={reviewConfirmed}
-                  disabled={busy}
+                  disabled={busy || reviewRetryPending}
                   onChange={(event) => setReviewConfirmed(event.target.checked)}
                 />
               }
@@ -535,7 +645,10 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy} onClick={() => setReviewTarget(null)}>
+          <Button
+            disabled={busy || reviewRetryPending}
+            onClick={() => setReviewTarget(null)}
+          >
             Cancel
           </Button>
           <Button
@@ -543,7 +656,7 @@ export function PatientLabReports({ patientId }: { patientId: number }) {
             disabled={!reviewConfirmed || busy}
             onClick={() => void review()}
           >
-            Mark reviewed
+            {reviewRetryPending ? "Retry exact review" : "Mark reviewed"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -557,6 +670,7 @@ function LabForm({
   editing,
   busy,
   disabled,
+  onCancel,
   onSave,
 }: {
   form: Form;
@@ -564,9 +678,12 @@ function LabForm({
   editing: LabReport | null;
   busy: boolean;
   disabled: boolean;
+  onCancel: () => void;
   onSave: () => void;
 }) {
-  const update = (changes: Partial<Form>) => setForm({ ...form, ...changes });
+  const update = (changes: Partial<Form>) => {
+    if (!disabled) setForm({ ...form, ...changes });
+  };
   const result = (index: number, changes: Partial<LabResult>) =>
     update({
       results: form.results.map((row, rowIndex) =>
@@ -575,142 +692,164 @@ function LabForm({
     });
   return (
     <Paper component="section" variant="outlined" sx={{ p: 2 }}>
-      <Stack
-        spacing={1.5}
-        aria-disabled={disabled || undefined}
-        sx={{
-          opacity: disabled ? 0.65 : 1,
-          pointerEvents: disabled ? "none" : "auto",
-        }}
-      >
+      <Stack spacing={1.5}>
         <Typography variant="subtitle1">
           {editing
             ? `Correction for ${editing.current_version.title}`
             : "Record lab report"}
         </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-          <TextField
-            label="Source"
-            required
-            value={form.source_name}
-            disabled={Boolean(editing)}
-            onChange={(event) => update({ source_name: event.target.value })}
-            fullWidth
-          />
-          <TextField
-            label="Accession or external ID"
-            value={form.external_report_id}
-            disabled={Boolean(editing)}
-            onChange={(event) =>
-              update({ external_report_id: event.target.value })
-            }
-            fullWidth
-          />
-        </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-          <TextField
-            label="Title"
-            required
-            value={form.title}
-            onChange={(event) => update({ title: event.target.value })}
-            fullWidth
-          />
-          <TextField
-            select
-            label="Status"
-            value={form.status}
-            onChange={(event) =>
-              update({ status: event.target.value as Form["status"] })
-            }
-            sx={{ minWidth: 160 }}
-          >
-            {["preliminary", "final", "amended", "corrected", "cancelled"].map(
-              (status) => (
+        <Box
+          component="fieldset"
+          disabled={disabled}
+          sx={{ border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gap: 1.5 }}
+        >
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField
+              label="Source"
+              required
+              value={form.source_name}
+              disabled={Boolean(editing)}
+              onChange={(event) => update({ source_name: event.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Accession or external ID"
+              value={form.external_report_id}
+              disabled={Boolean(editing)}
+              onChange={(event) =>
+                update({ external_report_id: event.target.value })
+              }
+              fullWidth
+            />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField
+              label="Title"
+              required
+              value={form.title}
+              onChange={(event) => update({ title: event.target.value })}
+              fullWidth
+            />
+            <TextField
+              select
+              label="Status"
+              value={form.status}
+              onChange={(event) =>
+                update({ status: event.target.value as Form["status"] })
+              }
+              sx={{ minWidth: 160 }}
+            >
+              {[
+                "preliminary",
+                "final",
+                "amended",
+                "corrected",
+                "cancelled",
+              ].map((status) => (
                 <MenuItem key={status} value={status}>
                   {status}
                 </MenuItem>
-              ),
-            )}
-          </TextField>
-        </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-          <TextField
-            label="Collected at"
-            required
-            type="datetime-local"
-            value={form.collected_at ? localDateTimeInput(form.collected_at) : ""}
-            onChange={(event) => update({ collected_at: event.target.value })}
-            slotProps={{ inputLabel: { shrink: true } }}
-            helperText="Your local time"
-          />
-          <TextField
-            label="Reported at"
-            required
-            type="datetime-local"
-            value={form.issued_at ? localDateTimeInput(form.issued_at) : ""}
-            onChange={(event) => update({ issued_at: event.target.value })}
-            slotProps={{ inputLabel: { shrink: true } }}
-            helperText="Your local time"
-          />
-        </Stack>
-        {form.results.map((row, index) => (
-          <Stack
-            key={index}
-            direction={{ xs: "column", md: "row" }}
-            spacing={1}
-          >
+              ))}
+            </TextField>
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
-              label="Test"
-              value={row.name}
-              onChange={(event) => result(index, { name: event.target.value })}
-            />
-            <TextField
-              label="Value"
-              value={row.value}
-              onChange={(event) => result(index, { value: event.target.value })}
-            />
-            <TextField
-              label="Unit"
-              value={row.unit ?? ""}
-              onChange={(event) =>
-                result(index, { unit: event.target.value || null })
+              label="Collected at"
+              required
+              type="datetime-local"
+              value={
+                form.collected_at ? localDateTimeInput(form.collected_at) : ""
               }
+              onChange={(event) => update({ collected_at: event.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              helperText="Your local time"
             />
             <TextField
-              label="Reference range"
-              value={row.reference_range ?? ""}
-              onChange={(event) =>
-                result(index, { reference_range: event.target.value || null })
-              }
-            />
-            <TextField
-              label="Reported flag"
-              value={row.flag ?? ""}
-              onChange={(event) =>
-                result(index, { flag: event.target.value || null })
-              }
+              label="Reported at"
+              required
+              type="datetime-local"
+              value={form.issued_at ? localDateTimeInput(form.issued_at) : ""}
+              onChange={(event) => update({ issued_at: event.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              helperText="Your local time"
             />
           </Stack>
-        ))}
-        <Button
-          size="small"
-          startIcon={<AddIcon />}
-          disabled={form.results.length >= 100}
-          onClick={() => update({ results: [...form.results, blankResult()] })}
-        >
-          Add result
-        </Button>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={form.confirmed}
-              onChange={(event) => update({ confirmed: event.target.checked })}
-            />
-          }
-          label="I confirmed this report belongs to the selected patient."
-        />
+          {form.results.map((row, index) => (
+            <Stack
+              key={index}
+              direction={{ xs: "column", md: "row" }}
+              spacing={1}
+            >
+              <TextField
+                label="Test"
+                value={row.name}
+                onChange={(event) =>
+                  result(index, { name: event.target.value })
+                }
+              />
+              <TextField
+                label="Value"
+                value={row.value}
+                onChange={(event) =>
+                  result(index, { value: event.target.value })
+                }
+              />
+              <TextField
+                label="Unit"
+                value={row.unit ?? ""}
+                onChange={(event) =>
+                  result(index, { unit: event.target.value || null })
+                }
+              />
+              <TextField
+                label="Reference range"
+                value={row.reference_range ?? ""}
+                onChange={(event) =>
+                  result(index, { reference_range: event.target.value || null })
+                }
+              />
+              <TextField
+                label="Reported flag"
+                value={row.flag ?? ""}
+                onChange={(event) =>
+                  result(index, { flag: event.target.value || null })
+                }
+              />
+            </Stack>
+          ))}
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            disabled={form.results.length >= 100}
+            onClick={() =>
+              update({ results: [...form.results, blankResult()] })
+            }
+          >
+            Add result
+          </Button>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={form.confirmed}
+                onChange={(event) =>
+                  update({ confirmed: event.target.checked })
+                }
+              />
+            }
+            label="I confirmed this report belongs to the selected patient."
+          />
+        </Box>
         <Button variant="contained" disabled={busy} onClick={onSave}>
-          {busy ? "Saving…" : editing ? "Record correction" : "Record report"}
+          {busy
+            ? "Saving…"
+            : disabled
+              ? "Retry unchanged report"
+              : editing
+                ? "Record correction"
+                : "Record report"}
+        </Button>
+        <Button disabled={busy || disabled} onClick={onCancel}>
+          Cancel
         </Button>
       </Stack>
     </Paper>

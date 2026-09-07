@@ -50,7 +50,7 @@ export function EncounterNoteSigning({
   const [unknown, setUnknown] = useState(false);
   const attempt = useRef<Attempt | null>(null);
   const revision = note.current_revision;
-  const signed = note.signed || revision?.signed === true;
+  const signed = revision?.signed === true;
   const body = revision?.body;
   const close = () => {
     if (!busy && !unknown) {

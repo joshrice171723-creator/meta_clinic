@@ -27,6 +27,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { api } from "../../api/client";
+import type { EncounterNoteSummary } from "../../api/contracts";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { ScribePatientPicker, type PatientOption } from "./ScribePatientPicker";
@@ -78,8 +79,14 @@ type Confirmation =
       kind: "export";
       draftId: number;
       draftVersion: number;
+      draftOutputDigest: string;
       encounterId: number;
       scopeKey: string;
+      correctionTarget?: {
+        noteId: number;
+        revisionId: number;
+        revisionNo: number;
+      };
     }
   | {
       kind: "delete";
@@ -195,6 +202,7 @@ export function LiveScribeReviewWorkspace() {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [outcomeUnknown, setOutcomeUnknown] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [correctionReason, setCorrectionReason] = useState("");
   const [hasUnsavedReviewEdits, setHasUnsavedReviewEdits] = useState(false);
   const [discardEditsToken, setDiscardEditsToken] = useState(0);
   const [followCurrentDraftId, setFollowCurrentDraftId] = useState<
@@ -775,7 +783,11 @@ export function LiveScribeReviewWorkspace() {
       },
       "Approval outcome is not confirmed. Reload the current revision before trying again.",
     );
-  const exportDraft = (draftId: number, version: number) => {
+  const exportDraft = (
+    draftId: number,
+    version: number,
+    correctionTarget?: { noteId: number; revisionId: number; revisionNo: number },
+  ) => {
     const identity = `${draftId}:${version}`;
     const idempotencyKey =
       exportKeys.current.get(identity) || crypto.randomUUID();
@@ -789,6 +801,15 @@ export function LiveScribeReviewWorkspace() {
             idempotency_key: idempotencyKey,
             confirmed: true,
             expected_version: version,
+            ...(correctionTarget
+              ? {
+                  existing_note_action: "append_correction",
+                  encounter_note_id: correctionTarget.noteId,
+                  expected_note_revision_id: correctionTarget.revisionId,
+                  expected_note_revision: correctionTarget.revisionNo,
+                  correction_reason: correctionReason.trim(),
+                }
+              : {}),
           },
         },
       });
@@ -800,6 +821,82 @@ export function LiveScribeReviewWorkspace() {
       )
         await loadEncounter(encounter.id);
     });
+  };
+  const prepareExport = async (draftId: number, version: number) => {
+    if (!encounter) return;
+    const targetDraft = activeDraft(encounter, selectedDocumentId);
+    if (
+      !targetDraft ||
+      targetDraft.id !== draftId ||
+      targetDraft.version !== version
+    ) {
+      setActionError(
+        "The selected Scribe revision changed. Review it again before exporting.",
+      );
+      return;
+    }
+    if (!encounter.clinical_encounter_id) {
+      setConfirmation({
+        kind: "export",
+        draftId,
+        draftVersion: version,
+        draftOutputDigest: targetDraft.output_digest,
+        encounterId: encounter.id,
+        scopeKey,
+      });
+      return;
+    }
+    setPendingAction("chart-lookup");
+    setActionError(null);
+    try {
+      const result = await api<{ notes: EncounterNoteSummary[] }>(
+        `/api/clinic/encounters/${encounter.clinical_encounter_id}/notes`,
+      );
+      const signedSoapNotes = result.notes.filter(
+        (note) =>
+          note.note_kind === "soap" && note.current_revision_signed === true,
+      );
+      const matching = signedSoapNotes.filter(
+        (note) =>
+          note.current_template_id === "scribe-reviewed-soap" &&
+          note.current_template_version === 1 &&
+          note.current_revision_id != null &&
+          note.latest_revision != null,
+      );
+      if (signedSoapNotes.length && matching.length !== 1) {
+        setActionError(
+          "A signed chart note exists, but it does not match this Scribe template. Open the chart to create a correction manually.",
+        );
+        return;
+      }
+      const target = matching[0];
+      const correctionTarget =
+        target &&
+        typeof target.current_revision_id === "number" &&
+        typeof target.latest_revision === "number"
+          ? {
+              noteId: target.id,
+              revisionId: target.current_revision_id,
+              revisionNo: target.latest_revision,
+            }
+          : undefined;
+      setCorrectionReason("");
+      setConfirmation({
+        kind: "export",
+        draftId,
+        draftVersion: version,
+        draftOutputDigest: targetDraft.output_digest,
+        encounterId: encounter.id,
+        scopeKey,
+        ...(correctionTarget
+          ? { correctionTarget }
+          : {}),
+      });
+    } catch (reason) {
+      setActionError(errorMessage(reason, "Unable to check the current chart note."));
+    } finally {
+      if (isCurrent(scopeKey)) setPendingAction(null);
+    }
   };
   const deleteEncounter = (id: number) =>
     runMutation(
@@ -824,6 +921,8 @@ export function LiveScribeReviewWorkspace() {
         ? encounter?.version === value.encounterVersion
         : draft?.id === value.draftId &&
           draft.version === value.draftVersion &&
+          (value.kind !== "export" ||
+            draft.output_digest === value.draftOutputDigest) &&
           !(
             recording.session?.encounterId === value.encounterId &&
             recording.state.active
@@ -837,15 +936,28 @@ export function LiveScribeReviewWorkspace() {
     if (value.kind === "consent") await decideConsent(value.decision);
     if (value.kind === "approve")
       await approveDraft(value.draftId, value.draftVersion);
-    if (value.kind === "export")
-      await exportDraft(value.draftId, value.draftVersion);
+    if (value.kind === "export") {
+      if (value.correctionTarget && !correctionReason.trim()) {
+        setConfirmation(value);
+        setActionError("Enter a reason before appending this correction.");
+        return;
+      }
+      await exportDraft(
+        value.draftId,
+        value.draftVersion,
+        value.correctionTarget,
+      );
+    }
     if (value.kind === "delete") await deleteEncounter(value.encounterId);
   };
 
   const draft = activeDraft(encounter, selectedDocumentId);
   const canWrite = capability(capabilities, "scribe_write");
   const canApprove = capability(capabilities, "scribe_approve");
-  const canExport = capability(capabilities, "scribe_export");
+  const canExport =
+    capability(capabilities, "scribe_export") &&
+    capability(capabilities, "notes_write") &&
+    capability(capabilities, "notes_read");
   const canDelete = capability(capabilities, "scribe_delete");
   const deleted = Boolean(
     encounter?.deleted_at || encounter?.status === "deleted",
@@ -1748,14 +1860,7 @@ export function LiveScribeReviewWorkspace() {
               }
               onExport={
                 canExport && draft && encounter && !sameEncounterRecordingActive
-                  ? (draftId) =>
-                      setConfirmation({
-                        kind: "export",
-                        draftId,
-                        draftVersion: draft.version,
-                        encounterId: encounter.id,
-                        scopeKey,
-                      })
+                  ? (draftId) => void prepareExport(draftId, draft.version)
                   : undefined
               }
             />
@@ -1775,24 +1880,49 @@ export function LiveScribeReviewWorkspace() {
             {confirmation?.kind === "approve" &&
               "Approve this exact current revision after confirming every section against its source evidence?"}
             {confirmation?.kind === "export" &&
-              "Export this exact approved revision to the parent record? Approval alone never exports."}
+              (confirmation.correctionTarget
+                ? `Append this approved Scribe revision as a correction to chart note #${confirmation.correctionTarget.noteId}, revision ${confirmation.correctionTarget.revisionNo}? The signed note remains unchanged.`
+                : "Export this exact approved revision to the parent record? Approval alone never exports.")}
             {confirmation?.kind === "delete" &&
               "Delete this session content under the configured retention workflow? This cannot be undone here."}
             {confirmation?.kind === "consent" &&
               `Record the in-person consent decision as ${confirmation.decision.replaceAll("_", " ")}?`}
           </Typography>
+          {confirmation?.kind === "export" && confirmation.correctionTarget && (
+            <TextField
+              autoFocus
+              fullWidth
+              required
+              label="Reason for correction"
+              value={correctionReason}
+              onChange={(event) => setCorrectionReason(event.target.value)}
+              multiline
+              minRows={3}
+              slotProps={{ htmlInput: { maxLength: 2_000 } }}
+              helperText="This reason is saved with the appended correction."
+              sx={{ mt: 2 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button
             disabled={pendingAction !== null}
-            onClick={() => setConfirmation(null)}
+            onClick={() => {
+              setConfirmation(null);
+              setCorrectionReason("");
+            }}
           >
             Cancel
           </Button>
           <Button
             color={confirmation?.kind === "delete" ? "error" : "primary"}
             variant="contained"
-            disabled={pendingAction !== null}
+            disabled={
+              pendingAction !== null ||
+              (confirmation?.kind === "export" &&
+                Boolean(confirmation.correctionTarget) &&
+                !correctionReason.trim())
+            }
             onClick={() => void confirmAction().catch(() => undefined)}
           >
             Confirm

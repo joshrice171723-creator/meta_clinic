@@ -11,7 +11,7 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     @practice = Clinic::Practice.create!(name: "Scribe Workspace Clinic", timezone: "UTC")
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "scribe.read", "scribe.write", "scribe.approve", "scribe.export", "scribe.delete",
-      "patients.read", "observations.write", "notes.read", "notes.write")
+      "patients.read", "observations.write", "notes.read", "notes.write", "notes.sign")
     @site = @practice.sites.create!(code: "SCRIBE", name: "Scribe clinic", status: "active")
     @patient = @practice.patients.create!(display_name: "Rivera, Avery", reference: "PAT-SCRIBE-001")
     login
@@ -269,6 +269,91 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     assert_empty Clinic::Scribe::Export.where(draft_id: approved.fetch("id"))
   end
 
+  test "explicit Scribe correction appends to the selected signed Scribe chart revision and replays exactly" do
+    clinical_encounter = create_clinical_encounter
+    note = Clinic::Care::CreateEncounterNote.call(
+      practice: @practice, actor: @user, encounter: clinical_encounter, note_kind: "soap",
+      encrypted_body: Clinic::Care::SoapNotePayload.dump(
+        template_id: "scribe-reviewed-soap", template_version: 1,
+        sections: { subjective: "Signed chart history", objective: "", assessment: "", plan: "" }
+      ),
+      request_key: "signed-scribe-soap-#{SecureRandom.hex(8)}"
+    )
+    signed_revision = note.revisions.sole
+    Clinic::Care::SignEncounterNote.call(
+      note: note, actor: @user, revision_no: signed_revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(signed_revision.encrypted_body),
+      attestation_version: "synthetic-scribe-correction-v1"
+    )
+    approved = approved_bound_draft(clinical_encounter, subjective: "Reviewed corrected Scribe history")
+
+    export_key = "scribe-correction-#{SecureRandom.hex(8)}"
+    export_params = { export: {
+      destination: "parent_record_adapter", idempotency_key: export_key, confirmed: true,
+      expected_version: approved.fetch("version"), existing_note_action: "append_correction",
+      encounter_note_id: note.id, expected_note_revision_id: signed_revision.id,
+      expected_note_revision: signed_revision.revision_no, correction_reason: "Correct the signed transcription"
+    } }
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: export_params,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    first = response.parsed_body.fetch("export")
+    correction = note.revisions.find(first.fetch("encounter_note_revision_id"))
+    payload = Clinic::Care::SoapNotePayload.load!(correction.encrypted_body)
+
+    assert_equal note.id, first.fetch("encounter_note_id")
+    assert_equal signed_revision.id, correction.prior_revision_id
+    assert_equal signed_revision.id, payload.dig(:correction, :corrected_revision_id)
+    assert_equal "scribe_export", payload.dig(:correction, :source, :kind)
+    assert_equal approved.fetch("id"), payload.dig(:correction, :source, :draft_id)
+    assert_equal "Reviewed corrected Scribe history", payload.dig(:sections, :subjective)
+    assert_empty correction.signatures
+    assert_equal [signed_revision.id], note.signatures.pluck(:revision_id)
+
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: export_params,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal first, response.parsed_body.fetch("export")
+    assert_equal 2, note.revisions.reload.count
+
+    changed = Marshal.load(Marshal.dump(export_params))
+    changed[:export][:correction_reason] = "Different correction request"
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: changed,
+      headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "idempotency_conflict", response.parsed_body.fetch("code")
+    assert_equal 2, note.revisions.reload.count
+  end
+
+  test "Scribe correction refuses a signed chart note from another SOAP template" do
+    clinical_encounter = create_clinical_encounter
+    note = Clinic::Care::CreateEncounterNote.call(
+      practice: @practice, actor: @user, encounter: clinical_encounter, note_kind: "soap",
+      encrypted_body: Clinic::Care::SoapNotePayload.dump(
+        template_id: "adult-physical-exam-detailed", template_version: 1,
+        sections: { subjective: "Signed physical history", objective: "", assessment: "", plan: "" }
+      ),
+      request_key: "signed-other-template-#{SecureRandom.hex(8)}"
+    )
+    signed_revision = note.revisions.sole
+    Clinic::Care::SignEncounterNote.call(
+      note: note, actor: @user, revision_no: signed_revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(signed_revision.encrypted_body),
+      attestation_version: "synthetic-template-guard-v1"
+    )
+    approved = approved_bound_draft(clinical_encounter, subjective: "Reviewed Scribe mismatch")
+
+    post "/api/clinic/scribe/drafts/#{approved.fetch('id')}/export", params: { export: {
+      destination: "parent_record_adapter", idempotency_key: "scribe-template-guard-#{SecureRandom.hex(8)}",
+      confirmed: true, expected_version: approved.fetch("version"), existing_note_action: "append_correction",
+      encounter_note_id: note.id, expected_note_revision_id: signed_revision.id,
+      expected_note_revision: signed_revision.revision_no, correction_reason: "Attempt template mismatch"
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 1, note.revisions.reload.count
+    assert_empty Clinic::Scribe::Export.where(draft_id: approved.fetch("id"))
+  end
+
   private
 
   def create_context_encounter
@@ -280,6 +365,22 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
 
   def create_clinical_encounter
     @practice.encounters.create!(patient: @patient, site: @site, started_at: Time.current, status: "in_progress")
+  end
+
+  def approved_bound_draft(clinical_encounter, subjective:)
+    post "/api/clinic/scribe/encounters", params: { encounter: {
+      patient_id: @patient.id, clinical_encounter_id: clinical_encounter.id,
+      context: { content: "Reviewer supplied context", source_type: "reviewer_authored" }
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    encounter = response.parsed_body.fetch("encounter")
+    accept_consent(encounter.fetch("id"))
+    current = save_sections(generate(encounter.fetch("id")).fetch("draft"), subjective: subjective).fetch("draft")
+    current = review_all(current)
+    post "/api/clinic/scribe/drafts/#{current.fetch('id')}/approve",
+      params: { expected_version: current.fetch("version") }, headers: csrf_headers, as: :json
+    assert_response :success
+    response.parsed_body.fetch("draft")
   end
 
   def lab_version_attributes(status:, value:)

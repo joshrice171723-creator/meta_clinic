@@ -11,7 +11,7 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     @practice = Clinic::Practice.create!(name: "Synthetic Note Idempotency Practice", organization: organization)
     @membership = @practice.memberships.create!(user: @user)
     @site = @practice.sites.create!(code: "NOTES")
-    grant_permissions!(@membership, "notes.read", "notes.write", scope_kind: "site", site: @site)
+    grant_permissions!(@membership, "notes.read", "notes.write", "notes.sign", scope_kind: "site", site: @site)
     @patient = @practice.patients.create!(display_name: "SYN_Notes, Avery", reference: "SYN-NOTES-001")
     @other_patient = @practice.patients.create!(display_name: "SYN_Notes, Briar", reference: "SYN-NOTES-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
@@ -148,6 +148,129 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     assert_equal "idempotency_conflict", response.parsed_body.fetch("code")
     assert_equal 2, @encounter.notes.sole.revisions.reload.count
     assert_equal 1, @practice.audit_events.where(action_code: "notes.revise", outcome: "committed").count
+  end
+
+  test "signed SOAP correction preserves history and replays the exact unsigned revision" do
+    post "/api/clinic/encounters/#{@encounter.id}/notes",
+      params: create_params(request_key: "note-correction-create"), headers: csrf_headers, as: :json
+    assert_response :created
+    note = @encounter.notes.sole
+    signed_revision = note.revisions.sole
+    Clinic::Care::SignEncounterNote.call(
+      note: note,
+      actor: @user,
+      revision_no: signed_revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(signed_revision.encrypted_body),
+      attestation_version: "synthetic-correction-test-v1"
+    )
+
+    secret_reason = "Synthetic clinician correction reason #{SecureRandom.hex(6)}"
+    params = correction_params(
+      request_key: "note-correction-retry",
+      revision: signed_revision,
+      reason: secret_reason
+    )
+    post "/api/clinic/notes/#{note.id}/corrections", params: params, headers: csrf_headers, as: :json
+    assert_response :created
+    first = response.parsed_body
+    correction = first.dig("note", "current_revision")
+
+    assert_equal false, first.dig("note", "current_revision_signed")
+    assert_equal true, first.dig("note", "has_signed_history")
+    assert_equal true, first.dig("note", "signed")
+    assert_equal "adult-physical-exam-detailed", first.dig("note", "current_template_id")
+    assert_equal false, correction.fetch("signed")
+    assert_equal signed_revision.id, correction.dig("body", "correction", "corrected_revision_id")
+    assert_equal signed_revision.revision_no, correction.dig("body", "correction", "corrected_revision_no")
+    assert_equal secret_reason, correction.dig("body", "correction", "reason")
+    assert_equal "manual", correction.dig("body", "correction", "source", "kind")
+    assert_equal "Synthetic SOAP draft", first.dig("note", "revisions", 0, "body", "sections", "subjective")
+    assert_equal true, first.dig("note", "revisions", 0, "signed")
+
+    post "/api/clinic/notes/#{note.id}/corrections", params: params, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal first, response.parsed_body
+    assert_equal 2, note.revisions.reload.count
+    receipt = Clinic::OperationReceipt.find_by!(practice: @practice, request_key: "note-correction-retry")
+    assert_equal "Clinic::EncounterNoteRevision", receipt.resource_type
+    assert_equal correction.fetch("id"), receipt.resource_id
+
+    changed = correction_params(
+      request_key: "note-correction-retry",
+      revision: signed_revision,
+      reason: "A different correction reason"
+    )
+    post "/api/clinic/notes/#{note.id}/corrections", params: changed, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal 2, note.revisions.reload.count
+    assert_equal 1, note.signatures.count
+    assert_equal signed_revision.id, note.signatures.sole.revision_id
+
+    raw = ApplicationRecord.connection.select_value(
+      "SELECT encrypted_body FROM clinic_encounter_note_revisions WHERE id = #{Integer(correction.fetch('id'))}"
+    )
+    assert_not_includes raw, secret_reason
+    assert_not_includes receipt.attributes.to_json, secret_reason
+    assert_not_includes @practice.audit_events.where(action_code: "notes.correct").sole.attributes.to_json, secret_reason
+
+    revision_params = revise_params(request_key: "note-correction-edit", subjective: "Edited corrected SOAP history")
+    revision_params[:revision][:expected_revision] = correction.fetch("revision_no")
+    post "/api/clinic/notes/#{note.id}/revisions", params: revision_params, headers: csrf_headers, as: :json
+    assert_response :created
+    edited = response.parsed_body.dig("note", "current_revision", "body")
+    assert_equal "soap-note-v2", edited.fetch("schema")
+    assert_equal secret_reason, edited.dig("correction", "reason")
+    assert_equal signed_revision.id, edited.dig("correction", "corrected_revision_id")
+    assert_equal "Edited corrected SOAP history", edited.dig("sections", "subjective")
+  end
+
+  test "correction requires the exact current signed revision and preserves its template" do
+    post "/api/clinic/encounters/#{@encounter.id}/notes",
+      params: create_params(request_key: "note-correction-guards-create"), headers: csrf_headers, as: :json
+    note = @encounter.notes.sole
+    unsigned = note.revisions.sole
+    params = correction_params(request_key: "note-correction-unsigned", revision: unsigned)
+
+    post "/api/clinic/notes/#{note.id}/corrections", params: params, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 1, note.revisions.reload.count
+
+    Clinic::Care::SignEncounterNote.call(
+      note: note,
+      actor: @user,
+      revision_no: unsigned.revision_no,
+      content_digest: Digest::SHA256.hexdigest(unsigned.encrypted_body),
+      attestation_version: "synthetic-correction-guards-v1"
+    )
+    limited_user = User.create!(email_address: "note-correction-limited@example.invalid", password: SecureRandom.hex(18))
+    @practice.memberships.create!(user: limited_user)
+    correction_body = Clinic::Care::SoapNotePayload.dump_correction(
+      template_id: "adult-physical-exam-detailed",
+      template_version: 1,
+      sections: { subjective: "Unauthorized correction", objective: "", assessment: "", plan: "" },
+      corrected_revision_id: unsigned.id,
+      corrected_revision_no: unsigned.revision_no,
+      reason: "Attempt without chart write authority"
+    )
+    assert_raises Clinic::Authorization::Denied do
+      Clinic::Care::CorrectEncounterNote.call(
+        note: note, actor: limited_user, encrypted_body: correction_body,
+        corrected_revision_id: unsigned.id, expected_revision: unsigned.revision_no,
+        request_key: "note-correction-unauthorized"
+      )
+    end
+    assert_equal 1, note.revisions.reload.count
+
+    stale = correction_params(request_key: "note-correction-stale", revision: unsigned)
+    stale[:correction][:expected_revision_id] = unsigned.id + 1_000_000
+    post "/api/clinic/notes/#{note.id}/corrections", params: stale, headers: csrf_headers, as: :json
+    assert_response :conflict
+
+    switched = correction_params(request_key: "note-correction-template", revision: unsigned)
+    switched[:correction][:template_id] = "scribe-reviewed-soap"
+    post "/api/clinic/notes/#{note.id}/corrections", params: switched, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 1, note.revisions.reload.count
   end
 
   test "stale concurrent revisions allow one append and reject the other" do
@@ -305,6 +428,21 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
       assessment: "",
       plan: "",
       expected_revision: 1,
+      request_key: request_key
+    } }
+  end
+
+  def correction_params(request_key:, revision:, reason: "Correct a reviewed transcription error")
+    { correction: {
+      template_id: "adult-physical-exam-detailed",
+      template_version: 1,
+      subjective: "Corrected synthetic SOAP history",
+      objective: "Corrected synthetic objective",
+      assessment: "",
+      plan: "",
+      reason: reason,
+      expected_revision_id: revision.id,
+      expected_revision: revision.revision_no,
       request_key: request_key
     } }
   end

@@ -577,17 +577,75 @@ describe("provider encounter workflow", () => {
       <SoapNoteForm
         encounterId={signedEncounter.id}
         patientId={patient.id}
-        note={{ ...note, signed: true }}
+        note={{
+          ...note,
+          signed: true,
+          current_revision: {
+            ...note.current_revision!,
+            signed: true,
+          },
+        }}
         templates={[template]}
         canWrite
       />,
     );
-    expect(editorHtml).toContain("This signed revision is read-only");
+    expect(editorHtml).toContain("Signed revision 1 is read-only");
+    expect(editorHtml).toContain("Start correction");
     expect(editorHtml).not.toContain("Save new revision");
     expect(editorHtml).not.toContain(
       "Template text is editable and remains unverified",
     );
     expect(editorHtml).not.toContain("This is an unsigned draft only");
+  });
+
+  it("keeps a new unsigned revision editable when signed history exists", () => {
+    const correctionNote: EncounterNote = {
+      ...note,
+      signed: true,
+      has_signed_history: true,
+      current_revision_signed: false,
+      current_revision: {
+        ...note.current_revision!,
+        id: 13,
+        revision_no: 2,
+        signed: false,
+      },
+      revisions: [
+        {
+          id: 12,
+          revision_no: 1,
+          prior_revision_id: null,
+          author_membership_id: 4,
+          payload_version: 1,
+          created_at: "2026-09-02T15:00:00Z",
+          signed: true,
+        },
+        {
+          id: 13,
+          revision_no: 2,
+          prior_revision_id: 12,
+          author_membership_id: 4,
+          payload_version: 2,
+          created_at: "2026-09-02T16:00:00Z",
+          signed: false,
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <SoapNoteForm
+        encounterId={encounter.id}
+        patientId={patient.id}
+        note={correctionNote}
+        templates={[template]}
+        canWrite
+      />,
+    );
+    expect(html).toContain("Draft revision 2");
+    expect(html).toContain("Save new revision");
+    expect(html).toContain(
+      "Template text is editable and remains unverified",
+    );
+    expect(html).not.toContain("Start correction");
   });
 
   it("requires both a reason and patient/visit acknowledgement to void a chart", () => {

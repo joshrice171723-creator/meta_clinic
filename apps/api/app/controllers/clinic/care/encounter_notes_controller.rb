@@ -61,6 +61,31 @@ module Clinic
         }, status: :created
       end
 
+      def correct
+        input = parameter_hash!(:correction,
+          %i[template_id template_version subjective objective assessment plan reason expected_revision_id expected_revision request_key])
+        note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
+        raise ArgumentError, "Only signed SOAP notes can be corrected from this endpoint." unless note.note_kind == "soap"
+
+        corrected_revision_id = bounded_integer!(input[:expected_revision_id], field: :expected_revision_id,
+          min: 1, max: 2_147_483_647)
+        expected_revision = bounded_integer!(input[:expected_revision], field: :expected_revision,
+          min: 1, max: 2_147_483_647)
+        revision = Clinic::Care::CorrectEncounterNote.call(
+          note: note,
+          actor: current_user,
+          encrypted_body: soap_correction_payload(input,
+            corrected_revision_id: corrected_revision_id, corrected_revision_no: expected_revision),
+          corrected_revision_id: corrected_revision_id,
+          expected_revision: expected_revision,
+          request_key: request_key!(input[:request_key])
+        )
+        render json: {
+          revision: revision_json(revision),
+          note: EncounterNoteSerializer.call(note.reload, detail: true)
+        }, status: :created
+      end
+
       def sign
         input = parameter_hash!(:signature, %i[revision_no content_digest attestation_version])
         note = current_practice.encounter_notes.find(requested_id!(params[:id], :id))
@@ -92,6 +117,20 @@ module Clinic
         )
       end
 
+      def soap_correction_payload(input, corrected_revision_id:, corrected_revision_no:)
+        SoapNotePayload.dump_correction(
+          template_id: required_string!(input[:template_id], field: :template_id, maximum: 100),
+          template_version: bounded_integer!(input[:template_version], field: :template_version, min: 1, max: 1_000_000),
+          sections: %i[subjective objective assessment plan].to_h do |field|
+            [ field, optional_string(input[field], field: field, maximum: SoapNotePayload::MAX_SECTION_LENGTH) || "" ]
+          end,
+          corrected_revision_id: corrected_revision_id,
+          corrected_revision_no: corrected_revision_no,
+          reason: required_string!(input[:reason], field: :reason, maximum: SoapNotePayload::MAX_CORRECTION_REASON_LENGTH),
+          source: { kind: "manual" }
+        )
+      end
+
       def request_key!(value)
         key = required_string!(value, field: :request_key, maximum: 160)
         return key if key.match?(Clinic::Idempotency::KEY_PATTERN)
@@ -100,15 +139,7 @@ module Clinic
       end
 
       def revision_json(revision)
-        {
-          id: revision.id,
-          note_id: revision.note_id,
-          revision_no: revision.revision_no,
-          prior_revision_id: revision.prior_revision_id,
-          author_membership_id: revision.author_membership_id,
-          payload_version: revision.payload_version,
-          created_at: revision.created_at
-        }
+        EncounterNoteSerializer.revision(revision.note, revision).merge(note_id: revision.note_id)
       end
 
       def signature_json(signature)

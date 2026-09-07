@@ -688,6 +688,11 @@ export type SoapNoteBody = {
   template_id: string;
   template_version: number;
   sections: SoapNoteSections;
+  correction?: {
+    corrected_revision_id: number;
+    reason: string;
+    source: string;
+  };
 };
 export type EncounterNoteSummary = {
   id: number;
@@ -697,6 +702,11 @@ export type EncounterNoteSummary = {
   version: number;
   latest_revision: number | null;
   signed: boolean;
+  has_signed_history?: boolean;
+  current_revision_signed?: boolean;
+  current_revision_id?: number | null;
+  current_template_id?: string | null;
+  current_template_version?: number | null;
 };
 export type EncounterNote = EncounterNoteSummary & {
   current_revision: {
@@ -717,6 +727,8 @@ export type EncounterNote = EncounterNoteSummary & {
     payload_version: number;
     created_at: string;
     signed: boolean;
+    body?: SoapNoteBody;
+    content_digest?: string;
   }[];
   signatures?: {
     id: number;
