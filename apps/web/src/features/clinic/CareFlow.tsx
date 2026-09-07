@@ -60,6 +60,7 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 import { appendPrevisitNote, PrevisitNoteImport } from "./PrevisitNoteImport";
+import { VitalSignsEntry } from "./VitalSignsEntry";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
@@ -115,12 +116,12 @@ export function noteSaveRequestBody(
       }
     : operationCode === "notes.revise"
       ? {
-        revision: {
-          ...fields,
-          expected_revision: expectedRevision,
-          request_key: requestKey,
-        },
-      }
+          revision: {
+            ...fields,
+            expected_revision: expectedRevision,
+            request_key: requestKey,
+          },
+        }
       : {
           correction: {
             ...fields,
@@ -291,10 +292,35 @@ function patientAge(
 }
 
 function observationByLabel(observations: Observation[], pattern: RegExp) {
-  const match = observations.find((observation) =>
-    pattern.test(observationLabel(observation.code)),
+  const match = observations.find(
+    (observation) =>
+      observation.value_kind !== "group" &&
+      pattern.test(observationLabel(observation.code)),
   );
   return match ? observationValue(match) : "Not recorded";
+}
+
+function bloodPressureValue(observations: Observation[]) {
+  const systolic = observations.find(
+    (observation) =>
+      observation.code === "vital-systolic-bp" &&
+      observation.value_kind === "numeric",
+  );
+  if (!systolic) return observationByLabel(observations, /blood\s*pressure/i);
+  const diastolic = observations.find(
+    (observation) =>
+      observation.code === "vital-diastolic-bp" &&
+      observation.value_kind === "numeric" &&
+      observation.code_system === systolic.code_system &&
+      observation.unit_code === systolic.unit_code &&
+      (systolic.parent_observation_id !== null
+        ? observation.parent_observation_id === systolic.parent_observation_id
+        : observation.parent_observation_id === null &&
+          observation.observed_at === systolic.observed_at),
+  );
+  return diastolic
+    ? `${systolic.numeric_value}/${diastolic.numeric_value} ${systolic.unit_label || systolic.unit_code || ""}`.trim()
+    : "Paired reading not recorded";
 }
 
 function localDateTimeValue(value: Date) {
@@ -1100,7 +1126,10 @@ export function PatientSupport({ patientId }: { patientId: number }) {
 function observationValue(observation: Observation) {
   switch (observation.value_kind) {
     case "numeric":
-      return [observation.numeric_value, observation.unit_code]
+      return [
+        observation.numeric_value,
+        observation.unit_label || observation.unit_code,
+      ]
         .filter(Boolean)
         .join(" ");
     case "text":
@@ -1255,9 +1284,10 @@ export function SoapNoteForm({
   const [correctionTarget, setCorrectionTarget] =
     useState<CorrectionTarget | null>(null);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
-  const dirty = SOAP_SECTION_LABELS.some(
-    ([key]) => sections[key] !== initialSections[key],
-  ) || patientInstructions !== initialPatientInstructions;
+  const dirty =
+    SOAP_SECTION_LABELS.some(
+      ([key]) => sections[key] !== initialSections[key],
+    ) || patientInstructions !== initialPatientInstructions;
   const signed = note?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
@@ -1324,7 +1354,7 @@ export function SoapNoteForm({
         ? correctionTarget.revisionNo + 1
         : note?.current_revision
           ? note.current_revision.revision_no + 1
-        : 1,
+          : 1,
     };
     saveAttemptRef.current = attempt;
     setRequestKey(attempt.requestKey);
@@ -1608,7 +1638,7 @@ export function SoapNoteForm({
             ? `Signed revision ${note.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
             : correctionTarget
               ? `Correction in progress for signed revision ${correctionTarget.revisionNo}. Save creates an unsigned correction that must be reviewed and signed separately.`
-            : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
+              : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
       {note?.revisions.length ? (
@@ -1622,7 +1652,9 @@ export function SoapNoteForm({
                 key={revision.id}
                 size="small"
                 variant={
-                  revision.id === note.current_revision?.id ? "filled" : "outlined"
+                  revision.id === note.current_revision?.id
+                    ? "filled"
+                    : "outlined"
                 }
                 color={revision.signed ? "success" : "default"}
                 label={`Revision ${revision.revision_no}${revision.signed ? " · signed" : " · unsigned"}`}
@@ -1806,10 +1838,14 @@ export function SoapNoteForm({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info">
-              This keeps signed revision {note?.current_revision?.revision_no} intact and creates a separate unsigned correction for review and signature.
+              This keeps signed revision {note?.current_revision?.revision_no}{" "}
+              intact and creates a separate unsigned correction for review and
+              signature.
             </Alert>
             <Typography color="text.secondary">
-              {patientName || `Patient #${patientId ?? "unavailable"}`} · Encounter #{encounterId} · Signed revision {note?.current_revision?.revision_no}
+              {patientName || `Patient #${patientId ?? "unavailable"}`} ·
+              Encounter #{encounterId} · Signed revision{" "}
+              {note?.current_revision?.revision_no}
             </Typography>
             {SOAP_SECTION_LABELS.map(([key, label]) => (
               <Box key={key}>
@@ -1824,7 +1860,8 @@ export function SoapNoteForm({
                 Patient instructions
               </Typography>
               <Typography sx={{ whiteSpace: "pre-wrap" }}>
-                {savedBody?.patient_instructions || "No patient instructions recorded."}
+                {savedBody?.patient_instructions ||
+                  "No patient instructions recorded."}
               </Typography>
             </Box>
             <TextField
@@ -1841,7 +1878,9 @@ export function SoapNoteForm({
               control={
                 <Checkbox
                   checked={correctionConfirmed}
-                  onChange={(event) => setCorrectionConfirmed(event.target.checked)}
+                  onChange={(event) =>
+                    setCorrectionConfirmed(event.target.checked)
+                  }
                 />
               }
               label="I confirmed the displayed patient, encounter, signed revision, and copied note content."
@@ -1849,7 +1888,10 @@ export function SoapNoteForm({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy} onClick={() => setCorrectionDialogOpen(false)}>
+          <Button
+            disabled={busy}
+            onClick={() => setCorrectionDialogOpen(false)}
+          >
             Cancel
           </Button>
           <Button
@@ -2011,7 +2053,7 @@ export function ChartQuickJump() {
 export function ProviderEncounterWorkflow({
   patient,
   encounter,
-  observations,
+  observations: initialObservations,
   timezone,
   noteWorkspace,
   careSummaryState = { status: "unlinked" },
@@ -2028,6 +2070,24 @@ export function ProviderEncounterWorkflow({
   onEncounterRefresh?: () => void;
 }) {
   const { capabilities } = useClinic();
+  const [recordedObservations, setRecordedObservations] = useState<
+    Observation[]
+  >([]);
+  const observations = Array.from(
+    new Map(
+      [...initialObservations, ...recordedObservations].map((observation) => [
+        observation.id,
+        observation,
+      ]),
+    ).values(),
+  ).sort(
+    (left, right) =>
+      Date.parse(right.observed_at) - Date.parse(left.observed_at) ||
+      right.id - left.id,
+  );
+  const displayedObservations = observations.filter(
+    (observation) => observation.value_kind !== "group",
+  );
   const [chartConfirmed, setChartConfirmed] = useState(false);
   const [chartType, setChartType] = useState("soap");
   const signedChart = encounterHasSignedSoapNote(encounter);
@@ -2036,11 +2096,11 @@ export function ProviderEncounterWorkflow({
   );
   const workspaceHeading = useRef<HTMLHeadingElement | null>(null);
   const observationTimes = new Set(
-    observations.map((observation) => observation.recorded_at),
+    displayedObservations.map((observation) => observation.observed_at),
   );
   const sharedObservationTime =
     observationTimes.size === 1
-      ? clinicDateTime(observations[0]?.recorded_at ?? null, timezone)
+      ? clinicDateTime(displayedObservations[0]?.observed_at ?? null, timezone)
       : null;
   const reviewNeededTopics =
     careSummaryState.status === "ready"
@@ -2148,9 +2208,7 @@ export function ProviderEncounterWorkflow({
                     {observationByLabel(observations, /heart\s*rate/i)}
                   </TableCell>
                   <TableCell component="th">Blood Pressure</TableCell>
-                  <TableCell>
-                    {observationByLabel(observations, /blood\s*pressure/i)}
-                  </TableCell>
+                  <TableCell>{bloodPressureValue(observations)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell component="th">Weight</TableCell>
@@ -2171,6 +2229,26 @@ export function ProviderEncounterWorkflow({
               </TableBody>
             </Table>
           </TableContainer>
+          {capabilities.observations_write === true && (
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <VitalSignsEntry
+                key={`${patient.id}:${encounter.id}`}
+                patientId={patient.id}
+                patientName={patient.display_name}
+                encounterId={encounter.id}
+                onRecorded={(saved) =>
+                  setRecordedObservations((current) => [
+                    ...current,
+                    ...saved.filter(
+                      (observation) =>
+                        observation.patient_id === patient.id &&
+                        observation.encounter_id === encounter.id,
+                    ),
+                  ])
+                }
+              />
+            </Box>
+          )}
           {!chartConfirmed && (
             <Box className="chart-type-picker">
               <Typography variant="subtitle2">Choose a chart</Typography>
@@ -2312,7 +2390,7 @@ export function ProviderEncounterWorkflow({
                 <Divider />
                 <Box>
                   <Typography variant="subtitle2">Vital signs</Typography>
-                  {observations.length === 0 ? (
+                  {displayedObservations.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">
                       No recorded observations are available for this encounter.
                     </Typography>
@@ -2320,17 +2398,18 @@ export function ProviderEncounterWorkflow({
                     <>
                       {sharedObservationTime && (
                         <Typography variant="caption" color="text.secondary">
-                          Recorded {sharedObservationTime}
+                          Observed {sharedObservationTime}
                         </Typography>
                       )}
                       <Box className="provider-vitals-grid">
-                        {observations.map((observation) => (
+                        {displayedObservations.map((observation) => (
                           <Box key={observation.id}>
                             <Typography
                               variant="caption"
                               color="text.secondary"
                             >
-                              {observationLabel(observation.code)}
+                              {observation.display_label ||
+                                observationLabel(observation.code)}
                             </Typography>
                             <Typography
                               variant="body2"
@@ -2344,7 +2423,7 @@ export function ProviderEncounterWorkflow({
                                 color="text.secondary"
                               >
                                 {clinicDateTime(
-                                  observation.recorded_at,
+                                  observation.observed_at,
                                   timezone,
                                 )}
                               </Typography>
@@ -2792,6 +2871,7 @@ export function EncounterPage({
       timezone={context.practice.timezone}
       noteWorkspace={
         <ProviderEncounterWorkflow
+          key={`${patientId}:${encounterId}`}
           patient={patient.data.patient}
           encounter={encounter.data.encounter}
           observations={observations.data.observations}

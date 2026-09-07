@@ -183,7 +183,9 @@ Rails.application.routes.draw do
       post "clinical_history/reviews", to: "care/clinical_history#review", as: :clinical_history_reviews
       post "clinical_history/:kind", to: "care/clinical_history#create", as: nil
       patch "clinical_history/:kind/:id", to: "care/clinical_history#update", as: nil
-      resources :encounters, controller: "scheduling/encounters", only: %i[index create]
+      resources :encounters, controller: "scheduling/encounters", only: %i[index create] do
+        resource :vital_signs, controller: "care/vital_signs", only: %i[show create]
+      end
       get "encounters/:encounter_id/previsit_note", to: "care/previsit_notes#show", as: :encounter_previsit_note
       resources :observations, controller: "care/observations", only: %i[index create]
       resources :lab_reports, controller: "care/lab_reports", only: %i[index show create] do

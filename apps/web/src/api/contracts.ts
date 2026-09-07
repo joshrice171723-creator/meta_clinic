@@ -892,6 +892,8 @@ export type NoteTemplate = {
 };
 export type Observation = {
   id: number;
+  display_label?: string | null;
+  unit_label?: string | null;
   patient_id: number;
   encounter_id: number | null;
   parent_observation_id: number | null;

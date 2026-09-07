@@ -19,7 +19,7 @@ module Clinic
           missing_reason: observation.missing_reason,
           observed_at: observation.observed_at&.iso8601(6),
           recorded_at: observation.recorded_at&.iso8601(6)
-        }
+        }.merge(VitalSigns.presentation(observation))
       end
     end
   end

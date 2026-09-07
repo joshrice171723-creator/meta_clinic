@@ -129,6 +129,27 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     assert_not vitals.key?("status")
   end
 
+  test "tracking board never combines blood pressure components from separate groups" do
+    complete_time = @current.started_at + 1.minute
+    complete_parent = record_pressure_group("complete", complete_time)
+    record_pressure_component(complete_parent, "vital-systolic-bp", "118", complete_time, "complete-systolic")
+    record_pressure_component(complete_parent, "vital-diastolic-bp", "76", complete_time, "complete-diastolic")
+
+    systolic_time = complete_time + 1.minute
+    systolic_parent = record_pressure_group("later-systolic", systolic_time)
+    record_pressure_component(systolic_parent, "vital-systolic-bp", "140", systolic_time, "later-systolic")
+    diastolic_time = complete_time + 2.minutes
+    diastolic_parent = record_pressure_group("later-diastolic", diastolic_time)
+    record_pressure_component(diastolic_parent, "vital-diastolic-bp", "92", diastolic_time, "later-diastolic")
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    blood_pressure = response.parsed_body.fetch("visits")
+      .find { |row| row.fetch("encounter_id") == @current.id }.dig("vitals", "blood_pressure")
+    assert_equal({ "systolic" => "118.0", "diastolic" => "76.0", "unit" => "mmHg" }, blood_pressure)
+  end
+
   test "tracking board limits provider editing and roster sites to the actor grant" do
     allowed_site = @practice.sites.create!(code: "ALLOWED")
     denied_site = @practice.sites.create!(code: "DENIED")
@@ -468,6 +489,31 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def record_pressure_group(key, observed_at)
+    Clinic::Care::RecordObservation.call(
+      practice: @practice, actor: @user, patient: @patient,
+      attributes: {
+        encounter: @current, code: Clinic::Care::VitalSigns::BLOOD_PRESSURE_CODE,
+        code_system: Clinic::Care::VitalSigns::CODE_SYSTEM,
+        code_version: Clinic::Care::VitalSigns::DICTIONARY_VERSION,
+        value_kind: "group", observed_at:, recorded_at: observed_at
+      }, request_key: "board-pressure-group-#{key}"
+    )
+  end
+
+  def record_pressure_component(parent, code, value, observed_at, key)
+    Clinic::Care::RecordObservation.call(
+      practice: @practice, actor: @user, patient: @patient,
+      attributes: {
+        encounter: @current, parent_observation: parent, code:,
+        code_system: Clinic::Care::VitalSigns::CODE_SYSTEM,
+        code_version: Clinic::Care::VitalSigns::DICTIONARY_VERSION,
+        value_kind: "numeric", numeric_value: value, unit_code: "mm[Hg]",
+        observed_at:, recorded_at: observed_at
+      }, request_key: "board-pressure-component-#{key}"
+    )
+  end
 
   def create_signed_note(encounter, signed_at)
     note = Clinic::Care::CreateEncounterNote.call(

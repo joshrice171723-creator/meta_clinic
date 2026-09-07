@@ -315,6 +315,11 @@
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/previsit_note(.:format)"
   ],
   [
+    "api_clinic_patient_encounter_vital_signs",
+    "GET",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/vital_signs(.:format)"
+  ],
+  [
     "api_clinic_patient_encounters",
     "GET",
     "/api/clinic/patients/:patient_id/encounters(.:format)"
@@ -1528,6 +1533,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/encounters(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/vital_signs(.:format)"
   ],
   [
     null,

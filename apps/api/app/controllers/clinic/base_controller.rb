@@ -133,6 +133,7 @@ module Clinic
       when [ "clinic/care/patient_chart_history", "show" ], [ "clinic/scheduling/tracking_board", "show" ] then "patients.read"
       when [ "clinic/care/encounter_notes", "index" ], [ "clinic/care/encounter_notes", "show" ] then "notes.read"
       when [ "clinic/care/observations", "index" ] then "observations.read"
+      when [ "clinic/care/vital_signs", "show" ] then "patients.read"
       when [ "clinic/care/patient_addresses", "index" ] then "patient_addresses.read"
       when [ "clinic/documents", "index" ], [ "clinic/documents", "show" ] then "documents.read"
       when [ "clinic/document_categories", "index" ] then "documents.categories.read"

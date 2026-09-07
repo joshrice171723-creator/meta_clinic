@@ -109,19 +109,61 @@ module Clinic
 
       class VitalsBatch
         VITAL_CODES = %w[vital-systolic-bp vital-diastolic-bp vital-heart-rate vital-weight].freeze
+        BLOOD_PRESSURE_CODES = %w[vital-systolic-bp vital-diastolic-bp].freeze
 
         def initialize(encounters, practice_id:)
           @by_encounter = Hash.new { |hash, key| hash[key] = {} }
           observations = Clinic::Care::Observation.where(
             practice_id: practice_id, encounter_id: encounters.map(&:id), code: VITAL_CODES,
             value_kind: :numeric
-          ).order(observed_at: :desc, id: :desc)
-          observations.each do |observation|
-            @by_encounter[observation.encounter_id][observation.code] ||= {
-              value: observation.numeric_value&.to_d&.to_s("F"), unit: observation.unit_code
-            }
+          ).includes(:parent_observation).order(observed_at: :desc, id: :desc).to_a
+          observations.group_by(&:encounter_id).each do |encounter_id, encounter_observations|
+            %w[vital-heart-rate vital-weight].each do |code|
+              observation = encounter_observations.find { |candidate| candidate.code == code }
+              @by_encounter[encounter_id][code] = reading(observation) if observation
+            end
+            pressure = blood_pressure_pair(encounter_observations)
+            pressure&.each do |observation|
+              @by_encounter[encounter_id][observation.code] = reading(observation)
+            end
           end
         end
+
+        def reading(observation)
+          presentation = Clinic::Care::VitalSigns.presentation(observation)
+          {
+            value: observation.numeric_value&.to_d&.to_s("F"),
+            unit: presentation.fetch(:unit_label, observation.unit_code)
+          }
+        end
+
+        def blood_pressure_pair(observations)
+          grouped = observations.select do |observation|
+            observation.parent_observation&.value_kind_group? &&
+              observation.parent_observation.code == Clinic::Care::VitalSigns::BLOOD_PRESSURE_CODE
+          end.group_by(&:parent_observation_id).values.filter_map { |members| complete_pressure_pair(members) }
+          legacy = observations.select { |observation| observation.parent_observation_id.nil? }
+            .group_by do |observation|
+              [ observation.observed_at, observation.unit_code, observation.code_system, observation.code_version ]
+            end
+            .values.filter_map { |members| complete_pressure_pair(members) }
+          (grouped + legacy).max_by do |pair|
+            [ pair.map(&:observed_at).max, pair.map(&:id).max ]
+          end
+        end
+
+        def complete_pressure_pair(observations)
+          pair = BLOOD_PRESSURE_CODES.map do |code|
+            observations.find { |observation| observation.code == code }
+          end
+          return if pair.any?(&:nil?)
+          return unless pair.map(&:unit_code).uniq.one? && pair.map(&:observed_at).uniq.one? &&
+            pair.map(&:code_system).uniq.one? && pair.map(&:code_version).uniq.one?
+
+          pair
+        end
+
+        private :reading, :blood_pressure_pair, :complete_pressure_pair
 
         def call(encounter)
           values = @by_encounter.fetch(encounter.id, {})
