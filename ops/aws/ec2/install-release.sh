@@ -60,6 +60,7 @@ nginx -t
 if [ -f /srv/apply/storage/production.sqlite3 ] && [ ! -f /etc/apply/postgres-cutover-verified ]; then
   echo 'Legacy SQLite data exists: complete the documented verified cutover first'; exit 1
 fi
+systemctl stop apply-clinic-worker.service || true
 systemctl stop apply-web.service apply-api.service || true
 systemctl daemon-reload
 systemctl enable --now apply-postgres.service
@@ -84,8 +85,15 @@ for _attempt in $(seq 1 45); do
   if curl --fail --silent --cacert /etc/apply/tls/localhost.crt \
       https://localhost:8443/up >/dev/null && curl --fail --silent --cacert /etc/apply/tls/localhost.crt https://localhost:8443/health >/dev/null; then
     if ! docker exec -e APPLY_EXPECTED_ENVIRONMENT="$APPLY_ENVIRONMENT" apply-api ./bin/rails runner 'raise "Wrong deployment" unless Rails.env.production? && ENV.fetch("APP_DEPLOYMENT_ENV") == ENV.fetch("APPLY_EXPECTED_ENVIRONMENT"); raise "Demo enabled" if ENV["APP_DEPLOYMENT_ENV"] == "production" && DemoContent.enabled?; raise "Invalid database" unless ActiveRecord::Base.connection.adapter_name == "PostgreSQL" && ActiveRecord::Base.connection.select_value("SELECT current_user") == "apply_runtime"' >/dev/null 2>&1; then
+      systemctl stop apply-clinic-worker.service || true
       systemctl stop apply-web.service apply-api.service
       echo 'Release database/environment verification failed; app stopped'
+      exit 1
+    fi
+    if ! systemctl enable --now apply-clinic-worker.service || ! systemctl is-active --quiet apply-clinic-worker.service; then
+      systemctl stop apply-clinic-worker.service || true
+      systemctl stop apply-web.service apply-api.service
+      echo 'Release worker startup failed; app stopped'
       exit 1
     fi
     [ "$generation" -eq 0 ] || printf '%s\n' "$generation" > /etc/apply/release-generation
@@ -96,6 +104,7 @@ for _attempt in $(seq 1 45); do
   fi
   sleep 2
 done
+systemctl stop apply-clinic-worker.service || true
 systemctl stop apply-web.service apply-api.service
 echo 'Release health check failed; app stopped. Inspect sanitized diagnostics; do not blindly roll back a migrated database.'
 exit 1

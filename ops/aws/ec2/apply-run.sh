@@ -48,7 +48,7 @@ if [ "${1:-api}" = web ]; then
     --memory 64m --memory-swap 64m --pids-limit 128 \
     --log-driver local --log-opt max-size=10m --log-opt max-file=3 "$image"
 fi
-[[ "${1:-api}" = api || "${1:-}" = prepare ]] || exit 1
+[[ "${1:-api}" = api || "${1:-}" = prepare || "${1:-}" = worker ]] || exit 1
 # Values exist only in root-owned /run tmpfs and the container runtime, not UserData.
 python3 - <<'PY'
 import ipaddress, json, os, re, subprocess
@@ -97,6 +97,18 @@ PY
 image=$(cat /etc/apply/image)
 [[ "$image" == "$APPLY_REPOSITORY"@sha256:* ]] || exit 1
 [[ "${image##*@sha256:}" =~ ^[a-f0-9]{64}$ ]] || exit 1
+
+if [ "${1:-}" = worker ]; then
+  exec docker run --rm --name apply-clinic-worker --network apply-database \
+    --env-file /run/apply/runtime.env \
+    --read-only --tmpfs /rails/tmp:uid=1000,gid=1000,mode=700 \
+    --tmpfs /rails/log:uid=1000,gid=1000,mode=700 \
+    --tmpfs /tmp:mode=1777,size=64m \
+    --cap-drop ALL --security-opt no-new-privileges:true \
+    --memory 500m --memory-swap 500m --pids-limit 256 \
+    --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
+    "$image" ./bin/clinic-worker --interval 15
+fi
 
 exec docker run --rm --name apply-api --network apply-database \
   --env-file /run/apply/runtime.env \

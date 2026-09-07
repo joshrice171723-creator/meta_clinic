@@ -31,3 +31,5 @@ In Rails production mode, the existing clinic release gate still applies: only t
 ## Deployment requirements
 
 Run the worker as a separate supervised process beside the API with the same application version, PostgreSQL connection, Rails encryption keys, deployment environment, and private network access. Configure restart policy, process health monitoring, aggregate-log collection, and alerts for blocked or failed counts. A running process is operational evidence only; backup/restore, high availability, independent audit storage, provider approval, and production release remain separate gates.
+
+The EC2 release installs `apply-clinic-worker.service`, which runs `bin/clinic-worker --interval 15` from the same immutable API image recorded in `/etc/apply/image`. Each release stops the worker before migration and starts it only after the API, frontend, database, and deployment-policy checks pass; worker startup failure stops the release services.

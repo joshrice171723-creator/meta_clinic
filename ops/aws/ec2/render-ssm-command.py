@@ -17,6 +17,7 @@ files = {
     'apply-run.sh': ('/usr/local/sbin/apply-run', '700'),
     'install-release.sh': ('/usr/local/sbin/apply-install-release', '700'),
     'apply-api.service': ('/etc/systemd/system/apply-api.service', '644'),
+    'apply-clinic-worker.service': ('/etc/systemd/system/apply-clinic-worker.service', '644'),
     'apply-web.service': ('/etc/systemd/system/apply-web.service', '644'),
     'postgres.sh': ('/usr/local/sbin/apply-postgres', '700'),
     'apply-postgres.service': ('/etc/systemd/system/apply-postgres.service', '644'),

@@ -99,7 +99,7 @@ Get `RepositoryUri` and `InstanceId` from the created stack outputs. Authenticat
 
 ## 3. Install the release through SSM
 
-The renderer packages **only seven named deployment files** into a non-secret Run Command payload. It validates both image URIs and pins the release to an immutable API/web pair. It makes no AWS call itself. This privileged manual install path is separate from GitHub's fixed digest-only SSM document; it does not perform the legacy database cutover or establish a successful staging receipt. Its omitted generation defaults to the manual value `0`, so automated releases must use the ordinary generation-bearing workflow.
+The renderer packages **only eight named deployment files** into a non-secret Run Command payload, including the clinic worker's systemd unit. It validates both image URIs and pins the release to an immutable API/web pair. It makes no AWS call itself. This privileged manual install path is separate from GitHub's fixed digest-only SSM document; it does not perform the legacy database cutover or establish a successful staging receipt. Its omitted generation defaults to the manual value `0`, so automated releases must use the ordinary generation-bearing workflow.
 
 ```sh
 python3 ops/aws/ec2/render-ssm-command.py \
@@ -110,7 +110,7 @@ aws ssm send-command --region us-east-1 --document-name AWS-RunShellScript \
   --instance-ids INSTANCE_ID --parameters file:///tmp/apply-release-command.json
 ```
 
-Use the actual same-account repository and instance. Inspect completion status; failure is not a deployment. The installer pulls both images before stopping the old app, refuses unconverted legacy storage, backs up PostgreSQL, migrates explicitly using maintenance credentials, applies restricted runtime grants, records both previous image references, then starts the API and static web services and checks both API and frontend health through trusted TLS. A failed migration/health check leaves the app stopped: recovery requires the matched prior API/web pair, database and keys, not a blind code rollback. Never use `docker inspect`, `printenv`, `cat /run/apply/runtime.env` or verbose shell tracing in shared output.
+Use the actual same-account repository and instance. Inspect completion status; failure is not a deployment. The installer pulls both images before stopping the old app, refuses unconverted legacy storage, backs up PostgreSQL, migrates explicitly using maintenance credentials, applies restricted runtime grants, records both previous image references, then starts the API and static web services and checks both API and frontend health through trusted TLS. The clinic worker is stopped during replacement, follows the API lifecycle, and starts only after the API/web health and deployment-policy checks pass; a failed worker start stops the app services. A failed migration/health check leaves the app stopped: recovery requires the matched prior API/web pair, database and keys, not a blind code rollback. Never use `docker inspect`, `printenv`, `cat /run/apply/runtime.env` or verbose shell tracing in shared output.
 
 ## 4. Open the private preview
 
