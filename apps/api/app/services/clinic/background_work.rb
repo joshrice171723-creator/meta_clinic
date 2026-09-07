@@ -94,7 +94,7 @@ module Clinic
           OR (clinic_patient_reminder_outbox.dispatch_state = 'pending' AND clinic_patient_reminder_outbox.available_at <= :at
             AND clinic_patient_reminders.status = 'scheduled')
         SQL
-      rotating_candidate_ids(relation, :reminders, "clinic_patient_reminder_outbox")
+      rotating_candidate_ids(relation, :reminders)
     end
 
     def staff_message_candidate_ids
@@ -104,14 +104,15 @@ module Clinic
         .where(<<~SQL.squish, %w[pending in_flight], "failed", Clinic::Messaging::Recover::MAX_ATTEMPTS)
           delivery_state IN (?) OR (delivery_state = ? AND attempts < ?)
         SQL
-      rotating_candidate_ids(relation, :staff_messages, "clinic_staff_message_outbox")
+      rotating_candidate_ids(relation, :staff_messages)
     end
 
-    def rotating_candidate_ids(relation, kind, table_name)
-      ids = relation.where("#{table_name}.id > ?", @after_ids.fetch(kind))
-        .order("#{table_name}.id ASC").limit(@limit).pluck(:id)
+    def rotating_candidate_ids(relation, kind)
+      id_column = relation.arel_table[:id]
+      ids = relation.where(id_column.gt(@after_ids.fetch(kind)))
+        .order(id_column.asc).limit(@limit).pluck(:id)
       if ids.empty? && @after_ids.fetch(kind).positive?
-        ids = relation.order("#{table_name}.id ASC").limit(@limit).pluck(:id)
+        ids = relation.order(id_column.asc).limit(@limit).pluck(:id)
       end
       @after_ids[kind] = ids.last if ids.any?
       ids

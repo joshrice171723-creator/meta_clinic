@@ -185,6 +185,34 @@ class DevelopmentLifecycleTest < Minitest::Test
     assert_includes error.message, "another checkout"
   end
 
+  def test_windows_process_liveness_requires_a_matching_cim_process
+    lifecycle = build_lifecycle
+    lifecycle.define_singleton_method(:capture) { |*_arguments, **_options| ["4242\n", true] }
+    original_win_platform = Gem.method(:win_platform?)
+    Gem.singleton_class.send(:define_method, :win_platform?) { true }
+
+    assert lifecycle.send(:process_alive?, 4242)
+
+    lifecycle.define_singleton_method(:capture) { |*_arguments, **_options| ["4241\n", true] }
+    refute lifecycle.send(:process_alive?, 4242)
+  ensure
+    Gem.singleton_class.send(:define_method, :win_platform?, original_win_platform) if original_win_platform
+  end
+
+  def test_windows_process_liveness_fails_closed_when_cim_query_fails
+    lifecycle = build_lifecycle
+    lifecycle.define_singleton_method(:capture) { |*_arguments, **_options| ["CIM unavailable", false] }
+    original_win_platform = Gem.method(:win_platform?)
+    Gem.singleton_class.send(:define_method, :win_platform?) { true }
+
+    error = assert_raises(Apply::DevelopmentLifecycle::Failure) do
+      lifecycle.send(:process_alive?, 4242)
+    end
+    assert_includes error.message, "could not verify whether Windows PID 4242 is running"
+  ensure
+    Gem.singleton_class.send(:define_method, :win_platform?, original_win_platform) if original_win_platform
+  end
+
   def test_refresh_refuses_diverged_git_before_changing_head
     remote = File.join(@temporary_directory, "remote.git")
     seed = File.join(@temporary_directory, "seed")

@@ -922,6 +922,15 @@ module Apply
     end
 
     def process_alive?(pid)
+      if Gem.win_platform?
+        output, ok = capture(
+          "powershell", "-NoProfile", "-Command",
+          "(Get-CimInstance Win32_Process -Filter \"ProcessId = #{pid}\" -ErrorAction Stop).ProcessId"
+        )
+        fail_with("could not verify whether Windows PID #{pid} is running") unless ok
+        return output.lines.any? { |line| Integer(line.strip, 10) == pid rescue false }
+      end
+
       Process.kill(0, pid)
       true
     rescue Errno::ESRCH

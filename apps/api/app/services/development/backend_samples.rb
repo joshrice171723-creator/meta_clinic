@@ -444,7 +444,7 @@ module Development
           Clinic::Scheduling::CloseEncounter.call(encounter: encounter, actor: actor, ended_at: started_at + 35.minutes,
             request_key: "synthetic-encounter-close-#{encounter.id}")
         end
-        if appointment.status == "confirmed"
+        if appointment.reload.status == "confirmed"
           Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: actor, to: "completed")
         end
       end

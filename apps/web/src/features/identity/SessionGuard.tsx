@@ -30,13 +30,15 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   const alive = useRef(true);
 
   const accept = (policy: SessionPolicy | undefined) => {
-    if (!policy || !alive.current) return;
+    if (!alive.current) return;
+    if (!policy) throw new Error("Session timing is unavailable.");
     const serverTime = Date.parse(policy.server_time);
     const expires = Math.min(
       Date.parse(policy.idle_expires_at),
       Date.parse(policy.absolute_expires_at),
     );
-    if (!Number.isFinite(serverTime) || !Number.isFinite(expires)) return;
+    if (!Number.isFinite(serverTime) || !Number.isFinite(expires))
+      throw new Error("Session timing is unavailable.");
     deadline.current = Date.now() + Math.max(0, expires - serverTime);
     setRemaining(Math.max(0, Math.ceil((expires - serverTime) / 1000)));
     setExpired(expires <= serverTime);
@@ -125,6 +127,21 @@ export function SessionGuard({ children }: { children: ReactNode }) {
         <Button variant="contained" onClick={signIn}>
           Sign in again
         </Button>
+      </Box>
+    );
+  if (remaining === null)
+    return (
+      <Box component="main" sx={{ maxWidth: 520, mx: "auto", my: 10, p: 3 }}>
+        {error ? (
+          <Alert
+            severity="warning"
+            action={<Button onClick={() => void check(false)}>Retry</Button>}
+          >
+            Your session could not be confirmed. Reconnect to reopen your workspace.
+          </Alert>
+        ) : (
+          <Typography role="status">Checking your session…</Typography>
+        )}
       </Box>
     );
   return (
