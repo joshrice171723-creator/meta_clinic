@@ -82,10 +82,11 @@ module Identity
       private
 
       def session_user(user)
+        demo = development_demo?
         preview = Development::TestAccounts.preview_account_for(user,
-          profile: session[:development_test_profile]) if development_demo?
+          profile: session[:development_test_profile]) if demo
         user.as_json(only: %i[id email_address admin]).merge(
-          development_demo: !!development_demo?,
+          development_demo: !!demo,
           development_account_id: preview&.fetch(:id, nil)
         )
       end

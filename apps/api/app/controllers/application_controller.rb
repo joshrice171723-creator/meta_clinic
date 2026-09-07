@@ -47,19 +47,24 @@ class ApplicationController < ActionController::Base
   end
 
   def development_demo?
+    return @development_demo if defined?(@development_demo)
+
     record = current_member_session
-    if session[:development_test_profile]
-      return DevelopmentAccess.allowed?(request) && record &&
+    @development_demo = if session[:development_test_profile]
+      DevelopmentAccess.allowed?(request) && record &&
         session[:development_demo_user_id] == record.user_id &&
         Development::TestAccounts.matches?(record.user, session[:development_test_profile])
+    else
+      DevelopmentAccess.allowed?(request) && record && !record.user.admin? &&
+        session[:development_demo_user_id] == record.user_id
     end
-    DevelopmentAccess.allowed?(request) && record && !record.user.admin? &&
-      session[:development_demo_user_id] == record.user_id
   end
 
   def development_omni?
+    return @development_omni if defined?(@development_omni)
+
     record = current_member_session
-    DevelopmentAccess.allowed?(request) && record &&
+    @development_omni = DevelopmentAccess.allowed?(request) && record &&
       session[:development_test_profile] == "omni" &&
       session[:development_demo_user_id] == record.user_id &&
       Development::TestAccounts.matches?(record.user, "omni")
