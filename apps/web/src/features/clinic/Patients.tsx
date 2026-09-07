@@ -1,12 +1,18 @@
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
 } from "@mui/material";
-import { useRef, useState } from "react";
+import SearchIcon from "@mui/icons-material/Search";
+import { useEffect, useRef, useState } from "react";
 import type { Encounter, Pagination, Patient } from "../../api/contracts";
 import {
   Card,
@@ -63,6 +69,7 @@ export function Patients({ id }: { id?: string }) {
       <a className="text-link" href="/clinic">
         Return to tracking board →
       </a>
+      {clinic.capabilities.patient_identity_read === true && <PatientLookup />}
       <Card title="Patient directory">
         {data.patients?.length === 0 ? (
           <p>No patients are registered at this location yet.</p>
@@ -114,6 +121,145 @@ export function Patients({ id }: { id?: string }) {
         </Card>
       )}
     </>
+  );
+}
+
+function PatientLookup() {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const normalizedQuery = query.trim();
+  const canSearch = normalizedQuery.length >= 2;
+  const lookupQuery =
+    canSearch && debouncedQuery === normalizedQuery ? debouncedQuery : null;
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedQuery(normalizedQuery),
+      300,
+    );
+    return () => window.clearTimeout(timer);
+  }, [normalizedQuery]);
+
+  return (
+    <Card title="Find an existing patient">
+      <Stack spacing={1.5}>
+        <Typography color="text.secondary">
+          Search by name or clinic reference before registering a new patient.
+        </Typography>
+        <TextField
+          fullWidth
+          label="Patient name or clinic reference"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          slotProps={{
+            htmlInput: { maxLength: 100 },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon aria-hidden="true" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          helperText="Enter at least 2 characters. Results are limited to 25 matching records."
+        />
+        {!canSearch && normalizedQuery.length > 0 && (
+          <Typography color="text.secondary" role="status">
+            Enter at least 2 characters to search.
+          </Typography>
+        )}
+        {canSearch && !lookupQuery && (
+          <Typography color="text.secondary" role="status">
+            Updating search…
+          </Typography>
+        )}
+        {lookupQuery && <PatientLookupResults query={lookupQuery} />}
+      </Stack>
+    </Card>
+  );
+}
+
+function PatientLookupResults({ query }: { query: string }) {
+  const lookup = useResource<{ patients: Patient[]; pagination: Pagination }>(
+    `/api/clinic/patients/lookup?q=${encodeURIComponent(query)}&page=1&per_page=25`,
+  );
+
+  if (!lookup.data && !lookup.error)
+    return (
+      <Typography color="text.secondary" role="status">
+        Finding matching patients…
+      </Typography>
+    );
+  if (lookup.error)
+    return (
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" onClick={lookup.refresh} size="small">
+            Retry
+          </Button>
+        }
+      >
+        {lookup.error}
+      </Alert>
+    );
+  if (!lookup.data?.patients.length)
+    return (
+      <Typography color="text.secondary">
+        No matching patients were found. You can still register a new patient
+        below.
+      </Typography>
+    );
+
+  return (
+    <Stack
+      component="ul"
+      spacing={1}
+      sx={{ listStyle: "none", m: 0, p: 0 }}
+      aria-label="Matching patients"
+    >
+      {lookup.data.patients.map((patient) => (
+        <Box
+          component="li"
+          key={patient.id}
+          sx={{
+            alignItems: { sm: "center" },
+            border: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 1,
+            justifyContent: "space-between",
+            p: 1.5,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontWeight: 600 }}>
+              {patient.display_name}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              Clinic reference:{" "}
+              {patientReferenceLabel(patient.reference) ?? "Not recorded"}
+            </Typography>
+          </Box>
+          <Button
+            component="a"
+            href={`/clinic/patients/${patient.id}`}
+            variant="outlined"
+          >
+            Open patient
+          </Button>
+        </Box>
+      ))}
+      {lookup.data.pagination.total > lookup.data.patients.length && (
+        <Box component="li">
+          <Typography color="text.secondary" variant="body2">
+            More than 25 matches were found. Use a more specific name or clinic
+            reference.
+          </Typography>
+        </Box>
+      )}
+    </Stack>
   );
 }
 

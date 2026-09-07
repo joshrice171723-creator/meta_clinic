@@ -84,11 +84,12 @@ export function OperationsView({
             {facilitiesRead && (
               <li>
                 <a className="text-link" href="/clinic/facilities">
-                  Facilities →
+                  Facilities and visit types →
                 </a>
                 <p>
-                  Maintain each clinic site's identity, address, contacts and
-                  operating hours. Inventory storage locations stay separate.
+                  Maintain clinic sites, operating hours and the visit choices
+                  used for scheduling. Inventory storage locations stay
+                  separate.
                 </p>
               </li>
             )}

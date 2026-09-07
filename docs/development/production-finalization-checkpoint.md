@@ -31,10 +31,15 @@ Docker and WSL are running again after the interrupted WSL shutdown. Both stale 
 
 ## Continue here
 
-1. Leave the verified appointment and delivery workflows frozen unless a concrete regression appears.
-2. Select the next high-value incomplete clinic workflow outside the recently completed scheduling, inventory, charting, billing, and follow-up slices.
-3. Use one cohesive implementation pass and focused verification, then commit only owned files. Preserve the eleven original unrelated modified files, including the pre-existing database structure changes.
+Patient directory search now uses the existing authorized name/reference lookup, with a 300 ms debounce, minimum/maximum query bounds, stale-result suppression, retry, and a bounded match list. Live checks covered minimum length, name and reference matches, no match, and opening the exact returned patient record.
 
-Account usage was 68% used at 07:46 UTC, up from 66% when resumed. The broader mission started around 48%; continue within the user's approximate 50-percentage-point allowance and leave both resets untouched.
+Visit-type setup is available from Operations → Facilities and visit types. Staff can create, rename, deactivate, and reactivate backend-owned scheduling choices. Writes are idempotent and require practice-wide authority; the API supplies an authoritative write flag. All five focused facilities cases passed across the original and affected repair runs; the final capability case passed with 11 assertions. Live creation, renaming, deactivation, and reactivation passed. The route contract now contains 338 routes and its focused check passed with 339 assertions. The consolidated frontend build/typecheck passed (`tmp/production-finalization/web-patients-visit-types-build.log`).
+
+1. Leave verified milestones frozen unless a concrete regression appears.
+2. Next parallel lanes: operationalize the existing real-provider AI Scribe workflow, and improve the encounter-to-checkout revenue handoff. Prioritize meaningful staff/provider labor savings and commercial usefulness.
+3. Do not prioritize role-system work or address encryption. The user confirmed all databases contain fictional development data, no real PHI, and no live users. The abandoned address slice was fully removed without migrations or database changes.
+4. Use one cohesive implementation pass and focused verification, then commit only owned files. Preserve the eleven original unrelated modified files, including the pre-existing database structure changes.
+
+The original goal was reread at the user's request. Latest budget authority permits the full remaining weekly allowance for correct, useful product work; both resets remain reserved for the user. Last observed account usage was 68% used. The replacement 45-minute heartbeat is `apply-delivery-and-delegation-review`, using the user's supplied reviewer prompt; its first requested run returned `NO CHANGE` internally. Reviews should guide model choice, delegation, product value, and repetition without interrupting productive work.
 
 The application has not been certified production-ready or HIPAA compliant. Existing unrelated working-tree changes were intentionally left outside these commits.

@@ -490,6 +490,16 @@
     "/api/clinic/tracking_board(.:format)"
   ],
   [
+    "api_clinic_visit_type",
+    "PATCH",
+    "/api/clinic/visit_types/:id(.:format)"
+  ],
+  [
+    "api_clinic_visit_types",
+    "POST",
+    "/api/clinic/visit_types(.:format)"
+  ],
+  [
     "api_clinic_workforce",
     "PATCH",
     "/api/clinic/workforce/onboarding/:id(.:format)"
@@ -1648,6 +1658,11 @@
     null,
     "PUT",
     "/api/clinic/staff/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/visit_types/:id(.:format)"
   ],
   [
     null,

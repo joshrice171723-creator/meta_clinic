@@ -10,6 +10,7 @@ Rails.application.routes.draw do
     get "facilities", to: "facilities#index"
     post "facilities", to: "facilities#create"
     patch "facilities/:id", to: "facilities#update"
+    resources :visit_types, only: %i[create update]
     resources :clinicians, controller: "clinicians", only: :index
     resources :role_versions, controller: "role_versions", only: :index
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do

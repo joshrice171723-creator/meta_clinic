@@ -22,7 +22,17 @@ module Clinic
       when "visit_types" then ->(record) { FacilitySerializer.visit_type(record) }
       end
       order = type == "rooms" ? { code: :asc, site_id: :asc, id: :asc } : { code: :asc, id: :asc }
-      paginate(records, key: type, serializer: serializer, order: order)
+      if type == "visit_types"
+        visit_types, pagination = paginated_records(records, order: order)
+        render json: {
+          visit_types: visit_types.map { |visit_type| serializer.call(visit_type) },
+          pagination: pagination,
+          can_write: current_ability.practice_scope_for?("facilities.write") ||
+            current_ability.practice_scope_for?("appointments.write")
+        }
+      else
+        paginate(records, key: type, serializer: serializer, order: order)
+      end
     end
 
     def create

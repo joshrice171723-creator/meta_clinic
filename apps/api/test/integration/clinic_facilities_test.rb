@@ -79,6 +79,72 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_equal "Other clinic", other_site.reload.name
   end
 
+  test "visit types validate names, replay creates safely, and retire without deletion" do
+    post "/api/clinic/visit_types", params: {
+      visit_type: { request_key: "visit-type-invalid", code: "  " }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :bad_request
+    assert_equal 0, @practice.visit_types.count
+
+    payload = { visit_type: { request_key: "visit-type-create", code: "Annual wellness" } }
+    post "/api/clinic/visit_types", params: payload, headers: csrf_headers, as: :json
+
+    assert_response :created
+    visit_type = response.parsed_body.fetch("visit_type")
+    assert_equal "Annual wellness", visit_type.fetch("code")
+
+    post "/api/clinic/visit_types", params: payload, headers: csrf_headers, as: :json
+
+    assert_response :success
+    assert_equal 1, @practice.visit_types.where(code: "Annual wellness").count
+
+    patch "/api/clinic/visit_types/#{visit_type.fetch("id")}", params: {
+      visit_type: { request_key: "visit-type-retire", active: false }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :success
+    assert response.parsed_body.dig("visit_type", "retired_at").present?
+    assert_equal 1, @practice.visit_types.where(id: visit_type.fetch("id")).count
+  end
+
+  test "visit type writes require practice authority and stay tenant scoped" do
+    limited = User.create!(email_address: "facility-site-writer@example.invalid", password: @password)
+    limited_membership = @practice.memberships.create!(user: limited)
+    site = @practice.sites.create!(code: "GRANT-SITE", name: "Grant test site")
+    grant_permissions!(limited_membership, "appointments.write", scope_kind: "site", site: site)
+    grant_permissions!(limited_membership, "facilities.read")
+    post "/api/session", params: { email_address: limited.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+
+    get "/api/clinic/facilities", params: { type: "visit_types" }, headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.fetch("can_write")
+
+    post "/api/clinic/visit_types", params: {
+      visit_type: { request_key: "visit-type-site-denied", code: "Site-only type" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :forbidden
+    assert_not @practice.visit_types.exists?(code: "Site-only type")
+
+    post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/facilities", params: { type: "visit_types" }, headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("can_write")
+    other_user = User.create!(email_address: "visit-type-other@example.invalid", password: @password)
+    other_membership = Development::TestClinic.create!(other_user)
+    other_visit_type = other_membership.practice.visit_types.create!(code: "Other practice type")
+
+    patch "/api/clinic/visit_types/#{other_visit_type.id}", params: {
+      visit_type: { request_key: "visit-type-foreign", active: false }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :not_found
+    assert_nil other_visit_type.reload.retired_at
+  end
+
   private
 
   def csrf_headers
