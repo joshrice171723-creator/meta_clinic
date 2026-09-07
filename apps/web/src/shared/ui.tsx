@@ -8,7 +8,10 @@ export function ErrorMessage({ message }: { message: string }) {
     </p>
   );
 }
-export function useResource<T>(path: string) {
+export function useResource<T>(
+  path: string,
+  { retainDataOnRefresh = false }: { retainDataOnRefresh?: boolean } = {},
+) {
   const [result, setResult] = useState<{
     path: string;
     data?: T;
@@ -17,7 +20,11 @@ export function useResource<T>(path: string) {
   const [revision, revise] = useState(0);
   useEffect(() => {
     const abort = new AbortController();
-    setResult({ path });
+    setResult((current) =>
+      retainDataOnRefresh && current.path === path && current.data !== undefined
+        ? { path, data: current.data }
+        : { path },
+    );
     api<T>(path, { signal: abort.signal })
       .then((data) => setResult({ path, data }))
       .catch((error: unknown) => {
@@ -35,7 +42,7 @@ export function useResource<T>(path: string) {
         });
       });
     return () => abort.abort();
-  }, [path, revision]);
+  }, [path, retainDataOnRefresh, revision]);
   return {
     ...(result.path === path ? result : { path }),
     refresh: () => revise((n) => n + 1),

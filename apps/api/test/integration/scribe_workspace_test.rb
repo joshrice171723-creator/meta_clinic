@@ -38,6 +38,29 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     assert_empty response.parsed_body.fetch("encounters")
   end
 
+  test "visit launch lookup resumes only the requested patient and clinical encounter" do
+    visits = [create_clinical_encounter, create_clinical_encounter]
+    sessions = visits.map do |visit|
+      post "/api/clinic/scribe/encounters", params: { encounter: {
+        patient_id: @patient.id, clinical_encounter_id: visit.id
+      } }, headers: csrf_headers, as: :json
+      assert_response :created
+      response.parsed_body.fetch("encounter")
+    end
+    get "/api/clinic/scribe/encounters", params: {
+      patient_id: @patient.id, clinical_encounter_id: visits.first.id, per_page: 1
+    }, headers: @headers
+    assert_response :success
+    assert_equal [sessions.first.fetch("id")], response.parsed_body.fetch("encounters").pluck("id")
+
+    other_patient = @practice.patients.create!(display_name: "Morgan, Casey", reference: "PAT-SCRIBE-002")
+    get "/api/clinic/scribe/encounters", params: {
+      patient_id: other_patient.id, clinical_encounter_id: visits.first.id
+    }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("encounters")
+  end
+
   test "template catalog exposes SOAP and keeps labs disabled without an authorized source" do
     get "/api/clinic/scribe/templates", headers: @headers
     assert_response :success

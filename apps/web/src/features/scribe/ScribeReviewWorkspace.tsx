@@ -755,9 +755,10 @@ export function ScribeReviewWorkspace({
     hasUnsavedEdits ||
     !isFreshCurrentRevision ||
     !onExport;
-  const unresolvedCount =
-    draft.sections.filter((section) => unresolvedReasons(section).length > 0)
-      .length + draft.warnings.length;
+  const blockingReviewCount = draft.sections.filter(
+    (section) => unresolvedReasons(section).length > 0,
+  ).length;
+  const reviewItemCount = blockingReviewCount + draft.warnings.length;
   const saveState = pendingAction?.startsWith("review:")
     ? "Saving…"
     : hasUnsavedEdits
@@ -894,7 +895,7 @@ export function ScribeReviewWorkspace({
               startIcon={<FactCheckOutlinedIcon />}
               onClick={() => setDrawerOpen(true)}
             >
-              Review{unresolvedCount > 0 ? ` (${unresolvedCount})` : ""}
+              Review{reviewItemCount > 0 ? ` (${reviewItemCount})` : ""}
             </Button>
           </Stack>
         </Stack>
@@ -1135,19 +1136,21 @@ export function ScribeReviewWorkspace({
               >
                 {hasUnsavedEdits
                   ? "Save or discard edits before approval."
-                  : unresolvedCount > 0
-                    ? `Resolve ${unresolvedCount} review ${unresolvedCount === 1 ? "item" : "items"} before approval.`
-                    : approved
-                      ? "This exact revision is approved."
-                      : "Review complete. Approval remains a separate action."}
+                  : reviewSummary.unresolved && blockingReviewCount > 0
+                    ? `Resolve ${blockingReviewCount} review ${blockingReviewCount === 1 ? "item" : "items"} before approval.`
+                    : reviewSummary.unresolved
+                      ? "Complete the required review before approval."
+                      : approved
+                        ? "This exact revision is approved."
+                        : "Review complete. Approval remains a separate action."}
               </Typography>
               <Typography
                 id="scribe-export-help"
                 variant="caption"
                 color="text.secondary"
               >
-                Export control is shown separately and does not write an
-                official record until explicitly confirmed.
+                Saving to chart writes an unsigned note only after explicit
+                confirmation. Signing remains a separate action.
               </Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -1183,7 +1186,7 @@ export function ScribeReviewWorkspace({
                   ? "Saved to chart"
                   : reviewSummary.exported
                     ? "Export recorded"
-                    : "Request separate export"}
+                    : "Save to chart"}
               </Button>
               {reviewSummary.chartWritten &&
                 encounter.clinical_encounter_id && (

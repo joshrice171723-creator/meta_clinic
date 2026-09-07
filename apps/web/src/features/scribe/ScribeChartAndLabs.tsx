@@ -33,6 +33,19 @@ type Props = {
   onChanged: () => void;
 };
 
+function visitTime(value?: string | null) {
+  if (!value) return "Time not recorded";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return "Time not recorded";
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function ScribeChartAndLabs({
   scribeEncounterId,
   patientId,
@@ -114,7 +127,7 @@ export function ScribeChartAndLabs({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Unable to bind the clinical encounter.",
+          : "Unable to link the visit.",
       );
     } finally {
       setBusy(false);
@@ -166,11 +179,11 @@ export function ScribeChartAndLabs({
         <Box>
           <Typography variant="subtitle1">Chart and labs</Typography>
           <Typography variant="body2" color="text.secondary">
-            Bind this scribe session to one recorded clinical encounter and
-            choose reviewed lab versions as note context.
+            Link this Scribe session to one recorded visit and choose reviewed
+            lab versions as note context.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            The encounter list shows the most recent recorded encounters.
+            The visit list shows the most recent recorded visits.
           </Typography>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
@@ -181,16 +194,16 @@ export function ScribeChartAndLabs({
         )}
         <TextField
           select
-          label="Clinical encounter"
+          label="Visit"
           value={selectedEncounter || String(clinicalEncounterId ?? "")}
           onChange={(event) => setSelectedEncounter(event.target.value)}
           disabled={!canBind || busy || hasUnsavedReview}
         >
-          <MenuItem value="">Choose encounter</MenuItem>
+          <MenuItem value="">Choose visit</MenuItem>
           {encounters.map((item) => (
             <MenuItem key={item.id} value={item.id}>
-              #{item.id} · {item.status} ·{" "}
-              {item.occurred_at || item.started_at || "Date not recorded"}
+              Visit #{item.id} · {item.status} ·{" "}
+              {visitTime(item.occurred_at || item.started_at)}
             </MenuItem>
           ))}
         </TextField>
@@ -199,7 +212,7 @@ export function ScribeChartAndLabs({
           disabled={!canBind || !selectedEncounter || busy || hasUnsavedReview}
           onClick={() => void bind()}
         >
-          Bind encounter
+          Link visit
         </Button>
         <Stack spacing={0.5}>
           {staleSelections.length > 0 && (

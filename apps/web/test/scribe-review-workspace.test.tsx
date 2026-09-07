@@ -161,9 +161,9 @@ describe("synthetic AI scribe review workspace", () => {
     );
     expect(html).toContain("Approval and export");
     expect(html).toContain("Approve current draft");
-    expect(html).toContain("Request separate export");
-    expect(html).toContain("Export control is shown separately");
-    expect(html).toContain("does not write an official record");
+    expect(html).toContain("Save to chart");
+    expect(html).toContain("Saving to chart writes an unsigned note");
+    expect(html).toContain("Signing remains a separate action");
   });
 
   it("renders loading, error, empty, and unknown states with recovery or blocking language", () => {

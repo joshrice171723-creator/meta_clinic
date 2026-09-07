@@ -8,6 +8,10 @@ module Clinic
 
       def index
         scope = current_practice.scribe_encounters.accessible_by(current_ability, :read).includes(:patient)
+        scope = scope.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
+        if params[:clinical_encounter_id].present?
+          scope = scope.where(clinical_encounter_id: requested_id!(params[:clinical_encounter_id], :clinical_encounter_id))
+        end
         if params[:q].present?
           patients = Clinic::Care::PatientNameSearch.search(scope: current_practice.patients.where(id: scope.select(:patient_id)),
             practice_id: current_practice.id, query: params[:q])

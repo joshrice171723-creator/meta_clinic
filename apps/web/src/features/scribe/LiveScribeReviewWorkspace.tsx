@@ -152,6 +152,29 @@ export function scribeReturnTarget(search: string) {
   return { encounterId, review: params.get("review") === "1" };
 }
 
+export function scribeContextTarget(search: string) {
+  const params = new URLSearchParams(search);
+  const rawPatientId = params.get("patient_id");
+  const rawEncounterId = params.get("clinical_encounter_id");
+  if (
+    !rawPatientId ||
+    !rawEncounterId ||
+    !/^\d+$/.test(rawPatientId) ||
+    !/^\d+$/.test(rawEncounterId)
+  )
+    return null;
+  const patientId = Number(rawPatientId);
+  const clinicalEncounterId = Number(rawEncounterId);
+  if (
+    !Number.isSafeInteger(patientId) ||
+    patientId <= 0 ||
+    !Number.isSafeInteger(clinicalEncounterId) ||
+    clinicalEncounterId <= 0
+  )
+    return null;
+  return { patientId, clinicalEncounterId };
+}
+
 export function LiveScribeReviewWorkspace() {
   const { capabilities, current_site, membership_id } = useClinic();
   const { registerBlocker } = useClinicNavigation();
@@ -185,6 +208,8 @@ export function LiveScribeReviewWorkspace() {
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(
     null,
   );
+  const [contextualClinicalEncounterId, setContextualClinicalEncounterId] =
+    useState<number | null>(null);
   const [selectedEncounterId, setSelectedEncounterId] = useState<number | null>(
     null,
   );
@@ -367,6 +392,102 @@ export function LiveScribeReviewWorkspace() {
     [isCurrent, loadEncounter, scopeKey],
   );
 
+  const prepareContextualLaunch = useCallback(
+    async (
+      target: { patientId: number; clinicalEncounterId: number },
+      reconciliation = false,
+    ) => {
+      const requestScope = scopeKey;
+      const requestVersion = ++listVersion.current;
+      setReviewState({
+        kind: "loading",
+        message: reconciliation
+          ? "Checking for the linked Scribe session…"
+          : "Checking this patient and visit…",
+      });
+      try {
+        const encounterResult = await api<{
+          encounter: { id: number; patient_id: number };
+        }>(
+          `/api/clinic/encounters/${target.clinicalEncounterId}?patient_id=${target.patientId}`,
+        );
+        if (
+          encounterResult.encounter.id !== target.clinicalEncounterId ||
+          encounterResult.encounter.patient_id !== target.patientId
+        )
+          throw new Error(
+            "The selected visit does not match the intended patient.",
+          );
+        const patientResult = await api<{ patient: PatientOption }>(
+          `/api/clinic/patients/${target.patientId}`,
+        );
+        if (patientResult.patient.id !== target.patientId)
+          throw new Error("The selected patient could not be verified.");
+        const result = await api<EncounterIndex>(
+          `/api/clinic/scribe/encounters?page=1&per_page=${PAGE_SIZE}&patient_id=${target.patientId}&clinical_encounter_id=${target.clinicalEncounterId}`,
+        );
+        if (
+          !isCurrent(requestScope) ||
+          requestVersion !== listVersion.current
+        )
+          return;
+        const existing = result.encounters.find(
+          (item) =>
+            item.patient_id === target.patientId &&
+            item.clinical_encounter_id === target.clinicalEncounterId &&
+            item.status !== "deleted",
+        );
+        setSummaries(result.encounters);
+        setPage(result.pagination.page);
+        setTotalPages(result.pagination.total_pages);
+        setLoadingMore(false);
+        if (existing) {
+          newSessionRef.current = false;
+          setNewSession(false);
+          setSelectedPatient(null);
+          setContextualClinicalEncounterId(null);
+          selectedEncounterRef.current = existing.id;
+          setSelectedEncounterId(existing.id);
+          setOutcomeUnknown(null);
+          setActionError(null);
+          await loadEncounter(existing.id);
+          return;
+        }
+        if (reconciliation) {
+          setActionError(
+            "No linked Scribe session was found. The earlier creation outcome remains unconfirmed; do not start another session.",
+          );
+          return;
+        }
+        newSessionRef.current = true;
+        setNewSession(true);
+        setSelectedPatient(patientResult.patient);
+        setContextualClinicalEncounterId(target.clinicalEncounterId);
+        selectedEncounterRef.current = null;
+        setSelectedEncounterId(null);
+        setEncounter(null);
+        setActionError(null);
+        setReviewState({
+          kind: "empty",
+          message: "Confirm the linked patient and visit, then start the session.",
+        });
+      } catch (reason) {
+        if (
+          isCurrent(requestScope) &&
+          requestVersion === listVersion.current
+        ) {
+          const message = errorMessage(
+            reason,
+            "Unable to verify the intended patient and visit.",
+          );
+          setActionError(message);
+          setReviewState({ kind: "error", message });
+        }
+      }
+    },
+    [isCurrent, loadEncounter, scopeKey],
+  );
+
   useEffect(() => {
     mounted.current = true;
     selectedEncounterRef.current = null;
@@ -375,6 +496,7 @@ export function LiveScribeReviewWorkspace() {
     newSessionRef.current = false;
     setNewSession(false);
     setSelectedPatient(null);
+    setContextualClinicalEncounterId(null);
     setEncounter(null);
     setTranscript("");
     setTemplates([]);
@@ -385,11 +507,13 @@ export function LiveScribeReviewWorkspace() {
     setHasUnsavedReviewEdits(false);
     setFollowCurrentDraftId(null);
     const returnTarget = scribeReturnTarget(locationSearch);
+    const contextTarget = scribeContextTarget(locationSearch);
     returnReviewEncounterRef.current = returnTarget?.review
       ? returnTarget.encounterId
       : null;
     skipNextSearchRef.current = true;
-    void loadIndex(returnTarget?.encounterId);
+    if (contextTarget) void prepareContextualLaunch(contextTarget);
+    else void loadIndex(returnTarget?.encounterId);
     void api<{ templates: ScribeTemplate[] }>("/api/clinic/scribe/templates")
       .then((result) => {
         if (!isCurrent(scopeKey)) return;
@@ -405,7 +529,13 @@ export function LiveScribeReviewWorkspace() {
             errorMessage(reason, "Unable to load note templates."),
           );
       });
-  }, [isCurrent, loadIndex, locationSearch, scopeKey]);
+  }, [
+    isCurrent,
+    loadIndex,
+    locationSearch,
+    prepareContextualLaunch,
+    scopeKey,
+  ]);
 
   useEffect(() => {
     if (skipNextSearchRef.current) {
@@ -465,6 +595,7 @@ export function LiveScribeReviewWorkspace() {
     setNewSession(false);
     newSessionRef.current = false;
     setSelectedPatient(null);
+    setContextualClinicalEncounterId(null);
     setFollowCurrentDraftId(null);
     selectedEncounterRef.current = id;
     setSelectedEncounterId(id);
@@ -485,6 +616,7 @@ export function LiveScribeReviewWorkspace() {
     setNewSession(true);
     newSessionRef.current = true;
     setSelectedPatient(null);
+    setContextualClinicalEncounterId(null);
     setFollowCurrentDraftId(null);
     selectedEncounterRef.current = null;
     setSelectedEncounterId(null);
@@ -540,7 +672,11 @@ export function LiveScribeReviewWorkspace() {
             body: {
               encounter: {
                 patient_id: selectedPatient.id,
-                site_id: current_site?.id,
+                ...(contextualClinicalEncounterId
+                  ? {
+                      clinical_encounter_id: contextualClinicalEncounterId,
+                    }
+                  : { site_id: current_site?.id }),
                 ...(content
                   ? { context: { content, source_type: "reviewer_authored" } }
                   : {}),
@@ -549,9 +685,19 @@ export function LiveScribeReviewWorkspace() {
           },
         );
         if (!isCurrent(scopeKey)) return;
+        if (
+          contextualClinicalEncounterId &&
+          (result.encounter.patient_id !== selectedPatient.id ||
+            result.encounter.clinical_encounter_id !==
+              contextualClinicalEncounterId)
+        )
+          throw new Error(
+            "The created Scribe session did not match the intended patient and visit.",
+          );
         setNewSession(false);
         newSessionRef.current = false;
         setSelectedPatient(null);
+        setContextualClinicalEncounterId(null);
         selectedEncounterRef.current = result.encounter.id;
         setSelectedEncounterId(result.encounter.id);
         adoptEncounter(result.encounter);
@@ -1027,6 +1173,7 @@ export function LiveScribeReviewWorkspace() {
       selectedId={selectedEncounterId}
       search={railSearch}
       disabled={
+        Boolean(outcomeUnknown) ||
         pendingAction !== null ||
         hasUnsavedReviewEdits ||
         hasUnsavedContext ||
@@ -1076,11 +1223,15 @@ export function LiveScribeReviewWorkspace() {
                 action={
                   <Button
                     color="inherit"
-                    onClick={() =>
-                      selectedEncounterRef.current
-                        ? void loadEncounter(selectedEncounterRef.current)
-                        : void loadIndex()
-                    }
+                    onClick={() => {
+                      if (selectedEncounterRef.current) {
+                        void loadEncounter(selectedEncounterRef.current);
+                        return;
+                      }
+                      const target = scribeContextTarget(locationSearch);
+                      if (target) void prepareContextualLaunch(target, true);
+                      else void loadIndex();
+                    }}
                   >
                     Reload
                   </Button>
@@ -1159,7 +1310,11 @@ export function LiveScribeReviewWorkspace() {
                 <ScribePatientPicker
                   value={selectedPatient}
                   onChange={setSelectedPatient}
-                  disabled={pendingAction !== null}
+                  disabled={
+                    !canWrite ||
+                    pendingAction !== null ||
+                    contextualClinicalEncounterId !== null
+                  }
                   scopeKey={scopeKey}
                 />
               ) : (
@@ -1222,11 +1377,15 @@ export function LiveScribeReviewWorkspace() {
           {newSession ? (
             <Button
               variant="contained"
-              disabled={!selectedPatient || pendingAction !== null}
+              disabled={
+                !canWrite || !selectedPatient || pendingAction !== null
+              }
               onClick={() => void createEncounter().catch(() => undefined)}
               sx={{ height: 36 }}
             >
-              Start session
+              {contextualClinicalEncounterId
+                ? "Start linked session"
+                : "Start session"}
             </Button>
           ) : (
             <Stack
@@ -1436,8 +1595,9 @@ export function LiveScribeReviewWorkspace() {
                 Start a new session
               </Typography>
               <Typography color="text.secondary">
-                Choose the patient above, then add visit context or import a
-                transcript.
+                {contextualClinicalEncounterId
+                  ? `Start a Scribe session for the verified patient and visit #${contextualClinicalEncounterId}. Consent is still required before recording or processing.`
+                  : "Choose the patient above, then add visit context or import a transcript."}
               </Typography>
             </Box>
           ) : activeTab === "context" ? (
@@ -1882,7 +2042,7 @@ export function LiveScribeReviewWorkspace() {
             {confirmation?.kind === "export" &&
               (confirmation.correctionTarget
                 ? `Append this approved Scribe revision as a correction to chart note #${confirmation.correctionTarget.noteId}, revision ${confirmation.correctionTarget.revisionNo}? The signed note remains unchanged.`
-                : "Export this exact approved revision to the parent record? Approval alone never exports.")}
+                : `Save this reviewed draft as an unsigned note in ${patient?.display_name ?? "this patient"}'s visit? Signing remains a separate action.`)}
             {confirmation?.kind === "delete" &&
               "Delete this session content under the configured retention workflow? This cannot be undone here."}
             {confirmation?.kind === "consent" &&

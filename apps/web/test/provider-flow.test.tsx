@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type {
   EncounterDetail,
   EncounterNote,
@@ -43,6 +43,47 @@ import {
 import { cliniciansForLocation } from "../src/features/clinic/trackingBoardData";
 import { EXAMPLE_CARE_SUMMARIES } from "./trackingBoardCareFixtures";
 import { EXAMPLE_VISITS } from "./trackingBoardFixtures";
+
+vi.mock("../src/features/clinic/Workspace", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../src/features/clinic/Workspace")>();
+
+  return {
+    ...actual,
+    useClinic: () => ({
+      schema_version: "clinic-context-v1",
+      user_id: 1,
+      practice: {
+        id: 1,
+        name: "Example clinic",
+        timezone: "America/Chicago",
+      },
+      membership_id: 1,
+      current_clinician_profile_id: "profile-1",
+      credentials: ["NP"],
+      policy_version: "clinic-authorization-v1",
+      capabilities: {
+        patients: true,
+        patients_write: true,
+        staff: true,
+        inventory: true,
+        appointments: true,
+        encounters: true,
+        notes_read: true,
+        notes_write: true,
+        documents: true,
+        messages: true,
+        billing_read: true,
+        billing: true,
+        roles: true,
+        scribe_read: true,
+        scribe_write: true,
+      },
+      current_site: null,
+      sites: [{ id: 1, code: "MAIN", timezone_override: null }],
+    }),
+  };
+});
 
 const patient: Patient = {
   id: 7,
@@ -526,6 +567,8 @@ describe("provider encounter workflow", () => {
     expect(html).toContain("Synthetic Patient");
     expect(html).toContain("Confirm and begin charting");
     expect(html).not.toContain("SOAP editor");
+    expect(html).not.toContain("Open Scribe");
+
   });
 
   it("offers chart quick links to patient, HPI, and ROS anchors", () => {
@@ -558,6 +601,12 @@ describe("provider encounter workflow", () => {
       notes: [{ ...note, signed: true }],
     };
     expect(encounterHasSignedSoapNote(signedEncounter)).toBe(true);
+    expect(
+      encounterHasSignedSoapNote({
+        ...signedEncounter,
+        notes: [{ ...note, signed: true, current_revision_signed: false }],
+      }),
+    ).toBe(false);
     const gateHtml = renderToStaticMarkup(
       <ProviderEncounterWorkflow
         patient={patient}

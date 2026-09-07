@@ -27,6 +27,7 @@ export type ScribeEncounterSummary = Pick<
   | "status"
   | "consent_status"
   | "version"
+  | "clinical_encounter_id"
   | "created_at"
   | "updated_at"
 > & { patient: NonNullable<ScribeEncounter["patient"]> };

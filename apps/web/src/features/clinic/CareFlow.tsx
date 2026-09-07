@@ -198,7 +198,9 @@ export function encounterNoteRefreshMatches(
 
 export function encounterHasSignedSoapNote(encounter: EncounterDetail) {
   return encounter.notes.some(
-    (note) => note.note_kind === "soap" && note.signed,
+    (note) =>
+      note.note_kind === "soap" &&
+      (note.current_revision_signed ?? note.signed),
   );
 }
 
@@ -1861,6 +1863,7 @@ export function ProviderEncounterWorkflow({
   onCareSummaryRefresh?: () => void;
   onEncounterRefresh?: () => void;
 }) {
+  const { capabilities } = useClinic();
   const [chartConfirmed, setChartConfirmed] = useState(false);
   const [chartType, setChartType] = useState("soap");
   const signedChart = encounterHasSignedSoapNote(encounter);
@@ -1889,7 +1892,25 @@ export function ProviderEncounterWorkflow({
         className="chart-anchor"
       >
         <Stack spacing={1}>
-          <Typography variant="subtitle2">Patient Demographics</Typography>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", justifyContent: "space-between" }}
+          >
+            <Typography variant="subtitle2">Patient Demographics</Typography>
+            {chartConfirmed &&
+              capabilities.scribe_read === true &&
+              capabilities.scribe_write === true &&
+              capabilities.notes_write === true && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  href={`/clinic/scribe?patient_id=${patient.id}&clinical_encounter_id=${encounter.id}`}
+                >
+                  Open Scribe
+                </Button>
+              )}
+          </Stack>
           <TableContainer>
             <Table size="small" className="patient-demographics-table">
               <TableBody>
@@ -2533,6 +2554,7 @@ export function EncounterPage({
   );
   const encounter = useResource<{ encounter: EncounterDetail }>(
     encounterDetailPath(patientId, encounterId),
+    { retainDataOnRefresh: true },
   );
   const observations = useResource<{
     observations: Observation[];
