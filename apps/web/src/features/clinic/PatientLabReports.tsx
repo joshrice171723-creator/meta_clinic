@@ -95,6 +95,26 @@ type Form = {
   results: LabResult[];
   confirmed: boolean;
 };
+type PatientScopedAttempt<T extends object> = T & { patientId: number };
+
+export function currentPatientAttempt<T extends { patientId: number }>(
+  attempt: T | null,
+  patientId: number,
+) {
+  return attempt?.patientId === patientId ? attempt : null;
+}
+
+export function isCurrentPatientRequest(
+  currentPatientId: number,
+  currentGeneration: number,
+  requestPatientId: number,
+  requestGeneration: number,
+) {
+  return (
+    currentPatientId === requestPatientId &&
+    currentGeneration === requestGeneration
+  );
+}
 const blankResult = (): LabResult => ({
   name: "",
   code: null,
@@ -207,18 +227,78 @@ export function PatientLabReports({
   const [followUpRetryPending, setFollowUpRetryPending] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [directReviewError, setDirectReviewError] = useState("");
-  const attempt = useRef<{ key: string; body: unknown; path: string } | null>(
-    null,
-  );
-  const reviewAttempt = useRef<{ body: unknown; path: string } | null>(null);
-  const followUpAttempt = useRef<{ body: unknown; path: string } | null>(null);
+  const [statePatientId, setStatePatientId] = useState(patientId);
+  const patientIdRef = useRef(patientId);
+  const patientGenerationRef = useRef(0);
+  patientIdRef.current = patientId;
+  const requestIsCurrent = (
+    requestPatientId: number,
+    requestGeneration: number,
+  ) =>
+    isCurrentPatientRequest(
+      patientIdRef.current,
+      patientGenerationRef.current,
+      requestPatientId,
+      requestGeneration,
+    );
+  const attempt = useRef<PatientScopedAttempt<{
+    key: string;
+    body: unknown;
+    path: string;
+  }> | null>(null);
+  const reviewAttempt = useRef<PatientScopedAttempt<{
+    body: unknown;
+    path: string;
+  }> | null>(null);
+  const followUpAttempt = useRef<PatientScopedAttempt<{
+    body: unknown;
+    path: string;
+  }> | null>(null);
   const directReview = useRef(initialDirectReview());
+  const patientContextReady = statePatientId === patientId;
   const canRead =
     capabilities.patients === true && capabilities.notes_read === true;
   const canWrite =
-    capabilities.observations_write === true && data?.can_write === true;
+    patientContextReady &&
+    capabilities.observations_write === true &&
+    data?.can_write === true;
   const canReview =
-    capabilities.notes_write === true && data?.can_review === true;
+    patientContextReady &&
+    capabilities.notes_write === true &&
+    data?.can_review === true;
+  useEffect(() => {
+    if (statePatientId === patientId) return;
+    patientGenerationRef.current += 1;
+    attempt.current = null;
+    reviewAttempt.current = null;
+    followUpAttempt.current = null;
+    directReview.current = initialDirectReview();
+    setData(undefined);
+    setError("");
+    setForm(blankForm());
+    setFormBaseline(blankForm());
+    setFormOpen(false);
+    setEditing(null);
+    setHistory(null);
+    setHistorySourceVersion(null);
+    setResultHistory(null);
+    setBusy(false);
+    setNotice("");
+    setRetryPending(false);
+    setReviewTarget(null);
+    setReviewConfirmed(false);
+    setReviewDisposition(null);
+    setReviewFollowUpNote("");
+    setReviewRetryPending(false);
+    setFollowUpTarget(null);
+    setFollowUpDisposition(null);
+    setFollowUpNote("");
+    setFollowUpOutcome("");
+    setFollowUpRetryPending(false);
+    setDiscardOpen(false);
+    setDirectReviewError("");
+    setStatePatientId(patientId);
+  }, [patientId, statePatientId]);
   useEffect(() => {
     if (!canRead) return;
     const controller = new AbortController();
@@ -320,9 +400,11 @@ export function PatientLabReports({
     }
     setBusy(true);
     setError("");
+    const requestPatientId = patientId;
+    const requestGeneration = patientGenerationRef.current;
     try {
       const current =
-        attempt.current ??
+        currentPatientAttempt(attempt.current, requestPatientId) ??
         (() => {
           const key = crypto.randomUUID();
           const report = {
@@ -349,6 +431,7 @@ export function PatientLabReports({
           };
           const next = editing
             ? {
+                patientId: requestPatientId,
                 key,
                 path: `/api/clinic/patients/${patientId}/lab_reports/${editing.id}/versions`,
                 body: {
@@ -359,6 +442,7 @@ export function PatientLabReports({
                 },
               }
             : {
+                patientId: requestPatientId,
                 key,
                 path: `/api/clinic/patients/${patientId}/lab_reports`,
                 body: { lab_report: report },
@@ -367,6 +451,7 @@ export function PatientLabReports({
           return next;
         })();
       await api(current.path, { method: "POST", body: current.body });
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       attempt.current = null;
       setRetryPending(false);
       setEditing(null);
@@ -378,6 +463,7 @@ export function PatientLabReports({
       );
       setReload((current) => current + 1);
     } catch (reason) {
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       if (
         reason instanceof ApiError &&
         reason.status >= 400 &&
@@ -399,7 +485,7 @@ export function PatientLabReports({
         );
       }
     } finally {
-      setBusy(false);
+      if (requestIsCurrent(requestPatientId, requestGeneration)) setBusy(false);
     }
   };
   const review = async () => {
@@ -412,7 +498,13 @@ export function PatientLabReports({
       (reviewDisposition === "required" && !reviewFollowUpNote.trim())
     )
       return;
-    const current = reviewAttempt.current ?? {
+    const requestPatientId = patientId;
+    const requestGeneration = patientGenerationRef.current;
+    const current = currentPatientAttempt(
+      reviewAttempt.current,
+      requestPatientId,
+    ) ?? {
+      patientId: requestPatientId,
       path: `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}/versions/${target.version.id}/review`,
       body: {
         review: {
@@ -433,6 +525,7 @@ export function PatientLabReports({
         method: "POST",
         body: current.body,
       });
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       setNotice(
         reviewDisposition === "required"
           ? "Lab version reviewed and follow-up recorded."
@@ -444,6 +537,7 @@ export function PatientLabReports({
       setReload((current) => current + 1);
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       if (
         reason instanceof ApiError &&
         reason.status >= 400 &&
@@ -460,7 +554,7 @@ export function PatientLabReports({
         );
       }
     } finally {
-      setBusy(false);
+      if (requestIsCurrent(requestPatientId, requestGeneration)) setBusy(false);
     }
   };
   const recordFollowUp = async () => {
@@ -473,7 +567,13 @@ export function PatientLabReports({
       (followUpDisposition === "required" && !followUpNote.trim())
     )
       return;
-    const current = followUpAttempt.current ?? {
+    const requestPatientId = patientId;
+    const requestGeneration = patientGenerationRef.current;
+    const current = currentPatientAttempt(
+      followUpAttempt.current,
+      requestPatientId,
+    ) ?? {
+      patientId: requestPatientId,
       path: `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}/versions/${target.version.id}/follow_up`,
       body: {
         follow_up: {
@@ -488,6 +588,7 @@ export function PatientLabReports({
     setError("");
     try {
       await api(current.path, { method: "POST", body: current.body });
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       setNotice(
         followUpDisposition === "required"
           ? "Follow-up recorded."
@@ -499,6 +600,7 @@ export function PatientLabReports({
       setReload((value) => value + 1);
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       if (
         reason instanceof ApiError &&
         reason.status >= 400 &&
@@ -513,7 +615,7 @@ export function PatientLabReports({
         setError("The follow-up outcome is unknown. Retry this exact request.");
       }
     } finally {
-      setBusy(false);
+      if (requestIsCurrent(requestPatientId, requestGeneration)) setBusy(false);
     }
   };
   const completeFollowUp = async () => {
@@ -525,7 +627,13 @@ export function PatientLabReports({
       !followUpOutcome.trim()
     )
       return;
-    const current = followUpAttempt.current ?? {
+    const requestPatientId = patientId;
+    const requestGeneration = patientGenerationRef.current;
+    const current = currentPatientAttempt(
+      followUpAttempt.current,
+      requestPatientId,
+    ) ?? {
+      patientId: requestPatientId,
       path: `/api/clinic/patients/${patientId}/lab_reports/${target.report.id}/versions/${target.version.id}/follow_up/complete`,
       body: {
         follow_up: {
@@ -539,6 +647,7 @@ export function PatientLabReports({
     setError("");
     try {
       await api(current.path, { method: "POST", body: current.body });
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       setNotice("Lab follow-up completed.");
       followUpAttempt.current = null;
       setFollowUpRetryPending(false);
@@ -546,6 +655,7 @@ export function PatientLabReports({
       setReload((value) => value + 1);
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       if (
         reason instanceof ApiError &&
         reason.status >= 400 &&
@@ -560,21 +670,25 @@ export function PatientLabReports({
         setError("The follow-up outcome is unknown. Retry this exact request.");
       }
     } finally {
-      setBusy(false);
+      if (requestIsCurrent(requestPatientId, requestGeneration)) setBusy(false);
     }
   };
   const openHistory = async (
     report: Pick<LabReport, "id">,
     sourceVersion: number | null = null,
   ) => {
+    const requestPatientId = patientId;
+    const requestGeneration = patientGenerationRef.current;
     setError("");
     setHistorySourceVersion(sourceVersion);
     try {
       const result = await api<{ report: LabReport }>(
         `/api/clinic/patients/${patientId}/lab_reports/${report.id}`,
       );
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       setHistory(result.report);
     } catch (reason) {
+      if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
       setError(
         reason instanceof Error
           ? reason.message
