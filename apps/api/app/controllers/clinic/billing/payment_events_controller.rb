@@ -1,6 +1,13 @@
 module Clinic
   module Billing
     class PaymentEventsController < Clinic::ApiController
+      content_security_policy only: :receipt do |policy|
+        request.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(32) }
+        request.content_security_policy_nonce_directives = %w[script-src style-src]
+        policy.script_src :self
+        policy.style_src :self
+      end
+
       before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: :receipt
       before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[cash_refunds allocate]
 
@@ -64,11 +71,45 @@ module Clinic
       end
 
       def cash_refunds
-        input = parameter_hash!(:cash_refund, %i[amount])
+        input = parameter_hash!(:cash_refund, %i[amount request_key])
         payment = PaymentEvent.where(practice: current_practice).find(requested_id!(params[:id], :id))
-        refund, receipt = RecordCashRefund.call(practice: current_practice, actor: current_user, payment: payment,
-          amount: decimal_string!(input[:amount], field: :amount))
-        render json: { refund: { id: refund.id, amount: refund.amount.to_s("F"), currency: refund.currency }, receipt_id: receipt.id }, status: :created
+        amount = Money.decimal(decimal_string!(input[:amount], field: :amount), name: "refund", positive: true).to_s("F")
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
+        outcome = Clinic::Idempotency.execute(
+          practice: current_practice,
+          actor: current_user,
+          operation_code: "billing.cash_refund",
+          request_key: request_key,
+          payload: { payment_event_id: payment.id, amount: amount },
+          resource: payment,
+          authorization: -> {
+            Authorization.authorize_with_legacy!(actor: current_user, practice: current_practice,
+              action: "billing.payment_record", legacy_action: "billing.write")
+          },
+          authorization_action: "billing.payment_record",
+          result_resource: ->(result) { result.first },
+          resource_resolver: ->(practice:, receipt:) {
+            Clinic::RefundEvent.where(practice_id: practice.id, payment_event_id: payment.id).find_by(id: receipt.resource_id)
+          }
+        ) do
+          RecordCashRefund.call(practice: current_practice, actor: current_user, payment: payment, amount: amount)
+        end
+        raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+        refund, receipt = if outcome.replayed
+          replayed_refund = outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed cash refund is unavailable.")
+          replayed_receipt = payment.billing_receipts.where(kind: "cash_refund")
+            .where("payload ->> 'refund_id' = ?", replayed_refund.id.to_s).first!
+          [ replayed_refund, replayed_receipt ]
+        else
+          outcome.value
+        end
+        render json: {
+          refund: { id: refund.id, amount: refund.amount.to_s("F"), currency: refund.currency },
+          receipt_id: receipt.id,
+          replayed: outcome.replayed,
+          request_key: request_key
+        }, status: outcome.replayed ? :ok : :created
       end
 
       def receipt

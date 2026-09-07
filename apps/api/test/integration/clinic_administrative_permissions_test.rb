@@ -42,7 +42,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :success
     get "/api/clinic/appointments", headers: @headers
     assert_response :success
-    assert_equal %w[display_name id reference], response.parsed_body.fetch("appointments").sole.fetch("patient").keys.sort
+    assert_equal %w[display_name id phone reference], response.parsed_body.fetch("appointments").sole.fetch("patient").keys.sort
     get "/api/clinic/invoices/#{invoice.id}", headers: @headers
     assert_response :forbidden
 
@@ -124,14 +124,40 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_equal 1, Clinic::CashTender.count
     assert_equal 1, Clinic::BillingReceipt.where(kind: "cash_payment").count
 
+    refund = { cash_refund: { amount: "3.00", request_key: "SYN-CASH-REFUND-001" } }
     post "/api/clinic/payment_events/#{payment_event_id}/cash_refunds",
-      params: { cash_refund: { amount: "3.00" } }, headers: csrf_headers, as: :json
+      params: refund, headers: csrf_headers, as: :json
     assert_response :created
+    refund_id = response.parsed_body.dig("refund", "id")
+    refund_receipt_id = response.parsed_body.fetch("receipt_id")
+    assert_equal false, response.parsed_body.fetch("replayed")
+
+    post "/api/clinic/payment_events/#{payment_event_id}/cash_refunds",
+      params: refund, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("replayed")
+    assert_equal refund_id, response.parsed_body.dig("refund", "id")
+    assert_equal refund_receipt_id, response.parsed_body.fetch("receipt_id")
+    assert_equal "SYN-CASH-REFUND-001", response.parsed_body.fetch("request_key")
+    assert_equal 1, Clinic::RefundEvent.where(payment_event_id: payment_event_id).count
+    assert_equal 1, Clinic::BillingReceipt.where(payment_event_id: payment_event_id, kind: "cash_refund").count
+    assert_equal 1, Clinic::OperationReceipt.where(operation_code: "billing.cash_refund", request_key: "SYN-CASH-REFUND-001").count
+
+    post "/api/clinic/payment_events/#{payment_event_id}/cash_refunds",
+      params: { cash_refund: { amount: "2.00", request_key: "SYN-CASH-REFUND-001" } }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "idempotency_conflict", response.parsed_body.fetch("code")
+    assert_equal 1, Clinic::RefundEvent.where(payment_event_id: payment_event_id).count
 
     get "/api/clinic/payment_events/#{payment_event_id}/receipt", headers: @headers
     assert_response :success
     assert_equal "no-store", response.headers.fetch("Cache-Control")
     assert_includes response.body, "Payment receipt"
+    nonce = Nokogiri::HTML(response.body).at_css("style")["nonce"]
+    assert nonce.present?
+    assert_includes response.headers.fetch("Content-Security-Policy"), "'nonce-#{nonce}'"
+    assert_select "script[nonce=?]", nonce, count: 1
+    assert_not_includes response.headers.fetch("Content-Security-Policy"), "'unsafe-inline'"
 
     get "/api/clinic/cash_drawers", headers: @headers
     assert_response :success
@@ -145,6 +171,12 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "closed", response.parsed_body.dig("drawer", "status")
     assert_equal "2.0", response.parsed_body.dig("drawer", "discrepancy")
+
+    post "/api/clinic/payment_events/#{payment_event_id}/cash_refunds",
+      params: { cash_refund: { amount: "1.00", request_key: "SYN-CLOSED-REFUND-001" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "closed"
+    assert_equal 1, Clinic::RefundEvent.where(payment_event_id: payment_event_id).count
 
     manager = administrative_user("cash-manager", "billing.read", "billing.cash_reconcile")
     login(manager)
@@ -222,7 +254,13 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
       practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient, invoice: posted_invoice,
       drawer_session: @practice.cash_drawer_sessions.find(drawer_id), tendered_amount: "10.00", allocation_amount: "10.00", request_key: "SYN-REFUND-001"
     )
-    post "/api/clinic/payment_events/#{cash_payment.payment_event_id}/cash_refunds", params: { cash_refund: { amount: "10.01" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/payment_events/#{cash_payment.payment_event_id}/cash_refunds",
+      params: { cash_refund: { amount: "1.00" } }, headers: csrf_headers, as: :json
+    assert_response :bad_request
+    assert_equal 0, Clinic::RefundEvent.count
+
+    post "/api/clinic/payment_events/#{cash_payment.payment_event_id}/cash_refunds",
+      params: { cash_refund: { amount: "10.01", request_key: "SYN-REFUND-OVERAGE-001" } }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_equal 0, Clinic::RefundEvent.count
 
@@ -235,7 +273,8 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
       practice: @practice, actor: @users.fetch("billing_operator"), patient: @patient, invoice: other_invoice,
       external_event_reference: "SYN-IMPORTED-REFUND", currency: "USD", amount: "2.00"
     ).payment_event
-    post "/api/clinic/payment_events/#{imported_payment.id}/cash_refunds", params: { cash_refund: { amount: "1.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/payment_events/#{imported_payment.id}/cash_refunds",
+      params: { cash_refund: { amount: "1.00", request_key: "SYN-NON-CASH-REFUND-001" } }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_equal 0, Clinic::RefundEvent.where(payment_event: imported_payment).count
   end
@@ -345,7 +384,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     legacy = administrative_user("legacy-billing-writer", "billing.write")
     login(legacy)
     get "/api/clinic/billing", headers: @headers
-    assert_response :forbidden
+    assert_response :success
     post "/api/clinic/patients/#{@patient.id}/invoices", params: invoice_payload,
       headers: csrf_headers, as: :json
     assert_response :created

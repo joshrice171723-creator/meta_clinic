@@ -33,6 +33,7 @@ import type {
   BillingInvoiceDetail,
   BillingInvoiceSummary,
   BillingPatientLedger,
+  ClinicWorkspaceContext,
   Patient,
 } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
@@ -64,6 +65,33 @@ function date(value: string, includeTime = false) {
 
 function isZero(value: string) {
   return /^0+(?:\.0+)?$/.test(value);
+}
+
+type CashRefundAttempt = {
+  patientId: number;
+  paymentId: number;
+  amount: string;
+  requestKey: string;
+};
+
+type CashRefundScope = Pick<
+  ClinicWorkspaceContext,
+  "practice" | "user_id" | "membership_id"
+>;
+
+// Keep an uncertain refund available across in-app navigation without writing
+// patient financial data to browser storage.
+const pendingCashRefundAttempts = new Map<string, CashRefundAttempt>();
+function cashRefundScopeKey(scope: CashRefundScope) {
+  return `${scope.practice.id}:${scope.user_id}:${scope.membership_id}`;
+}
+function persistCashRefundAttempt(
+  scope: CashRefundScope,
+  attempt: CashRefundAttempt | null,
+) {
+  const key = cashRefundScopeKey(scope);
+  if (attempt) pendingCashRefundAttempts.set(key, attempt);
+  else pendingCashRefundAttempts.delete(key);
 }
 
 function queryId(name: string) {
@@ -344,10 +372,12 @@ export function Billing() {
                 ledger={ledger.data}
                 selectedInvoice={selectedInvoice}
                 selectInvoice={setSelectedInvoiceId}
+                selectPatient={setSelectedPatientId}
                 canDraft={capabilities.billing_invoice_draft === true}
                 canPost={capabilities.billing_invoice_post === true}
                 checkoutEncounterId={checkoutEncounterId}
                 checkoutInvoice={checkoutInvoice}
+                financialRevision={reloadLedger}
                 onFinancialChange={(invoiceId) => {
                   if (invoiceId) setSelectedInvoiceId(invoiceId);
                   setReloadLedger((version) => version + 1);
@@ -365,15 +395,18 @@ function LedgerDetails({
   ledger,
   selectedInvoice,
   selectInvoice,
+  selectPatient,
   canDraft,
   canPost,
   checkoutEncounterId,
   checkoutInvoice,
+  financialRevision,
   onFinancialChange,
 }: {
   ledger: BillingPatientLedger;
   selectedInvoice?: BillingPatientLedger["invoices"][number];
   selectInvoice: (id: number) => void;
+  selectPatient: (id: number) => void;
   canDraft: boolean;
   canPost: boolean;
   checkoutEncounterId: number | null;
@@ -383,6 +416,7 @@ function LedgerDetails({
     error?: string;
     checking?: boolean;
   };
+  financialRevision: number;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
@@ -563,12 +597,15 @@ function LedgerDetails({
       <CheckoutSettlement
         invoice={selectedInvoice}
         canPost={canPost}
+        financialRevision={financialRevision}
         onFinancialChange={onFinancialChange}
       />
       <PaymentHistory
+        patientId={ledger.patient.id}
         payments={ledger.payments}
         invoices={ledger.invoices}
         onFinancialChange={onFinancialChange}
+        onSelectPatient={checkoutEncounterId ? undefined : selectPatient}
       />
     </Stack>
   );
@@ -598,10 +635,12 @@ function deterministicPostError(reason: unknown) {
 function CheckoutSettlement({
   invoice,
   canPost,
+  financialRevision,
   onFinancialChange,
 }: {
   invoice?: BillingPatientLedger["invoices"][number];
   canPost: boolean;
+  financialRevision: number;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const clinic = useClinic();
@@ -756,6 +795,7 @@ function CheckoutSettlement({
       {(collectionInvoice || cashPending) && !postingPending && (
         <CashDrawerOperations
           invoice={collectionInvoice}
+          refreshVersion={financialRevision}
           onPendingChange={setCashPending}
           onRecorded={onFinancialChange}
         />
@@ -1230,17 +1270,34 @@ function LedgerAmount({
 }
 
 function PaymentHistory({
+  patientId,
   payments,
   invoices,
   onFinancialChange,
+  onSelectPatient,
 }: {
+  patientId: number;
   payments: BillingPatientLedger["payments"];
   invoices: BillingPatientLedger["invoices"];
   onFinancialChange: () => void;
+  onSelectPatient?: (id: number) => void;
 }) {
-  const { capabilities } = useClinic();
-  const [refundPaymentId, setRefundPaymentId] = useState<number | null>(null);
-  const [refundAmount, setRefundAmount] = useState("");
+  const clinic = useClinic();
+  const { capabilities } = clinic;
+  const refundScope = cashRefundScopeKey(clinic);
+  const initialRefundAttempt = pendingCashRefundAttempts.get(refundScope) ?? null;
+  const [refundAttempt, setRefundAttempt] =
+    useState<CashRefundAttempt | null>(initialRefundAttempt);
+  const [refundPaymentId, setRefundPaymentId] = useState<number | null>(
+    initialRefundAttempt?.patientId === patientId
+      ? initialRefundAttempt.paymentId
+      : null,
+  );
+  const [refundAmount, setRefundAmount] = useState(
+    initialRefundAttempt?.patientId === patientId
+      ? initialRefundAttempt.amount
+      : "",
+  );
   const [refundError, setRefundError] = useState("");
   const [refundBusy, setRefundBusy] = useState(false);
   const [allocationPaymentId, setAllocationPaymentId] = useState<number | null>(
@@ -1251,6 +1308,23 @@ function PaymentHistory({
   const [allocationRequestKey, setAllocationRequestKey] = useState("");
   const [allocationError, setAllocationError] = useState("");
   const [allocationBusy, setAllocationBusy] = useState(false);
+  const refundRetryPending = refundAttempt !== null;
+
+  useEffect(() => {
+    const retained = pendingCashRefundAttempts.get(refundScope) ?? null;
+    setRefundAttempt(retained);
+    if (retained?.patientId === patientId) {
+      setRefundPaymentId(retained.paymentId);
+      setRefundAmount(retained.amount);
+      setRefundError(
+        "This refund has an unconfirmed outcome. Review the refund history, then retry the exact retained request if it is still missing.",
+      );
+    } else {
+      setRefundPaymentId(null);
+      setRefundAmount("");
+      setRefundError("");
+    }
+  }, [patientId, refundScope]);
 
   const eligibleInvoices = (
     payment: BillingPatientLedger["payments"][number],
@@ -1306,29 +1380,56 @@ function PaymentHistory({
 
   const refundCash = async (paymentId: number) => {
     if (
-      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(refundAmount) ||
-      isZero(refundAmount)
+      !refundAttempt &&
+      (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(refundAmount) ||
+        isZero(refundAmount))
     ) {
       setRefundError(
         "Enter a positive cash refund amount with up to six decimal places.",
       );
       return;
     }
+    const attempt = refundAttempt ?? {
+      patientId,
+      paymentId,
+      amount: refundAmount.trim(),
+      requestKey: crypto.randomUUID(),
+    };
+    persistCashRefundAttempt(clinic, attempt);
+    setRefundAttempt(attempt);
     setRefundBusy(true);
     setRefundError("");
     try {
-      await api(`/api/clinic/payment_events/${paymentId}/cash_refunds`, {
+      await api(`/api/clinic/payment_events/${attempt.paymentId}/cash_refunds`, {
         method: "POST",
-        body: { cash_refund: { amount: refundAmount } },
+        body: {
+          cash_refund: {
+            amount: attempt.amount,
+            request_key: attempt.requestKey,
+          },
+        },
       });
+      persistCashRefundAttempt(clinic, null);
+      setRefundAttempt(null);
       setRefundAmount("");
       setRefundPaymentId(null);
       onFinancialChange();
     } catch (reason) {
+      const deterministic =
+        deterministicPostError(reason) ||
+        (reason instanceof ApiError && reason.code === "idempotency_conflict");
+      if (deterministic) {
+        persistCashRefundAttempt(clinic, null);
+        setRefundAttempt(null);
+      } else {
+        onFinancialChange();
+      }
       setRefundError(
-        reason instanceof Error
-          ? reason.message
-          : "The cash refund could not be recorded.",
+        deterministic
+          ? reason instanceof Error
+            ? reason.message
+            : "The cash refund could not be recorded."
+          : `${reason instanceof Error ? reason.message : "The cash refund outcome could not be confirmed."} Review the refreshed refund history, then retry only this same refund if it is still missing.`,
       );
     } finally {
       setRefundBusy(false);
@@ -1344,6 +1445,25 @@ function PaymentHistory({
         </Typography>
       </Box>
       <Divider />
+      {refundAttempt && refundAttempt.patientId !== patientId && (
+        <Alert
+          severity="warning"
+          action={onSelectPatient ? (
+            <Button
+              color="inherit"
+              onClick={() => onSelectPatient(refundAttempt.patientId)}
+              size="small"
+            >
+              Open retained ledger
+            </Button>
+          ) : undefined}
+          sx={{ m: 2.5 }}
+        >
+          A cash refund has an unconfirmed outcome for payment #
+          {refundAttempt.paymentId}. Reopen that patient ledger before recording
+          another refund.
+        </Alert>
+      )}
       {payments.length === 0 ? (
         <Typography color="text.secondary" sx={{ p: 2.5 }}>
           No payment events were returned for this patient.
@@ -1481,9 +1601,11 @@ function PaymentHistory({
                   )}
                   {capabilities.billing_payment_record === true && (
                     <Button
+                      disabled={refundBusy || refundRetryPending}
                       onClick={() => {
                         setRefundError("");
                         setRefundPaymentId(payment.id);
+                        setRefundAmount("");
                       }}
                       variant="outlined"
                     >
@@ -1509,16 +1631,26 @@ function PaymentHistory({
                     inputMode="decimal"
                     onChange={(event) => setRefundAmount(event.target.value)}
                     value={refundAmount}
+                    disabled={refundBusy || refundRetryPending}
                   />
                   <Button
                     disabled={refundBusy}
                     type="submit"
                     variant="contained"
                   >
-                    {refundBusy ? "Recording…" : "Record refund"}
+                    {refundBusy
+                      ? "Recording…"
+                      : refundRetryPending
+                        ? "Retry same refund"
+                        : "Record refund"}
                   </Button>
                   <Button
-                    onClick={() => setRefundPaymentId(null)}
+                    disabled={refundBusy || refundRetryPending}
+                    onClick={() => {
+                      setRefundPaymentId(null);
+                      setRefundAmount("");
+                      setRefundError("");
+                    }}
                     type="button"
                   >
                     Cancel
@@ -1528,6 +1660,8 @@ function PaymentHistory({
               {refundPaymentId === payment.id && refundError && (
                 <Alert severity="error" sx={{ mt: 1.5 }}>
                   {refundError}
+                  {refundRetryPending &&
+                    " The amount is locked so a retry cannot create a different refund."}
                 </Alert>
               )}
               {payment.refunds.length > 0 && (

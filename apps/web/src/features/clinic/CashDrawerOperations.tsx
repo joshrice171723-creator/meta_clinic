@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   BillingInvoiceSummary,
   CashDrawer,
@@ -82,10 +82,12 @@ export function CashDrawerOperations({
   invoice,
   onRecorded,
   onPendingChange,
+  refreshVersion = 0,
 }: {
   invoice: BillingInvoiceSummary | null;
   onRecorded: (invoiceId?: number) => void;
   onPendingChange?: (pending: boolean) => void;
+  refreshVersion?: number;
 }) {
   const clinic = useClinic();
   const { capabilities, sites } = clinic;
@@ -109,10 +111,18 @@ export function CashDrawerOperations({
   const [cashAttempt, setCashAttempt] = useState<CashAttempt | null>(() =>
     storedCashAttempt(clinic),
   );
+  const allocationInvoiceSelection = useRef("");
+  const drawerRefreshVersion = useRef(refreshVersion);
   useEffect(() => {
     persistCashAttempt(clinic, cashAttempt);
     onPendingChange?.(cashAttempt !== null);
   }, [clinic, cashAttempt, onPendingChange]);
+  useEffect(() => {
+    if (drawerRefreshVersion.current === refreshVersion) return;
+
+    drawerRefreshVersion.current = refreshVersion;
+    drawers.refresh();
+  }, [refreshVersion]);
   const allDrawers = drawers.data?.drawers ?? [];
   const openDrawers = useMemo(
     () =>
@@ -137,6 +147,17 @@ export function CashDrawerOperations({
   const permitted = capabilities.billing_payment_record === true;
   const payable =
     invoice?.status === "posted" && !/^0+(?:\.0+)?$/.test(invoice.balance);
+  useEffect(() => {
+    const selection = `${invoice?.id ?? "none"}:${payable ? "payable" : "not-payable"}`;
+    if (cashAttempt) {
+      allocationInvoiceSelection.current = selection;
+      return;
+    }
+    if (allocationInvoiceSelection.current === selection) return;
+
+    allocationInvoiceSelection.current = selection;
+    setAllocationAmount(payable && invoice ? invoice.balance : "");
+  }, [cashAttempt, invoice, payable]);
 
   const reportError = (reason: unknown, fallback: string) =>
     setError(reason instanceof Error ? reason.message : fallback);

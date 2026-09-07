@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Receipt #<%= @receipt.id %> · <%= @practice.name %></title>
-  <style>
+  <style nonce="<%= content_security_policy_nonce %>">
     * { box-sizing: border-box; }
     body { margin: 0; background: #f3f5f7; color: #182d3c; font: 15px/1.6 system-ui, sans-serif; }
     main { max-width: 760px; margin: 40px auto; padding: 48px; background: white; border: 1px solid #dce2e7; }

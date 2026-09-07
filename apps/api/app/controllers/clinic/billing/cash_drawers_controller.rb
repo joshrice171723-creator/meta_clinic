@@ -20,12 +20,14 @@ module Clinic
 
       def close
         input = parameter_hash!(:drawer, %i[counted_cash discrepancy_explanation])
-        session = current_practice.cash_drawer_sessions.lock.find(requested_id!(params[:id], :id))
-        raise ArgumentError, "The cash drawer is already closed." unless session.status == "open"
-        counted = BigDecimal(decimal_string!(input[:counted_cash], field: :counted_cash))
-        expected = BigDecimal(CashDrawer.call(session).fetch(:expected_cash))
-        session.update!(status: "closed", counted_cash: counted, discrepancy: counted - expected,
-          discrepancy_explanation: input[:discrepancy_explanation].presence, closed_by: current_user, closed_at: Time.current)
+        session = current_practice.cash_drawer_sessions.find(requested_id!(params[:id], :id))
+        session.with_lock do
+          raise ArgumentError, "The cash drawer is already closed." unless session.status == "open"
+          counted = BigDecimal(decimal_string!(input[:counted_cash], field: :counted_cash))
+          expected = BigDecimal(CashDrawer.call(session).fetch(:expected_cash))
+          session.update!(status: "closed", counted_cash: counted, discrepancy: counted - expected,
+            discrepancy_explanation: input[:discrepancy_explanation].presence, closed_by: current_user, closed_at: Time.current)
+        end
         render json: { drawer: CashDrawer.call(session.reload) }
       end
 
