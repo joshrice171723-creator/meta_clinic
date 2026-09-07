@@ -5095,8 +5095,8 @@ CREATE TABLE public.clinic_patient_portal_appointment_requests (
     patient_id bigint NOT NULL,
     identity_id bigint NOT NULL,
     request_key character varying NOT NULL,
-    starts_at timestamp(6) without time zone NOT NULL,
-    ends_at timestamp(6) without time zone NOT NULL,
+    starts_at timestamp(6) without time zone,
+    ends_at timestamp(6) without time zone,
     site_id bigint,
     visit_type_id bigint,
     status character varying DEFAULT 'pending'::character varying NOT NULL,
@@ -5107,7 +5107,14 @@ CREATE TABLE public.clinic_patient_portal_appointment_requests (
     updated_at timestamp(6) without time zone NOT NULL,
     appointment_id bigint,
     reviewed_by_membership_id bigint,
-    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])) AND (ends_at > starts_at)))
+    request_kind character varying DEFAULT 'new_booking'::character varying CONSTRAINT clinic_patient_portal_appointment_request_request_kind_not_null NOT NULL,
+    source_appointment_id bigint,
+    source_appointment_updated_at timestamp(6) without time zone,
+    source_starts_at timestamp(6) without time zone,
+    source_ends_at timestamp(6) without time zone,
+    source_site_id bigint,
+    source_status character varying,
+    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY ((ARRAY['new_booking'::character varying, 'reschedule'::character varying, 'cancel'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'declined'::character varying, 'cancelled'::character varying])::text[])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL)))))
 );
 
 
@@ -11322,7 +11329,14 @@ CREATE UNIQUE INDEX clinic_patient_memberships_practice_id ON public.clinic_pati
 -- Name: clinic_patient_portal_appointment_requests_appointment; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_patient_portal_appointment_requests_appointment ON public.clinic_patient_portal_appointment_requests USING btree (practice_id, appointment_id) WHERE (appointment_id IS NOT NULL);
+CREATE INDEX clinic_patient_portal_appointment_requests_appointment ON public.clinic_patient_portal_appointment_requests USING btree (practice_id, appointment_id) WHERE (appointment_id IS NOT NULL);
+
+
+--
+-- Name: clinic_patient_portal_appointment_requests_pending_change; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_patient_portal_appointment_requests_pending_change ON public.clinic_patient_portal_appointment_requests USING btree (practice_id, source_appointment_id) WHERE (((status)::text = 'pending'::text) AND (source_appointment_id IS NOT NULL));
 
 
 --
@@ -11337,6 +11351,13 @@ CREATE UNIQUE INDEX clinic_patient_portal_appointment_requests_practice_id ON pu
 --
 
 CREATE UNIQUE INDEX clinic_patient_portal_appointment_requests_request_key ON public.clinic_patient_portal_appointment_requests USING btree (practice_id, request_key);
+
+
+--
+-- Name: clinic_patient_portal_appointment_requests_source_site; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patient_portal_appointment_requests_source_site ON public.clinic_patient_portal_appointment_requests USING btree (practice_id, source_site_id);
 
 
 --
@@ -16369,6 +16390,22 @@ ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
 
 
 --
+-- Name: clinic_patient_portal_appointment_requests fk_patient_portal_appointment_requests_source_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
+    ADD CONSTRAINT fk_patient_portal_appointment_requests_source_appointment FOREIGN KEY (practice_id, source_appointment_id) REFERENCES public.clinic_appointments(practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_appointment_requests fk_patient_portal_appointment_requests_source_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
+    ADD CONSTRAINT fk_patient_portal_appointment_requests_source_site FOREIGN KEY (practice_id, source_site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_patient_portal_appointment_requests fk_patient_portal_appointment_requests_visit_type; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21246,6 +21283,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000700'),
 ('20260907000600'),
 ('20260907000530'),
 ('20260907000520'),

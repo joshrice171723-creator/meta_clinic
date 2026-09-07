@@ -7,6 +7,7 @@ module Clinic
         payload = {
           id: request.id,
           request_key: request.request_key,
+          request_kind: request.request_kind,
           starts_at: request.starts_at&.iso8601(6),
           ends_at: request.ends_at&.iso8601(6),
           status: request.status,
@@ -14,6 +15,7 @@ module Clinic
           visit_type: visit_type(request.visit_type),
           requested_at: request.requested_at&.iso8601(6),
           reviewed_at: request.reviewed_at&.iso8601(6),
+          source_appointment: source_appointment(request),
           appointment: appointment(request.appointment)
         }
         if include_patient
@@ -35,6 +37,7 @@ module Clinic
           starts_at: record.starts_at&.iso8601(6),
           ends_at: record.ends_at&.iso8601(6),
           status: record.status,
+          updated_at: record.updated_at&.iso8601(6),
           site: site(record.site),
           room: record.room && { id: record.room.id, code: record.room.code },
           clinician: record.booked_clinician && {
@@ -42,6 +45,19 @@ module Clinic
             display_name: record.booked_clinician.display_name.presence || "Provider name not recorded"
           },
           visit_type: visit_type(record.visit_type)
+        }
+      end
+
+      def source_appointment(request)
+        return if request.new_booking?
+
+        {
+          id: request.source_appointment_id,
+          starts_at: request.source_starts_at&.iso8601(6),
+          ends_at: request.source_ends_at&.iso8601(6),
+          status: request.source_status,
+          updated_at: request.source_appointment_updated_at&.iso8601(6),
+          site: site(request.source_site)
         }
       end
 

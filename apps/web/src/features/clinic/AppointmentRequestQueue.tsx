@@ -26,12 +26,21 @@ import { patientReferenceLabel } from "./patientReference";
 type AppointmentRequest = {
   id: number;
   request_key: string;
-  starts_at: string;
-  ends_at: string;
+  request_kind: "new_booking" | "reschedule" | "cancel";
+  starts_at: string | null;
+  ends_at: string | null;
   status: string;
   site: { id: number; code: string; name: string } | null;
   visit_type: { id: number; code: string } | null;
   requested_at: string;
+  source_appointment: {
+    id: number;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    updated_at: string;
+    site: { id: number; code: string; name: string } | null;
+  } | null;
   patient: { id: number; display_name: string; reference: string };
 };
 
@@ -74,8 +83,8 @@ export function AppointmentRequestQueue({
             Appointment requests
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Review preferred windows before booking an appointment. A request is
-            not an appointment until you approve it.
+            Review new bookings, reschedule requests, and cancellations.
+            Appointments change only after approval.
           </Typography>
         </Box>
         {!requests.data && !requests.error && (
@@ -118,19 +127,21 @@ export function AppointmentRequestQueue({
                   ` · ${patientReferenceLabel(request.patient.reference)}`}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Requested {dateTime(request.starts_at)} –{" "}
-                {dateTime(request.ends_at)}
+                {request.request_kind === "cancel"
+                  ? "Cancellation requested"
+                  : `Requested ${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}`}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {request.site?.name ||
-                  request.site?.code ||
-                  "No requested site"}{" "}
-                · {request.visit_type?.code || "No requested visit type"}
+                {request.source_appointment
+                  ? `Current appointment: ${dateTime(request.source_appointment.starts_at)} at ${request.source_appointment.site?.name || request.source_appointment.site?.code || "Location not recorded"}`
+                  : `${request.site?.name || request.site?.code || "No requested site"} · ${request.visit_type?.code || "No requested visit type"}`}
               </Typography>
             </Box>
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={() => setSelected(request)}>
-                Review and book
+                {request.request_kind === "new_booking"
+                  ? "Review and book"
+                  : "Review change"}
               </Button>
             </Stack>
           </Box>
@@ -160,8 +171,14 @@ function ReviewDialog({
   onClose: () => void;
   onChanged: (booked: boolean) => void;
 }) {
-  const [startsAt, setStartsAt] = useState(inputTime(request.starts_at));
-  const [endsAt, setEndsAt] = useState(inputTime(request.ends_at));
+  const isNewBooking = request.request_kind === "new_booking";
+  const isCancellation = request.request_kind === "cancel";
+  const [startsAt, setStartsAt] = useState(
+    inputTime(request.starts_at || request.source_appointment?.starts_at || ""),
+  );
+  const [endsAt, setEndsAt] = useState(
+    inputTime(request.ends_at || request.source_appointment?.ends_at || ""),
+  );
   const [siteId, setSiteId] = useState(
     request.site ? String(request.site.id) : "",
   );
@@ -197,22 +214,36 @@ function ReviewDialog({
   const ready = sites.data && visitTypes.data;
 
   async function approve() {
-    if (!siteId || !startsAt || !endsAt) return;
+    if (
+      (!isCancellation && (!startsAt || !endsAt)) ||
+      (isNewBooking && !siteId)
+    )
+      return;
     setBusy(true);
     setError("");
     try {
       await api(`/api/clinic/appointment_requests/${request.id}/approve`, {
         method: "POST",
         body: {
-          review: {
-            request_key: reviewKey,
-            starts_at: new Date(startsAt).toISOString(),
-            ends_at: new Date(endsAt).toISOString(),
-            site_id: Number(siteId),
-            room_id: roomId ? Number(roomId) : undefined,
-            booked_clinician_id: clinicianId ? Number(clinicianId) : undefined,
-            visit_type_id: visitTypeId ? Number(visitTypeId) : undefined,
-          },
+          review: isNewBooking
+            ? {
+                request_key: reviewKey,
+                starts_at: new Date(startsAt).toISOString(),
+                ends_at: new Date(endsAt).toISOString(),
+                site_id: Number(siteId),
+                room_id: roomId ? Number(roomId) : undefined,
+                booked_clinician_id: clinicianId
+                  ? Number(clinicianId)
+                  : undefined,
+                visit_type_id: visitTypeId ? Number(visitTypeId) : undefined,
+              }
+            : isCancellation
+              ? { request_key: reviewKey }
+              : {
+                  request_key: reviewKey,
+                  starts_at: new Date(startsAt).toISOString(),
+                  ends_at: new Date(endsAt).toISOString(),
+                },
         },
       });
       onChanged(true);
@@ -223,7 +254,9 @@ function ReviewDialog({
         return;
       }
       if (reason instanceof ApiError && reason.status === 409) {
-        onChanged(false);
+        setError(
+          `${reason.message} Refresh the queue before reviewing this request again.`,
+        );
         return;
       }
       setError(
@@ -281,17 +314,34 @@ function ReviewDialog({
       <DialogTitle>
         {declining
           ? "Decline appointment request"
-          : "Review and book appointment"}
+          : isNewBooking
+            ? "Review and book appointment"
+            : isCancellation
+              ? "Review cancellation request"
+              : "Review reschedule request"}
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Alert severity="info">
-            {request.patient.display_name} requested{" "}
-            {dateTime(request.starts_at)} – {dateTime(request.ends_at)}. Confirm
-            the actual booking details below.
+            {isNewBooking
+              ? `${request.patient.display_name} requested ${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}. Confirm the actual booking details below.`
+              : isCancellation
+                ? `${request.patient.display_name} requested cancellation of the current appointment. Review the appointment below before approving.`
+                : `${request.patient.display_name} requested ${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}. Review the current appointment and preferred replacement time below.`}
           </Alert>
+          {!isNewBooking && request.source_appointment && (
+            <Typography variant="body2" color="text.secondary">
+              Current appointment:{" "}
+              {dateTime(request.source_appointment.starts_at)} –{" "}
+              {dateTime(request.source_appointment.ends_at)} at{" "}
+              {request.source_appointment.site?.name ||
+                request.source_appointment.site?.code ||
+                "Location not recorded"}
+              .
+            </Typography>
+          )}
           {error && <Alert severity="error">{error}</Alert>}
-          {schedulingError && (
+          {isNewBooking && schedulingError && (
             <Alert
               severity="error"
               action={
@@ -312,7 +362,7 @@ function ReviewDialog({
               Scheduling options could not be loaded. {schedulingError}
             </Alert>
           )}
-          {optionalOptionsError && (
+          {isNewBooking && optionalOptionsError && (
             <Alert
               severity="info"
               action={
@@ -332,10 +382,10 @@ function ReviewDialog({
               without either assignment.
             </Alert>
           )}
-          {!ready && (
+          {isNewBooking && !ready && (
             <Typography role="status">Loading scheduling options…</Typography>
           )}
-          {ready && !declining && (
+          {isNewBooking && ready && !declining && (
             <Box
               sx={{
                 display: "grid",
@@ -443,7 +493,45 @@ function ReviewDialog({
               </TextField>
             </Box>
           )}
-          {ready && declining && (
+          {!isNewBooking && !isCancellation && !declining && (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              <TextField
+                disabled={busy || outcomeUnconfirmed}
+                label="Preferred start (your local time)"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(event) => {
+                  setStartsAt(event.target.value);
+                  setReviewKey(crypto.randomUUID());
+                }}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                disabled={busy || outcomeUnconfirmed}
+                label="Preferred end (your local time)"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(event) => {
+                  setEndsAt(event.target.value);
+                  setReviewKey(crypto.randomUUID());
+                }}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+          )}
+          {!isNewBooking && isCancellation && !declining && (
+            <Typography color="text.secondary">
+              Approving cancels the displayed appointment. It does not create a
+              replacement booking.
+            </Typography>
+          )}
+          {(!isNewBooking || ready) && declining && (
             <Typography color="text.secondary">
               This marks the request declined. It does not cancel or change an
               existing appointment.
@@ -477,15 +565,27 @@ function ReviewDialog({
           </Button>
         ) : (
           <Button
-            disabled={busy || !ready || !siteId}
+            disabled={
+              busy ||
+              (isNewBooking && (!ready || !siteId)) ||
+              (!isCancellation && (!startsAt || !endsAt))
+            }
             variant="contained"
             onClick={() => void approve()}
           >
             {busy
-              ? "Booking…"
+              ? isCancellation
+                ? "Cancelling…"
+                : isNewBooking
+                  ? "Booking…"
+                  : "Rescheduling…"
               : outcomeUnconfirmed
-                ? "Retry same booking"
-                : "Approve and book"}
+                ? "Retry same approval"
+                : isCancellation
+                  ? "Approve cancellation"
+                  : isNewBooking
+                    ? "Approve and book"
+                    : "Approve reschedule"}
           </Button>
         )}
       </DialogActions>

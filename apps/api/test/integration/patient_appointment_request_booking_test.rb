@@ -27,7 +27,7 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     @staff_password = SecureRandom.hex(18)
     @staff_user = User.create!(email_address: "appointment-reviewer@example.invalid", password: @staff_password)
     @staff_membership = @practice.memberships.create!(user: @staff_user)
-    grant_permissions!(@staff_membership, "appointments.read", "appointments.book")
+    grant_permissions!(@staff_membership, "appointments.read", "appointments.book", "appointments.status_transition")
 
     @site = create_site(@practice, "REQUEST-SITE")
     @other_site = create_site(@practice, "OTHER-REQUEST-SITE")
@@ -64,6 +64,8 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     assert_equal 201, @patient_session.response.status
     created = @patient_session.response.parsed_body.fetch("appointment_request")
     assert_equal "pending", created.fetch("status")
+    assert_equal "new_booking", created.fetch("request_kind")
+    assert_nil created.fetch("source_appointment")
     assert_equal @site.id, created.dig("site", "id")
     assert_nil created.fetch("appointment")
 
@@ -89,6 +91,132 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     get_patient_requests
     assert_equal [ created.fetch("id") ],
       @patient_session.response.parsed_body.fetch("appointment_requests").map { |request| request.fetch("id") }
+  end
+
+  test "patient reschedule request updates the same appointment and is idempotent" do
+    source = create_appointment(starts_at: 3.days.from_now.change(usec: 0))
+    original_count = @practice.appointments.where(patient: @patient).count
+    requested_start = source.starts_at + 3.hours
+    requested_end = requested_start + 45.minutes
+    payload = appointment_change_payload(
+      "patient-reschedule",
+      "reschedule",
+      source,
+      starts_at: requested_start,
+      ends_at: requested_end
+    )
+
+    @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    request_json = @patient_session.response.parsed_body.fetch("appointment_request")
+    assert_equal "reschedule", request_json.fetch("request_kind")
+    assert_equal source.id, request_json.dig("source_appointment", "id")
+    assert_equal source.updated_at.iso8601(6), request_json.dig("source_appointment", "updated_at")
+    assert_nil request_json.fetch("appointment")
+
+    @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+    assert_equal 200, @patient_session.response.status
+    assert_equal request_json.fetch("id"), @patient_session.response.parsed_body.dig("appointment_request", "id")
+
+    duplicate = appointment_change_payload(
+      "patient-reschedule-duplicate",
+      "reschedule",
+      source,
+      starts_at: requested_start,
+      ends_at: requested_end
+    )
+    @patient_session.post patient_requests_path, params: duplicate, headers: @patient_headers, as: :json
+    assert_equal 409, @patient_session.response.status
+
+    review = { review: {
+      request_key: "patient-reschedule-review",
+      starts_at: requested_start.iso8601,
+      ends_at: requested_end.iso8601
+    } }
+    @staff_session.post "#{staff_requests_path}/#{request_json.fetch('id')}/approve",
+      params: review, headers: @staff_headers, as: :json
+
+    assert_equal 200, @staff_session.response.status
+    assert_equal source.id, @staff_session.response.parsed_body.dig("appointment", "id")
+    assert_equal requested_start, source.reload.starts_at
+    assert_equal original_count, @practice.appointments.where(patient: @patient).count
+    reviewed = Clinic::PatientPortal::AppointmentRequest.find(request_json.fetch("id"))
+    assert reviewed.approved?
+    assert_equal source.id, reviewed.appointment_id
+
+    @staff_session.post "#{staff_requests_path}/#{request_json.fetch('id')}/approve",
+      params: review, headers: @staff_headers, as: :json
+    assert_equal 200, @staff_session.response.status
+    assert_equal true, @staff_session.response.parsed_body.fetch("replayed")
+    assert_equal original_count, @practice.appointments.where(patient: @patient).count
+  end
+
+  test "patient cancellation request cancels the same appointment without a target window" do
+    source = create_appointment(starts_at: 4.days.from_now.change(usec: 0), status: "confirmed")
+    original_count = @practice.appointments.where(patient: @patient).count
+    payload = appointment_change_payload("patient-cancel", "cancel", source)
+
+    @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    request_json = @patient_session.response.parsed_body.fetch("appointment_request")
+    assert_equal "cancel", request_json.fetch("request_kind")
+    assert_nil request_json.fetch("starts_at")
+    assert_nil request_json.fetch("ends_at")
+    assert_equal "confirmed", request_json.dig("source_appointment", "status")
+
+    @staff_session.post "#{staff_requests_path}/#{request_json.fetch('id')}/approve",
+      params: { review: { request_key: "patient-cancel-review" } }, headers: @staff_headers, as: :json
+
+    assert_equal 200, @staff_session.response.status
+    assert_equal source.id, @staff_session.response.parsed_body.dig("appointment", "id")
+    assert_equal "cancelled", source.reload.status
+    assert_equal original_count, @practice.appointments.where(patient: @patient).count
+    reviewed = Clinic::PatientPortal::AppointmentRequest.find(request_json.fetch("id"))
+    assert reviewed.approved?
+    assert_equal source.id, reviewed.appointment_id
+  end
+
+  test "appointment changes reject stale source versions and appointments owned by another patient" do
+    source = create_appointment(starts_at: 5.days.from_now.change(usec: 0))
+    stale_updated_at = source.updated_at
+    source.update!(starts_at: source.starts_at + 1.hour, ends_at: source.ends_at + 1.hour)
+    stale_payload = appointment_change_payload(
+      "stale-at-submit",
+      "cancel",
+      source,
+      source_updated_at: stale_updated_at
+    )
+
+    @patient_session.post patient_requests_path, params: stale_payload, headers: @patient_headers, as: :json
+    assert_equal 409, @patient_session.response.status
+    assert_equal "stale_record", @patient_session.response.parsed_body.fetch("code")
+
+    current_payload = appointment_change_payload("stale-at-review", "cancel", source)
+    @patient_session.post patient_requests_path, params: current_payload, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    request_id = @patient_session.response.parsed_body.dig("appointment_request", "id")
+    source.update!(status: "confirmed")
+
+    @staff_session.post "#{staff_requests_path}/#{request_id}/approve",
+      params: { review: { request_key: "stale-at-review-decision" } }, headers: @staff_headers, as: :json
+    assert_equal 409, @staff_session.response.status
+    assert_equal "stale_record", @staff_session.response.parsed_body.fetch("code")
+    assert Clinic::PatientPortal::AppointmentRequest.find(request_id).pending?
+    assert_equal 1, @practice.appointments.where(patient: @patient).count
+
+    other_patient = @practice.patients.create!(display_name: "Other Appointment Owner", reference: "APPOINTMENT-OWNER-002")
+    foreign_source = create_appointment(
+      patient: other_patient,
+      starts_at: 7.days.from_now.change(usec: 0)
+    )
+    foreign_payload = appointment_change_payload("foreign-owner-change", "cancel", foreign_source)
+    @patient_session.post patient_requests_path, params: foreign_payload, headers: @patient_headers, as: :json
+    assert_equal 404, @patient_session.response.status
+
+    get_patient_requests
+    upcoming_ids = @patient_session.response.parsed_body.fetch("upcoming_appointments").map { |row| row.fetch("id") }
+    assert_includes upcoming_ids, source.id
+    assert_not_includes upcoming_ids, foreign_source.id
   end
 
   test "staff queue is tenant and site scoped through appointment read permission" do
@@ -268,6 +396,32 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
         visit_type_id: @visit_type.id
       }
     }
+  end
+
+  def appointment_change_payload(key, kind, source, starts_at: nil, ends_at: nil,
+    source_updated_at: source.updated_at)
+    request = {
+      request_key: key,
+      request_kind: kind,
+      source_appointment_id: source.id,
+      source_appointment_updated_at: source_updated_at.iso8601(6)
+    }
+    request[:starts_at] = starts_at.iso8601 if starts_at
+    request[:ends_at] = ends_at.iso8601 if ends_at
+    { appointment_request: request }
+  end
+
+  def create_appointment(patient: @patient, starts_at:, status: "scheduled")
+    @practice.appointments.create!(
+      patient: patient,
+      site: @site,
+      room: @room,
+      booked_clinician: @clinician,
+      visit_type: @visit_type,
+      starts_at: starts_at,
+      ends_at: starts_at + 1.hour,
+      status: status
+    )
   end
 
   def create_request(practice: @practice, patient: @patient, identity: @identity, key:, site: @site,

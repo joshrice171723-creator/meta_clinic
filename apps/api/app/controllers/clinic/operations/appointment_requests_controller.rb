@@ -2,7 +2,7 @@ module Clinic
   module Operations
     class AppointmentRequestsController < Clinic::ApiController
       STATUSES = Clinic::PatientPortal::AppointmentRequest.statuses.keys.freeze
-      INCLUDES = [ :patient, :site, :visit_type,
+      INCLUDES = [ :patient, :site, :visit_type, :source_site,
         { appointment: [ :site, :room, :booked_clinician, :visit_type ] } ].freeze
 
       before_action -> { require_capability("appointments.read", any_site: true) }, only: :index
@@ -27,15 +27,15 @@ module Clinic
           :review,
           %i[request_key starts_at ends_at site_id room_id booked_clinician_id visit_type_id]
         )
-        site = current_practice.sites.find(requested_id!(input[:site_id], :site_id))
+        site = find_optional(current_practice.sites, input[:site_id], :site_id)
         visit_type = find_optional(current_practice.visit_types.active, input[:visit_type_id], :visit_type_id)
         result = Clinic::PatientPortal::ReviewAppointmentRequest.approve(
           practice: current_practice,
           actor: current_user,
           request: request_record,
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
-          starts_at: time_param!(input[:starts_at], field: :starts_at),
-          ends_at: time_param!(input[:ends_at], field: :ends_at),
+          starts_at: input[:starts_at].present? ? time_param!(input[:starts_at], field: :starts_at) : nil,
+          ends_at: input[:ends_at].present? ? time_param!(input[:ends_at], field: :ends_at) : nil,
           site: site,
           room: find_optional(current_practice.rooms, input[:room_id], :room_id),
           booked_clinician: find_optional(current_practice.clinician_profiles, input[:booked_clinician_id], :booked_clinician_id),
@@ -70,7 +70,8 @@ module Clinic
             site: site
           )
           return requests.where(
-            "COALESCE(clinic_appointments.site_id, clinic_patient_portal_appointment_requests.site_id) = ?",
+            "COALESCE(clinic_appointments.site_id, clinic_patient_portal_appointment_requests.source_site_id, " \
+              "clinic_patient_portal_appointment_requests.site_id) = ?",
             site.id
           )
         end
@@ -82,7 +83,8 @@ module Clinic
           ability.allowed_permission?("appointments.read", site: candidate_site_id)
         end
         requests.where(
-          "COALESCE(clinic_appointments.site_id, clinic_patient_portal_appointment_requests.site_id) IN (?)",
+          "COALESCE(clinic_appointments.site_id, clinic_patient_portal_appointment_requests.source_site_id, " \
+            "clinic_patient_portal_appointment_requests.site_id) IN (?)",
           allowed_site_ids
         )
       end
@@ -97,6 +99,7 @@ module Clinic
         request.association(:patient).load_target
         request.association(:site).load_target
         request.association(:visit_type).load_target
+        request.association(:source_site).load_target
         request.association(:appointment).load_target
         render json: {
           appointment_request: Clinic::PatientPortal::AppointmentRequestSerializer.call(request, include_patient: true),

@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
@@ -16,29 +20,34 @@ import { useResource } from "../../shared/ui";
 
 type Site = { id: number; code: string; name: string };
 type VisitType = { id: number; code: string };
+type AppointmentSnapshot = {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  updated_at: string;
+  site: Site | null;
+  room: { id: number; code: string } | null;
+  clinician: { id: number; display_name: string } | null;
+  visit_type: VisitType | null;
+};
 type AppointmentRequest = {
   id: number;
   request_key: string;
-  starts_at: string;
-  ends_at: string;
+  request_kind: "new_booking" | "reschedule" | "cancel";
+  starts_at: string | null;
+  ends_at: string | null;
   status: string;
   site: Site | null;
   visit_type: VisitType | null;
   requested_at: string;
   reviewed_at: string | null;
-  appointment: {
-    id: number;
-    starts_at: string;
-    ends_at: string;
-    status: string;
-    site: Site;
-    room: { id: number; code: string } | null;
-    clinician: { id: number; display_name: string } | null;
-    visit_type: VisitType | null;
-  } | null;
+  source_appointment: AppointmentSnapshot | null;
+  appointment: AppointmentSnapshot | null;
 };
 type AppointmentRequestResponse = {
   appointment_requests: AppointmentRequest[];
+  upcoming_appointments: AppointmentSnapshot[];
   options: { sites: Site[]; visit_types: VisitType[] };
 };
 
@@ -75,6 +84,10 @@ export function PatientAppointmentRequests() {
   const [error, setError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [notice, setNotice] = useState("");
+  const [change, setChange] = useState<{
+    appointment: AppointmentSnapshot;
+    kind: "reschedule" | "cancel";
+  } | null>(null);
   const minimum = useMemo(() => localDateTime(new Date()), []);
   const intervalValid =
     new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
@@ -90,6 +103,7 @@ export function PatientAppointmentRequests() {
         body: {
           appointment_request: {
             request_key: requestKey,
+            request_kind: "new_booking",
             starts_at: new Date(startsAt).toISOString(),
             ends_at: new Date(endsAt).toISOString(),
             site_id: Number(siteId),
@@ -153,111 +167,195 @@ export function PatientAppointmentRequests() {
                 {error}
               </Alert>
             )}
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 2,
-              }}
-            >
-              <TextField
-                disabled={busy || outcomeUnconfirmed}
-                label="Preferred start (your local time)"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(event) => {
-                  setStartsAt(event.target.value);
-                  setRequestKey(crypto.randomUUID());
-                }}
-                slotProps={{
-                  htmlInput: { min: minimum },
-                  inputLabel: { shrink: true },
-                }}
-              />
-              <TextField
-                disabled={busy || outcomeUnconfirmed}
-                label="Preferred end (your local time)"
-                type="datetime-local"
-                value={endsAt}
-                error={!intervalValid}
-                helperText={
-                  intervalValid
-                    ? "Choose a window up to four hours."
-                    : "End time must be after the start time."
-                }
-                onChange={(event) => {
-                  setEndsAt(event.target.value);
-                  setRequestKey(crypto.randomUUID());
-                }}
-                slotProps={{
-                  htmlInput: { min: minimum },
-                  inputLabel: { shrink: true },
-                }}
-              />
-              <TextField
-                disabled={busy || outcomeUnconfirmed}
-                select
-                required
-                label="Preferred clinic location"
-                value={siteId}
-                onChange={(event) => {
-                  setSiteId(event.target.value);
-                  setRequestKey(crypto.randomUUID());
-                }}
-              >
-                <MenuItem value="" disabled>
-                  Choose a clinic location
-                </MenuItem>
-                {resource.data.options.sites.map((site) => (
-                  <MenuItem key={site.id} value={String(site.id)}>
-                    {site.name || site.code}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                disabled={busy || outcomeUnconfirmed}
-                select
-                label="Visit type (optional)"
-                value={visitTypeId}
-                helperText="Choose one if you have a preference."
-                onChange={(event) => {
-                  setVisitTypeId(event.target.value);
-                  setRequestKey(crypto.randomUUID());
-                }}
-              >
-                <MenuItem value="">No preference</MenuItem>
-                {resource.data.options.visit_types.map((type) => (
-                  <MenuItem key={type.id} value={String(type.id)}>
-                    {type.code}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
-              sx={{
-                justifyContent: "space-between",
-                alignItems: { sm: "center" },
-              }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                The clinic may offer a different available time. No clinician is
-                selected by this request.
+            <Stack spacing={1.25}>
+              <Typography variant="h6" component="h3">
+                Your upcoming appointments
               </Typography>
-              <Button
-                variant="contained"
-                disabled={busy || !siteId || !intervalValid}
-                onClick={() => void submit()}
-                startIcon={<EventAvailableOutlinedIcon />}
-              >
-                {busy
-                  ? "Sending…"
-                  : outcomeUnconfirmed
-                    ? "Retry same request"
-                    : "Send request"}
-              </Button>
+              {resource.data.upcoming_appointments.length === 0 && (
+                <Typography color="text.secondary">
+                  You have no upcoming appointments to change.
+                </Typography>
+              )}
+              {resource.data.upcoming_appointments.map((appointment) => {
+                const pendingChange = resource.data?.appointment_requests.find(
+                  (request) =>
+                    request.status === "pending" &&
+                    request.source_appointment?.id === appointment.id,
+                );
+                return (
+                  <Box
+                    key={appointment.id}
+                    sx={{
+                      borderTop: "1px solid",
+                      borderColor: "divider",
+                      pt: 1.5,
+                    }}
+                  >
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1}
+                      sx={{ justifyContent: "space-between" }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {dateTime(appointment.starts_at)} –{" "}
+                          {dateTime(appointment.ends_at)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {appointment.site?.name ||
+                            appointment.site?.code ||
+                            "Location not recorded"}
+                          {appointment.room
+                            ? ` · Room ${appointment.room.code}`
+                            : ""}
+                          {appointment.visit_type
+                            ? ` · ${appointment.visit_type.code}`
+                            : ""}
+                        </Typography>
+                      </Box>
+                      {pendingChange ? (
+                        <Chip
+                          size="small"
+                          color="info"
+                          label={`${pendingChange.request_kind === "cancel" ? "Cancellation" : "Reschedule"} request pending`}
+                        />
+                      ) : (
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() =>
+                              setChange({ appointment, kind: "reschedule" })
+                            }
+                          >
+                            Request reschedule
+                          </Button>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() =>
+                              setChange({ appointment, kind: "cancel" })
+                            }
+                          >
+                            Request cancellation
+                          </Button>
+                        </Stack>
+                      )}
+                    </Stack>
+                  </Box>
+                );
+              })}
             </Stack>
+            <Box>
+              <Typography variant="h6" component="h3" sx={{ mb: 0.5 }}>
+                Request a new appointment
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  disabled={busy || outcomeUnconfirmed}
+                  label="Preferred start (your local time)"
+                  type="datetime-local"
+                  value={startsAt}
+                  onChange={(event) => {
+                    setStartsAt(event.target.value);
+                    setRequestKey(crypto.randomUUID());
+                  }}
+                  slotProps={{
+                    htmlInput: { min: minimum },
+                    inputLabel: { shrink: true },
+                  }}
+                />
+                <TextField
+                  disabled={busy || outcomeUnconfirmed}
+                  label="Preferred end (your local time)"
+                  type="datetime-local"
+                  value={endsAt}
+                  error={!intervalValid}
+                  helperText={
+                    intervalValid
+                      ? "Choose a window up to four hours."
+                      : "End time must be after the start time."
+                  }
+                  onChange={(event) => {
+                    setEndsAt(event.target.value);
+                    setRequestKey(crypto.randomUUID());
+                  }}
+                  slotProps={{
+                    htmlInput: { min: minimum },
+                    inputLabel: { shrink: true },
+                  }}
+                />
+                <TextField
+                  disabled={busy || outcomeUnconfirmed}
+                  select
+                  required
+                  label="Preferred clinic location"
+                  value={siteId}
+                  onChange={(event) => {
+                    setSiteId(event.target.value);
+                    setRequestKey(crypto.randomUUID());
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Choose a clinic location
+                  </MenuItem>
+                  {resource.data.options.sites.map((site) => (
+                    <MenuItem key={site.id} value={String(site.id)}>
+                      {site.name || site.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  disabled={busy || outcomeUnconfirmed}
+                  select
+                  label="Visit type (optional)"
+                  value={visitTypeId}
+                  helperText="Choose one if you have a preference."
+                  onChange={(event) => {
+                    setVisitTypeId(event.target.value);
+                    setRequestKey(crypto.randomUUID());
+                  }}
+                >
+                  <MenuItem value="">No preference</MenuItem>
+                  {resource.data.options.visit_types.map((type) => (
+                    <MenuItem key={type.id} value={String(type.id)}>
+                      {type.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: { sm: "center" },
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  The clinic may offer a different available time. No clinician
+                  is selected by this request.
+                </Typography>
+                <Button
+                  variant="contained"
+                  disabled={busy || !siteId || !intervalValid}
+                  onClick={() => void submit()}
+                  startIcon={<EventAvailableOutlinedIcon />}
+                >
+                  {busy
+                    ? "Sending…"
+                    : outcomeUnconfirmed
+                      ? "Retry same request"
+                      : "Send request"}
+                </Button>
+              </Stack>
+            </Box>
             <Stack spacing={1.25}>
               <Typography variant="h6" component="h3">
                 Your requests
@@ -283,15 +381,14 @@ export function PatientAppointmentRequests() {
                   >
                     <Box>
                       <Typography sx={{ fontWeight: 700 }}>
-                        {dateTime(request.starts_at)} –{" "}
-                        {dateTime(request.ends_at)}
+                        {request.request_kind === "cancel"
+                          ? "Cancellation requested"
+                          : `${request.request_kind === "reschedule" ? "Reschedule requested: " : ""}${dateTime(request.starts_at || "")} – ${dateTime(request.ends_at || "")}`}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {request.site?.name ||
-                          request.site?.code ||
-                          "Location not specified"}{" "}
-                        ·{" "}
-                        {request.visit_type?.code || "Visit type not specified"}
+                        {request.source_appointment
+                          ? `Original appointment: ${dateTime(request.source_appointment.starts_at)} at ${request.source_appointment.site?.name || request.source_appointment.site?.code || "Location not recorded"}`
+                          : `${request.site?.name || request.site?.code || "Location not specified"} · ${request.visit_type?.code || "Visit type not specified"}`}
                       </Typography>
                     </Box>
                     <Chip
@@ -317,11 +414,14 @@ export function PatientAppointmentRequests() {
                       icon={false}
                       sx={{ mt: 1 }}
                     >
-                      Booking status:{" "}
-                      {request.appointment.status.replaceAll("_", " ")} ·{" "}
+                      {request.request_kind === "new_booking"
+                        ? "Booking status"
+                        : "Appointment status"}
+                      : {request.appointment.status.replaceAll("_", " ")} ·{" "}
                       {dateTime(request.appointment.starts_at)} at{" "}
-                      {request.appointment.site.name ||
-                        request.appointment.site.code}
+                      {request.appointment.site?.name ||
+                        request.appointment.site?.code ||
+                        "Location not recorded"}
                       {request.appointment.room
                         ? ` · Room ${request.appointment.room.code}`
                         : ""}
@@ -336,7 +436,173 @@ export function PatientAppointmentRequests() {
             </Stack>
           </>
         )}
+        {change && (
+          <AppointmentChangeDialog
+            appointment={change.appointment}
+            kind={change.kind}
+            onClose={() => setChange(null)}
+            onSaved={() => {
+              setChange(null);
+              setNotice(
+                change.kind === "cancel"
+                  ? "Your cancellation request was sent to the clinic for review."
+                  : "Your preferred reschedule time was sent to the clinic for review.",
+              );
+              resource.refresh();
+            }}
+          />
+        )}
       </Stack>
     </Paper>
+  );
+}
+
+function AppointmentChangeDialog({
+  appointment,
+  kind,
+  onClose,
+  onSaved,
+}: {
+  appointment: AppointmentSnapshot;
+  kind: "reschedule" | "cancel";
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [startsAt, setStartsAt] = useState(() =>
+    localDateTime(new Date(appointment.starts_at)),
+  );
+  const [endsAt, setEndsAt] = useState(() =>
+    localDateTime(new Date(appointment.ends_at)),
+  );
+  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const [busy, setBusy] = useState(false);
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
+  const [error, setError] = useState("");
+  const intervalValid =
+    kind === "cancel" ||
+    new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
+
+  async function submit() {
+    if (!intervalValid) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/patient_portal/appointment_requests", {
+        method: "POST",
+        body: {
+          appointment_request: {
+            request_key: requestKey,
+            request_kind: kind,
+            source_appointment_id: appointment.id,
+            source_appointment_updated_at: appointment.updated_at,
+            starts_at:
+              kind === "reschedule"
+                ? new Date(startsAt).toISOString()
+                : undefined,
+            ends_at:
+              kind === "reschedule"
+                ? new Date(endsAt).toISOString()
+                : undefined,
+          },
+        },
+      });
+      onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Your appointment change request could not be sent.",
+      );
+      setOutcomeUnconfirmed(
+        !(reason instanceof ApiError) ||
+          reason.status >= 500 ||
+          reason.code === "outcome_unconfirmed",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open
+      fullWidth
+      maxWidth="sm"
+      onClose={busy || outcomeUnconfirmed ? undefined : onClose}
+    >
+      <DialogTitle>
+        {kind === "cancel"
+          ? "Request appointment cancellation"
+          : "Request appointment reschedule"}
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Alert severity="info">
+            Current appointment: {dateTime(appointment.starts_at)} –{" "}
+            {dateTime(appointment.ends_at)}. The clinic will review this request
+            before changing your appointment.
+          </Alert>
+          {error && <Alert severity="error">{error}</Alert>}
+          {kind === "cancel" ? (
+            <Typography color="text.secondary">
+              This sends a cancellation request. Your appointment remains
+              scheduled until the clinic reviews it.
+            </Typography>
+          ) : (
+            <>
+              <TextField
+                disabled={busy || outcomeUnconfirmed}
+                label="Preferred start (your local time)"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(event) => {
+                  setStartsAt(event.target.value);
+                  setRequestKey(crypto.randomUUID());
+                  setOutcomeUnconfirmed(false);
+                }}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                disabled={busy || outcomeUnconfirmed}
+                label="Preferred end (your local time)"
+                type="datetime-local"
+                value={endsAt}
+                error={!intervalValid}
+                helperText={
+                  intervalValid
+                    ? "Choose a window up to four hours."
+                    : "End time must be after the start time."
+                }
+                onChange={(event) => {
+                  setEndsAt(event.target.value);
+                  setRequestKey(crypto.randomUUID());
+                  setOutcomeUnconfirmed(false);
+                }}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </>
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button disabled={busy || outcomeUnconfirmed} onClick={onClose}>
+          Close
+        </Button>
+        <Button
+          variant="contained"
+          color={kind === "cancel" ? "error" : "primary"}
+          disabled={busy || !intervalValid}
+          onClick={() => void submit()}
+        >
+          {busy
+            ? "Sending…"
+            : outcomeUnconfirmed
+              ? "Retry same request"
+              : kind === "cancel"
+                ? "Send cancellation request"
+                : "Send reschedule request"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
