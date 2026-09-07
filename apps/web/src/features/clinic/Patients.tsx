@@ -9,6 +9,7 @@ import {
   useResource,
 } from "../../shared/ui";
 import { PatientSupport } from "./CareFlow";
+import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { useClinic } from "./Workspace";
 
 type LegacyNote = {
@@ -363,12 +364,7 @@ function PatientDetails({ patient }: { patient: Patient }) {
             : "No vital-sign observations recorded."}
         </p>
       </Card>
-      <Card title="Clinical modules">
-        <p>
-          Allergies, medications, and conditions are not yet modeled with
-          clinical attributes in this prototype.
-        </p>
-      </Card>
+      <PatientClinicalHistory patientId={patient.id} />
     </div>
   );
 }

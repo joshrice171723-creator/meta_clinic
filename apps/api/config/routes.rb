@@ -12,7 +12,7 @@ Rails.application.routes.draw do
     patch "facilities/:id", to: "facilities#update"
     resources :clinicians, controller: "clinicians", only: :index
     resources :role_versions, controller: "role_versions", only: :index
-    resources :appointments, controller: "scheduling/appointments", only: %i[index show create] do
+    resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do
       post :transition, on: :member
     end
     get "tracking_board", to: "scheduling/tracking_board#show"
@@ -159,6 +159,10 @@ Rails.application.routes.draw do
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"
       resource :care_summary, controller: "care/patient_care_summaries", only: :show
+      get "clinical_history", to: "care/clinical_history#index", as: :clinical_history
+      post "clinical_history/reviews", to: "care/clinical_history#review", as: :clinical_history_reviews
+      post "clinical_history/:kind", to: "care/clinical_history#create", as: nil
+      patch "clinical_history/:kind/:id", to: "care/clinical_history#update", as: nil
       resources :encounters, controller: "scheduling/encounters", only: %i[index create]
       resources :observations, controller: "care/observations", only: %i[index create]
       resources :address_versions, controller: "care/patient_addresses", only: %i[index create]
@@ -263,7 +267,7 @@ Rails.application.routes.draw do
   namespace :api, module: "identity/api" do
     post "employee_activation", to: "employee_activations#create"
     get "csrf", to: "sessions#csrf"
-    resource :session, only: %i[show create destroy]
+    resource :session, only: %i[show create update destroy]
     resource :settings, only: %i[show update]
       resource :development_access, controller: :development_access, only: :update
     post "development_session", to: "sessions#development"

@@ -53,6 +53,7 @@ import { CareIndicators, type CareSummaryLoadState } from "./CareIndicators";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
+import { PatientClinicalHistory } from "./PatientClinicalHistory";
 
 export function encounterDetailPath(
   patientId: string | number,
@@ -1897,6 +1898,10 @@ export function ProviderEncounterWorkflow({
                 </Typography>
               </Stack>
             </Paper>
+            <PatientClinicalHistory
+              patientId={patient.id}
+              encounterId={encounter.id}
+            />
             {noteWorkspace}
             <VisitWrapUp
               patient={patient}
