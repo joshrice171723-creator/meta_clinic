@@ -256,3 +256,11 @@ ruby bin/postgres exec env RAILS_ENV=test ruby bin/rails test test/integration/c
 ```
 
 It did **not** run tests: Rails stopped before discovery with three pending migrations (`20260907000800_create_invoice_stripe_checkouts`, `20260907000900_create_lab_result_follow_ups`, and `20260907001000_create_previsit_notes`). Therefore this checkpoint records **0 tests / 0 assertions** from that attempt and makes no passing-test claim. The added integration regression covers exact replay after closure, altered same-key rejection, and new-key rejection, but it requires a migrated isolated test database before it can be treated as executed proof. `git diff --check` was clean before the source commit; no broad suite, migration, provider action, or browser workflow was run.
+
+**Verification update.** The pre-existing isolated test database avoided the main database's pending migrations. The exact executed command was:
+
+```text
+ruby bin/postgres exec env RAILS_ENV=test APPLY_TEST_DATABASE=apply_finalization_20260907_a SCHEMA=tmp/finalization-structure.sql ruby bin/rails test test/integration/clinic_workspace_test.rb -i "/a separately authorized receiver quarantines a first incoming recalled lot/"
+```
+
+Rails requested `-i/--include` instead of `-n/--name`; the command completed in 10.081288 seconds with **1 run, 20 assertions, 0 failures, 0 errors, 0 skips**. The captured log is `apps/api/tmp/production-finalization/inventory-recall-retry-isolated-test.log`. The regression fixture now performs a real authorized recall disposition and closure before retrying, rather than attempting an invalid direct status update. This is one affected integration test only; no broad suite, migration, provider action, or browser workflow was run.
