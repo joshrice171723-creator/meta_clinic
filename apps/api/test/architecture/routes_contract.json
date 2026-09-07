@@ -25,6 +25,11 @@
     "/api/clinic/appointments/:id(.:format)"
   ],
   [
+    "api_clinic_appointment_requests",
+    "GET",
+    "/api/clinic/appointment_requests(.:format)"
+  ],
+  [
     "api_clinic_appointments",
     "GET",
     "/api/clinic/appointments(.:format)"
@@ -33,6 +38,16 @@
     "api_clinic_billing",
     "GET",
     "/api/clinic/billing(.:format)"
+  ],
+  [
+    "api_clinic_billing_service",
+    "PATCH",
+    "/api/clinic/billing_services/:id(.:format)"
+  ],
+  [
+    "api_clinic_billing_services",
+    "GET",
+    "/api/clinic/billing_services(.:format)"
   ],
   [
     "api_clinic_cash_drawers",
@@ -63,6 +78,11 @@
     "api_clinic_encounter",
     "GET",
     "/api/clinic/encounters/:id(.:format)"
+  ],
+  [
+    "api_clinic_encounter_medication_administrations",
+    "GET",
+    "/api/clinic/encounters/:encounter_id/medication_administrations(.:format)"
   ],
   [
     "api_clinic_encounter_notes",
@@ -245,6 +265,11 @@
     "/api/clinic/operation_receipts/:request_key(.:format)"
   ],
   [
+    "api_clinic_operations_follow_ups",
+    "GET",
+    "/api/clinic/operations/follow_ups(.:format)"
+  ],
+  [
     "api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id(.:format)"
@@ -260,6 +285,16 @@
     "/api/clinic/patients/:patient_id/care_summary(.:format)"
   ],
   [
+    "api_clinic_patient_clinical_history",
+    "GET",
+    "/api/clinic/patients/:patient_id/clinical_history(.:format)"
+  ],
+  [
+    "api_clinic_patient_clinical_history_reviews",
+    "POST",
+    "/api/clinic/patients/:patient_id/clinical_history/reviews(.:format)"
+  ],
+  [
     "api_clinic_patient_documents",
     "GET",
     "/api/clinic/patients/:patient_id/documents(.:format)"
@@ -273,6 +308,16 @@
     "api_clinic_patient_invoices",
     "GET",
     "/api/clinic/patients/:patient_id/invoices(.:format)"
+  ],
+  [
+    "api_clinic_patient_lab_report",
+    "GET",
+    "/api/clinic/patients/:patient_id/lab_reports/:id(.:format)"
+  ],
+  [
+    "api_clinic_patient_lab_reports",
+    "GET",
+    "/api/clinic/patients/:patient_id/lab_reports(.:format)"
   ],
   [
     "api_clinic_patient_message_intents",
@@ -428,6 +473,11 @@
     "api_clinic_subscription_catalog",
     "GET",
     "/api/clinic/subscription_catalog(.:format)"
+  ],
+  [
+    "api_clinic_subscription_catalog_storefront_preview",
+    "GET",
+    "/api/clinic/subscription_catalog/storefront_preview(.:format)"
   ],
   [
     "api_clinic_subscriptions",
@@ -670,6 +720,11 @@
     "/api/stripe/connect/webhook(.:format)"
   ],
   [
+    "approve_api_clinic_appointment_request",
+    "POST",
+    "/api/clinic/appointment_requests/:id/approve(.:format)"
+  ],
+  [
     "approve_api_clinic_scribe_draft",
     "POST",
     "/api/clinic/scribe/drafts/:id/approve(.:format)"
@@ -683,6 +738,11 @@
     "billing_ledger_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/billing_ledger(.:format)"
+  ],
+  [
+    "bind_clinical_encounter_api_clinic_scribe_encounter",
+    "POST",
+    "/api/clinic/scribe/encounters/:id/bind_clinical_encounter(.:format)"
   ],
   [
     "calculate_api_clinic_workforce_timecards",
@@ -755,9 +815,24 @@
     "/api/clinic/scribe/encounters/:id/context(.:format)"
   ],
   [
+    "corrections_api_clinic_note",
+    "POST",
+    "/api/clinic/notes/:id/corrections(.:format)"
+  ],
+  [
+    "credits_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/credits(.:format)"
+  ],
+  [
     "decide_api_clinic_workforce_adjustment",
     "POST",
     "/api/clinic/workforce/adjustments/:id/decide(.:format)"
+  ],
+  [
+    "decline_api_clinic_appointment_request",
+    "POST",
+    "/api/clinic/appointment_requests/:id/decline(.:format)"
   ],
   [
     "delivery_events_api_clinic_message_intent",
@@ -823,6 +898,11 @@
     "interrupt_api_clinic_scribe_recording",
     "POST",
     "/api/clinic/scribe/recordings/:id/interrupt(.:format)"
+  ],
+  [
+    "lab_selections_api_clinic_scribe_encounter",
+    "POST",
+    "/api/clinic/scribe/encounters/:id/lab_selections(.:format)"
   ],
   [
     "lookup_api_clinic_patients",
@@ -965,6 +1045,11 @@
     "/api/clinic/subscriptions/:id/review(.:format)"
   ],
   [
+    "review_version_api_clinic_patient_lab_report",
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/review(.:format)"
+  ],
+  [
     "revisions_api_clinic_note",
     "POST",
     "/api/clinic/notes/:id/revisions(.:format)"
@@ -1025,9 +1110,24 @@
     "/api/clinic/workforce/timecards/:id/submit(.:format)"
   ],
   [
+    "transcribe_api_clinic_scribe_recording",
+    "POST",
+    "/api/clinic/scribe/recordings/:id/transcribe(.:format)"
+  ],
+  [
     "transition_api_clinic_appointment",
     "POST",
     "/api/clinic/appointments/:id/transition(.:format)"
+  ],
+  [
+    "versions_api_clinic_patient_lab_report",
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions(.:format)"
+  ],
+  [
+    "void_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/void(.:format)"
   ],
   [
     null,
@@ -1087,6 +1187,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/appointments/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/context(.:format)"
   ],
   [
@@ -1122,6 +1227,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/patients/:patient_id/clinical_history/:kind/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/pharmacy/:id(.:format)"
   ],
   [
@@ -1142,6 +1252,11 @@
   [
     null,
     "PATCH",
+    "/api/session(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/settings(.:format)"
   ],
   [
@@ -1152,7 +1267,17 @@
   [
     null,
     "POST",
+    "/api/clinic/billing_services(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/cash_drawers(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/encounters/:encounter_id/medication_administrations(.:format)"
   ],
   [
     null,
@@ -1307,12 +1432,22 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/clinical_history/:kind(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/encounters(.:format)"
   ],
   [
     null,
     "POST",
     "/api/clinic/patients/:patient_id/invoices(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports(.:format)"
   ],
   [
     null,
@@ -1492,6 +1627,16 @@
   [
     null,
     "PUT",
+    "/api/clinic/appointments/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/billing_services/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
     "/api/clinic/patients/:id(.:format)"
   ],
   [
@@ -1518,6 +1663,11 @@
     null,
     "PUT",
     "/api/development_access(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/session(.:format)"
   ],
   [
     null,

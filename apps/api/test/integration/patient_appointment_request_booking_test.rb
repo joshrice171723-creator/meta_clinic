@@ -2,11 +2,14 @@ require "test_helper"
 
 class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
   setup do
+    Rails.cache.clear
+    @previous_environment, @previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
     organization = Organization.create!(name: "Appointment Request Review Organization")
     @practice = Clinic::Practice.create!(name: "Appointment Request Review Practice", organization: organization)
 
-    @patient_password = SecureRandom.hex(18)
+    @patient_password = Development::TestAccounts.send(:password_for, "patient")
     @patient_user = User.create!(
       email_address: Development::TestAccounts::PROFILES.fetch("patient").fetch(:email),
       password: @patient_password
@@ -38,8 +41,12 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
       reference: "APPT-CLINICIAN"
     )
 
-    @patient_session, @patient_headers = authenticated_session(@patient_user, @patient_password)
+    @patient_session, @patient_headers = authenticated_session(@patient_user, @patient_password, profile: "patient")
     @staff_session, @staff_headers = authenticated_session(@staff_user, @staff_password)
+  end
+
+  teardown do
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = @previous_environment, @previous_flag
   end
 
   test "patient can create and list only its appointment requests with safe options" do
@@ -65,9 +72,10 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     assert_equal created.fetch("id"), @patient_session.response.parsed_body.dig("appointment_request", "id")
 
     travel_to(starts_at + 1.minute) do
-      @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
-      assert_equal 200, @patient_session.response.status
-      assert_equal created.fetch("id"), @patient_session.response.parsed_body.dig("appointment_request", "id")
+      replay_session, replay_headers = authenticated_session(@patient_user, @patient_password, profile: "patient")
+      replay_session.post patient_requests_path, params: payload, headers: replay_headers, as: :json
+      assert_equal 200, replay_session.response.status
+      assert_equal created.fetch("id"), replay_session.response.parsed_body.dig("appointment_request", "id")
     end
 
     other_patient = @practice.patients.create!(display_name: "Other Appointment Patient", reference: "APPOINTMENT-REQUEST-002")
@@ -296,13 +304,18 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     practice.memberships.create!(user: user)
   end
 
-  def authenticated_session(user, password)
+  def authenticated_session(user, password, profile: nil)
     session = open_session
     session.host! "localhost:3000"
     session.get "/api/csrf", headers: @headers
     headers = @headers.merge("X-CSRF-Token" => session.response.parsed_body.fetch("csrf_token"))
-    session.post "/api/session", params: { email_address: user.email_address, password: password }, headers: headers, as: :json
-    assert_equal 200, session.response.status
+    if profile
+      session.post "/api/development_session", params: { profile: profile }, headers: headers, as: :json
+      assert_equal 201, session.response.status
+    else
+      session.post "/api/session", params: { email_address: user.email_address, password: password }, headers: headers, as: :json
+      assert_equal 200, session.response.status
+    end
     [ session, headers ]
   end
 end
