@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -19,8 +19,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
+import { useClinicNavigation } from "./clinicNavigation";
 import {
   HISTORY_LABELS,
   humanize,
@@ -116,6 +117,15 @@ const selectOptions = {
 
 function requestKey() {
   return crypto.randomUUID();
+}
+
+export function clinicalHistoryOutcomeIsUnknown(reason: unknown) {
+  return (
+    !(reason instanceof ApiError) ||
+    reason.status === 408 ||
+    reason.status >= 500 ||
+    reason.code === "outcome_unconfirmed"
+  );
 }
 
 function displayTime(value: string | null) {
@@ -243,6 +253,7 @@ export function PatientClinicalHistory({
   encounterId?: number;
   onChanged?: () => void;
 }) {
+  const { registerBlocker } = useClinicNavigation();
   const path = `/api/clinic/patients/${encodeURIComponent(String(patientId))}/clinical_history${
     encounterId
       ? `?encounter_id=${encodeURIComponent(String(encounterId))}`
@@ -253,6 +264,7 @@ export function PatientClinicalHistory({
   const [form, setForm] = useState<Record<string, FormValue>>({});
   const [mutationKey, setMutationKey] = useState("");
   const [mutationError, setMutationError] = useState("");
+  const [mutationOutcomeUnknown, setMutationOutcomeUnknown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [reviewTopic, setReviewTopic] = useState<ReviewTopic | null>(null);
@@ -263,6 +275,24 @@ export function PatientClinicalHistory({
   });
   const [reviewKey, setReviewKey] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [reviewOutcomeUnknown, setReviewOutcomeUnknown] = useState(false);
+  const outcomeUnknown = mutationOutcomeUnknown || reviewOutcomeUnknown;
+
+  useEffect(() => {
+    if (!outcomeUnknown) return;
+    const warning =
+      "A clinical history save outcome is unknown. Retry the exact request before leaving this chart.";
+    const unregister = registerBlocker(() => warning);
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [outcomeUnknown, registerBlocker]);
 
   const lists = useMemo<Record<HistoryKind, HistoryRecord[]> | undefined>(
     () =>
@@ -280,11 +310,12 @@ export function PatientClinicalHistory({
     setForm(initialRecordForm(next));
     setMutationKey(requestKey());
     setMutationError("");
+    setMutationOutcomeUnknown(false);
   }
 
   function changeField(name: string, value: FormValue) {
     setForm((current) => ({ ...current, [name]: value }));
-    if (mutationError) {
+    if (mutationError && !mutationOutcomeUnknown) {
       setMutationKey(requestKey());
       setMutationError("");
     }
@@ -319,14 +350,19 @@ export function PatientClinicalHistory({
         );
       }
       setEditor(null);
+      setMutationOutcomeUnknown(false);
       setNotice(`${singularLabels[editor.kind]} record saved.`);
       history.refresh();
       onChanged?.();
     } catch (error) {
+      const unknown = clinicalHistoryOutcomeIsUnknown(error);
+      setMutationOutcomeUnknown(unknown);
       setMutationError(
-        error instanceof Error
-          ? error.message
-          : "Unable to save this history record.",
+        unknown
+          ? "The save outcome is unknown. Retry this exact unchanged request before editing or leaving the chart."
+          : error instanceof Error
+            ? error.message
+            : "Unable to save this history record.",
       );
     } finally {
       setSubmitting(false);
@@ -338,11 +374,12 @@ export function PatientClinicalHistory({
     setReview({ outcome: "", information_source: "", notes: "" });
     setReviewKey(requestKey());
     setReviewError("");
+    setReviewOutcomeUnknown(false);
   }
 
   function changeReview(name: keyof typeof review, value: string) {
     setReview((current) => ({ ...current, [name]: value }));
-    if (reviewError) {
+    if (reviewError && !reviewOutcomeUnknown) {
       setReviewKey(requestKey());
       setReviewError("");
     }
@@ -373,16 +410,21 @@ export function PatientClinicalHistory({
       )
         throw new Error("The review did not match this patient encounter.");
       setReviewTopic(null);
+      setReviewOutcomeUnknown(false);
       setNotice(
         `${HISTORY_LABELS[reviewTopic as HistoryKind] || humanize(reviewTopic)} review recorded.`,
       );
       history.refresh();
       onChanged?.();
     } catch (error) {
+      const unknown = clinicalHistoryOutcomeIsUnknown(error);
+      setReviewOutcomeUnknown(unknown);
       setReviewError(
-        error instanceof Error
-          ? error.message
-          : "Unable to record this history review.",
+        unknown
+          ? "The review outcome is unknown. Retry this exact unchanged request before editing or leaving the chart."
+          : error instanceof Error
+            ? error.message
+            : "Unable to record this history review.",
       );
     } finally {
       setSubmitting(false);
@@ -565,7 +607,11 @@ export function PatientClinicalHistory({
 
       <Dialog
         open={Boolean(editor)}
-        onClose={submitting ? undefined : () => setEditor(null)}
+        onClose={
+          submitting || mutationOutcomeUnknown
+            ? undefined
+            : () => setEditor(null)
+        }
         fullWidth
         maxWidth="sm"
       >
@@ -580,15 +626,24 @@ export function PatientClinicalHistory({
             </Alert>
           )}
           {editor && (
-            <RecordFields
-              kind={editor.kind}
-              form={form}
-              changeField={changeField}
-            />
+            <Box
+              component="fieldset"
+              disabled={mutationOutcomeUnknown}
+              sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}
+            >
+              <RecordFields
+                kind={editor.kind}
+                form={form}
+                changeField={changeField}
+              />
+            </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button disabled={submitting} onClick={() => setEditor(null)}>
+          <Button
+            disabled={submitting || mutationOutcomeUnknown}
+            onClick={() => setEditor(null)}
+          >
             Cancel
           </Button>
           <Button
@@ -596,14 +651,24 @@ export function PatientClinicalHistory({
             variant="contained"
             onClick={saveRecord}
           >
-            {submitting ? "Saving…" : mutationError ? "Retry" : "Save"}
+            {submitting
+              ? "Saving…"
+              : mutationOutcomeUnknown
+                ? "Retry same save"
+                : mutationError
+                  ? "Retry"
+                  : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog
         open={Boolean(reviewTopic)}
-        onClose={submitting ? undefined : () => setReviewTopic(null)}
+        onClose={
+          submitting || reviewOutcomeUnknown
+            ? undefined
+            : () => setReviewTopic(null)
+        }
         fullWidth
         maxWidth="sm"
       >
@@ -611,7 +676,12 @@ export function PatientClinicalHistory({
           Review {reviewTopic ? humanize(reviewTopic) : "history"}
         </DialogTitle>
         <DialogContent dividers>
-          <Stack spacing={2}>
+          <Stack
+            component="fieldset"
+            disabled={reviewOutcomeUnknown}
+            spacing={2}
+            sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}
+          >
             <Alert severity="info">
               Choose the outcome explicitly. An empty list does not
               automatically mean none reported.
@@ -642,21 +712,28 @@ export function PatientClinicalHistory({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={submitting} onClick={() => setReviewTopic(null)}>
+          <Button
+            disabled={submitting || reviewOutcomeUnknown}
+            onClick={() => setReviewTopic(null)}
+          >
             Cancel
           </Button>
           <Button
             disabled={
-              submitting || !review.outcome || !review.information_source
+              submitting ||
+              (!reviewOutcomeUnknown &&
+                (!review.outcome || !review.information_source))
             }
             variant="contained"
             onClick={saveReview}
           >
             {submitting
               ? "Recording…"
-              : reviewError
-                ? "Retry"
-                : "Record review"}
+              : reviewOutcomeUnknown
+                ? "Retry same review"
+                : reviewError
+                  ? "Retry"
+                  : "Record review"}
           </Button>
         </DialogActions>
       </Dialog>
