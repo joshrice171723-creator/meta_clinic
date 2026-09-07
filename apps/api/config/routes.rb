@@ -45,10 +45,12 @@ Rails.application.routes.draw do
     end
       resources :invoices, controller: "billing/invoices", only: :show do
         patch :draft, on: :member, action: :update_draft
-      post :post, on: :member
-      post :payment_allocations, on: :member, action: :allocate_payment
-      post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
-    end
+        post :post, on: :member
+        post :credits, on: :member, action: :credit
+        post :void, on: :member, action: :void_invoice
+        post :payment_allocations, on: :member, action: :allocate_payment
+        post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
+      end
     get "billing", to: "billing/dashboard#show"
     resources :billing_services, only: %i[index create update]
     get "stripe_connect", to: "billing/stripe_connect#show"

@@ -3,12 +3,12 @@ module Clinic
     class InvoicesController < Clinic::ApiController
       before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create update_draft]
-      before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: :post
+      before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: %i[post credit void_invoice]
       before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[allocate_payment record_cash_payment]
 
       def index
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
-        invoices = patient.invoices.includes(:lines, :payment_allocations, :credit_notes)
+        invoices = patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents)
         if params[:encounter_id].present?
           encounter = current_practice.encounters.where(patient_id: patient.id).find(requested_id!(params[:encounter_id], :encounter_id))
           invoices = invoices.where(encounter_id: encounter.id)
@@ -18,7 +18,7 @@ module Clinic
       end
 
       def show
-        invoice = current_practice.invoices.includes(:lines, :payment_allocations, :credit_notes).find(requested_id!(params[:id], :id))
+        invoice = current_practice.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents).find(requested_id!(params[:id], :id))
         verify_patient_scope!(invoice) if params[:patient_id].present?
         render json: { invoice: InvoiceSerializer.call(invoice, detail: true) }
       end
@@ -56,6 +56,42 @@ module Clinic
         expected_updated_at = input.key?(:expected_updated_at) ? required_string!(input[:expected_updated_at], field: :expected_updated_at, maximum: 40) : nil
         updated = Clinic::Billing::PostInvoice.call(invoice: invoice, actor: current_user, request_key: request_key, expected_updated_at: expected_updated_at)
         render json: { invoice: InvoiceSerializer.call(updated, detail: true), request_key: request_key }
+      end
+
+      def credit
+        input = parameter_hash!(:credit, %i[amount reason request_key])
+        invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
+        result = InvoiceAdjustments.credit(
+          invoice: invoice,
+          actor: current_user,
+          amount: decimal_string!(input[:amount], field: :amount),
+          reason: required_string!(input[:reason], field: :reason, maximum: 500),
+          request_key: request_key
+        )
+        render json: {
+          credit: InvoiceSerializer.credit(result.credit),
+          invoice: InvoiceSerializer.call(result.invoice, detail: true),
+          replayed: result.replayed,
+          request_key: result.request_key
+        }, status: result.replayed ? :ok : :created
+      end
+
+      def void_invoice
+        input = parameter_hash!(:invoice_void, %i[reason request_key])
+        invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
+        result = InvoiceAdjustments.void(
+          invoice: invoice,
+          actor: current_user,
+          reason: required_string!(input[:reason], field: :reason, maximum: 500),
+          request_key: request_key
+        )
+        render json: {
+          invoice: InvoiceSerializer.call(result.invoice, detail: true),
+          replayed: result.replayed,
+          request_key: result.request_key
+        }
       end
 
       def allocate_payment

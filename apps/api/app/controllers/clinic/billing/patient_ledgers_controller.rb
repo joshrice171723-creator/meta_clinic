@@ -5,7 +5,11 @@ module Clinic
 
       def show
         patient = current_practice.patients.find(requested_id!(params[:id], :id))
-        render json: PatientLedger.call(practice: current_practice, patient: patient)
+        render json: PatientLedger.call(
+          practice: current_practice,
+          patient: patient,
+          include_adjustment_evidence: true
+        )
       end
     end
   end

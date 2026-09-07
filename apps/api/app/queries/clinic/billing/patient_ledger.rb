@@ -1,17 +1,18 @@
 module Clinic
   module Billing
     class PatientLedger
-      def self.call(practice:, patient:)
-        new(practice:, patient:).call
+      def self.call(practice:, patient:, include_adjustment_evidence: false)
+        new(practice:, patient:, include_adjustment_evidence:).call
       end
 
-      def initialize(practice:, patient:)
+      def initialize(practice:, patient:, include_adjustment_evidence:)
         @practice = practice
         @patient = patient
+        @include_adjustment_evidence = include_adjustment_evidence
       end
 
       def call
-        invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes).order(created_at: :desc, id: :desc).to_a
+        invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents).order(created_at: :desc, id: :desc).to_a
         payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events, :cash_tender, :billing_receipts).order(created_at: :desc, id: :desc).to_a
 
         {
@@ -42,7 +43,7 @@ module Clinic
       end
 
       def invoice_payload(invoice)
-        {
+        payload = {
           id: invoice.id,
           currency: invoice.currency,
           status: invoice.status,
@@ -52,6 +53,7 @@ module Clinic
           allocated_amount: decimal(invoice_allocated(invoice)),
           credit_amount: decimal(invoice_credit(invoice)),
           balance_amount: decimal(invoice_balance(invoice)),
+          adjustment_limits: InvoiceAdjustments.limits(invoice),
           lines: invoice.lines.sort_by(&:id).map do |line|
             { id: line.id, description: line.description_snapshot, quantity: decimal(line.quantity), unit_amount: decimal(line.unit_amount), posted_amount: decimal(line.posted_amount), billing_service_id: line.billing_service_id }
           end,
@@ -59,9 +61,29 @@ module Clinic
             { id: allocation.id, payment_event_id: allocation.payment_event_id, amount: decimal(allocation.amount), created_at: allocation.created_at.iso8601 }
           end,
           credits: invoice.credit_notes.sort_by(&:created_at).map do |credit|
-            { id: credit.id, amount: decimal(credit.amount), created_at: credit.created_at.iso8601 }
+            credit_payload(credit)
           end
         }
+        if @include_adjustment_evidence
+          payload.merge!(
+            void_reason: invoice.void_reason,
+            voided_at: invoice.voided_at&.iso8601,
+            voided_by_membership_id: invoice.voided_by_membership_id
+          )
+        end
+        payload
+      end
+
+      def credit_payload(credit)
+        payload = { id: credit.id, amount: decimal(credit.amount), created_at: credit.created_at.iso8601 }
+        return payload unless @include_adjustment_evidence
+
+        payload.merge(
+          currency: credit.currency,
+          reason: credit.reason,
+          issued_at: (credit.issued_at || credit.created_at).iso8601,
+          issued_by_membership_id: credit.issued_by_membership_id
+        )
       end
 
       def payment_payload(payment)

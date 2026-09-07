@@ -15,11 +15,13 @@ module Clinic
         total = invoice.lines.sum { |line| line.posted_amount || 0 }
         allocated = invoice.payment_allocations.sum { |allocation| allocation.amount || 0 }
         credit = invoice.credit_notes.sum { |note| note.amount || 0 }
+        balance = invoice.status == "void" ? BigDecimal("0") : [ total - allocated - credit, BigDecimal("0") ].max
         payload.merge!(
           total_amount: total.to_d.to_s("F"),
           allocated_amount: allocated.to_d.to_s("F"),
           credit_amount: credit.to_d.to_s("F"),
-          balance_amount: (total - allocated - credit).to_d.to_s("F")
+          balance_amount: balance.to_d.to_s("F"),
+          adjustment_limits: InvoiceAdjustments.limits(invoice)
         )
         return payload unless detail
 
@@ -34,10 +36,26 @@ module Clinic
               description: line.description_snapshot
             }
           },
+          credits: invoice.credit_notes.order(:id).map { |note| credit(note) },
           allocated_amount: allocated.to_d.to_s("F"),
           credit_amount: credit.to_d.to_s("F"),
+          void_reason: invoice.void_reason,
+          voided_at: invoice.voided_at&.iso8601,
+          voided_by_membership_id: invoice.voided_by_membership_id,
           audit_timeline: audit_timeline(invoice)
         )
+      end
+
+      def self.credit(note)
+        {
+          id: note.id,
+          invoice_id: note.invoice_id,
+          amount: note.amount.to_s("F"),
+          currency: note.currency,
+          reason: note.reason,
+          issued_at: (note.issued_at || note.created_at).iso8601,
+          issued_by_membership_id: note.issued_by_membership_id
+        }
       end
 
       def self.audit_timeline(invoice)

@@ -67,6 +67,14 @@ function isZero(value: string) {
   return /^0+(?:\.0+)?$/.test(value);
 }
 
+function decimalNotGreaterThan(value: string, limit: string) {
+  const scale = (decimal: string) => {
+    const [whole, fraction = ""] = decimal.split(".");
+    return BigInt(`${whole}${fraction.padEnd(6, "0").slice(0, 6)}`);
+  };
+  return scale(value) <= scale(limit);
+}
+
 type CashRefundAttempt = {
   patientId: number;
   paymentId: number;
@@ -79,9 +87,21 @@ type CashRefundScope = Pick<
   "practice" | "user_id" | "membership_id"
 >;
 
+type ChargeAdjustmentAttempt = {
+  action: "credit" | "void";
+  amount?: string;
+  invoiceId: number;
+  reason: string;
+  requestKey: string;
+};
+
 // Keep an uncertain refund available across in-app navigation without writing
 // patient financial data to browser storage.
 const pendingCashRefundAttempts = new Map<string, CashRefundAttempt>();
+const pendingChargeAdjustmentAttempts = new Map<
+  string,
+  ChargeAdjustmentAttempt
+>();
 function cashRefundScopeKey(scope: CashRefundScope) {
   return `${scope.practice.id}:${scope.user_id}:${scope.membership_id}`;
 }
@@ -92,6 +112,23 @@ function persistCashRefundAttempt(
   const key = cashRefundScopeKey(scope);
   if (attempt) pendingCashRefundAttempts.set(key, attempt);
   else pendingCashRefundAttempts.delete(key);
+}
+
+function chargeAdjustmentScopeKey(
+  scope: CashRefundScope,
+  invoiceId: number,
+) {
+  return `${cashRefundScopeKey(scope)}:invoice:${invoiceId}`;
+}
+
+function persistChargeAdjustmentAttempt(
+  scope: CashRefundScope,
+  invoiceId: number,
+  attempt: ChargeAdjustmentAttempt | null,
+) {
+  const key = chargeAdjustmentScopeKey(scope, invoiceId);
+  if (attempt) pendingChargeAdjustmentAttempts.set(key, attempt);
+  else pendingChargeAdjustmentAttempts.delete(key);
 }
 
 function queryId(name: string) {
@@ -375,6 +412,7 @@ export function Billing() {
                 selectPatient={setSelectedPatientId}
                 canDraft={capabilities.billing_invoice_draft === true}
                 canPost={capabilities.billing_invoice_post === true}
+                canAdjust={capabilities.billing_invoice_post === true}
                 checkoutEncounterId={checkoutEncounterId}
                 checkoutInvoice={checkoutInvoice}
                 financialRevision={reloadLedger}
@@ -398,6 +436,7 @@ function LedgerDetails({
   selectPatient,
   canDraft,
   canPost,
+  canAdjust,
   checkoutEncounterId,
   checkoutInvoice,
   financialRevision,
@@ -409,6 +448,7 @@ function LedgerDetails({
   selectPatient: (id: number) => void;
   canDraft: boolean;
   canPost: boolean;
+  canAdjust: boolean;
   checkoutEncounterId: number | null;
   checkoutInvoice: {
     active?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
@@ -588,6 +628,13 @@ function LedgerDetails({
         )}
       </Paper>
       {selectedInvoice && <InvoiceDetail invoice={selectedInvoice} />}
+      {selectedInvoice && (
+        <ChargeAdjustmentDialog
+          canAdjust={canAdjust}
+          invoice={selectedInvoice}
+          onFinancialChange={onFinancialChange}
+        />
+      )}
       {selectedInvoice?.status === "draft" && canDraft && (
         <DraftInvoiceEditor
           invoice={selectedInvoice}
@@ -1124,6 +1171,230 @@ function DraftInvoiceEditor({
         </Alert>
       )}
     </Paper>
+  );
+}
+
+function ChargeAdjustmentDialog({
+  canAdjust,
+  invoice,
+  onFinancialChange,
+}: {
+  canAdjust: boolean;
+  invoice: BillingPatientLedger["invoices"][number];
+  onFinancialChange: (invoiceId?: number) => void;
+}) {
+  const clinic = useClinic();
+  const attemptKey = chargeAdjustmentScopeKey(clinic, invoice.id);
+  const [open, setOpen] = useState(false);
+  const [attempt, setAttempt] = useState<ChargeAdjustmentAttempt | null>(
+    () => pendingChargeAdjustmentAttempts.get(attemptKey) ?? null,
+  );
+  const [action, setAction] = useState<"credit" | "void">("credit");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const limits = invoice.adjustment_limits;
+  const creditAvailable = limits.credit_available_amount;
+  const canCredit = !isZero(creditAvailable);
+  const canVoid = limits.void_eligible;
+  const retryPending = attempt !== null;
+
+  useEffect(() => {
+    const retained = pendingChargeAdjustmentAttempts.get(attemptKey) ?? null;
+    setAttempt(retained);
+    if (retained) {
+      setAction(retained.action);
+      setAmount(retained.amount ?? "");
+      setReason(retained.reason);
+      setError(
+        "This charge adjustment has an unconfirmed outcome. Refresh the ledger, then retry the exact retained request only if it is still missing.",
+      );
+    } else {
+      setAmount("");
+      setReason("");
+      setError("");
+      setAction(canCredit ? "credit" : "void");
+    }
+    setOpen(false);
+  }, [attemptKey, canCredit]);
+
+  const close = () => {
+    if (!busy && !retryPending) setOpen(false);
+  };
+
+  const submit = async () => {
+    if (!canAdjust || busy || (!canCredit && !canVoid)) return;
+    if (!retryPending && reason.trim().length === 0) {
+      setError("Enter a reason for this charge adjustment.");
+      return;
+    }
+    if (
+      !retryPending &&
+      action === "credit" &&
+      (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
+        isZero(amount) ||
+        !decimalNotGreaterThan(amount, creditAvailable))
+    ) {
+      setError(
+        `Enter a positive credit up to ${money(creditAvailable, invoice.currency)} with up to six decimal places.`,
+      );
+      return;
+    }
+    const nextAttempt =
+      attempt ?? {
+        action,
+        ...(action === "credit" ? { amount: amount.trim() } : {}),
+        invoiceId: invoice.id,
+        reason: reason.trim(),
+        requestKey: crypto.randomUUID(),
+      };
+    persistChargeAdjustmentAttempt(clinic, invoice.id, nextAttempt);
+    setAttempt(nextAttempt);
+    setBusy(true);
+    setError("");
+    try {
+      if (nextAttempt.action === "credit") {
+        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/credits`, {
+          method: "POST",
+          body: {
+            credit: {
+              amount: nextAttempt.amount,
+              reason: nextAttempt.reason,
+              request_key: nextAttempt.requestKey,
+            },
+          },
+        });
+      } else {
+        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/void`, {
+          method: "POST",
+          body: {
+            invoice_void: {
+              reason: nextAttempt.reason,
+              request_key: nextAttempt.requestKey,
+            },
+          },
+        });
+      }
+      persistChargeAdjustmentAttempt(clinic, invoice.id, null);
+      setAttempt(null);
+      setOpen(false);
+      onFinancialChange(invoice.id);
+    } catch (reason) {
+      const deterministic =
+        deterministicPostError(reason) ||
+        (reason instanceof ApiError &&
+          reason.status === 409 &&
+          reason.code !== "outcome_unconfirmed");
+      if (deterministic) {
+        persistChargeAdjustmentAttempt(clinic, invoice.id, null);
+        setAttempt(null);
+      } else {
+        onFinancialChange(invoice.id);
+      }
+      setError(
+        deterministic
+          ? reason instanceof Error
+            ? reason.message
+            : "The charge adjustment could not be recorded."
+          : `${reason instanceof Error ? reason.message : "The charge adjustment outcome could not be confirmed."} The action and values are locked so a retry cannot create a different adjustment.`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!canAdjust) return null;
+  return (
+    <>
+      <Button
+        disabled={!canCredit && !canVoid}
+        onClick={() => setOpen(true)}
+        variant="outlined"
+      >
+        Adjust charges
+      </Button>
+      <Dialog fullWidth maxWidth="sm" onClose={close} open={open}>
+        <DialogTitle>Adjust invoice charges</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography color="text.secondary">
+              Invoice #{invoice.id} · {money(invoice.total_amount, invoice.currency)}
+            </Typography>
+            {retryPending ? (
+              <Alert severity="warning">
+                Retry uses the exact retained action, amount, and reason.
+              </Alert>
+            ) : (
+              <Alert severity="info">
+                A credit reduces recorded charges. It does not return money. Use
+                the separate cash refund workflow when money is returned.
+              </Alert>
+            )}
+            {canCredit && (
+              <Button
+                disabled={retryPending}
+                onClick={() => setAction("credit")}
+                variant={action === "credit" ? "contained" : "outlined"}
+              >
+                Credit charges · available {money(creditAvailable, invoice.currency)}
+              </Button>
+            )}
+            {canVoid && (
+              <Button
+                color="warning"
+                disabled={retryPending}
+                onClick={() => setAction("void")}
+                variant={action === "void" ? "contained" : "outlined"}
+              >
+                Void untouched unpaid invoice
+              </Button>
+            )}
+            {action === "credit" && (
+              <TextField
+                autoFocus={!retryPending}
+                disabled={retryPending}
+                inputMode="decimal"
+                label="Credit amount"
+                onChange={(event) => setAmount(event.target.value)}
+                value={amount}
+              />
+            )}
+            <TextField
+              disabled={retryPending}
+              label="Reason"
+              multiline
+              onChange={(event) => setReason(event.target.value)}
+              required
+              slotProps={{ htmlInput: { maxLength: 500 } }}
+              value={reason}
+            />
+            {action === "void" && (
+              <Typography color="text.secondary" variant="body2">
+                Voiding is available only while this invoice has no allocations,
+                credits, or active collection work. The server verifies that state
+                again when you submit.
+              </Typography>
+            )}
+            {error && <Alert severity="error">{error}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy || retryPending} onClick={close}>
+            Cancel
+          </Button>
+          <Button disabled={busy} onClick={() => void submit()} variant="contained">
+            {busy
+              ? "Recording…"
+              : retryPending
+                ? "Retry exact adjustment"
+                : action === "credit"
+                  ? "Record credit"
+                  : "Void invoice"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

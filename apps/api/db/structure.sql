@@ -2174,6 +2174,10 @@ CREATE TABLE public.clinic_credit_notes (
     amount numeric(20,6) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    reason text,
+    issued_by_membership_id bigint,
+    issued_at timestamp(6) without time zone,
+    CONSTRAINT clinic_credit_notes_evidence_shape CHECK ((((reason IS NULL) AND (issued_by_membership_id IS NULL) AND (issued_at IS NULL)) OR ((reason IS NOT NULL) AND (issued_by_membership_id IS NOT NULL) AND (issued_at IS NOT NULL)))),
     CONSTRAINT clinic_credit_notes_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric)))
 );
 
@@ -4081,7 +4085,11 @@ CREATE TABLE public.clinic_invoices (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     encounter_id bigint,
-    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0)))
+    void_reason text,
+    voided_by_membership_id bigint,
+    voided_at timestamp(6) without time zone,
+    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0))),
+    CONSTRAINT clinic_invoices_void_evidence_shape CHECK ((((void_reason IS NULL) AND (voided_by_membership_id IS NULL) AND (voided_at IS NULL)) OR ((void_reason IS NOT NULL) AND (voided_by_membership_id IS NOT NULL) AND (voided_at IS NOT NULL))))
 );
 
 
@@ -12799,6 +12807,13 @@ CREATE UNIQUE INDEX index_clinic_subscription_versions_on_practice_id_and_id ON 
 
 
 --
+-- Name: index_credit_notes_on_practice_and_issuer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_credit_notes_on_practice_and_issuer ON public.clinic_credit_notes USING btree (practice_id, issued_by_membership_id);
+
+
+--
 -- Name: index_identity_login_throttles_on_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12810,6 +12825,13 @@ CREATE INDEX index_identity_login_throttles_on_expires_at ON public.identity_log
 --
 
 CREATE UNIQUE INDEX index_identity_preferences_on_user_id ON public.identity_preferences USING btree (user_id);
+
+
+--
+-- Name: index_invoices_on_practice_and_voider; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_invoices_on_practice_and_voider ON public.clinic_invoices USING btree (practice_id, voided_by_membership_id);
 
 
 --
@@ -15393,6 +15415,14 @@ ALTER TABLE ONLY public.clinic_credit_notes
 
 
 --
+-- Name: clinic_credit_notes fk_credit_notes_issuer_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_credit_notes
+    ADD CONSTRAINT fk_credit_notes_issuer_membership FOREIGN KEY (practice_id, issued_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_credit_notes fk_credit_notes_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15758,6 +15788,14 @@ ALTER TABLE ONLY public.clinic_invoices
 
 ALTER TABLE ONLY public.clinic_invoices
     ADD CONSTRAINT fk_invoices_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_invoices fk_invoices_voider_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoices
+    ADD CONSTRAINT fk_invoices_voider_membership FOREIGN KEY (practice_id, voided_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -20942,6 +20980,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000500'),
 ('20260907000410'),
 ('20260907000400'),
 ('20260907000300'),

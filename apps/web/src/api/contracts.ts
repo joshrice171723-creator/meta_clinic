@@ -465,6 +465,13 @@ export type BillingInvoiceDetail = {
   }[];
   allocated_amount: Decimal;
   credit_amount: Decimal;
+  adjustment_limits: {
+    credit_available_amount: Decimal;
+    void_eligible: boolean;
+  };
+  void_reason?: string | null;
+  voided_at?: string | null;
+  voided_by_membership_id?: number | null;
 };
 export type BillingPatientLedger = {
   schema_version: "clinic-patient-ledger-v1";
@@ -487,6 +494,10 @@ export type BillingPatientLedger = {
     allocated_amount: Decimal;
     credit_amount: Decimal;
     balance_amount: Decimal;
+    adjustment_limits: {
+      credit_available_amount: Decimal;
+      void_eligible: boolean;
+    };
     lines: {
       id: number;
       description: string;
