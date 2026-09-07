@@ -1115,6 +1115,11 @@
     "/api/clinic/scribe/drafts/:id/restore(.:format)"
   ],
   [
+    "result_history_api_clinic_patient_lab_report",
+    "GET",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/results/:result_index/history(.:format)"
+  ],
+  [
     "retry_api_clinic_reminder",
     "POST",
     "/api/clinic/reminders/:id/retry(.:format)"

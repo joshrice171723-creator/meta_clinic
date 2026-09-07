@@ -2,7 +2,8 @@ module Clinic
   module Care
     class LabReportsController < Clinic::ApiController
       before_action -> { require_capability("patients.read") }
-      before_action -> { require_capability("notes.read", any_site: true) }, only: %i[index show review_queue follow_up_queue]
+      before_action -> { require_capability("notes.read", any_site: true) },
+        only: %i[index show review_queue follow_up_queue result_history]
 
       VERSION_FIELDS = %i[title status collected_at issued_at].freeze
       RESULT_FIELDS = %i[name code value unit reference_range flag].freeze
@@ -82,6 +83,40 @@ module Clinic
           .find(requested_id!(params[:id], :id))
         audit_read!(patient, "report/#{report.id}")
         render json: { report: LabReportSerializer.report(report, detail: true), can_write: can_write?, can_review: can_review? }
+      end
+
+      def result_history
+        patient = readable_patient!
+        report = current_practice.lab_reports.where(patient: patient)
+          .includes(:current_version).find(requested_id!(params[:id], :id))
+        version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
+        unless report.current_version_id == version.id
+          raise ActiveRecord::StaleObjectError.new(report, "lab result history")
+        end
+        raise ArgumentError, "Cancelled lab report results are unavailable for comparison." if version.status_cancelled?
+
+        result_index = bounded_integer!(
+          params[:result_index], field: :result_index, min: 0, max: LabReports::MAX_RESULTS - 1
+        )
+        page = page_param
+        per_page = per_page_param(default: 25, maximum: 25)
+        payload = LabResultHistory.call(
+          practice: current_practice,
+          patient: patient,
+          report: report,
+          version: version,
+          result_index: result_index,
+          page: page,
+          per_page: per_page
+        )
+        Clinic::AuditRecorder.record!(
+          practice: current_practice,
+          actor: current_user,
+          action_code: "lab_report.result_history.read",
+          outcome: :released,
+          resource_version_ref: "Clinic::Care::LabReportVersion/#{version.id}:result/#{result_index}"
+        )
+        render json: payload
       end
 
       def create

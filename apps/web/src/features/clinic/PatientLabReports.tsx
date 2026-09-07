@@ -19,6 +19,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   TextField,
@@ -28,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { useClinic } from "./Workspace";
 import { localDateTimeInput } from "./frontDeskModel";
+import { LabResultHistory } from "./LabResultHistory";
 
 export type LabResult = {
   name: string;
@@ -168,6 +170,15 @@ export function PatientLabReports({
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LabReport | null>(null);
   const [history, setHistory] = useState<LabReport | null>(null);
+  const [historySourceVersion, setHistorySourceVersion] = useState<
+    number | null
+  >(null);
+  const [resultHistory, setResultHistory] = useState<{
+    patientId: number;
+    reportId: number;
+    versionId: number;
+    resultIndex: number;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [page, setPage] = useState(initialPage);
@@ -552,8 +563,12 @@ export function PatientLabReports({
       setBusy(false);
     }
   };
-  const openHistory = async (report: LabReport) => {
+  const openHistory = async (
+    report: Pick<LabReport, "id">,
+    sourceVersion: number | null = null,
+  ) => {
     setError("");
+    setHistorySourceVersion(sourceVersion);
     try {
       const result = await api<{ report: LabReport }>(
         `/api/clinic/patients/${patientId}/lab_reports/${report.id}`,
@@ -566,6 +581,15 @@ export function PatientLabReports({
           : "Unable to load report history.",
       );
     }
+  };
+  const compareResult = (report: LabReport, resultIndex: number) => {
+    setHistory(null);
+    setResultHistory({
+      patientId,
+      reportId: report.id,
+      versionId: report.current_version_id,
+      resultIndex,
+    });
   };
   const formDirty = JSON.stringify(form) !== JSON.stringify(formBaseline);
   const closeForm = () => {
@@ -631,136 +655,166 @@ export function PatientLabReports({
               No lab reports are recorded for this patient.
             </Typography>
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Report</TableCell>
-                  <TableCell>Results</TableCell>
-                  <TableCell>Review</TableCell>
-                  <TableCell>Follow-up</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.reports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell>
-                      <Typography sx={{ fontWeight: 600 }}>
-                        {report.current_version.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {report.source_name} · {report.current_version.status} ·{" "}
-                        {formatDateTime(report.current_version.issued_at)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {report.current_version.results.slice(0, 2).map((row) => (
-                        <Typography key={row.name} variant="body2">
-                          {row.name}: {row.value}
-                          {row.unit ? ` ${row.unit}` : ""}
-                          {row.reference_range
-                            ? ` (${row.reference_range})`
-                            : ""}
-                          {row.flag ? ` · ${row.flag}` : ""}
-                        </Typography>
-                      ))}
-                    </TableCell>
-                    <TableCell>
-                      {report.current_version.reviewed_at
-                        ? "Reviewed"
-                        : "Needs review"}
-                    </TableCell>
-                    <TableCell>
-                      {report.current_version.reviewed_at
-                        ? followUpLabel(report.current_version.follow_up)
-                        : "Set during review"}
-                    </TableCell>
-                    <TableCell>
-                      <Stack direction="row">
-                        {!report.current_version.reviewed_at && canReview && (
-                          <Button
-                            size="small"
-                            disabled={busy || reviewRetryPending}
-                            onClick={() => {
-                              setError("");
-                              setReviewTarget({
-                                report,
-                                version: report.current_version,
-                              });
-                              setReviewConfirmed(false);
-                              setReviewDisposition(null);
-                              setReviewFollowUpNote("");
-                            }}
-                          >
-                            Review
-                          </Button>
-                        )}
-                        {report.current_version.reviewed_at &&
-                          report.current_version.follow_up === null &&
-                          canReview && (
-                            <Button
-                              size="small"
-                              disabled={busy || followUpRetryPending}
-                              onClick={() => {
-                                setError("");
-                                setFollowUpTarget({
-                                  report,
-                                  version: report.current_version,
-                                  action: "set",
-                                });
-                                setFollowUpDisposition(null);
-                                setFollowUpNote("");
-                              }}
-                            >
-                              Set follow-up
-                            </Button>
-                          )}
-                        {report.current_version.follow_up?.state === "open" &&
-                          canReview && (
-                            <Button
-                              size="small"
-                              disabled={busy || followUpRetryPending}
-                              onClick={() => {
-                                setError("");
-                                setFollowUpTarget({
-                                  report,
-                                  version: report.current_version,
-                                  action: "complete",
-                                });
-                                setFollowUpOutcome("");
-                              }}
-                            >
-                              Complete follow-up
-                            </Button>
-                          )}
-                        <Button
-                          size="small"
-                          startIcon={<HistoryOutlinedIcon />}
-                          onClick={() => void openHistory(report)}
-                        >
-                          History
-                        </Button>
-                        {canWrite && (
-                          <Button
-                            size="small"
-                            disabled={formOpen || busy || retryPending}
-                            onClick={() => {
-                              setEditing(report);
-                              const nextForm = versionForm(report);
-                              setForm(nextForm);
-                              setFormBaseline(nextForm);
-                              setFormOpen(true);
-                            }}
-                          >
-                            Correct
-                          </Button>
-                        )}
-                      </Stack>
-                    </TableCell>
+            <TableContainer>
+              <Table size="small" sx={{ minWidth: 850 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Report</TableCell>
+                    <TableCell>Results</TableCell>
+                    <TableCell>Review</TableCell>
+                    <TableCell>Follow-up</TableCell>
+                    <TableCell />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {data.reports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {report.current_version.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {report.source_name} · {report.current_version.status}{" "}
+                          · {formatDateTime(report.current_version.issued_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {report.current_version.results
+                          .slice(0, 2)
+                          .map((row, resultIndex) => (
+                            <Box
+                              key={`${report.current_version_id}-${resultIndex}`}
+                            >
+                              <Typography variant="body2">
+                                {row.name}: {row.value}
+                                {row.unit ? ` ${row.unit}` : ""}
+                                {row.reference_range
+                                  ? ` (${row.reference_range})`
+                                  : ""}
+                                {row.flag ? ` · ${row.flag}` : ""}
+                              </Typography>
+                              {report.current_version.status !==
+                                "cancelled" && (
+                                <Button
+                                  size="small"
+                                  aria-label={`Compare ${row.name} results`}
+                                  disabled={busy}
+                                  onClick={() =>
+                                    compareResult(report, resultIndex)
+                                  }
+                                >
+                                  Compare results
+                                </Button>
+                              )}
+                            </Box>
+                          ))}
+                        {report.current_version.results.length > 2 && (
+                          <Button
+                            size="small"
+                            onClick={() => void openHistory(report)}
+                          >
+                            View all {report.current_version.results.length}{" "}
+                            results
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {report.current_version.reviewed_at
+                          ? "Reviewed"
+                          : "Needs review"}
+                      </TableCell>
+                      <TableCell>
+                        {report.current_version.reviewed_at
+                          ? followUpLabel(report.current_version.follow_up)
+                          : "Set during review"}
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row">
+                          {!report.current_version.reviewed_at && canReview && (
+                            <Button
+                              size="small"
+                              disabled={busy || reviewRetryPending}
+                              onClick={() => {
+                                setError("");
+                                setReviewTarget({
+                                  report,
+                                  version: report.current_version,
+                                });
+                                setReviewConfirmed(false);
+                                setReviewDisposition(null);
+                                setReviewFollowUpNote("");
+                              }}
+                            >
+                              Review
+                            </Button>
+                          )}
+                          {report.current_version.reviewed_at &&
+                            report.current_version.follow_up === null &&
+                            canReview && (
+                              <Button
+                                size="small"
+                                disabled={busy || followUpRetryPending}
+                                onClick={() => {
+                                  setError("");
+                                  setFollowUpTarget({
+                                    report,
+                                    version: report.current_version,
+                                    action: "set",
+                                  });
+                                  setFollowUpDisposition(null);
+                                  setFollowUpNote("");
+                                }}
+                              >
+                                Set follow-up
+                              </Button>
+                            )}
+                          {report.current_version.follow_up?.state === "open" &&
+                            canReview && (
+                              <Button
+                                size="small"
+                                disabled={busy || followUpRetryPending}
+                                onClick={() => {
+                                  setError("");
+                                  setFollowUpTarget({
+                                    report,
+                                    version: report.current_version,
+                                    action: "complete",
+                                  });
+                                  setFollowUpOutcome("");
+                                }}
+                              >
+                                Complete follow-up
+                              </Button>
+                            )}
+                          <Button
+                            size="small"
+                            startIcon={<HistoryOutlinedIcon />}
+                            onClick={() => void openHistory(report)}
+                          >
+                            Report history
+                          </Button>
+                          {canWrite && (
+                            <Button
+                              size="small"
+                              disabled={formOpen || busy || retryPending}
+                              onClick={() => {
+                                setEditing(report);
+                                const nextForm = versionForm(report);
+                                setForm(nextForm);
+                                setFormBaseline(nextForm);
+                                setFormOpen(true);
+                              }}
+                            >
+                              Correct
+                            </Button>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Stack>
       </Paper>
@@ -802,6 +856,18 @@ export function PatientLabReports({
           onSave={() => void save()}
         />
       )}
+      {resultHistory?.patientId === patientId && (
+        <LabResultHistory
+          key={`${patientId}:${resultHistory.reportId}:${resultHistory.versionId}:${resultHistory.resultIndex}`}
+          {...resultHistory}
+          patientName={patientName}
+          onClose={() => setResultHistory(null)}
+          onOpenReport={(reportId, versionId) => {
+            setResultHistory(null);
+            void openHistory({ id: reportId }, versionId);
+          }}
+        />
+      )}
       <Dialog
         open={history !== null}
         onClose={() => setHistory(null)}
@@ -811,6 +877,20 @@ export function PatientLabReports({
         <DialogTitle>Report history</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
+            {history && (
+              <Typography>
+                {patientName || `Patient #${patientId}`} ·{" "}
+                {history.current_version.title} · {history.source_name}
+              </Typography>
+            )}
+            {history &&
+              historySourceVersion !== null &&
+              history.current_version_id !== historySourceVersion && (
+                <Alert severity="warning">
+                  This report changed after the comparison was loaded. Review
+                  the current version below.
+                </Alert>
+              )}
             {history?.versions?.map((version) => (
               <Paper key={version.id} variant="outlined" sx={{ p: 1.5 }}>
                 <Stack
@@ -898,13 +978,35 @@ export function PatientLabReports({
                       : ""}
                   </Typography>
                 )}
-                {version.results.map((row) => (
-                  <Typography key={`${version.id}-${row.name}`} variant="body2">
-                    {row.name}: {row.value}
-                    {row.unit ? ` ${row.unit}` : ""} ·{" "}
-                    {row.reference_range || "Range not recorded"}
-                    {row.flag ? ` · ${row.flag}` : ""}
-                  </Typography>
+                {version.results.map((row, resultIndex) => (
+                  <Stack
+                    key={`${version.id}-${resultIndex}`}
+                    direction={{ xs: "column", sm: "row" }}
+                    sx={{
+                      justifyContent: "space-between",
+                      alignItems: { sm: "center" },
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2">
+                      {row.name}: {row.value}
+                      {row.unit ? ` ${row.unit}` : ""} ·{" "}
+                      {row.reference_range || "Range not recorded"}
+                      {row.flag ? ` · ${row.flag}` : ""}
+                    </Typography>
+                    {history &&
+                      version.id === history.current_version_id &&
+                      version.status !== "cancelled" && (
+                        <Button
+                          size="small"
+                          aria-label={`Compare ${row.name} results`}
+                          disabled={busy}
+                          onClick={() => compareResult(history, resultIndex)}
+                        >
+                          Compare results
+                        </Button>
+                      )}
+                  </Stack>
                 ))}
               </Paper>
             ))}

@@ -188,6 +188,8 @@ Rails.application.routes.draw do
       resources :observations, controller: "care/observations", only: %i[index create]
       resources :lab_reports, controller: "care/lab_reports", only: %i[index show create] do
         post :versions, on: :member, action: :create_version
+        get "versions/:version_id/results/:result_index/history", on: :member,
+          action: :result_history, as: :result_history
         post "versions/:version_id/review", on: :member, action: :review, as: :review_version
         post "versions/:version_id/follow_up", on: :member, action: :record_follow_up, as: :record_follow_up
         post "versions/:version_id/follow_up/complete", on: :member, action: :complete_follow_up, as: :complete_follow_up
