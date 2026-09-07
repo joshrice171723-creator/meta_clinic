@@ -13,9 +13,12 @@ module MemberAuthentication
   end
 
   def establish_session(user)
-    current_member_session&.destroy!
+    replacement = User.transaction do
+      current_member_session&.destroy!
+      user.member_sessions.create!(expires_at: MemberSession::MAX_DURATION.from_now, last_activity_at: Time.current)
+    end
     reset_session
-    @current_member_session = user.member_sessions.create!(expires_at: MemberSession::MAX_DURATION.from_now)
+    @current_member_session = replacement
     session[:member_session_id] = @current_member_session.id
   end
 end

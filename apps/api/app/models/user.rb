@@ -15,6 +15,7 @@ class User < ApplicationRecord
   private
 
   def revoke_sessions
+    Identity::SessionAudit.record!(action: "sessions.revoked_credentials_changed", user_id: id) if member_sessions.exists?
     member_sessions.delete_all
   end
 end

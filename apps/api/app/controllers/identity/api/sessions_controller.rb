@@ -2,12 +2,8 @@ module Identity
   module Api
     class SessionsController < ApplicationController
       include MemberAuthentication
-      before_action :require_member, only: :show
-      rate_limit to: 10, within: 5.minutes, only: :create, name: "email",
-        by: -> { Digest::SHA256.hexdigest(params[:email_address].to_s.strip.downcase) },
-        with: -> { render json: { error: "Too many sign-in attempts. Please try again in five minutes." }, status: :too_many_requests }
-      rate_limit to: 50, within: 5.minutes, only: %i[create development], name: "ip",
-        with: -> { render json: { error: "Too many sign-in attempts. Please try again in five minutes." }, status: :too_many_requests }
+      before_action :require_member, only: %i[show update]
+      before_action :enforce_login_rate_limit, only: %i[create development]
 
       def csrf
         render json: { csrf_token: form_authenticity_token,
@@ -19,7 +15,15 @@ module Identity
       end
 
       def show
-        render json: { user: session_user(current_user) }
+        render json: { user: session_user(current_user), session_policy: session_policy }
+      end
+
+      def update
+        unless current_member_session.record_activity!
+          return render json: { error: "Your session expired. Please sign in again." }, status: :unauthorized
+        end
+
+        render json: { session_policy: session_policy }
       end
 
       def create
@@ -81,6 +85,26 @@ module Identity
 
       private
 
+      def session_policy
+        record = current_member_session
+        { idle_expires_at: record.idle_expires_at.iso8601(6),
+          absolute_expires_at: [record.expires_at, record.created_at + MemberSession::MAX_DURATION].min.iso8601(6),
+          idle_timeout_seconds: MemberSession::IDLE_DURATION.to_i, server_time: Time.current.iso8601(6) }
+      end
+
+      def enforce_login_rate_limit
+        limited = Identity::LoginThrottle.exceeded?(scope: "ip", value: request.remote_ip, limit: 50)
+        if action_name == "create"
+          limited = Identity::LoginThrottle.exceeded?(scope: "email", value: params[:email_address].to_s.strip.downcase, limit: 10) || limited
+        end
+        return unless limited
+
+        response.set_header("Retry-After", Identity::LoginThrottle::WINDOW_SECONDS.to_s)
+        render json: { error: "Too many sign-in attempts. Please try again in five minutes." }, status: :too_many_requests
+      rescue ActiveRecord::ActiveRecordError
+        render json: { error: "Sign-in is temporarily unavailable. Please try again.", code: "sign_in_unavailable" }, status: :service_unavailable
+      end
+
       def session_user(user)
         demo = development_demo?
         preview = Development::TestAccounts.preview_account_for(user,
@@ -104,6 +128,7 @@ module Identity
       end
 
       def invalid_credentials
+        Identity::SessionAudit.record!(action: "sign_in.failed", outcome: "denied")
         render json: { error: "Email or password is incorrect." }, status: :unauthorized
       end
     end

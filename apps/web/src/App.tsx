@@ -26,6 +26,7 @@ import {
   EnvironmentLabel,
 } from "./features/identity/DevelopmentAccountSwitcher";
 import { Settings } from "./features/identity/Settings";
+import { SessionGuard } from "./features/identity/SessionGuard";
 import { Workspace } from "./features/clinic/Workspace";
 import { Overview } from "./features/clinic/TrackingBoardPage";
 import { Operations } from "./features/clinic/Operations";
@@ -462,7 +463,7 @@ export function App() {
           if (e instanceof ApiError && e.status === 401)
             setSession({ user: null });
           else
-            setSession({
+            setSession((current) => current.user ? current : {
               error: "Unable to verify your session. Please reload.",
             });
         });
@@ -494,22 +495,22 @@ export function App() {
   if (path === "/workforce/kiosk") return <KioskClockPage />;
   if (path.startsWith("/clinic") && user) {
     return (
-      <ClinicApplication
+      <SessionGuard key={user.id}><ClinicApplication
         user={user}
         developmentAccounts={configuration.development_accounts}
         environment={configuration.environment}
         businessDate={configuration.business_date}
-      />
+      /></SessionGuard>
     );
   }
   if (path === "/patient-portal" && user)
     return (
-      <PatientPortal
+      <SessionGuard key={user.id}><PatientPortal
         user={user}
         developmentAccounts={configuration.development_accounts}
         environment={configuration.environment}
         businessDate={configuration.business_date}
-      />
+      /></SessionGuard>
     );
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
     guide = /^\/(?:training|materials)\/(\d+)$/.exec(path);
@@ -549,14 +550,14 @@ export function App() {
       {publicPage
         ? page
         : user && (
-            <MemberLayout
+            <SessionGuard key={user.id}><MemberLayout
               key={user.id}
               user={user}
               developmentAccounts={configuration.development_accounts}
               businessDate={configuration.business_date}
             >
               {page}
-            </MemberLayout>
+            </MemberLayout></SessionGuard>
           )}
     </LaunchLayout>
   );

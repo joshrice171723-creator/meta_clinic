@@ -3,6 +3,10 @@ class ApplicationController < ActionController::Base
   before_action :prevent_caching
   around_action :use_business_date
 
+  rescue_from Identity::SessionAudit::Unavailable do
+    render json: { error: "Session security is temporarily unavailable. Please try again.", code: "session_security_unavailable" }, status: :service_unavailable
+  end
+
   rescue_from ActionController::InvalidAuthenticityToken do
     render json: { error: "Your session expired. Please try again." }, status: :unprocessable_entity
   end
@@ -39,6 +43,11 @@ class ApplicationController < ActionController::Base
 
   def current_user
     record = current_member_session
+    if record && !record.unexpired?
+      record.expire_if_inactive!
+      session.delete(:member_session_id)
+      return
+    end
     return if session[:development_demo_user_id] && !development_demo?
     return if record && Development::TestAccounts.reserved_email?(record.user.email_address) &&
       !development_demo? && !patient_portal_session?

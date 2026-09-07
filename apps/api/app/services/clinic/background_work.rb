@@ -24,6 +24,7 @@ module Clinic
         return result(lock_acquired: false) unless acquire_lock(connection)
 
         begin
+          Identity::LoginThrottle.prune_expired!
           process_reminders
           process_staff_messages
           result(lock_acquired: true)
