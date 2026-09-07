@@ -4,11 +4,14 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
   class Gateway
     attr_reader :calls, :session
 
-    def initialize(amount_cents: 12_500, cards_active: true, payouts_active: true)
+    def initialize(amount_cents: 12_500, cards_active: true, payouts_active: true, refunded_cents: 0,
+      payment_reference: nil)
       @amount_cents = amount_cents
       @cards_active = cards_active
       @calls = []
       @payouts_active = payouts_active
+      @refunded_cents = refunded_cents
+      @payment_reference = payment_reference
     end
 
     def request(method, path, **options)
@@ -43,12 +46,13 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
           "amount" => @amount_cents, "amount_received" => @amount_cents,
           "currency" => "usd", "application_fee_amount" => 263,
           "latest_charge" => "ch_invoice",
-          "metadata" => { "apply_collection_intent" => @session.dig("metadata", "apply_collection_intent") }
+          "metadata" => { "apply_collection_intent" => @payment_reference || @session.dig("metadata", "apply_collection_intent") }
         }
       when [ :get, "/v1/charges/ch_invoice" ]
         {
           "id" => "ch_invoice", "livemode" => false, "payment_intent" => "pi_invoice",
-          "status" => "succeeded", "paid" => true, "created" => Time.utc(2026, 9, 7, 12).to_i
+          "status" => "succeeded", "paid" => true, "created" => Time.utc(2026, 9, 7, 12).to_i,
+          "amount" => @amount_cents, "amount_refunded" => @refunded_cents, "currency" => "usd"
         }
       else
         raise "Unexpected Stripe request: #{method} #{path}"
@@ -175,6 +179,49 @@ class StripeInvoicePaymentsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("25.00"), payment.amount - payment.allocations.sum(:amount)
     assert_equal 1, Clinic::BillingReceipt.where(payment_event: payment, kind: "card_payment").count
     assert_equal "succeeded", checkout.collection_intent.reload.state
+  end
+
+  test "records a verified partial refund once without changing invoice settlement" do
+    gateway = Gateway.new(refunded_cents: 500)
+    checkout = start_payment(gateway, "invoice-refund").checkout
+    gateway.mark_paid
+    Clinic::Billing::StripeInvoicePayments.reconcile(checkout: checkout, actor: @actor, gateway: gateway)
+    newer_intent = @invoice.payment_collection_intents.create!(practice: @practice, patient: @patient,
+      reference: "ci_#{'a' * 32}", request_key: "newer-invoice-attempt", processor: "stripe",
+      mode: "test", currency: "USD", amount: "125.00", state: "failed")
+    Clinic::Billing::InvoiceStripeCheckout.create!(practice: @practice, connection: @connection, invoice: @invoice,
+      collection_intent: newer_intent, account_id: @connection.account_id, application_fee_cents: 263)
+    payload = {
+      "type" => "charge.refunded", "livemode" => false, "account" => "acct_invoice",
+      "data" => { "object" => { "id" => "ch_invoice" } }
+    }
+
+    2.times { Clinic::Billing::StripeInvoicePayments.webhook(payload: payload, gateway: gateway) }
+
+    payment = Clinic::PaymentEvent.find_by!(external_event_reference: "stripe:acct_invoice:pi_invoice")
+    assert_equal BigDecimal("5.00"), payment.refund_events.sum(:amount)
+    assert_equal 1, payment.refund_events.count
+    assert_equal BigDecimal("125.00"), payment.allocations.sum(:amount)
+    assert_equal "posted", @invoice.reload.status
+  end
+
+  test "leaves membership-routed refunds for the membership webhook" do
+    intent = @invoice.payment_collection_intents.create!(practice: @practice, patient: @patient,
+      reference: "ci_#{'b' * 32}", request_key: "membership-refund", processor: "stripe",
+      mode: "test", currency: "USD", amount: "125.00", state: "succeeded")
+    payment = Clinic::PaymentEvent.create!(practice: @practice, patient: @patient, currency: "USD",
+      amount: "125.00", external_event_reference: "stripe:acct_invoice:pi_invoice")
+    payment.allocations.create!(practice: @practice, patient: @patient, invoice: @invoice, amount: "125.00")
+    payload = {
+      "type" => "charge.refunded", "livemode" => false, "account" => "acct_invoice",
+      "data" => { "object" => { "id" => "ch_invoice" } }
+    }
+
+    result = Clinic::Billing::StripeInvoicePayments.webhook(payload: payload,
+      gateway: Gateway.new(refunded_cents: 500, payment_reference: intent.reference))
+
+    assert_nil result
+    assert_empty payment.reload.refund_events
   end
 
   test "rejects membership-owned invoices from the ordinary payment path" do

@@ -133,7 +133,9 @@ module Clinic
       end
 
       def self.webhook(payload:, gateway: StripeGateway.new)
-        return unless payload.is_a?(Hash) && payload["livemode"] == false && EVENT_TYPES.include?(payload["type"])
+        return unless payload.is_a?(Hash) && payload["livemode"] == false
+        return refund_webhook(payload, gateway) if payload["type"] == "charge.refunded"
+        return unless EVENT_TYPES.include?(payload["type"])
 
         session = payload.dig("data", "object")
         raise StripeGateway::Invalid, "Invalid Stripe session." unless session.is_a?(Hash)
@@ -166,6 +168,72 @@ module Clinic
       rescue KeyError
         raise StripeGateway::Invalid, "Invalid Stripe event."
       end
+
+      def self.refund_webhook(payload, gateway)
+        connection = StripeConnection.find_by(account_id: payload["account"])
+        return unless connection
+        charge_id = payload.dig("data", "object", "id").to_s
+        raise StripeGateway::Invalid, "Invalid Stripe charge identity." unless charge_id.match?(/\Ach_[a-zA-Z0-9]+\z/)
+
+        charge = gateway.request(:get, "/v1/charges/#{charge_id}", account: connection.account_id)
+        payment_id = charge["payment_intent"].to_s
+        raise StripeGateway::Invalid, "Invalid Stripe payment identity." unless payment_id.match?(/\Api_[a-zA-Z0-9]+\z/)
+        provider_payment = gateway.request(:get, "/v1/payment_intents/#{payment_id}", account: connection.account_id)
+        intent = PaymentCollectionIntent.find_by(practice: connection.practice, processor: "stripe", mode: "test",
+          reference: provider_payment.dig("metadata", "apply_collection_intent"))
+        return unless intent
+        checkout = InvoiceStripeCheckout.find_by(practice: connection.practice, account_id: connection.account_id,
+          collection_intent: intent)
+        return unless checkout
+        payment = PaymentEvent.find_by(practice: connection.practice,
+          external_event_reference: "stripe:#{connection.account_id}:#{payment_id}")
+        raise StripeGateway::Unavailable, "Reconcile the original payment before this refund." unless payment
+
+        apply_refund(checkout: checkout, payment: payment, provider_payment: provider_payment, charge: charge,
+          expected_charge_id: charge_id, actor: connection.connected_by)
+      end
+      private_class_method :refund_webhook
+
+      def self.apply_refund(checkout:, payment:, provider_payment:, charge:, expected_charge_id:, actor:)
+        intent = checkout.collection_intent
+        amount_cents = (intent.amount * 100).to_i
+        payment_id = payment.external_event_reference.split(":").last
+        unless charge["id"] == expected_charge_id && charge["livemode"] == false && charge["payment_intent"] == payment_id &&
+          charge["status"] == "succeeded" && charge["paid"] == true && charge["amount"] == amount_cents &&
+          charge["currency"] == intent.currency.downcase && charge["amount_refunded"].is_a?(Integer) &&
+          charge["amount_refunded"].between?(0, amount_cents) && provider_payment["id"] == payment_id &&
+          provider_payment["livemode"] == false && provider_payment["status"] == "succeeded" &&
+          provider_payment["amount"] == amount_cents && provider_payment["currency"] == intent.currency.downcase &&
+          provider_payment["latest_charge"] == expected_charge_id &&
+          provider_payment.dig("metadata", "apply_collection_intent") == intent.reference
+          raise StripeGateway::Invalid, "Stripe refund charge does not match the invoice."
+        end
+        return payment if charge["amount_refunded"].zero?
+
+        ApplicationRecord.transaction do
+          invoice = checkout.invoice
+          invoice.practice.lock!
+          invoice.patient.lock!
+          invoice.lock!
+          payment.lock!
+          unless payment.patient_id == invoice.patient_id && payment.currency == intent.currency && payment.amount == intent.amount &&
+            payment.allocations.exists?(invoice: invoice)
+            raise StripeGateway::Invalid, "Stripe refund has conflicting ledger activity."
+          end
+          total = BigDecimal(charge["amount_refunded"].to_s) / 100
+          remaining = total - payment.refund_events.sum(:amount)
+          raise StripeGateway::Invalid, "Stripe refund total moved backwards." if remaining.negative?
+          next payment unless remaining.positive?
+
+          refund = payment.refund_events.create!(practice: invoice.practice, patient: invoice.patient,
+            currency: payment.currency, amount: remaining)
+          AuditRecorder.record!(practice: invoice.practice, actor: actor,
+            action_code: "stripe.invoice_refund.observed", outcome: :committed,
+            resource_version_ref: "refund:#{refund.id}")
+          payment
+        end
+      end
+      private_class_method :apply_refund
 
       def self.eligibility(invoice:)
         amount = outstanding_balance(invoice)
