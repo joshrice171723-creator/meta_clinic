@@ -91,6 +91,9 @@ export function LiveStaffMessagingWorkspace() {
   const [recovering, setRecovering] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryResult, setRecoveryResult] = useState<RecoveryResult | null>(null);
+  const deepLinkedConversationId = Number(
+    new URLSearchParams(window.location.search).get("conversation_id"),
+  );
 
   const isCurrentScope = useCallback((requestScope: string) => mounted.current && scopeKeyRef.current === requestScope, []);
 
@@ -144,7 +147,7 @@ export function LiveStaffMessagingWorkspace() {
       if (latestPage > 1) detail = await api<ConversationDetail>(`/api/clinic/staff-messaging/conversations/${conversationId}?page=${latestPage}&per_page=${PAGE_SIZE}`);
       if (!isCurrentScope(requestScope) || requestVersion !== detailRequestVersion.current || selectedConversationId.current !== conversationId) return;
       const conversation = mapConversation(detail.conversation, detail.messages, detail.pagination);
-      setState((current) => ({ ...current, selectedConversationId: conversation.id, conversations: current.conversations.map((item) => item.id === conversation.id ? conversation : item) }));
+      setState((current) => ({ ...current, selectedConversationId: conversation.id, conversations: current.conversations.some((item) => item.id === conversation.id) ? current.conversations.map((item) => item.id === conversation.id ? conversation : item) : [conversation, ...current.conversations] }));
       try {
         await api<void>(`/api/clinic/staff-messaging/conversations/${conversationId}/read`, { method: "POST", body: {} });
         if (isCurrentScope(requestScope) && selectedConversationId.current === conversationId) {
@@ -168,7 +171,8 @@ export function LiveStaffMessagingWorkspace() {
       const index = await api<ConversationIndex>(`/api/clinic/staff-messaging/conversations?page=1&per_page=${PAGE_SIZE}`);
       if (!isCurrentScope(requestScope) || requestVersion !== indexRequestVersion.current) return;
       const conversations = index.conversations.map((conversation) => mapConversation(conversation));
-      const firstConversationId = conversations[0]?.id || 0;
+      const requestedConversationId = Number.isInteger(deepLinkedConversationId) && deepLinkedConversationId > 0 ? deepLinkedConversationId : 0;
+      const firstConversationId = requestedConversationId || conversations[0]?.id || 0;
       selectedConversationId.current = firstConversationId;
       setState({ conversations, selectedConversationId: firstConversationId, canSend: capability(capabilities, "staff_messaging_send"), canAcknowledge: capability(capabilities, "staff_messaging_acknowledge"), canTransition: capability(capabilities, "staff_messaging_transition"), canEscalate: capability(capabilities, "staff_messaging_escalate"), conversationPage: index.pagination.page, conversationTotalPages: index.pagination.total_pages });
       if (firstConversationId) await loadConversation(firstConversationId);
@@ -176,7 +180,7 @@ export function LiveStaffMessagingWorkspace() {
       if (!isCurrentScope(requestScope) || requestVersion !== indexRequestVersion.current) return;
       setState({ ...emptyState, error: errorMessage(reason, "Unable to load staff messages.") });
     }
-  }, [capabilities, isCurrentScope, loadConversation, scopeKey]);
+  }, [capabilities, deepLinkedConversationId, isCurrentScope, loadConversation, scopeKey]);
 
   useEffect(() => { void load(); }, [load]);
 

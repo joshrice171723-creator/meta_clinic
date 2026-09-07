@@ -1,0 +1,131 @@
+module Clinic
+  module Operations
+    class FollowUpWorklist
+      ACTIONABLE_STATES = %w[open acknowledged in_progress].freeze
+      FILTERS = %w[all mine overdue unassigned].freeze
+      LIMIT = 50
+
+      def self.call(practice:, actor:, filter: "all", site_id: nil, at: Current.business_time)
+        new(practice: practice, actor: actor, filter: filter, site_id: site_id, at: at).call
+      end
+
+      def initialize(practice:, actor:, filter:, site_id:, at:)
+        @practice = practice
+        @actor = actor
+        @filter = filter.to_s
+        @site_id = site_id
+        @at = at
+      end
+
+      def call
+        raise ArgumentError, "The follow-up filter is unsupported." unless FILTERS.include?(filter)
+
+        member = Clinic::Messaging::StaffPolicy.member_for!(practice: practice, actor: actor)
+        accessible_conversation_ids = accessible_conversations(member).select(:id)
+        base_scope = Clinic::StaffMessageRequest
+          .where(practice_id: practice.id, state: ACTIONABLE_STATES)
+          .joins(message: :conversation)
+          .where(clinic_staff_messages: { practice_id: practice.id, status: "active" })
+          .where(clinic_staff_conversations: { practice_id: practice.id, id: accessible_conversation_ids })
+
+        summary = {
+          open: base_scope.count,
+          overdue: base_scope.where("clinic_staff_message_requests.due_at < ?", at).count,
+          mine: base_scope.where(assignee_membership_id: member.id).count,
+          unassigned: base_scope.where(assignee_membership_id: nil).count
+        }
+
+        requests = filtered(base_scope, member)
+          .includes(:assignee_membership, message: { conversation: { members: { membership: :user } } })
+          .order(:due_at, :id)
+          .limit(LIMIT)
+
+        {
+          summary: summary,
+          requests: requests.map { |request| serialize(request, member) },
+          reminder_attention_count: reminder_attention_count
+        }
+      end
+
+      private
+
+      attr_reader :practice, :actor, :filter, :site_id, :at
+
+      def accessible_conversations(member)
+        scope = Clinic::StaffConversation.active
+          .where(practice_id: practice.id)
+          .joins(:members)
+          .where(clinic_staff_conversation_members: {
+            membership_id: member.id,
+            membership_state: "active",
+            practice_id: practice.id
+          })
+          .distinct
+
+        ability = Ability.new(actor, practice: practice)
+        if site_id
+          practice.sites.find(site_id)
+          Clinic::Messaging::StaffPolicy.authorize!(
+            practice: practice, actor: actor, action: "staff_messaging.read", site_id: site_id
+          )
+          return scope.where(site_id: site_id)
+        end
+
+        Clinic::Authorization.authorize!(
+          actor: actor, practice: practice, action: "staff_messaging.read", any_site: true
+        )
+        return scope if ability.practice_scope_for?("staff_messaging.read")
+
+        allowed_site_ids = ability.accessible_site_ids.select do |candidate_site_id|
+          ability.allowed_permission?("staff_messaging.read", site: candidate_site_id)
+        end
+        scope.where(site_id: allowed_site_ids)
+      end
+
+      def filtered(scope, member)
+        case filter
+        when "mine" then scope.where(assignee_membership_id: member.id)
+        when "overdue" then scope.where("clinic_staff_message_requests.due_at < ?", at)
+        when "unassigned" then scope.where(assignee_membership_id: nil)
+        else scope
+        end
+      end
+
+      def serialize(request, member)
+        conversation = request.message.conversation
+        assignee = active_conversation_assignee(conversation, request.assignee_membership_id)
+        payload = {
+          id: request.id,
+          conversation_id: conversation.id,
+          subject: conversation.title.presence || "Staff follow-up",
+          requested_action: request.message.requested_action,
+          state: request.state,
+          due_at: request.due_at&.iso8601(6),
+          assigned_to_me: request.assignee_membership_id == member.id,
+          overdue: request.due_at < at
+        }
+        payload[:assignee_label] = Clinic::StaffMessagingSerializer.participant(assignee).fetch(:email) if assignee
+        payload
+      end
+
+      def active_conversation_assignee(conversation, assignee_membership_id)
+        return unless assignee_membership_id
+
+        member = conversation.members.find do |candidate|
+          candidate.membership_state == "active" && candidate.membership_id == assignee_membership_id
+        end
+        membership = member&.membership
+        membership if membership&.active? && membership.user&.active?
+      end
+
+      def reminder_attention_count
+        return nil if site_id
+
+        ability = Ability.new(actor, practice: practice)
+        return nil unless ability.allowed_permission?("reminders.read")
+
+        Clinic::Reminders::ExceptionQueue.call(scope: practice.patient_reminders).count
+      end
+    end
+  end
+end

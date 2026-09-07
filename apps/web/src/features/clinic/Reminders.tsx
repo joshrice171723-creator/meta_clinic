@@ -757,13 +757,15 @@ export function Reminders() {
     reminderIdParam && /^[1-9]\d*$/.test(reminderIdParam)
       ? reminderIdParam
       : null;
+  const attentionView =
+    new URLSearchParams(window.location.search).get("view") === "attention";
   const today = useMemo(() => businessNow(), []);
   const initialEnd = useMemo(() => {
     const value = businessNow();
     value.setDate(value.getDate() + 14);
     return value;
   }, []);
-  const [tab, setTab] = useState(reminderId ? 2 : 0);
+  const [tab, setTab] = useState(reminderId ? 2 : attentionView ? 1 : 0);
   const [from, setFrom] = useState(dateInput(today));
   const [to, setTo] = useState(dateInput(initialEnd));
   const [patientQuery, setPatientQuery] = useState("");

@@ -16,6 +16,9 @@ Rails.application.routes.draw do
       post :transition, on: :member
     end
     get "tracking_board", to: "scheduling/tracking_board#show"
+    namespace :operations do
+      get "follow_ups", to: "follow_ups#index"
+    end
     get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       post :close, on: :member

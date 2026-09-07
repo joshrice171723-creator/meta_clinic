@@ -1,13 +1,17 @@
+import type { ReactNode } from "react";
 import type { ClinicOverview } from "../../api/contracts";
 import { Card } from "../../shared/ui";
+import { OperationFollowUps } from "./OperationFollowUps";
 import { useClinic, useClinicOverview } from "./Workspace";
 
 export function OperationsView({
   clinic,
   facilitiesRead = false,
+  followUps,
 }: {
   clinic: ClinicOverview;
   facilitiesRead?: boolean;
+  followUps?: ReactNode;
 }) {
   const c = clinic.capabilities;
   return (
@@ -15,8 +19,9 @@ export function OperationsView({
       <p className="eyebrow">PRACTICE OPERATIONS</p>
       <h1>Operations</h1>
       <p className="clinic-lead">
-        Supplies, directories and the day-to-day work behind patient care.
+        Keep follow-ups moving, review supplies, and manage the clinic's daily work.
       </p>
+      {followUps}
       <div className="clinic-stats">
         {c.inventory_access && (
           <a className="clinic-stat" href="/clinic/inventory">
@@ -108,6 +113,7 @@ export function Operations() {
       <OperationsView
         clinic={overview}
         facilitiesRead={context.capabilities.facilities_read === true}
+        followUps={<OperationFollowUps />}
       />
       <Card title="Care workflow access">
         <ul className="clinic-feature-list">
@@ -117,18 +123,10 @@ export function Operations() {
                 Schedule and encounters →
               </a>
               <p>
-                Read-only scheduling and visit history from the current clinic
-                API.
+                Schedule appointments, open visits, and review encounter history.
               </p>
             </li>
           )}
-          <li>
-            <strong>Protected workflows remain unavailable</strong>
-            <p>
-              Note bodies, prescriptions, document transfer, external messages
-              and payment execution are not enabled by this frontend pass.
-            </p>
-          </li>
         </ul>
       </Card>
     </>
