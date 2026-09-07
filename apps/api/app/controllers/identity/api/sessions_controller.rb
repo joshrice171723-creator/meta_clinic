@@ -38,7 +38,7 @@ module Identity
         named_profile = params.key?(:profile)
         if named_profile
           user = profile.is_a?(String) && Development::TestAccounts.sign_in_account(profile)
-          return render json: { error: "This test login is unavailable. It may be disabled or need local setup." }, status: :unauthorized unless user
+          return render json: { error: "This account is unavailable. It may be disabled or need local setup." }, status: :unauthorized unless user
         else
           user = Development::DemoAccount.create!
         end

@@ -36,7 +36,8 @@ module Development
 
     def self.reserved_email?(email)
       PROFILES.values.any? { |profile| profile[:email] == email } ||
-        PREVIEW_ACCOUNTS.any? { |account| account[:email] == email }
+        PREVIEW_ACCOUNTS.any? { |account| account[:email] == email } ||
+        RoleAccounts.reserved_email?(email)
     end
 
     def self.omni?(user)
@@ -231,7 +232,7 @@ module Development
           roles = membership.role_grants.active.map { |grant| role_label(grant.role_version.role_code) }.uniq.sort
           {
             id: "employee-#{membership.user_id}",
-            label: roles.presence || "Employee",
+            label: roles.join(" · ").presence || "Employee",
             account_type: "employee",
             destination: "/clinic"
           }
@@ -260,7 +261,7 @@ module Development
     private_class_method :omni_account
 
     def self.role_label(role_code)
-      role_code.delete_prefix("dev-seed-").tr("-_", " ").titleize
+      RoleAccounts::ACCOUNTS.dig(role_code, :label) || role_code.tr("-_", " ").titleize
     end
     private_class_method :role_label
 

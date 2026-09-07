@@ -1,4 +1,13 @@
 namespace :members do
+  desc "Prepare the local clinic role accounts and retire duplicate permission-list accounts"
+  task prepare_role_accounts: :environment do
+    accounts = Development::RoleAccounts.prepare!
+    accounts.each { |role_code, _user| puts Development::RoleAccounts::ACCOUNTS.fetch(role_code).fetch(:label) }
+    puts "Named clinic accounts are ready."
+  rescue Development::TestAccounts::Unavailable => error
+    abort error.message
+  end
+
   desc "Prepare only the assigned development patient using the existing Omni clinic"
   task prepare_patient_account: :environment do
     Development::TestAccounts.prepare_patient!
