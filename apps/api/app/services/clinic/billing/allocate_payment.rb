@@ -17,6 +17,7 @@ module Clinic
           patient.lock!
           invoice.lock!
           raise ArgumentError, "The invoice must be posted before payment allocation." unless invoice.status == "posted"
+          PaymentCollectionIntent.ensure_no_active_invoice_checkout!(invoice)
           payment = Clinic::PaymentEvent.lock.find_or_create_by!(practice: practice, external_event_reference: external_event_reference) do |event|
             event.patient = patient
             event.currency = currency

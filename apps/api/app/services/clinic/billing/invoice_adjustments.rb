@@ -25,6 +25,7 @@ module Clinic
         ) do
           current = practice.invoices.lock.find(invoice.id)
           raise ArgumentError, "Only a posted invoice can receive a credit." unless current.status == "posted"
+          PaymentCollectionIntent.ensure_no_active_invoice_checkout!(current)
 
           charge_total = current.lines.sum(:posted_amount)
           credited = current.credit_notes.lock.to_a.sum(&:amount)

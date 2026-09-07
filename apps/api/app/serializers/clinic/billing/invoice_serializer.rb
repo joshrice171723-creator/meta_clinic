@@ -21,7 +21,8 @@ module Clinic
           allocated_amount: allocated.to_d.to_s("F"),
           credit_amount: credit.to_d.to_s("F"),
           balance_amount: balance.to_d.to_s("F"),
-          adjustment_limits: InvoiceAdjustments.limits(invoice)
+          adjustment_limits: InvoiceAdjustments.limits(invoice),
+          online_payment: online_payment(invoice)
         )
         return payload unless detail
 
@@ -44,6 +45,12 @@ module Clinic
           voided_by_membership_id: invoice.voided_by_membership_id,
           audit_timeline: audit_timeline(invoice)
         )
+      end
+
+      def self.online_payment(invoice, result: nil, include_checkout_url: false)
+        payload = StripeInvoicePayments.eligibility(invoice: invoice)
+        payload[:checkout_url] = result.checkout_url if include_checkout_url && result&.checkout_url
+        payload
       end
 
       def self.credit(note)

@@ -54,6 +54,7 @@ export type PatientPortalContext = {
       allocated_amount: Decimal;
       credit_amount: Decimal;
       balance_amount: Decimal;
+      online_payment: InvoiceOnlinePayment;
       lines: {
         id: number;
         description: string;
@@ -447,6 +448,7 @@ export type BillingInvoiceSummary = {
   allocated: Decimal;
   balance: Decimal;
   created_at: string;
+  online_payment?: InvoiceOnlinePayment;
 };
 export type BillingInvoiceDetail = {
   id: number;
@@ -472,6 +474,29 @@ export type BillingInvoiceDetail = {
   void_reason?: string | null;
   voided_at?: string | null;
   voided_by_membership_id?: number | null;
+  online_payment: InvoiceOnlinePayment;
+};
+export type InvoiceOnlinePayment = {
+  state:
+    | "available"
+    | "processing"
+    | "needs_reconciliation"
+    | "paid"
+    | "unavailable";
+  eligible: boolean;
+  can_cancel: boolean;
+  amount: Decimal;
+  currency: string;
+  checkout_url?: string;
+  reason:
+    | "membership_managed"
+    | "invoice_not_posted"
+    | "no_balance"
+    | "unsupported_currency"
+    | "stripe_unavailable"
+    | "checkout_active"
+    | "provider_reconciliation_required"
+    | null;
 };
 export type BillingPatientLedger = {
   schema_version: "clinic-patient-ledger-v1";
@@ -572,6 +597,10 @@ export type BillingDashboard = {
       previous_void_invoice_id: number | null;
     }[];
   };
+  pending_online_payments: {
+    invoice_id: number;
+    state: "processing" | "needs_reconciliation";
+  }[];
 };
 export type CashDrawer = {
   id: number;

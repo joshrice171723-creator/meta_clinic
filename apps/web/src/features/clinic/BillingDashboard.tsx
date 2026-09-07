@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -37,6 +37,11 @@ import { useClinic } from "./Workspace";
 import { CashDrawerOperations } from "./CashDrawerOperations";
 import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
 import { patientReferenceLabel } from "./patientReference";
+import {
+  clearInvoicePaymentReturnMarker,
+  InvoiceCheckoutControls,
+  invoicePaymentReturnMarker,
+} from "./InvoiceCheckoutControls";
 
 export type BillingInvoiceFilter =
   | "all"
@@ -336,6 +341,13 @@ export function BillingDashboard() {
   const [busyAction, setBusyAction] = useState<"post" | "payment" | null>(null);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
+  const [checkoutReturn, setCheckoutReturn] = useState(() =>
+    invoicePaymentReturnMarker(),
+  );
+  const [checkoutReturnError, setCheckoutReturnError] = useState("");
+  const [checkingCheckoutReturn, setCheckingCheckoutReturn] = useState(false);
+  const [checkoutReturnRetry, setCheckoutReturnRetry] = useState(0);
+  const checkoutReturnHandled = useRef(false);
   const postAttemptRef = useRef<{
     invoiceId: number;
     requestKey: string;
@@ -355,6 +367,43 @@ export function BillingDashboard() {
       : "/api/clinic/billing",
   );
   const selectedDetail = detailResource.data?.invoice;
+  const onlinePaymentPending =
+    selectedDetail !== undefined &&
+    ["processing", "needs_reconciliation"].includes(
+      selectedDetail.online_payment.state,
+    );
+
+  useEffect(() => {
+    if (!checkoutReturn || !data || checkoutReturnHandled.current) return;
+    checkoutReturnHandled.current = true;
+    const pending = data.pending_online_payments;
+    setCheckingCheckoutReturn(true);
+    setCheckoutReturnError("");
+    Promise.allSettled(
+      pending.map((payment) =>
+        api(`/api/clinic/invoices/${payment.invoice_id}/online_payment/reconcile`, {
+          method: "POST",
+        }),
+      ),
+    ).then((results) => {
+      const failed = results.some((result) => result.status === "rejected");
+      if (failed) {
+        setCheckoutReturnError(
+          "Payment status could not be refreshed for every active checkout. Retry before recording another payment.",
+        );
+        return;
+      }
+      refresh();
+      detailResource.refresh();
+      clearInvoicePaymentReturnMarker();
+      setCheckoutReturn(null);
+    }).finally(() => setCheckingCheckoutReturn(false));
+  }, [checkoutReturn, checkoutReturnRetry, data]);
+
+  const retryCheckoutReturn = () => {
+    checkoutReturnHandled.current = false;
+    setCheckoutReturnRetry((value) => value + 1);
+  };
 
   if (context.capabilities.billing_read !== true)
     return (
@@ -545,6 +594,28 @@ export function BillingDashboard() {
           )}
         </div>
       </header>
+      {checkingCheckoutReturn && (
+        <Alert severity="info" role="status">
+          Checking payment status… A return from Stripe does not confirm that a
+          payment was completed.
+        </Alert>
+      )}
+      {checkoutReturnError && (
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={retryCheckoutReturn}
+            >
+              Retry
+            </Button>
+          }
+        >
+          {checkoutReturnError}
+        </Alert>
+      )}
       <section className="billing-overview" aria-label="Financial summary">
         <div className="billing-overview-heading">
           <div>
@@ -1099,6 +1170,28 @@ export function BillingDashboard() {
                     </strong>
                   </div>
                 </div>
+                {selectedDetail && (
+                  <InvoiceCheckoutControls
+                    key={selectedInvoice.id}
+                    onlinePayment={selectedDetail.online_payment}
+                    endpoint={`/api/clinic/invoices/${selectedInvoice.id}/online_payment`}
+                    actionLabel="Collect online"
+                    actionsEnabled={
+                      context.capabilities.billing_payment_record === true ||
+                      context.capabilities.billing === true
+                    }
+                    onChanged={() => {
+                      refresh();
+                      detailResource.refresh();
+                    }}
+                  />
+                )}
+                {onlinePaymentPending && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    Refresh or cancel the online checkout before recording a
+                    different payment method.
+                  </Alert>
+                )}
                 {detailResource.error ? (
                   <p className="billing-inline-error" role="alert">
                     Invoice line detail is unavailable for this account. The
@@ -1142,6 +1235,7 @@ export function BillingDashboard() {
                   )}
                 {selectedInvoice.status === "posted" &&
                   !isZeroDecimal(selectedInvoice.balance) &&
+                  !onlinePaymentPending &&
                   (context.capabilities.billing_payment_record === true ||
                     context.capabilities.billing) && (
                     <form
@@ -1257,6 +1351,7 @@ export function BillingDashboard() {
             )}
           {selectedInvoice?.status === "posted" &&
             !isZeroDecimal(selectedInvoice.balance) &&
+            !onlinePaymentPending &&
             context.capabilities.billing_payment_record === true && (
               <Button
                 onClick={() => {

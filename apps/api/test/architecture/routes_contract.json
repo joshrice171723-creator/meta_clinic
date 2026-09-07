@@ -950,6 +950,36 @@
     "/api/clinic/patients/:id/note(.:format)"
   ],
   [
+    "online_payment_cancel_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/online_payment/cancel(.:format)"
+  ],
+  [
+    "online_payment_cancel_api_patient_portal_invoice",
+    "POST",
+    "/api/patient_portal/invoices/:id/online_payment/cancel(.:format)"
+  ],
+  [
+    "online_payment_reconcile_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/online_payment/reconcile(.:format)"
+  ],
+  [
+    "online_payment_reconcile_api_patient_portal_invoice",
+    "POST",
+    "/api/patient_portal/invoices/:id/online_payment/reconcile(.:format)"
+  ],
+  [
+    "online_payment_start_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/online_payment/start(.:format)"
+  ],
+  [
+    "online_payment_start_api_patient_portal_invoice",
+    "POST",
+    "/api/patient_portal/invoices/:id/online_payment/start(.:format)"
+  ],
+  [
     "pause_api_clinic_reminder",
     "POST",
     "/api/clinic/reminders/:id/pause(.:format)"

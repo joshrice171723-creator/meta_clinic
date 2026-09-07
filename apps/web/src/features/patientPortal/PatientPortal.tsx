@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -29,6 +29,11 @@ import { PatientAppointmentRequests } from "./PatientAppointmentRequests";
 import { patientPortalLabel } from "./patientPortalLabels";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
+import {
+  clearInvoicePaymentReturnMarker,
+  InvoiceCheckoutControls,
+  invoicePaymentReturnMarker,
+} from "../clinic/InvoiceCheckoutControls";
 
 export function PatientPortal({
   user,
@@ -46,7 +51,57 @@ export function PatientPortal({
   );
   const [error, setError] = useState("");
   const [switching, setSwitching] = useState(false);
+  const [checkoutReturn, setCheckoutReturn] = useState(() =>
+    invoicePaymentReturnMarker(),
+  );
+  const [checkoutReturnError, setCheckoutReturnError] = useState("");
+  const [checkoutReturnNotice, setCheckoutReturnNotice] = useState("");
+  const [checkingCheckoutReturn, setCheckingCheckoutReturn] = useState(false);
+  const [checkoutReturnRetry, setCheckoutReturnRetry] = useState(0);
+  const checkoutReturnHandled = useRef(false);
   const context = resource.data;
+
+  useEffect(() => {
+    if (!checkoutReturn || !context || checkoutReturnHandled.current) return;
+    checkoutReturnHandled.current = true;
+    const pending = context.billing.invoices.filter((invoice) =>
+      ["processing", "needs_reconciliation"].includes(
+        invoice.online_payment.state,
+      ),
+    );
+    setCheckingCheckoutReturn(true);
+    setCheckoutReturnError("");
+    Promise.allSettled(
+      pending.map((invoice) =>
+        api(`/api/patient_portal/invoices/${invoice.id}/online_payment/reconcile`, {
+          method: "POST",
+        }),
+      ),
+    )
+      .then((results) => {
+        if (results.some((result) => result.status === "rejected")) {
+          setCheckoutReturnError(
+            "Payment status could not be refreshed. Retry before choosing another payment method.",
+          );
+          return;
+        }
+        resource.refresh();
+        setCheckoutReturnNotice(
+          checkoutReturn === "cancel"
+            ? "You returned from checkout. Review the refreshed invoice status before continuing or cancelling."
+            : "Payment status was refreshed. A return from Stripe does not confirm payment by itself.",
+        );
+        clearInvoicePaymentReturnMarker();
+        setCheckoutReturn(null);
+      })
+      .finally(() => setCheckingCheckoutReturn(false));
+  }, [checkoutReturn, checkoutReturnRetry, context]);
+
+  const retryCheckoutReturn = () => {
+    checkoutReturnHandled.current = false;
+    setCheckoutReturnRetry((value) => value + 1);
+  };
+
   return (
     <ThemeProvider theme={membershipTheme}>
       {user?.development_demo && (
@@ -118,6 +173,31 @@ export function PatientPortal({
           )}
           {(resource.error || error) && (
             <Alert severity="error">{resource.error || error}</Alert>
+          )}
+          {checkingCheckoutReturn && (
+            <Alert severity="info" role="status">
+              Checking payment status… A return from Stripe does not confirm
+              that a payment was completed.
+            </Alert>
+          )}
+          {checkoutReturnError && (
+            <Alert
+              severity="error"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={retryCheckoutReturn}
+                >
+                  Retry
+                </Button>
+              }
+            >
+              {checkoutReturnError}
+            </Alert>
+          )}
+          {checkoutReturnNotice && (
+            <Alert severity="info">{checkoutReturnNotice}</Alert>
           )}
           {context && (
             <>
@@ -334,6 +414,14 @@ export function PatientPortal({
                               invoice.currency,
                             )}
                           </Typography>
+                          <InvoiceCheckoutControls
+                            key={invoice.id}
+                            onlinePayment={invoice.online_payment}
+                            endpoint={`/api/patient_portal/invoices/${invoice.id}/online_payment`}
+                            actionLabel="Pay securely"
+                            actionsEnabled={context.capabilities.payment_collection}
+                            onChanged={resource.refresh}
+                          />
                         </Stack>
                       </AccordionDetails>
                     </Accordion>

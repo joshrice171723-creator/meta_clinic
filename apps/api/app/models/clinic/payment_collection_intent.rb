@@ -8,13 +8,15 @@ module Clinic
     belongs_to :invoice, class_name: "Clinic::Invoice"
     has_many :processor_events, class_name: "Clinic::PaymentProcessorEvent",
       dependent: :restrict_with_error
+    has_one :invoice_stripe_checkout, class_name: "Clinic::Billing::InvoiceStripeCheckout",
+      foreign_key: :collection_intent_id, dependent: :restrict_with_error
 
     STATES = {
       "pending" => %w[processing canceled needs_reconciliation],
-      "processing" => %w[succeeded failed needs_reconciliation],
+      "processing" => %w[succeeded failed needs_reconciliation canceled],
       "succeeded" => [],
       "failed" => [],
-      "needs_reconciliation" => %w[processing succeeded failed],
+      "needs_reconciliation" => %w[processing succeeded failed canceled],
       "canceled" => []
     }.freeze
 
@@ -35,6 +37,12 @@ module Clinic
 
         update!(state: target)
       end
+    end
+
+    def self.ensure_no_active_invoice_checkout!(invoice)
+      return unless Clinic::Billing::InvoiceStripeCheckout.active.where(invoice: invoice).exists?
+
+      raise ArgumentError, "Resolve or cancel the online payment before changing this invoice balance."
     end
 
     private

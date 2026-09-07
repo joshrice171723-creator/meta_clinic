@@ -17,7 +17,8 @@ class StripeWebhooksController < ApplicationController
       evidence = Clinic::Billing::IngestProcessorEvent.call(practice: connection.practice, raw_body: raw_body,
         signature_header: request.headers["Stripe-Signature"], secret: secret).event
     end
-    result = Clinic::Billing::StripeMembershipPayments.webhook(raw_body: raw_body, signature_header: request.headers["Stripe-Signature"])
+    result = Clinic::Billing::StripeInvoicePayments.webhook(payload: payload, gateway: Clinic::Billing::StripeGateway.new)
+    result ||= Clinic::Billing::StripeMembershipPayments.webhook(raw_body: raw_body, signature_header: request.headers["Stripe-Signature"])
     evidence&.update!(processing_state: result ? "applied" : "needs_reconciliation")
     head :no_content
   rescue JSON::ParserError, Clinic::Billing::IngestProcessorEvent::InvalidPayload, Clinic::Billing::IngestProcessorEvent::ConflictingEvent,

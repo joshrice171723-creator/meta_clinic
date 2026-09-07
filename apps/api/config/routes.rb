@@ -61,6 +61,9 @@ Rails.application.routes.draw do
         post :void, on: :member, action: :void_invoice
         post :payment_allocations, on: :member, action: :allocate_payment
         post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
+        post "online_payment/start", on: :member, to: "billing/invoice_online_payments#start"
+        post "online_payment/reconcile", on: :member, to: "billing/invoice_online_payments#reconcile"
+        post "online_payment/cancel", on: :member, to: "billing/invoice_online_payments#cancel"
       end
     get "billing", to: "billing/dashboard#show"
     resources :billing_services, only: %i[index create update]
@@ -304,6 +307,11 @@ Rails.application.routes.draw do
   end
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do
+      resources :invoices, only: [] do
+        post "online_payment/start", on: :member, to: "invoice_online_payments#start"
+        post "online_payment/reconcile", on: :member, to: "invoice_online_payments#reconcile"
+        post "online_payment/cancel", on: :member, to: "invoice_online_payments#cancel"
+      end
       resources :subscriptions, only: :index do
         post :quote, on: :collection
         post :checkout, on: :collection

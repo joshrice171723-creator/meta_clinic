@@ -38,11 +38,34 @@ module Clinic
           recent_payments: recent_payments(practice),
           payment_activity: payment_activity(practice),
           payment_count: Clinic::PaymentEvent.where(practice: practice).count,
-          card_collection: { available: false, reason: "Stripe card entry and saved payment methods are not connected to this workspace." },
+          card_collection: card_collection(practice),
+          pending_online_payments: pending_online_payments(practice),
           income_outlook: IncomeOutlook.call(practice: practice, now: now, months: outlook_months, start_month: outlook_start),
           unbilled_encounters: unbilled_encounters(practice, available: patient_identity_access)
         }
       end
+
+      def self.card_collection(practice)
+        available = StripeConnect.patient_checkout_available?(practice)
+        {
+          available: available,
+          reason: available ?
+            "Stripe-hosted online invoice checkout is available in test mode." :
+            "Stripe sandbox checkout requires a connected clinic account with payments and payouts enabled."
+        }
+      end
+      private_class_method :card_collection
+
+      def self.pending_online_payments(practice)
+        practice.invoice_stripe_checkouts.active.includes(:invoice).order(:invoice_id, :id)
+          .each_with_object({}) do |checkout, pending|
+            pending[checkout.invoice_id] = {
+              invoice_id: checkout.invoice_id,
+              state: StripeInvoicePayments.eligibility(invoice: checkout.invoice).fetch(:state)
+            }
+          end.values
+      end
+      private_class_method :pending_online_payments
 
       def self.unbilled_encounters(practice, available:)
         return { available: false, total: nil, items: [] } unless available

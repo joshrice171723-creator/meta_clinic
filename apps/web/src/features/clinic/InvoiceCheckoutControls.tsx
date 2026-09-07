@@ -1,0 +1,187 @@
+import { Alert, Button, Chip, Stack, Typography } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { api } from "../../api/client";
+import type { InvoiceOnlinePayment } from "../../api/contracts";
+
+type CheckoutEnvelope = {
+  online_payment: InvoiceOnlinePayment;
+};
+type CheckoutAction = "start" | "reconcile" | "cancel";
+
+function openHostedStripeCheckout(checkoutUrl: string) {
+  const url = new URL(checkoutUrl);
+  if (
+    url.protocol !== "https:" ||
+    !["checkout.stripe.com", "invoice.stripe.com"].includes(url.hostname) ||
+    url.username ||
+    url.password ||
+    url.port
+  ) {
+    throw new Error("Stripe returned an invalid Checkout address.");
+  }
+  window.location.assign(url.href);
+}
+
+function unavailableMessage(reason: InvoiceOnlinePayment["reason"]) {
+  const messages: Record<NonNullable<InvoiceOnlinePayment["reason"]>, string> = {
+    membership_managed: "This invoice is managed through membership billing.",
+    invoice_not_posted: "Post this invoice before collecting an online payment.",
+    no_balance: "This invoice has no remaining balance to collect online.",
+    unsupported_currency: "Hosted online payment is currently available for USD invoices only.",
+    stripe_unavailable: "Hosted online payment is unavailable for this clinic right now.",
+    checkout_active: "An online checkout is already active for this invoice.",
+    provider_reconciliation_required: "Refresh payment status before choosing another payment method.",
+  };
+  return reason ? messages[reason] : "Hosted online payment is unavailable for this invoice.";
+}
+
+export function invoicePaymentReturnMarker(): "return" | "cancel" | null {
+  const value = new URLSearchParams(window.location.search).get(
+    "invoice_payment",
+  );
+  return value === "return" || value === "cancel" ? value : null;
+}
+
+export function clearInvoicePaymentReturnMarker() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("invoice_payment");
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
+export function InvoiceCheckoutControls({
+  onlinePayment,
+  endpoint,
+  actionLabel,
+  actionsEnabled = true,
+  onChanged,
+}: {
+  onlinePayment: InvoiceOnlinePayment;
+  endpoint: string;
+  actionLabel: "Pay securely" | "Collect online";
+  actionsEnabled?: boolean;
+  onChanged: () => void;
+}) {
+  const [payment, setPayment] = useState(onlinePayment);
+  const [busy, setBusy] = useState<CheckoutAction | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const startKey = useRef<string | undefined>(undefined);
+  const cancelKey = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    setPayment(onlinePayment);
+    if (["available", "paid", "unavailable"].includes(onlinePayment.state)) {
+      startKey.current = undefined;
+    }
+    if (!onlinePayment.can_cancel) cancelKey.current = undefined;
+  }, [onlinePayment]);
+
+  useEffect(() => {
+    setPayment(onlinePayment);
+    setError("");
+    setNotice("");
+    startKey.current = undefined;
+    cancelKey.current = undefined;
+  }, [endpoint]);
+
+  const run = async (action: CheckoutAction) => {
+    if (busy) return;
+    setBusy(action);
+    setError("");
+    try {
+      const requestKey =
+        action === "start"
+          ? (startKey.current ??= crypto.randomUUID())
+          : action === "cancel"
+            ? (cancelKey.current ??= crypto.randomUUID())
+            : undefined;
+      const result = await api<CheckoutEnvelope>(`${endpoint}/${action}`, {
+        method: "POST",
+        ...(requestKey ? { body: { online_payment: { request_key: requestKey } } } : {}),
+      });
+      setPayment(result.online_payment);
+      if (
+        ["available", "paid", "unavailable"].includes(
+          result.online_payment.state,
+        )
+      ) {
+        startKey.current = undefined;
+      }
+      if (!result.online_payment.can_cancel) cancelKey.current = undefined;
+      onChanged();
+      if (action === "start" && result.online_payment.checkout_url) {
+        openHostedStripeCheckout(result.online_payment.checkout_url);
+        return;
+      }
+      if (action === "cancel") {
+        setNotice(
+          result.online_payment.can_cancel
+            ? "Checkout cancellation is still being confirmed. Refresh payment status before recording another payment."
+            : "Checkout status was updated.",
+        );
+      } else {
+        setNotice(
+          action === "reconcile"
+            ? "Payment status refreshed from Stripe."
+            : "Checkout is ready to continue.",
+        );
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Online payment could not be updated.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const pending = ["processing", "needs_reconciliation"].includes(payment.state);
+  const canStart =
+    actionsEnabled && payment.state === "available" && payment.eligible;
+  return (
+    <Stack spacing={1.25} sx={{ mt: 2 }}>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
+        <Typography variant="subtitle2">Hosted online payment</Typography>
+        <Chip size="small" variant="outlined" label="Test mode" />
+      </Stack>
+      {payment.state === "unavailable" && (
+        <Typography variant="body2" color="text.secondary">
+          {unavailableMessage(payment.reason)}
+        </Typography>
+      )}
+      {payment.state === "paid" && (
+        <Typography variant="body2" color="text.secondary">
+          This invoice has no remaining balance.
+        </Typography>
+      )}
+      {pending && !actionsEnabled && (
+        <Typography variant="body2" color="text.secondary">
+          Online payment status is being updated.
+        </Typography>
+      )}
+      {error && <Alert severity="error">{error}</Alert>}
+      {notice && <Alert severity="info">{notice}</Alert>}
+      {(canStart || (pending && actionsEnabled)) && (
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+          {(canStart || payment.state === "processing") && (
+            <Button variant="contained" disabled={busy !== null} onClick={() => void run("start")}>
+              {busy === "start" ? "Opening Stripe…" : payment.state === "processing" ? "Continue payment" : actionLabel}
+            </Button>
+          )}
+          {pending && (
+            <Button variant="outlined" disabled={busy !== null} onClick={() => void run("reconcile")}>
+              {busy === "reconcile" ? "Checking…" : "Refresh payment status"}
+            </Button>
+          )}
+          {pending && payment.can_cancel && (
+            <Button color="error" disabled={busy !== null} onClick={() => void run("cancel")}>
+              {busy === "cancel" ? "Cancelling…" : "Cancel online payment"}
+            </Button>
+          )}
+        </Stack>
+      )}
+    </Stack>
+  );
+}

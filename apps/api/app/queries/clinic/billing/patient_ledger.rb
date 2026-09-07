@@ -12,7 +12,7 @@ module Clinic
       end
 
       def call
-        invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents).order(created_at: :desc, id: :desc).to_a
+        invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents, :invoice_stripe_checkouts).order(created_at: :desc, id: :desc).to_a
         payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events, :cash_tender, :billing_receipts).order(created_at: :desc, id: :desc).to_a
 
         {
@@ -54,6 +54,7 @@ module Clinic
           credit_amount: decimal(invoice_credit(invoice)),
           balance_amount: decimal(invoice_balance(invoice)),
           adjustment_limits: InvoiceAdjustments.limits(invoice),
+          online_payment: InvoiceSerializer.online_payment(invoice),
           lines: invoice.lines.sort_by(&:id).map do |line|
             { id: line.id, description: line.description_snapshot, quantity: decimal(line.quantity), unit_amount: decimal(line.unit_amount), posted_amount: decimal(line.posted_amount), billing_service_id: line.billing_service_id }
           end,

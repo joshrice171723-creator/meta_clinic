@@ -169,6 +169,24 @@ $$;
 
 
 --
+-- Name: guard_invoice_stripe_checkout_routing(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.guard_invoice_stripe_checkout_routing() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Invoice Stripe checkout history cannot be deleted'; END IF;
+  IF (to_jsonb(OLD) - ARRAY['updated_at','session_id','session_status']) <>
+     (to_jsonb(NEW) - ARRAY['updated_at','session_id','session_status']) OR
+     (OLD.session_id IS NOT NULL AND OLD.session_id IS DISTINCT FROM NEW.session_id) THEN
+    RAISE EXCEPTION 'Invoice Stripe checkout routing cannot be changed';
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+--
 -- Name: guard_stripe_routing(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1732,7 +1750,7 @@ CREATE TABLE public.clinic_billing_receipts (
     issued_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY ((ARRAY['cash_payment'::character varying, 'cash_refund'::character varying, 'subscription_payment'::character varying, 'subscription_refund'::character varying])::text[])))
+    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY ((ARRAY['cash_payment'::character varying, 'cash_refund'::character varying, 'subscription_payment'::character varying, 'subscription_refund'::character varying, 'card_payment'::character varying])::text[])))
 );
 
 
@@ -4069,6 +4087,45 @@ CREATE SEQUENCE public.clinic_invoice_lines_id_seq
 --
 
 ALTER SEQUENCE public.clinic_invoice_lines_id_seq OWNED BY public.clinic_invoice_lines.id;
+
+
+--
+-- Name: clinic_invoice_stripe_checkouts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_invoice_stripe_checkouts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    connection_id bigint NOT NULL,
+    invoice_id bigint NOT NULL,
+    collection_intent_id bigint NOT NULL,
+    account_id character varying NOT NULL,
+    session_id character varying,
+    session_status character varying,
+    application_fee_cents integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT invoice_stripe_checkouts_values CHECK ((((account_id)::text ~ '^acct_[a-zA-Z0-9]+$'::text) AND (application_fee_cents >= 0) AND ((session_id IS NULL) OR ((session_id)::text ~ '^cs_test_[a-zA-Z0-9]+$'::text)) AND ((session_status IS NULL) OR ((session_status)::text = ANY ((ARRAY['open'::character varying, 'complete'::character varying, 'expired'::character varying])::text[])))))
+);
+
+
+--
+-- Name: clinic_invoice_stripe_checkouts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_invoice_stripe_checkouts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_invoice_stripe_checkouts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_invoice_stripe_checkouts_id_seq OWNED BY public.clinic_invoice_stripe_checkouts.id;
 
 
 --
@@ -8409,6 +8466,13 @@ ALTER TABLE ONLY public.clinic_invoice_lines ALTER COLUMN id SET DEFAULT nextval
 
 
 --
+-- Name: clinic_invoice_stripe_checkouts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts ALTER COLUMN id SET DEFAULT nextval('public.clinic_invoice_stripe_checkouts_id_seq'::regclass);
+
+
+--
 -- Name: clinic_invoices id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -9620,6 +9684,14 @@ ALTER TABLE ONLY public.clinic_inventory_vendor_returns
 
 ALTER TABLE ONLY public.clinic_invoice_lines
     ADD CONSTRAINT clinic_invoice_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_invoice_stripe_checkouts clinic_invoice_stripe_checkouts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
+    ADD CONSTRAINT clinic_invoice_stripe_checkouts_pkey PRIMARY KEY (id);
 
 
 --
@@ -11893,6 +11965,13 @@ CREATE UNIQUE INDEX clinic_visit_types_practice_id ON public.clinic_visit_types 
 
 
 --
+-- Name: idx_on_account_id_session_id_15ca542b56; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_account_id_session_id_15ca542b56 ON public.clinic_invoice_stripe_checkouts USING btree (account_id, session_id);
+
+
+--
 -- Name: idx_on_account_id_subscription_id_ff19119ce5; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -12002,6 +12081,13 @@ CREATE UNIQUE INDEX idx_on_practice_id_id_8c7258c8f9 ON public.clinic_inventory_
 --
 
 CREATE UNIQUE INDEX idx_on_practice_id_id_fbac602383 ON public.clinic_inventory_receiving_sessions USING btree (practice_id, id);
+
+
+--
+-- Name: idx_on_practice_id_invoice_id_201b44341d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_invoice_id_201b44341d ON public.clinic_invoice_stripe_checkouts USING btree (practice_id, invoice_id);
 
 
 --
@@ -12604,6 +12690,20 @@ CREATE UNIQUE INDEX index_clinic_inventory_vendor_returns_on_entry_id ON public.
 --
 
 CREATE UNIQUE INDEX index_clinic_inventory_vendor_returns_on_practice_id_and_id ON public.clinic_inventory_vendor_returns USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_invoice_stripe_checkouts_on_collection_intent_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_invoice_stripe_checkouts_on_collection_intent_id ON public.clinic_invoice_stripe_checkouts USING btree (collection_intent_id);
+
+
+--
+-- Name: index_clinic_invoice_stripe_checkouts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_invoice_stripe_checkouts_on_practice_id_and_id ON public.clinic_invoice_stripe_checkouts USING btree (practice_id, id);
 
 
 --
@@ -14774,6 +14874,13 @@ CREATE CONSTRAINT TRIGGER inventory_reconciliation_complete AFTER INSERT ON publ
 --
 
 CREATE TRIGGER inventory_reconciliation_guard BEFORE INSERT ON public.clinic_inventory_shipment_reconciliations FOR EACH ROW EXECUTE FUNCTION public.inventory_reconciliation_guard();
+
+
+--
+-- Name: clinic_invoice_stripe_checkouts invoice_stripe_checkout_routing; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER invoice_stripe_checkout_routing BEFORE DELETE OR UPDATE ON public.clinic_invoice_stripe_checkouts FOR EACH ROW EXECUTE FUNCTION public.guard_invoice_stripe_checkout_routing();
 
 
 --
@@ -17094,6 +17201,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_products
 
 
 --
+-- Name: clinic_invoice_stripe_checkouts fk_rails_3d79852221; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
+    ADD CONSTRAINT fk_rails_3d79852221 FOREIGN KEY (practice_id, collection_intent_id) REFERENCES public.clinic_payment_collection_intents(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_receiving_sessions fk_rails_3f09c6a418; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18027,6 +18142,14 @@ ALTER TABLE ONLY public.clinic_inventory_catalog_events
 
 ALTER TABLE ONLY public.clinic_inventory_receipt_lines
     ADD CONSTRAINT fk_rails_e879d9b8a1 FOREIGN KEY (practice_id, purchase_order_line_id) REFERENCES public.clinic_inventory_purchase_order_lines(practice_id, id);
+
+
+--
+-- Name: clinic_invoice_stripe_checkouts fk_rails_e999cfba54; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
+    ADD CONSTRAINT fk_rails_e999cfba54 FOREIGN KEY (practice_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, id);
 
 
 --
@@ -20674,6 +20797,14 @@ ALTER TABLE ONLY public.clinic_workforce_export_batches
 
 
 --
+-- Name: clinic_invoice_stripe_checkouts fk_rails_347bee8fa4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
+    ADD CONSTRAINT fk_rails_347bee8fa4 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_scribe_lab_selections fk_rails_34933da4f2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21154,6 +21285,14 @@ ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions
 
 
 --
+-- Name: clinic_invoice_stripe_checkouts fk_rails_d2e48ecb43; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
+    ADD CONSTRAINT fk_rails_d2e48ecb43 FOREIGN KEY (practice_id, connection_id) REFERENCES public.clinic_stripe_connections(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_timecard_versions fk_rails_d50ec95377; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21283,6 +21422,7 @@ CREATE TRIGGER workforce_schedule_publications_immutable BEFORE DELETE OR UPDATE
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000800'),
 ('20260907000700'),
 ('20260907000600'),
 ('20260907000530'),
