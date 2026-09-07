@@ -4,6 +4,7 @@ import { businessNow } from "../../shared/businessDate";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useClinic } from "./Workspace";
 import type { Appointment, PatientReminder } from "../../api/contracts";
+import { AppointmentReminderBatch } from "./AppointmentReminderBatch";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
@@ -13,6 +14,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Divider,
@@ -249,8 +251,8 @@ function PersistedStaffHandoff({
             </Button>
           }
         >
-          This staff request ended without a recorded resolution. It remains
-          in this worklist for clinic review.
+          This staff request ended without a recorded resolution. It remains in
+          this worklist for clinic review.
         </Alert>
       )}
     </Stack>
@@ -486,13 +488,15 @@ function rangeBoundary(value: string, addDay = false) {
   return date.toISOString();
 }
 
-function appointmentLabel(appointment: Appointment) {
+function appointmentLabel(appointment: Appointment, timeZone: string) {
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
   }).format(new Date(appointment.starts_at));
 }
 
@@ -625,7 +629,7 @@ function MessageHistory({
   const { capabilities, membership_id } = useClinic();
   const [page, setPage] = useState(1);
   const params = new URLSearchParams({
-    history: "sent",
+    history: reminderId ? "all" : "sent",
     per_page: "25",
     page: String(page),
   });
@@ -653,9 +657,13 @@ function MessageHistory({
         <HistoryOutlinedIcon
           sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
         />
-        <Typography variant="h6">No sent messages found</Typography>
+        <Typography variant="h6">
+          {reminderId ? "Selected reminder was not found" : "No sent messages found"}
+        </Typography>
         <Typography color="text.secondary">
-          Messages appear here after a delivery attempt is made.
+          {reminderId
+            ? "It may have been removed or is outside your current clinic access."
+            : "Messages appear here after a delivery attempt is made."}
         </Typography>
       </Box>
     );
@@ -771,6 +779,7 @@ export function Reminders() {
   const [patientQuery, setPatientQuery] = useState("");
   const deferredQuery = useDeferredValue(patientQuery);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [batchSelectedIds, setBatchSelectedIds] = useState<number[]>([]);
   const [message, setMessage] = useState("");
   const [createdReminderId, setCreatedReminderId] = useState<number | null>(
     null,
@@ -808,14 +817,24 @@ export function Reminders() {
   }, [appointments, selectedId]);
 
   useEffect(() => {
+    setBatchSelectedIds((current) => {
+      const availableIds = new Set(
+        appointments.map((appointment) => appointment.id),
+      );
+      const next = current.filter((id) => availableIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [appointments]);
+
+  useEffect(() => {
     if (!selected) return;
     setMessage(
-      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected)}. Reply YA to confirm or NA if you need to reschedule.`,
+      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected, clinic.practice.timezone)}. Reply YA to confirm or NA if you need to reschedule.`,
     );
     setNotice("");
     setError("");
     setCreatedReminderId(null);
-  }, [clinic.practice.name, selected]);
+  }, [clinic.practice.name, clinic.practice.timezone, selected]);
 
   async function queueReminder() {
     if (!selected || !message.trim() || rangeError) return;
@@ -895,7 +914,7 @@ export function Reminders() {
           }
           sx={{ mb: 2 }}
         >
-          Showing the message linked to a staff follow-up.
+          Showing the selected reminder.
         </Alert>
       )}
       {notice && (
@@ -1073,45 +1092,85 @@ export function Reminders() {
                     </Typography>
                   </Box>
                 )}
+                {appointmentsResource.data && appointments.length > 0 && (
+                  <AppointmentReminderBatch
+                    appointments={appointments}
+                    selectedIds={batchSelectedIds}
+                    canSchedule={clinic.capabilities.reminders_write === true}
+                    onClearSelection={() => setBatchSelectedIds([])}
+                    onSelectAll={() =>
+                      setBatchSelectedIds(
+                        appointments.map((appointment) => appointment.id),
+                      )
+                    }
+                  />
+                )}
                 <Stack divider={<Divider flexItem />}>
                   {appointments.map((appointment) => (
-                    <Button
+                    <Stack
                       key={appointment.id}
-                      onClick={() => setSelectedId(appointment.id)}
-                      aria-pressed={selectedId === appointment.id}
+                      direction="row"
                       sx={{
-                        px: 1.5,
-                        py: 1.75,
-                        justifyContent: "space-between",
-                        textAlign: "left",
-                        color: "text.primary",
-                        borderRadius: 1,
-                        bgcolor:
-                          selectedId === appointment.id
-                            ? "action.selected"
-                            : "transparent",
-                        "&:hover": { bgcolor: "action.hover" },
+                        alignItems: "center",
+                        pr: 0.75,
                       }}
                     >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          {appointment.patient?.display_name ||
-                            `Patient ${appointment.patient_id}`}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {appointmentLabel(appointment)}
-                          {appointment.patient?.phone
-                            ? ` · ${phoneLabel(appointment.patient.phone)}`
-                            : " · No verified phone on file"}
-                        </Typography>
-                      </Box>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        label={appointment.status}
-                        sx={{ ml: 2, flexShrink: 0 }}
+                      <Checkbox
+                        checked={batchSelectedIds.includes(appointment.id)}
+                        onChange={(event) => {
+                          setBatchSelectedIds((current) =>
+                            event.target.checked
+                              ? [...current, appointment.id]
+                              : current.filter((id) => id !== appointment.id),
+                          );
+                        }}
+                        slotProps={{
+                          input: {
+                            "aria-label": `Select ${appointment.patient?.display_name || `patient ${appointment.patient_id}`} on ${appointmentLabel(appointment, clinic.practice.timezone)} for standard reminder planning`,
+                          },
+                        }}
                       />
-                    </Button>
+                      <Button
+                        onClick={() => setSelectedId(appointment.id)}
+                        aria-pressed={selectedId === appointment.id}
+                        sx={{
+                          px: 1.5,
+                          py: 1.75,
+                          flex: 1,
+                          justifyContent: "space-between",
+                          textAlign: "left",
+                          color: "text.primary",
+                          borderRadius: 1,
+                          bgcolor:
+                            selectedId === appointment.id
+                              ? "action.selected"
+                              : "transparent",
+                          "&:hover": { bgcolor: "action.hover" },
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            {appointment.patient?.display_name ||
+                              `Patient ${appointment.patient_id}`}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {appointmentLabel(
+                              appointment,
+                              clinic.practice.timezone,
+                            )}
+                            {appointment.patient?.phone
+                              ? ` · ${phoneLabel(appointment.patient.phone)}`
+                              : " · No verified phone on file"}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={appointment.status}
+                          sx={{ ml: 2, flexShrink: 0 }}
+                        />
+                      </Button>
+                    </Stack>
                   ))}
                 </Stack>
                 {appointmentsResource.data &&
@@ -1154,7 +1213,7 @@ export function Reminders() {
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    {appointmentLabel(selected)}
+                    {appointmentLabel(selected, clinic.practice.timezone)}
                   </Typography>
                   <Typography variant="body2" sx={{ mb: 2 }}>
                     <strong>Text will go to:</strong>{" "}

@@ -45,6 +45,8 @@ Rails.application.routes.draw do
     end
     resources :reminders, controller: "reminders", only: %i[index show create] do
       post :recover, on: :collection
+      post :batch_preview, on: :collection
+      post :batch_schedule, on: :collection
       post :staff_handoff, on: :member
       post :pause, on: :member
       post :cancel, on: :member

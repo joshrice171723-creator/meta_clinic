@@ -1,7 +1,7 @@
 module Clinic
   class RemindersController < Clinic::BaseController
-    before_action -> { require_capability("reminders.read") }, only: %i[index show]
-    before_action -> { require_capability("reminders.write") }, only: %i[create pause cancel retry dispatch_reminder record_delivery recover staff_handoff]
+    before_action -> { require_capability("reminders.read") }, only: %i[index show batch_preview]
+    before_action -> { require_capability("reminders.write") }, only: %i[create batch_schedule pause cancel retry dispatch_reminder record_delivery recover staff_handoff]
 
     def recover
       render json: Clinic::Reminders::RecoverJob.perform_now(
@@ -59,6 +59,18 @@ module Clinic
       render json: { id: reminder.id, reminder: PatientReminderSerializer.call(reminder, detail: true, actor: current_user) }, status: :created
     end
 
+    def batch_preview
+      render json: Clinic::Reminders::AppointmentBatch.preview(
+        practice: current_practice, actor: current_user, appointment_ids: batch_appointment_ids
+      )
+    end
+
+    def batch_schedule
+      render json: Clinic::Reminders::AppointmentBatch.schedule(
+        practice: current_practice, actor: current_user, items: batch_schedule_items
+      )
+    end
+
     def pause
       transition("paused", "staff_pause")
     end
@@ -108,6 +120,24 @@ module Clinic
     end
 
     private
+
+    def batch_appointment_ids
+      value = params.require(:appointment_ids)
+      raise ArgumentError, "appointment_ids must be an array." unless value.is_a?(Array)
+
+      value
+    end
+
+    def batch_schedule_items
+      value = params.require(:items)
+      raise ArgumentError, "items must be an array." unless value.is_a?(Array)
+
+      value.map do |item|
+        raise ArgumentError, "Each item must be an object." unless item.is_a?(ActionController::Parameters)
+
+        item.permit(:appointment_id, :preview_digest).to_h
+      end
+    end
 
     def reminder_record
       current_practice.patient_reminders.find(requested_id!(params[:id], :id))

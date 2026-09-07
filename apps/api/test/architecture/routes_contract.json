@@ -745,6 +745,16 @@
     "/api/clinic/workforce/timecards/:id/approve(.:format)"
   ],
   [
+    "batch_preview_api_clinic_reminders",
+    "POST",
+    "/api/clinic/reminders/batch_preview(.:format)"
+  ],
+  [
+    "batch_schedule_api_clinic_reminders",
+    "POST",
+    "/api/clinic/reminders/batch_schedule(.:format)"
+  ],
+  [
     "billing_ledger_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/billing_ledger(.:format)"

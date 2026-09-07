@@ -51,6 +51,10 @@ module Clinic
         raise ArgumentError, "This reminder request key was already used for different data."
       end
 
+      def self.endpoint_for(practice:, patient:, channel:, endpoint_id: nil)
+        select_endpoint(practice, patient, endpoint_id, channel)
+      end
+
       def self.select_endpoint(practice, patient, endpoint_id, channel)
         endpoint = if endpoint_id
           practice.communication_endpoints.find(endpoint_id)
