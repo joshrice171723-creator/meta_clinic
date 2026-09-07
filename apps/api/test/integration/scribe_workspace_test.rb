@@ -377,7 +377,135 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     assert_empty Clinic::Scribe::Export.where(draft_id: approved.fetch("id"))
   end
 
+  test "documentation worklist uses current Scribe drafts from completed visits" do
+    needs_review_visit = create_clinical_encounter
+    needs_review = create_bound_scribe_draft(needs_review_visit)
+    first_draft_id = needs_review.dig("draft", "id")
+    post "/api/clinic/scribe/encounters/#{needs_review.dig('encounter', 'id')}/generate",
+      params: { generation: { template_id: "soap", document_id: needs_review.dig("document", "id"),
+        expected_version: needs_review.dig("document", "version") } }, headers: csrf_headers, as: :json
+    assert_response :created
+    needs_review = response.parsed_body
+    needs_review_visit.close!(ended_at: needs_review_visit.started_at + 30.minutes)
+
+    changed_visit = create_clinical_encounter
+    changed = create_bound_scribe_draft(changed_visit)
+    patch "/api/clinic/scribe/encounters/#{changed.dig('encounter', 'id')}/context",
+      params: { context: { content: "Updated after generation",
+        expected_version: changed.dig("encounter", "version") } }, headers: csrf_headers, as: :json
+    assert_response :success
+    changed_visit.close!(ended_at: changed_visit.started_at + 30.minutes)
+
+    ready_visit = create_clinical_encounter
+    ready = create_bound_scribe_draft(ready_visit)
+    ready_draft = save_sections(ready.fetch("draft"), subjective: "Reviewed completed visit").fetch("draft")
+    ready_draft = review_all(ready_draft)
+    post "/api/clinic/scribe/drafts/#{ready_draft.fetch('id')}/approve",
+      params: { expected_version: ready_draft.fetch("version") }, headers: csrf_headers, as: :json
+    assert_response :success
+    ready_draft = response.parsed_body.fetch("draft")
+    ready_visit.close!(ended_at: ready_visit.started_at + 30.minutes)
+
+    open_visit = create_clinical_encounter
+    open_draft = create_bound_scribe_draft(open_visit).fetch("draft")
+
+    get "/api/clinic/scribe/encounters", headers: @headers
+    assert_response :success
+    worklist = response.parsed_body.fetch("documentation_worklist")
+    items = worklist.fetch("items")
+
+    assert_equal "recent_completed_visits", worklist.fetch("scope")
+    assert_equal 25, worklist.fetch("candidate_limit_per_source")
+    assert_equal false, worklist.fetch("truncated")
+    assert_equal items.length, worklist.fetch("returned_count")
+    assert_equal "needs_review", items.find { |item| item["draft_id"] == needs_review.dig("draft", "id") }.fetch("state")
+    assert_equal "inputs_changed", items.find { |item| item["draft_id"] == changed.dig("draft", "id") }.fetch("state")
+    assert_equal "ready_to_add_to_chart", items.find { |item| item["draft_id"] == ready_draft.fetch("id") }.fetch("state")
+    refute_includes items.pluck("draft_id"), first_draft_id
+    refute_includes items.pluck("draft_id"), open_draft.fetch("id")
+    assert_equal items.count { |item| item.fetch("state") == "needs_review" },
+      worklist.fetch("returned_counts").fetch("needs_review")
+  end
+
+  test "documentation worklist bounds latest unsigned notes and honors note access" do
+    25.times do |index|
+      encounter = create_clinical_encounter
+      encounter.close!(ended_at: encounter.started_at + 30.minutes)
+      create_soap_note_fixture(encounter, "Unsigned completed visit #{index}")
+    end
+    encounter = create_clinical_encounter
+    encounter.close!(ended_at: encounter.started_at + 30.minutes)
+    note = create_soap_note_fixture(encounter, "First current revision")
+    first_revision = note.revisions.sole
+    latest_revision = Clinic::Care::ReviseEncounterNote.call(
+      note: note, actor: @user, encrypted_body: soap_payload("Latest current revision"), expected_revision: 1,
+      request_key: "worklist-revise-#{SecureRandom.hex(8)}"
+    )
+
+    get "/api/clinic/scribe/encounters", headers: @headers
+    assert_response :success
+    worklist = response.parsed_body.fetch("documentation_worklist")
+    unsigned_items = worklist.fetch("items").select { |item| item.fetch("state") == "unsigned_note" }
+
+    assert_equal true, worklist.fetch("unsigned_notes_available")
+    assert_equal true, worklist.fetch("truncated")
+    assert_equal 25, unsigned_items.length
+    assert_equal 25, worklist.fetch("returned_counts").fetch("unsigned_note")
+    assert_equal latest_revision.id,
+      unsigned_items.find { |item| item.fetch("note_id") == note.id }.fetch("note_revision_id")
+    refute_includes unsigned_items.pluck("note_revision_id"), first_revision.id
+
+    Clinic::Care::SignEncounterNote.call(
+      note: note, actor: @user, revision_no: latest_revision.revision_no,
+      content_digest: Digest::SHA256.hexdigest(latest_revision.encrypted_body),
+      attestation_version: "scribe-worklist-v1"
+    )
+    get "/api/clinic/scribe/encounters", headers: @headers
+    assert_response :success
+    signed_worklist = response.parsed_body.fetch("documentation_worklist")
+    assert_equal false, signed_worklist.fetch("truncated")
+    assert_equal 25, signed_worklist.fetch("returned_counts").fetch("unsigned_note")
+    refute signed_worklist.fetch("items").any? { |item| item["note_id"] == note.id }
+
+    limited_user = User.create!(email_address: "scribe-worklist-limited-#{SecureRandom.hex(5)}@example.invalid", password: PASSWORD)
+    limited_membership = @practice.memberships.create!(user: limited_user)
+    grant_permissions!(limited_membership, "scribe.read", "patients.read")
+    post "/api/session", params: { email_address: limited_user.email_address, password: PASSWORD },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/scribe/encounters", headers: @headers
+    assert_response :success
+    limited_worklist = response.parsed_body.fetch("documentation_worklist")
+    assert_equal false, limited_worklist.fetch("unsigned_notes_available")
+    refute limited_worklist.fetch("items").any? { |item| item.fetch("kind") == "soap_note" }
+  end
+
   private
+
+  def create_bound_scribe_draft(clinical_encounter)
+    post "/api/clinic/scribe/encounters", params: { encounter: {
+      patient_id: @patient.id, clinical_encounter_id: clinical_encounter.id,
+      context: { content: "Reviewer supplied context", source_type: "reviewer_authored" }
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    scribe_encounter = response.parsed_body.fetch("encounter")
+    accept_consent(scribe_encounter.fetch("id"))
+    generate(scribe_encounter.fetch("id"))
+  end
+
+  def create_soap_note_fixture(encounter, subjective)
+    note = encounter.notes.create!(practice: @practice, patient: @patient, note_kind: "soap")
+    note.revisions.create!(practice: @practice, revision_no: 1, author_membership: @membership,
+      encrypted_body: soap_payload(subjective), payload_version: Clinic::Care::SoapNotePayload::VERSION)
+    note
+  end
+
+  def soap_payload(subjective)
+    Clinic::Care::SoapNotePayload.dump(
+      template_id: "scribe-reviewed-soap", template_version: 1,
+      sections: { subjective: subjective, objective: "", assessment: "", plan: "" }
+    )
+  end
 
   def create_context_encounter
     post "/api/clinic/scribe/encounters", params: { encounter: { patient_id: @patient.id, site_id: @site.id,

@@ -7,7 +7,8 @@ module Clinic
       before_action -> { require_capability("scribe.delete") }, only: :destroy
 
       def index
-        scope = current_practice.scribe_encounters.accessible_by(current_ability, :read).includes(:patient)
+        authorized_scope = current_practice.scribe_encounters.accessible_by(current_ability, :read)
+        scope = authorized_scope.includes(:patient)
         scope = scope.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
         if params[:clinical_encounter_id].present?
           scope = scope.where(clinical_encounter_id: requested_id!(params[:clinical_encounter_id], :clinical_encounter_id))
@@ -25,7 +26,11 @@ module Clinic
           encounters: encounters.map { |encounter| Serializer.encounter(encounter, detail: false) },
           patient_options: [],
           patient_pagination: { page: 1, per_page: 0, total: 0, total_pages: 0 },
-          pagination: pagination
+          pagination: pagination,
+          documentation_worklist: DocumentationWorklist.call(
+            scribe_scope: authorized_scope,
+            note_scope: documentation_note_scope
+          )
         }
       end
 
@@ -137,6 +142,13 @@ module Clinic
       end
 
       private
+
+      def documentation_note_scope
+        return unless current_ability.allowed_permission?("notes.read", any_site: true) &&
+          current_ability.allowed_permission?("patients.read")
+
+        Clinic::EncounterNote.accessible_by(current_ability, :read)
+      end
 
       def scoped_encounter
         current_practice.scribe_encounters.find(requested_id!(params[:id], :id))

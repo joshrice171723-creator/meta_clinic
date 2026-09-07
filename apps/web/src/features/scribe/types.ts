@@ -166,3 +166,37 @@ export type ScribeEncounter = {
     created_at: string;
   }>;
 };
+
+export type ScribeDocumentationWorkItem = {
+  key: string;
+  kind: "scribe_draft" | "soap_note";
+  state:
+    | "inputs_changed"
+    | "needs_review"
+    | "ready_to_add_to_chart"
+    | "unsigned_note";
+  patient: {
+    id: number;
+    display_name: string;
+    reference: string;
+  };
+  site_id: number | null;
+  clinical_encounter_id: number;
+  scribe_encounter_id: number | null;
+  document_id: number | null;
+  draft_id: number | null;
+  note_id: number | null;
+  note_revision_id: number | null;
+  unresolved_section_count: number | null;
+  updated_at: string;
+};
+
+export type ScribeDocumentationWorklist = {
+  scope: "recent_completed_visits";
+  candidate_limit_per_source: number;
+  unsigned_notes_available: boolean;
+  truncated: boolean;
+  returned_count: number;
+  returned_counts: Record<ScribeDocumentationWorkItem["state"], number>;
+  items: ScribeDocumentationWorkItem[];
+};

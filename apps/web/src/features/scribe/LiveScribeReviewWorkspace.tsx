@@ -45,6 +45,7 @@ import {
 import type {
   ScribeDraft,
   ScribeDraftSection,
+  ScribeDocumentationWorklist,
   ScribeDocument,
   ScribeEncounter,
   ScribeTemplate,
@@ -59,6 +60,7 @@ type Pagination = {
 type EncounterIndex = {
   encounters: ScribeEncounterSummary[];
   pagination: Pagination;
+  documentation_worklist: ScribeDocumentationWorklist;
 };
 type Confirmation =
   | {
@@ -97,6 +99,20 @@ type Confirmation =
   | null;
 
 const PAGE_SIZE = 25;
+const EMPTY_WORKLIST: ScribeDocumentationWorklist = {
+  scope: "recent_completed_visits",
+  candidate_limit_per_source: 25,
+  unsigned_notes_available: false,
+  truncated: false,
+  returned_count: 0,
+  returned_counts: {
+    inputs_changed: 0,
+    needs_review: 0,
+    ready_to_add_to_chart: 0,
+    unsigned_note: 0,
+  },
+  items: [],
+};
 function capability(capabilities: object, name: string) {
   return (capabilities as Record<string, boolean | undefined>)[name] === true;
 }
@@ -149,7 +165,15 @@ export function scribeReturnTarget(search: string) {
   if (!rawId || !/^\d+$/.test(rawId)) return null;
   const encounterId = Number(rawId);
   if (!Number.isSafeInteger(encounterId) || encounterId <= 0) return null;
-  return { encounterId, review: params.get("review") === "1" };
+  const rawDocumentId = params.get("document_id");
+  const documentId = rawDocumentId && /^\d+$/.test(rawDocumentId) ? Number(rawDocumentId) : null;
+  return {
+    encounterId,
+    review: params.get("review") === "1",
+    ...(documentId && Number.isSafeInteger(documentId) && documentId > 0
+      ? { documentId }
+      : {}),
+  };
 }
 
 export function scribeContextTarget(search: string) {
@@ -177,7 +201,7 @@ export function scribeContextTarget(search: string) {
 
 export function LiveScribeReviewWorkspace() {
   const { capabilities, current_site, membership_id } = useClinic();
-  const { registerBlocker } = useClinicNavigation();
+  const { navigate, registerBlocker } = useClinicNavigation();
   const recording = useScribeRecording();
   const recordingRef = useRef(recording);
   recordingRef.current = recording;
@@ -195,10 +219,13 @@ export function LiveScribeReviewWorkspace() {
   const searchRef = useRef("");
   const skipNextSearchRef = useRef(true);
   const returnReviewEncounterRef = useRef<number | null>(null);
+  const returnReviewDocumentRef = useRef<number | null>(null);
   const actionLock = useRef(new Set<string>());
   const exportKeys = useRef(new Map<string, string>());
 
   const [summaries, setSummaries] = useState<ScribeEncounterSummary[]>([]);
+  const [documentationWorklist, setDocumentationWorklist] =
+    useState<ScribeDocumentationWorklist>(EMPTY_WORKLIST);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -316,14 +343,18 @@ export function LiveScribeReviewWorkspace() {
           return;
         adoptEncounter(result.encounter);
         if (returnReviewEncounterRef.current === encounterId) {
-          const currentDocument = result.encounter.documents?.find(
-            (document) => document.current_revision,
-          );
+          const requestedDocumentId = returnReviewDocumentRef.current;
+          const currentDocument =
+            result.encounter.documents?.find(
+              (document) =>
+                document.id === requestedDocumentId && document.current_revision,
+            ) ?? result.encounter.documents?.find((document) => document.current_revision);
           setActiveTab(
             currentDocument ? `document:${currentDocument.id}` : "transcript",
           );
           if (currentDocument) setTemplateId(currentDocument.template_id);
           returnReviewEncounterRef.current = null;
+          returnReviewDocumentRef.current = null;
         }
         setOutcomeUnknown(null);
       } catch (reason) {
@@ -357,6 +388,7 @@ export function LiveScribeReviewWorkspace() {
         if (!isCurrent(requestScope) || requestVersion !== listVersion.current)
           return;
         setSummaries(result.encounters);
+        setDocumentationWorklist(result.documentation_worklist);
         setPage(result.pagination.page);
         setTotalPages(result.pagination.total_pages);
         setLoadingMore(false);
@@ -438,6 +470,7 @@ export function LiveScribeReviewWorkspace() {
             item.status !== "deleted",
         );
         setSummaries(result.encounters);
+        setDocumentationWorklist(result.documentation_worklist);
         setPage(result.pagination.page);
         setTotalPages(result.pagination.total_pages);
         setLoadingMore(false);
@@ -493,6 +526,7 @@ export function LiveScribeReviewWorkspace() {
     selectedEncounterRef.current = null;
     searchRef.current = "";
     setRailSearch("");
+    setDocumentationWorklist(EMPTY_WORKLIST);
     newSessionRef.current = false;
     setNewSession(false);
     setSelectedPatient(null);
@@ -510,6 +544,9 @@ export function LiveScribeReviewWorkspace() {
     const contextTarget = scribeContextTarget(locationSearch);
     returnReviewEncounterRef.current = returnTarget?.review
       ? returnTarget.encounterId
+      : null;
+    returnReviewDocumentRef.current = returnTarget?.review
+      ? (returnTarget.documentId ?? null)
       : null;
     skipNextSearchRef.current = true;
     if (contextTarget) void prepareContextualLaunch(contextTarget);
@@ -1170,6 +1207,7 @@ export function LiveScribeReviewWorkspace() {
   const rail = (
     <ScribeSessionRail
       summaries={summaries}
+      worklist={documentationWorklist}
       selectedId={selectedEncounterId}
       search={railSearch}
       disabled={
@@ -1183,6 +1221,9 @@ export function LiveScribeReviewWorkspace() {
       hasMore={page < totalPages}
       onSearchChange={setRailSearch}
       onSelect={selectEncounter}
+      onOpenWorkItem={(href) => {
+        if (navigate(href)) setRailOpen(false);
+      }}
       onNewSession={beginNewSession}
       onLoadMore={() => void loadMore()}
     />

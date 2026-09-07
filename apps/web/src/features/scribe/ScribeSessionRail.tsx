@@ -16,8 +16,13 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import type { ScribeEncounter } from "./types";
+import type {
+  ScribeDocumentationWorkItem,
+  ScribeDocumentationWorklist,
+  ScribeEncounter,
+} from "./types";
 import { businessNow } from "../../shared/businessDate";
+import { patientReferenceLabel } from "../clinic/patientReference";
 
 export type ScribeEncounterSummary = Pick<
   ScribeEncounter,
@@ -34,6 +39,7 @@ export type ScribeEncounterSummary = Pick<
 
 type ScribeSessionRailProps = {
   summaries: ScribeEncounterSummary[];
+  worklist?: ScribeDocumentationWorklist;
   selectedId: number | null;
   search: string;
   disabled?: boolean;
@@ -41,8 +47,24 @@ type ScribeSessionRailProps = {
   hasMore?: boolean;
   onSearchChange: (value: string) => void;
   onSelect: (id: number) => void;
+  onOpenWorkItem?: (href: string) => void;
   onNewSession: () => void;
   onLoadMore: () => void;
+};
+
+const EMPTY_WORKLIST: ScribeDocumentationWorklist = {
+  scope: "recent_completed_visits",
+  candidate_limit_per_source: 25,
+  unsigned_notes_available: false,
+  truncated: false,
+  returned_count: 0,
+  returned_counts: {
+    inputs_changed: 0,
+    needs_review: 0,
+    ready_to_add_to_chart: 0,
+    unsigned_note: 0,
+  },
+  items: [],
 };
 
 function sessionDay(value?: string | null) {
@@ -81,8 +103,45 @@ function isToday(value?: string | null) {
   );
 }
 
+function workLabel(state: ScribeDocumentationWorkItem["state"]) {
+  if (state === "inputs_changed") return "Inputs changed";
+  if (state === "needs_review") return "Needs review";
+  if (state === "ready_to_add_to_chart") return "Ready to add to chart";
+  return "Unsigned note";
+}
+
+function workHref(item: ScribeDocumentationWorkItem) {
+  return item.kind === "scribe_draft" && item.scribe_encounter_id
+    ? `/clinic/scribe?encounter_id=${item.scribe_encounter_id}&document_id=${item.document_id}&review=1`
+    : `/clinic/patients/${item.patient.id}/encounters/${item.clinical_encounter_id}`;
+}
+
+function workDetail(item: ScribeDocumentationWorkItem) {
+  const unresolved =
+    item.state === "needs_review" && item.unresolved_section_count
+      ? ` · ${item.unresolved_section_count} section${item.unresolved_section_count === 1 ? "" : "s"}`
+      : "";
+  const reference = patientReferenceLabel(item.patient.reference);
+  return [ `${workLabel(item.state)}${unresolved}`, reference ].filter(Boolean).join(" · ");
+}
+
+function workCountSummary(worklist: ScribeDocumentationWorklist) {
+  return (
+    [
+      ["inputs_changed", "Inputs changed"],
+      ["needs_review", "Needs review"],
+      ["ready_to_add_to_chart", "Ready to add to chart"],
+      ["unsigned_note", "Unsigned note"],
+    ] as const
+  )
+    .filter(([state]) => worklist.returned_counts[state] > 0)
+    .map(([state, label]) => `${worklist.returned_counts[state]} ${label}`)
+    .join(" · ");
+}
+
 export function ScribeSessionRail({
   summaries,
+  worklist = EMPTY_WORKLIST,
   selectedId,
   search,
   disabled = false,
@@ -90,10 +149,11 @@ export function ScribeSessionRail({
   hasMore = false,
   onSearchChange,
   onSelect,
+  onOpenWorkItem = () => {},
   onNewSession,
   onLoadMore,
 }: ScribeSessionRailProps) {
-  const [period, setPeriod] = useState<"today" | "past">("today");
+  const [period, setPeriod] = useState<"worklist" | "today" | "past">("today");
   const visible = useMemo(
     () =>
       summaries.filter((summary) =>
@@ -119,7 +179,9 @@ export function ScribeSessionRail({
     >
       <Tabs
         value={period}
-        onChange={(_, value: "today" | "past") => setPeriod(value)}
+        onChange={(_, value: "worklist" | "today" | "past") =>
+          setPeriod(value)
+        }
         variant="fullWidth"
         aria-label="Session period"
         sx={{
@@ -134,35 +196,101 @@ export function ScribeSessionRail({
           "& .MuiTabs-indicator": { height: 2, backgroundColor: "#262222" },
         }}
       >
+        <Tab value="worklist" label={`Work (${worklist.returned_count})`} />
         <Tab value="today" label="Today" />
         <Tab value="past" label="Past" />
       </Tabs>
-      <TextField
-        id="scribe-session-search"
-        disabled={disabled}
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-        placeholder="Search sessions"
-        size="small"
-        sx={{
-          mx: 1.25,
-          mt: 1.25,
-          mb: 0.5,
-          "& .MuiInputBase-root": { height: 36, fontSize: 12 },
-        }}
-        slotProps={{
-          htmlInput: { "aria-label": "Search scribe sessions" },
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchOutlinedIcon sx={{ fontSize: 17 }} />
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
+      {period !== "worklist" && (
+        <TextField
+          id="scribe-session-search"
+          disabled={disabled}
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search sessions"
+          size="small"
+          sx={{
+            mx: 1.25,
+            mt: 1.25,
+            mb: 0.5,
+            "& .MuiInputBase-root": { height: 36, fontSize: 12 },
+          }}
+          slotProps={{
+            htmlInput: { "aria-label": "Search scribe sessions" },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlinedIcon sx={{ fontSize: 17 }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      )}
       <Box sx={{ overflowY: "auto", minHeight: 0, flex: 1, px: 1.25, pb: 1.5 }}>
-        {visible.length === 0 ? (
+        {period === "worklist" ? (
+          <>
+            <Typography
+              color="text.secondary"
+              variant="caption"
+              sx={{ display: "block", px: 0.5, pt: 1.25, pb: 0.75, fontSize: 10 }}
+            >
+              Recent completed visits · up to {worklist.candidate_limit_per_source} Scribe drafts and{" "}
+              {worklist.candidate_limit_per_source} unsigned notes
+            </Typography>
+            {worklist.returned_count > 0 && (
+              <Typography
+                color="text.secondary"
+                variant="caption"
+                sx={{ display: "block", px: 0.5, pb: 0.75, fontSize: 10 }}
+              >
+                {workCountSummary(worklist)}
+              </Typography>
+            )}
+            {!worklist.unsigned_notes_available && (
+              <Typography
+                color="text.secondary"
+                variant="caption"
+                sx={{ display: "block", px: 0.5, pb: 0.75, fontSize: 10 }}
+              >
+                Unsigned note status requires chart-note access.
+              </Typography>
+            )}
+            {worklist.truncated && (
+              <Typography
+                color="warning.main"
+                variant="caption"
+                sx={{ display: "block", px: 0.5, pb: 0.75, fontSize: 10 }}
+              >
+                More documentation work may be available.
+              </Typography>
+            )}
+            {worklist.items.length === 0 ? (
+              <Typography color="text.secondary" variant="body2" sx={{ px: 0.5, py: 2, fontSize: 12 }}>
+                No unfinished documentation in the recent worklist.
+              </Typography>
+            ) : (
+              <List disablePadding>
+                {worklist.items.map((item) => (
+                  <ListItemButton
+                    key={item.key}
+                    disabled={disabled}
+                    onClick={() => onOpenWorkItem(workHref(item))}
+                    sx={{ minHeight: 54, borderRadius: 1, mb: 0.5, px: 0.75, py: 0.625 }}
+                  >
+                    <ListItemText
+                      primary={item.patient.display_name}
+                      secondary={workDetail(item)}
+                      slotProps={{
+                        primary: { noWrap: true, sx: { fontSize: 11, fontWeight: 700 } },
+                        secondary: { sx: { fontSize: 9.5, lineHeight: 1.35 } },
+                      }}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+          </>
+        ) : visible.length === 0 ? (
           <Typography
             color="text.secondary"
             variant="body2"
