@@ -29,7 +29,27 @@ type Attempt = { body: { confirmation: { version: string | null } } };
 
 function dateTime(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+  return Number.isNaN(date.valueOf())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
+}
+
+function dateTimeRange(start: string, end: string) {
+  const startsAt = new Date(start);
+  const endsAt = new Date(end);
+  if (Number.isNaN(startsAt.valueOf()) || Number.isNaN(endsAt.valueOf())) {
+    return `${dateTime(start)} – ${dateTime(end)}`;
+  }
+
+  const day = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+  const time = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
+  if (startsAt.toDateString() === endsAt.toDateString()) {
+    return `${day.format(startsAt)} · ${time.format(startsAt)} – ${time.format(endsAt)}`;
+  }
+  return `${dateTime(start)} – ${dateTime(end)}`;
 }
 
 export function PatientAppointmentConfirmation({
@@ -128,8 +148,8 @@ export function PatientAppointmentConfirmation({
             book a new time.
           </Typography>
           <Typography>
-            <strong>Date and time:</strong> {dateTime(appointment.starts_at)} –{" "}
-            {dateTime(appointment.ends_at)}
+            <strong>Date and time:</strong>{" "}
+            {dateTimeRange(appointment.starts_at, appointment.ends_at)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Times are shown in your device's local time ({timezone}).
