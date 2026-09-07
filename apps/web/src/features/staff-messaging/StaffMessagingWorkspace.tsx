@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -19,6 +19,7 @@ import {
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined";
 import PriorityHighRoundedIcon from "@mui/icons-material/PriorityHighRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
 
 export type StaffMessageClass =
   "routine" | "time_sensitive" | "urgent" | "safety_critical";
@@ -191,6 +192,12 @@ const fixtureState: StaffMessagingState = {
     },
   ],
 };
+
+export function staffMessageDraftWarning(drafts: Record<number, string>) {
+  return Object.values(drafts).some((draft) => draft.trim())
+    ? "You have unsent staff message drafts. Leave Messages and discard them?"
+    : null;
+}
 
 function ConversationBadge({
   conversation,
@@ -379,6 +386,7 @@ export function StaffMessagingWorkspace({
   onLoadEarlierMessages,
   onRetry,
 }: StaffMessagingWorkspaceProps) {
+  const { registerBlocker } = useClinicNavigation();
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [sendingConversationIds, setSendingConversationIds] = useState<Set<number>>(new Set());
   const sendingConversationKeys = useRef(new Set<number>());
@@ -391,6 +399,21 @@ export function StaffMessagingWorkspace({
       ) ?? state.conversations[0],
     [state.conversations, state.selectedConversationId],
   );
+  const draftWarning = staffMessageDraftWarning(drafts);
+
+  useEffect(() => {
+    if (!draftWarning) return;
+    const unregister = registerBlocker(() => draftWarning);
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = draftWarning;
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [draftWarning, registerBlocker]);
 
   if (state.loading) {
     return (
