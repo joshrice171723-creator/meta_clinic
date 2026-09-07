@@ -269,6 +269,48 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal "0.0", ledger_payment.fetch("unapplied_amount")
   end
 
+  test "allocation responses exclude refunded payment funds" do
+    patient = @practice.patients.first
+    first = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10.00", description_snapshot: "Refunded allocation source" } ]
+    )
+    second = Clinic::Billing::DraftInvoice.call(
+      practice: @practice, actor: @user, patient: patient, currency: "USD",
+      lines: [ { quantity: "1", unit_amount: "10.00", description_snapshot: "Refunded allocation target" } ]
+    )
+    [ first, second ].each { |invoice| Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user) }
+
+    allocation = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @user, patient: patient, invoice: first,
+      external_event_reference: "refunded-response-payment", currency: "USD",
+      amount: "5.00", payment_amount: "12.00"
+    )
+    payment = allocation.payment_event
+    payment.refund_events.create!(practice: @practice, patient: patient, currency: "USD", amount: "3.00")
+
+    post "/api/clinic/payment_events/#{payment.id}/allocations",
+      params: { allocation: { invoice_id: second.id, amount: "4.00", request_key: "REFUNDED-RESPONSE-001" } },
+      headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_equal "0.0", response.parsed_body.dig("payment", "unapplied_amount")
+
+    post "/api/clinic/payment_events/#{payment.id}/allocations",
+      params: { allocation: { invoice_id: second.id, amount: "4.00", request_key: "REFUNDED-RESPONSE-001" } },
+      headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_equal "0.0", response.parsed_body.dig("payment", "unapplied_amount")
+
+    post "/api/clinic/invoices/#{first.id}/payment_allocations", params: {
+      payment: { external_event_reference: payment.external_event_reference, currency: "USD", amount: "5.00", payment_amount: "12.00" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_equal "0.0", response.parsed_body.dig("payment_allocation", "payment_event", "unapplied_amount")
+  end
+
   test "remainder allocation is scoped, exact, authorized, and safely replayed" do
     patient = @practice.patients.first
     first = Clinic::Billing::DraftInvoice.call(

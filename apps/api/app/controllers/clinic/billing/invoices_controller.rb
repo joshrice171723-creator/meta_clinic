@@ -110,6 +110,7 @@ module Clinic
         )
         payment = allocation.payment_event
         payment_allocated = payment.allocations.sum(:amount)
+        payment_refunded = payment.refund_events.sum(:amount)
         render json: { payment_allocation: {
           id: allocation.id,
           patient_id: allocation.patient_id,
@@ -120,7 +121,7 @@ module Clinic
             id: payment.id,
             amount: payment.amount.to_s("F"),
             allocated_amount: payment_allocated.to_s("F"),
-            unapplied_amount: (payment.amount - payment_allocated).to_s("F")
+            unapplied_amount: [payment.amount - payment_allocated - payment_refunded, 0].max.to_s("F")
           }
         } }, status: :created
       end

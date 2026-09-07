@@ -55,6 +55,7 @@ module Clinic
         allocation = outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed payment allocation is unavailable.")
         payment = allocation.payment_event
         allocated = payment.allocations.reload.sum(:amount)
+        refunded = payment.refund_events.sum(:amount)
         render json: {
           payment_allocation: {
             id: allocation.id,
@@ -65,7 +66,7 @@ module Clinic
           payment: {
             amount: payment.amount.to_s("F"),
             allocated_amount: allocated.to_d.to_s("F"),
-            unapplied_amount: [payment.amount - allocated, 0].max.to_d.to_s("F")
+            unapplied_amount: [payment.amount - allocated - refunded, 0].max.to_d.to_s("F")
           }
         }, status: :created
       end
