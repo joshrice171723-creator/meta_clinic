@@ -34,6 +34,18 @@ type Attempt = {
   };
 };
 
+export function isCurrentPrevisitLoad(
+  currentAppointmentId: number,
+  currentSequence: number,
+  requestAppointmentId: number,
+  requestSequence: number,
+) {
+  return (
+    currentAppointmentId === requestAppointmentId &&
+    currentSequence === requestSequence
+  );
+}
+
 function dateLabel(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.valueOf())
@@ -61,8 +73,20 @@ export function PatientPrevisitNote({
   const [latestReady, setLatestReady] = useState(false);
   const [latestRefreshFailed, setLatestRefreshFailed] = useState(false);
   const attempt = useRef<Attempt | null>(null);
+  const appointmentIdRef = useRef(appointmentId);
+  const loadSequenceRef = useRef(0);
+  appointmentIdRef.current = appointmentId;
 
   const load = async (preserveDraft = false) => {
+    const requestAppointmentId = appointmentId;
+    const requestSequence = ++loadSequenceRef.current;
+    const requestIsCurrent = () =>
+      isCurrentPrevisitLoad(
+        appointmentIdRef.current,
+        loadSequenceRef.current,
+        requestAppointmentId,
+        requestSequence,
+      );
     setLoading(true);
     if (!preserveDraft) setError("");
     if (preserveDraft) {
@@ -75,6 +99,7 @@ export function PatientPrevisitNote({
       );
       if (result.appointment_id !== appointmentId)
         throw new Error("The saved visit note did not match this appointment.");
+      if (!requestIsCurrent()) return;
       setData(result);
       if (!preserveDraft || data === null) {
         const saved = result.note?.text ?? "";
@@ -85,6 +110,7 @@ export function PatientPrevisitNote({
         setLatestReady(true);
       }
     } catch (reason) {
+      if (!requestIsCurrent()) return;
       setError(
         reason instanceof Error
           ? reason.message
@@ -92,7 +118,7 @@ export function PatientPrevisitNote({
       );
       if (preserveDraft) setLatestRefreshFailed(true);
     } finally {
-      setLoading(false);
+      if (requestIsCurrent()) setLoading(false);
     }
   };
 
@@ -107,6 +133,8 @@ export function PatientPrevisitNote({
   };
   const close = () => {
     if (busy || outcomeUnknown) return;
+    loadSequenceRef.current += 1;
+    setLoading(false);
     setOpen(false);
     setError("");
     setNotice("");
@@ -286,7 +314,7 @@ export function PatientPrevisitNote({
                 multiline
                 minRows={5}
                 fullWidth
-                disabled={busy || outcomeUnknown || conflict}
+                disabled={loading || busy || outcomeUnknown || conflict}
                 slotProps={{ htmlInput: { maxLength: 5_000 } }}
                 helperText="Optional. You can clear a saved note before the visit starts."
               />
@@ -300,7 +328,7 @@ export function PatientPrevisitNote({
           {data?.can_edit && data.note && !outcomeUnknown && (
             <Button
               color="error"
-              disabled={busy || conflict || text.trim() === ""}
+              disabled={loading || busy || conflict || text.trim() === ""}
               onClick={() => setText("")}
             >
               Clear note
