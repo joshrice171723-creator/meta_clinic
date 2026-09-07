@@ -11,8 +11,12 @@ module Clinic
       IN_APP_NOTIFICATION_EVENT = "in_app_notification"
 
       def self.call(practice:, actor:, conversation:, target_membership_id: nil,
-        outbox_limit: DEFAULT_LIMIT, request_limit: DEFAULT_LIMIT, now: Time.current)
-        actor_member = authorize_actor!(practice: practice, actor: actor, conversation: conversation)
+        outbox_limit: DEFAULT_LIMIT, request_limit: DEFAULT_LIMIT, now: Time.current,
+        outbox_event_ids: nil, process_overdue_requests: true)
+        authorization_action = process_overdue_requests ? "staff_messaging.escalate" : "staff_messaging.send"
+        actor_member = authorize_actor!(
+          practice: practice, actor: actor, conversation: conversation, action: authorization_action
+        )
         outbox_limit = bounded_limit(outbox_limit)
         request_limit = bounded_limit(request_limit)
 
@@ -21,13 +25,19 @@ module Clinic
           overdue_requests: { considered: 0, escalated: 0, blocked: 0, skipped: 0 }
         }
 
-        outbox_ids(practice: practice, conversation: conversation, now: now, limit: outbox_limit).each do |event_id|
+        outbox_ids(
+          practice: practice, conversation: conversation, now: now, limit: outbox_limit,
+          outbox_event_ids: outbox_event_ids
+        ).each do |event_id|
           result[:outbox][:considered] += 1
           outcome = recover_outbox_event(
-            practice: practice, actor: actor, conversation: conversation, event_id: event_id, now: now
+            practice: practice, actor: actor, conversation: conversation, event_id: event_id, now: now,
+            authorization_action: authorization_action
           )
           result[:outbox][outcome] += 1
         end
+
+        return result unless process_overdue_requests
 
         target = if target_membership_id.present?
           active_conversation_member(conversation: conversation, membership_id: target_membership_id)
@@ -69,9 +79,9 @@ module Clinic
         result
       end
 
-      def self.recover_outbox_event(practice:, actor:, conversation:, event_id:, now:)
+      def self.recover_outbox_event(practice:, actor:, conversation:, event_id:, now:, authorization_action:)
         ApplicationRecord.transaction do
-          authorize_actor!(practice: practice, actor: actor, conversation: conversation)
+          authorize_actor!(practice: practice, actor: actor, conversation: conversation, action: authorization_action)
           event = Clinic::StaffMessageOutbox.where(practice_id: practice.id).lock.find(event_id)
           unless event.message.conversation_id == conversation.id &&
               RECOVERABLE_OUTBOX_STATES.include?(event.delivery_state) && event.available_at <= now
@@ -179,11 +189,11 @@ module Clinic
       end
       private_class_method :notification_title
 
-      def self.authorize_actor!(practice:, actor:, conversation:)
+      def self.authorize_actor!(practice:, actor:, conversation:, action: "staff_messaging.escalate")
         raise ActiveRecord::RecordNotFound unless conversation.practice_id == practice.id
 
         member = StaffPolicy.authorize!(practice: practice, actor: actor,
-          action: "staff_messaging.escalate", site_id: conversation.site_id)
+          action: action, site_id: conversation.site_id)
         StaffPolicy.member_in_conversation!(conversation: conversation, membership_id: member.id)
         member
       end
@@ -196,8 +206,8 @@ module Clinic
       end
       private_class_method :active_conversation_member
 
-      def self.outbox_ids(practice:, conversation:, now:, limit:)
-        Clinic::StaffMessageOutbox.joins(:message)
+      def self.outbox_ids(practice:, conversation:, now:, limit:, outbox_event_ids: nil)
+        relation = Clinic::StaffMessageOutbox.joins(:message)
           .where(practice_id: practice.id)
           .where(clinic_staff_messages: { conversation_id: conversation.id })
           .where("clinic_staff_message_outbox.available_at <= ?", now)
@@ -207,7 +217,8 @@ module Clinic
                 clinic_staff_message_outbox.event_type = ? AND
                 clinic_staff_message_outbox.attempts < ?)
           SQL
-          .order("clinic_staff_message_outbox.available_at ASC", "clinic_staff_message_outbox.id ASC")
+        relation = relation.where(id: Array(outbox_event_ids)) if outbox_event_ids
+        relation.order("clinic_staff_message_outbox.available_at ASC", "clinic_staff_message_outbox.id ASC")
           .limit(limit).pluck(:id)
       end
       private_class_method :outbox_ids

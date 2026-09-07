@@ -4,13 +4,14 @@ module Clinic
       DEFAULT_LIMIT = 50
       MAX_LIMIT = 100
 
-      def self.call(practice:, actor:, at: Current.business_time, limit: DEFAULT_LIMIT)
+      def self.call(practice:, actor:, at: Current.business_time, limit: DEFAULT_LIMIT,
+        outbox_ids: nil, lease_recovery_only: false)
         Authorization.authorize!(actor: actor, practice: practice, action: "reminders.write", at: at)
         limit = Integer(limit)
         raise ArgumentError, "Recovery limit must be between 1 and #{MAX_LIMIT}." unless limit.between?(1, MAX_LIMIT)
 
         counts = Hash.new(0)
-        candidate_ids(practice:, at:, limit:).each do |outbox_id|
+        candidate_ids(practice:, at:, limit:, outbox_ids:, lease_recovery_only:).each do |outbox_id|
           outbox = practice.patient_reminder_outboxes.find_by(id: outbox_id)
           unless outbox
             counts[:skipped] += 1
@@ -23,9 +24,11 @@ module Clinic
             next
           end
 
-          before = snapshot(reminder)
-          Dispatch.call(reminder: reminder, actor: actor, at: at)
-          after = snapshot(reminder.reload)
+          before, after = process_reminder(
+            reminder: reminder, actor: actor, at: at, lease_recovery_only: lease_recovery_only
+          )
+          next unless before
+
           counts[classify(before, after)] += 1
         end
 
@@ -40,8 +43,8 @@ module Clinic
         }
       end
 
-      def self.candidate_ids(practice:, at:, limit:)
-        practice.patient_reminder_outboxes
+      def self.candidate_ids(practice:, at:, limit:, outbox_ids: nil, lease_recovery_only: false)
+        relation = practice.patient_reminder_outboxes
           .joins(:reminder)
           .where(
             <<~SQL.squish,
@@ -53,11 +56,34 @@ module Clinic
             SQL
             at: at
           )
-          .order(:available_at, :id)
+        relation = relation.where(id: Array(outbox_ids)) if outbox_ids
+        relation = relation.where(dispatch_state: "leased") if lease_recovery_only
+        relation.order(:available_at, :id)
           .limit(limit)
           .pluck(:id)
       end
       private_class_method :candidate_ids
+
+      def self.process_reminder(reminder:, actor:, at:, lease_recovery_only:)
+        unless lease_recovery_only
+          before = snapshot(reminder)
+          Dispatch.call(reminder: reminder, actor: actor, at: at)
+          return [ before, snapshot(reminder.reload) ]
+        end
+
+        ApplicationRecord.transaction do
+          reminder.lock!
+          outbox = reminder.outbox
+          outbox.lock!
+          return [ nil, nil ] unless outbox.dispatch_state == "leased" &&
+            outbox.lease_until.present? && outbox.lease_until <= at
+
+          before = snapshot(reminder)
+          Dispatch.call(reminder: reminder, actor: actor, at: at)
+          [ before, snapshot(reminder.reload) ]
+        end
+      end
+      private_class_method :process_reminder
 
       def self.snapshot(reminder)
         reminder.outbox.reload

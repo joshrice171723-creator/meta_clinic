@@ -10,5 +10,6 @@ These documents explain how to work on APPly. They describe current source mecha
   completion updates.
 - [Architecture](../architecture/README.md): repository ownership, domain boundaries and implementation contracts.
 - [Stripe monthly memberships](stripe-memberships.md): sandbox Connect credentials, local webhook delivery, membership lifecycle and manual acceptance gate.
+- [Clinic background work](clinic-background-work.md): bounded PostgreSQL outbox recovery process, safety gates and deployment requirements.
 
 Application-specific commands remain authoritative in [the API README](../../apps/api/README.md) and [the web README](../../apps/web/README.md). Hosted procedures remain authoritative in [EC2 operations](../../ops/aws/ec2/README.md), [environment notes](../../ops/aws/ec2/environments.md) and [the PostgreSQL cutover runbook](../../ops/aws/ec2/postgres-cutover.md).
