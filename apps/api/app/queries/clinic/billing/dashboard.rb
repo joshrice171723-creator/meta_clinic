@@ -48,7 +48,7 @@ module Clinic
         monthly_invoiced = total_for(monthly)
         monthly_collected = allocated_for(posted, created_at: period_start...period_end)
         collected = allocated_for(posted)
-        outstanding = total_for(posted) - collected - credited_for(posted)
+        outstanding = posted.sum(Arel.sql(outstanding_balance_sql))
         payments = Clinic::PaymentEvent.where(practice: practice, currency: currency, created_at: period_start...period_end)
         refunds = Clinic::RefundEvent.where(practice: practice, currency: currency, created_at: period_start...period_end).sum(:amount)
 
@@ -101,7 +101,7 @@ module Clinic
         case sort.to_s
         when "recent" then { created_at: :desc, id: :desc }
         when "oldest" then { created_at: :asc, id: :asc }
-        when "balance_desc" then Arel.sql("(SELECT COALESCE(SUM(posted_amount), 0) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id) - (SELECT COALESCE(SUM(amount), 0) FROM clinic_payment_allocations WHERE invoice_id = clinic_invoices.id) - (SELECT COALESCE(SUM(amount), 0) FROM clinic_credit_notes WHERE invoice_id = clinic_invoices.id) DESC, clinic_invoices.id DESC")
+        when "balance_desc" then Arel.sql("#{outstanding_balance_sql} DESC, clinic_invoices.id DESC")
         when "total_desc" then Arel.sql("(SELECT COALESCE(SUM(posted_amount), 0) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id) DESC, clinic_invoices.id DESC")
         else raise ArgumentError, "Invoice sort is not supported."
         end
@@ -120,10 +120,16 @@ module Clinic
       end
       private_class_method :allocated_for
 
-      def self.credited_for(invoices)
-        Clinic::CreditNote.where(invoice_id: invoices.select(:id)).sum(:amount)
+      def self.outstanding_balance_sql
+        <<~SQL.squish
+          CASE WHEN clinic_invoices.status = 'void' THEN 0 ELSE GREATEST(0,
+            COALESCE((SELECT SUM(posted_amount) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id), 0) -
+            COALESCE((SELECT SUM(amount) FROM clinic_payment_allocations WHERE invoice_id = clinic_invoices.id), 0) -
+            COALESCE((SELECT SUM(amount) FROM clinic_credit_notes WHERE invoice_id = clinic_invoices.id), 0)
+          ) END
+        SQL
       end
-      private_class_method :credited_for
+      private_class_method :outstanding_balance_sql
 
       def self.open_invoice_count(invoices)
         invoices.where(<<~SQL.squish).count
@@ -146,7 +152,7 @@ module Clinic
           total: decimal(total),
           allocated: decimal(allocated),
           credited: decimal(credited),
-          balance: decimal(invoice.status == "void" ? 0 : total - allocated - credited),
+          balance: decimal(invoice.status == "void" ? 0 : [ total - allocated - credited, 0 ].max),
           age_days: age_days,
           age_bucket: age_bucket(age_days),
           created_at: invoice.created_at.iso8601

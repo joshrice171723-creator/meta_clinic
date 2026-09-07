@@ -118,6 +118,34 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "billing dashboard credit on a paid invoice cannot offset another invoice balance" do
+    patient = @practice.patients.first
+    paid, unpaid = [ "75.00", "40.00" ].map do |amount|
+      invoice = Clinic::Billing::DraftInvoice.call(
+        practice: @practice, actor: @user, patient: patient, currency: "USD",
+        lines: [ { quantity: "1", unit_amount: amount, description_snapshot: "Office visit" } ]
+      )
+      Clinic::Billing::PostInvoice.call(invoice: invoice, actor: @user)
+      invoice
+    end
+    Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: @user, patient: patient, invoice: paid,
+      external_event_reference: "dashboard-paid-credit", currency: "USD", amount: "75.00"
+    )
+    Clinic::Billing::InvoiceAdjustments.credit(invoice: paid, actor: @user,
+      amount: "5.00", reason: "Corrected visit charge", request_key: SecureRandom.uuid)
+
+    get "/api/clinic/billing", params: { sort: "balance_desc" }, headers: @headers
+    assert_response :success
+    body = response.parsed_body
+    assert_equal unpaid.id, body.fetch("recent_invoices").first.fetch("id")
+    paid_row = body.fetch("recent_invoices").find { |row| row.fetch("id") == paid.id }
+    assert_equal "0.0", paid_row.fetch("balance")
+    currency = body.dig("metrics", "currencies").find { |row| row.fetch("currency") == "USD" }
+    assert_equal "40.0", currency.fetch("outstanding")
+    assert_equal 1, currency.fetch("open_invoice_count")
+  end
+
   test "billing dashboard paginates invoice activity without changing aggregate metrics" do
     patient = @practice.patients.first
     2.times do |index|
