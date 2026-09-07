@@ -1997,6 +1997,19 @@ export function ProviderEncounterWorkflow({
     observationTimes.size === 1
       ? clinicDateTime(observations[0]?.recorded_at ?? null, timezone)
       : null;
+  const reviewNeededTopics =
+    careSummaryState.status === "ready"
+      ? (careSummaryState.summary.review_needed_topics ?? []).filter(
+          (topic): topic is "allergies" | "medications" =>
+            topic === "allergies" || topic === "medications",
+        )
+      : [];
+  const focusReview = (topic: "allergies" | "medications") => {
+    const href = `#clinical-history-${topic}-review`;
+    const target = document.getElementById(href.slice(1));
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus();
+  };
 
   useEffect(() => {
     if (chartConfirmed) workspaceHeading.current?.focus();
@@ -2222,6 +2235,35 @@ export function ProviderEncounterWorkflow({
                     />
                   )}
                 </Box>
+                {reviewNeededTopics.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2">Review needed</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Use the existing review controls to record the outcome for
+                      this encounter.
+                    </Typography>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1}
+                      sx={{ mt: 1 }}
+                    >
+                      {reviewNeededTopics.map((topic) => (
+                        <Button
+                          key={topic}
+                          size="small"
+                          variant="outlined"
+                          href={`#clinical-history-${topic}-review`}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            focusReview(topic);
+                          }}
+                        >
+                          Review {topic.replaceAll("_", " ")}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
                 <Divider />
                 <Box>
                   <Typography variant="subtitle2">Vital signs</Typography>

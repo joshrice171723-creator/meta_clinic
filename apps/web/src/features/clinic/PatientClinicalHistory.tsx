@@ -534,7 +534,12 @@ export function PatientClinicalHistory({
                 {kind !== "conditions" && (
                   <>
                     <Divider />
-                    <Stack spacing={0.5} sx={{ p: 1.25 }}>
+                    <Stack
+                      id={`clinical-history-${kind}-review`}
+                      tabIndex={-1}
+                      spacing={0.5}
+                      sx={{ p: 1.25 }}
+                    >
                       <Typography variant="caption" color="text.secondary">
                         {reviewItem
                           ? `${humanize(reviewItem.outcome)} · ${displayTime(reviewItem.reviewed_at)}`

@@ -93,6 +93,12 @@ Live verification used fictional patient 110, report 3/version 3: recorded instr
 
 Patient checkout also exposes the existing hosted-payment controls directly beside the selected posted invoice, without navigating back to Billing. A pending online payment blocks starting a conflicting cash collection while retaining existing cash retries. Invoice 8's live ledger showed the truthful unavailable-provider state and the existing cash drawer controls. No payment was recorded; the Stripe connection limitation above remains.
 
+## Encounter history review agenda — completed
+
+The encounter context now links outstanding allergy and medication reviews directly to the existing displayed review controls, using only the server's review-needed topics. Links scroll and move keyboard focus without remounting editors or changing router history. Care-needs review remains in the existing context rather than gaining a writer disconnected from its source items.
+
+The focused frontend typecheck passed (`tmp/production-finalization/encounter-review-typecheck.log`). Live verification in patient 71/encounter 28 confirmed the agenda, focus on the exact allergy review section, and opening the existing explicit-outcome dialog. The dialog was cancelled without recording a new review. Existing successful review callbacks refresh the server-owned summary; that mutation path was unchanged and was not retested.
+
 ## Local runtime recovery
 
 Docker and WSL are running again after the interrupted WSL shutdown. Both stale Docker runtime socket locations were preserved in recovery folders before a coordinated clean restart. Databases and Docker volumes were retained. The user's WSL settings now cap the VM at 2 GB RAM and two processors, with 1 GB swap; the original `.wslconfig` is backed up beside it. Ubuntu's existing OpenClaw service was restored. APPly's managed API, web, worker, and PostgreSQL startup passed.
@@ -104,7 +110,7 @@ Patient directory search now uses the existing authorized name/reference lookup,
 Visit-type setup is available from Operations → Facilities and visit types. Staff can create, rename, deactivate, and reactivate backend-owned scheduling choices. Writes are idempotent and require practice-wide authority; the API supplies an authoritative write flag. All five focused facilities cases passed across the original and affected repair runs; the final capability case passed with 11 assertions. Live creation, renaming, deactivation, and reactivation passed. The route contract now contains 338 routes and its focused check passed with 339 assertions. The consolidated frontend build/typecheck passed (`tmp/production-finalization/web-patients-visit-types-build.log`).
 
 1. Leave verified milestones frozen unless a concrete regression appears.
-2. Next contained implementation: an encounter review agenda from existing server-owned care-summary topics, linking to the current clinical-history review controls. Terra Medium owns only CareFlow.tsx and PatientClinicalHistory.tsx. Sol High is doing a bounded read-only assessment of patient intake versus clinician-authored after-visit instructions for the next substantive workflow. Root owns integration and commits. Live AI output remains deferred; live Stripe Checkout still needs the existing clinic connection.
+2. Lab follow-up and the encounter review agenda are complete and frozen. Sol High is doing a bounded read-only assessment of patient intake versus clinician-authored after-visit instructions for the next substantive workflow. Root owns integration and commits. Live AI output remains deferred; live Stripe Checkout still needs the existing clinic connection.
 3. Do not prioritize role-system work or address encryption. The user confirmed all databases contain fictional development data, no real PHI, and no live users. The abandoned address slice was fully removed without migrations or database changes.
 4. Use one cohesive implementation pass and focused verification, then commit only owned files. Preserve the eleven original unrelated modified files, including the pre-existing database structure changes.
 
