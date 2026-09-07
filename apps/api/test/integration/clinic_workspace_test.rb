@@ -720,9 +720,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     submit "/api/session", { email_address: receiver.email_address, password: @password }
     assert_response :success
 
-    assert_difference [ "Clinic::Inventory::Receipt.count", "Clinic::Inventory::Hold.count" ], 1 do
-      submit "/api/clinic/inventory/receipts", {
-        receipt: {
+    receipt_request = {
+      receipt: {
           request_key: SecureRandom.uuid,
           purchase_order_id: order.id,
           shipment_id: shipment.id,
@@ -734,14 +733,30 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
           recall_id: recall.id,
           status: "quarantined",
           reason: "Synthetic recall quarantine"
-        }
       }
+    }
+    assert_difference [ "Clinic::Inventory::Receipt.count", "Clinic::Inventory::Hold.count" ], 1 do
+      submit "/api/clinic/inventory/receipts", receipt_request
       assert_response :success
     end
     receipt = shipment.receipts.sole
     assert_equal receiver.id, receipt.actor_id
     assert_equal recall.id, receipt.lines.sole.batch.active_holds.sole.recall_id
     assert_not receipt.lines.sole.batch.available?
+
+    recall.update!(status: "closed")
+    assert_no_difference "Clinic::Inventory::Receipt.count" do
+      submit "/api/clinic/inventory/receipts", receipt_request
+      assert_response :success
+    end
+    assert_no_difference "Clinic::Inventory::Receipt.count" do
+      submit "/api/clinic/inventory/receipts", receipt_request.deep_merge(receipt: { reason: "Changed retry data" })
+      assert_response :unprocessable_entity
+    end
+    assert_no_difference "Clinic::Inventory::Receipt.count" do
+      submit "/api/clinic/inventory/receipts", receipt_request.deep_merge(receipt: { request_key: SecureRandom.uuid })
+      assert_response :unprocessable_entity
+    end
   end
 
   test "login never selects creates or changes the assigned clinic" do

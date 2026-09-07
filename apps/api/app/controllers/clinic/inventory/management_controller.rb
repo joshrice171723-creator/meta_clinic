@@ -358,6 +358,7 @@ module Clinic
         input = params[:receipt].presence || params
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
+        replay = Receipt.find_by(practice_id: current_practice.id, request_key: request_key)
         order = purchase_orders_scope.find(input.require(:purchase_order_id))
         shipment = Shipment.where(practice_id: current_practice.id, purchase_order_id: order.id).find(input.require(:shipment_id))
         line = order.lines.find(input.require(:purchase_order_line_id))
@@ -387,6 +388,11 @@ module Clinic
         recall = if recalled && packages.positive?
           Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
           current_practice.inventory_recalls.open_cases.joins(:recall_lots).find_by!(id: requested_id!(input.require(:recall_id), :recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
+        elsif input[:recall_id].present? && replay
+          # A retry remains safe after its recall case has closed: Receiving
+          # compares the complete persisted payload before returning it.
+          Authorization.authorize!(actor: current_user, practice: current_practice, action: "recall.lock")
+          current_practice.inventory_recalls.joins(:recall_lots).find_by!(id: requested_id!(input.require(:recall_id), :recall_id), product_id: product.id, clinic_inventory_recall_lots: { lot_id: lot.id })
         elsif input[:recall_id].present?
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
