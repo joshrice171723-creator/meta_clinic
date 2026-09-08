@@ -84,6 +84,13 @@ export function EmployeeRequestsPage() {
     () => data?.swap_options.find((item) => item.site_id === siteId),
     [data, siteId],
   );
+  const changeSite = (nextSiteId: string) => {
+    setSiteId(nextSiteId);
+    setPublicationId("");
+    setShiftId("");
+    setTargetEmploymentId("");
+    setError(undefined);
+  };
   if (!data) return <LoadState error={error} />;
   const option = site?.request_options ?? {};
   const submit = async (event: FormEvent) => {
@@ -226,7 +233,7 @@ export function EmployeeRequestsPage() {
               <Select
                 label="Location"
                 value={siteId}
-                onChange={(e) => setSiteId(e.target.value)}
+                onChange={(e) => changeSite(e.target.value)}
               >
                 {data.sites.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
