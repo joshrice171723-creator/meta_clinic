@@ -129,7 +129,11 @@ export function ClinicFrame({
             close();
         }}
         onKeyDown={(event) => {
-          if (event.key === "Escape" && !collapsed) {
+          if (
+            drawer &&
+            !event.defaultPrevented &&
+            event.key === "Escape"
+          ) {
             event.preventDefault();
             close();
           }
