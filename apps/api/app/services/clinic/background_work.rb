@@ -11,7 +11,7 @@ module Clinic
 
     def initialize(limit:)
       @limit = Integer(limit)
-      @after_ids = { reminders: 0, staff_messages: 0 }
+      @after_ids = { telehealth_commands: 0, reminders: 0, staff_messages: 0 }
       raise ArgumentError, "Worker limit must be between 1 and #{MAX_LIMIT}." unless @limit.between?(1, MAX_LIMIT)
     end
 
@@ -25,6 +25,8 @@ module Clinic
 
         begin
           Identity::LoginThrottle.prune_expired!
+          process_telehealth_access
+          process_telehealth_commands
           process_reminders
           process_staff_messages
           result(lock_acquired: true)
@@ -36,6 +38,103 @@ module Clinic
     end
 
     private
+
+    def process_telehealth_access
+      with_item(:telehealth_access) do
+        with_system_paper_trail("telehealth-access") do
+          expired = Clinic::Telehealth::ExpireAccess.call(now: @at, limit: @limit)
+          revoked = Clinic::Telehealth::RevokeMembershipAccess.reconcile(now: @at, limit: @limit)
+          queue_stale_telehealth_reconciliation
+          counts(:telehealth_access)[:processed] += expired.to_i + revoked.to_i
+        end
+      end
+    end
+
+    def process_telehealth_commands
+      telehealth_command_candidate_ids.each do |command_id|
+        with_item(:telehealth_commands) do
+          command = Clinic::Telehealth::Command.includes(visit: [ :practice, { appointment: :site } ]).find(command_id)
+          if command.leased?
+            with_worker_paper_trail(nil, command) do
+              Clinic::Telehealth::DispatchCommand.claim(command, at: @at)
+              Clinic::Telehealth::DispatchCommand.project_unknown!(command) if command.reload.unknown?
+            end
+            next
+          end
+          actor = telehealth_command_actor(command)
+          if %w[create_room extend_room].include?(command.kind) && !actor
+            with_worker_paper_trail(nil, command) do
+              Clinic::Telehealth::DispatchCommand.suppress!(command, reason: "initiating_authority_revoked")
+            end
+            counts(:telehealth_commands)[:blocked] += 1
+            next
+          end
+          with_worker_paper_trail(actor, command) do
+            token = Clinic::Telehealth::DispatchCommand.claim(command, at: @at)
+            unless token
+              Clinic::Telehealth::DispatchCommand.project_unknown!(command) if command.reload.unknown?
+              next
+            end
+            Clinic::Telehealth::DispatchCommand.call(command: command, lease_token: token)
+            counts(:telehealth_commands)[:processed] += 1
+          end
+        end
+      end
+    end
+
+    def queue_stale_telehealth_reconciliation
+      unknown_eject_rooms = Clinic::Telehealth::Command.where(kind: "eject_participant", status: "unknown")
+        .where.not(room_attempt_id: nil).select(:room_attempt_id)
+      Clinic::Telehealth::RoomAttempt.where(status: %w[ending unknown])
+        .or(Clinic::Telehealth::RoomAttempt.where(id: unknown_eject_rooms))
+        .where("updated_at <= ?", @at - 30.seconds).order(:id).limit(@limit).find_each do |room|
+          bucket = @at.to_i / 30
+          room.visit.commands.find_or_create_by!(dedupe_key: "worker-reconcile:#{room.access_generation}:#{room.id}:#{bucket}") do |command|
+            command.practice_id = room.practice_id
+            command.room_attempt = room
+            command.kind = "reconcile_room"
+            command.access_generation = room.access_generation
+            command.status = "pending"
+            command.available_at = @at
+          end
+        end
+    end
+
+    def telehealth_command_candidate_ids
+      relation = Clinic::Telehealth::Command.where(<<~SQL.squish, at: @at)
+        (status = 'pending' AND available_at <= :at) OR
+        (status = 'leased' AND leased_until <= :at)
+      SQL
+      rotating_candidate_ids(relation, :telehealth_commands)
+    end
+
+    def telehealth_command_actor(command)
+      action = command.reconcile_room? ? "telehealth.reconcile" : "telehealth.host"
+      initiating_actor(command, action: action, site: command.visit.appointment.site)
+    end
+
+    def with_worker_paper_trail(actor, command)
+      PaperTrail.request.whodunnit = actor&.id&.to_s || "system:clinic-worker"
+      PaperTrail.request.controller_info = {
+        request_id: "clinic-worker-#{SecureRandom.uuid}",
+        causal_id: "telehealth-command:#{command.id}",
+        job_id: "clinic-background-work"
+      }
+      yield
+    ensure
+      clear_context
+    end
+
+    def with_system_paper_trail(causal_id)
+      PaperTrail.request.whodunnit = "system:clinic-worker"
+      PaperTrail.request.controller_info = {
+        request_id: "clinic-worker-#{SecureRandom.uuid}", causal_id: causal_id,
+        job_id: "clinic-background-work"
+      }
+      yield
+    ensure
+      clear_context
+    end
 
     def process_reminders
       reminder_candidate_ids.each do |outbox_id|
@@ -154,6 +253,8 @@ module Clinic
     def result(lock_acquired:)
       {
         lock_acquired: lock_acquired,
+        telehealth_access: counts(:telehealth_access),
+        telehealth_commands: counts(:telehealth_commands),
         reminders: counts(:reminders),
         staff_messages: counts(:staff_messages)
       }

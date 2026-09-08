@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     module EncounterSerializer
-      def self.call(encounter, detail: false)
+      def self.call(encounter, detail: false, actor: nil)
         payload = {
           id: encounter.id,
           patient_id: encounter.patient_id,
@@ -10,7 +10,8 @@ module Clinic
           room_id: encounter.room_id,
           started_at: encounter.started_at&.iso8601(6),
           ended_at: encounter.ended_at&.iso8601(6),
-          status: encounter.status
+          status: encounter.status,
+          telehealth: Clinic::Scheduling::AppointmentSerializer.telehealth(encounter.telehealth_visit, actor: actor)
         }
         return payload unless detail
 

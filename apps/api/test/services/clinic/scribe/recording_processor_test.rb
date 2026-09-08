@@ -1,6 +1,9 @@
 require "test_helper"
+require_relative "../../../support/scribe_template_helpers"
 
 class Clinic::Scribe::RecordingProcessorTest < ActiveSupport::TestCase
+  include ScribeTemplateHelpers
+
   setup do
     @actor = User.create!(email_address: "processor-#{SecureRandom.hex(5)}@example.invalid",
       password: "Recording-test-2026!")
@@ -9,6 +12,7 @@ class Clinic::Scribe::RecordingProcessorTest < ActiveSupport::TestCase
     grant_permissions!(@membership, "scribe.read", "scribe.write", "patients.read", "notes.read")
     @site = @practice.sites.create!(code: "PROC", name: "Processor site", status: "active")
     @patient = @practice.patients.create!(display_name: "Synthetic Processor Patient", reference: "PROC-001")
+    create_scribe_template_catalog!
     @encounter = Clinic::Scribe::Workflow.create_encounter(practice: @practice, actor: @actor,
       patient: @patient, site: @site)
     Clinic::Scribe::Workflow.decide_consent(encounter: @encounter, actor: @actor, decision: "accepted")

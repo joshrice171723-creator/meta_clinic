@@ -19,6 +19,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
+  TelehealthBookingFormat,
+  type VisitModality,
+} from "./TelehealthBookingFormat";
+import {
   Alert,
   Box,
   Button,
@@ -84,6 +88,7 @@ export function encounterDetailPath(
 }
 
 type BookingDraft = {
+  visitModality?: VisitModality;
   patientId: string;
   startsAt: string;
   endsAt: string;
@@ -104,6 +109,7 @@ type BookingAttempt = {
       booked_clinician_id: string;
       visit_type_id: string;
       request_key: string;
+      visit_modality?: VisitModality;
     };
   };
 };
@@ -420,11 +426,13 @@ function BookingForm({
   onCreated,
   identityLookup = false,
   initialPatientId,
+  initialVisitModality = "in_person",
 }: {
   timezone: string;
   onCreated?: (appointment: Appointment) => void;
   identityLookup?: boolean;
   initialPatientId?: number;
+  initialVisitModality?: VisitModality;
 }) {
   const { registerBlocker } = useClinicNavigation();
   const [baseline, setBaseline] = useState<BookingDraft>(() => {
@@ -437,6 +445,7 @@ function BookingForm({
       roomId: "",
       clinicianId: "",
       visitTypeId: "",
+      visitModality: initialVisitModality,
     };
   });
   const [patientId, setPatientId] = useState(baseline.patientId);
@@ -454,7 +463,11 @@ function BookingForm({
   const [roomId, setRoomId] = useState("");
   const [clinicianId, setClinicianId] = useState("");
   const [visitTypeId, setVisitTypeId] = useState("");
-  const [showDetails, setShowDetails] = useState(false);
+  const [visitModality, setVisitModality] =
+    useState<VisitModality>(initialVisitModality);
+  const [showDetails, setShowDetails] = useState(
+    initialVisitModality === "video",
+  );
   const [busy, setBusy] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
     null,
@@ -463,7 +476,16 @@ function BookingForm({
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
   const dirty = bookingDraftHasChanges(
-    { patientId, startsAt, endsAt, siteId, roomId, clinicianId, visitTypeId },
+    {
+      patientId,
+      startsAt,
+      endsAt,
+      siteId,
+      roomId,
+      clinicianId,
+      visitTypeId,
+      visitModality,
+    },
     baseline,
   );
   const patients = useResource<{ patients: Patient[] }>(
@@ -604,6 +626,7 @@ function BookingForm({
       roomId: "",
       clinicianId: "",
       visitTypeId: "",
+      visitModality: "in_person",
     });
     setPatientId("");
     setReplacementPatientId(undefined);
@@ -613,6 +636,7 @@ function BookingForm({
     setRoomId("");
     setClinicianId("");
     setVisitTypeId("");
+    setVisitModality("in_person");
     setShowDetails(false);
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
@@ -649,6 +673,11 @@ function BookingForm({
           >
             Appointment #{created.id} scheduled for{" "}
             {clinicDateTime(created.starts_at, timezone)}.
+            {created.telehealth?.clinic_href && (
+              <Button size="small" href={created.telehealth.clinic_href}>
+                Open video visit
+              </Button>
+            )}
           </Alert>
         )}
         {replacementPatient && (
@@ -680,6 +709,14 @@ function BookingForm({
               return setSubmitError("Select a patient before scheduling.");
             if (!bookingAttempt && intervalError)
               return setSubmitError(intervalError);
+            if (
+              !bookingAttempt &&
+              visitModality === "video" &&
+              (!clinicianId || !visitTypeId)
+            )
+              return setSubmitError(
+                "Choose a clinician and an eligible visit type for this video appointment.",
+              );
             const attempt =
               bookingAttempt ??
               ({
@@ -689,9 +726,10 @@ function BookingForm({
                     starts_at: new Date(startsAt).toISOString(),
                     ends_at: new Date(endsAt).toISOString(),
                     site_id: siteId,
-                    room_id: roomId,
+                    room_id: visitModality === "video" ? "" : roomId,
                     booked_clinician_id: clinicianId,
                     visit_type_id: visitTypeId,
+                    visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
                   },
                 },
@@ -828,6 +866,17 @@ function BookingForm({
               Times are entered in this device’s local timezone and shown on the
               schedule in {timezone}.
             </Alert>
+            <TelehealthBookingFormat
+              value={visitModality}
+              disabled={busy || outcomeUnconfirmed}
+              onChange={(format) => {
+                setVisitModality(format);
+                if (format === "video") {
+                  setRoomId("");
+                  setShowDetails(true);
+                }
+              }}
+            />
             <Button
               variant="text"
               onClick={() => setShowDetails((value) => !value)}
@@ -867,25 +916,27 @@ function BookingForm({
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl
-                  fullWidth
-                  disabled={!siteId || busy || outcomeUnconfirmed}
-                >
-                  <InputLabel id="room-label">Room</InputLabel>
-                  <Select
-                    labelId="room-label"
-                    label="Room"
-                    value={roomId}
-                    onChange={(event) => setRoomId(event.target.value)}
+                {visitModality !== "video" && (
+                  <FormControl
+                    fullWidth
+                    disabled={!siteId || busy || outcomeUnconfirmed}
                   >
-                    <MenuItem value="">Not assigned</MenuItem>
-                    {availableRooms.map((room) => (
-                      <MenuItem key={room.id} value={room.id.toString()}>
-                        {room.code}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                    <InputLabel id="room-label">Room</InputLabel>
+                    <Select
+                      labelId="room-label"
+                      label="Room"
+                      value={roomId}
+                      onChange={(event) => setRoomId(event.target.value)}
+                    >
+                      <MenuItem value="">Not assigned</MenuItem>
+                      {availableRooms.map((room) => (
+                        <MenuItem key={room.id} value={room.id.toString()}>
+                          {room.code}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
                 <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
                   <InputLabel id="clinician-label">Booked clinician</InputLabel>
                   <Select
@@ -978,6 +1029,7 @@ export function ScheduleView({
   onAppointmentCreated,
   onPageChange,
   initialPatientId,
+  initialVisitModality = "in_person",
 }: {
   context: ClinicWorkspaceContext;
   appointments: Appointment[];
@@ -985,6 +1037,7 @@ export function ScheduleView({
   onAppointmentCreated?: (appointment: Appointment) => void;
   onPageChange?: (page: number) => void;
   initialPatientId?: number;
+  initialVisitModality?: VisitModality;
 }) {
   return (
     <Stack spacing={3}>
@@ -1015,11 +1068,13 @@ export function ScheduleView({
       </Alert>
       {bookingAvailability(context.capabilities).visible && (
         <BookingForm
+          key={`${initialPatientId ?? "new"}:${initialVisitModality}`}
           timezone={context.practice.timezone}
           identityLookup={
             bookingAvailability(context.capabilities).identityLookup
           }
           initialPatientId={initialPatientId}
+          initialVisitModality={initialVisitModality}
           onCreated={onAppointmentCreated}
         />
       )}
@@ -1106,9 +1161,11 @@ export function ScheduleView({
                           {siteLabel(context, appointment.site_id)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {appointment.room_id === null
-                            ? "Room not assigned"
-                            : `Room record #${appointment.room_id}`}
+                          {appointment.visit_modality === "video"
+                            ? "Video visit"
+                            : appointment.room_id === null
+                              ? "Room not assigned"
+                              : `Room record #${appointment.room_id}`}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -1121,6 +1178,14 @@ export function ScheduleView({
                         />
                       </TableCell>
                       <TableCell>
+                        {appointment.telehealth?.clinic_href && (
+                          <Button
+                            size="small"
+                            href={appointment.telehealth.clinic_href}
+                          >
+                            Open video visit
+                          </Button>
+                        )}
                         {appointment.encounter_id === null ? (
                           <Typography color="text.secondary">
                             No encounter yet
@@ -1159,10 +1224,12 @@ export function ScheduleView({
   );
 }
 
-export function Schedule() {
+export function Schedule({
+  search = window.location.search,
+}: { search?: string } = {}) {
   const context = useClinic();
   const replacementPatientId = Number(
-    new URLSearchParams(window.location.search).get("patient_id"),
+    new URLSearchParams(search).get("patient_id"),
   );
   const initialPatientId =
     Number.isSafeInteger(replacementPatientId) && replacementPatientId > 0
@@ -1197,6 +1264,11 @@ export function Schedule() {
       onAppointmentCreated={setCreatedAppointment}
       onPageChange={setPage}
       initialPatientId={initialPatientId}
+      initialVisitModality={
+        new URLSearchParams(search).get("visit_modality") === "video"
+          ? "video"
+          : "in_person"
+      }
     />
   );
 }
@@ -2253,6 +2325,17 @@ export function ProviderEncounterWorkflow({
             sx={{ alignItems: "center", justifyContent: "space-between" }}
           >
             <Typography variant="subtitle2">Patient Demographics</Typography>
+            {chartConfirmed &&
+              encounter.telehealth?.clinic_href &&
+              capabilities.telehealth_read && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  href={encounter.telehealth.clinic_href}
+                >
+                  Open video visit &amp; Scribe
+                </Button>
+              )}
             {chartConfirmed &&
               capabilities.scribe_read === true &&
               capabilities.scribe_write === true &&

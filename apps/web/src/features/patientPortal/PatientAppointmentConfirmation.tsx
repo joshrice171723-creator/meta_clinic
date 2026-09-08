@@ -10,8 +10,11 @@ import {
 } from "@mui/material";
 import { useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
+import type { TelehealthSummary } from "../../api/contracts";
 
 export type ConfirmableAppointment = {
+  visit_modality?: "in_person" | "video";
+  telehealth?: TelehealthSummary | null;
   id: number;
   starts_at: string;
   ends_at: string;

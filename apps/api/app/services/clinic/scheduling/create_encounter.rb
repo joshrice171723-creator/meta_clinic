@@ -18,8 +18,10 @@ module Clinic
               raise ArgumentError, "Only scheduled or confirmed appointments can start a visit."
             end
 
-            practice.encounters.create!(patient: patient, appointment: appointment,
+            encounter = practice.encounters.create!(patient: patient, appointment: appointment,
               site: appointment.site, room: appointment.room, started_at: started_at, status: "open")
+            Clinic::Telehealth::ReconcileAppointment.bind_encounter!(appointment: appointment, encounter: encounter)
+            encounter
           end
         end
 

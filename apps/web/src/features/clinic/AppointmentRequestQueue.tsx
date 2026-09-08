@@ -24,6 +24,7 @@ import { useResource } from "../../shared/ui";
 import { patientReferenceLabel } from "./patientReference";
 
 type AppointmentRequest = {
+  requested_modality?: "in_person" | "video";
   id: number;
   request_key: string;
   request_kind: "new_booking" | "reschedule" | "cancel";
@@ -235,6 +236,16 @@ function ReviewDialog({
 
   async function approve() {
     if (
+      isNewBooking &&
+      request.requested_modality === "video" &&
+      (!clinicianId || !visitTypeId)
+    ) {
+      setError(
+        "Choose a clinician and eligible visit type for this video request.",
+      );
+      return;
+    }
+    if (
       (!isCancellation && (!startsAt || !endsAt)) ||
       (isNewBooking && !siteId)
     )
@@ -251,7 +262,12 @@ function ReviewDialog({
                 starts_at: new Date(startsAt).toISOString(),
                 ends_at: new Date(endsAt).toISOString(),
                 site_id: Number(siteId),
-                room_id: roomId ? Number(roomId) : undefined,
+                room_id:
+                  request.requested_modality === "video"
+                    ? undefined
+                    : roomId
+                      ? Number(roomId)
+                      : undefined,
                 booked_clinician_id: clinicianId
                   ? Number(clinicianId)
                   : undefined,
@@ -342,6 +358,12 @@ function ReviewDialog({
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
+          {isNewBooking && request.requested_modality === "video" && (
+            <Alert severity="info">
+              Requested format: video visit. This booking will use the patient
+              portal and virtual waiting room.
+            </Alert>
+          )}
           <Alert severity="info">
             {isNewBooking
               ? `${request.patient.display_name} requested ${dateTimeRange(request.starts_at || "", request.ends_at || "")}. Confirm the actual booking details below.`
@@ -459,23 +481,25 @@ function ReviewDialog({
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                select
-                label="Room"
-                value={roomId}
-                disabled={!siteId || busy || outcomeUnconfirmed}
-                onChange={(event) => {
-                  setRoomId(event.target.value);
-                  setReviewKey(crypto.randomUUID());
-                }}
-              >
-                <MenuItem value="">Not assigned</MenuItem>
-                {availableRooms.map((room) => (
-                  <MenuItem key={room.id} value={String(room.id)}>
-                    {room.code}
-                  </MenuItem>
-                ))}
-              </TextField>
+              {request.requested_modality !== "video" && (
+                <TextField
+                  select
+                  label="Room"
+                  value={roomId}
+                  disabled={!siteId || busy || outcomeUnconfirmed}
+                  onChange={(event) => {
+                    setRoomId(event.target.value);
+                    setReviewKey(crypto.randomUUID());
+                  }}
+                >
+                  <MenuItem value="">Not assigned</MenuItem>
+                  {availableRooms.map((room) => (
+                    <MenuItem key={room.id} value={String(room.id)}>
+                      {room.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
               <TextField
                 disabled={busy || outcomeUnconfirmed}
                 select

@@ -105,6 +105,11 @@ export async function api<T>(
 export function loginDestination(value: string | null): string {
   if (!value) return "/portal";
   if (value === "/patient-portal") return value;
+  if (/^\/patient-portal\/telehealth\/[0-9a-f-]{36}$/i.test(value))
+    return value;
+  if (/^\/clinic\/telehealth\/[0-9a-f-]{36}$/i.test(value)) return value;
+  if (/^\/clinic\/patients\/\d+\/encounters\/\d+\/telehealth$/.test(value))
+    return value;
   const exact = new Set([
     "/clinic",
     "/clinic/chart-selection",
@@ -120,6 +125,8 @@ export function loginDestination(value: string | null): string {
     "/clinic/reminders",
     "/clinic/messages",
     "/clinic/settings",
+    "/clinic/telehealth",
+    "/clinic/settings/telehealth",
     "/clinic/billing",
   ]);
   return exact.has(value) ||

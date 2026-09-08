@@ -102,7 +102,8 @@ module Clinic
             site: site,
             room: room,
             booked_clinician: booked_clinician,
-            visit_type: visit_type
+            visit_type: visit_type,
+            visit_modality: request.requested_modality || "in_person"
           )
         when "reschedule"
           conflict = practice.appointments.where(
@@ -121,7 +122,8 @@ module Clinic
             starts_at: starts_at,
             ends_at: ends_at,
             expected_updated_at: request.source_appointment_updated_at,
-            request_key: "appointment-request.#{request.id}.reschedule"
+            request_key: "appointment-request.#{request.id}.reschedule",
+            visit_modality: request.requested_modality || source_appointment.visit_modality
           )
         when "cancel"
           Clinic::Scheduling::TransitionAppointment.call(

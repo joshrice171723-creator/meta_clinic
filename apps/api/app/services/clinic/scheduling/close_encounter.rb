@@ -21,6 +21,12 @@ module Clinic
         ) do
           appointment = encounter.appointment_id && encounter.practice.appointments.lock.find(encounter.appointment_id)
           updated = encounter.practice.encounters.where(patient_id: encounter.patient_id).lock.find(encounter.id)
+          telehealth_visit = appointment && Clinic::Telehealth::Visit.lock.find_by(
+            practice_id: encounter.practice_id, appointment_id: appointment.id
+          )
+          if telehealth_visit&.active_media?
+            raise ArgumentError, "End and reconcile the video session before closing the encounter."
+          end
           updated.close!(ended_at: ended_at || Current.business_time)
           if appointment && %w[scheduled confirmed].include?(appointment.status)
             appointment.update!(status: "completed")

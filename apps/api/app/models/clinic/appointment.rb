@@ -10,6 +10,7 @@ module Clinic
     belongs_to :booked_clinician, class_name: "Clinic::ClinicianProfile", optional: true
     belongs_to :visit_type, class_name: "Clinic::VisitType", optional: true
     has_one :encounter, class_name: "Clinic::Encounter", dependent: :restrict_with_error
+    has_one :telehealth_visit, class_name: "Clinic::Telehealth::Visit", dependent: :restrict_with_error
     has_many :previsit_notes, class_name: "Clinic::Care::PrevisitNote", dependent: :restrict_with_error
 
     scope :upcoming, ->(from = Current.business_time) { where("starts_at >= ?", from).order(:starts_at) }
@@ -32,7 +33,8 @@ module Clinic
       self
     end
 
-    validates :starts_at, :ends_at, :status, presence: true
+    validates :starts_at, :ends_at, :status, :visit_modality, presence: true
+    validates :visit_modality, inclusion: { in: %w[in_person video] }
     validate :positive_interval
     validate :room_requires_site
     validate :related_records_belong_to_practice
@@ -45,6 +47,7 @@ module Clinic
 
     def room_requires_site
       errors.add(:site, "is required when a room is selected") if room_id.present? && site_id.blank?
+      errors.add(:room, "must be blank for a video visit") if visit_modality == "video" && room_id.present?
     end
 
     def related_records_belong_to_practice

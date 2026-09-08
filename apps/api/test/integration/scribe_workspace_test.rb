@@ -1,6 +1,9 @@
 require "test_helper"
+require_relative "../support/scribe_template_helpers"
 
 class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
+  include ScribeTemplateHelpers
+
   PASSWORD = "Scribe-workspace-2026!".freeze
 
   setup do
@@ -14,6 +17,7 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
       "patients.read", "observations.write", "notes.read", "notes.write", "notes.sign")
     @site = @practice.sites.create!(code: "SCRIBE", name: "Scribe clinic", status: "active")
     @patient = @practice.patients.create!(display_name: "Rivera, Avery", reference: "PAT-SCRIBE-001")
+    create_scribe_template_catalog!
     login
   end
 

@@ -87,6 +87,13 @@ class Ability
     "scribe.approve" => { action: :approve, subjects: [ Clinic::Scribe::Draft ], scope: :practice },
     "scribe.export" => { action: :export, subjects: [ Clinic::Scribe::Draft, Clinic::Scribe::Export ], scope: :practice },
     "scribe.delete" => { action: :destroy, subjects: [ Clinic::Scribe::Encounter ], scope: :practice },
+    "telehealth.read" => { action: :read, subjects: [ Clinic::Telehealth::Visit ], scope: :site_or_practice },
+    "telehealth.prepare.read" => { action: :read_preparation, subjects: [ Clinic::Telehealth::Visit ], scope: :site_or_practice },
+    "telehealth.prepare.verify" => { action: :verify_preparation, subjects: [ Clinic::Telehealth::Visit ], scope: :site_or_practice },
+    "telehealth.host" => { action: :host, subjects: [ Clinic::Telehealth::Visit ], scope: :site_or_practice },
+    "telehealth.participate" => { action: :participate, subjects: [ Clinic::Telehealth::Visit ], scope: :site_or_practice },
+    "telehealth.configure" => { action: :configure, subjects: [ Clinic::Telehealth::Setting, Clinic::Telehealth::PolicyVersion, Clinic::Telehealth::VisitTypeRule ], scope: :practice },
+    "telehealth.reconcile" => { action: :reconcile, subjects: [ Clinic::Telehealth::Visit ], scope: :practice },
     "reminders.read" => { action: :read, subjects: [ Clinic::PatientReminder, Clinic::CommunicationEndpoint, Clinic::CommunicationPreference ], scope: :practice },
     "reminders.write" => { action: :create, subjects: [ Clinic::PatientReminder, Clinic::PatientReminderOutbox, Clinic::CommunicationEndpoint, Clinic::CommunicationPreference ], actions: %i[create update], scope: :practice },
     "documents.read" => { action: :read, subjects: [ Clinic::Document ], scope: :practice },
@@ -261,6 +268,8 @@ class Ability
       conditions[:note] = { encounter: { site_id: site_ids } }
     elsif subject == Clinic::Care::Observation
       conditions[:encounter] = { site_id: site_ids }
+    elsif subject == Clinic::Telehealth::Visit
+      conditions[:appointment] = { site_id: site_ids }
     else
       return nil
     end

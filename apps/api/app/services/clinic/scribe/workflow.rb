@@ -118,7 +118,8 @@ module Clinic
           encounter.reload
         end
 
-        def ingest_transcript(encounter:, actor:, content:, segments: [], metadata: {}, trusted_metadata: {})
+        def ingest_transcript(encounter:, actor:, content:, segments: [], metadata: {}, trusted_metadata: {},
+          trusted_source_attributes: {})
           authorize!(encounter, actor, "scribe.write")
           content = content.to_s.strip
           raise ArgumentError, "A transcript is required." if content.blank?
@@ -127,11 +128,18 @@ module Clinic
           source = nil
           encounter.with_lock do
             ensure_processing_allowed!(encounter)
-            source = encounter.sources.find_by(content_digest: digest, status: %w[ready incomplete])
+            trusted_attributes = safe_trusted_source_attributes(trusted_source_attributes)
+            source = if trusted_attributes[:telehealth_recording]
+              encounter.sources.find_by(telehealth_recording: trusted_attributes[:telehealth_recording],
+                status: %w[ready incomplete])
+            else
+              encounter.sources.find_by(content_digest: digest, status: %w[ready incomplete])
+            end
             unless source
               source = encounter.sources.create!(practice: encounter.practice, imported_by: actor, source_type: "transcript",
                 status: "ready", content: content, content_digest: digest,
-                source_metadata: safe_metadata(metadata).merge(safe_trusted_metadata(trusted_metadata)))
+                source_metadata: safe_metadata(metadata).merge(safe_trusted_metadata(trusted_metadata)),
+                **trusted_attributes)
               normalize_segments(segments, content).each do |segment|
                 source.segments.create!(practice: encounter.practice, sequence: segment[:sequence], speaker: segment[:speaker],
                   start_ms: segment[:start_ms], end_ms: segment[:end_ms], content: segment[:content], quality_flags: segment[:quality_flags])
@@ -144,7 +152,8 @@ module Clinic
           source
         end
 
-        def generate_draft(encounter:, actor:, template_id: DEFAULT_TEMPLATE_ID, document_id: nil, expected_version: nil)
+        def generate_draft(encounter:, actor:, template_id: DEFAULT_TEMPLATE_ID, document_id: nil, expected_version: nil,
+          source_ids: nil)
           authorize!(encounter, actor, "scribe.write")
           template = TemplateCatalog.fetch_active!(template_id)
           draft = document = nil
@@ -155,13 +164,13 @@ module Clinic
               document.with_lock do
                 verify_expected_version!(document, expected_version)
                 raise ArgumentError, "The selected template does not match this document." unless document.template_id == template.template_id
-                draft = generate_for_document!(encounter, document, template, actor)
+                draft = generate_for_document!(encounter, document, template, actor, source_ids:)
               end
             else
               verify_expected_version!(encounter, expected_version)
               document = encounter.documents.create!(practice: encounter.practice, created_by: actor,
                 template_id: template.template_id, template_version: template.version)
-              draft = generate_for_document!(encounter, document, template, actor)
+              draft = generate_for_document!(encounter, document, template, actor, source_ids:)
             end
           end
           [draft, document.reload]
@@ -444,18 +453,20 @@ module Clinic
           return true if legacy_fresh?(draft, state)
 
           draft.input_digest == state.fetch(:digest)
+        rescue Clinic::Telehealth::Error
+          false
         end
 
         private
 
-        def generate_for_document!(encounter, document, template, actor)
+        def generate_for_document!(encounter, document, template, actor, source_ids: nil)
           state = input_state(encounter, template_id: template.template_id, template_version: template.version,
-            lock_labs: true)
+            lock_labs: true, requested_source_ids: source_ids)
           if state[:source].nil? && encounter.context_content.blank? && state[:lab_versions].empty?
             raise ArgumentError, "Add a transcript, reviewer-authored context, or reviewed lab results before generating a note."
           end
           ensure_selected_labs_current!(encounter, state[:lab_versions])
-          segments = state[:source]&.segments&.order(:sequence)&.to_a || []
+          segments = state[:source_records].flat_map { |source| source.segments.order(:sequence).to_a }
           provenance = encounter.context_digest && { "kind" => "reviewer_authored_context",
             "authored_by_id" => encounter.context_authored_by_id, "digest" => encounter.context_digest }
           sections = DraftGenerator.call(segments, context: encounter.context_content, context_provenance: provenance,
@@ -465,7 +476,7 @@ module Clinic
             template_id: template.template_id, template_version: template.version,
             provider: "local-rule-based", model: "grounded-section-abstainer", model_version: "1",
             prompt_digest: Digest::SHA256.hexdigest("scribe-template:#{template.template_id}:#{template.version}"),
-            input_digest: state[:digest], source_snapshot_digest: state[:source]&.content_digest,
+            input_digest: state[:digest], source_snapshot_digest: state[:source_set_digest] || state[:source]&.content_digest,
             context_snapshot_digest: encounter.context_digest, input_sources: state[:sources],
             output_digest: Digest::SHA256.hexdigest(sections.values.map { |value| value[:content].to_s }.join("\u0000")),
             warnings: sections.values.flat_map { |section| section[:warning_codes] }.uniq)
@@ -489,6 +500,8 @@ module Clinic
 
         def ensure_processing_allowed!(encounter)
           raise ArgumentError, "Current consent does not allow processing." unless encounter.processing_allowed?
+          visit = Clinic::Telehealth::Visit.find_by(practice_id: encounter.practice_id, scribe_encounter_id: encounter.id)
+          Clinic::Telehealth::Scribe::OrderedScribeSources.call(encounter:) if visit
         end
 
         def ensure_current!(draft)
@@ -504,10 +517,15 @@ module Clinic
           raise ActiveRecord::StaleObjectError.new(record, "update") unless record.lock_version == expected_version.to_i
         end
 
-        def input_state(encounter, template_id:, template_version:, lock_labs: false)
-          source = encounter.sources.where(status: "ready").order(:id).last
+        def input_state(encounter, template_id:, template_version:, lock_labs: false, requested_source_ids: nil)
+          ordered = Clinic::Telehealth::Scribe::OrderedScribeSources.call(encounter:, requested_ids: requested_source_ids)
+          source_records = ordered.sources
+          source = source_records.last
           sources = []
-          sources << { "kind" => "transcript", "source_id" => source.id, "digest" => source.content_digest } if source
+          source_records.each do |item|
+            sources << { "kind" => "transcript", "source_id" => item.id, "digest" => item.content_digest,
+              "source_order" => item.try(:source_order), "capture_epoch" => item.try(:capture_epoch) }.compact
+          end
           if encounter.context_digest
             sources << { "kind" => "reviewer_authored_context", "authored_by_id" => encounter.context_authored_by_id,
               "digest" => encounter.context_digest }
@@ -533,9 +551,10 @@ module Clinic
               "report_current_status" => current&.status
             }
           end
-          values = [source&.content_digest.to_s, encounter.context_digest.to_s, encounter.clinical_encounter_id.to_s,
+          source_digest = ordered.digest || source&.content_digest.to_s
+          values = [source_digest, encounter.context_digest.to_s, encounter.clinical_encounter_id.to_s,
             template_id.to_s, template_version.to_i, JSON.generate(sources.select { |value| value["kind"] == "lab_report_version" })]
-          { source: source, lab_versions: lab_versions, sources: sources,
+          { source:, source_records:, source_set_digest: ordered.digest, lab_versions:, sources:,
             digest: Digest::SHA256.hexdigest(values.join("\u0000")) }
         end
 
@@ -716,7 +735,14 @@ module Clinic
 
         def safe_trusted_metadata(metadata)
           value = metadata.respond_to?(:to_h) ? metadata.to_h.stringify_keys : {}
-          value.slice("recording_id", "provider", "model", "model_version")
+          value.slice("recording_id", "provider", "model", "model_version", "capture_source",
+            "telehealth_visit_id", "capture_epoch", "recording_segment_index", "source_order", "source_set_digest")
+        end
+
+        def safe_trusted_source_attributes(attributes)
+          value = attributes.respond_to?(:to_h) ? attributes.to_h.symbolize_keys : {}
+          value.slice(:telehealth_visit, :telehealth_recording, :capture_epoch,
+            :recording_segment_index, :source_order, :source_set_digest)
         end
 
         def normalize_provider_sections(sections)
@@ -744,7 +770,7 @@ module Clinic
             state = input_state(draft.encounter, template_id: draft.template_id, template_version: draft.template_version,
               lock_labs: true)
             copy.source = state[:source]
-            copy.source_snapshot_digest = state[:source]&.content_digest
+            copy.source_snapshot_digest = state[:source_set_digest] || state[:source]&.content_digest
             copy.context_snapshot_digest = draft.encounter.context_digest
             copy.input_sources = state[:sources]
             copy.input_digest = state[:digest]

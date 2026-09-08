@@ -13,6 +13,7 @@ Rails.application.config.filter_parameters += [
   :text_value, :coded_value, :numeric_value, :unit_code, :missing_reason, :encrypted_value, :description_snapshot,
   :subjective, :objective, :assessment, :plan, :q,
   :content, :context, :segments, :revision, # Scribe source, context and reviewer text.
+  :location, :callback_phone, :room_url, # Telehealth preparation and provider access details.
   :allergen_name, :reaction, :medication_name, :dose_text, :route_text, :frequency_text, :purpose,
   :condition_name, :care_instruction, :description, :instructions, :notes
 ]

@@ -17,7 +17,7 @@ import PlayArrowOutlinedIcon from "@mui/icons-material/PlayArrowOutlined";
 import ReplayOutlinedIcon from "@mui/icons-material/ReplayOutlined";
 import StopOutlinedIcon from "@mui/icons-material/StopOutlined";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 
 export type ScribeRecordingPhase =
   | "idle"
@@ -38,6 +38,28 @@ export type ScribeRecordingState = {
   inputLevel: number;
 };
 
+export type ScribeRecordingAudioSource =
+  | { kind: "microphone" }
+  | {
+      kind: "authorized_stream";
+      label: string;
+      acquire: () => Promise<{
+        stream: MediaStream;
+        release: () => void | Promise<void>;
+      }>;
+    };
+
+export type ScribeTelehealthCaptureAuthorization = {
+  visitPublicId: string;
+  captureOwnerParticipantId: number;
+  captureEpoch: number;
+  ownerToken: string;
+  segmentIndex: number;
+  sourceOrder: number;
+};
+
+export type ScribeSegmentCompletionReason = "finished" | "limit";
+
 export type ScribeRecordingControlsProps = {
   encounterId: number;
   encounterVersion: number;
@@ -53,6 +75,15 @@ export type ScribeRecordingControlsProps = {
   onCancelled?: () => void;
   embedded?: boolean;
   compact?: boolean;
+  headless?: boolean;
+  audioSource?: ScribeRecordingAudioSource;
+  telehealthCapture?: ScribeTelehealthCaptureAuthorization;
+  deferProcessing?: boolean;
+  onFinalized?: (
+    recordingId: number,
+    reason: ScribeSegmentCompletionReason,
+  ) => void;
+  registerExternalFinish?: (finish: (() => void) | null) => void;
 };
 
 type RecordingStatus = "recording" | "interrupted" | "completed" | "cancelled";
@@ -175,6 +206,17 @@ async function pendingChunk(
   return { sequence, content: bytesToBase64(bytes), digest };
 }
 
+function telehealthCapturePayload(
+  capture: ScribeTelehealthCaptureAuthorization,
+) {
+  return {
+    visit_public_id: capture.visitPublicId,
+    capture_owner_participant_id: capture.captureOwnerParticipantId,
+    capture_epoch: capture.captureEpoch,
+    owner_token: capture.ownerToken,
+  };
+}
+
 export function ScribeRecordingControls({
   encounterId,
   encounterVersion,
@@ -190,6 +232,12 @@ export function ScribeRecordingControls({
   onCancelled,
   embedded = false,
   compact = false,
+  headless = false,
+  audioSource = { kind: "microphone" },
+  telehealthCapture,
+  deferProcessing = false,
+  onFinalized,
+  registerExternalFinish,
 }: ScribeRecordingControlsProps) {
   const [phase, setPhase] = useState<ScribeRecordingPhase>("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -231,6 +279,17 @@ export function ScribeRecordingControls({
   const lastStartTokenRef = useRef(0);
   const lastFinishTokenRef = useRef(0);
   const lastDiscardTokenRef = useRef(0);
+  const sourceReleaseRef = useRef<(() => void | Promise<void>) | null>(null);
+  const completionReasonRef = useRef<ScribeSegmentCompletionReason>("finished");
+  const stopRecorderRef = useRef<
+    | ((
+        mode: StopMode,
+        reason?: string,
+        completionReason?: ScribeSegmentCompletionReason,
+      ) => void)
+    | null
+  >(null);
+  const finalizedRef = useRef(onFinalized);
 
   const updatePhase = useCallback((next: ScribeRecordingPhase) => {
     phaseRef.current = next;
@@ -253,6 +312,10 @@ export function ScribeRecordingControls({
     meterFrameRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    const releaseSource = sourceReleaseRef.current;
+    sourceReleaseRef.current = null;
+    if (releaseSource)
+      void Promise.resolve(releaseSource()).catch(() => undefined);
     void audioContextRef.current?.close().catch(() => undefined);
     audioContextRef.current = null;
     recorderRef.current = null;
@@ -299,10 +362,17 @@ export function ScribeRecordingControls({
       if (!recording) return;
       void api<RecordingResponse>(
         `/api/clinic/scribe/recordings/${recording.id}/interrupt`,
-        { method: "POST" },
+        {
+          method: "POST",
+          body: telehealthCapture
+            ? {
+                telehealth_capture: telehealthCapturePayload(telehealthCapture),
+              }
+            : undefined,
+        },
       ).catch(() => undefined);
     },
-    [],
+    [telehealthCapture],
   );
 
   const drainQueue = useCallback(
@@ -320,7 +390,15 @@ export function ScribeRecordingControls({
               `/api/clinic/scribe/recordings/${recording.id}/chunk`,
               {
                 method: "POST",
-                body: { chunk: item },
+                body: {
+                  chunk: item,
+                  ...(telehealthCapture
+                    ? {
+                        telehealth_capture:
+                          telehealthCapturePayload(telehealthCapture),
+                      }
+                    : {}),
+                },
               },
             );
             if (
@@ -330,11 +408,28 @@ export function ScribeRecordingControls({
               throw new Error(
                 "The server acknowledgement did not match the audio chunk.",
               );
+            recordingRef.current = response.recording;
             pendingRef.current.shift();
             if (mountedRef.current) setPendingCount(pendingRef.current.length);
           } catch (error) {
             uploadFailedRef.current = true;
             updatePhase("upload_error");
+            const captureWasFenced =
+              telehealthCapture &&
+              error instanceof ApiError &&
+              [
+                "scribe_capture_stale",
+                "scribe_capture_not_owned",
+                "scribe_consent_not_current",
+                "scribe_recording_binding_mismatch",
+              ].includes(error.code ?? "");
+            if (captureWasFenced)
+              queueMicrotask(() =>
+                stopRecorderRef.current?.(
+                  "interrupt",
+                  "Scribe stopped because this capture lease or consent is no longer current.",
+                ),
+              );
             if (mountedRef.current)
               setMessage(
                 error instanceof Error
@@ -345,6 +440,23 @@ export function ScribeRecordingControls({
           }
         }
         uploadFailedRef.current = false;
+        const recording = recordingRef.current;
+        const limits = limitsRef.current;
+        if (
+          telehealthCapture &&
+          recording &&
+          (nextSequenceRef.current >= Math.max(1, limits.max_chunks - 2) ||
+            recording.total_bytes >=
+              limits.max_total_bytes - limits.max_chunk_bytes * 2)
+        ) {
+          queueMicrotask(() =>
+            stopRecorderRef.current?.(
+              "complete",
+              "This recording segment reached its server limit and is being saved before Scribe continues.",
+              "limit",
+            ),
+          );
+        }
         return true;
       })().finally(() => {
         uploadPromiseRef.current = null;
@@ -352,7 +464,7 @@ export function ScribeRecordingControls({
       uploadPromiseRef.current = run;
       return run;
     },
-    [updatePhase],
+    [telehealthCapture, updatePhase],
   );
 
   const finalizeRecording = useCallback(async () => {
@@ -369,7 +481,14 @@ export function ScribeRecordingControls({
             recording: {
               total_chunks: nextSequenceRef.current,
               duration_ms: Math.max(1, Math.round(accruedMsRef.current)),
+              defer_processing: deferProcessing,
             },
+            ...(telehealthCapture
+              ? {
+                  telehealth_capture:
+                    telehealthCapturePayload(telehealthCapture),
+                }
+              : {}),
           },
         },
       );
@@ -381,6 +500,10 @@ export function ScribeRecordingControls({
         setMessage(response.transcription.message);
         setUnfinished((current) =>
           current.filter((item) => item.id !== response.recording.id),
+        );
+        finalizedRef.current?.(
+          response.recording.id,
+          completionReasonRef.current,
         );
         if (response.transcription.status === "ready")
           completedRef.current?.(response.recording.id);
@@ -394,7 +517,7 @@ export function ScribeRecordingControls({
             : "The recording could not be finalized.",
         );
     }
-  }, [drainQueue, updatePhase]);
+  }, [deferProcessing, drainQueue, telehealthCapture, updatePhase]);
 
   const retryTranscription = async () => {
     const recording = recordingRef.current;
@@ -404,7 +527,14 @@ export function ScribeRecordingControls({
     try {
       const response = await api<RecordingResponse>(
         `/api/clinic/scribe/recordings/${recording.id}/transcribe`,
-        { method: "POST" },
+        {
+          method: "POST",
+          body: telehealthCapture
+            ? {
+                telehealth_capture: telehealthCapturePayload(telehealthCapture),
+              }
+            : undefined,
+        },
       );
       recordingRef.current = response.recording;
       setTranscription(response.transcription);
@@ -433,7 +563,15 @@ export function ScribeRecordingControls({
         try {
           await api<RecordingResponse>(
             `/api/clinic/scribe/recordings/${recording.id}`,
-            { method: "DELETE" },
+            {
+              method: "DELETE",
+              body: telehealthCapture
+                ? {
+                    telehealth_capture:
+                      telehealthCapturePayload(telehealthCapture),
+                  }
+                : undefined,
+            },
           );
         } catch (error) {
           if (mountedRef.current)
@@ -465,10 +603,15 @@ export function ScribeRecordingControls({
   ]);
 
   const stopRecorder = useCallback(
-    (mode: StopMode, reason?: string) => {
+    (
+      mode: StopMode,
+      reason?: string,
+      completionReason: ScribeSegmentCompletionReason = "finished",
+    ) => {
       if (phaseRef.current === "requesting_permission")
         startAttemptRef.current += 1;
       stopModeRef.current = mode;
+      completionReasonRef.current = completionReason;
       const recorder = recorderRef.current;
       if (activeStartedAtRef.current !== null) {
         accruedMsRef.current += performance.now() - activeStartedAtRef.current;
@@ -490,6 +633,17 @@ export function ScribeRecordingControls({
     },
     [currentElapsed, handleStopped, updatePhase],
   );
+  stopRecorderRef.current = stopRecorder;
+
+  useEffect(() => {
+    registerExternalFinish?.(() =>
+      stopRecorder(
+        "complete",
+        "Scribe is saving the permitted audio segment before call media closes.",
+      ),
+    );
+    return () => registerExternalFinish?.(null);
+  }, [registerExternalFinish, stopRecorder]);
 
   const startMeter = useCallback((stream: MediaStream) => {
     const context = new AudioContext();
@@ -517,9 +671,14 @@ export function ScribeRecordingControls({
 
   const start = useCallback(async () => {
     if (!processingAllowed || activePhases.has(phaseRef.current)) return;
+    if (typeof MediaRecorder === "undefined") {
+      setMessage("This browser does not support microphone recording.");
+      updatePhase("error");
+      return;
+    }
     if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
+      audioSource.kind === "microphone" &&
+      !navigator.mediaDevices?.getUserMedia
     ) {
       setMessage("This browser does not support microphone recording.");
       updatePhase("error");
@@ -547,15 +706,23 @@ export function ScribeRecordingControls({
     let stream: MediaStream | null = null;
     let created: Recording | null = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-        video: false,
-      });
-      if (!mountedRef.current || attempt !== startAttemptRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
+      if (audioSource.kind === "authorized_stream") {
+        const acquired = await audioSource.acquire();
+        stream = acquired.stream;
+        sourceReleaseRef.current = acquired.release;
+        if (stream.getAudioTracks().length === 0)
+          throw new Error("No authorized call audio is available for Scribe.");
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+          video: false,
+        });
       }
       streamRef.current = stream;
+      if (!mountedRef.current || attempt !== startAttemptRef.current) {
+        releaseMedia();
+        return;
+      }
       const recorder = new MediaRecorder(stream, { mimeType });
       recorderRef.current = recorder;
       const response = await api<RecordingResponse>(
@@ -567,7 +734,24 @@ export function ScribeRecordingControls({
               idempotency_key: crypto.randomUUID(),
               expected_encounter_version: encounterVersion,
               mime_type: mimeType,
+              ...(telehealthCapture
+                ? {
+                    telehealth_visit_public_id: telehealthCapture.visitPublicId,
+                    capture_owner_participant_id:
+                      telehealthCapture.captureOwnerParticipantId,
+                    capture_epoch: telehealthCapture.captureEpoch,
+                    capture_source: "telehealth_mix",
+                    recording_segment_index: telehealthCapture.segmentIndex,
+                    source_order: telehealthCapture.sourceOrder,
+                  }
+                : {}),
             },
+            ...(telehealthCapture
+              ? {
+                  telehealth_capture:
+                    telehealthCapturePayload(telehealthCapture),
+                }
+              : {}),
           },
         },
       );
@@ -576,6 +760,11 @@ export function ScribeRecordingControls({
         stream.getTracks().forEach((track) => track.stop());
         void api(`/api/clinic/scribe/recordings/${created.id}`, {
           method: "DELETE",
+          body: telehealthCapture
+            ? {
+                telehealth_capture: telehealthCapturePayload(telehealthCapture),
+              }
+            : undefined,
         }).catch(() => undefined);
         return;
       }
@@ -644,7 +833,9 @@ export function ScribeRecordingControls({
         const elapsed = currentElapsed();
         if (mountedRef.current) setElapsedMs(elapsed);
         if (
-          elapsed >= limitsRef.current.max_duration_ms &&
+          elapsed >=
+            limitsRef.current.max_duration_ms -
+              limitsRef.current.chunk_interval_ms &&
           recorder.state !== "inactive"
         )
           if (finishRequestRef.current) {
@@ -655,7 +846,12 @@ export function ScribeRecordingControls({
             activeStartedAtRef.current = null;
             updatePhase("stopping");
             finishRequestRef.current();
-          } else stopRecorder("complete");
+          } else
+            stopRecorder(
+              "complete",
+              "This recording segment reached its duration limit and is being saved before Scribe continues.",
+              telehealthCapture ? "limit" : "finished",
+            );
       }, 250);
       updatePhase("recording");
       void refreshDevices();
@@ -664,6 +860,11 @@ export function ScribeRecordingControls({
       if (created)
         void api(`/api/clinic/scribe/recordings/${created.id}`, {
           method: "DELETE",
+          body: telehealthCapture
+            ? {
+                telehealth_capture: telehealthCapturePayload(telehealthCapture),
+              }
+            : undefined,
         }).catch(() => undefined);
       const denied =
         error instanceof DOMException && error.name === "NotAllowedError";
@@ -679,11 +880,14 @@ export function ScribeRecordingControls({
             ? "The selected microphone is unavailable. Choose another microphone and try again."
             : error instanceof Error
               ? error.message
-              : "Recording could not start.",
+              : audioSource.kind === "authorized_stream"
+                ? "Authorized call audio could not be attached."
+                : "Recording could not start.",
       );
       updatePhase("error");
     }
   }, [
+    audioSource,
     currentElapsed,
     deviceId,
     drainQueue,
@@ -695,6 +899,7 @@ export function ScribeRecordingControls({
     releaseMedia,
     startMeter,
     stopRecorder,
+    telehealthCapture,
     updatePhase,
   ]);
 
@@ -737,6 +942,9 @@ export function ScribeRecordingControls({
     try {
       await api(`/api/clinic/scribe/recordings/${recording.id}`, {
         method: "DELETE",
+        body: telehealthCapture
+          ? { telehealth_capture: telehealthCapturePayload(telehealthCapture) }
+          : undefined,
       });
       setUnfinished((current) =>
         current.filter((item) => item.id !== recording.id),
@@ -786,9 +994,16 @@ export function ScribeRecordingControls({
   useEffect(() => {
     stateChangeRef.current = onRecordingStateChange;
     completedRef.current = onCompleted;
+    finalizedRef.current = onFinalized;
     cancelledRef.current = onCancelled;
     finishRequestRef.current = onFinishRequest;
-  }, [onCancelled, onCompleted, onFinishRequest, onRecordingStateChange]);
+  }, [
+    onCancelled,
+    onCompleted,
+    onFinalized,
+    onFinishRequest,
+    onRecordingStateChange,
+  ]);
 
   useEffect(() => {
     stateChangeRef.current?.({
@@ -842,6 +1057,7 @@ export function ScribeRecordingControls({
   const active = scribeRecordingBlocksNavigation(phase);
   const canResume =
     recorderRef.current?.state === "paused" && pendingCount === 0;
+  if (headless) return null;
   return (
     <Box
       component="section"
@@ -877,7 +1093,7 @@ export function ScribeRecordingControls({
               </Typography>
             </Box>
           )}
-          {!compact && (
+          {!compact && audioSource.kind === "microphone" && (
             <FormControl
               size="small"
               sx={{ minWidth: 190, flex: 1 }}
@@ -1005,12 +1221,18 @@ export function ScribeRecordingControls({
         {!compact && (
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Microphone input level
+              {audioSource.kind === "authorized_stream"
+                ? `${audioSource.label} input level`
+                : "Microphone input level"}
             </Typography>
             <LinearProgress
               variant="determinate"
               value={meter}
-              aria-label="Microphone input level"
+              aria-label={
+                audioSource.kind === "authorized_stream"
+                  ? `${audioSource.label} input level`
+                  : "Microphone input level"
+              }
               sx={{ height: 6, borderRadius: 3 }}
             />
           </Box>

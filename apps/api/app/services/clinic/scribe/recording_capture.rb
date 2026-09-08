@@ -23,42 +23,84 @@ module Clinic
           }
         end
 
-        def create!(encounter:, actor:, idempotency_key:, expected_encounter_version:, mime_type:)
+        def create!(encounter:, actor:, idempotency_key:, expected_encounter_version:, mime_type:,
+          telehealth_visit: nil, capture_owner_participant_id: nil, capture_epoch: nil,
+          owner_token: nil, capture_source: "microphone", recording_segment_index: nil, source_order: nil)
           authorize!(encounter, actor)
           key = idempotency_key.to_s.strip
           raise ArgumentError, "Recording request key is required." if key.blank? || key.bytesize > 120
           mime_type = normalize_mime_type(mime_type)
+          capture_source = capture_source.to_s
+          if capture_source == "telehealth_mix"
+            raise ArgumentError, "The telehealth visit is required for mixed call audio." unless telehealth_visit
+            Clinic::Telehealth::Scribe::ValidateCaptureEpoch.call(visit: telehealth_visit, actor:,
+              capture_epoch:, owner_token:)
+            unless telehealth_visit.scribe_encounter_id == encounter.id &&
+                telehealth_visit.scribe_capture_owner_participant_id == capture_owner_participant_id.to_i
+              raise ArgumentError, "The Scribe recording is not bound to this visit and capture owner."
+            end
+            recording_segment_index = Integer(recording_segment_index, exception: false)
+            source_order = Integer(source_order, exception: false)
+            unless recording_segment_index && recording_segment_index >= 0
+              raise ArgumentError, "The recording segment index is invalid."
+            end
+            raise ArgumentError, "The recording source order is invalid." unless source_order&.positive?
+          elsif capture_source != "microphone" || [ telehealth_visit, capture_owner_participant_id, capture_epoch,
+              owner_token, recording_segment_index, source_order ].any?(&:present?)
+            raise ArgumentError, "Telehealth capture provenance is valid only for mixed call audio."
+          end
           expected_version = Integer(expected_encounter_version, exception: false)
           raise ArgumentError, "Expected encounter version is required." unless expected_version&.between?(0, 2_147_483_647)
 
           recording = nil
-          encounter.with_lock do
-            ensure_processing_allowed!(encounter)
-            raise ActiveRecord::StaleObjectError.new(encounter, "create") unless encounter.lock_version == expected_version
-            request_digest = request_digest(encounter:, actor:, mime_type:, expected_version:)
-            recording = Recording.find_by(practice_id: encounter.practice_id, idempotency_key: key)
-            if recording
-              raise Conflict, "That recording request key was already used for different recording data." unless
-                recording.request_digest == request_digest && recording.encounter_id == encounter.id && recording.created_by_id == actor.id
-              next
-            end
+          persist = proc do
+            encounter.with_lock do
+              ensure_processing_allowed!(encounter)
+              raise ActiveRecord::StaleObjectError.new(encounter, "create") unless encounter.lock_version == expected_version
+              request_digest = request_digest(encounter:, actor:, mime_type:, expected_version:,
+                telehealth_visit:, capture_epoch:, recording_segment_index:, source_order:)
+              recording = Recording.find_by(practice_id: encounter.practice_id, idempotency_key: key)
+              if recording
+                raise Conflict, "That recording request key was already used for different recording data." unless
+                  recording.request_digest == request_digest && recording.encounter_id == encounter.id && recording.created_by_id == actor.id
+                next
+              end
 
-            recording = Recording.create!(practice: encounter.practice, encounter:, created_by: actor,
-              idempotency_key: key, request_digest:, mime_type:, status: "recording",
-              consent_policy_version: encounter.consent_policy_version, consented_at: encounter.consented_at,
-              expected_encounter_version: expected_version)
-            record_event!(recording, actor, "recording_started")
+              recording = Recording.create!(practice: encounter.practice, encounter:, created_by: actor,
+                idempotency_key: key, request_digest:, mime_type:, status: "recording",
+                consent_policy_version: encounter.consent_policy_version, consented_at: encounter.consented_at,
+                expected_encounter_version: expected_version, capture_source:,
+                telehealth_visit:, capture_owner_participant_id:, capture_epoch:,
+                recording_segment_index:, source_order:)
+              record_event!(recording, actor, "recording_started",
+                telehealth_visit_id: telehealth_visit&.id, capture_owner_participant_id:,
+                capture_epoch:, recording_segment_index:, source_order:, capture_source:)
+            end
+          end
+          if telehealth_visit
+            telehealth_visit.with_lock do
+              Clinic::Telehealth::Scribe::ValidateCaptureEpoch.call(visit: telehealth_visit, actor:,
+                capture_epoch:, owner_token:)
+              unless telehealth_visit.scribe_encounter_id == encounter.id &&
+                  telehealth_visit.scribe_capture_owner_participant_id == capture_owner_participant_id.to_i
+                raise ArgumentError, "The Scribe recording is not bound to this visit and capture owner."
+              end
+              persist.call
+            end
+          else
+            persist.call
           end
           recording.reload
         rescue ActiveRecord::RecordNotUnique
           retry_record = Recording.find_by!(practice_id: encounter.practice_id, idempotency_key: key)
-          expected_digest = request_digest(encounter:, actor:, mime_type:, expected_version:)
+          expected_digest = request_digest(encounter:, actor:, mime_type:, expected_version:,
+            telehealth_visit:, capture_epoch:, recording_segment_index:, source_order:)
           raise Conflict, "That recording request key was already used for different recording data." unless
             retry_record.request_digest == expected_digest && retry_record.encounter_id == encounter.id && retry_record.created_by_id == actor.id
           retry_record
         end
 
-        def append_chunk!(recording:, actor:, sequence:, content:, digest:)
+        def append_chunk!(recording:, actor:, sequence:, content:, digest:, capture_epoch: nil, owner_token: nil)
           authorize_recording!(recording, actor)
           sequence = Integer(sequence, exception: false)
           raise ArgumentError, "Chunk sequence is invalid." unless sequence&.between?(0, MAX_CHUNKS - 1)
@@ -75,23 +117,25 @@ module Clinic
             ActiveSupport::SecurityUtils.secure_compare(actual_digest, supplied_digest)
 
           chunk = nil
-          recording.encounter.with_lock do
-            recording.lock!
-            ensure_consent_epoch!(recording)
-            existing = recording.chunks.find_by(sequence: sequence)
-            if existing
-              raise Conflict, "That chunk sequence was already acknowledged with different content." unless
-                existing.status == "acknowledged" && existing.content_digest == actual_digest && existing.byte_size == bytes.bytesize
-              chunk = existing
-              next
+          with_capture_fence(recording, actor, capture_epoch:, owner_token:) do
+            recording.encounter.with_lock do
+              recording.lock!
+              ensure_consent_epoch!(recording)
+              existing = recording.chunks.find_by(sequence: sequence)
+              if existing
+                raise Conflict, "That chunk sequence was already acknowledged with different content." unless
+                  existing.status == "acknowledged" && existing.content_digest == actual_digest && existing.byte_size == bytes.bytesize
+                chunk = existing
+                next
+              end
+              raise ArgumentError, "This recording no longer accepts chunks." unless recording.status == "recording"
+              raise ArgumentError, "The recording has reached its chunk limit." if recording.chunks.count >= MAX_CHUNKS
+              raise ArgumentError, "The recording is too large." if recording.total_bytes + bytes.bytesize > MAX_TOTAL_BYTES
+              chunk = recording.chunks.create!(practice: recording.practice, sequence:, status: "acknowledged",
+                content: Base64.strict_encode64(bytes), content_digest: actual_digest, byte_size: bytes.bytesize,
+                acknowledged_at: Time.current)
+              recording.update!(total_bytes: recording.total_bytes + bytes.bytesize)
             end
-            raise ArgumentError, "This recording no longer accepts chunks." unless recording.status == "recording"
-            raise ArgumentError, "The recording has reached its chunk limit." if recording.chunks.count >= MAX_CHUNKS
-            raise ArgumentError, "The recording is too large." if recording.total_bytes + bytes.bytesize > MAX_TOTAL_BYTES
-            chunk = recording.chunks.create!(practice: recording.practice, sequence:, status: "acknowledged",
-              content: Base64.strict_encode64(bytes), content_digest: actual_digest, byte_size: bytes.bytesize,
-              acknowledged_at: Time.current)
-            recording.update!(total_bytes: recording.total_bytes + bytes.bytesize)
           end
           chunk
         rescue ArgumentError => error
@@ -99,48 +143,86 @@ module Clinic
           raise ArgumentError, "The recording chunk content is not valid base64."
         end
 
-        def finalize!(recording:, actor:, total_chunks:, duration_ms:)
+        def finalize!(recording:, actor:, total_chunks:, duration_ms:, capture_epoch: nil, owner_token: nil)
           authorize_recording!(recording, actor)
           total_chunks = Integer(total_chunks, exception: false)
           duration_ms = Integer(duration_ms, exception: false)
           raise ArgumentError, "A completed recording must contain at least one chunk." unless total_chunks&.between?(1, MAX_CHUNKS)
           raise ArgumentError, "Recording duration is invalid." unless duration_ms&.between?(1, MAX_DURATION_MS)
 
-          recording.encounter.with_lock do
-            recording.lock!
-            ensure_consent_epoch!(recording)
-            if recording.status == "completed"
-              raise Conflict, "This recording was already finalized with different totals." unless
-                recording.total_chunks == total_chunks && recording.duration_ms == duration_ms
-              return recording
+          with_capture_fence(recording, actor, capture_epoch:, owner_token:) do
+            recording.encounter.with_lock do
+              recording.lock!
+              ensure_consent_epoch!(recording)
+              if recording.status == "completed"
+                raise Conflict, "This recording was already finalized with different totals." unless
+                  recording.total_chunks == total_chunks && recording.duration_ms == duration_ms
+                return recording
+              end
+              raise ArgumentError, "This recording cannot be finalized." unless recording.status == "recording"
+              sequences = recording.chunks.where(status: "acknowledged").order(:sequence).pluck(:sequence)
+              raise ArgumentError, "Recording chunks are incomplete. Retry missing uploads before stopping." unless
+                sequences == (0...total_chunks).to_a
+              recording.update!(status: "completed", total_chunks:, duration_ms:, completed_at: Time.current,
+                interrupted_at: nil)
+              record_event!(recording, actor, "recording_completed", total_chunks:, duration_ms:,
+                total_bytes: recording.total_bytes)
             end
-            raise ArgumentError, "This recording cannot be finalized." unless recording.status == "recording"
-            sequences = recording.chunks.where(status: "acknowledged").order(:sequence).pluck(:sequence)
-            raise ArgumentError, "Recording chunks are incomplete. Retry missing uploads before stopping." unless
-              sequences == (0...total_chunks).to_a
-            recording.update!(status: "completed", total_chunks:, duration_ms:, completed_at: Time.current,
-              interrupted_at: nil)
-            record_event!(recording, actor, "recording_completed", total_chunks:, duration_ms:,
-              total_bytes: recording.total_bytes)
           end
           recording.reload
         end
 
-        def interrupt!(recording:, actor:)
+        def interrupt!(recording:, actor:, capture_epoch: nil, owner_token: nil, bypass_capture_fence: false)
           authorize_recording!(recording, actor)
+          operation = proc do
+            recording.encounter.with_lock do
+              recording.with_lock do
+                return recording unless recording.status == "recording"
+                recording.update!(status: "interrupted", interrupted_at: Time.current)
+                record_event!(recording, actor, "recording_interrupted", acknowledged_chunks: recording.chunks.count)
+              end
+            end
+          end
+          bypass_capture_fence ? operation.call :
+            with_capture_fence(recording, actor, capture_epoch:, owner_token:, &operation)
+          recording.reload
+        end
+
+        # A transfer cannot recreate audio that never reached the server. It can,
+        # however, seal one contiguous set of acknowledged chunks so the new
+        # owner can process that durable evidence without accepting another
+        # write from the stale capture epoch.
+        def reconcile_interrupted!(recording:, actor:)
+          authorize!(recording.encounter, actor)
           recording.encounter.with_lock do
             recording.with_lock do
-              return recording unless recording.status == "recording"
-              recording.update!(status: "interrupted", interrupted_at: Time.current)
-              record_event!(recording, actor, "recording_interrupted", acknowledged_chunks: recording.chunks.count)
+              return recording.reload if recording.status == "completed"
+              return recording.reload if recording.status == "cancelled"
+
+              sequences = recording.chunks.where(status: "acknowledged").order(:sequence).pluck(:sequence)
+              contiguous = sequences.present? && sequences == (0...sequences.length).to_a
+              unless contiguous
+                recording.update!(status: "interrupted", interrupted_at: recording.interrupted_at || Time.current)
+                record_event!(recording, actor, "recording_reconciliation_incomplete",
+                  acknowledged_chunks: sequences.length)
+                return recording.reload
+              end
+
+              estimated_duration = [ sequences.length * limits.fetch(:chunk_interval_ms), MAX_DURATION_MS ].min
+              recording.update!(status: "completed", total_chunks: sequences.length,
+                duration_ms: [ estimated_duration, 1 ].max, completed_at: Time.current, interrupted_at: nil)
+              record_event!(recording, actor, "recording_reconciled",
+                acknowledged_chunks: sequences.length, duration_estimated: true)
             end
           end
           recording.reload
         end
 
-        def cancel!(recording:, actor:)
+        def cancel!(recording:, actor:, capture_epoch: nil, owner_token: nil)
           authorize_recording!(recording, actor)
-          recording.encounter.with_lock { scrub_recording!(recording, actor: actor) }
+          with_capture_fence(recording, actor, capture_epoch:, owner_token:) do
+            recording.encounter.with_lock { scrub_recording!(recording, actor: actor) }
+          end
         end
 
         def scrub_for_encounter!(encounter)
@@ -192,11 +274,29 @@ module Clinic
           mime_type
         end
 
-        def request_digest(encounter:, actor:, mime_type:, expected_version:)
+        def request_digest(encounter:, actor:, mime_type:, expected_version:, telehealth_visit: nil,
+          capture_epoch: nil, recording_segment_index: nil, source_order: nil)
           Digest::SHA256.hexdigest([
             encounter.practice_id, encounter.id, actor.id, mime_type, expected_version,
-            encounter.consent_policy_version, encounter.consented_at&.iso8601(6)
+            encounter.consent_policy_version, encounter.consented_at&.iso8601(6), telehealth_visit&.id,
+            capture_epoch, recording_segment_index, source_order
           ].join("\0"))
+        end
+
+        def validate_telehealth_capture!(recording, actor, capture_epoch:, owner_token:)
+          return unless recording.capture_source == "telehealth_mix"
+
+          Clinic::Telehealth::Scribe::ValidateCaptureEpoch.call(visit: recording.telehealth_visit,
+            actor:, capture_epoch:, owner_token:, recording:)
+        end
+
+        def with_capture_fence(recording, actor, capture_epoch:, owner_token:)
+          return yield unless recording.capture_source == "telehealth_mix"
+
+          recording.telehealth_visit.with_lock do
+            validate_telehealth_capture!(recording, actor, capture_epoch:, owner_token:)
+            yield
+          end
         end
 
         def record_event!(recording, actor, event_type, metadata = {})

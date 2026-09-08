@@ -17,5 +17,7 @@ class User < ApplicationRecord
   def revoke_sessions
     Identity::SessionAudit.record!(action: "sessions.revoked_credentials_changed", user_id: id) if member_sessions.exists?
     member_sessions.delete_all
+    Clinic::Telehealth::RevokeMembershipAccess.for_user(user: self, force: true,
+      reason: saved_change_to_password_digest? ? "credentials_changed" : "account_access_revoked")
   end
 end

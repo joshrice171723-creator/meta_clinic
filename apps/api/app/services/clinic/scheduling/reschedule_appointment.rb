@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     class RescheduleAppointment
-      def self.call(appointment:, actor:, starts_at:, ends_at:, expected_updated_at:, request_key:)
+      def self.call(appointment:, actor:, starts_at:, ends_at:, expected_updated_at:, request_key:, visit_modality: nil)
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: appointment.practice,
             action: "appointments.book", legacy_action: "appointments.write", site: appointment.site)
@@ -15,7 +15,7 @@ module Clinic
           authorization_action: "appointments.book", result_resource: ->(record) { record },
           resource_resolver: ->(practice:, receipt:) { practice.appointments.find_by(id: receipt.resource_id) },
           payload: { appointment_id: appointment.id, starts_at: starts_at.iso8601(6), ends_at: ends_at.iso8601(6),
-            expected_updated_at: expected_updated_at.iso8601(6) }
+            expected_updated_at: expected_updated_at.iso8601(6), visit_modality: visit_modality || appointment.visit_modality }
         ) do
           appointment.with_lock do
             authorize.call
@@ -24,7 +24,14 @@ module Clinic
               raise ArgumentError, "Only an upcoming visit that has not started can be rescheduled."
             end
 
-            appointment.update!(starts_at: starts_at, ends_at: ends_at)
+            modality = visit_modality.to_s.presence || appointment.visit_modality
+            raise ArgumentError, "Visit format must be in person or video." unless %w[in_person video].include?(modality)
+            if modality == "video" && appointment.booked_clinician_id.nil?
+              raise ArgumentError, "Choose a clinician for a video visit."
+            end
+            appointment.update!(starts_at: starts_at, ends_at: ends_at, visit_modality: modality,
+              room_id: modality == "video" ? nil : appointment.room_id)
+            Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor, event: :rescheduled)
             Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)
             AuditRecorder.record!(practice: appointment.practice, actor: actor, action_code: "appointments.reschedule",
               outcome: :committed, resource_version_ref: "appointment:#{appointment.id}:#{appointment.updated_at.utc.iso8601(6)}")

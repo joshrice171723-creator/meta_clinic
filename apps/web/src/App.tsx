@@ -42,7 +42,30 @@ function lazyNamed<Module, Props>(
   return lazy(() => load().then((module) => ({ default: select(module) })));
 }
 
-const Home = lazyNamed(() => import("./features/launch/Home"), (m) => m.Home);
+const Home = lazyNamed(
+  () => import("./features/launch/Home"),
+  (m) => m.Home,
+);
+const TelehealthQueue = lazyNamed(
+  () => import("./features/telehealth/TelehealthQueue"),
+  (m) => m.TelehealthQueue,
+);
+const ClinicianTelehealthVisit = lazyNamed(
+  () => import("./features/telehealth/ClinicianTelehealthVisit"),
+  (m) => m.ClinicianTelehealthVisit,
+);
+const PatientTelehealthVisit = lazyNamed(
+  () => import("./features/telehealth/PatientTelehealthVisit"),
+  (m) => m.PatientTelehealthVisit,
+);
+const TelehealthSettings = lazyNamed(
+  () => import("./features/telehealth/TelehealthSettings"),
+  (m) => m.TelehealthSettings,
+);
+const TelehealthSessionProvider = lazyNamed(
+  () => import("./features/telehealth/TelehealthSessionProvider"),
+  (m) => m.TelehealthSessionProvider,
+);
 const Portal = lazyNamed(
   () => import("./features/launch/Portal"),
   (m) => m.Portal,
@@ -331,9 +354,11 @@ function MemberLayout({
 function ClinicHome({
   view,
   active,
+  search,
 }: {
   view: ClinicHomeView;
   active: boolean;
+  search: string;
 }) {
   const [visited, setVisited] = useState<Set<ClinicHomeView>>(
     () => new Set([view]),
@@ -373,7 +398,7 @@ function ClinicHome({
           aria-label="Schedule"
         >
           <RouteBoundary>
-            <Schedule />
+            <Schedule search={search} />
           </RouteBoundary>
         </div>
       )}
@@ -383,11 +408,25 @@ function ClinicHome({
 
 function ClinicPage({ route }: { route: ClinicRoute }) {
   const { path, search } = route;
+  const telehealthVisit = /^\/clinic\/telehealth\/([0-9a-f-]{36})$/i.exec(path);
+  const encounterVideo =
+    /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)\/telehealth$/.exec(path);
   const encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
     patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
   return (
     <RouteBoundary key={clinicRouteHref(route)}>
-      {path === "/clinic/operations" ? (
+      {path === "/clinic/telehealth" ? (
+        <TelehealthQueue />
+      ) : path === "/clinic/settings/telehealth" ? (
+        <TelehealthSettings />
+      ) : telehealthVisit ? (
+        <ClinicianTelehealthVisit visitId={telehealthVisit[1]} />
+      ) : encounterVideo ? (
+        <ClinicianTelehealthVisit
+          patientId={encounterVideo[1]}
+          encounterId={encounterVideo[2]}
+        />
+      ) : path === "/clinic/operations" ? (
         <Operations />
       ) : path === "/clinic/facilities" ? (
         <Facilities />
@@ -582,7 +621,11 @@ function ClinicApplication({
           businessDate={businessDate}
         >
           <div hidden={!home}>
-            <ClinicHome view={route.homeView} active={home} />
+            <ClinicHome
+              view={route.homeView}
+              active={home}
+              search={route.search}
+            />
           </div>
           {!home && page}
         </Workspace>
@@ -668,7 +711,20 @@ export function App() {
       </main>
     );
   const user = session.user || null;
+  const patientVideo = /^\/patient-portal\/telehealth\/([0-9a-f-]{36})$/i.exec(
+    path,
+  );
   let page: ReactNode;
+  if (patientVideo && user)
+    return (
+      <SessionGuard key={user.id}>
+        <RouteBoundary root>
+          <TelehealthSessionProvider contextKey={`patient:${user.id}`}>
+            <PatientTelehealthVisit visitId={patientVideo[1]} />
+          </TelehealthSessionProvider>
+        </RouteBoundary>
+      </SessionGuard>
+    );
   if (path === "/patient-portal/activate")
     return (
       <RouteBoundary root>

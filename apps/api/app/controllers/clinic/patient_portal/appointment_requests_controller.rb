@@ -2,8 +2,10 @@ module Clinic
   module PatientPortal
     class AppointmentRequestsController < BaseController
       REQUEST_INCLUDES = [ :site, :visit_type, :source_site, :patient,
-        { appointment: [ :site, :room, :booked_clinician, :visit_type ] } ].freeze
-      APPOINTMENT_INCLUDES = [ :site, :room, :booked_clinician, :visit_type, :encounter ].freeze
+        { appointment: [ :site, :room, :booked_clinician, :visit_type,
+          { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] } ] } ].freeze
+      APPOINTMENT_INCLUDES = [ :site, :room, :booked_clinician, :visit_type, :encounter,
+        { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] } ].freeze
 
       rescue_from ActiveRecord::StaleObjectError do
         render json: {
@@ -40,18 +42,23 @@ module Clinic
       def create
         input = parameter_hash!(
           :appointment_request,
-          %i[request_key request_kind source_appointment_id source_appointment_updated_at starts_at ends_at site_id visit_type_id]
+          %i[request_key request_kind source_appointment_id source_appointment_updated_at starts_at ends_at site_id visit_type_id requested_modality]
         )
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         normalized = normalized_request(input)
+        normalized[:requested_modality] ||= "in_person" if normalized[:request_kind] == "new_booking"
         existing = AppointmentRequest.find_by(practice: portal_practice, request_key: request_key)
+        normalized[:requested_modality] ||= existing&.requested_modality
         return render_existing(existing, normalized:) if existing
 
         request = AppointmentRequest.transaction do
           source_appointment = appointment_change_source!(normalized)
+          normalized[:requested_modality] ||= source_appointment&.visit_modality || "in_person" unless normalized[:request_kind] == "cancel"
           validate_request!(normalized, source_appointment)
           site = normalized[:site_id] ? portal_practice.sites.where(status: "active").find(normalized[:site_id]) : nil
           visit_type = normalized[:visit_type_id] ? portal_practice.visit_types.active.find(normalized[:visit_type_id]) : nil
+          validate_modality!(normalized, site: site || source_appointment&.site,
+            visit_type: visit_type || source_appointment&.visit_type)
           ensure_no_patient_overlap!(normalized, source_appointment) unless normalized[:request_kind] == "cancel"
 
           AppointmentRequest.create!(
@@ -64,6 +71,7 @@ module Clinic
             ends_at: normalized[:ends_at],
             site: site,
             visit_type: visit_type,
+            requested_modality: normalized[:requested_modality],
             source_appointment: source_appointment,
             source_appointment_updated_at: source_appointment&.updated_at,
             source_starts_at: source_appointment&.starts_at,
@@ -99,7 +107,9 @@ module Clinic
           starts_at: input[:starts_at].present? ? time_param!(input[:starts_at], field: :starts_at) : nil,
           ends_at: input[:ends_at].present? ? time_param!(input[:ends_at], field: :ends_at) : nil,
           site_id: input[:site_id].present? ? integer_id!(input[:site_id], field: :site_id) : nil,
-          visit_type_id: input[:visit_type_id].present? ? integer_id!(input[:visit_type_id], field: :visit_type_id) : nil
+          visit_type_id: input[:visit_type_id].present? ? integer_id!(input[:visit_type_id], field: :visit_type_id) : nil,
+          requested_modality: input[:requested_modality].presence && enum_param!(input[:requested_modality],
+            field: :requested_modality, allowed: %w[in_person video])
         }
       end
 
@@ -109,7 +119,8 @@ module Clinic
           request.source_appointment_id == normalized[:source_appointment_id] &&
           request.source_appointment_updated_at == normalized[:source_appointment_updated_at] &&
           request.starts_at == normalized[:starts_at] && request.ends_at == normalized[:ends_at] &&
-          request.site_id == normalized[:site_id] && request.visit_type_id == normalized[:visit_type_id]
+          request.site_id == normalized[:site_id] && request.visit_type_id == normalized[:visit_type_id] &&
+          request.requested_modality == normalized[:requested_modality]
       end
 
       def render_existing(request, normalized:)
@@ -149,7 +160,7 @@ module Clinic
         end
 
         if normalized[:request_kind] == "cancel"
-          if normalized[:starts_at] || normalized[:ends_at]
+          if normalized[:starts_at] || normalized[:ends_at] || normalized[:requested_modality]
             raise ArgumentError, "A cancellation request cannot include a preferred time window."
           end
           return
@@ -174,6 +185,19 @@ module Clinic
         raise ArgumentError, "That time overlaps an existing appointment." if conflict
       end
 
+      def validate_modality!(normalized, site:, visit_type:)
+        return unless normalized[:requested_modality] == "video"
+        raise ArgumentError, "Choose a clinic location and visit type for a video request." unless site && visit_type
+        setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
+        ready = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
+          setting.active_policy_version&.published? && setting.health_status == "ready"
+        rule = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id,
+          visit_type_id: visit_type.id, enabled: true).where(site_id: [ nil, site.id ]).first
+        unless ready && rule
+          raise ArgumentError, "Video is not available for this visit type and clinic location."
+        end
+      end
+
       def upcoming_appointments
         portal_patient.appointments.where(status: %w[scheduled confirmed])
           .where("starts_at > ?", Current.business_time)
@@ -187,7 +211,13 @@ module Clinic
             AppointmentRequestSerializer.site(site)
           end,
           visit_types: portal_practice.visit_types.active.order(:code, :id).map do |visit_type|
-            AppointmentRequestSerializer.visit_type(visit_type)
+            setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
+            video_enabled = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
+              setting.active_policy_version&.published? && setting.health_status == "ready" &&
+              Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id,
+                visit_type_id: visit_type.id, enabled: true).exists?
+            AppointmentRequestSerializer.visit_type(visit_type,
+              allowed_modalities: video_enabled ? %w[in_person video] : %w[in_person])
           end
         }
       end

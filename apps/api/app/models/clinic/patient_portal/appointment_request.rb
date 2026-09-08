@@ -24,7 +24,7 @@ module Clinic
       encrypts :review_note
 
       attr_readonly :request_kind, :source_appointment_id, :source_appointment_updated_at,
-        :source_starts_at, :source_ends_at, :source_site_id, :source_status
+        :source_starts_at, :source_ends_at, :source_site_id, :source_status, :requested_modality
 
       scope :recent, -> { order(requested_at: :desc, id: :desc) }
 
@@ -32,6 +32,7 @@ module Clinic
       validates :requested_at, presence: true
       validates :starts_at, :ends_at, presence: true, unless: :cancel?
       validates :review_note, length: { maximum: 300 }, allow_nil: true
+      validates :requested_modality, inclusion: { in: %w[in_person video] }, allow_nil: true
       validate :positive_interval
       validate :records_belong_to_practice
       validate :request_shape_is_consistent
