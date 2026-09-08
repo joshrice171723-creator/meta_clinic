@@ -388,6 +388,8 @@ export function StaffMessagingWorkspace({
 }: StaffMessagingWorkspaceProps) {
   const { registerBlocker } = useClinicNavigation();
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [showUnreadAndUrgentOnly, setShowUnreadAndUrgentOnly] =
+    useState(false);
   const [sendingConversationIds, setSendingConversationIds] = useState<Set<number>>(new Set());
   const sendingConversationKeys = useRef(new Set<number>());
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
@@ -400,6 +402,15 @@ export function StaffMessagingWorkspace({
     [state.conversations, state.selectedConversationId],
   );
   const draftWarning = staffMessageDraftWarning(drafts);
+  const visibleConversations = useMemo(
+    () =>
+      showUnreadAndUrgentOnly
+        ? state.conversations.filter(
+            (conversation) => conversation.unread || conversation.urgent,
+          )
+        : state.conversations,
+    [showUnreadAndUrgentOnly, state.conversations],
+  );
 
   useEffect(() => {
     if (!draftWarning) return;
@@ -588,10 +599,25 @@ export function StaffMessagingWorkspace({
                 >
                   Inbox
                 </Typography>
-                <Tooltip title="Unread and urgent messages">
+                <Tooltip
+                  title={
+                    showUnreadAndUrgentOnly
+                      ? "Show all conversations"
+                      : "Show unread and urgent conversations"
+                  }
+                >
                   <IconButton
                     size="small"
-                    aria-label="Unread and urgent messages"
+                    aria-label={
+                      showUnreadAndUrgentOnly
+                        ? "Show all conversations"
+                        : "Show unread and urgent conversations"
+                    }
+                    aria-pressed={showUnreadAndUrgentOnly}
+                    aria-controls="staff-conversation-list"
+                    onClick={() =>
+                      setShowUnreadAndUrgentOnly((current) => !current)
+                    }
                   >
                     <Badge
                       badgeContent={
@@ -614,8 +640,30 @@ export function StaffMessagingWorkspace({
               </Typography>
             </Box>
             <Divider />
-            <List disablePadding>
-              {state.conversations.map((conversation) => (
+            {showUnreadAndUrgentOnly && (
+              <Box sx={{ px: 2.25, py: 1.25, bgcolor: "action.hover" }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <Typography variant="body2" color="text.secondary" role="status">
+                    Showing {visibleConversations.length} unread or urgent
+                    {visibleConversations.length === 1
+                      ? " conversation"
+                      : " conversations"}
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={() => setShowUnreadAndUrgentOnly(false)}
+                  >
+                    Show all
+                  </Button>
+                </Stack>
+              </Box>
+            )}
+            <List id="staff-conversation-list" disablePadding>
+              {visibleConversations.map((conversation) => (
                 <ListItemButton
                   key={conversation.id}
                   selected={conversation.id === selectedConversation.id}
@@ -673,6 +721,13 @@ export function StaffMessagingWorkspace({
                   </Stack>
                 </ListItemButton>
               ))}
+              {visibleConversations.length === 0 && (
+                <Box sx={{ px: 2.25, py: 2 }}>
+                  <Typography color="text.secondary">
+                    No unread or urgent conversations.
+                  </Typography>
+                </Box>
+              )}
             </List>
             {(state.conversationPage || 1) < (state.conversationTotalPages || 1) && (
               <Box sx={{ p: 1.5 }}>
