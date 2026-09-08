@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import PublishIcon from "@mui/icons-material/Publish";
 import {
@@ -37,11 +37,16 @@ import {
 
 export function ScheduleBuilderPage() {
   const { current_site: currentSite } = useClinic();
+  const currentSiteId = String(currentSite?.id ?? "");
+  const currentSiteIdRef = useRef(currentSiteId);
+  const loadRevision = useRef(0);
+  const draftLoadRevision = useRef(0);
   const [data, setData] = useState<ScheduleBootstrap>();
   const [draft, setDraft] = useState<ScheduleDraft>();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [localStart, setLocalStart] = useState("");
@@ -51,33 +56,76 @@ export function ScheduleBuilderPage() {
   const [templateId, setTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
 
-  const load = async () => {
-    if (!currentSite) return;
-    setError(undefined);
-    try {
-      const next = await api<ScheduleBootstrap>(
-        `/api/clinic/workforce/schedules?site_id=${currentSite.id}`,
-      );
-      setData(next);
-      const openDraft = draft
-        ? next.drafts.find((item) => item.id === draft.id)
-        : next.drafts[0];
-      if (openDraft) setDraft(await loadDraft(openDraft.id));
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Unable to load schedules.",
-      );
-    }
-  };
-  const loadDraft = async (id: string) =>
-    (
+  currentSiteIdRef.current = currentSiteId;
+
+  const loadDraft = async (id: string, expectedSiteId: string) => {
+    const revision = ++draftLoadRevision.current;
+    const next = (
       await api<{ draft: ScheduleDraft }>(
         `/api/clinic/workforce/schedule-drafts/${id}`,
       )
     ).draft;
+    if (
+      revision !== draftLoadRevision.current ||
+      currentSiteIdRef.current !== expectedSiteId ||
+      next.site_id !== expectedSiteId
+    )
+      return undefined;
+    return next;
+  };
+
+  const load = async () => {
+    if (!currentSiteId) return;
+    const revision = ++loadRevision.current;
+    const expectedSiteId = currentSiteId;
+    draftLoadRevision.current += 1;
+    setLoading(true);
+    setError(undefined);
+    setNotice(undefined);
+    setData(undefined);
+    setDraft(undefined);
+    setPublishOpen(false);
+    setTemplateId("");
+    setEmployeeId("");
+    try {
+      const next = await api<ScheduleBootstrap>(
+        `/api/clinic/workforce/schedules?site_id=${expectedSiteId}`,
+      );
+      if (
+        revision !== loadRevision.current ||
+        currentSiteIdRef.current !== expectedSiteId ||
+        next.site.id !== expectedSiteId
+      )
+        return;
+      setData(next);
+      const openDraft = draft?.site_id === expectedSiteId
+        ? next.drafts.find((item) => item.id === draft.id)
+        : next.drafts[0];
+      if (openDraft) {
+        const nextDraft = await loadDraft(openDraft.id, expectedSiteId);
+        if (nextDraft) setDraft(nextDraft);
+      }
+    } catch (reason) {
+      if (
+        revision === loadRevision.current &&
+        currentSiteIdRef.current === expectedSiteId
+      )
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load schedules.",
+        );
+    } finally {
+      if (
+        revision === loadRevision.current &&
+        currentSiteIdRef.current === expectedSiteId
+      )
+        setLoading(false);
+    }
+  };
   useEffect(() => {
     void load();
-  }, [currentSite?.id]);
+  }, [currentSiteId]);
 
   if (!currentSite)
     return (
@@ -85,8 +133,10 @@ export function ScheduleBuilderPage() {
         Select a clinic location to manage its workforce schedule.
       </Alert>
     );
-  if (!data) return <LoadState error={error} />;
+  if (!data || data.site.id !== currentSiteId)
+    return <LoadState error={error} />;
   const createDraft = async () => {
+    if (loading || data.site.id !== currentSiteId) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -118,7 +168,13 @@ export function ScheduleBuilderPage() {
     }
   };
   const saveTemplate = async () => {
-    if (!draft || !templateName.trim()) return;
+    if (
+      loading ||
+      !draft ||
+      draft.site_id !== currentSiteId ||
+      !templateName.trim()
+    )
+      return;
     setBusy(true);
     setError(undefined);
     const definitions = (draft.shifts ?? []).map((shift) => ({
@@ -160,7 +216,7 @@ export function ScheduleBuilderPage() {
   };
   const saveShift = async (event: FormEvent) => {
     event.preventDefault();
-    if (!draft) return;
+    if (loading || !draft || draft.site_id !== currentSiteId) return;
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
@@ -197,7 +253,7 @@ export function ScheduleBuilderPage() {
     }
   };
   const publish = async () => {
-    if (!draft) return;
+    if (loading || !draft || draft.site_id !== currentSiteId) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -251,9 +307,22 @@ export function ScheduleBuilderPage() {
           <Select
             label="Draft week"
             value={draft?.id ?? ""}
-            onChange={async (event) =>
-              setDraft(await loadDraft(event.target.value))
-            }
+            disabled={busy || loading}
+            onChange={(event) => {
+              const expectedSiteId = currentSiteId;
+              void loadDraft(event.target.value, expectedSiteId)
+                .then((nextDraft) => {
+                  if (nextDraft) setDraft(nextDraft);
+                })
+                .catch((reason: unknown) => {
+                  if (currentSiteIdRef.current === expectedSiteId)
+                    setError(
+                      reason instanceof Error
+                        ? reason.message
+                        : "Unable to load the selected draft.",
+                    );
+                });
+            }}
           >
             {data.drafts.map((item) => (
               <MenuItem key={item.id} value={item.id}>
@@ -268,6 +337,7 @@ export function ScheduleBuilderPage() {
             label="Starting template"
             value={templateId}
             onChange={(event) => setTemplateId(event.target.value)}
+            disabled={busy || loading}
           >
             <MenuItem value="">Blank schedule</MenuItem>
             {data.templates.map((item) => (
@@ -280,7 +350,7 @@ export function ScheduleBuilderPage() {
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
-          disabled={busy}
+          disabled={busy || loading}
           onClick={createDraft}
         >
           New current-week draft
@@ -289,6 +359,7 @@ export function ScheduleBuilderPage() {
           <Button
             variant="contained"
             startIcon={<PublishIcon />}
+            disabled={busy || loading}
             onClick={() => setPublishOpen(true)}
           >
             Review and publish
