@@ -123,8 +123,10 @@ export function PatientAppointmentRequests({
     >
   >({});
   const minimum = useMemo(() => localDateTime(new Date()), []);
+  const intervalDuration =
+    new Date(endsAt).valueOf() - new Date(startsAt).valueOf();
   const intervalValid =
-    new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
+    intervalDuration > 0 && intervalDuration <= 4 * 60 * 60 * 1_000;
   const effectiveUpcomingAppointments = useMemo(
     () =>
       resource.data?.upcoming_appointments.map((appointment) => {
@@ -410,7 +412,7 @@ export function PatientAppointmentRequests({
                   helperText={
                     intervalValid
                       ? "Choose a window up to four hours."
-                      : "End time must be after the start time."
+                      : "Choose an end time after the start and within four hours."
                   }
                   onChange={(event) => {
                     setEndsAt(event.target.value);
@@ -626,9 +628,11 @@ function AppointmentChangeDialog({
   const [busy, setBusy] = useState(false);
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [error, setError] = useState("");
+  const intervalDuration =
+    new Date(endsAt).valueOf() - new Date(startsAt).valueOf();
   const intervalValid =
     kind === "cancel" ||
-    new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
+    (intervalDuration > 0 && intervalDuration <= 4 * 60 * 60 * 1_000);
 
   async function submit() {
     if (!intervalValid) return;
@@ -719,7 +723,7 @@ function AppointmentChangeDialog({
                 helperText={
                   intervalValid
                     ? "Choose a window up to four hours."
-                    : "End time must be after the start time."
+                    : "Choose an end time after the start and within four hours."
                 }
                 onChange={(event) => {
                   setEndsAt(event.target.value);
