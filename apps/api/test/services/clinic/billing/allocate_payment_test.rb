@@ -16,7 +16,7 @@ class AllocatePaymentTest < ActiveSupport::TestCase
     payment = Clinic::PaymentEvent.create!(practice: @practice, patient: @patient, currency: "USD",
       amount: "100.00", external_event_reference: "allocation-refund-boundary")
     payment.allocations.create!(practice: @practice, patient: @patient, invoice: @first_invoice, amount: "50.00")
-    payment.refund_events.create!(practice: @practice, patient: @patient, currency: "USD", amount: "30.00")
+    payment.refund_events.create!(practice: @practice, patient: @patient, currency: "USD", amount: "30.00", reason: "Fixture refund")
 
     assert_raises(ArgumentError, match: /cannot be allocated/) do
       allocate(invoice: @second_invoice, amount: "30.00")

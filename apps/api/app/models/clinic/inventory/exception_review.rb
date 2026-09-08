@@ -72,8 +72,6 @@ module Clinic
           actor_id: actor_id
         }
       end
-      private_class_method :normalized_attributes
-
       def self.canonical_id!(value, label, optional: false)
         return nil if optional && value.blank?
 

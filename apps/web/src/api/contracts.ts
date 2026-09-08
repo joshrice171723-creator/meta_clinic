@@ -84,7 +84,7 @@ export type PatientPortalContext = {
         amount: Decimal;
         created_at: string;
       }[];
-      refunds: { id: number; amount: Decimal; created_at: string }[];
+      refunds: { id: number; amount: Decimal; reason: string; created_at: string }[];
     }[];
   };
   capabilities: {
@@ -572,7 +572,7 @@ export type BillingPatientLedger = {
       amount: Decimal;
       created_at: string;
     }[];
-    refunds: { id: number; amount: Decimal; created_at: string }[];
+    refunds: { id: number; amount: Decimal; reason: string; created_at: string }[];
   }[];
 };
 export type BillingDashboard = {

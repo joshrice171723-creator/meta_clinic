@@ -287,7 +287,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       amount: "5.00", payment_amount: "12.00"
     )
     payment = allocation.payment_event
-    payment.refund_events.create!(practice: @practice, patient: patient, currency: "USD", amount: "3.00")
+    payment.refund_events.create!(practice: @practice, patient: patient, currency: "USD", amount: "3.00", reason: "Fixture refund")
 
     post "/api/clinic/payment_events/#{payment.id}/allocations",
       params: { allocation: { invoice_id: second.id, amount: "4.00", request_key: "REFUNDED-RESPONSE-001" } },

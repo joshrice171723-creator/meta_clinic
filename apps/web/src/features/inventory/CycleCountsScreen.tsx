@@ -881,34 +881,38 @@ export function CycleCountsScreen({
                           }
                         />
                       </div>
-                      <Button
-                        variant="outlined"
-                        disabled={mutationDisabled(
-                          approveEndpoint,
-                          approveBody,
-                          approveInvalid,
-                          canApprove,
-                        )}
-                        onClick={() =>
-                          void run(
-                            approveEndpoint,
-                            approveBody,
-                            "Count approved",
-                            "The latest count was reconciled by an eligible independent reviewer.",
-                          )
-                        }
-                      >
-                        {isSamePending(approveEndpoint, approveBody)
-                          ? "Retry approval"
-                          : selectedLine.latest_count.approved
-                            ? "Approved"
-                            : "Approve latest count"}
-                      </Button>
-                      {!canApprove && !selectedLine.latest_count.approved && (
-                        <p className="inventory-permission">
-                          A different eligible reviewer is required. Variances
-                          also require inventory.adjust.
-                        </p>
+                      {isOpen(session.status) && (
+                        <>
+                          <Button
+                            variant="outlined"
+                            disabled={mutationDisabled(
+                              approveEndpoint,
+                              approveBody,
+                              approveInvalid,
+                              canApprove,
+                            )}
+                            onClick={() =>
+                              void run(
+                                approveEndpoint,
+                                approveBody,
+                                "Count approved",
+                                "The latest count was reconciled by an eligible independent reviewer.",
+                              )
+                            }
+                          >
+                            {isSamePending(approveEndpoint, approveBody)
+                              ? "Retry approval"
+                              : selectedLine.latest_count.approved
+                                ? "Approved"
+                                : "Approve latest count"}
+                          </Button>
+                          {!canApprove && !selectedLine.latest_count.approved && (
+                            <p className="inventory-permission">
+                              A different eligible reviewer is required. Variances
+                              also require inventory.adjust.
+                            </p>
+                          )}
+                        </>
                       )}
                     </>
                   )}

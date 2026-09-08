@@ -502,8 +502,21 @@ module Clinic
       def movement_wire(movement)
         quantity = movement.quantity.to_d
         receipt = movement.receipt_line&.receipt
+        administration = movement.medication_administration_movement&.medication_administration
         type = movement.kind
-        { id: movement.id.to_s, type: type, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s, quantity_units: quantity.abs.to_s("F"), direction: quantity.negative? ? "out" : "in", source_id: receipt ? "receipt_#{receipt.id}" : movement.request_key.to_s, occurred_at: movement.occurred_at.iso8601, actor_id: movement.actor_id&.to_s, reason: movement.reason }
+        source = if receipt
+          { kind: "receipt", label: "Receipt ##{receipt.id}" }
+        elsif administration
+          { kind: "medication_administration", label: "Medication administration ##{administration.id}" }
+        else
+          { kind: "inventory_movement", label: "Inventory movement ##{movement.id}" }
+        end
+        { id: movement.id.to_s, type: type, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s,
+          quantity_units: quantity.abs.to_s("F"), direction: quantity.negative? ? "out" : "in",
+          source_id: receipt ? "receipt_#{receipt.id}" : movement.request_key.to_s, source: source,
+          occurred_at: movement.occurred_at.iso8601, actor_id: movement.actor_id&.to_s,
+          actor_name: movement.actor && movement.actor.email_address.split("@").first.tr("._-", " ").titleize,
+          reason: movement.reason }
       end
 
       def purchase_order_wire(order)
