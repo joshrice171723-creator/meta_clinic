@@ -4,6 +4,8 @@ Navigation: [packet](README.md) · [sequence](ROADMAP.md) · [future verificatio
 
 All new objects, names and behavior below are **proposed**. Existing source facts are identified separately. This is the implementation contract for the bounded workflow in the roadmap, not evidence that it works today.
 
+**2026-09-08 provider amendment:** the founder selected Twilio Video to reuse the existing Twilio account. This supersedes Daily as the proposed default in the original design below. New configuration and room attempts use Twilio; historical provider identities remain immutable and route through their own adapter. Twilio joins use a server-signed room-bound access token and `room_name`; `room_url` is null. Signed form callbacks enter at `/api/integrations/telehealth/twilio/events`. Keep SMS test credentials separate. See [local operation](LOCAL_OPERATION.md) for the current environment contract and [implementation evidence](IMPLEMENTATION_EVIDENCE.md) for actual verification. Provider-specific expiry, participant ejection and shutdown must follow Twilio's documented behavior; the earlier Daily API claims are not interchangeable guarantees.
+
 ## 1. Architecture decisions
 
 Add `Clinic::Telehealth` to the existing Rails app and telehealth feature components to the existing React app. PostgreSQL remains authoritative. Use existing cookie sessions, CSRF/Origin protections, clinic membership/site permission checks, patient portal identity, audit infrastructure and encrypted-value conventions. Do not build another account system, chart, calendar, reminder sender or billing ledger.

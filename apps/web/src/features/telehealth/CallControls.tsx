@@ -27,6 +27,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTelehealthSession } from "./TelehealthSessionProvider";
+import { ConnectionRecovery } from "./ConnectionRecovery";
 
 function connectionMessage(state: string, authorized: boolean) {
   if (!authorized)
@@ -49,6 +50,7 @@ export function CallControls({
   onEnd,
   canEnd,
   busy = false,
+  recoveryContact,
 }: {
   allowScreenShare: boolean;
   showParticipants: boolean;
@@ -58,6 +60,10 @@ export function CallControls({
   onEnd?: () => void;
   canEnd?: boolean;
   busy?: boolean;
+  recoveryContact?: {
+    label: string;
+    phone?: string | null;
+  };
 }) {
   const session = useTelehealthSession();
   const [devicesOpen, setDevicesOpen] = useState(false);
@@ -70,6 +76,10 @@ export function CallControls({
   const mediaReady =
     session.callState === "joined" && authorizationConfirmed && !busy;
   const canLeave = Boolean(session.active) && session.callState !== "leaving";
+  const showRecovery =
+    session.retrying ||
+    session.callState === "reconnecting" ||
+    session.callState === "error";
   const audioInputs = useMemo(
     () => devices.filter((device) => device.kind === "audioinput"),
     [devices],
@@ -261,7 +271,19 @@ export function CallControls({
           )}
         </Stack>
       </Stack>
-      {session.error && (
+      {showRecovery && (
+        <ConnectionRecovery
+          compact
+          state={
+            session.callState === "error" ? "disconnected" : "reconnecting"
+          }
+          retrying={session.retrying}
+          message={session.callState === "error" ? session.error : null}
+          onRetry={session.retryConnection}
+          contact={recoveryContact}
+        />
+      )}
+      {session.error && !showRecovery && (
         <Alert severity="error" sx={{ mt: 1 }}>
           {session.error}
         </Alert>

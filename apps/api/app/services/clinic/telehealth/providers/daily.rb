@@ -12,13 +12,13 @@ module Clinic
         READ_TIMEOUT = 8
         WEBHOOK_TOLERANCE = 5.minutes
 
-        class Unavailable < StandardError; end
-        class Rejected < StandardError; end
-        class NotFound < Rejected; end
-        class Unsupported < StandardError; end
+        Unavailable = Providers::Unavailable
+        Rejected = Providers::Rejected
+        NotFound = Providers::NotFound
+        Unsupported = Providers::Unsupported
 
         class << self
-          def create_room(name:, expires_at:)
+          def create_room(name:, expires_at:, max_duration_seconds: nil)
             request(:post, "rooms", body: { name: name, privacy: "private", properties: {
               exp: expires_at.to_i, eject_at_room_exp: true, enable_chat: false, enable_knocking: false,
               enable_people_ui: false, enforce_unique_user_ids: true
@@ -52,6 +52,21 @@ module Clinic
             }
           rescue KeyError, ArgumentError, TypeError
             raise Unavailable, "The Daily presence response is unavailable."
+          end
+
+          def room_snapshot(name:)
+            room = get_room(name: name)
+            presence = room_presence(name: name)
+            {
+              exists: true,
+              room_url: room["url"],
+              expires_at: room.dig("config", "exp"),
+              provider_ended: false,
+              presence_confirmed: presence[:confirmed],
+              presence_count: presence[:total_count],
+              provider_subject_ids: presence[:provider_subject_ids],
+              presence_identifiers_complete: presence[:participant_identifiers_complete]
+            }
           end
 
           def issue_join_token(room_name:, participant:, expires_at:, owner:, allow_screen_share:)
@@ -133,7 +148,10 @@ module Clinic
             http_request["Content-Type"] = "application/json"
             http_request.body = JSON.generate(body) if body
             response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: OPEN_TIMEOUT,
-              read_timeout: READ_TIMEOUT, write_timeout: READ_TIMEOUT) { |http| http.request(http_request) }
+              read_timeout: READ_TIMEOUT, write_timeout: READ_TIMEOUT) do |http|
+              http.max_retries = 0 if http.respond_to?(:max_retries=)
+              http.request(http_request)
+            end
             parsed = response.body.present? ? JSON.parse(response.body) : {}
             return parsed if response.code.to_i.between?(200, 299)
             raise NotFound, "Daily could not find the provider resource." if response.code.to_i == 404

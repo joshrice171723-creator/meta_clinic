@@ -4,13 +4,11 @@ module Clinic
       module_function
 
       def provider_snapshot(room_attempt)
-        room = Providers::Daily.get_room(name: room_attempt.provider_room_name)
-        presence = Providers::Daily.room_presence(name: room_attempt.provider_room_name)
-        { status: "succeeded", exists: true, room_url: room["url"], expires_at: room.dig("config", "exp"),
-          presence_confirmed: presence[:confirmed], presence_count: presence[:total_count],
-          provider_subject_ids: presence[:provider_subject_ids],
-          presence_identifiers_complete: presence[:participant_identifiers_complete] }
-      rescue Providers::Daily::NotFound
+        locator = room_attempt.provider_room_ref.presence || room_attempt.provider_room_name
+        Providers.fetch(room_attempt.provider_code).room_snapshot(name: locator).merge(
+          status: "succeeded"
+        )
+      rescue Providers::NotFound
         { status: "succeeded", exists: false }
       end
 
@@ -25,10 +23,10 @@ module Clinic
           expires_at = snapshot[:expires_at] && Time.at(snapshot[:expires_at].to_i)
           reconcile_ejections!(room_attempt, snapshot)
           empty_presence = snapshot[:presence_confirmed] && snapshot[:presence_count].to_i.zero?
-          if current_generation && visit.ending? && empty_presence
+          if current_generation && (visit.ending? && empty_presence || snapshot[:provider_ended])
             room_attempt.update!(status: "ended", ended_at: room_attempt.ended_at || Time.current,
               last_reconciled_at: Time.current, last_error_code: nil)
-            visit.update!(status: "ended", last_ended_at: visit.last_ended_at || Time.current)
+            end_current_visit!(visit)
             return
           end
 
@@ -101,6 +99,18 @@ module Clinic
           command.update!(status: "succeeded", completed_at: command.completed_at || Time.current,
             last_error_code: nil)
         end
+      end
+
+      def end_current_visit!(visit)
+        visit.join_grants.where(revoked_at: nil).find_each do |grant|
+          grant.update!(revoked_at: Time.current, revocation_reason: "provider_meeting_ended")
+        end
+        visit.participants.where.not(status: "removed").find_each do |participant|
+          participant.update!(status: "left", last_seen_at: Time.current)
+        end
+        visit.update!(status: "ended", last_ended_at: visit.last_ended_at || Time.current,
+          scribe_capture_owner_participant_id: nil, scribe_capture_owner_token_digest: nil,
+          scribe_capture_lease_expires_at: nil, scribe_capture_epoch: visit.scribe_capture_epoch + 1)
       end
     end
   end

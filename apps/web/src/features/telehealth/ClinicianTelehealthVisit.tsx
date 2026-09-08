@@ -42,6 +42,7 @@ import type {
 } from "./types";
 import { useTelehealthVisit } from "./useTelehealthVisit";
 import { VideoStage } from "./VideoStage";
+import { VisitWrapUp } from "./VisitWrapUp";
 
 function appointmentLabel(visit: TelehealthVisit) {
   const date = new Date(visit.appointment.starts_at);
@@ -367,13 +368,13 @@ export function ClinicianTelehealthVisit({
     }
     try {
       const requested = await session.ejectParticipant(providerSubjectId);
+      setRemovalPending({ participantId, providerSubjectId });
       if (!requested) {
         setNotice(
-          "Participant access was revoked. That participant is no longer connected to this call.",
+          "Participant access was revoked. APPly is waiting for the video provider to confirm their disconnection.",
         );
         return;
       }
-      setRemovalPending({ participantId, providerSubjectId });
       setNotice(
         "Participant access was revoked. Disconnection was requested and is awaiting confirmation.",
       );
@@ -419,7 +420,7 @@ export function ClinicianTelehealthVisit({
       return {
         title: "Video visit ended",
         description:
-          "The encounter remains open. Resume only when another video room is needed for this encounter.",
+          "Review the Scribe draft and complete the visit wrap-up below. The encounter stays open until its documentation is closed in the chart.",
         action: allowed.includes("telehealth.resume") ? (
           <Button variant="contained" onClick={() => setResumeConfirm(true)}>
             Resume video visit
@@ -791,6 +792,18 @@ export function ClinicianTelehealthVisit({
           </Alert>
         )}
       </Paper>
+      <VisitWrapUp
+        key={visit.public_id}
+        visit={visit}
+        version={resource.response!.version}
+        allowedActions={allowed}
+        onSaved={(response) => resource.setResponse(visitEnvelope(response))}
+        onRefresh={resource.refresh}
+        onReviewScribe={() => {
+          setTab(0);
+          document.getElementById("telehealth-tab-scribe")?.focus();
+        }}
+      />
       <Box
         sx={{
           display: "grid",
@@ -822,6 +835,10 @@ export function ClinicianTelehealthVisit({
           />
           {callActive ? (
             <CallControls
+              recoveryContact={{
+                label: "Call patient",
+                phone: visit.preparation.callback_phone,
+              }}
               allowScreenShare={visit.policy.allow_staff_screen_share}
               showParticipants={tab === 2}
               onShowParticipants={() => setTab(2)}

@@ -1,6 +1,29 @@
 # Telehealth implementation evidence — sc-504
 
-Local implementation in `C:/Users/joshr/Desktop/Work/APPly-telehealth`, branch `codex/sc-504/telehealth-scribe`, from committed base `88af72e0567056707cc71a8ad37b752054d343e4`. This is an independent clone. The original APPly checkout, its dirty work, registered worktrees, Stage 1 audit, databases and evidence were not implementation targets. No merge, push, deployment, real patient message, live provider call or clinical acceptance occurred.
+## 2026-09-08 Twilio migration and provider checks
+
+**User-requested stopping point:** implementation checkpoint, pending verification. The founder requested commit and push before further checks. All source writers stopped. This is not live-video, transcription, security or release acceptance.
+
+- Implemented connection recovery, clinician wrap-up and patient completion; Twilio server/browser adapters replace Daily for new calls. Server SDK resolves to `twilio-ruby 7.11.1`; browser SDK resolves to `twilio-video 2.35.0`.
+- Before the Twilio switch, 26 selected web behaviors passed across the initial run and affected rerun. That evidence is historical and does not verify the new adapter. The earlier production build also passed before the provider switch.
+- Both new development migrations and isolated test database preparation passed. The Twilio migration preserves provider history and adds Room SID persistence, provider constraints and the new-settings default. The token-digest index is nonunique because the provider SDK can issue equal tokens for the same participant and second; the existing request-digest uniqueness still fences application mutation replay.
+- The new production build failed on data-track cleanup typing and two test-file issues. Those source/test issues were repaired, but the build was not rerun before the stopping request.
+- The combined Rails run exposed two repaired issues in its test doubles/fixture key. Subsequent affected verification was interrupted after prolonged silence; Rails and wrap-up results remain inconclusive. Zeitwerk, backend/PostgreSQL verifiers, RuboCop and dependency audits were not completed for this candidate.
+- Brakeman returned exit 3 with zero analysis errors and the unchanged six warnings (five SQL injection, one HTTP verb confusion) in existing non-telehealth files. No new Twilio/Scribe warning was reported. This does not establish security acceptance.
+- Vault validation, vault audit and agent-harness checks passed. The cross-app verifier was stopped without a result. Updated Twilio web tests and Scribe tests did not execute before the stopping request because dependency reconciliation was incomplete.
+- The isolated app services were stopped through the lifecycle ownership checks; PostgreSQL remains running and preserved. A partially installed web dependency tree was moved to ignored `tmp/telehealth-node-modules-interrupted` for recovery, followed by one clean install. Runtime restart and browser checks remain pending; do not assume the preview is running.
+
+Resume with dependency installation status, then rerun the repaired production build and focused web/Rails/Scribe tests before restarting only the isolated preview. Confirm the generated scratch database from the interrupted cross-app verifier before any cleanup; never drop databases by prefix or touch the audit database.
+
+The founder selected Twilio Video to reuse the existing Twilio account, superseding the assistant-selected Daily transport. Source remains in the isolated `APPly-telehealth` checkout. No Daily account was created, and the existing messaging sandbox was not changed.
+
+An authorized OpenRouter adapter check used independently generated fictional speech encoded as WebM/Opus, matching the browser recording format. The existing configured model/key returned HTTP 402 (`provider_payment_required`); no transcript or generated note was produced. No human audio or patient data was sent. This is a provider blocker, not successful transcription evidence.
+
+Chrome browser discovery/navigation and Windows Computer Use discovery both timed out, including after the user closed Chrome. The Twilio dashboard, live Video credentials, public callback delivery and two-party media could not be verified through those attempts.
+
+## Initial implementation baseline
+
+Local implementation in `C:/Users/joshr/Desktop/Work/APPly-telehealth`, branch `codex/sc-504/telehealth-scribe`, from committed base `88af72e0567056707cc71a8ad37b752054d343e4`. This is an independent clone. The original APPly checkout, its dirty work, registered worktrees, Stage 1 audit, databases and evidence were not implementation targets. At this initial baseline, no merge, push, deployment, real patient message, live provider call or clinical acceptance had occurred. Later checks are recorded above.
 
 ## Delivered source
 

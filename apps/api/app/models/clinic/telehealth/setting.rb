@@ -12,7 +12,7 @@ module Clinic
 
       enum :health_status, { not_checked: "not_checked", ready: "ready", degraded: "degraded", unconfigured: "unconfigured" },
         validate: true
-      validates :provider_code, inclusion: { in: %w[daily] }
+      validates :provider_code, inclusion: { in: %w[daily twilio] }
       validates :provider_account_ref, length: { maximum: 128 }, allow_nil: true
     end
   end

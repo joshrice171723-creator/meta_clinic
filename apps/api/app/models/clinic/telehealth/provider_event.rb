@@ -7,7 +7,7 @@ module Clinic
 
       belongs_to :room_attempt, class_name: "Clinic::Telehealth::RoomAttempt"
       belongs_to :participant, class_name: "Clinic::Telehealth::Participant", optional: true
-      validates :provider_code, inclusion: { in: %w[daily] }
+      validates :provider_code, inclusion: { in: %w[daily twilio] }
       validates :provider_account_ref, :provider_event_id, :event_type, :occurred_at, :received_at, presence: true
       validates :payload_digest, format: { with: /\A\h{64}\z/ }
     end

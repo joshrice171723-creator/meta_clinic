@@ -15,6 +15,9 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     @environment = %w[
       APP_TELEHEALTH_ENABLED APP_TELEHEALTH_PROVIDER APP_TELEHEALTH_DAILY_ACCOUNT_REF
       APP_TELEHEALTH_DAILY_API_KEY APP_TELEHEALTH_DAILY_WEBHOOK_SECRET APP_DEVELOPMENT_LOGIN
+      APP_TELEHEALTH_TWILIO_ACCOUNT_SID APP_TELEHEALTH_TWILIO_API_KEY_SID
+      APP_TELEHEALTH_TWILIO_API_KEY_SECRET APP_TELEHEALTH_TWILIO_AUTH_TOKEN
+      APP_TELEHEALTH_TWILIO_STATUS_CALLBACK_URL
     ].to_h { |key| [ key, ENV[key] ] }
     ENV.update(
       "APP_TELEHEALTH_ENABLED" => "true",
@@ -753,7 +756,119 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_predicate historical.reload, :ending?
   end
 
+  test "Twilio tokens are room bound and create requests disable recording with an approved maximum duration" do
+    configure_twilio_environment!
+    participant = direct_video_visit!.participants.create!(practice: @practice, role: "clinician",
+      membership: @membership, status: "admitted", admitted_at: Time.current, admitted_generation: 1)
+    captured = nil
+    response = { "account_sid" => twilio_account_sid, "sid" => twilio_room_sid,
+      "unique_name" => "apply_room", "status" => "in-progress" }
+    request = lambda do |method, path, form: nil|
+      captured = [ method, path, form ]
+      response
+    end
+    with_stubbed_singleton_method(Clinic::Telehealth::Providers::Twilio, :request, request) do
+      room = Clinic::Telehealth::Providers::Twilio.create_room(name: "apply_room", expires_at: 2.hours.from_now,
+        max_duration_seconds: 7_200)
+      assert_nil room.fetch("url")
+      assert_equal twilio_room_sid, room.fetch("sid")
+    end
+    assert_equal [ :post, "Rooms" ], captured.first(2)
+    assert_equal false, captured.last.fetch("RecordParticipantsOnConnect")
+    assert_equal 7_200, captured.last.fetch("MaxParticipantDuration")
+    assert_equal twilio_callback_url, captured.last.fetch("StatusCallback")
+
+    token = Clinic::Telehealth::Providers::Twilio.issue_join_token(room_name: "apply_room",
+      participant: participant, expires_at: 2.minutes.from_now, owner: true, allow_screen_share: true)
+    claims = JWT.decode(token, nil, false).first
+    assert_equal participant.provider_subject_id, claims.dig("grants", "identity")
+    assert_equal "apply_room", claims.dig("grants", "video", "room")
+    assert_equal twilio_account_sid, claims.fetch("sub")
+    assert_not_includes token, ENV.fetch("APP_TELEHEALTH_TWILIO_API_KEY_SECRET")
+  end
+
+  test "signed Twilio form callbacks bind account and room SID and replay idempotently" do
+    configure_twilio_environment!
+    @setting.update!(provider_code: "twilio", provider_account_ref: twilio_account_sid)
+    visit = direct_video_visit!
+    room = visit.room_attempts.create!(practice: @practice, attempt_no: 1, provider_code: "twilio",
+      provider_account_ref: twilio_account_sid, provider_room_name: "apply_twilio_callback", status: "pending",
+      access_generation: visit.access_generation, expires_at: 2.hours.from_now)
+    visit.update!(current_room_attempt: room)
+    payload = twilio_callback_payload
+    signature = Twilio::Security::RequestValidator.new(ENV.fetch("APP_TELEHEALTH_TWILIO_AUTH_TOKEN"))
+      .build_signature_for(twilio_callback_url, payload)
+    2.times do
+      post "/api/integrations/telehealth/twilio/events", params: payload,
+        headers: { "X-Twilio-Signature" => signature,
+          "Content-Type" => "application/x-www-form-urlencoded" }
+      assert_response :no_content
+    end
+    assert_equal twilio_room_sid, room.reload.provider_room_ref
+    assert_equal 1, room.provider_events.where(provider_code: "twilio").count
+
+    foreign = payload.merge("AccountSid" => "AC#{'f' * 32}", "SequenceNumber" => "2")
+    foreign_signature = Twilio::Security::RequestValidator.new(ENV.fetch("APP_TELEHEALTH_TWILIO_AUTH_TOKEN"))
+      .build_signature_for(twilio_callback_url, foreign)
+    post "/api/integrations/telehealth/twilio/events", params: foreign,
+      headers: { "X-Twilio-Signature" => foreign_signature,
+        "Content-Type" => "application/x-www-form-urlencoded" }
+    assert_response :unauthorized
+    assert_equal 1, room.provider_events.count
+  end
+
+  test "disabled settings can switch to Twilio but active rooms and enabled requests are fenced" do
+    configure_twilio_environment!
+    @setting.update!(enabled: false)
+    Clinic::Telehealth::SaveSettingsDraft.call(practice: @practice, actor: @staff,
+      request_key: "switch-settings-to-twilio", expected_version: @setting.lock_version,
+      settings: { provider_account_ref: twilio_account_sid, enabled: false }, policy: policy_payload,
+      visit_type_rules: [])
+    assert_equal "twilio", @setting.reload.provider_code
+    assert_equal "not_checked", @setting.health_status
+    assert_nil @setting.health_checked_at
+
+    @setting.update!(provider_code: "daily", provider_account_ref: TEST_ACCOUNT_REF, enabled: false)
+    visit = direct_video_visit!
+    ready_room!(visit)
+    error = assert_raises(Clinic::Telehealth::Error) do
+      Clinic::Telehealth::SaveSettingsDraft.call(practice: @practice, actor: @staff,
+        request_key: "blocked-settings-to-twilio", expected_version: @setting.reload.lock_version,
+        settings: { provider_account_ref: twilio_account_sid, enabled: false }, policy: policy_payload,
+        visit_type_rules: [])
+    end
+    assert_equal "provider_change_blocked", error.code
+    assert_equal "daily", @setting.reload.provider_code
+  end
+
   private
+
+  def configure_twilio_environment!
+    ENV.update("APP_TELEHEALTH_PROVIDER" => "twilio", "APP_TELEHEALTH_TWILIO_ACCOUNT_SID" => twilio_account_sid,
+      "APP_TELEHEALTH_TWILIO_API_KEY_SID" => "SK#{'b' * 32}",
+      "APP_TELEHEALTH_TWILIO_API_KEY_SECRET" => "twilio-video-secret-for-tests-with-at-least-thirty-two-bytes",
+      "APP_TELEHEALTH_TWILIO_AUTH_TOKEN" => "twilio-callback-secret-for-tests",
+      "APP_TELEHEALTH_TWILIO_STATUS_CALLBACK_URL" => twilio_callback_url)
+  end
+
+  def twilio_account_sid
+    "AC#{'a' * 32}"
+  end
+
+  def twilio_room_sid
+    "RM#{'c' * 32}"
+  end
+
+  def twilio_callback_url
+    "https://telehealth.example.invalid/api/integrations/telehealth/twilio/events"
+  end
+
+  def twilio_callback_payload
+    { "AccountSid" => twilio_account_sid, "RoomName" => "apply_twilio_callback",
+      "RoomSid" => twilio_room_sid, "RoomStatus" => "in-progress", "RoomType" => "group",
+      "StatusCallbackEvent" => "room-created", "Timestamp" => Time.current.utc.iso8601,
+      "SequenceNumber" => "1" }
+  end
 
   def with_stubbed_singleton_method(target, method_name, implementation)
     singleton = target.singleton_class

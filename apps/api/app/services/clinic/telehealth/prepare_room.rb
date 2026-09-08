@@ -27,7 +27,8 @@ module Clinic
           attempt_no = locked.room_attempts.maximum(:attempt_no).to_i + 1
           expires_at = [ appointment.ends_at + locked.policy_version.join_late_minutes.minutes,
             Time.current + locked.policy_version.max_room_minutes.minutes ].min
-          room = locked.room_attempts.create!(practice_id: locked.practice_id, attempt_no: attempt_no, provider_code: "daily",
+          room = locked.room_attempts.create!(practice_id: locked.practice_id, attempt_no: attempt_no,
+            provider_code: setting.provider_code,
             provider_account_ref: setting.provider_account_ref, provider_room_name: "apply_#{SecureRandom.hex(20)}",
             status: "pending", access_generation: locked.access_generation, expires_at: expires_at)
           locked.update!(current_room_attempt_id: room.id)

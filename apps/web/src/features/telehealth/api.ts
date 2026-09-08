@@ -8,6 +8,7 @@ import type {
   TelehealthSettingsData,
   TelehealthSettingsDraft,
   TelehealthVisit,
+  TelehealthWrapUpInput,
 } from "./types";
 
 export const requestKey = () => crypto.randomUUID();
@@ -178,6 +179,26 @@ export const resumeVisit = (
   expectedVersion: number,
   key?: string,
 ) => staffMutation(visitId, "resume", expectedVersion, {}, key);
+
+export const saveVisitWrapUp = (
+  visitId: string,
+  expectedVersion: number,
+  wrapUp: TelehealthWrapUpInput,
+  key?: string,
+) =>
+  staffMutation(
+    visitId,
+    "save_wrap_up",
+    expectedVersion,
+    { wrap_up: wrapUp },
+    key,
+  );
+
+export const finalizeVisitWrapUp = (
+  visitId: string,
+  expectedVersion: number,
+  key?: string,
+) => staffMutation(visitId, "finalize_wrap_up", expectedVersion, {}, key);
 
 export type PatientCheckinInput = {
   location: TelehealthVisit["preparation"]["location"];

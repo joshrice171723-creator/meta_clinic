@@ -3,21 +3,28 @@ require "digest"
 module Clinic
   module Telehealth
     module IssueJoinGrant
-      Result = Data.define(:grant, :token, :room_url)
+      Result = Data.define(:grant, :token, :room_url, :room_name, :provider)
       Snapshot = Data.define(:visit_id, :participant_id, :room_id, :access_generation, :grant_expires_at,
-        :room_expires_at, :room_name, :room_url, :owner, :allow_screen_share, :request_digest)
+        :room_expires_at, :room_name, :room_url, :provider, :owner, :allow_screen_share, :request_digest)
       module_function
 
       def call(visit:, participant:, request_key:, expected_version:, actor: nil, identity: nil)
         validate_request_key!(request_key)
         snapshot = prepare(visit:, participant:, request_key:, expected_version:, actor:, identity:)
-        token = Providers::Daily.issue_join_token(room_name: snapshot.room_name, participant: participant,
+        token = Providers.fetch(snapshot.provider).issue_join_token(room_name: snapshot.room_name, participant: participant,
           expires_at: snapshot.grant_expires_at, owner: snapshot.owner,
           allow_screen_share: snapshot.allow_screen_share)
         grant = persist(snapshot:, token:, expected_version:, actor:, identity:)
-        Result.new(grant: grant, token: token, room_url: snapshot.room_url)
+        Result.new(grant: grant, token: token, room_url: snapshot.room_url, room_name: snapshot.room_name,
+          provider: snapshot.provider)
       rescue ActiveRecord::RecordNotUnique
         raise replay_error
+      rescue Providers::Unavailable
+        raise Error.new("The video provider is unavailable.", code: "provider_unavailable",
+          status: :service_unavailable, retryable: true)
+      rescue Providers::Rejected, Providers::Unsupported
+        raise Error.new("The video provider rejected the join request.", code: "provider_rejected",
+          status: :service_unavailable, retryable: false)
       end
 
       def prepare(visit:, participant:, request_key:, expected_version:, actor:, identity:)
@@ -42,7 +49,7 @@ module Clinic
           snapshot = Snapshot.new(visit_id: locked.id, participant_id: target.id, room_id: room.id,
             access_generation: locked.access_generation, grant_expires_at: grant_expires_at,
             room_expires_at: room.expires_at, room_name: room.provider_room_name,
-            room_url: room.provider_room_url, owner: !!owner,
+            room_url: room.provider_room_url, provider: room.provider_code, owner: !!owner,
             allow_screen_share: !!owner && locked.policy_version.allow_staff_screen_share?,
             request_digest: request_digest)
         end

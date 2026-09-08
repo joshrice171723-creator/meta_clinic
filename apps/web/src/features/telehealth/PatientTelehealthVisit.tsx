@@ -32,6 +32,7 @@ import { CallControls } from "./CallControls";
 import { ConsentStep } from "./ConsentStep";
 import { DeviceCheck } from "./DeviceCheck";
 import { PatientCheckin } from "./PatientCheckin";
+import { PatientVisitCompletion } from "./PatientVisitCompletion";
 import { useTelehealthSession } from "./TelehealthSessionProvider";
 import type {
   TelehealthAllowedAction,
@@ -178,6 +179,11 @@ function PatientCall({
           showParticipantsControl={false}
           onShowParticipants={() => undefined}
           onLeave={() => setLeaveConfirm(true)}
+          recoveryContact={
+            visit.support
+              ? { label: visit.support.label, phone: visit.support.phone }
+              : undefined
+          }
           busy={busy}
         />
       </Paper>
@@ -399,6 +405,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
   }
 
   const inCall = session.active?.visitId === visit.public_id;
+  const completion = visit.completion;
   const saveInitial = async (checkin: PatientCheckinInput) => {
     await mutate(
       () => submitCheckin(visit.public_id, resource.response!.version, checkin),
@@ -457,30 +464,13 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
     visit.current_step === "instructions"
   ) {
     return (
-      <Stack
-        spacing={2}
-        sx={{ maxWidth: 760, mx: "auto", p: { xs: 2, sm: 3 } }}
-      >
-        <Typography variant="h4" component="h1">
-          {visit.status === "ending"
-            ? "Your video visit is ending"
-            : visit.status === "cancelled"
-              ? "This video visit was cancelled"
-              : visit.status === "no_show"
-                ? "Your appointment needs follow-up"
-                : "Your video visit has ended"}
-        </Typography>
-        <Typography>
-          {visit.status === "ending"
-            ? "Your care team is confirming the call has ended. This page updates automatically."
-            : visit.status === "cancelled" || visit.status === "no_show"
-              ? "Return to your appointments to request another time or contact your clinic."
-              : "Released visit instructions will appear with your other after-visit information when they are available."}
-        </Typography>
-        <Button variant="contained" href="/patient-portal#appointments">
-          Return to appointments
-        </Button>
-      </Stack>
+      <PatientVisitCompletion
+        visitStatus={visit.status}
+        completion={completion ?? null}
+        support={visit.support ?? null}
+        stale={resource.stale}
+        onRefresh={resource.refresh}
+      />
     );
   }
 

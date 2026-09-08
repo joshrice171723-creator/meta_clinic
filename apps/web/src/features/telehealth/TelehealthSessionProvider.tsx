@@ -17,7 +17,11 @@ import {
   requestStaffJoinGrant,
 } from "./api";
 import { ApiError } from "../../api/client";
-import { DailyMediaAdapter } from "./dailyAdapter";
+import {
+  createTelehealthMediaAdapter,
+  type TelehealthMediaAdapter,
+  type TelehealthMediaAdapterCallbacks,
+} from "./mediaAdapter";
 import { useOptionalScribeRecording } from "../scribe/ScribeRecordingProvider";
 import type {
   TelehealthActor,
@@ -54,6 +58,7 @@ type TelehealthSessionValue = {
   error: string | null;
   authorizationStatus: TelehealthAuthorizationStatus;
   authorizationError: string | null;
+  retrying: boolean;
   terminationNotice: string | null;
   participants: TelehealthMediaParticipant[];
   microphoneEnabled: boolean;
@@ -62,6 +67,7 @@ type TelehealthSessionValue = {
   dockExpanded: boolean;
   setDockExpanded: (expanded: boolean) => void;
   join: (input: TelehealthJoinInput) => Promise<void>;
+  retryConnection: () => Promise<void>;
   leave: (notifyServer?: boolean) => Promise<void>;
   clearTelehealthContext: () => Promise<void>;
   updateVersion: (version: number) => void;
@@ -123,6 +129,7 @@ export function TelehealthSessionProvider({
   const [authorizationError, setAuthorizationError] = useState<string | null>(
     null,
   );
+  const [retrying, setRetrying] = useState(false);
   const [terminationNotice, setTerminationNotice] = useState<string | null>(
     null,
   );
@@ -132,17 +139,37 @@ export function TelehealthSessionProvider({
   const [dockExpanded, setDockExpanded] = useState(false);
   const scribe = useOptionalScribeRecording();
   const scribeRef = useRef(scribe);
-  const adapterRef = useRef<DailyMediaAdapter | null>(null);
+  const adapterRef = useRef<TelehealthMediaAdapter | null>(null);
+  const adapterProviderRef = useRef<TelehealthJoinGrant["provider"] | null>(
+    null,
+  );
+  const adapterCallbacksRef = useRef<TelehealthMediaAdapterCallbacks | null>(
+    null,
+  );
   const generationRef = useRef(0);
+  const [authorizationCycle, setAuthorizationCycle] = useState(0);
+  const intentionalTeardownRef = useRef(false);
+  const retryingRef = useRef(false);
   const lastAuthorizationAtRef = useRef(0);
   const authorizationStopRef = useRef<(reason: string) => void>(
     () => undefined,
   );
 
-  if (!adapterRef.current) {
-    adapterRef.current = new DailyMediaAdapter({
+  if (!adapterCallbacksRef.current) {
+    adapterCallbacksRef.current = {
       onParticipants: setParticipants,
       onState: (state) => {
+        if (
+          state === "ended" &&
+          activeRef.current &&
+          !intentionalTeardownRef.current
+        ) {
+          setError(
+            "The video call disconnected. Request a new secure connection to rejoin this visit.",
+          );
+          setCallState("error");
+          return;
+        }
         if (
           state === "reconnecting" &&
           authorizationStatusRef.current === "stale"
@@ -155,7 +182,7 @@ export function TelehealthSessionProvider({
         setCallState(state);
       },
       onError: setError,
-    });
+    };
   }
   scribeRef.current = scribe;
   authorizationStatusRef.current = authorizationStatus;
@@ -163,6 +190,25 @@ export function TelehealthSessionProvider({
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
+
+  const adapterForProvider = useCallback(
+    async (provider: TelehealthJoinGrant["provider"]) => {
+      if (adapterRef.current && adapterProviderRef.current === provider)
+        return adapterRef.current;
+      const previous = adapterRef.current;
+      adapterRef.current = null;
+      adapterProviderRef.current = null;
+      if (previous) await previous.destroy();
+      const adapter = createTelehealthMediaAdapter(
+        provider,
+        adapterCallbacksRef.current!,
+      );
+      adapterRef.current = adapter;
+      adapterProviderRef.current = provider;
+      return adapter;
+    },
+    [],
+  );
 
   const clearTelehealthContext = useCallback(async () => {
     generationRef.current += 1;
@@ -179,11 +225,18 @@ export function TelehealthSessionProvider({
     setCallState("idle");
     setAuthorizationStatus("idle");
     setAuthorizationError(null);
+    setRetrying(false);
+    retryingRef.current = false;
     setTerminationNotice(null);
     lastAuthorizationAtRef.current = 0;
     setDockExpanded(false);
     setError(null);
-    await adapter?.destroy();
+    intentionalTeardownRef.current = true;
+    try {
+      await adapter?.destroy();
+    } finally {
+      intentionalTeardownRef.current = false;
+    }
     if (session) {
       const request =
         session.actor === "staff"
@@ -200,17 +253,24 @@ export function TelehealthSessionProvider({
     setError(null);
     setAuthorizationStatus("idle");
     setAuthorizationError(null);
+    setRetrying(false);
+    retryingRef.current = false;
     if (session)
       scribeRef.current?.terminateTelehealthCapture(
         session.visitId,
         "The call ended. Scribe is saving the permitted audio segment.",
       );
+    intentionalTeardownRef.current = true;
     try {
-      await adapterRef.current?.leave();
-    } catch {
-      // Local tracks are still disposed by destroy below.
+      try {
+        await adapterRef.current?.leave();
+      } catch {
+        // Local tracks are still disposed by destroy below.
+      }
+      await adapterRef.current?.destroy();
+    } finally {
+      intentionalTeardownRef.current = false;
     }
-    await adapterRef.current?.destroy();
     setParticipants([]);
     setActive(null);
     activeRef.current = null;
@@ -244,12 +304,17 @@ export function TelehealthSessionProvider({
       setCallState("leaving");
       setAuthorizationStatus("idle");
       setAuthorizationError(null);
+      setRetrying(false);
+      retryingRef.current = false;
       setTerminationNotice(reason);
       setError(null);
       try {
+        intentionalTeardownRef.current = true;
         await adapterRef.current?.leave();
       } catch {
         await adapterRef.current?.destroy();
+      } finally {
+        intentionalTeardownRef.current = false;
       }
       setParticipants([]);
       setActive(null);
@@ -348,6 +413,8 @@ export function TelehealthSessionProvider({
             "The server did not issue media access for this visit.",
           );
         if (generation !== generationRef.current) return;
+        const adapter = await adapterForProvider(grant.provider);
+        if (generation !== generationRef.current) return;
         const session: TelehealthActiveSession = {
           ...input,
           version: response.version,
@@ -359,10 +426,9 @@ export function TelehealthSessionProvider({
         setAuthorizationStatus("confirmed");
         activeRef.current = session;
         setActive(session);
-        await adapterRef.current?.join({
-          roomUrl: grant.room_url,
+        await adapter.join({
+          roomName: grant.room_name,
           token: grant.token,
-          displayName: input.actor === "patient" ? "Patient" : "Care team",
         });
         grant = undefined;
       } catch (reason) {
@@ -382,8 +448,96 @@ export function TelehealthSessionProvider({
         throw reason;
       }
     },
-    [leave],
+    [adapterForProvider, leave],
   );
+
+  const retryConnection = useCallback(async () => {
+    const current = activeRef.current;
+    if (!current)
+      throw new Error("There is no active video visit to reconnect.");
+    if (retryingRef.current) return;
+    retryingRef.current = true;
+    const generation = ++generationRef.current;
+    let grant: TelehealthJoinGrant | undefined;
+    setRetrying(true);
+    setError(null);
+    setAuthorizationError(null);
+    setAuthorizationStatus("checking");
+    setCallState("reconnecting");
+    setAuthorizationCycle((cycle) => cycle + 1);
+    scribeRef.current?.terminateTelehealthCapture(
+      current.visitId,
+      "The video connection is restarting. Scribe is saving the permitted audio segment.",
+    );
+    setParticipants([]);
+    try {
+      intentionalTeardownRef.current = true;
+      try {
+        await adapterRef.current?.destroy();
+      } finally {
+        intentionalTeardownRef.current = false;
+      }
+      const response =
+        current.actor === "staff"
+          ? await requestStaffJoinGrant(current.visitId, current.version)
+          : await requestPatientJoinGrant(current.visitId, current.version);
+      grant = response.data.join_grant;
+      if (!grant)
+        throw new Error(
+          "APPly could not issue a new secure connection for this visit.",
+        );
+      if (generation !== generationRef.current) return;
+      const refreshed: TelehealthActiveSession = {
+        ...current,
+        version: response.version,
+        participantId: grant.participant.id,
+        providerSubjectId: grant.participant.provider_subject_id,
+        roomExpiresAt: grant.room.expires_at,
+      };
+      activeRef.current = refreshed;
+      setActive(refreshed);
+      lastAuthorizationAtRef.current = Date.now();
+      setAuthorizationStatus("confirmed");
+      const adapter = await adapterForProvider(grant.provider);
+      await adapter.join({
+        roomName: grant.room_name,
+        token: grant.token,
+      });
+      grant = undefined;
+    } catch (reason) {
+      grant = undefined;
+      if (generation !== generationRef.current) return;
+      if (
+        reason instanceof ApiError &&
+        [401, 403, 404].includes(reason.status)
+      ) {
+        await handleAuthorizationFailure(current.visitId, reason.status);
+        return;
+      }
+      intentionalTeardownRef.current = true;
+      try {
+        try {
+          await adapterRef.current?.destroy();
+        } catch {
+          // The previous call object was already detached from rendered media.
+        }
+      } finally {
+        intentionalTeardownRef.current = false;
+      }
+      setParticipants([]);
+      setAuthorizationStatus("idle");
+      setCallState("error");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "The secure video connection could not be restored.",
+      );
+      throw reason;
+    } finally {
+      retryingRef.current = false;
+      if (generation === generationRef.current) setRetrying(false);
+    }
+  }, [adapterForProvider, handleAuthorizationFailure]);
 
   const updateVersion = useCallback((version: number) => {
     setActive((current) => {
@@ -451,6 +605,21 @@ export function TelehealthSessionProvider({
     },
     [active],
   );
+
+  useEffect(() => {
+    if (!active || callState !== "error" || retrying) return;
+    const session = activeRef.current;
+    if (session)
+      scribeRef.current?.terminateTelehealthCapture(
+        session.visitId,
+        "The video connection ended. Scribe is saving the permitted audio segment.",
+      );
+    setParticipants([]);
+    intentionalTeardownRef.current = true;
+    void adapterRef.current?.destroy().finally(() => {
+      intentionalTeardownRef.current = false;
+    });
+  }, [active, callState, retrying]);
 
   useEffect(() => {
     if (!active) return;
@@ -539,6 +708,7 @@ export function TelehealthSessionProvider({
   }, [
     active?.actor,
     active?.visitId,
+    authorizationCycle,
     handleAuthorizationFailure,
     reconcileAuthorization,
     stopForAuthorization,
@@ -565,7 +735,7 @@ export function TelehealthSessionProvider({
   }, [contextKey]);
 
   useEffect(() => {
-    if (!active || (callState !== "ended" && callState !== "error")) return;
+    if (!active || callState !== "ended") return;
     scribeRef.current?.terminateTelehealthCapture(
       active.visitId,
       "Call media ended. Scribe is saving the permitted audio segment.",
@@ -595,6 +765,7 @@ export function TelehealthSessionProvider({
       error,
       authorizationStatus,
       authorizationError,
+      retrying,
       terminationNotice,
       participants,
       microphoneEnabled,
@@ -603,6 +774,7 @@ export function TelehealthSessionProvider({
       dockExpanded,
       setDockExpanded,
       join,
+      retryConnection,
       leave,
       clearTelehealthContext,
       updateVersion,
@@ -633,6 +805,7 @@ export function TelehealthSessionProvider({
       error,
       authorizationStatus,
       authorizationError,
+      retrying,
       terminationNotice,
       participants,
       microphoneEnabled,
@@ -640,6 +813,7 @@ export function TelehealthSessionProvider({
       screenShareEnabled,
       dockExpanded,
       join,
+      retryConnection,
       leave,
       clearTelehealthContext,
       updateVersion,

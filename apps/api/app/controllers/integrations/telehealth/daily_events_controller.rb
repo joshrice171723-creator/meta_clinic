@@ -20,7 +20,7 @@ module Integrations
         PaperTrail.request.whodunnit = "provider:daily"
         PaperTrail.request.controller_info = { request_id: request.request_id,
           causal_id: "daily-webhook", job_id: nil }
-        Clinic::Telehealth::IngestProviderEvent.call(raw_body: raw_body, payload: payload)
+        Clinic::Telehealth::IngestProviderEvent.call(provider_code: "daily", raw_body: raw_body, payload: payload)
         head :no_content
       rescue JSON::ParserError, Clinic::Telehealth::Providers::Daily::Rejected, ActiveRecord::RecordNotFound
         head :unauthorized

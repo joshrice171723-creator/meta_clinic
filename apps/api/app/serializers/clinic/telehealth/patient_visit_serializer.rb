@@ -26,6 +26,7 @@ module Clinic
           participants: visit.participants.map { |value| patient_participant(value, identity) },
           eligible_staff: [],
           scribe: VisitSerializer.scribe_payload(visit),
+          completion: WrapUpSerializer.patient(visit),
           current_step: current_step(visit, participant, preparation),
           access_state: VisitSerializer.access_state(visit, participant: participant),
           updated_at: visit.updated_at.iso8601(6), allowed_actions: allowed_actions(visit, participant)

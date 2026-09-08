@@ -14,13 +14,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@daily-co/daily-js": "^0.92.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "twilio-video": "^2.35.0"
   },
   "devDependencies": {
     "@types/node": "26.4.0",

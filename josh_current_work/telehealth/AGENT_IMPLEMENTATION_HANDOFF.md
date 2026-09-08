@@ -1,5 +1,9 @@
 # Telehealth implementation handoff
 
+## 2026-09-08 stopping checkpoint
+
+The founder requested commit and push after selecting Twilio Video to reuse the existing Twilio account. Connection recovery, clinician wrap-up, patient completion and the Twilio provider switch are implemented. All source writers stopped; verification is incomplete. Read the latest section of [implementation evidence](IMPLEMENTATION_EVIDENCE.md) before resuming. The isolated preview services are stopped, its database is preserved, and dependency restoration/build/test completion precede restart. No merge into the audit checkout is authorized by this handoff.
+
 Source: independent clone `C:/Users/joshr/Desktop/Work/APPly-telehealth`, branch `codex/sc-504/telehealth-scribe`, base `88af72e0567056707cc71a8ad37b752054d343e4`. Task authority and status: [sc-504](https://app.shortcut.com/apply-1/story/504).
 
 Implementation covers the scheduled telehealth and in-call Scribe source described below. The initial implementation freeze was followed by one consolidated isolated verification pass and targeted repairs. [Implementation evidence](IMPLEMENTATION_EVIDENCE.md) records actual results and remaining gates; it supersedes earlier planning-only statements in the copied architecture. Provider configuration and real two-party media evidence remain distinct dependencies. Main's dirty files, its registered worktrees and the Stage 1 audit remain outside this clone's write scope.

@@ -44,8 +44,8 @@ module Clinic
           request_key: input.fetch(:request_key), expected_version: input.fetch(:expected_version))
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
-        payload = { join_grant: { token: result.token, room_url: result.room_url,
-          expires_at: result.grant.expires_at.iso8601(6), provider: "daily",
+        payload = { join_grant: { token: result.token, room_url: result.room_url, room_name: result.room_name,
+          expires_at: result.grant.expires_at.iso8601(6), provider: result.provider,
           participant: { id: participant.id.to_s, provider_subject_id: participant.provider_subject_id },
           room: { expires_at: result.grant.room_attempt.expires_at.iso8601(6) } } }
         render json: envelope(payload, version: telehealth_visit.lock_version, allowed_actions: [])
@@ -85,6 +85,23 @@ module Clinic
         command = RequestReconciliation.call(visit: telehealth_visit, actor: current_user,
           request_key: input.fetch(:request_key), expected_version: input.fetch(:expected_version))
         render_visit(telehealth_visit, status: :accepted, operation: command)
+      end
+
+      def save_wrap_up
+        input = params.permit(:request_key, :expected_version, wrap_up: %i[outcome clinician_notes patient_instructions
+          instruction_note_revision_id follow_up_status follow_up_plan follow_up_appointment_id
+          scribe_review_status]).to_h.deep_symbolize_keys
+        WrapUpWorkflow.save(visit: telehealth_visit, actor: current_user,
+          request_key: input.fetch(:request_key), expected_version: input.fetch(:expected_version),
+          attributes: input.fetch(:wrap_up))
+        render_visit
+      end
+
+      def finalize_wrap_up
+        input = command_input
+        WrapUpWorkflow.finalize(visit: telehealth_visit, actor: current_user,
+          request_key: input.fetch(:request_key), expected_version: input.fetch(:expected_version))
+        render_visit
       end
 
       private

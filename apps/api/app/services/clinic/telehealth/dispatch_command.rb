@@ -30,11 +30,11 @@ module Clinic
 
         result = dispatch(snapshot)
         finalize(command, lease_token, result)
-      rescue Providers::Daily::Unavailable
+      rescue Providers::Unavailable
         finalize(command, lease_token, status: "unknown", error: "provider_outcome_unknown")
-      rescue Providers::Daily::Rejected => error
+      rescue Providers::Rejected
         finalize(command, lease_token, status: "failed", error: "provider_rejected")
-      rescue Providers::Daily::Unsupported
+      rescue Providers::Unsupported
         finalize(command, lease_token, status: "unknown", error: "provider_operation_unsupported")
       end
 
@@ -111,20 +111,23 @@ module Clinic
 
       def dispatch(command)
         room = command.room_attempt
+        provider = Providers.fetch(room.provider_code)
+        locator = room.provider_room_ref.presence || room.provider_room_name
         case command.kind
         when "create_room"
-          response = Providers::Daily.create_room(name: room.provider_room_name, expires_at: room.expires_at)
-          { status: "succeeded", room_url: response.fetch("url") }
-        when "end_room" then Providers::Daily.end_room(name: room.provider_room_name) && { status: "succeeded" }
+          response = provider.create_room(name: room.provider_room_name, expires_at: room.expires_at,
+            max_duration_seconds: command.visit.policy_version.max_room_minutes.minutes.to_i)
+          { status: "succeeded", room_url: response["url"], room_ref: response["sid"] }
+        when "end_room" then provider.end_room(name: locator) && { status: "succeeded" }
         when "extend_room"
-          Providers::Daily.extend_room(name: room.provider_room_name, expires_at: command.requested_expires_at)
+          provider.extend_room(name: locator, expires_at: command.requested_expires_at)
           { status: "succeeded", expires_at: command.requested_expires_at }
-        when "delete_room" then Providers::Daily.delete_room(name: room.provider_room_name) && { status: "succeeded" }
+        when "delete_room" then provider.delete_room(name: locator) && { status: "succeeded" }
         when "reconcile_room" then ReconcileRoom.provider_snapshot(room)
         when "eject_participant"
           event = room.provider_events.where(participant_id: command.participant_id).order(occurred_at: :desc).first
-          raise Providers::Daily::Unavailable unless event&.provider_session_ref
-          Providers::Daily.eject_participant(name: room.provider_room_name, provider_session_ref: event.provider_session_ref)
+          raise Providers::Unavailable unless event&.provider_session_ref
+          provider.eject_participant(name: locator, provider_session_ref: event.provider_session_ref)
           { status: "succeeded" }
         end
       end
@@ -162,7 +165,8 @@ module Clinic
           current_target = current_generation && visit.status.in?(%w[scheduled in_progress]) &&
             room.status.in?(%w[pending provisioning ready active])
           room.update!(status: current_target && room.active? ? "active" : (current_target ? "ready" : "ending"),
-            provider_room_url: result.fetch(:room_url), provisioned_at: room.provisioned_at || Time.current,
+            provider_room_url: result.fetch(:room_url), provider_room_ref: result[:room_ref] || room.provider_room_ref,
+            provisioned_at: room.provisioned_at || Time.current,
             last_error_code: nil)
           ReconcileRoom.ensure_historical_cleanup!(visit, room) unless current_target
         when "end_room"

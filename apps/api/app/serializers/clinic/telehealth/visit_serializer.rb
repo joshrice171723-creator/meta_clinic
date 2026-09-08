@@ -10,6 +10,15 @@ module Clinic
         room = visit.current_room_attempt
         allowed = AccessPolicy.allowed_actions(actor_context: { actor: actor, practice: visit.practice }, visit: visit,
           participant: participant)
+        allowed.delete("telehealth.save_wrap_up")
+        can_manage_wrap_up = WrapUpWorkflow.can_manage?(visit: visit, actor: actor)
+        if can_manage_wrap_up && !visit.wrap_up&.finalized?
+          allowed << "telehealth.save_wrap_up"
+          if WrapUpWorkflow.can_finalize?(visit: visit, actor: actor) &&
+              WrapUpWorkflow.blockers(visit, visit.wrap_up).empty?
+            allowed << "telehealth.finalize_wrap_up"
+          end
+        end
         can_read_preparation = Ability.new(actor, practice: visit.practice)
           .allowed_permission?("telehealth.prepare.read", site: visit.appointment.site)
         payload = {
@@ -24,6 +33,8 @@ module Clinic
           participants: visit.participants.map { |value| participant_payload(value, membership) },
           eligible_staff: eligible_staff(visit, actor: actor, allowed_actions: allowed),
           scribe: scribe_payload(visit),
+          wrap_up: WrapUpWorkflow.can_read?(visit: visit, actor: actor) ? WrapUpSerializer.staff(visit.wrap_up) : nil,
+          wrap_up_options: can_manage_wrap_up ? WrapUpWorkflow.options(visit) : nil,
           readiness: readiness(visit, preparation),
           waiting_since: visit.participants.select(&:patient?).filter_map { |value| value.status == "waiting" ? value.updated_at : nil }.min&.iso8601(6),
           connection: connection(visit),

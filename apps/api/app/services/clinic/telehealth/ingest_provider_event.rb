@@ -3,15 +3,21 @@ require "digest"
 module Clinic
   module Telehealth
     module IngestProviderEvent
-      SUPPORTED_EVENTS = %w[participant.joined participant.left meeting.started meeting.ended waiting-participant.left].freeze
+      SUPPORTED_EVENTS = %w[participant.joined participant.left meeting.created meeting.started meeting.ended
+        waiting-participant.left].freeze
       module_function
 
-      def call(raw_body:, payload:)
-        normalized = Providers::Daily.normalize_event(payload)
-        raise Providers::Daily::Rejected, "The provider event type is unsupported." unless
+      def call(provider_code: "daily", raw_body:, payload:)
+        provider = Providers.fetch(provider_code)
+        normalized = provider.normalize_event(payload)
+        raise Providers::Rejected, "The provider event type is unsupported." unless
           SUPPORTED_EVENTS.include?(normalized[:event_type])
-        room = RoomAttempt.includes(:visit).find_by!(provider_code: "daily",
-          provider_account_ref: Config.daily_account_ref, provider_room_name: normalized[:room_name])
+        account_ref = Config.account_ref(provider_code)
+        if normalized[:provider_account_ref].present? && normalized[:provider_account_ref] != account_ref
+          raise Providers::Rejected, "The provider account does not match."
+        end
+        room = RoomAttempt.includes(:visit).find_by!(provider_code: provider_code,
+          provider_account_ref: account_ref, provider_room_name: normalized[:room_name])
         participant = normalized[:provider_subject_id] && room.visit.participants.find_by(
           provider_subject_id: normalized[:provider_subject_id])
         event = nil
@@ -19,11 +25,20 @@ module Clinic
           room.visit.appointment.lock!
           visit = Visit.lock.find(room.visit_id)
           locked_room = RoomAttempt.lock.find(room.id)
-          event = ProviderEvent.find_by(provider_code: "daily", provider_account_ref: room.provider_account_ref,
+          provider_room_ref = normalized.dig(:metadata, "room_sid")
+          if provider_code == "twilio"
+            raise Providers::Rejected, "The Twilio room reference is invalid." unless
+              provider_room_ref.to_s.match?(/\ARM[0-9a-fA-F]{32}\z/)
+            if locked_room.provider_room_ref.present? && locked_room.provider_room_ref != provider_room_ref
+              raise Providers::Rejected, "The Twilio room reference does not match."
+            end
+            locked_room.update!(provider_room_ref: provider_room_ref) unless locked_room.provider_room_ref
+          end
+          event = ProviderEvent.find_by(provider_code: provider_code, provider_account_ref: room.provider_account_ref,
             provider_event_id: normalized[:provider_event_id])
           next if event
           event = locked_room.provider_events.create!(practice_id: room.practice_id, participant_id: participant&.id,
-            provider_code: "daily", provider_account_ref: room.provider_account_ref,
+            provider_code: provider_code, provider_account_ref: room.provider_account_ref,
             provider_event_id: normalized[:provider_event_id], event_type: normalized[:event_type],
             provider_session_ref: normalized[:provider_session_ref], occurred_at: normalized[:occurred_at],
             received_at: Time.current, payload_digest: Digest::SHA256.hexdigest(raw_body),
@@ -33,13 +48,15 @@ module Clinic
         end
         event
       rescue ActiveRecord::RecordNotUnique
-        ProviderEvent.find_by!(provider_code: "daily", provider_account_ref: Config.daily_account_ref,
+        ProviderEvent.find_by!(provider_code: provider_code, provider_account_ref: Config.account_ref(provider_code),
           provider_event_id: normalized.fetch(:provider_event_id))
       end
 
       def apply!(visit:, room:, participant:, type:, provider_session_ref:, occurred_at:)
         current_generation = visit.current_room_attempt_id == room.id && visit.access_generation == room.access_generation
         case type
+        when "meeting.created"
+          nil
         when "meeting.started"
           return unless current_generation && visit.status.in?(%w[scheduled in_progress]) &&
             room.status.in?(%w[pending provisioning ready active])

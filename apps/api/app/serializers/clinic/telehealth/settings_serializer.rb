@@ -7,7 +7,7 @@ module Clinic
         setting = result.fetch(:setting)
         {
           enabled: setting&.enabled? || false,
-          provider_code: setting&.provider_code || "daily",
+          provider_code: setting&.provider_code || Config.provider,
           provider_account_ref: setting&.provider_account_ref,
           health_status: health_status(setting),
           health_checked_at: setting&.health_checked_at&.iso8601(6),

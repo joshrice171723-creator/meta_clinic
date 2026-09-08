@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { ConnectionRecovery } from "./ConnectionRecovery";
 import { useOptionalTelehealthSession } from "./TelehealthSessionProvider";
 import { VideoStage } from "./VideoStage";
 
@@ -100,6 +101,20 @@ export function TelehealthDock() {
         <Alert severity="warning" sx={{ borderRadius: 0 }}>
           {session.authorizationError}
         </Alert>
+      )}
+      {(session.retrying ||
+        session.callState === "reconnecting" ||
+        session.callState === "error") && (
+        <ConnectionRecovery
+          compact
+          state={
+            session.callState === "error" ? "disconnected" : "reconnecting"
+          }
+          retrying={session.retrying}
+          message={session.callState === "error" ? session.error : null}
+          onRetry={session.retryConnection}
+          onLeave={() => setLeaveConfirm(true)}
+        />
       )}
       <Stack
         direction="row"

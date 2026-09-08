@@ -44,8 +44,8 @@ module Clinic
             expected_version: input.fetch(:expected_version))
           response.headers["Cache-Control"] = "no-store"
           response.headers["Pragma"] = "no-cache"
-          payload = { join_grant: { token: result.token, room_url: result.room_url,
-            expires_at: result.grant.expires_at.iso8601(6), provider: "daily",
+          payload = { join_grant: { token: result.token, room_url: result.room_url, room_name: result.room_name,
+            expires_at: result.grant.expires_at.iso8601(6), provider: result.provider,
             participant: { id: participant.id.to_s, provider_subject_id: participant.provider_subject_id },
             room: { expires_at: result.grant.room_attempt.expires_at.iso8601(6) } } }
           render json: envelope(payload, version: patient_telehealth_visit.lock_version, allowed_actions: [])

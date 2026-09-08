@@ -73,8 +73,9 @@ vi.mock("react/jsx-runtime", () => ({
 
 vi.mock("../src/features/telehealth/api", () => apiMocks);
 
-vi.mock("../src/features/telehealth/dailyAdapter", () => ({
-  DailyMediaAdapter: class {
+vi.mock("../src/features/telehealth/mediaAdapter", () => ({
+  createTelehealthMediaAdapter: vi.fn(() =>
+    new (class {
     join = vi.fn().mockResolvedValue(undefined);
     leave = vi.fn().mockResolvedValue(undefined);
     destroy = vi.fn().mockResolvedValue(undefined);
@@ -89,7 +90,7 @@ vi.mock("../src/features/telehealth/dailyAdapter", () => ({
     constructor() {
       mediaMocks.instances.push(this);
     }
-  },
+    })(),
 }));
 
 vi.mock("../src/features/scribe/ScribeRecordingProvider", () => ({
@@ -102,9 +103,10 @@ const grantEnvelope = {
   data: {
     join_grant: {
       token: "ephemeral-provider-token",
-      room_url: "https://room.example.invalid/visit-1",
+      room_name: "apply-visit-1",
+      room_url: null,
       expires_at: "2026-09-08T12:05:00Z",
-      provider: "daily" as const,
+      provider: "twilio" as const,
       participant: {
         id: "app-participant-1",
         provider_subject_id: "provider-subject-1",
@@ -245,15 +247,14 @@ afterEach(() => {
 });
 
 describe("persistent telehealth session authorization", () => {
-  it("passes only neutral identity to Daily and keeps the grant credential out of session state", async () => {
+  it("passes the Twilio room name and keeps the grant credential out of session state", async () => {
     await joinStaff();
     const adapter = mediaMocks.instances[0];
     const active = hooks.states[0].value;
 
     expect(adapter.join).toHaveBeenCalledWith({
-      roomUrl: "https://room.example.invalid/visit-1",
+      roomName: "apply-visit-1",
       token: "ephemeral-provider-token",
-      displayName: "Care team",
     });
     expect(active).toMatchObject({
       visitId: "visit-1",

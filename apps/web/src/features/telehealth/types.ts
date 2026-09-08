@@ -125,6 +125,72 @@ export type TelehealthParticipant = {
   media_present: boolean;
 };
 
+export type TelehealthWrapUpOutcome =
+  "completed" | "technical_failure" | "follow_up_needed";
+
+export type TelehealthFollowUpStatus = "none" | "needed" | "arranged";
+
+export type TelehealthScribeReviewStatus = "not_used" | "reviewed" | "deferred";
+
+export type TelehealthWrapUp = {
+  id: number;
+  status: "draft" | "finalized";
+  outcome: TelehealthWrapUpOutcome | null;
+  clinician_notes: string;
+  patient_instructions: string;
+  instruction_note_revision_id: number | null;
+  follow_up_status: TelehealthFollowUpStatus | null;
+  follow_up_plan: string;
+  follow_up_appointment: TelehealthAppointmentSummary | null;
+  scribe_review_status: TelehealthScribeReviewStatus | null;
+  scribe_snapshot: {
+    encounter_id: number | null;
+    encounter_status: string | null;
+    draft_id: number | null;
+    draft_status: string | null;
+    export_id: number | null;
+    export_state: string | null;
+    encounter_note_id: number | null;
+    encounter_note_revision_id: number | null;
+  };
+  publication_state:
+    "draft" | "awaiting_encounter_close" | "release_blocked" | "released";
+  finalized_at: string | null;
+  finalized_by_membership_id: number | null;
+  version: number;
+};
+
+export type TelehealthWrapUpOptions = {
+  instruction_revisions: {
+    id: number;
+    patient_instructions: string;
+    signed_at: string;
+  }[];
+  follow_up_appointments: TelehealthAppointmentSummary[];
+  blockers: string[];
+};
+
+export type PatientTelehealthCompletion = {
+  status: "pending" | "ready";
+  outcome: TelehealthWrapUpOutcome | null;
+  instructions: string | null;
+  follow_up_status: TelehealthFollowUpStatus | null;
+  follow_up_plan: string | null;
+  follow_up_appointment: TelehealthAppointmentSummary | null;
+  published_at: string | null;
+};
+
+export type TelehealthWrapUpInput = {
+  outcome: TelehealthWrapUpOutcome | null;
+  clinician_notes: string;
+  patient_instructions: string;
+  instruction_note_revision_id: number | null;
+  follow_up_status: TelehealthFollowUpStatus | null;
+  follow_up_plan: string;
+  follow_up_appointment_id: number | null;
+  scribe_review_status: TelehealthScribeReviewStatus | null;
+};
+
 export type TelehealthVisit = {
   public_id: string;
   status: TelehealthVisitStatus;
@@ -155,6 +221,9 @@ export type TelehealthVisit = {
       lease_expires_at?: string | null;
     };
   };
+  wrap_up?: TelehealthWrapUp | null;
+  wrap_up_options?: TelehealthWrapUpOptions | null;
+  completion?: PatientTelehealthCompletion | null;
   practice?: { id: number; name: string; timezone: string };
   clinician?: { membership_id?: number; display_name: string } | null;
   support?: {
@@ -208,9 +277,10 @@ export type TelehealthQueueData = {
 
 export type TelehealthJoinGrant = {
   token: string;
-  room_url: string;
+  room_name: string;
+  room_url: string | null;
   expires_at: string;
-  provider: "daily";
+  provider: "twilio" | "daily";
   participant: { id: string; provider_subject_id: string };
   room: { expires_at: string };
 };

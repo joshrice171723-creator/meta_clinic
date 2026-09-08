@@ -6,7 +6,7 @@ module Clinic
         verify_preparation: "telehealth.prepare.verify", prepare_room: "telehealth.host",
         admit: "telehealth.host", remove: "telehealth.host", end: "telehealth.host",
         extend: "telehealth.host", resume: "telehealth.host", participate: "telehealth.participate",
-        reconcile: "telehealth.reconcile", configure: "telehealth.configure"
+        reconcile: "telehealth.reconcile", configure: "telehealth.configure", wrap_up: "telehealth.host"
       }.freeze
       module_function
 
@@ -32,7 +32,8 @@ module Clinic
           verify_preparation: "telehealth.verify_preparation", prepare_room: "telehealth.prepare_room",
           admit: "telehealth.admit", remove: "telehealth.remove", end: "telehealth.end",
           extend: "telehealth.extend", resume: "telehealth.resume", participate: "telehealth.join",
-          reconcile: "telehealth.reconcile", configure: "telehealth.configure"
+          reconcile: "telehealth.reconcile", configure: "telehealth.configure",
+          wrap_up: "telehealth.save_wrap_up"
         }
         ACTION_PERMISSIONS.each do |action, permission|
           allowed = ability.allowed_permission?(permission, site: visit.appointment.site)

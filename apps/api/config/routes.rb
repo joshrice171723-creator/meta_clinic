@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   post "api/integrations/telehealth/daily/events", to: "integrations/telehealth/daily_events#create"
+  post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
   scope path: "api", as: "api" do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   namespace :clinic do
@@ -23,6 +24,8 @@ Rails.application.routes.draw do
       post "visits/:visit_id/extend", to: "visits#extend_visit"
       post "visits/:visit_id/resume", to: "visits#resume"
       post "visits/:visit_id/reconcile", to: "visits#reconcile"
+      post "visits/:visit_id/save_wrap_up", to: "visits#save_wrap_up"
+      post "visits/:visit_id/finalize_wrap_up", to: "visits#finalize_wrap_up"
       get "settings", to: "settings#show"
       put "settings/draft", to: "settings#draft"
       post "settings/publish", to: "settings#publish"

@@ -20,6 +20,7 @@ module Clinic
       has_many :room_attempts, class_name: "Clinic::Telehealth::RoomAttempt", dependent: :restrict_with_error
       has_many :join_grants, class_name: "Clinic::Telehealth::JoinGrant", dependent: :restrict_with_error
       has_many :commands, class_name: "Clinic::Telehealth::Command", dependent: :restrict_with_error
+      has_one :wrap_up, class_name: "Clinic::Telehealth::WrapUp", dependent: :restrict_with_error
 
       enum :status, { scheduled: "scheduled", in_progress: "in_progress", ending: "ending", ended: "ended",
         cancelled: "cancelled", no_show: "no_show" }, validate: true

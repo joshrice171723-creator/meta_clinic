@@ -27,10 +27,24 @@ module Clinic
             if current.persisted? && current.lock_version != expected_version.to_i
               raise ActiveRecord::StaleObjectError.new(current, "update")
             end
+            requested_enabled = enabled_value(setting_input[:enabled])
+            requested_provider = Config.provider
+            requested_account_ref = setting_input[:provider_account_ref].to_s.strip.presence
+            provider_changed = current.persisted? && (current.provider_code != requested_provider ||
+              current.provider_account_ref != requested_account_ref)
+            if provider_changed && (requested_enabled || active_provider_rooms?(practice, current.provider_code))
+              raise Error.new("Disable telehealth and end active rooms before changing the video provider.",
+                code: "provider_change_blocked", status: :conflict)
+            end
             current.updated_by_membership_id = membership.id
-            current.provider_code = "daily"
-            current.provider_account_ref = setting_input[:provider_account_ref].to_s.strip.presence
-            current.enabled = enabled_value(setting_input[:enabled])
+            current.provider_code = requested_provider
+            current.provider_account_ref = requested_account_ref
+            current.enabled = requested_enabled
+            if provider_changed
+              current.health_status = "not_checked"
+              current.health_checked_at = nil
+              current.last_error_code = nil
+            end
             if current.enabled?
               unless current.active_policy_version&.published? && current.health_status == "ready" && Config.configured_for?(current)
                 raise Error.new("Publish a policy and verify the provider before enabling telehealth.", code: "telehealth_not_ready")
@@ -104,6 +118,11 @@ module Clinic
 
       def enabled_value(value)
         ActiveModel::Type::Boolean.new.cast(value)
+      end
+
+      def active_provider_rooms?(practice, provider_code)
+        RoomAttempt.where(practice_id: practice.id, provider_code: provider_code,
+          status: %w[pending provisioning ready active ending unknown]).exists?
       end
 
       def policy_digest(policy)
