@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Run backend race tests on a uniquely named, wholly synthetic test database."""
+import os
+import pathlib
+import subprocess
+import tempfile
+import uuid
+
+root = pathlib.Path(__file__).resolve().parents[1]
+name = "apply_backend_verify_" + uuid.uuid4().hex[:12]
+env = os.environ.copy()
+if env.get("PGHOST", "127.0.0.1") not in ("127.0.0.1", "localhost", "::1"):
+    raise SystemExit("Loopback PostgreSQL required")
+env.pop("DATABASE_URL", None)
+env.update(RAILS_ENV="test", APPLY_TEST_DATABASE=name, APPLY_DEVELOPMENT_DATABASE=name + "_unused", SKIP_TEST_DATABASE="1")
+postgres_clients = {"createdb", "dropdb", "psql", "pg_dump", "pg_restore", "pg_isready"}
+created = False
+
+def platform_command(command):
+    if os.name != "nt":
+        return command
+    if command[0] in postgres_clients:
+        return ["ruby", str(root / "bin" / "pg-client.rb"), command[0], *command[1:]]
+    script = root / command[0]
+    shebang = script.open().readline() if script.is_file() else ""
+    if "ruby" in shebang:
+        return ["ruby", str(script), *command[1:]]
+    if "python" in shebang:
+        return ["python", str(script), *command[1:]]
+    return command
+
+def run(command):
+    result = subprocess.run(platform_command(command), cwd=root, env=env, capture_output=True, text=True)
+    if result.returncode:
+        # This process creates all input; expose only synthetic assertion output.
+        print(result.stdout)
+        print(result.stderr)
+        raise RuntimeError("Backend verification failed")
+    return result.stdout
+
+with tempfile.TemporaryDirectory(prefix="apply-backend-verify-") as temporary:
+    env["SCHEMA"] = str(pathlib.Path(temporary) / "structure.sql")
+    try:
+        run(["createdb", name])
+        created = True
+        run(["bin/rails", "db:migrate"])
+        print(run(["bin/rails", "runner", "test/verification/backend_races.rb"]), end="")
+    finally:
+        if created:
+            subprocess.run(platform_command(["dropdb", name]), env=env, check=True, capture_output=True)
+            print("Removed only the task-owned backend scratch database")

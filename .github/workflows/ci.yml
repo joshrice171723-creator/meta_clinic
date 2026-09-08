@@ -1,0 +1,230 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/api
+
+env:
+  BUNDLE_FROZEN: "true"
+
+jobs:
+  agent_docs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout agent instructions and vault
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Verify vault knowledge base
+        run: python3 -B bin/verify-vault
+
+      - name: Verify agent harness and skills
+        run: python3 -B bin/verify-agent-harness
+
+      - name: Exercise instruction discovery for each repository surface
+        run: |
+          bin/agent-preflight --path APPlyVault \
+            --path apps/api \
+            --path apps/web \
+            --path ops/aws \
+            --path site \
+            --path agent-harness \
+            --path .agents/skills
+
+  scan_ruby:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            apps/api
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: apps/api
+          bundler-cache: true
+
+      - name: Scan for common Rails security vulnerabilities using static analysis
+        run: bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
+
+      - name: Scan for known security vulnerabilities in gems used
+        run: bin/bundler-audit check --update
+
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RUBOCOP_CACHE_ROOT: ${{ github.workspace }}/apps/api/tmp/rubocop
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            apps/api
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: apps/api
+          bundler-cache: true
+
+      - name: Prepare RuboCop cache
+        uses: actions/cache@v5
+        env:
+          DEPENDENCIES_HASH: ${{ hashFiles('apps/api/.ruby-version', 'apps/api/**/.rubocop.yml', 'apps/api/**/.rubocop_todo.yml', 'apps/api/Gemfile.lock') }}
+        with:
+          path: ${{ env.RUBOCOP_CACHE_ROOT }}
+          key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }}
+          restore-keys: |
+            rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
+
+      - name: Lint code for consistent style
+        run: bin/rubocop -f github
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RAILS_ENV: test
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: disposable-ci-only
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            apps/api
+            apps/web
+            bin
+
+      - name: Install PostgreSQL 18 client tools from the official repository
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: apps/api
+          bundler-cache: true
+
+      - name: Prepare a fresh synthetic test database
+        run: bin/rails db:prepare
+
+      - name: Run Rails tests
+        run: bin/rails test
+
+      - name: Check eager loading
+        run: bin/rails zeitwerk:check
+
+      - name: Verify backend concurrent workflow invariants
+        run: bin/verify-backend
+
+      - name: Verify legacy conversion, concurrency and restore
+        run: bin/verify-postgres
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: apps/web/.node-version
+      - name: Install frontend dependencies for transport checks
+        run: npm ci --prefix ../web --ignore-scripts
+      - name: Verify the local frontend-to-API boundary
+        run: ../../bin/verify-web
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            apps/web
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: apps/web/.node-version
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run format:check
+      - run: npm run build
+      - run: npm audit --audit-level=high
+
+  delivery_contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            apps/api/Dockerfile
+            apps/api/config/environments/production.rb
+            apps/api/config/routes.rb
+            apps/web/Dockerfile
+            apps/web/nginx.conf
+            ops/aws/ec2
+      - name: Verify release pairs and host launcher contracts without external services
+        run: python3 -B -m unittest discover -s ops/aws/ec2 -p 'test_*.py'
+      - name: Check every host shell script
+        run: |
+          for script in ops/aws/ec2/*.sh; do
+            bash -n "$script"
+          done
+      - name: Enforce offline release-readiness contracts
+        run: python3 -B ops/aws/ec2/release_readiness.py

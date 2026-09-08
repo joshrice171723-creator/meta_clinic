@@ -1,0 +1,6 @@
+interface:
+  display_name: "Start APPly Dev"
+  short_description: "Run the canonical APPly development lifecycle"
+  default_prompt: "Use $startdev to run the requested canonical APPly local development action and report strict readiness plus phase timing."
+policy:
+  allow_implicit_invocation: false

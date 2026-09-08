@@ -1,0 +1,1167 @@
+.clinic-theme .billing-page {
+  display: grid;
+  gap: 22px;
+  max-width: 1480px;
+}
+.clinic-theme .billing-header,
+.clinic-theme .billing-section-heading,
+.clinic-theme .billing-ledger-heading,
+.clinic-theme .billing-currency,
+.clinic-theme .billing-payment-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.clinic-theme .billing-header h1 {
+  margin: 4px 0 8px;
+}
+.clinic-theme .billing-period {
+  min-width: 160px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 10px;
+  background: var(--clinic-surface);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+.clinic-theme .billing-period span,
+.clinic-theme .billing-metric > span,
+.clinic-theme .billing-metric small,
+.clinic-theme .billing-currency small,
+.clinic-theme .billing-invoice-detail-values span,
+.clinic-theme .billing-payment-list small {
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .billing-period strong {
+  font-size: 15px;
+}
+.clinic-theme .billing-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.clinic-theme .billing-metric {
+  min-width: 0;
+  border: 1px solid var(--clinic-border);
+  border-radius: 10px;
+  background: var(--clinic-surface);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+.clinic-theme .billing-metric strong {
+  font-size: clamp(23px, 2.2vw, 34px);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-metric-positive strong {
+  color: var(--clinic-success);
+}
+.clinic-theme .billing-workspace-grid,
+.clinic-theme .billing-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  gap: 18px;
+}
+.clinic-theme .billing-page .clinic-card {
+  margin: 0;
+}
+.clinic-theme .billing-section-heading {
+  margin-bottom: 16px;
+}
+.clinic-theme .billing-section-heading h2 {
+  margin: 4px 0 0;
+}
+.clinic-theme .billing-ledger-count {
+  align-self: flex-end;
+  color: var(--clinic-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.clinic-theme .billing-text-button,
+.clinic-theme .billing-filter-group button,
+.clinic-theme .billing-invoice-button {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.clinic-theme .billing-text-button {
+  min-height: 36px;
+  background: transparent;
+  color: var(--clinic-accent);
+  font-weight: 650;
+  padding: 4px 0;
+}
+.clinic-theme .billing-text-button:hover,
+.clinic-theme .billing-invoice-button:hover {
+  text-decoration: underline;
+}
+.clinic-theme .billing-queue-list {
+  display: grid;
+  gap: 10px;
+}
+.clinic-theme .billing-queue-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--clinic-text);
+  padding: 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.clinic-theme .billing-queue-item:hover,
+.clinic-theme .billing-queue-item[aria-pressed="true"] {
+  border-color: var(--clinic-accent);
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-queue-count {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--clinic-soft);
+  font-size: 18px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-queue-attention .billing-queue-count {
+  background: var(--clinic-warning-bg);
+  color: var(--clinic-warning);
+}
+.clinic-theme .billing-queue-copy {
+  display: grid;
+  gap: 3px;
+}
+.clinic-theme .billing-queue-copy small,
+.clinic-theme .billing-clear-state,
+.clinic-theme .billing-fine-print {
+  color: var(--clinic-muted);
+  font-size: 14px !important;
+}
+.clinic-theme .billing-queue-arrow {
+  color: var(--clinic-accent);
+  font-size: 20px;
+  text-align: right;
+}
+.clinic-theme .billing-clear-state {
+  margin: 16px 0 0;
+}
+.clinic-theme .billing-currency-card {
+  display: flex;
+  flex-direction: column;
+}
+.clinic-theme .billing-currency-list {
+  display: grid;
+  gap: 4px;
+}
+.clinic-theme .billing-currency {
+  padding: 12px 0;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-currency:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.clinic-theme .billing-currency > strong {
+  min-width: 44px;
+}
+.clinic-theme .billing-currency > span {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-fine-print {
+  margin: auto 0 0;
+  padding-top: 16px;
+}
+.clinic-theme .billing-filter-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.clinic-theme .billing-filter-group button {
+  min-height: 34px;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--clinic-muted);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.clinic-theme .billing-filter-group button[aria-pressed="true"] {
+  color: var(--clinic-on-accent);
+  background: var(--clinic-accent);
+}
+.clinic-theme .billing-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-ledger-table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: collapse;
+}
+.clinic-theme .billing-ledger-table th,
+.clinic-theme .billing-ledger-table td {
+  padding: 13px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+.clinic-theme .billing-ledger-table th:not(:first-child),
+.clinic-theme .billing-ledger-table td:not(:first-child) {
+  text-align: right;
+}
+.clinic-theme .billing-ledger-table tbody tr {
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-ledger-table tbody tr[data-selected="true"] {
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-invoice-button {
+  background: transparent;
+  color: var(--clinic-accent);
+  font-weight: 750;
+  padding: 3px 0;
+}
+.clinic-theme .billing-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid var(--clinic-border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+.clinic-theme .billing-paid {
+  background: var(--clinic-success-bg);
+  border-color: var(--clinic-success);
+  color: var(--clinic-success);
+}
+.clinic-theme .billing-partial,
+.clinic-theme .billing-open {
+  background: var(--clinic-warning-bg);
+  border-color: var(--clinic-warning);
+  color: var(--clinic-warning);
+}
+.clinic-theme .billing-draft {
+  color: var(--clinic-accent);
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-void {
+  color: var(--clinic-muted);
+}
+.clinic-theme .billing-invoice-detail-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--clinic-border);
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-invoice-detail-values > div {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border-left: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-invoice-detail-values > div:first-child {
+  border-left: 0;
+}
+.clinic-theme .billing-invoice-detail-values strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-payment-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-payment-list li {
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-payment-list li > span {
+  display: grid;
+  gap: 3px;
+}
+.clinic-theme .billing-payment-list li > strong {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1080px) {
+  .clinic-theme .billing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinic-theme .billing-workspace-grid,
+  .clinic-theme .billing-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .clinic-theme .billing-page {
+    gap: 16px;
+  }
+  .clinic-theme .billing-header,
+  .clinic-theme .billing-section-heading,
+  .clinic-theme .billing-ledger-heading {
+    display: grid;
+    gap: 12px;
+  }
+  .clinic-theme .billing-period {
+    min-width: 0;
+  }
+  .clinic-theme .billing-metrics {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-filter-group {
+    width: fit-content;
+  }
+  .clinic-theme .billing-ledger-count {
+    justify-self: start;
+  }
+  .clinic-theme .billing-currency {
+    display: grid;
+    grid-template-columns: 48px 1fr 1fr;
+    gap: 8px;
+  }
+  .clinic-theme .billing-invoice-detail-values {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-invoice-detail-values > div,
+  .clinic-theme .billing-invoice-detail-values > div:first-child {
+    border-left: 0;
+    border-top: 1px solid var(--clinic-border);
+  }
+  .clinic-theme .billing-invoice-detail-values > div:first-child {
+    border-top: 0;
+  }
+}
+
+/* Billing operations pass: clear ledger hierarchy, reviewable actions, and responsive records. */
+.clinic-theme .billing-page {
+  max-width: 1440px;
+  gap: 24px;
+}
+.clinic-theme .billing-header {
+  align-items: center;
+}
+.clinic-theme .billing-header h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  letter-spacing: -0.025em;
+}
+.clinic-theme .billing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.clinic-theme .billing-period {
+  min-width: 150px;
+  padding: 11px 14px;
+  border-radius: 8px;
+}
+.clinic-theme .billing-period span,
+.clinic-theme .billing-metric > span,
+.clinic-theme .billing-metric small,
+.clinic-theme .billing-currency small,
+.clinic-theme .billing-invoice-detail-values span,
+.clinic-theme .billing-payment-list small {
+  font-size: 13px;
+}
+.clinic-theme .billing-secondary-button,
+.clinic-theme .billing-primary-button {
+  min-height: 44px;
+  border: 1px solid var(--clinic-accent);
+  border-radius: 7px;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.clinic-theme .billing-primary-button {
+  background: var(--clinic-accent);
+  color: var(--clinic-on-accent);
+}
+.clinic-theme .billing-secondary-button {
+  background: var(--clinic-surface);
+  color: var(--clinic-accent);
+}
+.clinic-theme .billing-primary-button:hover:not(:disabled),
+.clinic-theme .billing-secondary-button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+.clinic-theme .billing-primary-button:disabled,
+.clinic-theme .billing-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.clinic-theme .billing-primary-button:focus-visible,
+.clinic-theme .billing-secondary-button:focus-visible,
+.clinic-theme .billing-text-button:focus-visible,
+.clinic-theme .billing-filter-group button:focus-visible,
+.clinic-theme .billing-invoice-button:focus-visible,
+.clinic-theme .billing-payment-form input:focus-visible,
+.clinic-theme .billing-payment-form select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--clinic-accent) 28%, transparent);
+  outline-offset: 2px;
+}
+.clinic-theme .billing-metrics {
+  gap: 10px;
+}
+.clinic-theme .billing-metric {
+  border-radius: 8px;
+  padding: 16px;
+}
+.clinic-theme .billing-metric strong {
+  font-size: clamp(22px, 2vw, 30px);
+}
+.clinic-theme .billing-workspace-grid,
+.clinic-theme .billing-detail-grid {
+  gap: 16px;
+}
+.clinic-theme .billing-page .clinic-card {
+  border-radius: 10px;
+}
+.clinic-theme .billing-section-heading {
+  margin-bottom: 18px;
+}
+.clinic-theme .billing-section-heading h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.clinic-theme .billing-filter-group button {
+  min-height: 40px;
+}
+.clinic-theme .billing-ledger-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 200px auto;
+  align-items: end;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.clinic-theme .billing-search-field,
+.clinic-theme .billing-sort-field {
+  display: grid;
+  gap: 6px;
+  color: var(--clinic-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+.clinic-theme .billing-search-field input,
+.clinic-theme .billing-sort-field select,
+.clinic-theme .billing-payment-form input {
+  min-height: 44px;
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--clinic-control);
+  border-radius: 7px;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  padding: 10px 12px;
+  font: inherit;
+}
+.clinic-theme .billing-results-count {
+  margin: 0 0 12px;
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+
+.clinic-theme .billing-pagination {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  padding: 1rem 0 0;
+}
+
+.clinic-theme .billing-pagination span {
+  color: var(--clinic-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clinic-theme .billing-audit-timeline {
+  border-top: 1px solid var(--clinic-border);
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.clinic-theme .billing-audit-timeline h3 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+.clinic-theme .billing-audit-timeline ol {
+  display: grid;
+  gap: 9px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.clinic-theme .billing-audit-timeline li {
+  display: grid;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 2px solid var(--clinic-border);
+}
+
+.clinic-theme .billing-audit-timeline li span,
+.clinic-theme .billing-audit-timeline li small {
+  color: var(--clinic-muted);
+  font-size: 12px;
+}
+.clinic-theme .billing-table-wrap {
+  border-top-color: var(--clinic-border);
+}
+.clinic-theme .billing-ledger-table th,
+.clinic-theme .billing-ledger-table td {
+  padding: 14px 12px;
+  font-size: 14px;
+}
+.clinic-theme .billing-ledger-table thead th {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+.clinic-theme .billing-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: -4px 0 16px;
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .billing-line-items {
+  display: grid;
+  gap: 0;
+  margin-top: 18px;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-line-items-header,
+.clinic-theme .billing-line-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px 110px;
+  gap: 14px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-line-items-header {
+  color: var(--clinic-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.clinic-theme .billing-line-item span:first-child {
+  display: grid;
+  gap: 3px;
+}
+.clinic-theme .billing-line-item small {
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .billing-line-item > :last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.clinic-theme .billing-payment-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-payment-form h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.clinic-theme .billing-payment-form p {
+  margin: 4px 0 0;
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .billing-payment-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(150px, 0.6fr);
+  gap: 10px;
+}
+.clinic-theme .billing-payment-fields label {
+  display: grid;
+  gap: 6px;
+  color: var(--clinic-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+.clinic-theme .billing-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--clinic-warning);
+  border-radius: 8px;
+  background: var(--clinic-warning-bg);
+}
+.clinic-theme .billing-confirm p {
+  margin: 4px 0 0;
+  color: var(--clinic-muted);
+}
+.clinic-theme .billing-confirm-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.clinic-theme .billing-inline-error,
+.clinic-theme .billing-inline-success {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.clinic-theme .billing-inline-error {
+  color: var(--clinic-error);
+  background: var(--clinic-error-bg);
+}
+.clinic-theme .billing-inline-success {
+  color: var(--clinic-success);
+  background: var(--clinic-success-bg);
+}
+.clinic-theme .billing-loading-detail {
+  margin: 18px 0 0;
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .clinic-theme .billing-page {
+    gap: 18px;
+  }
+  .clinic-theme .billing-header-actions {
+    justify-content: stretch;
+  }
+  .clinic-theme .billing-header-actions > * {
+    flex: 1;
+  }
+  .clinic-theme .billing-header-actions .billing-secondary-button {
+    white-space: nowrap;
+  }
+  .clinic-theme .billing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinic-theme .billing-metric {
+    padding: 13px;
+  }
+  .clinic-theme .billing-metric strong {
+    font-size: 23px;
+  }
+  .clinic-theme .billing-ledger-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-ledger-toolbar .billing-text-button {
+    justify-self: start;
+  }
+  .clinic-theme .billing-ledger-table,
+  .clinic-theme .billing-ledger-table thead,
+  .clinic-theme .billing-ledger-table tbody,
+  .clinic-theme .billing-ledger-table tr,
+  .clinic-theme .billing-ledger-table td,
+  .clinic-theme .billing-ledger-table th {
+    display: block;
+  }
+  .clinic-theme .billing-ledger-table {
+    min-width: 0;
+  }
+  .clinic-theme .billing-ledger-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .clinic-theme .billing-ledger-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 16px;
+    margin-top: 8px;
+    padding: 14px;
+    border: 1px solid var(--clinic-border);
+    border-radius: 8px;
+  }
+  .clinic-theme .billing-ledger-table tbody th,
+  .clinic-theme .billing-ledger-table tbody td {
+    min-width: 0;
+    padding: 0;
+    text-align: left !important;
+    white-space: normal;
+  }
+  .clinic-theme .billing-ledger-table tbody th {
+    grid-column: 1 / -1;
+  }
+  .clinic-theme .billing-ledger-table tbody td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--clinic-muted);
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .clinic-theme .billing-ledger-table tbody td:nth-child(2) {
+    grid-column: 2;
+    text-align: right !important;
+  }
+  .clinic-theme .billing-ledger-table tbody td:nth-child(3),
+  .clinic-theme .billing-ledger-table tbody td:nth-child(6) {
+    grid-column: 1 / -1;
+  }
+  .clinic-theme .billing-ledger-table tbody td:nth-child(5) {
+    text-align: right !important;
+  }
+  .clinic-theme .billing-payment-fields {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-line-items-header {
+    display: none;
+  }
+  .clinic-theme .billing-line-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 14px;
+  }
+  .clinic-theme .billing-line-item > :last-child {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .clinic-theme .billing-confirm {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .clinic-theme .billing-confirm-actions {
+    justify-content: stretch;
+  }
+  .clinic-theme .billing-confirm-actions > * {
+    flex: 1;
+  }
+}
+
+/* Billing review composition: one financial summary and focused workspaces. */
+.clinic-theme .billing-search-form {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.clinic-theme .billing-page {
+  gap: 20px;
+  min-width: 0;
+}
+.clinic-theme .billing-subtitle {
+  color: var(--clinic-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 6px 0 0;
+  max-width: 72ch;
+}
+.clinic-theme .billing-header {
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.clinic-theme .billing-header h1 {
+  font-size: 30px;
+  margin: 0;
+}
+.clinic-theme .billing-header-actions {
+  gap: 8px;
+}
+.clinic-theme .billing-overview {
+  border: 1px solid var(--clinic-border);
+  border-radius: 12px;
+  background: var(--clinic-surface);
+  overflow: hidden;
+}
+.clinic-theme .billing-overview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-overview-heading > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: baseline;
+}
+.clinic-theme .billing-overview-heading span {
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .billing-overview .billing-metrics {
+  gap: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 22px 0;
+}
+.clinic-theme .billing-overview .billing-metric {
+  border: 0;
+  border-radius: 0;
+  border-inline-start: 1px solid var(--clinic-border);
+  padding: 0 24px;
+  background: none;
+  align-content: start;
+  gap: 10px;
+}
+.clinic-theme .billing-overview .billing-metric:first-child {
+  border-inline-start: 0;
+}
+.clinic-theme .billing-overview .billing-metric strong {
+  font-size: clamp(22px, 1.8vw, 30px);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.clinic-theme .billing-overview .billing-metric small {
+  line-height: 1.5;
+}
+.clinic-theme .billing-attention-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--clinic-border);
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-attention-strip > strong {
+  font-size: 13px;
+}
+.clinic-theme .billing-attention-strip .billing-outlook-link {
+  margin-inline-start: auto;
+}
+.clinic-theme .billing-workspace-tabs {
+  border-bottom: 1px solid var(--clinic-border);
+  min-width: 0;
+}
+.clinic-theme .billing-workspace-tabs .MuiTab-root {
+  min-height: 50px;
+  text-transform: none;
+  font-size: 14px;
+  padding-inline: 20px;
+}
+.clinic-theme .billing-panel {
+  min-width: 0;
+}
+.clinic-theme .billing-panel[hidden] {
+  display: none;
+}
+.clinic-theme .billing-page .clinic-card {
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.clinic-theme .billing-ledger-toolbar {
+  grid-template-columns: minmax(200px, 1fr) minmax(180px, 230px) minmax(
+      160px,
+      190px
+    );
+  gap: 14px;
+  margin-top: 24px;
+  align-items: start;
+}
+.clinic-theme .billing-results-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  margin-bottom: 8px;
+}
+.clinic-theme .billing-results-row p {
+  margin: 0;
+}
+.clinic-theme .billing-ledger-table th:nth-child(2),
+.clinic-theme .billing-ledger-table td:nth-child(2),
+.clinic-theme .billing-ledger-table th:nth-child(3),
+.clinic-theme .billing-ledger-table td:nth-child(3) {
+  text-align: left;
+}
+.clinic-theme .billing-ledger-table tbody tr[data-selected="true"] {
+  background: transparent;
+}
+.clinic-theme .billing-ledger-table tbody tr:hover {
+  background: var(--clinic-soft);
+}
+.clinic-theme .billing-empty-state {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--clinic-muted);
+}
+.clinic-theme .billing-empty-state h3 {
+  color: var(--clinic-text);
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+.clinic-theme .billing-empty-state p {
+  max-width: 55ch;
+  margin: 0 auto;
+}
+.clinic-theme .billing-payments-workspace .MuiTableCell-root {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.clinic-theme .billing-payments-workspace .MuiTableCell-head {
+  color: var(--clinic-muted);
+}
+.clinic-theme .billing-outlook-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0;
+}
+.clinic-theme .billing-outlook-controls .MuiTextField-root {
+  min-width: 160px;
+}
+.clinic-theme .billing-outlook-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 20px 0;
+  border-block: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-outlook-summary > div {
+  display: grid;
+  gap: 6px;
+}
+.clinic-theme .billing-outlook-summary strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+.clinic-theme .billing-outlook-summary span,
+.clinic-theme .billing-outlook-summary small {
+  color: var(--clinic-muted);
+}
+.clinic-theme .billing-outlook .MuiTableCell-root {
+  font-variant-numeric: tabular-nums;
+}
+.clinic-theme .billing-cash-context {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 4px;
+}
+.clinic-theme .billing-invoice-dialog .clinic-card {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.clinic-theme .billing-invoice-dialog .billing-section-heading {
+  margin-bottom: 20px;
+}
+@media (max-width: 1100px) {
+  .clinic-theme .billing-overview .billing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 26px;
+  }
+  .clinic-theme .billing-overview .billing-metric:nth-child(3) {
+    border-inline-start: 0;
+  }
+  .clinic-theme .billing-ledger-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .clinic-theme .billing-ledger-toolbar > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .clinic-theme .billing-header-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .clinic-theme .billing-header-actions > * {
+    flex: 1 1 auto;
+  }
+  .clinic-theme .billing-page .clinic-card {
+    padding: 18px;
+  }
+  .clinic-theme .billing-overview-heading {
+    padding: 14px 16px;
+  }
+  .clinic-theme .billing-overview .billing-metric {
+    padding-inline: 16px;
+  }
+  .clinic-theme .billing-overview .billing-metric strong {
+    font-size: 21px;
+  }
+  .clinic-theme .billing-attention-strip {
+    padding-inline: 16px;
+    gap: 4px;
+  }
+  .clinic-theme .billing-attention-strip .billing-outlook-link {
+    margin-inline-start: 0;
+  }
+  .clinic-theme .billing-ledger-toolbar,
+  .clinic-theme .billing-outlook-summary {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-outlook-controls > * {
+    flex: 1 1 100%;
+  }
+  .clinic-theme .billing-outlook .MuiTable-root {
+    min-width: 540px;
+  }
+}
+
+/* Membership collection stays operational: setup, records, then recovery. */
+.clinic-theme .billing-subscriptions {
+  padding-block: 24px;
+}
+.clinic-theme .billing-subscription-setup,
+.clinic-theme .billing-subscription-records {
+  border-color: var(--clinic-border);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 24px;
+}
+.clinic-theme .billing-stripe-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-stripe-status > div {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border-inline-start: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-stripe-status > div:first-child {
+  border-inline-start: 0;
+}
+.clinic-theme .billing-stripe-status span,
+.clinic-theme .billing-subscription-facts span {
+  color: var(--clinic-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.clinic-theme .billing-stripe-status strong,
+.clinic-theme .billing-subscription-facts strong {
+  color: var(--clinic-text);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.clinic-theme .billing-stripe-status .MuiChip-root {
+  justify-self: start;
+}
+.clinic-theme .billing-subscription-row {
+  border-color: var(--clinic-border);
+  border-radius: 8px;
+  box-shadow: none;
+  overflow: hidden;
+}
+.clinic-theme .billing-subscription-row::before {
+  display: none;
+}
+.clinic-theme .billing-subscription-row .MuiAccordionSummary-root {
+  min-height: 68px;
+  padding-inline: 18px;
+}
+.clinic-theme .billing-subscription-row .MuiAccordionDetails-root {
+  border-top: 1px solid var(--clinic-border);
+  padding: 20px;
+}
+.clinic-theme .billing-subscription-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-subscription-facts > div {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-inline-start: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-subscription-facts > div:nth-child(4n + 1) {
+  border-inline-start: 0;
+}
+.clinic-theme .billing-subscription-facts > div:nth-child(n + 5) {
+  border-top: 1px solid var(--clinic-border);
+}
+
+@media (max-width: 1024px) {
+  .clinic-theme .billing-stripe-status,
+  .clinic-theme .billing-subscription-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinic-theme .billing-stripe-status > div:nth-child(odd),
+  .clinic-theme .billing-subscription-facts > div:nth-child(odd) {
+    border-inline-start: 0;
+  }
+  .clinic-theme .billing-stripe-status > div:nth-child(n + 3),
+  .clinic-theme .billing-subscription-facts > div:nth-child(n + 3) {
+    border-top: 1px solid var(--clinic-border);
+  }
+}
+
+@media (max-width: 600px) {
+  .clinic-theme .billing-subscriptions {
+    padding-block: 18px;
+  }
+  .clinic-theme .billing-subscription-setup,
+  .clinic-theme .billing-subscription-records {
+    padding: 18px;
+  }
+  .clinic-theme .billing-stripe-status,
+  .clinic-theme .billing-subscription-facts {
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .billing-stripe-status > div,
+  .clinic-theme .billing-subscription-facts > div {
+    border-inline-start: 0;
+    border-top: 1px solid var(--clinic-border);
+  }
+  .clinic-theme .billing-stripe-status > div:first-child,
+  .clinic-theme .billing-subscription-facts > div:first-child {
+    border-top: 0;
+  }
+}

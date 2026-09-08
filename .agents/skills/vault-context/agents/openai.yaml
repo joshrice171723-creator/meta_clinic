@@ -1,0 +1,4 @@
+interface:
+  display_name: "APPly Vault Context"
+  short_description: "Retrieve focused current context from the APPly knowledge base"
+  default_prompt: "Use $vault-context to retrieve only the APPly vault context relevant to this request."

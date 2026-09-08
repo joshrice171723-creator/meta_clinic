@@ -1,0 +1,24 @@
+/.bundle/
+/.env*
+!/.env.example
+/config/master.key
+/config/credentials*.yml.enc
+/config/credentials/
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+/storage/*
+!/storage/.keep
+/vendor/bundle/
+/coverage/
+
+# Preserve protections formerly inherited from site/.gitignore after relocation.
+.DS_Store
+*.pem
+.env*
+.dev.vars*
+!.env.example
+/node_modules/
+/outputs/
+/work/

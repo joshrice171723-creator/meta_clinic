@@ -1,0 +1,12 @@
+key,value
+version,bulk_v3
+window_days,90
+patient_count,100
+visit_count,220
+invoice_count,220
+invoice_line_count,1100
+office_item_count,100
+pharmacy_product_count,100
+pharmacy_batch_count,200
+inventory_adjustment_count,100
+billing_distribution,"draft:25,void:25,paid:60,partial:50,open:60"

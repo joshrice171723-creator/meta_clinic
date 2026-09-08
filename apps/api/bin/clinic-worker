@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+
+require "json"
+require "optparse"
+
+options = { interval: nil, limit: 25 }
+begin
+  OptionParser.new do |parser|
+    parser.banner = "Usage: bin/clinic-worker [--once | --interval SECONDS] [--limit COUNT]"
+    parser.on("--once", "Run one bounded pass and exit") { options[:interval] = nil }
+    parser.on("--interval SECONDS", Integer, "Run continuously at the bounded interval") { |value| options[:interval] = value }
+    parser.on("--limit COUNT", Integer, "Maximum candidates per work type and pass") { |value| options[:limit] = value }
+  end.parse!
+rescue OptionParser::ParseError => error
+  warn JSON.generate(error: error.message)
+  exit 2
+end
+
+if options[:interval] && !options[:interval].between?(1, 3600)
+  warn JSON.generate(error: "Interval must be between 1 and 3600 seconds.")
+  exit 2
+end
+
+require_relative "../config/environment"
+
+STDOUT.sync = true
+stopping = false
+%w[INT TERM].each do |signal|
+  Signal.trap(signal) { stopping = true } if Signal.list.key?(signal)
+end
+
+begin
+  worker = Clinic::BackgroundWork.new(limit: options[:limit])
+  loop do
+    result = Rails.application.executor.wrap do
+      worker.run_once
+    end
+    puts JSON.generate(result)
+    break if options[:interval].nil? || stopping
+
+    sleep options[:interval]
+    break if stopping
+  end
+rescue Clinic::BackgroundWork::WorkerGateUnavailable, ArgumentError => error
+  warn JSON.generate(error: error.message)
+  exit 2
+rescue StandardError => error
+  warn JSON.generate(error: "Clinic background work stopped.", error_class: error.class.name)
+  exit 1
+ensure
+  Current.reset
+  PaperTrail.request.whodunnit = nil
+  PaperTrail.request.controller_info = {}
+end

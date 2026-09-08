@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+warn "The global apply launcher is retired and was not installed."
+warn "Use the repository-owned canonical command: bin/dev help"
+exit 1

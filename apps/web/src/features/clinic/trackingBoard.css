@@ -1,0 +1,697 @@
+.clinic-theme .tracking-board {
+  width: 100%;
+  min-width: 0;
+}
+.clinic-theme .tracking-board-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .tracking-board-header h1 {
+  margin: 0;
+  color: var(--clinic-text);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.clinic-theme .tracking-board-date {
+  margin: 2px 0 0;
+  color: var(--clinic-muted);
+  font-size: clamp(0.875rem, 1.2vw, 1rem);
+  font-weight: 500;
+}
+.clinic-theme .tracking-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  color: var(--clinic-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.clinic-theme .tracking-freshness-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--clinic-accent);
+}
+.clinic-theme .tracking-demo {
+  border: 1px solid var(--clinic-border);
+  background: var(--clinic-soft);
+  padding: 0 16px;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.clinic-theme .tracking-demo summary {
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.clinic-theme .tracking-demo p {
+  margin: 0 0 14px;
+}
+.clinic-theme .tracking-stage-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.clinic-theme .tracking-stage-filters button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 42px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 5px;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.clinic-theme .tracking-stage-filters strong {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 600;
+}
+.clinic-theme .tracking-stage-filters [aria-pressed="true"] {
+  border-color: var(--clinic-accent);
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+  box-shadow: inset 0 -2px 0 var(--clinic-accent);
+}
+.clinic-theme .tracking-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: start;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.clinic-theme .tracking-tools > div {
+  min-width: 0;
+  flex: 1 1 210px;
+}
+.clinic-theme .tracking-stage-select,
+.clinic-theme .tracking-patient-select {
+  display: none;
+}
+.clinic-theme .tracking-tools label {
+  display: block;
+  font-size: 14px;
+  color: var(--clinic-muted);
+  margin-bottom: 6px;
+}
+.clinic-theme .tracking-column-selector {
+  position: relative;
+  flex: 0 0 auto;
+  z-index: 5;
+}
+.clinic-theme .tracking-column-selector summary {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--clinic-control);
+  border-radius: 5px;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  cursor: pointer;
+  font-size: 14px;
+}
+.clinic-theme .tracking-column-selector > div {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 180px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 6px;
+  background: var(--clinic-surface);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--clinic-text) 16%, transparent);
+}
+.clinic-theme .tracking-column-selector label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px;
+  color: var(--clinic-text);
+}
+.clinic-theme .tracking-table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-color: var(--clinic-border);
+  background: var(--clinic-surface);
+  border-radius: 5px;
+  box-shadow: none;
+}
+.clinic-theme .tracking-table-container .MuiTable-root {
+  color: var(--clinic-text);
+}
+.clinic-theme .tracking-table-container .MuiTableCell-root {
+  border-color: var(--clinic-border);
+  color: var(--clinic-text);
+  vertical-align: top;
+  padding: 8px 10px;
+  font-size: 14px;
+  min-height: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.clinic-theme .tracking-table-container .MuiTableCell-root:not(:last-child) {
+  border-right: 1px solid var(--clinic-border);
+}
+.clinic-theme .tracking-visit-alt > .MuiTableCell-root {
+  background: color-mix(in srgb, var(--clinic-soft) 28%, var(--clinic-surface));
+}
+.clinic-theme .tracking-table-container .MuiTableCell-head {
+  position: relative;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  min-height: 44px;
+}
+.clinic-theme .tracking-table-container .MuiTableSortLabel-root {
+  min-height: 26px;
+  align-items: center;
+}
+.clinic-theme .tracking-table-container .MuiTableSortLabel-icon {
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  flex: 0 0 18px;
+}
+.clinic-theme .tracking-table-container .MuiTableRow-hover:hover {
+  background: color-mix(in srgb, var(--clinic-soft) 55%, transparent);
+}
+.clinic-theme .tracking-table-container .MuiChip-root {
+  font-family: inherit;
+  font-weight: 600;
+}
+.clinic-theme .tracking-column-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-right: 42px;
+  min-height: 32px;
+  min-width: 0;
+}
+.clinic-theme .tracking-column-move {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 4px;
+  color: var(--clinic-muted);
+  cursor: grab;
+  user-select: none;
+}
+.clinic-theme .tracking-column-move:active {
+  cursor: grabbing;
+}
+.clinic-theme .tracking-care-indicators {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  min-width: max-content;
+  white-space: nowrap;
+}
+.clinic-theme .tracking-care-icon.MuiIconButton-root {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  flex: 0 0 28px;
+  position: relative;
+  border: 0;
+  color: var(--clinic-text);
+  background: transparent;
+  padding: 0;
+}
+.clinic-theme .tracking-care-icon.MuiIconButton-root::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 50%;
+  background: var(--clinic-surface);
+}
+.clinic-theme .tracking-care-icon.MuiIconButton-root .MuiBadge-root {
+  z-index: 1;
+}
+.clinic-theme .tracking-care-icon.MuiIconButton-root:hover,
+.clinic-theme .tracking-care-icon.MuiIconButton-root:focus-visible {
+  background: transparent;
+}
+.clinic-theme .tracking-care-icon.MuiIconButton-root:hover::before,
+.clinic-theme .tracking-care-icon.MuiIconButton-root:focus-visible::before {
+  background: var(--clinic-soft);
+  border-color: currentColor;
+}
+.clinic-theme .tracking-care-allergies.MuiIconButton-root,
+.clinic-theme .tracking-care-precautions.MuiIconButton-root {
+  color: var(--clinic-warning);
+}
+.clinic-theme .tracking-care-review.MuiIconButton-root {
+  color: var(--clinic-error);
+}
+.clinic-theme .tracking-care-loading {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  color: var(--clinic-muted);
+}
+.clinic-theme .tracking-care-indicators .MuiBadge-badge {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  font-size: 10px;
+}
+.clinic-theme .tracking-vitals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.clinic-theme .tracking-vitals .tracking-vital:last-child {
+  grid-column: 1 / -1;
+}
+.clinic-theme .tracking-vital {
+  display: grid;
+  grid-template-columns: 18px 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  border-radius: 3px;
+  padding: 3px 4px;
+}
+.clinic-theme .tracking-vital-state {
+  font-weight: 800;
+  line-height: 1;
+}
+.clinic-theme .tracking-vital-value {
+  white-space: nowrap;
+}
+.clinic-theme .tracking-column-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 4;
+}
+.clinic-theme .tracking-column-resize::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  width: 1px;
+  border-right: 1px solid var(--clinic-border);
+}
+.clinic-theme .tracking-column-resize:hover::after,
+.clinic-theme .tracking-column-resize:focus-visible::after,
+.clinic-theme .tracking-column-resize.is-resizing::after {
+  border-right-color: var(--clinic-accent);
+}
+.clinic-theme .tracking-vital-within {
+  color: var(--clinic-success);
+  background: var(--clinic-success-bg);
+}
+.clinic-theme .tracking-vital-above {
+  color: var(--clinic-error);
+  background: var(--clinic-error-bg);
+}
+.clinic-theme .tracking-vital-below {
+  color: var(--clinic-warning);
+  background: var(--clinic-warning-bg);
+}
+.clinic-theme .tracking-vital-unassessed {
+  background: var(--clinic-soft);
+}
+.clinic-theme .tracking-vitals-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 12px;
+  margin-top: 8px;
+  color: var(--clinic-muted);
+  font-size: 12px;
+}
+.clinic-theme .tracking-vitals-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.clinic-theme .tracking-vitals-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.clinic-theme .tracking-legend-above {
+  color: var(--clinic-error);
+}
+.clinic-theme .tracking-legend-within {
+  color: var(--clinic-success);
+}
+.clinic-theme .tracking-legend-below {
+  color: var(--clinic-warning);
+}
+.clinic-theme .tracking-vitals-legend small {
+  font-size: 12px;
+}
+.clinic-theme .tracking-context-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 3px 0;
+  background: transparent;
+  color: var(--clinic-accent);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.clinic-theme .tracking-reason {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  overflow: visible;
+}
+.clinic-theme .tracking-reason > div {
+  min-width: 0;
+  overflow: visible;
+}
+.clinic-theme .tracking-reason .MuiTypography-root {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.clinic-theme .tracking-provider-cell {
+  cursor: default;
+}
+.clinic-theme .tracking-provider-value {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--clinic-accent);
+  font: inherit;
+  font-weight: 650;
+  background: transparent;
+  cursor: pointer;
+}
+.clinic-theme .tracking-provider-value:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid var(--clinic-accent);
+  outline-offset: 2px;
+}
+.clinic-theme .tracking-provider-readonly {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clinic-theme .tracking-provider-empty {
+  min-width: 64px;
+  min-height: 44px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--clinic-accent);
+  font: inherit;
+  cursor: pointer;
+}
+.clinic-theme .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.clinic-theme .tracking-visit {
+  background: var(--clinic-surface);
+  height: auto;
+  min-height: 58px;
+  min-width: 0;
+}
+.clinic-theme .tracking-patient {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  color: var(--clinic-text);
+  font-size: 14px;
+  font-weight: 650;
+}
+.clinic-theme .tracking-patient-details {
+  margin-right: auto;
+  min-width: 0;
+  overflow: visible;
+}
+.clinic-theme .tracking-patient strong {
+  display: block;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.clinic-theme .tracking-patient-demographics {
+  display: block;
+  margin-top: 2px;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.clinic-theme .tracking-membership-mark.MuiChip-root {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 50%;
+  color: #172119;
+}
+.clinic-theme .tracking-membership-mark .MuiChip-label {
+  padding: 0;
+  font-size: 12px;
+}
+.clinic-theme .tracking-membership-member {
+  background: #69c878;
+}
+.clinic-theme .tracking-membership-nonmember {
+  background: #efc75e;
+}
+.clinic-theme .tracking-membership-unknown {
+  background: var(--clinic-soft);
+  color: var(--clinic-muted);
+}
+.clinic-theme .tracking-chart-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--clinic-accent);
+  font-size: 30px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.clinic-theme .tracking-chart-action-icon-unopened {
+  color: var(--clinic-accent);
+}
+.clinic-theme .tracking-chart-action-icon-draft {
+  color: var(--clinic-warning);
+}
+.clinic-theme .tracking-chart-action-icon-signed {
+  color: var(--clinic-success);
+}
+.clinic-theme .tracking-chart-action-icon-unavailable {
+  color: var(--clinic-muted);
+}
+.clinic-theme .tracking-operational-timing {
+  color: var(--clinic-accent);
+}
+.clinic-theme .tracking-status-label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--clinic-border);
+  border-radius: 6px;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  max-width: 100%;
+  white-space: normal;
+}
+.clinic-theme .tracking-status-label > svg {
+  flex: 0 0 auto;
+}
+.clinic-theme .tracking-status-scheduled {
+  color: var(--clinic-muted);
+  background: var(--clinic-soft);
+}
+.clinic-theme .tracking-status-late {
+  color: var(--clinic-warning);
+  background: var(--clinic-warning-bg);
+  border-color: var(--clinic-warning);
+}
+.clinic-theme .tracking-status-waiting {
+  color: var(--clinic-success);
+  background: var(--clinic-soft);
+}
+.clinic-theme .tracking-location,
+.clinic-theme .tracking-wait {
+  margin-top: 4px;
+}
+.clinic-theme .tracking-location-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clinic-theme .tracking-table-container .MuiTableCell-root:last-child {
+  min-width: 105px;
+}
+.clinic-theme .tracking-flow-stage {
+  display: block;
+  margin-top: 2px;
+}
+.clinic-theme .tracking-empty {
+  border: 1px dashed var(--clinic-border);
+  padding: 28px;
+  border-radius: 8px;
+}
+.clinic-theme .tracking-empty h2 {
+  margin-top: 0;
+  font-size: 20px;
+}
+.clinic-theme .tracking-caption {
+  font-size: 14px;
+  color: var(--clinic-muted);
+  line-height: 1.6;
+  margin-top: 10px;
+  max-width: 1080px;
+}
+@media (max-width: 760px) {
+  .clinic-theme .tracking-table-container {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .clinic-theme .tracking-table {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+  .clinic-theme .tracking-table colgroup,
+  .clinic-theme .tracking-table .MuiTableHead-root {
+    display: none;
+  }
+  .clinic-theme .tracking-table .MuiTableBody-root {
+    display: grid;
+    gap: 12px;
+  }
+  .clinic-theme .tracking-table .MuiTableRow-root {
+    display: block;
+    height: auto;
+    overflow: hidden;
+    border: 1px solid var(--clinic-border);
+    border-radius: 8px;
+    background: var(--clinic-surface);
+  }
+  .clinic-theme .tracking-table .MuiTableCell-root {
+    display: grid;
+    grid-template-columns: minmax(84px, 0.32fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    width: auto !important;
+    border-right: 0 !important;
+    padding: 10px 12px;
+    min-height: 0;
+    white-space: normal;
+    overflow: visible;
+  }
+  .clinic-theme .tracking-table .MuiTableCell-root::before {
+    content: attr(data-label);
+    color: var(--clinic-muted);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+  }
+  .clinic-theme .tracking-patient,
+  .clinic-theme .tracking-reason,
+  .clinic-theme .tracking-vitals {
+    min-width: 0;
+  }
+  .clinic-theme .tracking-patient-details,
+  .clinic-theme .tracking-patient strong,
+  .clinic-theme .tracking-patient-demographics {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 600px) {
+  .clinic-theme .tracking-board-header {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .clinic-theme .tracking-stage-filters {
+    display: none;
+  }
+  .clinic-theme .tracking-stage-select,
+  .clinic-theme .tracking-patient-select {
+    display: block;
+  }
+  .clinic-theme .tracking-tools {
+    justify-content: space-between;
+    gap: 8px;
+  }
+}

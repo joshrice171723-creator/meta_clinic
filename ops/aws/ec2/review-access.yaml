@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Optional authenticated staging IPv4 review access; no production resources.
+Parameters:
+  StagingInstance:
+    Type: String
+    Default: i-011a8232817dc587f
+    AllowedValues: [i-011a8232817dc587f]
+  StagingSecurityGroup:
+    Type: String
+    Default: sg-0ff877cdbf7bfcf3c
+    AllowedValues: [sg-0ff877cdbf7bfcf3c]
+  EnableHttps:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['false', 'true']
+Conditions:
+  HttpsReady: !Equals [!Ref EnableHttps, 'true']
+Resources:
+  ReviewAddress:
+    Type: AWS::EC2::EIP
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Domain: vpc
+      Tags:
+        - {Key: Project, Value: APPly}
+        - {Key: Purpose, Value: staging-owner-review}
+  ReviewAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ReviewAddress.AllocationId
+      InstanceId: !Ref StagingInstance
+  AcmeIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref StagingSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+      Description: HTTP ACME challenge files only; no application content
+  ReviewHttpsIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HttpsReady
+    Properties:
+      GroupId: !Ref StagingSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+      Description: Authenticated synthetic owner review only
+  ReviewCredential:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: apply/staging/owner-review
+      Description: Individual synthetic owner-review login; retrieve only in a private operator terminal
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"owner-review","email":"owner-review@example.test"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+      Tags:
+        - {Key: Project, Value: APPly}
+        - {Key: Purpose, Value: staging-owner-review}
+  StagingDemoCredential:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: apply/staging/StagingDemoUser
+      Description: Individual synthetic staging demo login; retrieve only in a private operator terminal
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"StagingDemoUser","email":"staging-demo-user@example.test"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+      Tags:
+        - {Key: Project, Value: APPly}
+        - {Key: Purpose, Value: staging-demo-review}
+  ReviewCredentialRead:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: apply-staging-review-credential
+      Roles: [apply-synthetic-staging-HostRole-ecHOvR29Gkab]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource:
+              - !Ref ReviewCredential
+              - !Ref StagingDemoCredential
+Outputs:
+  ReviewIp:
+    Value: !Ref ReviewAddress
+  AllocationId:
+    Value: !GetAtt ReviewAddress.AllocationId
+  ReviewCredentialReference:
+    Value: !Ref ReviewCredential
+  StagingDemoCredentialReference:
+    Value: !Ref StagingDemoCredential

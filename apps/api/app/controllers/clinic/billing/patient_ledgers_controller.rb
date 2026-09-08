@@ -1,0 +1,16 @@
+module Clinic
+  module Billing
+    class PatientLedgersController < Clinic::ApiController
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }
+
+      def show
+        patient = current_practice.patients.find(requested_id!(params[:id], :id))
+        render json: PatientLedger.call(
+          practice: current_practice,
+          patient: patient,
+          include_adjustment_evidence: true
+        )
+      end
+    end
+  end
+end

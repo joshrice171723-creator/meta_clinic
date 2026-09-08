@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Compatibility shim. The canonical lifecycle is bin/dev.
+require "rbconfig"
+
+root = File.expand_path("..", __dir__)
+canonical = File.join(root, "bin", "dev")
+exec(RbConfig.ruby, canonical, "help", chdir: root) if ARGV.any? { |argument| %w[help --help -h].include?(argument) }
+ARGV.delete("--daemon")
+legacy_seed = ARGV.delete("--seed") || ARGV.delete("--refresh-seed")
+if legacy_seed
+  exit 1 unless system(RbConfig.ruby, canonical, "reset-data", "--yes", chdir: root)
+end
+warn "bin/start-dev is deprecated; use bin/dev start."
+exec(RbConfig.ruby, canonical, "start", *ARGV, chdir: root)

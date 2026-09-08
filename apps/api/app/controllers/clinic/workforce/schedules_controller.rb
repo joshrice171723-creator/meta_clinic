@@ -1,0 +1,188 @@
+module Clinic
+  module Workforce
+    class SchedulesController < Clinic::Workforce::BaseController
+      rescue_from PublishSchedule::InvalidSchedule do |error|
+        render json: { error: error.message, code: "schedule_invalid", details: error.details }, status: :unprocessable_entity
+      end
+
+      def index
+        site = site!
+        workforce_access.authorize!("workforce.schedule.read", site: site)
+        ensure_schedule_enabled!(site)
+        templates = ScheduleTemplate.where(practice_id: current_practice.id, site_id: site.id, active: true).order(:name)
+        drafts = ScheduleDraft.where(practice_id: current_practice.id, site_id: site.id).where(status: "draft").order(week_start_on: :desc)
+        publications = latest_publications.where(site_id: site.id).includes(:site).order(week_start_on: :desc).limit(12)
+        render json: ScheduleSerializer.response(
+          site: site_payload(site), templates: templates.map { |item| ScheduleSerializer.template(item) },
+          drafts: drafts.map { |item| ScheduleSerializer.draft(item, include_shifts: false) },
+          publications: publications.map { |item| ScheduleSerializer.publication(item) },
+          employments: eligible_employments(site), settings: effective_settings(site).fetch(:values)
+        )
+      end
+
+      def employee
+        employment = workforce_access.own_employment
+        raise Clinic::Authorization::Denied unless employment
+        from = params[:from].present? ? date_param!(params[:from], field: :from) : Current.business_date.beginning_of_week
+        to = params[:to].present? ? date_param!(params[:to], field: :to) : from + 42.days
+        publications = latest_publications.where(week_start_on: (from.beginning_of_week)..to).includes(:site)
+          .select { |item| employment.eligible_site?(item.site, at: Current.business_time) && schedule_visible?(item.site) }
+        render json: ScheduleSerializer.response(publications: publications.map { |item| ScheduleSerializer.publication(item, employee_id: employment.id) })
+      end
+
+      def show_draft
+        draft = draft!
+        workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft))
+      end
+
+      def create_template
+        input = parameter_hash!(:template, %i[site_id name timezone revision], nested_arrays: { shift_definitions: %i[employment_id day_of_week start_time end_time start_occurrence end_occurrence role_name break_minutes] })
+        site = site!(input[:site_id])
+        workforce_access.authorize!("workforce.schedule.manage", site: site)
+        ensure_schedule_enabled!(site)
+        record = ScheduleTemplate.create!(practice: current_practice, site: site, created_by_id: current_user.id,
+          name: required_string!(input[:name], field: :name, maximum: 120),
+          timezone: required_string!(input[:timezone], field: :timezone, maximum: 80),
+          shift_definitions: input[:shift_definitions]&.map(&:to_h) || [], revision: 1)
+        render json: ScheduleSerializer.response(template: ScheduleSerializer.template(record)), status: :created
+      end
+
+      def update_template
+        record = ScheduleTemplate.find_by!(practice_id: current_practice.id, id: requested_id!(params[:id], :id))
+        workforce_access.authorize!("workforce.schedule.manage", site: record.site)
+        input = parameter_hash!(:template, %i[name timezone expected_revision active], nested_arrays: { shift_definitions: %i[employment_id day_of_week start_time end_time start_occurrence end_occurrence role_name break_minutes] })
+        record.with_lock do
+          raise ActiveRecord::StaleObjectError.new(record, "update") unless record.revision == bounded_integer!(input[:expected_revision], field: :expected_revision, min: 1)
+          record.update!(name: input[:name].present? ? required_string!(input[:name], field: :name, maximum: 120) : record.name,
+            timezone: input[:timezone].present? ? required_string!(input[:timezone], field: :timezone, maximum: 80) : record.timezone,
+            shift_definitions: input.key?(:shift_definitions) ? input[:shift_definitions].map(&:to_h) : record.shift_definitions,
+            active: input.key?(:active) ? boolean_param(input[:active], field: :active) : record.active,
+            revision: record.revision + 1)
+        end
+        render json: ScheduleSerializer.response(template: ScheduleSerializer.template(record))
+      end
+
+      def create_draft
+        input = parameter_hash!(:draft, %i[site_id week_start_on timezone schedule_template_id])
+        site = site!(input[:site_id])
+        workforce_access.authorize!("workforce.schedule.manage", site: site)
+        ensure_schedule_enabled!(site)
+        template = input[:schedule_template_id].present? ? ScheduleTemplate.find_by!(practice_id: current_practice.id, site_id: site.id, id: requested_id!(input[:schedule_template_id], :schedule_template_id)) : nil
+        draft = ScheduleDraft.create!(practice: current_practice, site: site, schedule_template: template, created_by_id: current_user.id,
+          week_start_on: date_param!(input[:week_start_on], field: :week_start_on),
+          timezone: required_string!(input[:timezone].presence || template&.timezone, field: :timezone, maximum: 80), status: "draft", revision: 1)
+        apply_template!(draft, template) if template
+        render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft.reload)), status: :created
+      end
+
+      def upsert_shift
+        draft = draft!
+        workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        input = parameter_hash!(:shift, %i[id employment_id local_start local_end start_occurrence end_occurrence role_name break_minutes expected_revision])
+        interval = ResolveLocalInterval.call(timezone: draft.timezone, local_start: input[:local_start], local_end: input[:local_end],
+          start_occurrence: input[:start_occurrence].presence || "only", end_occurrence: input[:end_occurrence].presence || "only")
+        shift = nil
+        draft.with_lock do
+          ensure_editable_revision!(draft, input[:expected_revision])
+          employment = Employment.find_by!(practice_id: current_practice.id, id: requested_id!(input[:employment_id], :employment_id))
+          shift = input[:id].present? ? draft.shifts.find_by!(public_id: input[:id]) : draft.shifts.build(practice: current_practice)
+          shift.update!(employment: employment, timezone: draft.timezone, **interval,
+            start_occurrence: input[:start_occurrence].presence || "only", end_occurrence: input[:end_occurrence].presence || "only",
+            role_name: optional_string(input[:role_name], field: :role_name, maximum: 120),
+            break_minutes: bounded_integer!(input[:break_minutes].presence || "0", field: :break_minutes, max: 1_440))
+          draft.update!(revision: draft.revision + 1)
+        end
+        render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft.reload), shift: ScheduleSerializer.shift(shift))
+      end
+
+      def destroy_shift
+        draft = draft!
+        workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        draft.with_lock do
+          ensure_editable_revision!(draft, params[:expected_revision])
+          draft.shifts.find_by!(public_id: params[:shift_id]).destroy!
+          draft.update!(revision: draft.revision + 1)
+        end
+        render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft.reload))
+      end
+
+      def validate_draft
+        draft = draft!
+        workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        result = ValidateSchedule.call(draft: draft)
+        render json: ScheduleSerializer.response(valid: result.valid?, errors: result.errors, warnings: result.warnings,
+          draft: ScheduleSerializer.draft(draft, include_shifts: false))
+      end
+
+      def publish
+        draft = draft!
+        workforce_access.authorize!("workforce.schedule.publish", site: draft.site)
+        input = parameter_hash!(:publication, %i[expected_revision idempotency_key])
+        publication = PublishSchedule.call(draft: draft, actor: current_user,
+          expected_revision: input[:expected_revision], idempotency_key: required_string!(input[:idempotency_key], field: :idempotency_key, maximum: 120))
+        render json: ScheduleSerializer.response(publication: ScheduleSerializer.publication(publication))
+      end
+
+      private
+
+      def site!(value = params[:site_id])
+        current_practice.sites.find(requested_id!(value, :site_id))
+      end
+
+      def draft!
+        ScheduleDraft.includes(:site).find_by!(practice_id: current_practice.id, id: requested_id!(params[:id], :id))
+      end
+
+      def effective_settings(site)
+        EffectiveSettings.call(practice: current_practice, site: site, at: Current.business_time)
+      end
+
+      def ensure_schedule_enabled!(site)
+        raise ArgumentError, "Scheduling is not enabled for this site." unless effective_settings(site).fetch(:values).fetch("schedule_enabled") == true
+      end
+
+      def schedule_visible?(site)
+        values = effective_settings(site).fetch(:values)
+        values.fetch("schedule_enabled") == true && values.fetch("employee_self_service_enabled") == true
+      rescue EffectiveSettings::Unconfigured
+        false
+      end
+
+      def latest_publications
+        scope = SchedulePublication.where(practice_id: current_practice.id)
+        scope.where(id: scope.group(:site_id, :week_start_on).maximum(:id).values)
+      end
+
+      def eligible_employments(site)
+        Employment.where(practice_id: current_practice.id).includes(:staff_member).select { |item| item.active_for_work?(at: Current.business_time) && item.eligible_site?(site, at: Current.business_time) }.map do |item|
+          { id: item.id.to_s, name: item.staff_member.display_name, job_title: item.staff_member.job_title }
+        end
+      end
+
+      def site_payload(site)
+        { id: site.id.to_s, name: site.name, timezone: site.timezone_override || current_practice.timezone,
+          operating_hours: site.operating_hours.order(:day_of_week).map { |item| { day_of_week: item.day_of_week, closed: item.closed, open_time: item.open_time&.strftime("%H:%M"), close_time: item.close_time&.strftime("%H:%M") } } }
+      end
+
+      def ensure_editable_revision!(draft, value)
+        raise ArgumentError, "Published schedules cannot be edited." unless draft.editable?
+        expected = bounded_integer!(value, field: :expected_revision, min: 1)
+        raise ActiveRecord::StaleObjectError.new(draft, "update") unless draft.revision == expected
+      end
+
+      def apply_template!(draft, template)
+        template.shift_definitions.each do |definition|
+          day = Integer(definition.fetch("day_of_week"))
+          date = draft.week_start_on + ((day - 1) % 7).days
+          interval = ResolveLocalInterval.call(timezone: draft.timezone,
+            local_start: "#{date.iso8601}T#{definition.fetch('start_time')}", local_end: "#{date.iso8601}T#{definition.fetch('end_time')}",
+            start_occurrence: definition["start_occurrence"] || "only", end_occurrence: definition["end_occurrence"] || "only")
+          draft.shifts.create!(practice: current_practice, employment_id: definition.fetch("employment_id"), timezone: draft.timezone,
+            **interval, start_occurrence: definition["start_occurrence"] || "only", end_occurrence: definition["end_occurrence"] || "only",
+            role_name: definition["role_name"], break_minutes: definition["break_minutes"].to_i)
+        end
+      end
+    end
+  end
+end

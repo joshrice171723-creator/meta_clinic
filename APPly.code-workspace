@@ -1,0 +1,41 @@
+{
+  "folders": [
+    {
+      "name": "APPly",
+      "path": "."
+    }
+  ],
+  "settings": {},
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "APPly: Start development",
+        "type": "shell",
+        "windows": {
+          "command": "ruby",
+          "args": ["${workspaceFolder}\\bin\\dev", "start"]
+        },
+        "linux": { "command": "${workspaceFolder}/bin/dev", "args": ["start"] },
+        "osx": { "command": "${workspaceFolder}/bin/dev", "args": ["start"] },
+        "problemMatcher": []
+      },
+      {
+        "label": "APPly: Check environment",
+        "type": "shell",
+        "windows": { "command": "ruby", "args": ["${workspaceFolder}\\bin\\dev", "status"] },
+        "linux": { "command": "${workspaceFolder}/bin/dev", "args": ["status"] },
+        "osx": { "command": "${workspaceFolder}/bin/dev", "args": ["status"] },
+        "problemMatcher": []
+      },
+      {
+        "label": "APPly: Stop development",
+        "type": "shell",
+        "windows": { "command": "ruby", "args": ["${workspaceFolder}\\bin\\dev", "stop"] },
+        "linux": { "command": "${workspaceFolder}/bin/dev", "args": ["stop"] },
+        "osx": { "command": "${workspaceFolder}/bin/dev", "args": ["stop"] },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

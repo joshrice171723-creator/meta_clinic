@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "coordination_workflow": "agent-harness/workflows/shortcut-task.md",
+  "fallback": {
+    "name": "default",
+    "workflows": ["agent-harness/workflows/code-change.md"],
+    "skills": [],
+    "developer_docs": ["README.md"],
+    "vault_context": [
+      "APPlyVault/00 Home.md",
+      "APPlyVault/01 Table of Contents.md"
+    ],
+    "checks": ["bin/agent-check"]
+  },
+  "routes": [
+    {
+      "name": "agent-harness",
+      "patterns": [
+        "agent-harness",
+        "agent-harness/**",
+        ".agents",
+        ".agents/**",
+        "bin/agent-*",
+        "bin/create-agent-skill",
+        "bin/verify-agent-harness",
+        "bin/verify-vault",
+        "bin/vault-audit"
+      ],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/create-skill/SKILL.md (for skill work)"],
+      "developer_docs": ["agent-harness/README.md"],
+      "vault_context": [
+        "APPlyVault/01 Table of Contents.md (when product direction or evidence changes)"
+      ],
+      "checks": ["bin/verify-agent-harness"]
+    },
+    {
+      "name": "vault",
+      "patterns": ["APPlyVault", "APPlyVault/**"],
+      "workflows": [
+        "agent-harness/workflows/vault-change.md",
+        "agent-harness/workflows/knowledge-maintenance.md (for cleanup or archival)"
+      ],
+      "skills": [".agents/skills/vault-context/SKILL.md"],
+      "developer_docs": [],
+      "vault_context": [
+        "APPlyVault/00 Home.md",
+        "APPlyVault/01 Table of Contents.md"
+      ],
+      "checks": ["bin/verify-vault", "bin/vault-audit"]
+    },
+    {
+      "name": "historical-records",
+      "patterns": ["records", "records/**"],
+      "workflows": ["agent-harness/workflows/knowledge-maintenance.md"],
+      "skills": [".agents/skills/vault-context/SKILL.md"],
+      "developer_docs": ["records/README.md"],
+      "vault_context": [
+        "APPlyVault/03 Execution/Progress Log.md",
+        "APPlyVault/01 Table of Contents.md"
+      ],
+      "checks": ["bin/verify-vault", "bin/vault-audit"]
+    },
+    {
+      "name": "developer-documentation",
+      "patterns": ["docs", "docs/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [],
+      "developer_docs": ["docs/README.md"],
+      "vault_context": [
+        "APPlyVault/00 Home.md",
+        "APPlyVault/01 Table of Contents.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "rails-api",
+      "patterns": ["apps/api", "apps/api/**"],
+      "workflows": [
+        "agent-harness/workflows/code-change.md",
+        "agent-harness/workflows/database-change.md (for schema or data work)"
+      ],
+      "skills": [],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/api/README.md"
+      ],
+      "vault_context": [
+        "APPlyVault/01 Table of Contents.md (select the owning product, decision, task and risk)"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-clinic",
+      "patterns": ["apps/web/src/features/clinic", "apps/web/src/features/clinic/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "docs/architecture/clinic-frontend-backend-contract.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Design.md",
+        "APPlyVault/03 Execution/Clinic Workspace.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-inventory",
+      "patterns": ["apps/web/src/features/inventory", "apps/web/src/features/inventory/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
+        "APPlyVault/03 Execution/Inventory Integration Handoff.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-launch",
+      "patterns": ["apps/web/src/features/launch", "apps/web/src/features/launch/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Website MVP.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-patient-portal",
+      "patterns": [
+        "apps/web/src/features/patientPortal",
+        "apps/web/src/features/patientPortal/**"
+      ],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Client Access Workflow.md",
+        "APPlyVault/03 Execution/Risks and Assumptions.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend-identity-shared",
+      "patterns": [
+        "apps/web/src/features/identity",
+        "apps/web/src/features/identity/**",
+        "apps/web/src/shared",
+        "apps/web/src/shared/**",
+        "apps/web/src/api",
+        "apps/web/src/api/**"
+      ],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "react-frontend",
+      "patterns": ["apps/web", "apps/web/**"],
+      "workflows": ["agent-harness/workflows/code-change.md"],
+      "skills": [".agents/skills/frontend-ui/SKILL.md (for UI work)"],
+      "developer_docs": [
+        "docs/development/getting-started.md",
+        "docs/architecture/software-architecture.md",
+        "docs/architecture/clinic-frontend-backend-contract.md",
+        "apps/web/README.md"
+      ],
+      "vault_context": [
+        "PRODUCT.md",
+        "APPlyVault/01 Table of Contents.md",
+        "APPlyVault/03 Execution/Design.md (for clinic UI)"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "aws-operations",
+      "patterns": ["ops/aws", "ops/aws/**"],
+      "workflows": [
+        "agent-harness/workflows/release.md",
+        "agent-harness/workflows/database-change.md (for database cutovers)"
+      ],
+      "skills": [],
+      "developer_docs": [
+        "docs/development/ci.md",
+        "ops/aws/ec2/environments.md",
+        "ops/aws/ec2/README.md"
+      ],
+      "vault_context": [
+        "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",
+        "APPlyVault/03 Execution/Risks and Assumptions.md"
+      ],
+      "checks": ["bin/agent-check"]
+    },
+    {
+      "name": "historical-site",
+      "patterns": ["site", "site/**"],
+      "workflows": [
+        "agent-harness/workflows/release.md (only for authorized hosting changes)"
+      ],
+      "skills": [],
+      "developer_docs": ["README.md"],
+      "vault_context": ["APPlyVault/01 Table of Contents.md"],
+      "checks": ["bin/agent-check"]
+    }
+  ]
+}

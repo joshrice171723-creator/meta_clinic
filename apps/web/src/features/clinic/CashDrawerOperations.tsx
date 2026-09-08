@@ -1,0 +1,703 @@
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  BillingInvoiceSummary,
+  CashDrawer,
+  CashPaymentResult,
+  ClinicWorkspaceContext,
+} from "../../api/contracts";
+import { api, ApiError } from "../../api/client";
+import { useResource } from "../../shared/ui";
+import { useClinic } from "./Workspace";
+
+function money(value: string, currency: string) {
+  const [whole, fraction = ""] = value.split(".");
+  return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
+}
+
+function isPositiveDecimal(value: string) {
+  return (
+    /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value) && !/^0+(?:\.0+)?$/.test(value)
+  );
+}
+
+function requestKey() {
+  return typeof crypto?.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `cash-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+type CashAttempt = {
+  invoiceId: number;
+  drawerId: number;
+  currency: string;
+  tenderedAmount: string;
+  allocationAmount: string;
+  requestKey: string;
+};
+
+type CashScope = Pick<
+  ClinicWorkspaceContext,
+  "practice" | "user_id" | "membership_id"
+>;
+
+// Retain an uncertain payment across ledger refreshes and in-app navigation,
+// without writing patient financial data to browser storage.
+const pendingCashAttempts = new Map<string, CashAttempt>();
+function cashScopeKey(scope: CashScope) {
+  return `${scope.practice.id}:${scope.user_id}:${scope.membership_id}`;
+}
+function persistCashAttempt(scope: CashScope, value: CashAttempt | null) {
+  if (value) pendingCashAttempts.set(cashScopeKey(scope), value);
+  else pendingCashAttempts.delete(cashScopeKey(scope));
+}
+function storedCashAttempt(scope: CashScope): CashAttempt | null {
+  return pendingCashAttempts.get(cashScopeKey(scope)) ?? null;
+}
+
+export function hasPendingCashAttempt(scope: CashScope) {
+  return storedCashAttempt(scope) !== null;
+}
+
+function deterministicCashError(reason: unknown) {
+  return (
+    reason instanceof ApiError &&
+    (reason.status === 400 || reason.status === 404 || reason.status === 422)
+  );
+}
+
+export function CashDrawerOperations({
+  invoice,
+  onRecorded,
+  onPendingChange,
+  refreshVersion = 0,
+}: {
+  invoice: BillingInvoiceSummary | null;
+  onRecorded: (invoiceId?: number) => void;
+  onPendingChange?: (pending: boolean) => void;
+  refreshVersion?: number;
+}) {
+  const clinic = useClinic();
+  const { capabilities, sites } = clinic;
+  const drawers = useResource<{ drawers: CashDrawer[] }>(
+    "/api/clinic/cash_drawers",
+  );
+  const [siteId, setSiteId] = useState(sites[0]?.id?.toString() ?? "");
+  const [selectedDrawerId, setSelectedDrawerId] = useState("");
+  const [newDrawerMode, setNewDrawerMode] = useState(false);
+  const [openingFloat, setOpeningFloat] = useState("");
+  const [tenderedAmount, setTenderedAmount] = useState("");
+  const [allocationAmount, setAllocationAmount] = useState("");
+  const [countedCash, setCountedCash] = useState("");
+  const [explanation, setExplanation] = useState("");
+  const [busy, setBusy] = useState<
+    "open" | "cash" | "close" | "reconcile" | null
+  >(null);
+  const [reconciliationNote, setReconciliationNote] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [receiptPaymentId, setReceiptPaymentId] = useState<number | null>(null);
+  const [cashAttempt, setCashAttempt] = useState<CashAttempt | null>(() =>
+    storedCashAttempt(clinic),
+  );
+  const allocationInvoiceSelection = useRef("");
+  const drawerRefreshVersion = useRef(refreshVersion);
+  useEffect(() => {
+    persistCashAttempt(clinic, cashAttempt);
+    onPendingChange?.(cashAttempt !== null);
+  }, [clinic, cashAttempt, onPendingChange]);
+  useEffect(() => {
+    if (drawerRefreshVersion.current === refreshVersion) return;
+
+    drawerRefreshVersion.current = refreshVersion;
+    drawers.refresh();
+  }, [refreshVersion]);
+  const allDrawers = drawers.data?.drawers ?? [];
+  const openDrawers = useMemo(
+    () =>
+      drawers.data?.drawers.filter((drawer) => drawer.status === "open") ?? [],
+    [drawers.data],
+  );
+  useEffect(() => {
+    if (!drawers.data) return;
+    if (newDrawerMode && !cashAttempt) return;
+    if (
+      !allDrawers.some(
+        (candidate) => candidate.id.toString() === selectedDrawerId,
+      )
+    ) {
+      setSelectedDrawerId(
+        cashAttempt?.drawerId.toString() ?? openDrawers[0]?.id.toString() ?? "",
+      );
+    }
+  }, [
+    allDrawers,
+    cashAttempt,
+    drawers.data,
+    newDrawerMode,
+    openDrawers,
+    selectedDrawerId,
+  ]);
+  const drawer =
+    allDrawers.find(
+      (candidate) => candidate.id.toString() === selectedDrawerId,
+    ) ?? null;
+  const permitted = capabilities.billing_payment_record === true;
+  const payable =
+    invoice?.status === "posted" && !/^0+(?:\.0+)?$/.test(invoice.balance);
+  useEffect(() => {
+    const selection = `${invoice?.id ?? "none"}:${payable ? "payable" : "not-payable"}`;
+    if (cashAttempt) {
+      allocationInvoiceSelection.current = selection;
+      return;
+    }
+    if (allocationInvoiceSelection.current === selection) return;
+
+    allocationInvoiceSelection.current = selection;
+    setAllocationAmount(payable && invoice ? invoice.balance : "");
+  }, [cashAttempt, invoice, payable]);
+
+  const reportError = (reason: unknown, fallback: string) =>
+    setError(reason instanceof Error ? reason.message : fallback);
+
+  const openDrawer = async () => {
+    if (
+      !permitted ||
+      !siteId ||
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(openingFloat)
+    ) {
+      setError(
+        "Choose a location and enter an opening cash amount with up to six decimal places.",
+      );
+      return;
+    }
+    setBusy("open");
+    setError("");
+    try {
+      const result = await api<{ drawer: CashDrawer }>("/api/clinic/cash_drawers", {
+        method: "POST",
+        body: {
+          drawer: { site_id: Number(siteId), opening_float: openingFloat },
+        },
+      });
+      setOpeningFloat("");
+      setSelectedDrawerId(result.drawer.id.toString());
+      setNewDrawerMode(false);
+      setNotice(
+        "Cash drawer opened. Record every cash payment through this drawer.",
+      );
+      drawers.refresh();
+    } catch (reason) {
+      reportError(reason, "The cash drawer could not be opened.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const recordCash = async () => {
+    if (!permitted) return;
+    if (
+      !cashAttempt &&
+      (!invoice ||
+        !drawer ||
+        !isPositiveDecimal(tenderedAmount) ||
+        !isPositiveDecimal(allocationAmount))
+    ) {
+      setError(
+        "Enter positive tendered and allocated amounts before recording cash.",
+      );
+      return;
+    }
+    const attempt = cashAttempt ?? {
+      invoiceId: invoice!.id,
+      drawerId: drawer!.id,
+      currency: invoice!.currency,
+      tenderedAmount,
+      allocationAmount,
+      requestKey: requestKey(),
+    };
+    persistCashAttempt(clinic, attempt);
+    setCashAttempt(attempt);
+    setBusy("cash");
+    setError("");
+    setNotice("");
+    try {
+      const result = await api<CashPaymentResult>(
+        `/api/clinic/invoices/${attempt.invoiceId}/cash_payments`,
+        {
+          method: "POST",
+          body: {
+            cash_payment: {
+              cash_drawer_session_id: attempt.drawerId,
+              tendered_amount: attempt.tenderedAmount,
+              allocation_amount: attempt.allocationAmount,
+              request_key: attempt.requestKey,
+            },
+          },
+        },
+      );
+      persistCashAttempt(clinic, null);
+      setCashAttempt(null);
+      setReceiptPaymentId(result.payment_allocation.payment_event_id);
+      setTenderedAmount("");
+      setAllocationAmount("");
+      setNotice(
+        `Cash payment recorded. Change due: ${money(result.cash_tender.change_amount, attempt.currency)}.`,
+      );
+      drawers.refresh();
+      onRecorded(attempt.invoiceId);
+    } catch (reason) {
+      if (deterministicCashError(reason)) {
+        persistCashAttempt(clinic, null);
+        setCashAttempt(null);
+        reportError(reason, "The cash payment could not be recorded.");
+      } else {
+        setError(
+          `${reason instanceof Error ? reason.message : "The payment outcome could not be confirmed."} Review the refreshed payment activity, then retry only this same cash payment if it is still missing.`,
+        );
+        drawers.refresh();
+        onRecorded(attempt.invoiceId);
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const closeDrawer = async () => {
+    if (
+      !drawer ||
+      !permitted ||
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(countedCash)
+    ) {
+      setError("Enter the counted cash amount with up to six decimal places.");
+      return;
+    }
+    setBusy("close");
+    setError("");
+    try {
+      const result = await api<{ drawer: CashDrawer }>(
+        `/api/clinic/cash_drawers/${drawer.id}/close`,
+        {
+          method: "POST",
+          body: {
+            drawer: {
+              counted_cash: countedCash,
+              discrepancy_explanation: explanation,
+            },
+          },
+        },
+      );
+      setNotice(
+        `Drawer closed with a ${money(result.drawer.discrepancy ?? "0", "USD")} discrepancy. It remains recorded for manager reconciliation.`,
+      );
+      setCountedCash("");
+      setExplanation("");
+      setSelectedDrawerId(result.drawer.id.toString());
+      setNewDrawerMode(false);
+      drawers.refresh();
+    } catch (reason) {
+      reportError(reason, "The cash drawer could not be closed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reconcileDrawer = async () => {
+    if (
+      !drawer ||
+      drawer.status !== "closed" ||
+      capabilities.billing_cash_reconcile !== true ||
+      !reconciliationNote.trim()
+    ) {
+      setError(
+        "A manager reconciliation note is required for a closed drawer.",
+      );
+      return;
+    }
+    setBusy("reconcile");
+    setError("");
+    try {
+      await api(`/api/clinic/cash_drawers/${drawer.id}/reconcile`, {
+        method: "POST",
+        body: {
+          drawer: {
+            reconciliation_note: reconciliationNote.trim(),
+            request_key: requestKey(),
+          },
+        },
+      });
+      setReconciliationNote("");
+      setNotice(
+        "Drawer discrepancy reconciled and preserved for review history.",
+      );
+      drawers.refresh();
+    } catch (reason) {
+      reportError(reason, "The drawer reconciliation could not be recorded.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (!drawers.data) {
+    return (
+      <Paper component="section" variant="outlined" sx={{ mt: 3, p: 2.5 }}>
+        <Typography component="h2" variant="h2">
+          Cash drawer
+        </Typography>
+        {drawers.error ? (
+          <Alert
+            severity="error"
+            sx={{ mt: 2 }}
+            action={
+              <Button color="inherit" onClick={drawers.refresh}>
+                Retry
+              </Button>
+            }
+          >
+            {drawers.error}
+          </Alert>
+        ) : (
+          <Typography role="status" sx={{ mt: 1 }}>
+            Refreshing drawer totals…
+          </Typography>
+        )}
+      </Paper>
+    );
+  }
+
+  return (
+    <Paper component="section" variant="outlined" sx={{ mt: 3 }}>
+      <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
+        <AccountBalanceWalletOutlinedIcon color="primary" />
+        <Box>
+          <Typography component="h2" variant="h2">
+            Cash drawer
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            Expected cash is server-calculated from opening float, payments,
+            change, and cash refunds.
+          </Typography>
+        </Box>
+      </Box>
+      <Divider />
+      <Stack spacing={2} sx={{ p: 2.5 }}>
+        {drawers.error && <Alert severity="error">{drawers.error}</Alert>}
+        {error && <Alert severity="error">{error}</Alert>}
+        {notice && <Alert severity="success">{notice}</Alert>}
+        {cashAttempt && (
+          <Alert
+            severity="warning"
+            action={
+              <Button
+                color="inherit"
+                disabled={busy !== null}
+                onClick={() => {
+                  drawers.refresh();
+                  onRecorded(cashAttempt.invoiceId);
+                }}
+                size="small"
+              >
+                Refresh activity
+              </Button>
+            }
+          >
+            <Stack spacing={1}>
+              <span>
+                Cash payment outcome is pending confirmation for invoice #
+                {cashAttempt.invoiceId}. Its drawer, amounts, and request key
+                are locked. Review activity or retry the same payment.
+              </span>
+              <Button
+                color="inherit"
+                disabled={busy !== null}
+                onClick={() => {
+                  persistCashAttempt(clinic, null);
+                  setCashAttempt(null);
+                  setTenderedAmount("");
+                  setAllocationAmount("");
+                  setError("");
+                  setNotice(
+                    "Pending payment cleared after operator verification. No additional cash payment was submitted.",
+                  );
+                }}
+                size="small"
+                sx={{ alignSelf: "flex-start" }}
+              >
+                I verified it is recorded
+              </Button>
+            </Stack>
+          </Alert>
+        )}
+        {drawer?.status === "closed" && (
+          <Stack spacing={1.5}>
+            <Alert severity="info">
+              Closed drawer · Counted {money(drawer.counted_cash ?? "0", invoice?.currency ?? "USD")} · Discrepancy {money(drawer.discrepancy ?? "0", invoice?.currency ?? "USD")} · {drawer.reconciliation_status === "reconciled" ? "Manager reconciled" : "Awaiting manager reconciliation"}
+            </Alert>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                disabled={cashAttempt !== null || busy !== null}
+                onClick={() => setNewDrawerMode(true)}
+                variant="outlined"
+              >
+                Open another drawer
+              </Button>
+              {openDrawers.length > 0 && (
+                <TextField
+                  select
+                  label="Choose available open drawer"
+                  onChange={(event) => {
+                    setSelectedDrawerId(event.target.value);
+                    setNewDrawerMode(false);
+                  }}
+                  sx={{ minWidth: 240 }}
+                  value=""
+                >
+                  <MenuItem disabled value="">
+                    Select an open drawer
+                  </MenuItem>
+                  {openDrawers.map((candidate) => (
+                    <MenuItem key={candidate.id} value={candidate.id}>
+                      {sites.find((site) => site.id === candidate.site_id)
+                        ?.code ?? `Location ${candidate.site_id}`}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Stack>
+            {drawer.reconciliation_status === "pending" &&
+              capabilities.billing_cash_reconcile === true && (
+                <Stack
+                  component="form"
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={1.5}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void reconcileDrawer();
+                  }}
+                >
+                  <TextField
+                    label="Manager reconciliation note"
+                    value={reconciliationNote}
+                    disabled={cashAttempt !== null || busy !== null}
+                    onChange={(event) => setReconciliationNote(event.target.value)}
+                    sx={{ flex: 1 }}
+                  />
+                  <Button
+                    disabled={busy !== null || cashAttempt !== null}
+                    type="submit"
+                    variant="contained"
+                  >
+                    {busy === "reconcile"
+                      ? "Reconciling…"
+                      : "Reconcile discrepancy"}
+                  </Button>
+                </Stack>
+              )}
+          </Stack>
+        )}
+        {!drawer && cashAttempt ? (
+          <Alert severity="info">
+            Refreshing the drawer for the locked cash payment. The pending
+            request remains unchanged.
+          </Alert>
+        ) : !drawer || (newDrawerMode && !cashAttempt) ? (
+          <Stack
+            component="form"
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void openDrawer();
+            }}
+          >
+            <TextField
+              select
+              label="Location"
+              value={siteId}
+              onChange={(event) => setSiteId(event.target.value)}
+              sx={{ minWidth: 180 }}
+            >
+              {sites.map((site) => (
+                <MenuItem key={site.id} value={site.id}>
+                  {site.code}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Opening cash"
+              inputMode="decimal"
+              value={openingFloat}
+              onChange={(event) => setOpeningFloat(event.target.value)}
+            />
+            <Button
+              disabled={!permitted || busy !== null}
+              type="submit"
+              variant="contained"
+            >
+              {busy === "open" ? "Opening…" : "Open drawer"}
+            </Button>
+          </Stack>
+        ) : (
+          <>
+            {openDrawers.length > 1 && (
+              <TextField
+                select
+                label="Cash drawer location"
+                value={selectedDrawerId}
+                onChange={(event) => setSelectedDrawerId(event.target.value)}
+                disabled={cashAttempt !== null}
+                helperText="Choose the physical site receiving this cash."
+              >
+                {(cashAttempt
+                  ? allDrawers.filter(
+                      (candidate) => candidate.id === cashAttempt.drawerId,
+                    )
+                  : openDrawers
+                ).map((candidate) => (
+                  <MenuItem key={candidate.id} value={candidate.id}>
+                    {sites.find((site) => site.id === candidate.site_id)
+                      ?.code ?? `Location ${candidate.site_id}`}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1.5,
+                gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+              }}
+            >
+              {[
+                ["Opening", drawer.opening_float],
+                ["Cash received", drawer.cash_received],
+                ["Cash refunded", drawer.cash_refunded],
+                ["Expected", drawer.expected_cash],
+              ].map(([label, value]) => (
+                <Box key={label}>
+                  <Typography color="text.secondary" variant="body2">
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 700 }}
+                  >
+                    {money(
+                      value,
+                      cashAttempt?.currency ?? invoice?.currency ?? "USD",
+                    )}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+            {((drawer.status === "open" && payable) || cashAttempt) && (
+              <Stack
+                component="form"
+                direction={{ xs: "column", md: "row" }}
+                spacing={1.5}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void recordCash();
+                }}
+              >
+                <TextField
+                  label="Tendered cash"
+                  inputMode="decimal"
+                  value={cashAttempt?.tenderedAmount ?? tenderedAmount}
+                  onChange={(event) => setTenderedAmount(event.target.value)}
+                  disabled={cashAttempt !== null}
+                />
+                <TextField
+                  label={`Apply to invoice #${cashAttempt?.invoiceId ?? invoice?.id}`}
+                  inputMode="decimal"
+                  value={cashAttempt?.allocationAmount ?? allocationAmount}
+                  onChange={(event) => setAllocationAmount(event.target.value)}
+                  disabled={cashAttempt !== null}
+                  helperText={
+                    cashAttempt
+                      ? `Locked pending amount: ${money(cashAttempt.allocationAmount, cashAttempt.currency)}`
+                      : `Due: ${money(invoice?.balance ?? "0", invoice?.currency ?? "USD")}`
+                  }
+                />
+                <Button
+                  disabled={!permitted || busy !== null}
+                  type="submit"
+                  variant="contained"
+                >
+                  {busy === "cash"
+                    ? "Recording…"
+                    : cashAttempt
+                      ? "Retry same payment"
+                      : "Record cash payment"}
+                </Button>
+              </Stack>
+            )}
+            {receiptPaymentId && (
+              <Button
+                component="a"
+                href={`/api/clinic/payment_events/${receiptPaymentId}/receipt`}
+                rel="noopener"
+                startIcon={<PrintOutlinedIcon />}
+                target="_blank"
+                variant="outlined"
+              >
+                Print receipt
+              </Button>
+            )}
+            {drawer.status === "open" && (
+              <>
+                <Divider />
+                <Stack
+                  component="form"
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={1.5}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void closeDrawer();
+                  }}
+                >
+                  <TextField
+                    label="Counted cash"
+                    inputMode="decimal"
+                    value={countedCash}
+                    onChange={(event) => setCountedCash(event.target.value)}
+                  />
+                  <TextField
+                    label="Short / over explanation (optional)"
+                    value={explanation}
+                    onChange={(event) => setExplanation(event.target.value)}
+                    sx={{ flex: 1 }}
+                  />
+                  <Button
+                    disabled={!permitted || busy !== null || cashAttempt !== null}
+                    type="submit"
+                    variant="outlined"
+                  >
+                    {busy === "close" ? "Closing…" : "Close drawer"}
+                  </Button>
+                </Stack>
+              </>
+            )}
+          </>
+        )}
+        {!permitted && (
+          <Alert severity="info">
+            Your account can review the drawer but cannot record or close cash
+            activity.
+          </Alert>
+        )}
+      </Stack>
+    </Paper>
+  );
+}

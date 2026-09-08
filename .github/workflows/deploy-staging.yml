@@ -1,0 +1,73 @@
+name: Deploy staging
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type deploy-staging to build, publish, and deploy the current main commit
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: apply-staging-deployment
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Validate manual staging request
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          test "$SOURCE_REF" = "refs/heads/main" || { echo "Deploy staging must run from main." >&2; exit 1; }
+          test "$CONFIRM" = "deploy-staging" || { echo "Confirmation must be deploy-staging." >&2; exit 1; }
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            apps/api
+            apps/web
+            ops/aws/ec2
+      - name: Read non-secret deployment targets
+        run: |
+          python3 - <<'PY'
+          import json, os
+          c = json.load(open('ops/aws/ec2/targets.json'))
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('ROLE_ARN=' + c['staging']['role'] + '\n')
+              f.write('REGISTRY=' + c['account'] + '.dkr.ecr.us-east-1.amazonaws.com\n')
+              f.write('REPOSITORY=' + c['staging']['repository'] + '\n')
+          PY
+      - name: Build the tested API and frontend once
+        run: |
+          docker build --pull --no-cache --platform linux/amd64 --provenance=false -t apply-api-candidate apps/api
+          docker build --pull --no-cache --platform linux/amd64 --provenance=false -t apply-web-candidate apps/web
+      - name: Verify both deployment configurations with disposable data
+        run: |
+          python3 ops/aws/ec2/verify-container.py apply-api-candidate --web-image apply-web-candidate --environment staging
+          python3 ops/aws/ec2/verify-container.py apply-api-candidate --web-image apply-web-candidate --environment production
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3, Node 24
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: apply-staging-${{ github.run_id }}
+      - name: Publish and deploy immutable image
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tag="sha-${SOURCE_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
+          trap 'docker logout "$REGISTRY" >/dev/null 2>&1' EXIT
+          for component in api web; do
+            docker tag "apply-$component-candidate" "$REGISTRY/$REPOSITORY:$tag-$component"
+            docker push "$REGISTRY/$REPOSITORY:$tag-$component"
+          done
+          python3 ops/aws/ec2/release.py staging --sha "$SOURCE_SHA" --tag "$tag"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "APPly Frontend UI"
+  short_description: "Build APPly interfaces through the Material UI system"
+  default_prompt: "Use $frontend-ui to consult the configured MUI MCP and implement this APPly interface through the existing Material UI system. Use $impeccable only when the request calls for critique, redesign, or visual polish."

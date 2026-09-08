@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Compatibility shim. The canonical lifecycle is bin/dev status.
+require "rbconfig"
+
+root = File.expand_path("..", __dir__)
+warn "bin/doctor is deprecated; use bin/dev status."
+exec(RbConfig.ruby, File.join(root, "bin/dev"), "status", chdir: root)

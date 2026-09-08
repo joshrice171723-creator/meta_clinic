@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Receipt #<%= @receipt.id %> · <%= @practice.name %></title>
+  <style nonce="<%= content_security_policy_nonce %>">
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f5f7; color: #182d3c; font: 15px/1.6 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 40px auto; padding: 48px; background: white; border: 1px solid #dce2e7; }
+    header { border-bottom: 2px solid #182d3c; padding-bottom: 24px; }
+    h1 { margin: 12px 0 0; font-size: 30px; line-height: 1.2; }
+    h2 { font-size: 16px; margin-top: 32px; }
+    p { margin: 8px 0; }
+    .muted, dt { color: #526270; }
+    dl { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 28px 0; }
+    dd { margin: 4px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+    .amount { padding: 20px 0; border-top: 1px solid #dce2e7; border-bottom: 1px solid #dce2e7; }
+    .amount strong { display: block; font-size: 32px; font-variant-numeric: tabular-nums; }
+    button { padding: 12px 20px; border: 0; border-radius: 6px; background: #183d52; color: white; cursor: pointer; font: inherit; }
+    button:focus-visible { outline: 3px solid #3868ce; outline-offset: 3px; }
+    .actions { max-width: 760px; margin: 24px auto; display: flex; align-items: center; gap: 20px; padding: 0 16px; }
+    footer { margin-top: 32px; font-size: 13px; color: #526270; }
+    @media (max-width: 600px) { main { margin: 16px; padding: 24px; } dl { grid-template-columns: 1fr; } }
+    @media print { body { background: white; } main { margin: 0; max-width: none; padding: 16px; border: 0; } .actions { display: none; } @page { margin: 18mm; } }
+  </style>
+</head>
+<body>
+  <div class="actions"><button id="print-receipt" type="button">Print receipt</button><span class="muted">Choose a printer or save as PDF.</span></div>
+  <main>
+    <header>
+      <strong><%= @practice.name %></strong>
+      <h1><%= @receipt.kind.end_with?("refund") ? "Refund receipt" : "Payment receipt" %></h1>
+      <p class="muted">Receipt #<%= @receipt.id %></p>
+    </header>
+    <dl>
+      <div><dt>Issued</dt><dd><%= @receipt.issued_at.in_time_zone(@practice.timezone).strftime("%B %-d, %Y · %-I:%M %p %Z") %></dd></div>
+      <div><dt>Payment reference</dt><dd>#<%= @payment.id %></dd></div>
+      <div><dt>Invoice</dt><dd>#<%= @receipt.invoice_id %></dd></div>
+      <div><dt>Receipt type</dt><dd><%= @receipt.kind.humanize %></dd></div>
+    </dl>
+    <div class="amount">
+      <span><%= @receipt.kind.end_with?("refund") ? "Amount refunded" : "Amount paid" %></span>
+      <strong><%= @receipt.payload.fetch("currency") %> <%= number_with_precision(@receipt.payload.fetch("amount"), precision: 2, delimiter: ",") %></strong>
+    </div>
+    <% if @receipt.payload["change_amount"].present? %>
+      <p>Change returned: <%= @receipt.payload.fetch("currency") %> <%= number_with_precision(@receipt.payload["change_amount"], precision: 2, delimiter: ",") %></p>
+    <% end %>
+    <% if @refunds.any? && !@receipt.kind.end_with?("refund") %>
+      <h2>Subsequent refunds</h2>
+      <% @refunds.each do |refund| %>
+        <p><%= refund.created_at.in_time_zone(@practice.timezone).strftime("%B %-d, %Y") %> · <%= refund.currency %> <%= number_with_precision(refund.amount, precision: 2, delimiter: ",") %></p>
+      <% end %>
+      <p class="muted">This receipt preserves the original payment. Refunds are shown separately.</p>
+    <% end %>
+    <footer>Retain this receipt for your records. It records this transaction and does not confirm the balance of other invoices.</footer>
+  </main>
+  <%= javascript_tag nonce: true do %>
+    document.getElementById("print-receipt").addEventListener("click", function () { window.print(); });
+  <% end %>
+</body>
+</html>

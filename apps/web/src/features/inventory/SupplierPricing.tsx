@@ -1,0 +1,744 @@
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { api, ApiError } from "../../api/client";
+import { Button } from "@mui/material";
+import type {
+  InventorySupplierData,
+  InventorySupplierRead,
+} from "./inventoryContracts";
+import { decimalMoney } from "./inventoryContracts";
+import "./supplierPricing.css";
+
+type PreviewRow = {
+  line: number;
+  product_id: string | null;
+  matched: boolean;
+  ndc: string;
+  supplier_sku: string;
+  description: string;
+  package_quantity: string;
+  wholesale_unit_cost: string;
+  effective_date: string;
+  currency: string;
+  ordering_unit: string;
+  contract_status: string;
+  available: boolean | null;
+  lead_time_days: number | null;
+  eligible: boolean;
+  eligibility_reason: string | null;
+};
+type PreviewError = { line: number; message: string };
+type PricePreview = {
+  total_rows: number;
+  rows: PreviewRow[];
+  errors: PreviewError[];
+  unmatched_ndcs: string[];
+};
+
+function price(value: string, currency = "USD") {
+  if (currency === "UNK")
+    return `${decimalMoney(value)} (currency unconfirmed)`;
+  return `${currency} ${decimalMoney(value)}`;
+}
+
+function friendlyError(error: unknown) {
+  return error instanceof ApiError || error instanceof Error
+    ? error.message
+    : "The supplier pricing action could not be completed.";
+}
+
+export function SupplierPricingScreen({
+  data,
+  loading,
+  error: readError,
+  readBlocked,
+  onRead,
+}: {
+  data: InventorySupplierData;
+  loading: boolean;
+  error: string;
+  readBlocked: boolean;
+  onRead: (read: InventorySupplierRead) => Promise<void>;
+}) {
+  const canAccess = data.capabilities.supplier_pricing === true;
+  const canManage =
+    canAccess && data.capabilities["inventory.catalog"] === true;
+  const page = data.supplier_page;
+  const [supplierId, setSupplierId] = useState(page.supplier_id ?? "");
+  const [supplierName, setSupplierName] = useState("");
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
+    null,
+  );
+  const [fileName, setFileName] = useState("");
+  const [csv, setCsv] = useState("");
+  const [preview, setPreview] = useState<PricePreview | null>(null);
+  const [selectedLines, setSelectedLines] = useState<number[]>([]);
+  const [productQuery, setProductQuery] = useState(page.query);
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const writeBlocked = loading || Boolean(readError) || readBlocked;
+
+  useEffect(() => {
+    setSupplierId(page.supplier_id ?? "");
+  }, [page.supplier_id]);
+
+  useEffect(() => setProductQuery(page.query), [page.query]);
+
+  const selectedSupplier = data.suppliers.find(
+    (supplier) => supplier.id === supplierId,
+  );
+  const applied: InventorySupplierRead = {
+    q: page.query,
+    supplier_id: page.supplier_id ?? undefined,
+    page: page.page,
+  };
+  const refresh = (read: InventorySupplierRead = applied) => onRead(read);
+
+  const requireAck = (payload: { acknowledged?: boolean }) => {
+    if (payload.acknowledged !== true)
+      throw new Error("The supplier pricing response could not be confirmed.");
+  };
+
+  const saveSupplier = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = supplierName.trim();
+    if (!name || writeBlocked || busy) return;
+    setBusy("supplier");
+    setError("");
+    setNotice("");
+    try {
+      const endpoint = editingSupplierId
+        ? `/api/clinic/inventory/suppliers/${editingSupplierId}`
+        : "/api/clinic/inventory/suppliers";
+      const response = await api<{
+        acknowledged?: boolean;
+        id?: string | number;
+      }>(`${endpoint}?response=ack`, {
+        method: editingSupplierId ? "PATCH" : "POST",
+        body: { supplier: { name } },
+      });
+      requireAck(response);
+      const nextSupplierId =
+        response.id == null ? supplierId : String(response.id);
+      if (response.id != null) setSupplierId(String(response.id));
+      await refresh({
+        ...applied,
+        supplier_id: nextSupplierId || undefined,
+        page: 1,
+      });
+      setSupplierName("");
+      setEditingSupplierId(null);
+      setNotice(editingSupplierId ? "Supplier updated." : "Supplier created.");
+    } catch (reason) {
+      await refresh();
+      setError(
+        `${friendlyError(reason)} A supplier-list refresh was requested; reload if its current state is still unclear.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setPreview(null);
+    setSelectedLines([]);
+    setError("");
+    setNotice("");
+    if (!file) {
+      setFileName("");
+      setCsv("");
+      return;
+    }
+    setFileName(file.name);
+    try {
+      setCsv(await file.text());
+    } catch {
+      setCsv("");
+      setError("The selected CSV could not be read. Choose the file again.");
+    }
+  };
+
+  const previewFile = async () => {
+    if (!supplierId || !csv || writeBlocked || busy) return;
+    setBusy("preview");
+    setError("");
+    setNotice("");
+    try {
+      const response = await api<{ preview: PricePreview }>(
+        "/api/clinic/inventory/suppliers/preview",
+        { method: "POST", body: { supplier_id: supplierId, csv } },
+      );
+      setPreview(response.preview);
+      setSelectedLines(
+        response.preview.rows
+          .filter((row) => row.matched && row.eligible)
+          .map((row) => row.line),
+      );
+      setNotice("Preview ready. Review the rows before importing.");
+    } catch (reason) {
+      setError(friendlyError(reason));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const importRows = async () => {
+    if (!supplierId || !csv || !selectedLines.length || writeBlocked || busy)
+      return;
+    setBusy("import");
+    setError("");
+    setNotice("");
+    try {
+      const response = await api<{
+        acknowledged?: boolean;
+        imported: number;
+      }>("/api/clinic/inventory/suppliers/import?response=ack", {
+        method: "POST",
+        body: { supplier_id: supplierId, csv, include_lines: selectedLines },
+      });
+      requireAck(response);
+      await refresh();
+      setPreview(null);
+      setSelectedLines([]);
+      setNotice(
+        `${response.imported} price ${response.imported === 1 ? "row" : "rows"} imported for ${selectedSupplier?.name ?? "this supplier"}.`,
+      );
+    } catch (reason) {
+      await refresh();
+      setError(
+        `${friendlyError(reason)} An offer refresh was requested; reload if the current supplier terms are still unclear.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const setPreferredSupplier = async (
+    productId: string,
+    nextSupplierId: string,
+  ) => {
+    if (writeBlocked || busy) return;
+    setBusy(`preferred-${productId}`);
+    setError("");
+    setNotice("");
+    try {
+      const response = await api<{ acknowledged?: boolean }>(
+        `/api/clinic/inventory/products/${productId}/preferred-supplier?response=ack`,
+        { method: "PATCH", body: { supplier_id: nextSupplierId || null } },
+      );
+      requireAck(response);
+      await refresh();
+      setNotice("Preferred supplier updated.");
+    } catch (reason) {
+      await refresh();
+      setError(
+        `${friendlyError(reason)} A preference refresh was requested; reload if the current selection is still unclear.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (!canAccess) {
+    return (
+      <div className="inventory-warning strong" role="alert">
+        <strong>Supplier pricing is restricted.</strong>
+        <p>
+          Only Admin, Omni Admin, and Inventory Coordinator roles can manage
+          suppliers and pricing.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="supplier-pricing-page">
+      {!canManage && (
+        <div className="inventory-warning" role="status">
+          <strong>Supplier pricing is read-only for this account.</strong>
+          <p>
+            Ask a clinic inventory administrator to update suppliers or import
+            pricing.
+          </p>
+        </div>
+      )}
+      {(notice || error || readError) && (
+        <div
+          className={
+            error || readError
+              ? "supplier-pricing-message error"
+              : "supplier-pricing-message"
+          }
+          role={error || readError ? "alert" : "status"}
+        >
+          {error || readError || notice}
+        </div>
+      )}
+      <div className="supplier-pricing-intro">
+        <h2>Supplier catalog</h2>
+        <div
+          className="supplier-pricing-summary"
+          aria-label="Supplier pricing summary"
+        >
+          <span>
+            <strong>{data.suppliers.length}</strong> suppliers
+          </span>
+          <span>
+            <strong>{page.total_count}</strong> price offers
+          </span>
+          <span>
+            <strong>
+              {
+                data.products.filter((product) => product.preferred_supplier_id)
+                  .length
+              }
+            </strong>{" "}
+            preferred links on this page
+          </span>
+        </div>
+      </div>
+      <div className="supplier-pricing-workbench">
+        <section className="inventory-card supplier-directory">
+          <div className="supplier-panel-heading">
+            <div>
+              <h2>Suppliers</h2>
+            </div>
+            <span className="supplier-panel-count">
+              {data.suppliers.length}
+            </span>
+          </div>
+          <div className="supplier-list">
+            <div
+              className={`supplier-list-row${page.supplier_id ? "" : " selected"}`}
+            >
+              <button
+                type="button"
+                className="supplier-select"
+                disabled={loading}
+                onClick={() => {
+                  setSupplierId("");
+                  setPreview(null);
+                  void onRead({ ...applied, supplier_id: undefined, page: 1 });
+                }}
+              >
+                <strong>All suppliers</strong>
+                <small>
+                  {page.supplier_id
+                    ? "View every imported offer"
+                    : "Showing every supplier"}
+                </small>
+              </button>
+            </div>
+            {data.suppliers.map((supplier) => {
+              return (
+                <div
+                  className={`supplier-list-row${supplier.id === supplierId ? " selected" : ""}`}
+                  key={supplier.id}
+                >
+                  <button
+                    type="button"
+                    className="supplier-select"
+                    onClick={() => {
+                      setSupplierId(supplier.id);
+                      setPreview(null);
+                      void onRead({
+                        ...applied,
+                        supplier_id: supplier.id,
+                        page: 1,
+                      });
+                    }}
+                  >
+                    <strong>{supplier.name}</strong>
+                    <small>
+                      {supplier.id === page.supplier_id
+                        ? "Showing this supplier"
+                        : "View imported offers"}
+                    </small>
+                  </button>
+                  {canManage && (
+                    <button
+                      type="button"
+                      className="supplier-edit"
+                      disabled={writeBlocked || busy !== ""}
+                      onClick={() => {
+                        setEditingSupplierId(supplier.id);
+                        setSupplierName(supplier.name);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {canManage && (
+            <form className="supplier-create-form" onSubmit={saveSupplier}>
+              <label htmlFor="supplier-name">
+                {editingSupplierId ? "Edit supplier" : "Add supplier"}
+              </label>
+              <div className="supplier-create-controls">
+                <input
+                  id="supplier-name"
+                  value={supplierName}
+                  onChange={(event) => setSupplierName(event.target.value)}
+                  placeholder="Supplier name"
+                  maxLength={120}
+                  disabled={writeBlocked || busy !== ""}
+                  required
+                />
+                <button
+                  className="inventory-button primary"
+                  type="submit"
+                  disabled={writeBlocked || busy !== ""}
+                >
+                  {busy === "supplier"
+                    ? "Saving…"
+                    : editingSupplierId
+                      ? "Save"
+                      : "Add"}
+                </button>
+              </div>
+              {editingSupplierId && (
+                <button
+                  type="button"
+                  className="supplier-cancel"
+                  onClick={() => {
+                    setEditingSupplierId(null);
+                    setSupplierName("");
+                  }}
+                >
+                  Cancel editing
+                </button>
+              )}
+            </form>
+          )}
+        </section>
+        <section className="inventory-card supplier-import-panel">
+          <div className="supplier-panel-heading">
+            <div>
+              <h2>Import price sheet</h2>
+            </div>
+            <span className="supplier-contract-tag">Per package</span>
+          </div>
+          <div className="supplier-import-controls">
+            <label>
+              <span>Supplier</span>
+              <select
+                value={supplierId}
+                onChange={(event) => {
+                  setSupplierId(event.target.value);
+                  setPreview(null);
+                  void onRead({
+                    ...applied,
+                    supplier_id: event.target.value || undefined,
+                    page: 1,
+                  });
+                }}
+                disabled={!canManage || loading}
+              >
+                <option value="">Select a supplier</option>
+                {data.suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>CSV file</span>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(event) => void chooseFile(event)}
+                disabled={!canManage || writeBlocked}
+              />
+            </label>
+          </div>
+          <div className="supplier-import-actions">
+            <span>{fileName || "No CSV selected"}</span>
+            <button
+              className="inventory-button outline"
+              type="button"
+              onClick={() => void previewFile()}
+              disabled={
+                !canManage || writeBlocked || !supplierId || !csv || busy !== ""
+              }
+            >
+              {busy === "preview" ? "Checking…" : "Preview file"}
+            </button>
+          </div>
+          {preview && (
+            <div
+              className="supplier-preview"
+              aria-label="Supplier price preview"
+            >
+              <div className="supplier-preview-summary">
+                <span>
+                  <strong>{preview.rows.length}</strong> valid
+                </span>
+                <span className={preview.errors.length ? "has-issue" : ""}>
+                  <strong>{preview.errors.length}</strong> invalid
+                </span>
+                <span
+                  className={preview.unmatched_ndcs.length ? "has-issue" : ""}
+                >
+                  <strong>{preview.unmatched_ndcs.length}</strong> unmatched
+                  NDCs
+                </span>
+              </div>
+              {preview.errors.length > 0 && (
+                <div className="supplier-preview-issues">
+                  <strong>Rows needing correction</strong>
+                  <ul>
+                    {preview.errors.map((item) => (
+                      <li key={item.line}>
+                        Line {item.line}: {item.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="supplier-preview-table-wrap">
+                <table className="supplier-preview-table">
+                  <caption className="sr-only">
+                    Valid supplier price rows
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th>Import</th>
+                      <th>NDC</th>
+                      <th>Supplier SKU</th>
+                      <th>Package</th>
+                      <th>Package cost</th>
+                      <th>Terms</th>
+                      <th>Eligibility</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.rows.map((row) => (
+                      <tr
+                        key={row.line}
+                        className={!row.matched ? "unmatched" : undefined}
+                      >
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedLines.includes(row.line)}
+                            aria-label={`Import CSV line ${row.line}`}
+                            onChange={(event) =>
+                              setSelectedLines((current) =>
+                                event.target.checked
+                                  ? [...current, row.line]
+                                  : current.filter((line) => line !== row.line),
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="mono">{row.ndc}</td>
+                        <td>{row.supplier_sku}</td>
+                        <td>{row.package_quantity}</td>
+                        <td>{price(row.wholesale_unit_cost, row.currency)}</td>
+                        <td>
+                          {row.ordering_unit} · {row.contract_status}
+                          {row.lead_time_days == null
+                            ? ""
+                            : ` · ${row.lead_time_days} day lead`}
+                        </td>
+                        <td>
+                          {row.matched && row.eligible ? (
+                            <span className="supplier-match">
+                              Eligible catalog match
+                            </span>
+                          ) : (
+                            <span className="supplier-unmatched">
+                              {row.eligibility_reason ??
+                                (row.matched
+                                  ? "Not eligible"
+                                  : "Unmatched NDC")}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="supplier-import-footer">
+                <span>{selectedLines.length} selected for import</span>
+                <button
+                  className="inventory-button primary"
+                  type="button"
+                  onClick={() => void importRows()}
+                  disabled={
+                    !canManage ||
+                    writeBlocked ||
+                    !selectedLines.length ||
+                    busy !== ""
+                  }
+                >
+                  {busy === "import" ? "Importing…" : "Import selected rows"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+      <section className="inventory-card supplier-defaults-panel">
+        <div className="supplier-panel-heading supplier-defaults-heading">
+          <div>
+            <h2>Imported offers and preferred suppliers</h2>
+          </div>
+          <form
+            className="supplier-search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!loading)
+                void onRead({
+                  ...applied,
+                  q: productQuery.trim(),
+                  page: 1,
+                });
+            }}
+          >
+            <label htmlFor="supplier-offer-search" className="sr-only">
+              Search supplier offers
+            </label>
+            <input
+              id="supplier-offer-search"
+              value={productQuery}
+              onChange={(event) => setProductQuery(event.target.value)}
+              placeholder="Product, NDC, supplier, or SKU"
+              maxLength={100}
+            />
+            <Button variant="outlined" type="submit" disabled={loading}>
+              Search offers
+            </Button>
+          </form>
+        </div>
+        <p className="inventory-results-count" role="status">
+          {loading
+            ? "Loading supplier offers…"
+            : `Showing ${page.filtered_count === 0 ? 0 : (page.page - 1) * page.page_size + 1}–${Math.min(page.page * page.page_size, page.filtered_count)} of ${page.filtered_count} matching offers (${page.total_count} total).`}
+        </p>
+        <div className="supplier-defaults-table-wrap">
+          <table className="supplier-defaults-table">
+            <caption className="sr-only">
+              Imported supplier offers and preferred supplier settings
+            </caption>
+            <thead>
+              <tr>
+                <th>Catalog item</th>
+                <th>Supplier offer</th>
+                <th>Terms</th>
+                <th>Eligibility</th>
+                <th>Preference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.supplier_products.map((offer) => {
+                const product = data.products.find(
+                  (candidate) => candidate.id === offer.product_id,
+                );
+                const preferred =
+                  product?.preferred_supplier_id === offer.supplier_id;
+                return (
+                  <tr key={offer.id}>
+                    <td>
+                      <strong>{product?.name ?? offer.description}</strong>
+                      <small className="mono">
+                        {product?.ndc || offer.ndc || "NDC not recorded"}
+                      </small>
+                    </td>
+                    <td>
+                      <strong>{offer.supplier_name}</strong>
+                      <small className="mono">{offer.supplier_sku}</small>
+                    </td>
+                    <td>
+                      {price(offer.wholesale_unit_cost, offer.currency)} per{" "}
+                      {offer.ordering_unit}
+                      <small>
+                        {offer.package_quantity} units ·{" "}
+                        {offer.lead_time_days == null
+                          ? "Lead time not recorded"
+                          : `${offer.lead_time_days} day lead`}
+                      </small>
+                    </td>
+                    <td>
+                      {offer.eligible ? (
+                        <span className="supplier-match">Eligible</span>
+                      ) : (
+                        <span className="supplier-unmatched">
+                          {offer.eligibility_reason ?? "Not eligible"}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {product && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          type="button"
+                          disabled={
+                            !canManage ||
+                            writeBlocked ||
+                            (!offer.eligible && !preferred) ||
+                            busy === `preferred-${product.id}`
+                          }
+                          onClick={() =>
+                            void setPreferredSupplier(
+                              product.id,
+                              preferred ? "" : offer.supplier_id,
+                            )
+                          }
+                        >
+                          {busy === `preferred-${product.id}`
+                            ? "Saving…"
+                            : preferred
+                              ? "Clear preferred"
+                              : "Make preferred"}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!data.supplier_products.length && (
+            <p className="supplier-empty">
+              No supplier offers match this view.
+            </p>
+          )}
+        </div>
+        {page.page_count > 1 && (
+          <nav
+            className="inventory-pagination"
+            aria-label="Supplier offer pagination"
+          >
+            <Button
+              variant="outlined"
+              type="button"
+              disabled={loading || page.page === 1}
+              onClick={() => void onRead({ ...applied, page: page.page - 1 })}
+            >
+              Previous
+            </Button>
+            <span aria-live="polite">
+              Page {page.page} of {page.page_count}
+            </span>
+            <Button
+              variant="outlined"
+              type="button"
+              disabled={loading || page.page === page.page_count}
+              onClick={() => void onRead({ ...applied, page: page.page + 1 })}
+            >
+              Next
+            </Button>
+          </nav>
+        )}
+      </section>
+    </div>
+  );
+}

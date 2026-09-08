@@ -1,0 +1,692 @@
+{
+  "entities": [
+    "clinic_allergies",
+    "clinic_appointments",
+    "clinic_audit_delivery_receipts",
+    "clinic_audit_events",
+    "clinic_audit_resource_manifests",
+    "clinic_clinician_assignments",
+    "clinic_clinician_credentials",
+    "clinic_clinician_profiles",
+    "clinic_conditions",
+    "clinic_coverage_versions",
+    "clinic_credit_notes",
+    "clinic_departments",
+    "clinic_document_categories",
+    "clinic_documents",
+    "clinic_encounter_note_revisions",
+    "clinic_encounter_note_signatures",
+    "clinic_encounter_notes",
+    "clinic_encounter_participants",
+    "clinic_encounters",
+    "clinic_insurance_claims",
+    "clinic_inventory_catalog_events",
+    "clinic_inventory_count_approvals",
+    "clinic_inventory_counts",
+    "clinic_inventory_entries",
+    "clinic_inventory_hold_releases",
+    "clinic_inventory_holds",
+    "clinic_inventory_locations",
+    "clinic_inventory_lots",
+    "clinic_inventory_profiles",
+    "clinic_inventory_receipt_lines",
+    "clinic_inventory_receipts",
+    "clinic_inventory_suppliers",
+    "clinic_invoice_lines",
+    "clinic_invoices",
+    "clinic_items",
+    "clinic_medication_statements",
+    "clinic_memberships",
+    "clinic_message_attachments",
+    "clinic_message_delivery_events",
+    "clinic_message_intents",
+    "clinic_message_outbox",
+    "clinic_notes",
+    "clinic_observation_sources",
+    "clinic_observations",
+    "clinic_patient_address_versions",
+    "clinic_patients",
+    "clinic_payment_allocations",
+    "clinic_payment_events",
+    "clinic_pharmacy_batches",
+    "clinic_pharmacy_products",
+    "clinic_practices",
+    "clinic_refund_events",
+    "clinic_role_grant_events",
+    "clinic_role_grants",
+    "clinic_rooms",
+    "clinic_sites",
+    "clinic_staff_address_versions",
+    "clinic_staff_members",
+    "clinic_supplier_address_versions",
+    "clinic_visit_types",
+    "identity_preferences",
+    "member_sessions",
+    "organizations",
+    "permissions",
+    "platform_audit_events",
+    "role_version_permissions",
+    "role_versions",
+    "users"
+  ],
+  "relationships": [
+    {
+      "parent": "organizations",
+      "cardinality": "|o..o{",
+      "child": "clinic_practices",
+      "label": "business grouping only"
+    },
+    {
+      "parent": "users",
+      "cardinality": "||..o|",
+      "child": "clinic_memberships",
+      "label": "at most one clinic"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_memberships",
+      "label": "authorizes"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_sites",
+      "label": "operates"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_patients",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_items",
+      "label": "stocks"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_pharmacy_products",
+      "label": "catalogs"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_audit_events",
+      "label": "scopes"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_appointments",
+      "label": "books"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_encounters",
+      "label": "receives"
+    },
+    {
+      "parent": "clinic_appointments",
+      "cardinality": "|o..o|",
+      "child": "clinic_encounters",
+      "label": "optional booking"
+    },
+    {
+      "parent": "clinic_encounters",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_notes",
+      "label": "documents"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_documents",
+      "label": "owns"
+    },
+    {
+      "parent": "organizations",
+      "cardinality": "|o..o{",
+      "child": "clinic_practices",
+      "label": "groups"
+    },
+    {
+      "parent": "users",
+      "cardinality": "||..o|",
+      "child": "clinic_memberships",
+      "label": "has"
+    },
+    {
+      "parent": "users",
+      "cardinality": "||..o|",
+      "child": "identity_preferences",
+      "label": "customizes"
+    },
+    {
+      "parent": "users",
+      "cardinality": "||..o{",
+      "child": "member_sessions",
+      "label": "authenticates"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_memberships",
+      "label": "assigns"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_sites",
+      "label": "operates"
+    },
+    {
+      "parent": "clinic_sites",
+      "cardinality": "||..o{",
+      "child": "clinic_rooms",
+      "label": "contains"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_departments",
+      "label": "organizes"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_visit_types",
+      "label": "defines"
+    },
+    {
+      "parent": "clinic_memberships",
+      "cardinality": "||..o|",
+      "child": "clinic_clinician_profiles",
+      "label": "describes"
+    },
+    {
+      "parent": "clinic_clinician_profiles",
+      "cardinality": "||..o{",
+      "child": "clinic_clinician_assignments",
+      "label": "serves"
+    },
+    {
+      "parent": "clinic_sites",
+      "cardinality": "||..o{",
+      "child": "clinic_clinician_assignments",
+      "label": "hosts"
+    },
+    {
+      "parent": "clinic_departments",
+      "cardinality": "||..o{",
+      "child": "clinic_clinician_assignments",
+      "label": "organizes"
+    },
+    {
+      "parent": "clinic_clinician_profiles",
+      "cardinality": "||..o{",
+      "child": "clinic_clinician_credentials",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_appointments",
+      "label": "books"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_encounters",
+      "label": "receives"
+    },
+    {
+      "parent": "clinic_appointments",
+      "cardinality": "|o..o|",
+      "child": "clinic_encounters",
+      "label": "zero or one each"
+    },
+    {
+      "parent": "clinic_sites",
+      "cardinality": "|o..o{",
+      "child": "clinic_appointments",
+      "label": "hosts"
+    },
+    {
+      "parent": "clinic_sites",
+      "cardinality": "|o..o{",
+      "child": "clinic_encounters",
+      "label": "hosts"
+    },
+    {
+      "parent": "clinic_rooms",
+      "cardinality": "|o..o{",
+      "child": "clinic_appointments",
+      "label": "reserves"
+    },
+    {
+      "parent": "clinic_rooms",
+      "cardinality": "|o..o{",
+      "child": "clinic_encounters",
+      "label": "locates"
+    },
+    {
+      "parent": "clinic_clinician_profiles",
+      "cardinality": "|o..o{",
+      "child": "clinic_appointments",
+      "label": "booked clinician"
+    },
+    {
+      "parent": "clinic_visit_types",
+      "cardinality": "|o..o{",
+      "child": "clinic_appointments",
+      "label": "classifies"
+    },
+    {
+      "parent": "clinic_encounters",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_participants",
+      "label": "actual participants"
+    },
+    {
+      "parent": "clinic_memberships",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_participants",
+      "label": "participates"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_notes",
+      "label": "legacy drafts only"
+    },
+    {
+      "parent": "clinic_memberships",
+      "cardinality": "||..o{",
+      "child": "clinic_notes",
+      "label": "attribution via user_id"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_notes",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_encounters",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_notes",
+      "label": "documents"
+    },
+    {
+      "parent": "clinic_encounter_notes",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_note_revisions",
+      "label": "versions"
+    },
+    {
+      "parent": "clinic_encounter_note_revisions",
+      "cardinality": "|o..o{",
+      "child": "clinic_encounter_note_revisions",
+      "label": "predecessor"
+    },
+    {
+      "parent": "clinic_encounter_note_revisions",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_note_signatures",
+      "label": "attests"
+    },
+    {
+      "parent": "clinic_memberships",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_note_revisions",
+      "label": "authors"
+    },
+    {
+      "parent": "clinic_memberships",
+      "cardinality": "||..o{",
+      "child": "clinic_encounter_note_signatures",
+      "label": "signs"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_observations",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_encounters",
+      "cardinality": "|o..o{",
+      "child": "clinic_observations",
+      "label": "contextualizes"
+    },
+    {
+      "parent": "clinic_observations",
+      "cardinality": "|o..o{",
+      "child": "clinic_observations",
+      "label": "groups"
+    },
+    {
+      "parent": "clinic_observations",
+      "cardinality": "||..o{",
+      "child": "clinic_observation_sources",
+      "label": "derived output"
+    },
+    {
+      "parent": "clinic_observations",
+      "cardinality": "||..o{",
+      "child": "clinic_observation_sources",
+      "label": "source input"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_conditions",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_allergies",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_medication_statements",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_pharmacy_products",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_lots",
+      "label": "identifies"
+    },
+    {
+      "parent": "clinic_inventory_lots",
+      "cardinality": "||..o{",
+      "child": "clinic_pharmacy_batches",
+      "label": "positions"
+    },
+    {
+      "parent": "clinic_inventory_locations",
+      "cardinality": "||..o{",
+      "child": "clinic_pharmacy_batches",
+      "label": "stores"
+    },
+    {
+      "parent": "clinic_inventory_suppliers",
+      "cardinality": "|o..o{",
+      "child": "clinic_inventory_receipts",
+      "label": "supplies"
+    },
+    {
+      "parent": "clinic_inventory_receipts",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_receipt_lines",
+      "label": "contains"
+    },
+    {
+      "parent": "clinic_pharmacy_batches",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_receipt_lines",
+      "label": "receives"
+    },
+    {
+      "parent": "clinic_inventory_receipt_lines",
+      "cardinality": "|o..o|",
+      "child": "clinic_inventory_entries",
+      "label": "receipt posting"
+    },
+    {
+      "parent": "clinic_pharmacy_batches",
+      "cardinality": "|o..o{",
+      "child": "clinic_inventory_entries",
+      "label": "pharmacy target"
+    },
+    {
+      "parent": "clinic_items",
+      "cardinality": "|o..o{",
+      "child": "clinic_inventory_entries",
+      "label": "office target"
+    },
+    {
+      "parent": "clinic_pharmacy_batches",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_holds",
+      "label": "holds"
+    },
+    {
+      "parent": "clinic_inventory_holds",
+      "cardinality": "||..o|",
+      "child": "clinic_inventory_hold_releases",
+      "label": "releases"
+    },
+    {
+      "parent": "clinic_pharmacy_batches",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_counts",
+      "label": "counted"
+    },
+    {
+      "parent": "clinic_inventory_counts",
+      "cardinality": "||..o|",
+      "child": "clinic_inventory_count_approvals",
+      "label": "approved"
+    },
+    {
+      "parent": "clinic_inventory_entries",
+      "cardinality": "|o..o|",
+      "child": "clinic_inventory_count_approvals",
+      "label": "variance posting"
+    },
+    {
+      "parent": "clinic_inventory_profiles",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_receipts",
+      "label": "governs"
+    },
+    {
+      "parent": "clinic_inventory_profiles",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_counts",
+      "label": "governs"
+    },
+    {
+      "parent": "clinic_inventory_profiles",
+      "cardinality": "|o..o{",
+      "child": "clinic_inventory_entries",
+      "label": "posting provenance"
+    },
+    {
+      "parent": "clinic_pharmacy_products",
+      "cardinality": "||..o{",
+      "child": "clinic_inventory_catalog_events",
+      "label": "changes"
+    },
+    {
+      "parent": "role_versions",
+      "cardinality": "||..o{",
+      "child": "role_version_permissions",
+      "label": "contains"
+    },
+    {
+      "parent": "permissions",
+      "cardinality": "||..o{",
+      "child": "role_version_permissions",
+      "label": "defines"
+    },
+    {
+      "parent": "role_versions",
+      "cardinality": "||..o{",
+      "child": "clinic_role_grants",
+      "label": "pins"
+    },
+    {
+      "parent": "clinic_memberships",
+      "cardinality": "||..o{",
+      "child": "clinic_role_grants",
+      "label": "receives"
+    },
+    {
+      "parent": "clinic_sites",
+      "cardinality": "|o..o{",
+      "child": "clinic_role_grants",
+      "label": "narrows"
+    },
+    {
+      "parent": "clinic_role_grants",
+      "cardinality": "||..o{",
+      "child": "clinic_role_grant_events",
+      "label": "preserves"
+    },
+    {
+      "parent": "clinic_practices",
+      "cardinality": "||..o{",
+      "child": "clinic_audit_events",
+      "label": "scopes"
+    },
+    {
+      "parent": "clinic_audit_events",
+      "cardinality": "||..o{",
+      "child": "clinic_audit_resource_manifests",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_audit_events",
+      "cardinality": "||..o{",
+      "child": "clinic_audit_delivery_receipts",
+      "label": "acknowledges"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_patient_address_versions",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_staff_members",
+      "cardinality": "||..o{",
+      "child": "clinic_staff_address_versions",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_inventory_suppliers",
+      "cardinality": "||..o{",
+      "child": "clinic_supplier_address_versions",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_documents",
+      "label": "owns"
+    },
+    {
+      "parent": "clinic_encounters",
+      "cardinality": "|o..o{",
+      "child": "clinic_documents",
+      "label": "contextualizes"
+    },
+    {
+      "parent": "clinic_document_categories",
+      "cardinality": "||..o{",
+      "child": "clinic_documents",
+      "label": "classifies"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_message_intents",
+      "label": "concerns"
+    },
+    {
+      "parent": "clinic_message_intents",
+      "cardinality": "||..o{",
+      "child": "clinic_message_attachments",
+      "label": "includes"
+    },
+    {
+      "parent": "clinic_documents",
+      "cardinality": "||..o{",
+      "child": "clinic_message_attachments",
+      "label": "attaches"
+    },
+    {
+      "parent": "clinic_message_intents",
+      "cardinality": "||..||",
+      "child": "clinic_message_outbox",
+      "label": "atomic enqueue"
+    },
+    {
+      "parent": "clinic_message_intents",
+      "cardinality": "||..o{",
+      "child": "clinic_message_delivery_events",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_invoices",
+      "label": "owes"
+    },
+    {
+      "parent": "clinic_invoices",
+      "cardinality": "||..o{",
+      "child": "clinic_invoice_lines",
+      "label": "snapshots"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_payment_events",
+      "label": "records"
+    },
+    {
+      "parent": "clinic_payment_events",
+      "cardinality": "||..o{",
+      "child": "clinic_payment_allocations",
+      "label": "allocates"
+    },
+    {
+      "parent": "clinic_invoices",
+      "cardinality": "||..o{",
+      "child": "clinic_payment_allocations",
+      "label": "settles"
+    },
+    {
+      "parent": "clinic_invoices",
+      "cardinality": "||..o{",
+      "child": "clinic_credit_notes",
+      "label": "credits"
+    },
+    {
+      "parent": "clinic_payment_events",
+      "cardinality": "||..o{",
+      "child": "clinic_refund_events",
+      "label": "refunds"
+    },
+    {
+      "parent": "clinic_patients",
+      "cardinality": "||..o{",
+      "child": "clinic_coverage_versions",
+      "label": "holds"
+    },
+    {
+      "parent": "clinic_invoices",
+      "cardinality": "||..o{",
+      "child": "clinic_insurance_claims",
+      "label": "claims"
+    },
+    {
+      "parent": "clinic_coverage_versions",
+      "cardinality": "||..o{",
+      "child": "clinic_insurance_claims",
+      "label": "supports"
+    }
+  ]
+}

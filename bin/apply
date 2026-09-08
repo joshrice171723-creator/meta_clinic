@@ -1,0 +1,22 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Compatibility shim for previously installed `apply` launchers.
+require "rbconfig"
+
+root = File.expand_path("..", __dir__)
+canonical = File.join(root, "bin", "dev")
+requested = ARGV.shift
+commands = {"up" => "start", "down" => "stop", "restart" => "restart", "doctor" => "status"}.freeze
+exec(RbConfig.ruby, canonical, "help", chdir: root) unless requested
+command = commands.fetch(requested, requested)
+
+legacy_seed = ARGV.delete("--seed")
+ARGV.delete("--no-seed-refresh")
+if legacy_seed
+  exit 1 unless system(RbConfig.ruby, canonical, "reset-data", "--yes", chdir: root)
+  command = "start"
+end
+
+warn "The installed apply launcher is deprecated; use #{canonical} #{command}."
+exec(RbConfig.ruby, canonical, command, *ARGV, chdir: root)
