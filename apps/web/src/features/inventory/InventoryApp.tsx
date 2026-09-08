@@ -6364,7 +6364,7 @@ function LotsScreen({
           },
         },
         "Adjustment posted",
-        "Inventory adjusted.",
+        `${decimalCompare(quantity, "0") > 0 ? "+" : ""}${number(quantity)} ${selectedProduct.base_unit} for ${selectedProduct.name}, lot ${selectedLot.lot_number}, at ${selectedLocation.name}. Reason: ${reason.trim()}.`,
       );
     else
       void run(
@@ -6394,6 +6394,11 @@ function LotsScreen({
               `/clinic/inventory/lots?product_id=${encodeURIComponent(match.product_id)}&scan=1`,
             )
           }
+          onClear={() => {
+            setSelectedId("");
+            setQuantity("");
+            setReason("");
+          }}
         />
         {page.product_name && (
           <p>
@@ -6630,21 +6635,31 @@ function LotsScreen({
               </button>
             </div>
             <form className="inventory-form-grid" onSubmit={submit}>
-              <Field
+              <TextField
+                size="small"
+                type="number"
+                required
                 label={
                   action === "count"
                     ? "Counted units"
-                    : `Quantity / delta (${selectedProduct.base_unit})`
+                    : action === "adjust"
+                      ? `Signed adjustment (${selectedProduct.base_unit})`
+                      : `Quantity (${selectedProduct.base_unit})`
                 }
-              >
-                <input
-                  type="number"
-                  min={action === "count" ? 0 : 1}
-                  value={quantity}
-                  step="any"
-                  onChange={(event) => setQuantity(event.target.value)}
-                />
-              </Field>
+                helperText={
+                  action === "adjust"
+                    ? "Use a positive value to add stock or a negative value to remove stock."
+                    : undefined
+                }
+                slotProps={{
+                  htmlInput: {
+                    min: action === "count" ? 0 : action === "adjust" ? undefined : 1,
+                    step: "any",
+                  },
+                }}
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+              />
               {action === "transfer" && (
                 <Field label="Destination">
                   <select
@@ -6664,12 +6679,16 @@ function LotsScreen({
                   Create another active leaf location before transferring stock.
                 </Alert>
               )}
-              <Field label="Reason">
-                <input
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                />
-              </Field>
+              <TextField
+                size="small"
+                required
+                multiline
+                minRows={2}
+                label={action === "adjust" ? "Adjustment reason" : "Reason"}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
               <div className="inventory-form-actions">
                 <PermissionNote
                   allowed={capability(
@@ -6693,8 +6712,13 @@ function LotsScreen({
                     busy ||
                     (action === "transfer" &&
                       (blocked || !effectiveDestination)) ||
-                    (action !== "count" &&
+                    ((action === "transfer" &&
                       decimalCompare(quantity || "0", "0") <= 0) ||
+                      (action === "adjust" &&
+                        decimalCompare(quantity || "0", "0") === 0) ||
+                      (action === "count" &&
+                        decimalCompare(quantity || "0", "0") < 0)) ||
+                    !reason.trim() ||
                     !capability(
                       data,
                       action === "transfer"
@@ -7251,6 +7275,7 @@ export function ActivityScreen({
                   <th>Lot / location</th>
                   <th>Quantity</th>
                   <th>Reason / source</th>
+                  <th>Recorded by</th>
                 </tr>
               </thead>
               <tbody>
@@ -7276,8 +7301,9 @@ export function ActivityScreen({
                     </td>
                     <td>
                       <span>{item.reason}</span>
-                      <small className="mono">{item.source_id}</small>
+                      <small>{item.source?.label ?? item.source_id}</small>
                     </td>
+                    <td>{item.actor_name ?? "System record"}</td>
                   </tr>
                 ))}
               </tbody>

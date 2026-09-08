@@ -72,16 +72,17 @@ module Clinic
       end
 
       def cash_refunds
-        input = parameter_hash!(:cash_refund, %i[amount request_key])
+        input = parameter_hash!(:cash_refund, %i[amount reason request_key])
         payment = PaymentEvent.where(practice: current_practice).find(requested_id!(params[:id], :id))
         amount = Money.decimal(decimal_string!(input[:amount], field: :amount), name: "refund", positive: true).to_s("F")
+        reason = required_string!(input[:reason], field: :reason, maximum: 200)
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         outcome = Clinic::Idempotency.execute(
           practice: current_practice,
           actor: current_user,
           operation_code: "billing.cash_refund",
           request_key: request_key,
-          payload: { payment_event_id: payment.id, amount: amount },
+          payload: { payment_event_id: payment.id, amount: amount, reason: reason },
           resource: payment,
           authorization: -> {
             Authorization.authorize_with_legacy!(actor: current_user, practice: current_practice,
@@ -93,7 +94,7 @@ module Clinic
             Clinic::RefundEvent.where(practice_id: practice.id, payment_event_id: payment.id).find_by(id: receipt.resource_id)
           }
         ) do
-          RecordCashRefund.call(practice: current_practice, actor: current_user, payment: payment, amount: amount)
+          RecordCashRefund.call(practice: current_practice, actor: current_user, payment: payment, amount: amount, reason: reason)
         end
         raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
 
@@ -106,7 +107,7 @@ module Clinic
           outcome.value
         end
         render json: {
-          refund: { id: refund.id, amount: refund.amount.to_s("F"), currency: refund.currency },
+          refund: { id: refund.id, amount: refund.amount.to_s("F"), currency: refund.currency, reason: refund.reason },
           receipt_id: receipt.id,
           replayed: outcome.replayed,
           request_key: request_key

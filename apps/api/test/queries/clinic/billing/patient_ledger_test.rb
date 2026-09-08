@@ -13,11 +13,11 @@ class PatientLedgerTest < ActiveSupport::TestCase
   test "does not report refunded payment value as unapplied credit" do
     applied_and_refunded = payment(reference: "ledger-refunded-allocated", amount: "100.00")
     applied_and_refunded.allocations.create!(practice: @practice, patient: @patient, invoice: @invoice, amount: "25.00")
-    applied_and_refunded.refund_events.create!(practice: @practice, patient: @patient, currency: "USD", amount: "30.00")
+    applied_and_refunded.refund_events.create!(practice: @practice, patient: @patient, currency: "USD", amount: "30.00", reason: "Fixture refund")
 
     fully_consumed = payment(reference: "ledger-refunded-floor", amount: "100.00")
     fully_consumed.allocations.create!(practice: @practice, patient: @patient, invoice: @invoice, amount: "70.00")
-    fully_consumed.refund_events.create!(practice: @practice, patient: @patient, currency: "USD", amount: "40.00")
+    fully_consumed.refund_events.create!(practice: @practice, patient: @patient, currency: "USD", amount: "40.00", reason: "Fixture refund")
 
     payments = Clinic::Billing::PatientLedger.call(practice: @practice, patient: @patient).fetch(:payments).index_by { |entry| entry.fetch(:id) }
 

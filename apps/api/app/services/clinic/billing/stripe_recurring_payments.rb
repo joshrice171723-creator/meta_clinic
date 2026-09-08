@@ -186,12 +186,13 @@ module Clinic
           total = BigDecimal(charge["amount_refunded"].to_s) / 100
           remaining = total - payment.refund_events.sum(:amount)
           next unless remaining.positive?
+          refund_reason = "Confirmed Stripe refund"
           refund = payment.refund_events.create!(practice: checkout.practice, patient: agreement.patient,
-            currency: payment.currency, amount: remaining)
+            currency: payment.currency, amount: remaining, reason: refund_reason)
           invoice = payment.allocations.first!.invoice
           BillingReceipt.create!(practice: checkout.practice, patient: agreement.patient, invoice: invoice,
             payment_event: payment, issued_by: actor, kind: "subscription_refund", issued_at: Time.current,
-            payload: { amount: remaining.to_s("F"), currency: payment.currency, refund_id: refund.id })
+            payload: { amount: remaining.to_s("F"), currency: payment.currency, refund_id: refund.id, reason: refund_reason })
           active = agreement.events.where(kind: "active").order(id: :desc).first
           if total == payment.amount && active&.details&.fetch("payment_event_id", nil) == payment.id
             agreement.events.create!(practice: checkout.practice, kind: "refunded", request_key: "stripe:refund:#{payment.id}",

@@ -224,8 +224,10 @@ export type InventoryMovement = {
   quantity_units: Decimal;
   direction: string;
   source_id: string;
+  source?: { kind: string; label: string };
   occurred_at: string;
   actor_id?: string;
+  actor_name?: string | null;
   reason?: string;
 };
 export type InventoryPurchaseOrderLine = {

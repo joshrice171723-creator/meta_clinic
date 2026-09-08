@@ -226,7 +226,7 @@ module Clinic
           next payment unless remaining.positive?
 
           refund = payment.refund_events.create!(practice: invoice.practice, patient: invoice.patient,
-            currency: payment.currency, amount: remaining)
+            currency: payment.currency, amount: remaining, reason: "Confirmed Stripe invoice refund")
           AuditRecorder.record!(practice: invoice.practice, actor: actor,
             action_code: "stripe.invoice_refund.observed", outcome: :committed,
             resource_version_ref: "refund:#{refund.id}")
