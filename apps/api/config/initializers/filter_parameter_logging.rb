@@ -10,6 +10,7 @@ Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   :name, :message, :body, :website, :cookie, :signature, :consent, :content_digest,
   :reference, :reason, :job_title, :ndc_query, :scan_code, :authorization,
+  :date_of_birth, :emergency_phone, :contact_value, :tobacco_use,
   :text_value, :coded_value, :numeric_value, :unit_code, :missing_reason, :encrypted_value, :description_snapshot,
   :subjective, :objective, :assessment, :plan, :q,
   :content, :context, :segments, :revision, # Scribe source, context and reviewer text.

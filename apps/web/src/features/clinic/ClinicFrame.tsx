@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LaunchIcon from "@mui/icons-material/Launch";
-import MenuIcon from "@mui/icons-material/Menu";
 import PublicIcon from "@mui/icons-material/Public";
 import type { ClinicSite } from "../../api/contracts";
 import { Form } from "../../shared/ui";
@@ -15,6 +13,7 @@ export function compactNavigation() {
     window.matchMedia(COMPACT_NAV_QUERY).matches
   );
 }
+
 export function ClinicFrame({
   practiceName,
   locationName,
@@ -34,15 +33,10 @@ export function ClinicFrame({
   children: ReactNode;
   developmentPreview?: boolean;
 }) {
-  const [compact, setCompact] = useState(compactNavigation);
-  const [collapsed, setCollapsed] = useState(compactNavigation);
-  const tab = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLElement>(null);
   const locationMenu = useRef<HTMLDivElement>(null);
   const locationTrigger = useRef<HTMLButtonElement>(null);
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [highlightedLocation, setHighlightedLocation] = useState(0);
-  const drawer = compact && !collapsed;
   const selectedLocation = locations.find(
     (site) => site.id === selectedLocationId,
   );
@@ -53,32 +47,6 @@ export function ClinicFrame({
     onLocationChange?.(siteId);
     locationTrigger.current?.focus();
   };
-  const close = () => {
-    setCollapsed(true);
-    tab.current?.focus();
-  };
-  useEffect(() => {
-    const media = window.matchMedia(COMPACT_NAV_QUERY);
-    const change = () => {
-      setCompact(media.matches);
-      if (media.matches) {
-        if (panel.current?.contains(document.activeElement))
-          tab.current?.focus();
-        setCollapsed(true);
-      } else setCollapsed(false);
-    };
-    media.addEventListener("change", change);
-    return () => media.removeEventListener("change", change);
-  }, []);
-  useEffect(() => {
-    if (!drawer) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    panel.current?.querySelector<HTMLAnchorElement>("a")?.focus();
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [drawer]);
   useEffect(() => {
     const selectedIndex = locations.findIndex(
       (site) => site.id === selectedLocationId,
@@ -102,74 +70,9 @@ export function ClinicFrame({
       document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [locationMenuOpen]);
   return (
-    <div className="clinic-shell" data-collapsed={collapsed}>
-      {drawer && (
-        <button
-          type="button"
-          className="clinic-nav-backdrop"
-          tabIndex={-1}
-          aria-hidden="true"
-          onClick={close}
-        />
-      )}
-      <div
-        className="clinic-sidebar-frame"
-        role={drawer ? "dialog" : undefined}
-        aria-modal={drawer || undefined}
-        aria-label={drawer ? "Clinic menu" : undefined}
-        onClick={(event) => {
-          if (
-            drawer &&
-            (event.target as Element).closest(
-              "nav a, nav button, .clinic-sidebar-bottom a",
-            )
-          )
-            close();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape" && !collapsed) {
-            event.preventDefault();
-            close();
-          }
-          if (event.key !== "Tab" || !drawer) return;
-          const controls = Array.from(
-            event.currentTarget.querySelectorAll<HTMLElement>(
-              'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
-            ),
-          );
-          const first = controls[0],
-            last = controls[controls.length - 1];
-          if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last?.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first?.focus();
-          }
-        }}
-      >
-        <button
-          type="button"
-          ref={tab}
-          className="clinic-menu-toggle"
-          aria-controls="clinic-sidebar"
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Open clinic menu" : "Collapse clinic menu"}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <MenuIcon fontSize="small" aria-hidden="true" />
-          ) : (
-            <CloseIcon fontSize="small" aria-hidden="true" />
-          )}
-          <span className="clinic-menu-toggle-label">Menu</span>
-        </button>
-        <aside
-          id="clinic-sidebar"
-          className="clinic-sidebar"
-          ref={panel}
-          hidden={collapsed}
-        >
+    <div className="clinic-shell">
+      <div className="clinic-sidebar-frame">
+        <aside id="clinic-sidebar" className="clinic-sidebar">
           <a className="wordmark" href="/clinic">
             APPly
             <span className="brand-dot" />
@@ -301,7 +204,7 @@ export function ClinicFrame({
           </div>
         </aside>
       </div>
-      <div className="clinic-main" inert={drawer}>
+      <div className="clinic-main">
         {children}
       </div>
     </div>

@@ -292,17 +292,19 @@
 }
 .clinic-theme .tracking-vitals {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
+  min-width: 0;
 }
 .clinic-theme .tracking-vitals .tracking-vital:last-child {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 .clinic-theme .tracking-vital {
   display: grid;
-  grid-template-columns: 18px 24px minmax(0, 1fr);
+  grid-template-columns: 18px 30px minmax(0, 1fr);
   align-items: center;
   gap: 4px;
+  min-width: 0;
   border-radius: 3px;
   padding: 3px 4px;
 }
@@ -311,7 +313,8 @@
   line-height: 1;
 }
 .clinic-theme .tracking-vital-value {
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
 }
 .clinic-theme .tracking-column-resize {
   position: absolute;

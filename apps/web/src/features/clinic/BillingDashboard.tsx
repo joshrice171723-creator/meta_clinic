@@ -756,7 +756,9 @@ export function BillingDashboard() {
                       <TableCell>Site</TableCell>
                       <TableCell>Completed</TableCell>
                       <TableCell>Invoice state</TableCell>
-                      <TableCell>Checkout</TableCell>
+                      <TableCell className="billing-checkout-cell">
+                        Checkout
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -797,10 +799,14 @@ export function BillingDashboard() {
                               </Typography>
                             )}
                           </TableCell>
-                          <TableCell data-label="Checkout">
+                          <TableCell
+                            className="billing-checkout-cell"
+                            data-label="Checkout"
+                          >
                             <Button
                               component="a"
                               href={href}
+                              className="billing-checkout-button"
                               variant="outlined"
                             >
                               Start checkout

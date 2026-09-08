@@ -9,6 +9,7 @@ module Clinic
     has_many :attachments, class_name: "Clinic::MessageAttachment", foreign_key: :message_intent_id, dependent: :restrict_with_error
     has_many :delivery_events, class_name: "Clinic::MessageDeliveryEvent", dependent: :restrict_with_error
 
+    encrypts :encrypted_recipient_snapshot, :encrypted_content
     validates :request_key, :purpose_code, :encrypted_recipient_snapshot, :encrypted_content, presence: true
     validates :request_key, uniqueness: { scope: :practice_id }
   end

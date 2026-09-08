@@ -235,6 +235,9 @@ export function Workspace({
   useEffect(() => {
     if (landingDestination) navigate(landingDestination, { replace: true });
   }, [landingDestination, navigate]);
+  useEffect(() => {
+    document.getElementById("main")?.focus({ preventScroll: true });
+  }, [path, homeView]);
   const trackingBoard =
     path.replace(/\/+$/, "") === "/clinic" && homeView === "tracking";
   const inventoryPage = path.startsWith("/clinic/inventory");
@@ -363,6 +366,7 @@ export function Workspace({
                   )}
                   <main
                     id="main"
+                    tabIndex={-1}
                     className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}${scribePage ? " scribe-page" : ""}`}
                   >
                     {path === "/clinic/settings" && user.development_demo && (

@@ -221,14 +221,19 @@
   gap: 8px;
 }
 .clinic-theme .patient-demographics-table {
-  table-layout: fixed;
+  table-layout: auto;
+  width: 100%;
 }
 .clinic-theme .patient-demographics-table th {
   font-weight: 700;
-  width: 11%;
-  white-space: nowrap;
+  min-width: 7rem;
+  width: auto;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .clinic-theme .patient-demographics-table td {
+  min-width: 0;
   padding: 4px 6px;
   overflow-wrap: anywhere;
 }
