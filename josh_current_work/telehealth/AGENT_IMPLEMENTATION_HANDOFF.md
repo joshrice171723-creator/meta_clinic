@@ -2,7 +2,7 @@
 
 ## 2026-09-08 stopping checkpoint
 
-The founder requested commit and push after selecting Twilio Video to reuse the existing Twilio account. Connection recovery, clinician wrap-up, patient completion and the Twilio provider switch are implemented. All source writers stopped; verification is incomplete. Read the latest section of [implementation evidence](IMPLEMENTATION_EVIDENCE.md) before resuming. The isolated preview services are stopped, its database is preserved, and dependency restoration/build/test completion precede restart. No merge into the audit checkout is authorized by this handoff.
+The founder requested commit and push after selecting Twilio Video to reuse the existing Twilio account. Connection recovery, clinician wrap-up, patient completion and the Twilio provider switch are implemented in `ea61545`. All source writers stopped; verification is incomplete. Read the latest section of [implementation evidence](IMPLEMENTATION_EVIDENCE.md) before resuming. The isolated preview services and database container are stopped; its database volume is preserved. The web dependency tree is partial after the interrupted clean install, so restore it before build/test/runtime use. Temporary backup deletion was blocked by automatic approval review and remains preserved. No merge into the audit checkout is authorized by this handoff.
 
 Source: independent clone `C:/Users/joshr/Desktop/Work/APPly-telehealth`, branch `codex/sc-504/telehealth-scribe`, base `88af72e0567056707cc71a8ad37b752054d343e4`. Task authority and status: [sc-504](https://app.shortcut.com/apply-1/story/504).
 
