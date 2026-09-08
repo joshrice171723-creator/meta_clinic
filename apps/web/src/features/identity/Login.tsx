@@ -27,11 +27,10 @@ export function Login({
   environment?: RuntimeEnvironment;
   businessDate?: string;
 }) {
-  const employeePortal = new URLSearchParams(
+  const returnTo = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
-  )
-    .get("next")
-    ?.startsWith("/clinic");
+  ).get("next");
+  const employeePortal = returnTo?.startsWith("/clinic");
   const done = () =>
     window.location.assign(
       loginDestination(new URLSearchParams(window.location.search).get("next")),
@@ -96,6 +95,11 @@ export function Login({
               autoComplete="current-password"
             />
           </Form>
+          {developmentLogin && (
+            <p>
+              <a href="/workforce/activate">Activate employee account</a>
+            </p>
+          )}
         </>
         {developmentLogin && (
           <Accordion
@@ -125,9 +129,7 @@ export function Login({
               <DevelopmentControls
                 accounts={developmentAccounts}
                 businessDate={businessDate}
-                returnTo={new URLSearchParams(window.location.search).get(
-                  "next",
-                )}
+                returnTo={returnTo}
               />
             </AccordionDetails>
           </Accordion>

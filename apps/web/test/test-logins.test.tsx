@@ -32,7 +32,8 @@ describe("development account preview", () => {
     expect(html).toContain("Omni");
     expect(html).toContain("Select patient account");
     expect(html).toContain("Log in");
-    expect(html).toContain("Choose a portal and account, then log in");
+    expect(html).toContain("Development tools");
+    expect(html).toContain("Choose a local account for this environment.");
     expect(html).toContain("2032-04-15");
     expect(html).toContain("Apply date");
     expect(html).toContain('min="2000-01-01"');
@@ -52,6 +53,7 @@ describe("development account preview", () => {
     expect(html).toContain("Production");
     expect(html).not.toContain("Account access");
     expect(html).not.toContain("App date");
+    expect(html).not.toContain('href="/workforce/activate"');
     expect(html).toContain("Email address");
   });
 
