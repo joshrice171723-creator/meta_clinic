@@ -73,7 +73,7 @@ vi.mock("../src/features/telehealth/mediaAdapter", () => ({
     constructor() {
       media.instances.push(this);
     }
-    })(),
+    })()),
 }));
 vi.mock("../src/features/scribe/ScribeRecordingProvider", () => ({
   useOptionalScribeRecording: () => ({

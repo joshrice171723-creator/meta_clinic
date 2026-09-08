@@ -90,7 +90,7 @@ vi.mock("../src/features/telehealth/mediaAdapter", () => ({
     constructor() {
       mediaMocks.instances.push(this);
     }
-    })(),
+    })()),
 }));
 
 vi.mock("../src/features/scribe/ScribeRecordingProvider", () => ({
