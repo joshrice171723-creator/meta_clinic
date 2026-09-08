@@ -103,7 +103,11 @@ function mediaStreamTrack(id: string, kind: "audio" | "video") {
   } as unknown as MediaStreamTrack;
 }
 
-function localTrack(id: string, kind: "audio" | "video", name = kind) {
+function localTrack(
+  id: string,
+  kind: "audio" | "video",
+  name: string = kind,
+) {
   const media = mediaStreamTrack(id, kind);
   return {
     kind,
