@@ -16,9 +16,15 @@ module Clinic
         values = EffectiveSettings.call(practice: practice, at: at).fetch(:values)
         zone = ActiveSupport::TimeZone[values.fetch("timezone")]
         raise ArgumentError, "Workforce timezone is invalid" unless zone
-        local_date = at.in_time_zone(zone).to_date
+        local_time = at.in_time_zone(zone)
+        local_date = local_time.to_date
         start_day = Integer(values.fetch("workweek_start_day"))
-        local_date - ((local_date.wday - start_day) % 7).days
+        period_start = local_date - ((local_date.wday - start_day) % 7).days
+        boundary = zone.parse("#{period_start.iso8601} #{values.fetch('workweek_start_time')}")
+        raise ArgumentError, "Workweek boundary is invalid" unless boundary
+
+        period_start -= 7.days if local_time < boundary
+        period_start
       end
 
       def initialize(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil)
@@ -276,8 +282,17 @@ module Clinic
           source_segment = changes["source_segment_id"].present? ? adjustment.timecard_version.time_segments.find_by(id: changes["source_segment_id"]) : nil
           if %w[replace_segment remove_segment].include?(adjustment.correction_type)
             source_ids = source_segment&.source_punch_ids
-            removed = source_ids.present? && intervals.reject! { |row| row.fetch(:source_punch_ids) == source_ids }
-            exceptions << "adjustment_source_not_found" unless removed
+            matched = false
+            intervals.replace(intervals.flat_map do |row|
+              overlaps = source_segment && source_segment.started_at_utc < row.fetch(:ended_at_utc) &&
+                source_segment.ended_at_utc > row.fetch(:started_at_utc)
+              next [ row ] unless source_ids.present? && row.fetch(:source_punch_ids) == source_ids && overlaps
+
+              matched = true
+              subtract_interval(row, source_segment.started_at_utc, source_segment.ended_at_utc)
+            end)
+            exceptions << "adjustment_source_not_found" unless matched
+            next unless matched
           end
           next if adjustment.correction_type == "remove_segment"
 
@@ -303,7 +318,22 @@ module Clinic
         end
       end
 
+      def subtract_interval(interval, excluded_start, excluded_end)
+        row_start = interval.fetch(:started_at_utc)
+        row_end = interval.fetch(:ended_at_utc)
+        return [ interval ] unless excluded_start && excluded_end && excluded_end > row_start && excluded_start < row_end
+
+        pieces = []
+        left_end = [ excluded_start, row_end ].min
+        pieces << interval.merge(ended_at_utc: left_end) if left_end > row_start
+        right_start = [ excluded_end, row_start ].max
+        pieces << interval.merge(started_at_utc: right_start) if row_end > right_start
+        pieces
+      end
+
       def round_minutes(raw_seconds, values)
+        return (raw_seconds / 60.0).round if values["rounding_mode"] == "none"
+
         exact = raw_seconds / 60.0
         increment = integer_setting(values["rounding_increment_minutes"]) || 1
         scaled = exact / increment
