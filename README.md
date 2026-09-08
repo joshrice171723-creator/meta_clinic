@@ -1,96 +1,90 @@
-# Clinic workflow properties
+# APPly
 
-This package uses **fast-check against real APPly code**. It is a failure-finding
-suite, not a replacement for operating the 100 workflows in a browser. A passing
-helper or model property does not establish a complete workflow, visible field
-validation, a provider transaction, or production readiness.
+One repository, two applications: a React/TypeScript frontend and a Rails JSON API. Launch/onboarding and synthetic clinic operations remain distinct product areas.
 
-## Run
+## Developers — start here
 
-From this directory after installing the existing web dependencies:
+Use the [vault table of contents](APPlyVault/01%20Table%20of%20Contents.md) to choose relevant notes/sections; agent work no longer requires reading the entire vault.
 
-```powershell
-npm ci
-npm test
-npm run test:api
-node coverage.mjs
+For repository-changing agent work, read the root [agent contract](AGENTS.md), inspect and claim the matching Shortcut Story, then run `bin/agent-preflight --story sc-<id> --path <target>` and read the nearest nested `AGENTS.md`. The [agent harness](agent-harness/README.md) owns reusable procedures, repository skills and deterministic checks. `APPlyVault/` is the separate software knowledge base. `bin/verify-agent-harness` validates the control plane; `bin/verify-vault` validates the knowledge base.
+
+Read the [developer documentation](docs/development/README.md) first: local setup, separate branches/databases, checks, pull requests and the release boundary. [Software Architecture](APPlyVault/03%20Execution/Software%20Architecture.md) explains where code belongs; the [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) holds Epics and Stories.
+
+Current source is React/Vite + Rails API + PostgreSQL. The last recorded EC2 verification (2026-08-30) used the older Rails/SQLite bootstrap. Hosted PostgreSQL cutover and delivery activation are still pending in the record; this checkout is not proof of deployed state.
+
+## Repository map
+
+```text
+apps/web/           Screens, navigation, forms, styles; independent npm build
+apps/api/           Sessions, authorization, domain workflows, PostgreSQL; Rails
+bin/                Local startup, verification and agent workflow helpers
+ops/aws/            Infrastructure, paired releases and recovery procedures
+APPlyVault/         Canonical requirements, research, decisions and tasks
+agent-harness/      Agent architecture, on-demand procedures and provenance
+.agents/skills/     Canonical repository skills, including Plan, Act and frontend UI
+.github/workflows/  API/frontend CI and prepared delivery workflows
+site/               Historical Sites metadata/assets only
 ```
 
-`test` imports the real frontend helpers and renders the shared Field component.
-`test:api` creates one randomly named `apply_properties_<12 hex digits>` database
-on loopback PostgreSQL, loads the repository `apps/api/db/structure.sql` through
-stdin (including Docker-wrapped PostgreSQL), authenticates a synthetic clinic,
-and rolls back each generated case. It drops only that exact generated database
-in an ensure block. It never resets the shared development or test databases.
-It uses the configured `bin/postgres exec` credential mechanism without printing
-credentials. The structure snapshot, rather than migration replay, is the
-schema basis; migration coverage is not claimed.
+The frontend calls `/api/*` on the same browser origin. It cannot access PostgreSQL or backend credentials. Rails owns business rules and every permission check; JSON quantities retain exact decimal strings. UI and API have separate dependencies, tests and Docker build contexts.
 
-Default seed is `20260908`; each frontend property runs 200 generated cases and
-each Rails property runs 20. A failure shrinks to a minimal counterexample.
-`results-frontend.json` and `results-api.json` contain the actual seed, path,
-counterexample, execution count and assertion error. Failure exit status is
-intentional when an application gap is found. Never weaken a requirement merely
-to make this audit suite green.
+The founder removed the retired `reference/` folder on 2026-08-31 after its useful behavior was mapped into the app. It is not a build/runtime dependency. Rails migrations and `apps/api/db/structure.sql` are authoritative; the removed background files remain in Git history.
 
-Reproduce only one property:
+## Develop locally
 
-```powershell
-$env:FC_FILTER = 'partial patient edit preserves'
-$env:FC_SEED = '20260908'
-$env:FC_PATH = '0'
-npm run test:api
-Remove-Item Env:FC_FILTER, Env:FC_SEED, Env:FC_PATH
+Use the Ruby/Bundler versions from `apps/api`, Node 24, Docker, PostgreSQL 18 client tools, and `lsof` on macOS/Linux for strict listener ownership checks. The repository has one public local-development interface. From the repository root, first-time setup is:
+
+```sh
+bin/dev setup
+bin/dev start
 ```
 
-Set `FC_RUNS` to adjust generation counts. `FC_PATH` requires a filter. A filtered
-run overwrites that layer's result file, so preserve a full result before using
-it. A harness/fixture/startup failure is not evidence of an application defect.
-For a targeted repair pass, `FC_MATCH` accepts a regular expression and merges
-the affected results by property name into the previous result file. Run
-`node coverage.mjs` and `node evidence.mjs` after the final pass.
-`FC_ONLY_NEW=1` executes only property names missing from that layer's saved
-results and retains previous results. `node --import tsx manifest.mjs` lists
-declared properties; its manifest is deliberately not execution evidence.
-Combine `FC_ONLY_NEW=1` with `FC_RERUN_MATCH` to rerun specific repaired harness
-cases alongside new additions in one scratch-database pass.
-Startup is bounded to 180 seconds (`FC_STARTUP_TIMEOUT_MS` overrides it); cases
-are bounded to 120 seconds. A timeout terminates only the harness's spawned
-process tree, and database cleanup still targets the generated scratch name.
+Normal lifecycle commands are:
 
-## What an assertion means
+```sh
+bin/dev start
+bin/dev restart
+bin/dev status
+bin/dev stop
+```
 
-- **Frontend helper / SSR:** only the imported function or rendered component.
-  For example, accepting invoice ID zero in the helper does not establish API
-  acceptance. Native HTML `required` and a visible required label are separate.
-- **ActiveRecord validation:** each record is first verified valid with a
-  complete baseline. After removing a field, validation must fail on that exact
-  field. These properties do not call a creation form or save the invalid model.
-- **Rails integration / persistence:** requests use a real authenticated Rails
-  integration session. Rejected creation must not increase record count; failed
-  edits must preserve prior values. It is not a live browser or HTTP server run.
-- **Application service:** real billing/stock logic and database records, with
-  generated quantities and exact retry checks. External processors are not used.
-- **Model policy:** Scribe processing eligibility across consent/deletion states;
-  this does not execute recording, transcription or an AI provider.
+`start` is non-destructive: it never runs Git commands, installs dependencies or resets data. It verifies pinned runtimes and locked dependencies, starts PostgreSQL, migrates the guarded local development database, launches Rails and Vite in the background, and returns success only after strict process, migration, database and HTTP readiness checks pass.
 
-The explicit-sex-selection property represents the user's requested example of
-minimum data, not an existing clinical approval. Impossible provided email/phone
-values and visible required markers are proposed product acceptance requirements.
-Other missing fields come from current model/API contracts. Optional patient
-contact information is not made globally mandatory, and no assertion requires
-staff to fabricate unknown clinical information.
+Use the explicit maintenance commands only for their named jobs:
 
-## Failure-first boundary
+```sh
+bin/dev refresh
+bin/dev reset-data --yes
+```
 
-Principal risks checked: incomplete creation, invalid provided data, partial
-editing, destructive deletion, duplicate retry, stock overdraw and payment
-overallocation. Preserve shrunken failures and fix product code separately under
-an appropriate claim. Concurrent dirty product files are imported as they exist;
-this package does not modify them. Missing coverage remains missing.
+`refresh` requires a clean named branch, fetches its configured remote, fast-forwards only when behind, reconciles locked dependencies, and restarts. It never auto-merges, rebases, stashes, pushes or resets data; divergence stops before service, dependency or database mutation. `reset-data --yes` is the only destructive lifecycle action and replants only the guarded loopback `apply*_development` database with wholly synthetic data.
 
-`coverage.md` enumerates all 100 document workflows and labels partial coverage
-versus uncovered/external flows. It explicitly separates creation, editing and
-deletion gaps. The required-label property is cross-cutting and cannot by itself
-make any workflow covered. Existing application test suites are not silently
-counted as run by this package.
+On Windows, invoke the same canonical Ruby entry point:
+
+```powershell
+ruby .\bin\dev setup
+ruby .\bin\dev start
+```
+
+Every command writes an incremental metadata-only JSON trace and self-contained SVG timeline under ignored `tmp/task-traces/`, with phase durations printed at completion. Logs rotate at 10 MiB. `APPLY_WEB_PORT`, `APPLY_API_PORT`, `APPLY_POSTGRES_CONTAINER`, `APPLY_DEVELOPMENT_DATABASE` and `PGPORT` support isolated checkouts while preserving the local-only guards.
+
+In Codex, use `$startdev` for the canonical lifecycle and `$task-trace` to profile observable work. The task trace reports activity after trace initialization, not private reasoning or a CPU profile. Select repository skills through `/skills`; Codex does not currently register arbitrary repository-defined slash aliases. `dev_server_startup`, `bin/apply`, `bin/start-dev`, `bin/start-dev.ps1`, `bin/doctor`, `bin/doctor.ps1` and `bin/startdev-refresh` are deprecated compatibility shims that delegate to `bin/dev`; do not use them in new documentation or tooling.
+
+The VS Code workspace tasks call `bin/dev` directly on every platform.
+
+Open [local login](http://127.0.0.1:3000/login). The managed lifecycle enables only the loopback synthetic walkthrough. Frontend defaults to 3000 and API to 3001. No signup, patient data, live integrations or development tunnels.
+
+- [Frontend ownership and commands](apps/web/README.md)
+- [API, database and security boundaries](apps/api/README.md)
+- [Architecture and extension rules](APPlyVault/03%20Execution/Software%20Architecture.md)
+- [Developer workflow and CI](docs/development/README.md)
+- [Hosted state](ops/aws/ec2/environments.md) and [pending PostgreSQL cutover](ops/aws/ec2/postgres-cutover.md)
+- [Planning home](APPlyVault/00%20Home.md), [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) and [decisions](APPlyVault/03%20Execution/Decisions.md)
+
+Read [AGENTS.md](AGENTS.md) and the [agent harness map](agent-harness/README.md) before agent work. Never build from the repository root or include the vault, credentials, records or logs in an image. The source split does not activate delivery or approve confidential/clinical use. Clinic UI and API remain blocked in packaged production runtime.
+
+The local `apply_test` database was recreated with the owner's authorization after a verifier cleanup mistake; the corrected helper targets only its generated scratch database. Details and actual checks are preserved in the Progress Log.
+
+## Files that stay local
+
+The root `.gitignore` covers local environment/key files, database files/dumps, logs, dependencies, build output and caches across the repository. App-specific rules additionally protect Rails credentials, storage and temporary files. Source, lockfiles, migrations, schema SQL and the planning vault remain tracked. Ignore rules do not remove files already committed or make sensitive storage safe; never put real patient information or credentials in this workspace.
