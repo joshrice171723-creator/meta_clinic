@@ -444,7 +444,7 @@ export function AppointmentReminderBatch({
                         <TableRow key={result.appointment_id}>
                           <TableCell>
                             {item?.patient.display_name ||
-                              `Appointment #${result.appointment_id}`}
+                              "Appointment details unavailable"}
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
