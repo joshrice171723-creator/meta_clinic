@@ -41,11 +41,18 @@ describe("ScribeRecordingControls", () => {
   });
 
   it("keeps the saved recording and cancellation callback behind a successful discard", () => {
+    const discardStart = recordingControlsSource.indexOf(
+      '} else if (stopModeRef.current === "discard")',
+    );
+    const discardEnd = recordingControlsSource.indexOf(
+      "  const stopRecorder =",
+      discardStart,
+    );
+    expect(discardStart).toBeGreaterThanOrEqual(0);
+    expect(discardEnd).toBeGreaterThan(discardStart);
     const discardBranch = recordingControlsSource.slice(
-      recordingControlsSource.indexOf(
-        '} else if (stopModeRef.current === "discard")',
-      ),
-      recordingControlsSource.indexOf("  const stopRecorder"),
+      discardStart,
+      discardEnd,
     );
 
     expect(discardBranch).toContain("let discarded = !recording;");
