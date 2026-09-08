@@ -119,7 +119,7 @@ export function mondayIso(date = businessNow()) {
   const copy = new Date(date);
   const day = copy.getDay();
   copy.setDate(copy.getDate() - ((day + 6) % 7));
-  return copy.toISOString().slice(0, 10);
+  return `${copy.getFullYear()}-${String(copy.getMonth() + 1).padStart(2, "0")}-${String(copy.getDate()).padStart(2, "0")}`;
 }
 
 export function displayInterval(start: string, end: string, timezone: string) {

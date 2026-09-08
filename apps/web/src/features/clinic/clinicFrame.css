@@ -3,9 +3,6 @@
   grid-template-columns: 232px minmax(0, 1fr);
   min-height: 100dvh;
 }
-.clinic-theme .clinic-shell[data-collapsed="true"] {
-  grid-template-columns: 0 minmax(0, 1fr);
-}
 .clinic-theme .clinic-sidebar-frame {
   position: sticky;
   top: 0;
@@ -23,9 +20,6 @@
   scrollbar-gutter: stable;
   padding: 22px 16px;
   gap: 6px;
-}
-.clinic-theme .clinic-sidebar[hidden] {
-  display: none;
 }
 .clinic-theme .clinic-sidebar .practice-label {
   margin: 0 0 12px;
@@ -201,62 +195,8 @@
   width: 100%;
   margin: 0;
 }
-.clinic-theme .clinic-menu-toggle {
-  display: none;
-  position: absolute;
-  top: 14px;
-  right: 12px;
-  width: 40px;
-  min-height: 40px;
-  border: 1px solid var(--clinic-control);
-  border-radius: 6px;
-  background: var(--clinic-surface);
-  color: var(--clinic-text);
-  padding: 6px;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font: inherit;
-  z-index: 21;
-}
-.clinic-theme .clinic-shell[data-collapsed="true"] .clinic-menu-toggle {
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  right: auto;
-  z-index: 25;
-}
-.clinic-theme .clinic-menu-toggle .MuiSvgIcon-root {
-  font-size: 18px;
-}
-.clinic-theme .clinic-menu-toggle-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-.clinic-theme .clinic-menu-toggle:hover {
-  border-color: var(--clinic-accent);
-  color: var(--clinic-accent);
-}
 .clinic-theme .clinic-main {
   margin-left: 12px;
-}
-.clinic-theme .clinic-shell[data-collapsed="true"] .clinic-main {
-  margin-left: 56px;
-}
-.clinic-theme .clinic-nav-backdrop {
-  position: fixed;
-  inset: 0;
-  border: 0;
-  background: #0008;
-  z-index: 29;
-  cursor: default;
 }
 .clinic-theme .clinic-topbar {
   min-height: 52px;
@@ -305,32 +245,9 @@
   padding: 0;
 }
 @media (max-width: 900px) {
-  .clinic-theme .clinic-menu-toggle {
-    display: flex;
-  }
-  .clinic-theme .clinic-shell {
-    display: block;
-  }
-  .clinic-theme .clinic-sidebar-frame {
-    position: fixed;
-    left: 0;
-    width: min(256px, calc(100vw - 48px));
-    z-index: 30;
-  }
-  .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-sidebar-frame {
-    width: 0;
-  }
-  .clinic-theme .clinic-main {
-    margin-left: 48px;
-  }
-  .clinic-theme .clinic-shell[data-collapsed="false"] .clinic-menu-toggle {
-    display: flex;
-    right: 12px;
-    left: auto;
-  }
   .clinic-theme .clinic-topbar {
     min-height: 52px;
-    padding: 8px 12px 8px 64px;
+    padding: 8px 12px;
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
@@ -338,9 +255,6 @@
   .clinic-theme .clinic-topbar-context {
     width: 100%;
     max-width: 100%;
-  }
-  .clinic-theme .clinic-development-toolbar {
-    padding-left: 64px;
   }
   .clinic-theme .clinic-topbar-actions {
     width: 100%;
@@ -356,10 +270,5 @@
   .clinic-theme .clinic-sidebar {
     border-right: 1px solid var(--clinic-border);
     border-bottom: 0;
-  }
-}
-@media (forced-colors: active) {
-  .clinic-theme .clinic-menu-toggle {
-    border: 1px solid ButtonText;
   }
 }

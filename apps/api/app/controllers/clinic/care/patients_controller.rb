@@ -55,8 +55,10 @@ module Clinic
       def update
         patient = current_practice.patients.accessible_by(current_ability, :read).find(integer_id!(params[:id], field: :id))
         input = patient_input
-        patient.update!(display_name: required_string!(input[:display_name], field: :display_name, maximum: 120), reference: required_string!(input[:reference], field: :reference, maximum: 32))
-        save_registration!(patient, input)
+        Clinic::Care::Patient.transaction do
+          patient.update!(display_name: required_string!(input[:display_name], field: :display_name, maximum: 120), reference: required_string!(input[:reference], field: :reference, maximum: 32))
+          save_registration!(patient, input)
+        end
         render json: { patient: PatientSerializer.call(patient, detail: true) }
       end
 

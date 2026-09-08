@@ -6,6 +6,7 @@ module Clinic
       include Clinic::AppendOnly
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
+      encrypts :encrypted_address
       validates :version, numericality: { only_integer: true, greater_than: 0 }
       validates :encrypted_address, presence: true
       scope :chronological, -> { order(:version) }

@@ -231,6 +231,14 @@
 .clinic-theme .billing-ledger-table tbody tr[data-selected="true"] {
   background: var(--clinic-soft);
 }
+.clinic-theme .billing-ledger-table th.billing-checkout-cell,
+.clinic-theme .billing-ledger-table td.billing-checkout-cell {
+  width: 132px;
+  min-width: 132px;
+}
+.clinic-theme .billing-checkout-button {
+  white-space: nowrap;
+}
 .clinic-theme .billing-invoice-button {
   background: transparent;
   color: var(--clinic-accent);

@@ -1511,7 +1511,9 @@ code {
 .inventory-segmented button { border: 0; border-radius: 999px; background: transparent; padding: .45rem .8rem; color: inherit; cursor: pointer; }
 .inventory-segmented button.active { background: var(--clinic-accent, #1d5f4a); color: #fff; }
 .purchase-catalog-list { display: grid; gap: .55rem; }
-.purchase-catalog-list .inventory-list-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 1rem; }
+.purchase-catalog-list .inventory-list-row { display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(12rem, 0.8fr) auto; align-items: center; gap: 1rem; }
+.purchase-catalog-list .inventory-list-row > :first-child { min-width: 0; overflow-wrap: normal; }
+.purchase-catalog-list .inventory-list-row > :first-child strong { display: block; overflow-wrap: normal; word-break: normal; }
 .purchase-catalog-list small, .purchase-cart-line small, .purchase-catalog-price small { display: block; color: var(--clinic-muted, #64746a); font-size: .78rem; }
 .purchase-catalog-price { min-width: 7rem; text-align: right; font-variant-numeric: tabular-nums; }
 .purchase-cart-lines { display: grid; gap: .65rem; margin: 1rem 0; }

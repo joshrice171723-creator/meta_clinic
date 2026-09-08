@@ -484,7 +484,7 @@ const initialColumnWidths: Record<ColumnKey, number> = {
   provider: 140,
   reason: 160,
   care: 180,
-  triage: 150,
+  triage: 204,
   action: 120,
 };
 const columnLabels: Record<ColumnKey, string> = {

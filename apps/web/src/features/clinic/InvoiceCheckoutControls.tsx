@@ -1,4 +1,14 @@
-import { Alert, Button, Chip, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import type { InvoiceOnlinePayment } from "../../api/contracts";
@@ -7,6 +17,7 @@ type CheckoutEnvelope = {
   online_payment: InvoiceOnlinePayment;
 };
 type CheckoutAction = "start" | "reconcile" | "cancel";
+type CheckoutConfirmation = "start" | "cancel";
 
 function openHostedStripeCheckout(checkoutUrl: string) {
   const url = new URL(checkoutUrl);
@@ -71,6 +82,8 @@ export function InvoiceCheckoutControls({
   const [busy, setBusy] = useState<CheckoutAction | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [confirmation, setConfirmation] =
+    useState<CheckoutConfirmation | null>(null);
   const startKey = useRef<string | undefined>(undefined);
   const cancelKey = useRef<string | undefined>(undefined);
 
@@ -144,58 +157,130 @@ export function InvoiceCheckoutControls({
     actionsEnabled && payment.state === "available" && payment.eligible;
   const canRefreshPaid =
     allowPaidRefresh && actionsEnabled && payment.state === "paid";
+  const closeConfirmation = () => {
+    if (!busy) setConfirmation(null);
+  };
+  const confirmAction = () => {
+    if (!confirmation) return;
+    const action = confirmation;
+    setConfirmation(null);
+    void run(action);
+  };
   return (
-    <Stack spacing={1.25} sx={{ mt: 2 }}>
-      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
-        <Typography variant="subtitle2">Hosted online payment</Typography>
-        <Chip size="small" variant="outlined" label="Test mode" />
-      </Stack>
-      {payment.state === "unavailable" && (
-        <Typography variant="body2" color="text.secondary">
-          {unavailableMessage(payment.reason)}
-        </Typography>
-      )}
-      {payment.state === "paid" && (
-        <Typography variant="body2" color="text.secondary">
-          This invoice has no remaining balance.
-        </Typography>
-      )}
-      {pending && !actionsEnabled && (
-        <Typography variant="body2" color="text.secondary">
-          Online payment status is being updated.
-        </Typography>
-      )}
-      {error && <Alert severity="error">{error}</Alert>}
-      {notice && <Alert severity="info">{notice}</Alert>}
-      {(canStart || (pending && actionsEnabled) || canRefreshPaid) && (
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-          {(canStart || payment.state === "processing") && (
-            <Button variant="contained" disabled={busy !== null} onClick={() => void run("start")}>
-              {busy === "start" ? "Opening Stripe…" : payment.state === "processing" ? "Continue payment" : actionLabel}
-            </Button>
-          )}
-          {pending && (
-            <Button variant="outlined" disabled={busy !== null} onClick={() => void run("reconcile")}>
-              {busy === "reconcile" ? "Checking…" : "Refresh payment status"}
-            </Button>
-          )}
-          {canRefreshPaid && (
-            <Button
-              variant="outlined"
-              disabled={busy !== null}
-              onClick={() => void run("reconcile")}
-              sx={{ minHeight: 44 }}
-            >
-              {busy === "reconcile" ? "Checking…" : "Refresh Stripe payment"}
-            </Button>
-          )}
-          {pending && payment.can_cancel && (
-            <Button color="error" disabled={busy !== null} onClick={() => void run("cancel")}>
-              {busy === "cancel" ? "Cancelling…" : "Cancel online payment"}
-            </Button>
-          )}
+    <>
+      <Stack spacing={1.25} sx={{ mt: 2 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ alignItems: "center", flexWrap: "wrap" }}
+        >
+          <Typography variant="subtitle2">Hosted online payment</Typography>
+          <Chip size="small" variant="outlined" label="Test mode" />
         </Stack>
-      )}
-    </Stack>
+        {payment.state === "unavailable" && (
+          <Typography variant="body2" color="text.secondary">
+            {unavailableMessage(payment.reason)}
+          </Typography>
+        )}
+        {payment.state === "paid" && (
+          <Typography variant="body2" color="text.secondary">
+            This invoice has no remaining balance.
+          </Typography>
+        )}
+        {pending && !actionsEnabled && (
+          <Typography variant="body2" color="text.secondary">
+            Online payment status is being updated.
+          </Typography>
+        )}
+        {error && <Alert severity="error">{error}</Alert>}
+        {notice && <Alert severity="info">{notice}</Alert>}
+        {(canStart || (pending && actionsEnabled) || canRefreshPaid) && (
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ flexWrap: "wrap" }}
+          >
+            {(canStart || payment.state === "processing") && (
+              <Button
+                variant="contained"
+                disabled={busy !== null}
+                onClick={() => setConfirmation("start")}
+              >
+                {busy === "start"
+                  ? "Opening Stripe…"
+                  : payment.state === "processing"
+                    ? "Continue payment"
+                    : actionLabel}
+              </Button>
+            )}
+            {pending && (
+              <Button
+                variant="outlined"
+                disabled={busy !== null}
+                onClick={() => void run("reconcile")}
+              >
+                {busy === "reconcile" ? "Checking…" : "Refresh payment status"}
+              </Button>
+            )}
+            {canRefreshPaid && (
+              <Button
+                variant="outlined"
+                disabled={busy !== null}
+                onClick={() => void run("reconcile")}
+                sx={{ minHeight: 44 }}
+              >
+                {busy === "reconcile" ? "Checking…" : "Refresh Stripe payment"}
+              </Button>
+            )}
+            {pending && payment.can_cancel && (
+              <Button
+                color="error"
+                disabled={busy !== null}
+                onClick={() => setConfirmation("cancel")}
+              >
+                {busy === "cancel" ? "Cancelling…" : "Cancel online payment"}
+              </Button>
+            )}
+          </Stack>
+        )}
+        </Stack>
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={confirmation !== null}
+        onClose={closeConfirmation}
+        aria-labelledby="invoice-checkout-confirmation-title"
+      >
+        <DialogTitle id="invoice-checkout-confirmation-title">
+          {confirmation === "cancel"
+            ? "Cancel online payment?"
+            : "Review online payment"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            {confirmation === "cancel"
+              ? "This ends the active hosted checkout for this invoice. No payment will be collected, and the status will be refreshed before another method is used."
+              : "This opens the secure hosted checkout for the invoice. Review the invoice balance before continuing to Stripe."}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy !== null} onClick={closeConfirmation}>
+            Go back
+          </Button>
+          <Button
+            color={confirmation === "cancel" ? "error" : "primary"}
+            disabled={busy !== null}
+            onClick={confirmAction}
+            variant="contained"
+          >
+            {confirmation === "cancel"
+              ? "Cancel online payment"
+              : "Continue to Stripe"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }

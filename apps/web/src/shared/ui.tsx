@@ -205,7 +205,11 @@ export function Form({
           setNotice("Saved.");
         } catch (error) {
           setError(
-            error instanceof Error
+            endpoint === "/api/session" &&
+            error instanceof ApiError &&
+            error.status === 422
+              ? "We couldn't verify this sign-in. Reload the page and try again."
+              : error instanceof Error
               ? error.message
               : "The request failed. Check its status before trying again.",
           );
