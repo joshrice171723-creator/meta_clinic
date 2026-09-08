@@ -282,7 +282,12 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
         headers: csrf, as: :json
       assert_response :success
       get "/api/clinic/context", headers: @headers
-      assert response.parsed_body.fetch("capabilities").values.all?
+      capabilities = response.parsed_body.fetch("capabilities")
+      assert_not Clinic::Workforce::Employment.exists?(membership_id: omni.clinic_membership.id)
+      assert_equal false, capabilities.fetch("workforce_self")
+      permission_capabilities = capabilities.except("workforce_self")
+      assert permission_capabilities.values.all?,
+        "Unavailable permissions: #{permission_capabilities.reject { |_key, value| value }.keys.join(', ')}"
       inventory_permissions = omni.clinic_membership.role_grants.active.sole.role_version.permissions
         .where("action_code LIKE 'inventory.%' OR action_code LIKE 'procurement.%' OR action_code LIKE 'recall.%' OR action_code LIKE 'controlled.%'")
         .pluck(:action_code)
