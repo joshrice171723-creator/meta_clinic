@@ -279,6 +279,19 @@ export function TelehealthSettings() {
         </Box>
         <Button href="/clinic/telehealth">Virtual waiting room</Button>
       </Stack>
+      <Stack
+        component="nav"
+        aria-label="Telehealth settings sections"
+        direction="row"
+        spacing={0.5}
+        useFlexGap
+        sx={{ flexWrap: "wrap" }}
+      >
+        <Button href="#telehealth-connection">Connection</Button>
+        <Button href="#telehealth-eligibility">Eligible visits</Button>
+        <Button href="#telehealth-preparation">Preparation and consent</Button>
+        <Button href="#telehealth-scribe">Scribe</Button>
+      </Stack>
       {error && (
         <Alert severity="error">
           {error} Your draft remains here. Reload the latest settings if another
@@ -286,7 +299,12 @@ export function TelehealthSettings() {
         </Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper
+        component="section"
+        id="telehealth-connection"
+        variant="outlined"
+        sx={{ p: { xs: 2, sm: 3 }, scrollMarginTop: 96 }}
+      >
         <Stack spacing={2}>
           <Stack
             direction="row"
@@ -395,7 +413,12 @@ export function TelehealthSettings() {
           )}
         </Stack>
       </Paper>
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper
+        component="section"
+        id="telehealth-eligibility"
+        variant="outlined"
+        sx={{ p: { xs: 2, sm: 3 }, scrollMarginTop: 96 }}
+      >
         <Stack spacing={2}>
           <Typography component="h2" variant="h6">
             Eligible visits and locations
@@ -561,7 +584,12 @@ export function TelehealthSettings() {
           </Button>
         </Stack>
       </Paper>
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper
+        component="section"
+        id="telehealth-preparation"
+        variant="outlined"
+        sx={{ p: { xs: 2, sm: 3 }, scrollMarginTop: 96 }}
+      >
         <Stack spacing={2}>
           <Typography component="h2" variant="h6">
             Patient preparation and consent
@@ -700,7 +728,12 @@ export function TelehealthSettings() {
           </Box>
         </Stack>
       </Paper>
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper
+        component="section"
+        id="telehealth-scribe"
+        variant="outlined"
+        sx={{ p: { xs: 2, sm: 3 }, scrollMarginTop: 96 }}
+      >
         <Stack spacing={2}>
           <Typography component="h2" variant="h6">
             Scribe during video calls

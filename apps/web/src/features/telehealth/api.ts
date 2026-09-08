@@ -180,8 +180,8 @@ export const resumeVisit = (
 ) => staffMutation(visitId, "resume", expectedVersion, {}, key);
 
 export type PatientCheckinInput = {
-  location: NonNullable<TelehealthVisit["preparation"]["location"]>;
-  callback_phone: string;
+  location: TelehealthVisit["preparation"]["location"];
+  callback_phone: string | null;
   location_attested: boolean;
   device_results: TelehealthDeviceResults;
 };

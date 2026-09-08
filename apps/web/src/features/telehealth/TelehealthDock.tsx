@@ -9,17 +9,36 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Paper,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { useOptionalTelehealthSession } from "./TelehealthSessionProvider";
 import { VideoStage } from "./VideoStage";
 
+function callStateLabel(state: string) {
+  if (state === "joining") return "Connecting";
+  if (state === "joined") return "Connected";
+  if (state === "reconnecting") return "Reconnecting";
+  if (state === "leaving") return "Leaving";
+  if (state === "ended") return "Call ended";
+  if (state === "error") return "Connection needs attention";
+  return "Preparing";
+}
+
 export function TelehealthDock() {
   const session = useOptionalTelehealthSession();
+  const { navigate } = useClinicNavigation();
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
   if (!session) return null;
   if (!session.active)
     return session.terminationNotice ? (
@@ -37,7 +56,9 @@ export function TelehealthDock() {
         {session.terminationNotice}
       </Alert>
     ) : null;
-  const mediaControlsEnabled = session.authorizationStatus === "confirmed";
+  const mediaControlsEnabled =
+    session.authorizationStatus === "confirmed" &&
+    session.callState === "joined";
   return (
     <Paper
       component="aside"
@@ -50,7 +71,7 @@ export function TelehealthDock() {
         zIndex: (theme) => theme.zIndex.drawer + 3,
         width: {
           xs: "calc(100vw - 16px)",
-          sm: session.dockExpanded ? 420 : 340,
+          sm: session.dockExpanded ? 460 : 360,
         },
         maxHeight: "calc(100vh - 32px)",
         overflow: "auto",
@@ -62,6 +83,17 @@ export function TelehealthDock() {
         <VideoStage
           participants={session.participants}
           label="Docked video visit"
+          emptyTitle={
+            session.callState === "reconnecting"
+              ? "Reconnecting to the visit"
+              : "Waiting for video"
+          }
+          emptyDescription={
+            session.callState === "reconnecting"
+              ? "The call will return here when the connection is stable."
+              : "Participant video will appear after the call connects."
+          }
+          compact
         />
       )}
       {session.authorizationError && (
@@ -69,18 +101,34 @@ export function TelehealthDock() {
           {session.authorizationError}
         </Alert>
       )}
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", p: 1 }}>
+      <Stack
+        direction="row"
+        spacing={0.5}
+        useFlexGap
+        sx={{
+          alignItems: "center",
+          flexWrap: { xs: "wrap", sm: "nowrap" },
+          p: 1,
+        }}
+      >
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="subtitle2" noWrap>
             {session.active.patientName}
           </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
+          <Chip
+            size="small"
+            variant="outlined"
+            color={
+              session.callState === "joined"
+                ? "success"
+                : session.callState === "error"
+                  ? "error"
+                  : "default"
+            }
+            label={callStateLabel(session.callState)}
             aria-live="polite"
-          >
-            {session.callState.replaceAll("_", " ")}
-          </Typography>
+            sx={{ mt: 0.5, height: 24 }}
+          />
         </Box>
         <Tooltip
           title={
@@ -91,6 +139,7 @@ export function TelehealthDock() {
             aria-label={
               session.dockExpanded ? "Hide video preview" : "Show video preview"
             }
+            aria-pressed={session.dockExpanded}
             onClick={() => session.setDockExpanded(!session.dockExpanded)}
           >
             {session.dockExpanded ? (
@@ -112,6 +161,7 @@ export function TelehealthDock() {
                 : "Unmute microphone"
             }
             disabled={!mediaControlsEnabled}
+            aria-pressed={!session.microphoneEnabled}
             onClick={() => void session.toggleMicrophone()}
           >
             {session.microphoneEnabled ? (
@@ -129,6 +179,7 @@ export function TelehealthDock() {
               session.cameraEnabled ? "Turn camera off" : "Turn camera on"
             }
             disabled={!mediaControlsEnabled}
+            aria-pressed={!session.cameraEnabled}
             onClick={() => void session.toggleCamera()}
           >
             {session.cameraEnabled ? (
@@ -142,15 +193,39 @@ export function TelehealthDock() {
           <IconButton
             color="error"
             aria-label="Leave call"
-            onClick={() => void session.leave(true)}
+            onClick={() => setLeaveConfirm(true)}
           >
             <CallEndOutlinedIcon />
           </IconButton>
         </Tooltip>
-        <Button size="small" href={session.active.returnPath}>
-          Return
+        <Button
+          size="small"
+          onClick={() => navigate(session.active!.returnPath)}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+        >
+          Return to visit
         </Button>
       </Stack>
+      <Dialog open={leaveConfirm} onClose={() => setLeaveConfirm(false)}>
+        <DialogTitle>Leave this call?</DialogTitle>
+        <DialogContent>
+          Other participants may remain connected. Leaving the call does not
+          close the encounter.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeaveConfirm(false)}>Stay in call</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              setLeaveConfirm(false);
+              void session.leave(true);
+            }}
+          >
+            Leave call
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }

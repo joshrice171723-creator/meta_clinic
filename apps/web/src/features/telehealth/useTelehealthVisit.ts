@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError } from "../../api/client";
+import { ApiError, loginDestination } from "../../api/client";
+import { useVisiblePolling } from "./useVisiblePolling";
 import { loadPatientVisit, loadVisit } from "./api";
 import { useOptionalTelehealthSession } from "./TelehealthSessionProvider";
 import type {
@@ -23,11 +24,16 @@ export function useTelehealthVisit(
     stale: boolean;
   }>({ refreshing: true, stale: false });
   const generationRef = useRef(0);
-  const timerRef = useRef<number | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const responseScopeRef = useRef<string | null>(null);
+  const scope = `${actor}:${visitId}`;
 
   const refresh = useCallback(async () => {
     if (!visitId) return;
     const generation = ++generationRef.current;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     setResult((current) => ({
       ...current,
       refreshing: true,
@@ -36,18 +42,27 @@ export function useTelehealthVisit(
     try {
       const response =
         actor === "staff"
-          ? await loadVisit(visitId)
-          : await loadPatientVisit(visitId);
+          ? await loadVisit(visitId, controller.signal)
+          : await loadPatientVisit(visitId, controller.signal);
       if (generation !== generationRef.current) return;
       await reconcileAuthorization?.(response.data, response.version);
+      if (generation !== generationRef.current) return;
+      responseScopeRef.current = `${actor}:${visitId}`;
       setResult({ response, refreshing: false, stale: false });
     } catch (reason) {
       if (generation !== generationRef.current) return;
-      if (reason instanceof ApiError && [401, 403, 404].includes(reason.status))
+      if (
+        reason instanceof ApiError &&
+        [401, 403, 404].includes(reason.status)
+      ) {
+        setResult({ refreshing: false, stale: false, error: reason.message });
         await handleAuthorizationFailure?.(visitId, reason.status);
+        if (generation !== generationRef.current) return;
+        if (reason.status !== 401) return;
+      }
       if (reason instanceof ApiError && reason.status === 401) {
         window.location.replace(
-          `/login?return_to=${encodeURIComponent(window.location.pathname)}`,
+          `/login?next=${encodeURIComponent(loginDestination(window.location.pathname))}`,
         );
         return;
       }
@@ -65,34 +80,31 @@ export function useTelehealthVisit(
 
   useEffect(() => {
     generationRef.current += 1;
+    if (responseScopeRef.current !== scope)
+      setResult({ refreshing: Boolean(visitId), stale: false });
     void refresh();
     return () => {
       generationRef.current += 1;
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      requestRef.current?.abort();
     };
-  }, [refresh]);
+  }, [refresh, scope, visitId]);
 
-  useEffect(() => {
-    if (!poll || !visitId || document.visibilityState !== "visible") return;
-    const schedule = () => {
-      timerRef.current = window.setTimeout(
-        async () => {
-          await refresh();
-          schedule();
-        },
-        result.error ? 15_000 : 5_000,
-      );
-    };
-    schedule();
-    return () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    };
-  }, [poll, refresh, result.error, visitId]);
+  useVisiblePolling(
+    refresh,
+    poll && Boolean(visitId),
+    result.error ? 15_000 : 5_000,
+  );
 
   return {
     ...result,
+    response: responseScopeRef.current === scope ? result.response : undefined,
     refresh,
-    setResponse: (response: TelehealthEnvelope<TelehealthVisit>) =>
-      setResult({ response, refreshing: false, stale: false }),
+    setResponse: (response: TelehealthEnvelope<TelehealthVisit>) => {
+      if (response.data.public_id !== visitId) return;
+      generationRef.current += 1;
+      requestRef.current?.abort();
+      responseScopeRef.current = scope;
+      setResult({ response, refreshing: false, stale: false });
+    },
   };
 }

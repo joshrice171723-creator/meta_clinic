@@ -15,7 +15,7 @@ import type {
   DevelopmentAccount,
   RuntimeEnvironment,
 } from "../../api/contracts";
-import { api } from "../../api/client";
+import { api, loginDestination } from "../../api/client";
 
 export function EnvironmentLabel({
   environment,
@@ -160,10 +160,12 @@ export function DevelopmentControls({
   accounts,
   activeId,
   businessDate,
+  returnTo,
 }: {
   accounts: DevelopmentAccount[];
   activeId?: string | null;
   businessDate: string;
+  returnTo?: string | null;
 }) {
   const activeAccount = accounts.find((account) => account.id === activeId);
   const [portalType, setPortalType] = useState<
@@ -192,7 +194,9 @@ export function DevelopmentControls({
         "/api/development_session",
         { method: "POST", body: { profile: selectedId } },
       );
-      window.location.assign(result.destination);
+      window.location.assign(
+        returnTo ? loginDestination(returnTo) : result.destination,
+      );
     } catch (caught) {
       setError(
         caught instanceof Error

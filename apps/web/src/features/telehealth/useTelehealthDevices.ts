@@ -9,11 +9,14 @@ export function useTelehealthDevices() {
   const [error, setError] = useState<string | null>(null);
   const [speakerConfirmed, setSpeakerConfirmed] = useState(false);
   const [running, setRunning] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const generationRef = useRef(0);
   const meterRef = useRef<{ context: AudioContext; frame: number } | null>(
     null,
   );
 
   const stop = useCallback(() => {
+    generationRef.current += 1;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setStream(null);
@@ -24,6 +27,7 @@ export function useTelehealthDevices() {
     }
     setLevel(0);
     setRunning(false);
+    setRequesting(false);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -38,6 +42,8 @@ export function useTelehealthDevices() {
       includeVideo = true,
     ) => {
       stop();
+      const generation = generationRef.current;
+      setRequesting(true);
       setError(null);
       setSpeakerConfirmed(false);
       try {
@@ -53,10 +59,15 @@ export function useTelehealthDevices() {
               : true
             : false,
         });
+        if (generation !== generationRef.current) {
+          next.getTracks().forEach((track) => track.stop());
+          return;
+        }
         streamRef.current = next;
         setStream(next);
         setRunning(true);
         await refresh();
+        if (generation !== generationRef.current) return;
         const context = new AudioContext();
         const analyser = context.createAnalyser();
         analyser.fftSize = 256;
@@ -74,6 +85,8 @@ export function useTelehealthDevices() {
         };
         meterRef.current = { context, frame: requestAnimationFrame(draw) };
       } catch (reason) {
+        if (generation !== generationRef.current) return;
+        stop();
         const denied =
           reason instanceof DOMException && reason.name === "NotAllowedError";
         setError(
@@ -84,6 +97,8 @@ export function useTelehealthDevices() {
               : "The camera and microphone could not be checked.",
         );
         throw reason;
+      } finally {
+        if (generation === generationRef.current) setRequesting(false);
       }
     },
     [refresh, stop],
@@ -158,6 +173,7 @@ export function useTelehealthDevices() {
     level,
     error,
     running,
+    requesting,
     speakerConfirmed,
     setSpeakerConfirmed,
     enable,

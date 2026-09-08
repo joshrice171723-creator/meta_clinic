@@ -15,8 +15,7 @@ module Clinic
           practice: { id: visit.practice_id, name: visit.practice.name, timezone: visit.practice.timezone },
           identity: { display_name: visit.patient.display_name },
           clinician: appointment.booked_clinician && { display_name: appointment.booked_clinician.display_name },
-          appointment: { id: appointment.id, starts_at: appointment.starts_at.iso8601(6), ends_at: appointment.ends_at.iso8601(6),
-            timezone: visit.practice.timezone, visit_modality: appointment.visit_modality },
+          appointment: VisitSerializer.appointment(appointment),
           encounter_id: visit.encounter_id,
           policy: VisitSerializer.policy(policy),
           support: { label: policy.support_label, phone: policy.support_phone, url: policy.support_url },
@@ -54,9 +53,13 @@ module Clinic
         return "instructions" if visit.status.in?(%w[ended cancelled no_show])
         return "call" if participant&.admitted?
         return "waiting_room" if participant&.waiting?
-        return "visit" unless preparation[:checkin]
-        return "consent" unless preparation[:consent]&.accepted?
-        "device_check"
+        return "visit" if preparation[:reasons].intersect?(%w[
+          checkin_required checkin_expired location_required location_attestation_required callback_required region_ineligible
+        ])
+        return "device_check" if preparation[:reasons].intersect?(%w[
+          browser_unsupported microphone_unavailable speaker_unavailable camera_unavailable
+        ])
+        "consent"
       end
     end
   end

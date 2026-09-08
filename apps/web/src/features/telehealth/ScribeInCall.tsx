@@ -1,4 +1,5 @@
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import FiberManualRecordOutlinedIcon from "@mui/icons-material/FiberManualRecordOutlined";
 import PauseOutlinedIcon from "@mui/icons-material/PauseOutlined";
 import PlayArrowOutlinedIcon from "@mui/icons-material/PlayArrowOutlined";
@@ -8,16 +9,22 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   TextField,
   Typography,
 } from "@mui/material";
@@ -137,9 +144,51 @@ function statusLabel(state: ScribeInCallCaptureState["status"]) {
   }[state];
 }
 
+function statusDescription(state: ScribeInCallCaptureState["status"]) {
+  return {
+    off: "Scribe is available for this visit.",
+    awaiting_consent: "Waiting for separate recording permission.",
+    recording: "Call audio is being captured for this visit.",
+    paused: "The last audio segment is saved.",
+    saving_audio: "The current segment is being secured.",
+    processing: "Preparing the transcript and draft.",
+    draft_ready: "A draft is ready for clinical review.",
+    error: "Scribe needs attention before continuing.",
+  }[state];
+}
+
+function consentStateLabel(state: ScribeProjection["consent"]["state"]) {
+  return {
+    not_requested: "Not requested",
+    pending: "Waiting",
+    accepted: "Allowed",
+    declined: "Declined",
+    withdrawn: "Withdrawn",
+  }[state];
+}
+
+function participantStatusLabel(status: ConsentParticipant["status"]) {
+  return {
+    accepted: "Allowed",
+    declined: "Declined",
+    withdrawn: "Withdrawn",
+    pending: "Waiting",
+  }[status];
+}
+
 function elapsedLabel(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
   return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function durationLimitLabel(milliseconds: number) {
+  const minutes = Math.max(1, Math.floor(milliseconds / 60_000));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+function byteLimitLabel(bytes: number) {
+  const mebibytes = Math.max(1, Math.floor(bytes / (1024 * 1024)));
+  return `${mebibytes} MiB`;
 }
 
 type ScribeEnvelope = {
@@ -179,6 +228,7 @@ export function ScribeInCall({
   const [notice, setNotice] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmExport, setConfirmExport] = useState<ScribeDraft | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const desiredStopRef = useRef<"pause" | "finish" | "rollover">("finish");
   const mediaFingerprintRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
@@ -245,23 +295,21 @@ export function ScribeInCall({
     ) => {
       if (!current.encounter_id || current.encounter_version === null)
         return false;
-      return recording.begin(
-        {
-          encounterId: current.encounter_id,
-          encounterVersion: current.encounter_version,
-          processingAllowed: current.consent.state === "accepted",
-          scopeKey: `telehealth:${visitPublicId}:${authorization?.captureEpoch ?? current.capture.epoch}:${authorization?.segmentIndex ?? 0}`,
-          patientLabel: "Telehealth encounter",
-          contextContent: current.context_content ?? "",
-          presentation: "in_call",
-          telehealthVisitPublicId: visitPublicId,
-          audioSource,
-          telehealthCapture: authorization,
-          deferProcessing: true,
-          onSegmentFinalized,
-        },
-        { startRecording },
-      );
+      const input: ScribeRecordingSessionInput = {
+        encounterId: current.encounter_id,
+        encounterVersion: current.encounter_version,
+        processingAllowed: current.consent.state === "accepted",
+        scopeKey: `telehealth:${visitPublicId}:${authorization?.captureEpoch ?? current.capture.epoch}:${authorization?.segmentIndex ?? 0}`,
+        patientLabel: "Telehealth encounter",
+        contextContent: current.context_content ?? "",
+        presentation: "in_call",
+        telehealthVisitPublicId: visitPublicId,
+        audioSource,
+        deferProcessing: true,
+        ...(authorization ? { telehealthCapture: authorization } : {}),
+        ...(onSegmentFinalized ? { onSegmentFinalized } : {}),
+      };
+      return recording.begin(input, { startRecording });
     },
     [audioSource, recording.begin, visitPublicId],
   );
@@ -277,6 +325,28 @@ export function ScribeInCall({
       return next;
     },
     [setCurrentProjection, visitPublicId],
+  );
+
+  const recordOwnConsent = useCallback(
+    async (decision: "accepted" | "declined" | "withdrawn") => {
+      const current = projectionRef.current;
+      if (!current) return;
+      await mutateProjection("scribe_consent", {
+        consent: {
+          decision,
+          request_key: crypto.randomUUID(),
+          expected_version: current.visit_version,
+        },
+      });
+      setNotice(
+        decision === "accepted"
+          ? "Your recording permission is saved."
+          : decision === "declined"
+            ? "Your choice is saved. The video visit can continue without Scribe recording."
+            : "Your recording permission was withdrawn. Any active capture is being stopped.",
+      );
+    },
+    [mutateProjection],
   );
 
   const releaseCapture = useCallback(
@@ -307,68 +377,78 @@ export function ScribeInCall({
 
   const beginClaimedSegment = useCallback(
     async (current: ScribeProjection, authorization: CaptureAuthorization) => {
-      const finalized = async (
-        _recordingId: number,
-        reason: "finished" | "limit",
-      ) => {
-        const intended =
-          reason === "limit" ? "rollover" : desiredStopRef.current;
-        if (intended === "rollover") {
-          if (mountedRef.current)
-            setNotice(
-              "The prior segment reached its server limit. A new segment is starting; audio during this brief rollover gap is not captured.",
-            );
-          try {
-            const latest = projectionRef.current ?? current;
-            const renewed = await mutateProjection("renew_scribe_capture", {
-              capture: {
-                request_key: crypto.randomUUID(),
-                expected_version: latest.visit_version,
-                capture_epoch: authorization.captureEpoch,
-                owner_token: authorization.ownerToken,
-              },
-            });
-            const nextAuthorization: CaptureAuthorization = {
-              ...authorization,
-              segmentIndex: authorization.segmentIndex + 1,
-              sourceOrder: authorization.sourceOrder + 1,
-            };
-            desiredStopRef.current = "rollover";
-            const opened = registerSession(
-              renewed,
-              nextAuthorization,
-              true,
-              finalized,
-            );
-            if (!opened)
-              throw new Error(
-                "Another Scribe encounter is already using the recorder.",
-              );
-            return;
-          } catch (reason) {
+      const openSegment = async (
+        segmentProjection: ScribeProjection,
+        segmentAuthorization: CaptureAuthorization,
+      ): Promise<void> => {
+        const finalized: NonNullable<
+          ScribeRecordingSessionInput["onSegmentFinalized"]
+        > = async (_recordingId, reason) => {
+          const intended =
+            reason === "limit" ? "rollover" : desiredStopRef.current;
+          if (intended === "rollover") {
             if (mountedRef.current)
-              setError(
-                errorMessage(
-                  reason,
-                  "Scribe could not start the next recording segment. The saved segment remains available.",
-                ),
+              setNotice(
+                "The prior segment reached its server limit. A new segment is starting; audio during this brief rollover gap is not captured.",
+              );
+            try {
+              const latest = projectionRef.current ?? segmentProjection;
+              const renewed = await mutateProjection("renew_scribe_capture", {
+                capture: {
+                  request_key: crypto.randomUUID(),
+                  expected_version: latest.visit_version,
+                  capture_epoch: segmentAuthorization.captureEpoch,
+                  owner_token: segmentAuthorization.ownerToken,
+                },
+              });
+              const nextAuthorization: CaptureAuthorization = {
+                ...segmentAuthorization,
+                segmentIndex: segmentAuthorization.segmentIndex + 1,
+                sourceOrder: segmentAuthorization.sourceOrder + 1,
+              };
+              desiredStopRef.current = "rollover";
+              await openSegment(renewed, nextAuthorization);
+              return;
+            } catch (reason) {
+              if (mountedRef.current)
+                setError(
+                  errorMessage(
+                    reason,
+                    "Scribe could not start the next recording segment. The saved segment remains available.",
+                  ),
+                );
+            }
+          }
+          await releaseCapture(segmentAuthorization);
+          if (mountedRef.current) {
+            setReviewOpen(intended === "finish");
+            setPendingAction(null);
+            if (intended === "finish")
+              setNotice(
+                "Recording saved. Generate the draft to begin clinical review.",
+              );
+            else if (intended === "pause")
+              setNotice(
+                "Recording paused. The saved segment is ready when you resume or generate a draft.",
               );
           }
-        }
-        await releaseCapture(authorization);
-        if (mountedRef.current) {
-          setReviewOpen(intended === "finish");
-          setPendingAction(null);
-        }
-        const latest = projectionRef.current;
-        if (latest?.encounter_id) await loadEncounter(latest.encounter_id);
+          const latest = projectionRef.current;
+          if (latest?.encounter_id) await loadEncounter(latest.encounter_id);
+        };
+
+        const opened = registerSession(
+          segmentProjection,
+          segmentAuthorization,
+          true,
+          finalized,
+        );
+        if (!opened)
+          throw new Error(
+            "Finish the other Scribe recording before starting this one.",
+          );
       };
 
-      const opened = registerSession(current, authorization, true, finalized);
-      if (!opened)
-        throw new Error(
-          "Finish the other Scribe recording before starting this one.",
-        );
+      await openSegment(current, authorization);
     },
     [loadEncounter, mutateProjection, registerSession, releaseCapture],
   );
@@ -459,11 +539,12 @@ export function ScribeInCall({
   useEffect(() => {
     mountedRef.current = true;
     setLoading(true);
+    setError(null);
     void Promise.all([
       loadContext(),
       api<{ templates: ScribeTemplate[] }>("/api/clinic/scribe/templates"),
     ])
-      .then(([current, templateResult]) => {
+      .then(async ([current, templateResult]) => {
         if (!mountedRef.current) return;
         setTemplates(templateResult.templates);
         setTemplateId(
@@ -473,8 +554,17 @@ export function ScribeInCall({
             "",
         );
         if (current.encounter_id) {
-          registerSession(current, captureAuthorization, false, undefined);
-          void loadEncounter(current.encounter_id);
+          const opened = registerSession(
+            current,
+            captureAuthorization,
+            false,
+            undefined,
+          );
+          if (!opened)
+            throw new Error(
+              "Finish the other Scribe session before opening this visit’s Scribe context.",
+            );
+          await loadEncounter(current.encounter_id);
         }
       })
       .catch((reason) =>
@@ -486,7 +576,7 @@ export function ScribeInCall({
     };
     // The persistent provider owns active capture across route unmounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visitPublicId]);
+  }, [visitPublicId, reloadToken]);
 
   useEffect(() => {
     if (!projection?.encounter_id || !sessionMatches) return;
@@ -593,10 +683,10 @@ export function ScribeInCall({
       ownedState?.phase === "upload_error"
     )
       status = "error";
-    else if (pendingAction === "generate") status = "processing";
-    else if (encounter?.drafts?.length) status = "draft_ready";
     else if (ownedState?.phase === "recording") status = "recording";
     else if (ownedState?.phase === "stopping") status = "saving_audio";
+    else if (pendingAction === "generate") status = "processing";
+    else if (encounter?.drafts?.length) status = "draft_ready";
     else if (ownedState?.phase === "completed") status = "paused";
     else if (
       projection?.consent.state === "pending" ||
@@ -626,9 +716,28 @@ export function ScribeInCall({
     if (current.encounter_id) await loadEncounter(current.encounter_id);
   }, [loadContext, loadEncounter]);
 
+  const finishAndReview = useCallback(async () => {
+    if (pendingAction) return;
+    setPendingAction("finish");
+    setError(null);
+    setNotice(null);
+    const saved = await recording.saveContext();
+    if (!saved) {
+      if (mountedRef.current) setPendingAction(null);
+      return;
+    }
+    desiredStopRef.current = "finish";
+    recording.finish();
+  }, [pendingAction, recording.finish, recording.saveContext]);
+
   const generateDraft = useCallback(async () => {
     const current = projectionRef.current;
     if (!current?.encounter_id || current.encounter_version === null) return;
+    const saved = await recording.saveContext();
+    if (!saved)
+      throw new Error(
+        "Save or resolve the visit context before generating the draft.",
+      );
     for (const item of current.recordings
       .filter(({ status, source_id }) => status === "completed" && !source_id)
       .sort((left, right) => left.source_order - right.source_order)) {
@@ -660,7 +769,16 @@ export function ScribeInCall({
     );
     await refreshReview();
     setReviewOpen(true);
-  }, [loadContext, refreshReview, templateId, visitPublicId]);
+    setNotice(
+      "Draft generated. Review every section before approval and export.",
+    );
+  }, [
+    loadContext,
+    recording.saveContext,
+    refreshReview,
+    templateId,
+    visitPublicId,
+  ]);
 
   const saveDraft = useCallback(
     async (
@@ -703,20 +821,56 @@ export function ScribeInCall({
 
   if (loading)
     return (
+      <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+        <LinearProgress />
+        <Stack spacing={0.5} role="status" aria-live="polite" sx={{ p: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            Loading Scribe
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Checking this visit’s recording permission and note context…
+          </Typography>
+        </Stack>
+      </Paper>
+    );
+
+  if (!projection)
+    return (
       <Paper variant="outlined" sx={{ p: 2 }}>
-        <Typography role="status">Loading Scribe…</Typography>
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => setReloadToken((value) => value + 1)}
+            >
+              Retry
+            </Button>
+          }
+        >
+          {error ?? "Scribe context could not be loaded for this visit."}
+        </Alert>
       </Paper>
     );
 
   const active = sessionMatches && recording.state.active;
+  const liveAudioSourceCount = new Set(
+    [
+      localAudioTrack,
+      ...remoteAudioTracks
+        .filter(({ subscribed }) => subscribed)
+        .map(({ track }) => track),
+    ]
+      .filter((track): track is MediaStreamTrack =>
+        Boolean(track && track.kind === "audio" && track.readyState === "live"),
+      )
+      .map(({ id }) => id),
+  ).size;
   const canStart = Boolean(
     projection?.allowed_actions.includes("start_capture") &&
     callState === "joined" &&
-    (localAudioTrack ||
-      remoteAudioTracks.some(
-        ({ subscribed, track }) =>
-          subscribed && track.kind === "audio" && track.readyState === "live",
-      )),
+    liveAudioSourceCount > 0,
   );
   const canAcknowledge = Boolean(
     projection?.allowed_actions.includes("record_own_consent"),
@@ -725,59 +879,90 @@ export function ScribeInCall({
   const hasProcessableRecordings = Boolean(
     projection?.recordings.some(({ status }) => status === "completed"),
   );
+  const hasDraft = Boolean(encounter?.drafts.length);
+  const hasExportedDraft = Boolean(
+    encounter?.drafts.some(({ status }) => status === "exported"),
+  );
+  const workflowStep = !projection?.encounter_id
+    ? 0
+    : projection.consent.state !== "accepted"
+      ? 0
+      : hasDraft
+        ? 2
+        : 1;
 
   return (
     <Paper
       component="section"
       aria-labelledby="telehealth-scribe-heading"
       variant="outlined"
-      sx={{ minWidth: 0, overflow: "hidden" }}
+      sx={{ minWidth: 0, overflow: "hidden", borderRadius: 2 }}
     >
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        spacing={1}
+        spacing={1.5}
         sx={{
           position: "sticky",
           top: 0,
-          zIndex: 1,
+          zIndex: 2,
           alignItems: { sm: "center" },
-          px: 1.5,
-          py: 1,
+          px: { xs: 1.5, md: 2 },
+          py: 1.5,
           borderBottom: 1,
           borderColor: "divider",
           bgcolor: "background.paper",
         }}
       >
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ alignItems: "center", flexWrap: "wrap" }}
+          >
             <Typography
               id="telehealth-scribe-heading"
               variant="subtitle1"
               sx={{ fontWeight: 700 }}
             >
-              Scribe & note
+              In-call Scribe
             </Typography>
             <Chip
               size="small"
-              color={displayState.status === "recording" ? "error" : "default"}
+              color={
+                displayState.status === "error"
+                  ? "error"
+                  : displayState.status === "recording"
+                    ? "warning"
+                    : displayState.status === "draft_ready"
+                      ? "success"
+                      : "default"
+              }
+              variant={
+                displayState.status === "recording" ||
+                displayState.status === "draft_ready"
+                  ? "filled"
+                  : "outlined"
+              }
               label={statusLabel(displayState.status)}
             />
           </Stack>
           <Typography
-            variant="caption"
+            variant="body2"
             color="text.secondary"
             aria-live="polite"
+            sx={{ mt: 0.25 }}
           >
-            Captured{" "}
-            {elapsedLabel(sessionMatches ? recording.state.elapsedMs : 0)}
+            {statusDescription(displayState.status)} Current segment{" "}
+            <Box
+              component="span"
+              sx={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}
+            >
+              {elapsedLabel(sessionMatches ? recording.state.elapsedMs : 0)}
+            </Box>
           </Typography>
         </Box>
-        <Stack
-          direction="row"
-          spacing={0.75}
-          useFlexGap
-          sx={{ flexWrap: "wrap" }}
-        >
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
           {!projection?.encounter_id && (
             <Button
               variant="contained"
@@ -793,12 +978,26 @@ export function ScribeInCall({
                       expected_version: current.visit_version,
                     },
                   });
-                  registerSession(next, undefined, false, undefined);
+                  const opened = registerSession(
+                    next,
+                    undefined,
+                    false,
+                    undefined,
+                  );
+                  if (!opened)
+                    throw new Error(
+                      "Finish the other Scribe session before opening this visit’s Scribe context.",
+                    );
                   if (next.encounter_id) await loadEncounter(next.encounter_id);
+                  setNotice(
+                    "Recording permission requested. Each active participant must respond separately.",
+                  );
                 })
               }
             >
-              Start Scribe
+              {pendingAction === "request"
+                ? "Requesting…"
+                : "Request recording permission"}
             </Button>
           )}
           {projection?.encounter_id && !active && (
@@ -808,9 +1007,11 @@ export function ScribeInCall({
               disabled={!canStart || pendingAction !== null}
               onClick={() => void runAction("start", claimAndStart)}
             >
-              {recording.state.phase === "completed"
-                ? "Resume"
-                : "Start recording"}
+              {pendingAction === "start"
+                ? "Starting…"
+                : recording.state.phase === "completed"
+                  ? "Resume recording"
+                  : "Start recording"}
             </Button>
           )}
           {!active &&
@@ -829,6 +1030,7 @@ export function ScribeInCall({
               <Button
                 variant="outlined"
                 startIcon={<PauseOutlinedIcon />}
+                disabled={pendingAction !== null}
                 onClick={() => {
                   desiredStopRef.current = "pause";
                   setPendingAction("pause");
@@ -838,53 +1040,164 @@ export function ScribeInCall({
                 Pause
               </Button>
               <Button
-                color="error"
                 variant="contained"
                 startIcon={<StopOutlinedIcon />}
-                onClick={() => {
-                  desiredStopRef.current = "finish";
-                  setPendingAction("finish");
-                  recording.finish();
-                }}
+                disabled={pendingAction !== null}
+                onClick={() => void finishAndReview()}
               >
-                Finish recording
+                {pendingAction === "finish" ? "Saving…" : "Finish & review"}
               </Button>
             </>
           )}
         </Stack>
       </Stack>
 
-      <Stack spacing={1.5} sx={{ p: 1.5 }}>
-        {error && <Alert severity="error">{error}</Alert>}
+      {pendingAction !== null && <LinearProgress aria-label="Scribe working" />}
+
+      <Stack spacing={2} sx={{ p: { xs: 1.5, md: 2 } }}>
+        {error && (
+          <Alert
+            severity="error"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                disabled={pendingAction !== null}
+                onClick={() =>
+                  void runAction("reload", async () => {
+                    await refreshReview();
+                  })
+                }
+              >
+                Reload status
+              </Button>
+            }
+          >
+            {error}
+          </Alert>
+        )}
         {notice && <Alert severity="info">{notice}</Alert>}
-        {projection?.consent.state !== "accepted" &&
-          projection?.encounter_id && (
+
+        <Stepper
+          activeStep={workflowStep}
+          sx={{
+            maxWidth: 680,
+            width: "100%",
+            "& .MuiStepLabel-label": { typography: "body2" },
+          }}
+        >
+          <Step completed={projection.consent.state === "accepted"}>
+            <StepLabel>Permission</StepLabel>
+          </Step>
+          <Step completed={hasSources || hasProcessableRecordings || hasDraft}>
+            <StepLabel>Capture</StepLabel>
+          </Step>
+          <Step completed={hasExportedDraft}>
+            <StepLabel>Review</StepLabel>
+          </Step>
+        </Stepper>
+
+        <Stack spacing={1}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ alignItems: { sm: "center" } }}
+          >
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                Recording permission
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Optional Scribe recording is separate from consent for the video
+                visit.
+              </Typography>
+            </Box>
+            <Chip
+              size="small"
+              variant="outlined"
+              color={
+                projection.consent.state === "accepted"
+                  ? "success"
+                  : projection.consent.state === "declined" ||
+                      projection.consent.state === "withdrawn"
+                    ? "warning"
+                    : "default"
+              }
+              label={consentStateLabel(projection.consent.state)}
+            />
+          </Stack>
+
+          {projection.consent.state === "accepted" ? (
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ alignItems: { sm: "center" } }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: "center", flex: 1 }}
+              >
+                <CheckCircleOutlineOutlinedIcon
+                  color="success"
+                  fontSize="small"
+                />
+                <Typography variant="body2">
+                  Every active participant currently allows Scribe recording.
+                </Typography>
+              </Stack>
+              {canAcknowledge && (
+                <Button
+                  color="warning"
+                  size="small"
+                  disabled={pendingAction !== null}
+                  onClick={() =>
+                    void runAction("consent", () =>
+                      recordOwnConsent("withdrawn"),
+                    )
+                  }
+                >
+                  Withdraw my permission
+                </Button>
+              )}
+            </Stack>
+          ) : projection.encounter_id ? (
             <Alert
               severity={
-                projection.consent.state === "declined" ? "warning" : "info"
+                projection.consent.state === "declined" ||
+                projection.consent.state === "withdrawn"
+                  ? "warning"
+                  : "info"
               }
               action={
                 canAcknowledge ? (
-                  <Button
-                    color="inherit"
-                    size="small"
-                    disabled={pendingAction !== null}
-                    onClick={() =>
-                      void runAction("consent", async () => {
-                        const current = projectionRef.current;
-                        if (!current) return;
-                        await mutateProjection("scribe_consent", {
-                          consent: {
-                            decision: "accepted",
-                            request_key: crypto.randomUUID(),
-                            expected_version: current.visit_version,
-                          },
-                        });
-                      })
-                    }
-                  >
-                    Acknowledge recording
-                  </Button>
+                  <Stack direction="row" spacing={0.5}>
+                    <Button
+                      color="inherit"
+                      size="small"
+                      disabled={pendingAction !== null}
+                      onClick={() =>
+                        void runAction("consent", () =>
+                          recordOwnConsent("declined"),
+                        )
+                      }
+                    >
+                      Decline
+                    </Button>
+                    <Button
+                      color="inherit"
+                      size="small"
+                      variant="outlined"
+                      disabled={pendingAction !== null}
+                      onClick={() =>
+                        void runAction("consent", () =>
+                          recordOwnConsent("accepted"),
+                        )
+                      }
+                    >
+                      Allow recording
+                    </Button>
+                  </Stack>
                 ) : undefined
               }
             >
@@ -895,65 +1208,121 @@ export function ScribeInCall({
                 {projection.recording_policy.body}
               </Typography>
               <Typography variant="body2">
-                Recording starts only after every active participant separately
-                allows Scribe. The video visit can continue without it.
+                Recording starts after every active participant separately
+                allows Scribe. The video visit can continue without recording.
               </Typography>
             </Alert>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Request recording permission to begin. No call audio is captured
+              while Scribe is off.
+            </Typography>
           )}
 
-        {projection?.consent.required_participants.length ? (
-          <Stack
-            direction="row"
-            spacing={0.75}
-            useFlexGap
-            sx={{ flexWrap: "wrap" }}
-          >
-            {projection.consent.required_participants.map((participant) => (
-              <Chip
-                key={participant.participant_id}
-                size="small"
-                variant="outlined"
-                label={`${participant.display_name || participant.role || "Participant"}: ${participant.status}`}
-              />
-            ))}
-          </Stack>
-        ) : null}
+          {projection.consent.required_participants.length ? (
+            <Stack
+              direction="row"
+              spacing={0.75}
+              useFlexGap
+              sx={{ flexWrap: "wrap" }}
+              aria-label="Participant recording permissions"
+            >
+              {projection.consent.required_participants.map((participant) => (
+                <Chip
+                  key={participant.participant_id}
+                  size="small"
+                  variant="outlined"
+                  color={
+                    participant.status === "accepted"
+                      ? "success"
+                      : participant.status === "declined" ||
+                          participant.status === "withdrawn"
+                        ? "warning"
+                        : "default"
+                  }
+                  label={`${participant.display_name || participant.role || "Participant"}: ${participantStatusLabel(participant.status)}`}
+                />
+              ))}
+            </Stack>
+          ) : null}
+        </Stack>
 
-        {projection?.capture.owner_participant_id && !active && (
-          <Alert severity="info">
-            Recording is currently owned by{" "}
-            {projection.capture.owner_display_name ||
-              "another staff participant"}
-            .
-          </Alert>
+        {projection.encounter_id && (
+          <>
+            <Divider />
+            <Stack spacing={1}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                sx={{ alignItems: { sm: "center" } }}
+              >
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Call capture
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {liveAudioSourceCount > 0
+                      ? `${liveAudioSourceCount} live call audio ${liveAudioSourceCount === 1 ? "track" : "tracks"} available.`
+                      : "No live call audio is available."}{" "}
+                    Scribe uses the call’s connected audio and does not open a
+                    second microphone.
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {durationLimitLabel(projection.limits.max_duration_ms)} ·{" "}
+                  {byteLimitLabel(projection.limits.max_total_bytes)} ·{" "}
+                  {projection.limits.max_chunks} chunks per segment
+                </Typography>
+              </Stack>
+
+              {callState !== "joined" && (
+                <Alert severity="info">
+                  Join the video visit before starting Scribe recording.
+                </Alert>
+              )}
+              {callState === "joined" && liveAudioSourceCount === 0 && (
+                <Alert severity="warning">
+                  Connect at least one live call audio track before starting
+                  Scribe.
+                </Alert>
+              )}
+              {projection.capture.owner_participant_id && !active && (
+                <Alert severity="info">
+                  {projection.capture.owner_display_name ||
+                    "Another staff participant"}{" "}
+                  currently owns recording. One active capture lease prevents
+                  duplicate recordings.
+                </Alert>
+              )}
+              {active && (
+                <Typography variant="body2" aria-live="polite">
+                  Recording this visit’s connected call audio. Pause saves this
+                  segment; Finish & review saves context and opens the review
+                  step.
+                </Typography>
+              )}
+            </Stack>
+          </>
         )}
 
-        {projection?.encounter_id && (
+        {projection.encounter_id && (
           <>
-            <FormControl size="small" fullWidth>
-              <InputLabel id="telehealth-scribe-template-label">
-                Template
-              </InputLabel>
-              <Select
-                labelId="telehealth-scribe-template-label"
-                label="Template"
-                value={templateId}
-                disabled={active || pendingAction !== null}
-                onChange={(event) => setTemplateId(event.target.value)}
-              >
-                {templates.map((template) => (
-                  <MenuItem
-                    key={`${template.id}:${template.version}`}
-                    value={template.id}
-                    disabled={template.status !== "active"}
-                  >
-                    {template.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                Visit context
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Add details the transcript may not contain. Saved context stays
+                with this exact Scribe encounter.
+              </Typography>
+            </Box>
             <TextField
-              label="Typed context"
+              label="Visit context"
               multiline
               minRows={3}
               maxRows={8}
@@ -966,6 +1335,7 @@ export function ScribeInCall({
               onChange={(event) =>
                 recording.setContextValue(event.target.value)
               }
+              placeholder="Reason for visit, relevant history, observations, and documentation context"
               helperText={
                 recording.contextSaving
                   ? "Saving context…"
@@ -974,7 +1344,36 @@ export function ScribeInCall({
                     : "Context saved"
               }
             />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            {recording.contextError && (
+              <Alert severity="warning">{recording.contextError}</Alert>
+            )}
+            {recording.latestSavedContext !== null && (
+              <Stack spacing={1}>
+                <TextField
+                  label="Latest saved context"
+                  value={recording.latestSavedContext}
+                  multiline
+                  minRows={2}
+                  slotProps={{ input: { readOnly: true } }}
+                />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button onClick={recording.useLatestSavedContext}>
+                    Use latest saved
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={recording.keepTypedContext}
+                  >
+                    Keep my typed context
+                  </Button>
+                </Stack>
+              </Stack>
+            )}
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ alignItems: { sm: "center" } }}
+            >
               <Button
                 variant={recording.contextDirty ? "contained" : "outlined"}
                 disabled={
@@ -986,97 +1385,221 @@ export function ScribeInCall({
               >
                 Save context
               </Button>
-              <Button
-                variant="outlined"
-                startIcon={<ArticleOutlinedIcon />}
-                disabled={
-                  active ||
-                  (!hasSources &&
-                    !hasProcessableRecordings &&
-                    !encounter?.drafts.length)
-                }
-                onClick={() => setReviewOpen(true)}
+              <Typography variant="caption" color="text.secondary">
+                Unsaved context is preserved if a save cannot be confirmed.
+              </Typography>
+            </Stack>
+
+            <Divider />
+            <Stack spacing={1.25}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Draft and review
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Generate a draft from saved segments and context, then review
+                  every section before applying it to the encounter.
+                </Typography>
+              </Box>
+              <FormControl size="small" sx={{ maxWidth: 360 }}>
+                <InputLabel id="telehealth-scribe-template-label">
+                  Note template
+                </InputLabel>
+                <Select
+                  labelId="telehealth-scribe-template-label"
+                  label="Note template"
+                  value={templateId}
+                  disabled={active || pendingAction !== null}
+                  onChange={(event) => setTemplateId(event.target.value)}
+                >
+                  {templates.map((template) => (
+                    <MenuItem
+                      key={`${template.id}:${template.version}`}
+                      value={template.id}
+                      disabled={template.status !== "active"}
+                    >
+                      {template.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                useFlexGap
+                sx={{ flexWrap: "wrap" }}
               >
-                Finish & review
-              </Button>
-              <Button
-                variant="contained"
-                disabled={
-                  active ||
-                  (!hasSources && !hasProcessableRecordings) ||
-                  !templateId ||
-                  pendingAction !== null
-                }
-                onClick={() => void runAction("generate", generateDraft)}
-              >
-                Generate draft
-              </Button>
+                <Button
+                  variant="contained"
+                  startIcon={
+                    pendingAction === "generate" ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <ArticleOutlinedIcon />
+                    )
+                  }
+                  disabled={
+                    active ||
+                    (!hasSources && !hasProcessableRecordings) ||
+                    !templateId ||
+                    pendingAction !== null
+                  }
+                  onClick={() => void runAction("generate", generateDraft)}
+                >
+                  {pendingAction === "generate"
+                    ? "Generating…"
+                    : hasDraft
+                      ? "Generate new draft"
+                      : "Generate draft"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  disabled={!hasDraft || active || pendingAction !== null}
+                  onClick={() => setReviewOpen(true)}
+                >
+                  Open draft review
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                {hasDraft
+                  ? "A draft is available. Generated content remains unapproved until every required section is reviewed."
+                  : hasSources || hasProcessableRecordings
+                    ? "Saved audio is ready. Generating first transcribes any unprocessed segments in source order."
+                    : "Record and save call audio before generating a draft."}
+              </Typography>
             </Stack>
           </>
         )}
 
         {reviewOpen && (
-          <Box sx={{ minHeight: 480 }}>
-            <ScribeReviewWorkspace
-              state={
-                encounter ? { kind: "ready", encounter } : { kind: "loading" }
-              }
-              onRetry={() => void refreshReview()}
-              pendingAction={pendingAction}
-              onSaveDraft={(draftId, sections) =>
-                runAction("review:all", () => saveDraft(draftId, sections))
-              }
-              onAcceptSection={(draftId, sectionKey) =>
-                runAction("review:accept", () =>
-                  reviewSection(draftId, sectionKey, "accept"),
-                )
-              }
-              onRejectSection={(draftId, sectionKey) =>
-                runAction("review:reject", () =>
-                  reviewSection(draftId, sectionKey, "reject"),
-                )
-              }
-              onApprove={(draftId) =>
-                void runAction("approve", async () => {
-                  const draft = encounter?.drafts.find(
-                    ({ id }) => id === draftId,
-                  );
-                  if (!draft) return;
-                  await api(`/api/clinic/scribe/drafts/${draftId}/approve`, {
-                    method: "POST",
-                    body: { expected_version: draft.version },
-                  });
-                  await refreshReview();
-                })
-              }
-              onExport={(draftId) => {
-                const draft = encounter?.drafts.find(
-                  ({ id }) => id === draftId,
-                );
-                if (draft) setConfirmExport(draft);
-              }}
-              exportLabel="Apply to encounter"
-            />
+          <Box sx={{ borderTop: 1, borderColor: "divider", pt: 2 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", justifyContent: "space-between" }}
+            >
+              <Box>
+                <Typography component="h3" variant="subtitle1">
+                  Clinical review
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Review generated content against the visit and source audio.
+                </Typography>
+              </Box>
+              <Button size="small" onClick={() => setReviewOpen(false)}>
+                Hide review
+              </Button>
+            </Stack>
+            {hasDraft ? (
+              <Box sx={{ minHeight: 480, mt: 1.5 }}>
+                <ScribeReviewWorkspace
+                  state={
+                    encounter
+                      ? { kind: "ready", encounter }
+                      : { kind: "loading" }
+                  }
+                  onRetry={() => void refreshReview()}
+                  pendingAction={pendingAction}
+                  onSaveDraft={(draftId, sections) =>
+                    runAction("review:all", () => saveDraft(draftId, sections))
+                  }
+                  onAcceptSection={(draftId, sectionKey) =>
+                    runAction("review:accept", () =>
+                      reviewSection(draftId, sectionKey, "accept"),
+                    )
+                  }
+                  onRejectSection={(draftId, sectionKey) =>
+                    runAction("review:reject", () =>
+                      reviewSection(draftId, sectionKey, "reject"),
+                    )
+                  }
+                  onApprove={(draftId) =>
+                    void runAction("approve", async () => {
+                      const draft = encounter?.drafts.find(
+                        ({ id }) => id === draftId,
+                      );
+                      if (!draft) return;
+                      await api(
+                        `/api/clinic/scribe/drafts/${draftId}/approve`,
+                        {
+                          method: "POST",
+                          body: { expected_version: draft.version },
+                        },
+                      );
+                      await refreshReview();
+                      setNotice(
+                        "Draft approved. Apply it to this encounter when ready.",
+                      );
+                    })
+                  }
+                  onExport={(draftId) => {
+                    const draft = encounter?.drafts.find(
+                      ({ id }) => id === draftId,
+                    );
+                    if (draft) setConfirmExport(draft);
+                  }}
+                  exportLabel="Apply to encounter"
+                />
+              </Box>
+            ) : (
+              <Alert
+                severity="info"
+                sx={{ mt: 1.5 }}
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    disabled={
+                      (!hasSources && !hasProcessableRecordings) ||
+                      !templateId ||
+                      pendingAction !== null
+                    }
+                    onClick={() => void runAction("generate", generateDraft)}
+                  >
+                    Generate draft
+                  </Button>
+                }
+              >
+                The recording segment is saved. Generate a draft to begin
+                section-by-section review.
+              </Alert>
+            )}
           </Box>
         )}
       </Stack>
 
       <Dialog
         open={Boolean(confirmExport)}
-        onClose={() => setConfirmExport(null)}
+        onClose={() => {
+          if (pendingAction !== "export") setConfirmExport(null);
+        }}
+        aria-describedby="telehealth-scribe-export-description"
       >
         <DialogTitle>Apply reviewed note to this encounter?</DialogTitle>
-        <DialogContent>
-          This writes the approved revision to the exact bound clinical
-          encounter as an unsigned note. Signing remains separate.
+        <DialogContent id="telehealth-scribe-export-description">
+          <Typography variant="body2">
+            This writes the approved revision to this visit’s exact bound
+            clinical encounter as an unsigned note. Signing remains a separate
+            clinical action.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmExport(null)}>Cancel</Button>
+          <Button
+            disabled={pendingAction === "export"}
+            onClick={() => setConfirmExport(null)}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
+            disabled={pendingAction === "export"}
+            startIcon={
+              pendingAction === "export" ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : undefined
+            }
             onClick={() => {
               const draft = confirmExport;
-              setConfirmExport(null);
               if (!draft) return;
               void runAction("export", async () => {
                 await api(`/api/clinic/scribe/drafts/${draft.id}/export`, {
@@ -1091,10 +1614,14 @@ export function ScribeInCall({
                   },
                 });
                 await refreshReview();
+                setConfirmExport(null);
+                setNotice(
+                  "Reviewed note applied to this encounter as an unsigned note.",
+                );
               });
             }}
           >
-            Apply to encounter
+            {pendingAction === "export" ? "Applying…" : "Apply to encounter"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -70,6 +70,7 @@ export type TelehealthAppointmentSummary = {
   visit_modality: "video" | "in_person";
   site_id: number | null;
   clinician_membership_id: number | null;
+  clinician?: { membership_id: number; display_name: string | null } | null;
   patient: TelehealthPatientSummary;
 };
 
@@ -81,6 +82,8 @@ export type TelehealthPolicy = {
   allow_audio_only: boolean;
   allow_staff_screen_share: boolean;
   scribe_enabled: boolean;
+  require_location: boolean;
+  require_callback: boolean;
   scribe_consent_title?: string | null;
   scribe_consent_body?: string | null;
 };

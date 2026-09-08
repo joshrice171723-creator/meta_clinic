@@ -58,14 +58,14 @@ export function ConsentStep({
           <Button
             color="inherit"
             disabled={busy}
-            onClick={() => void onDecline()}
+            onClick={() => void onDecline().catch(() => undefined)}
           >
             I do not agree
           </Button>
           <Button
             variant="contained"
             disabled={!agreed || busy}
-            onClick={() => void onAccept()}
+            onClick={() => void onAccept().catch(() => undefined)}
           >
             {busy ? "Saving…" : "I agree and enter waiting room"}
           </Button>

@@ -10,7 +10,7 @@ import { useResource } from "../../shared/ui";
 
 export type VisitModality = "in_person" | "video";
 
-type BookingOptions = {
+export type BookingOptions = {
   data: {
     enabled: boolean;
     allowed_modalities: VisitModality[];

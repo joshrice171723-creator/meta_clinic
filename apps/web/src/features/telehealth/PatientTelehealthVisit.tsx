@@ -337,10 +337,16 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
       Boolean(
         session.active?.visitId === visit?.public_id ||
         visit?.current_step === "waiting_room" ||
-        visit?.current_step === "call",
+        visit?.current_step === "call" ||
+        visit?.status === "ending",
       ),
     );
-  }, [session.active?.visitId, visit?.current_step, visit?.public_id]);
+  }, [
+    session.active?.visitId,
+    visit?.current_step,
+    visit?.public_id,
+    visit?.status,
+  ]);
   useEffect(() => {
     if (!visit || !session.active || session.active.visitId !== visit.public_id)
       return;
@@ -401,7 +407,10 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
   };
   const saveDevices = async (deviceResults: TelehealthDeviceResults) => {
     const location = visit.preparation.location;
-    if (!location || !visit.preparation.callback_phone) {
+    if (
+      (visit.policy.require_location && !location) ||
+      (visit.policy.require_callback && !visit.preparation.callback_phone)
+    ) {
       setStep(0);
       setError(
         "Confirm your current location and callback number before the device check.",
@@ -412,8 +421,8 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
       () =>
         submitCheckin(visit.public_id, resource.response!.version, {
           location,
-          callback_phone: visit.preparation.callback_phone!,
-          location_attested: true,
+          callback_phone: visit.preparation.callback_phone || null,
+          location_attested: Boolean(location),
           device_results: deviceResults,
         }),
       2,
@@ -444,7 +453,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
   };
 
   if (
-    ["ended", "cancelled", "no_show"].includes(visit.status) ||
+    ["ending", "ended", "cancelled", "no_show"].includes(visit.status) ||
     visit.current_step === "instructions"
   ) {
     return (
@@ -453,11 +462,20 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
         sx={{ maxWidth: 760, mx: "auto", p: { xs: 2, sm: 3 } }}
       >
         <Typography variant="h4" component="h1">
-          Your video visit has ended
+          {visit.status === "ending"
+            ? "Your video visit is ending"
+            : visit.status === "cancelled"
+              ? "This video visit was cancelled"
+              : visit.status === "no_show"
+                ? "Your appointment needs follow-up"
+                : "Your video visit has ended"}
         </Typography>
         <Typography>
-          Released visit instructions will appear with your other after-visit
-          information when they are available.
+          {visit.status === "ending"
+            ? "Your care team is confirming the call has ended. This page updates automatically."
+            : visit.status === "cancelled" || visit.status === "no_show"
+              ? "Return to your appointments to request another time or contact your clinic."
+              : "Released visit instructions will appear with your other after-visit information when they are available."}
         </Typography>
         <Button variant="contained" href="/patient-portal#appointments">
           Return to appointments
@@ -485,6 +503,13 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
           {visit.clinician?.display_name || "Clinician not assigned"} ·{" "}
           {formatAppointment(visit)}
         </Typography>
+        {visit.policy.instructions && !inCall && (
+          <Typography
+            sx={{ mt: 1.5, whiteSpace: "pre-wrap", maxWidth: "68ch" }}
+          >
+            {visit.policy.instructions}
+          </Typography>
+        )}
       </Box>
       {resource.stale && (
         <Alert severity="warning">
@@ -501,7 +526,17 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
         />
       ) : (
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-          <Stepper activeStep={step} alternativeLabel sx={{ mb: 3 }}>
+          <Stepper
+            activeStep={step}
+            alternativeLabel
+            sx={{
+              mb: 3,
+              "& .MuiStepLabel-label": {
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              },
+              "& .MuiStep-root": { px: { xs: 0.25, sm: 1 } },
+            }}
+          >
             {steps.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
@@ -510,7 +545,10 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
           </Stepper>
           {step === 0 && (
             <PatientCheckin
+              key={`${visit.public_id}:${visit.preparation.checkin_id || "new"}`}
               preparation={visit.preparation}
+              requireLocation={visit.policy.require_location}
+              requireCallback={visit.policy.require_callback}
               busy={busy}
               error={error}
               onSave={saveInitial}
@@ -561,6 +599,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
           {step === 3 && (
             <WaitingRoom
               visit={visit}
+              allowedActions={resource.response.allowed_actions}
               busy={busy}
               error={error}
               onUpdatePreparation={() => setStep(0)}

@@ -26,9 +26,15 @@ function permittedTracks(input: ScribeAudioBridgeInput) {
   const remote = input.remoteAudioTracks
     .filter(({ subscribed, track }) => subscribed && track.kind === "audio")
     .map(({ track }) => track);
+  const seen = new Set<string>();
   return [input.localAudioTrack, ...remote].filter(
-    (track): track is MediaStreamTrack =>
-      Boolean(track && track.kind === "audio" && track.readyState === "live"),
+    (track): track is MediaStreamTrack => {
+      if (!track || track.kind !== "audio" || track.readyState !== "live")
+        return false;
+      if (seen.has(track.id)) return false;
+      seen.add(track.id);
+      return true;
+    },
   );
 }
 

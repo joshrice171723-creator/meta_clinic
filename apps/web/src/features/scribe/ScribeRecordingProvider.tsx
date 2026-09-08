@@ -85,6 +85,9 @@ export type PersistentScribeValue = {
   contextDirty: boolean;
   contextSaving: boolean;
   contextError: string | null;
+  latestSavedContext: string | null;
+  useLatestSavedContext: () => void;
+  keepTypedContext: () => void;
   saveContext: () => Promise<boolean>;
 };
 
@@ -294,6 +297,8 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
         setContextValue(saved);
         setContextBaseline(saved);
         setEncounterVersion(response.encounter.version);
+        setLatestSavedContext(null);
+        setLatestSavedVersion(null);
         return true;
       } catch (reason) {
         try {
@@ -331,6 +336,26 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
     contextMutationRef.current = request;
     return request;
   }, [contextBaseline, contextValue, encounterVersion, session]);
+
+  const useLatestSavedContext = useCallback(() => {
+    if (latestSavedContext === null || latestSavedVersion === null) return;
+    contextGenerationRef.current += 1;
+    setContextValue(latestSavedContext);
+    setContextBaseline(latestSavedContext);
+    setEncounterVersion(latestSavedVersion);
+    setLatestSavedContext(null);
+    setLatestSavedVersion(null);
+    setError(null);
+  }, [latestSavedContext, latestSavedVersion]);
+
+  const keepTypedContext = useCallback(() => {
+    if (latestSavedContext === null || latestSavedVersion === null) return;
+    setContextBaseline(latestSavedContext);
+    setEncounterVersion(latestSavedVersion);
+    setLatestSavedContext(null);
+    setLatestSavedVersion(null);
+    setError(null);
+  }, [latestSavedContext, latestSavedVersion]);
 
   const returnToNote = useCallback(
     (reviewToken?: string | number) => {
@@ -411,6 +436,9 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       contextDirty: dirty,
       contextSaving: saving,
       contextError: error,
+      latestSavedContext,
+      useLatestSavedContext,
+      keepTypedContext,
       saveContext,
     }),
     [
@@ -420,6 +448,8 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       discardRecording,
       error,
       finishRecording,
+      keepTypedContext,
+      latestSavedContext,
       reconcile,
       saveContext,
       saving,
@@ -427,6 +457,7 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       startRecording,
       state,
       terminateTelehealthCapture,
+      useLatestSavedContext,
     ],
   );
 
@@ -622,29 +653,13 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
                     slotProps={{ input: { readOnly: true } }}
                   />
                   <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        setContextValue(latestSavedContext);
-                        setContextBaseline(latestSavedContext);
-                        setEncounterVersion(latestSavedVersion);
-                        setLatestSavedContext(null);
-                        setLatestSavedVersion(null);
-                        setError(null);
-                      }}
-                    >
+                    <Button size="small" onClick={useLatestSavedContext}>
                       Use latest saved
                     </Button>
                     <Button
                       size="small"
                       variant="outlined"
-                      onClick={() => {
-                        setContextBaseline(latestSavedContext);
-                        setEncounterVersion(latestSavedVersion);
-                        setLatestSavedContext(null);
-                        setLatestSavedVersion(null);
-                        setError(null);
-                      }}
+                      onClick={keepTypedContext}
                     >
                       Keep my typed context
                     </Button>

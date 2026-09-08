@@ -23,12 +23,16 @@ const uncheckedDevices: TelehealthDeviceResults = {
 
 export function PatientCheckin({
   preparation,
+  requireLocation = true,
+  requireCallback = true,
   busy,
   error,
   onSave,
   onWrongAppointment,
 }: {
   preparation: TelehealthPreparation;
+  requireLocation?: boolean;
+  requireCallback?: boolean;
   busy: boolean;
   error?: string | null;
   onSave: (checkin: PatientCheckinInput) => Promise<void>;
@@ -63,7 +67,15 @@ export function PatientCheckin({
     setCountry(initial?.country_code || "US");
     setPhone(preparation.callback_phone || "");
     setAttested(false);
-  }, [initial, preparation.callback_phone]);
+  }, [
+    initial?.address_line1,
+    initial?.unit,
+    initial?.city,
+    initial?.region_code,
+    initial?.postal_code,
+    initial?.country_code,
+    preparation.callback_phone,
+  ]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -81,26 +93,31 @@ export function PatientCheckin({
       onSubmit={(event) => {
         event.preventDefault();
         void onSave({
-          location: {
-            address_line1: address.trim(),
-            unit: unit.trim() || null,
-            city: city.trim(),
-            region_code: region.trim(),
-            postal_code: postalCode.trim() || null,
-            country_code: country.trim(),
-          },
-          callback_phone: phone.trim(),
+          location:
+            requireLocation || address.trim() || city.trim() || region.trim()
+              ? {
+                  address_line1: address.trim(),
+                  unit: unit.trim() || null,
+                  city: city.trim(),
+                  region_code: region.trim(),
+                  postal_code: postalCode.trim() || null,
+                  country_code: country.trim(),
+                }
+              : null,
+          callback_phone: phone.trim() || null,
           location_attested: attested,
           device_results: preparation.device_results || {
             ...uncheckedDevices,
             checked_at: new Date().toISOString(),
           },
-        });
+        }).catch(() => undefined);
       }}
     >
       <Stack spacing={2}>
         <div>
-          <Typography variant="h5">Confirm where you are</Typography>
+          <Typography variant="h5" component="h2">
+            Confirm your visit details
+          </Typography>
           <Typography color="text.secondary">
             Share your current physical location and a callback number for this
             visit. This does not change your permanent contact information.
@@ -110,7 +127,7 @@ export function PatientCheckin({
           label="Current street address"
           value={address}
           onChange={(event) => setAddress(event.target.value)}
-          required
+          required={requireLocation}
           autoComplete="street-address"
         />
         <TextField
@@ -123,20 +140,21 @@ export function PatientCheckin({
             label="City"
             value={city}
             onChange={(event) => setCity(event.target.value)}
-            required
+            required={requireLocation}
             fullWidth
           />
           <TextField
             label="State or region"
             value={region}
             onChange={(event) => setRegion(event.target.value)}
-            required
+            required={requireLocation}
             fullWidth
           />
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField
             label="Postal code"
+            required={requireLocation}
             value={postalCode}
             onChange={(event) => setPostalCode(event.target.value)}
             fullWidth
@@ -145,7 +163,7 @@ export function PatientCheckin({
             label="Country code"
             value={country}
             onChange={(event) => setCountry(event.target.value)}
-            required
+            required={requireLocation}
             fullWidth
             slotProps={{ htmlInput: { maxLength: 2 } }}
           />
@@ -154,7 +172,12 @@ export function PatientCheckin({
           label="Callback phone"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
-          required
+          required={requireCallback}
+          helperText={
+            requireCallback
+              ? "A number your care team can use if the call disconnects."
+              : "Optional for this visit."
+          }
           type="tel"
           autoComplete="tel"
         />
@@ -188,7 +211,7 @@ export function PatientCheckin({
           <Button
             type="submit"
             variant="contained"
-            disabled={busy || !attested}
+            disabled={busy || (requireLocation && !attested)}
           >
             {busy ? "Saving…" : "Save and continue"}
           </Button>

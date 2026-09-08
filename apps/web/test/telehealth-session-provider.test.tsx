@@ -142,6 +142,8 @@ function visit(participantStatus: "admitted" | "removed" = "admitted") {
       allow_audio_only: true,
       allow_staff_screen_share: true,
       scribe_enabled: true,
+      require_location: true,
+      require_callback: true,
     },
     preparation: { complete: true, verified: true, reasons: [] },
     room: { status: "active", expires_at: "2026-09-08T13:00:00Z" },

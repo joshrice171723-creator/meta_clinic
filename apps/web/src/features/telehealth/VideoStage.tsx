@@ -50,8 +50,10 @@ function MediaTrack({
 
 function ParticipantTile({
   participant,
+  compact = false,
 }: {
   participant: TelehealthMediaParticipant;
+  compact?: boolean;
 }) {
   return (
     <Paper
@@ -59,7 +61,8 @@ function ParticipantTile({
       sx={{
         position: "relative",
         overflow: "hidden",
-        minHeight: 180,
+        aspectRatio: "16 / 9",
+        minHeight: compact ? 108 : 180,
         bgcolor: "grey.900",
         color: "common.white",
         borderColor: "grey.700",
@@ -75,7 +78,7 @@ function ParticipantTile({
       ) : (
         <Stack
           sx={{
-            minHeight: 180,
+            height: "100%",
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -109,16 +112,20 @@ function ParticipantTile({
 export function VideoStage({
   participants,
   label = "Video visit",
+  emptyTitle = "Waiting for video",
+  emptyDescription = "Participant video will appear here after the call connects.",
+  compact = false,
 }: {
   participants: TelehealthMediaParticipant[];
   label?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  compact?: boolean;
 }) {
   const screen = participants.find(
     (participant) => participant.screenVideoTrack,
   );
-  const visible = participants.filter(
-    (participant) => participant.videoTrack || participant.isLocal,
-  );
+  const visible = participants;
   return (
     <Box
       component="section"
@@ -126,10 +133,14 @@ export function VideoStage({
       sx={{ minWidth: 0, bgcolor: "grey.950" }}
     >
       {screen?.screenVideoTrack ? (
-        <Stack spacing={1} sx={{ p: 1 }}>
+        <Stack spacing={1} sx={{ p: compact ? 0.5 : 1 }}>
           <Paper
             variant="outlined"
-            sx={{ overflow: "hidden", minHeight: { xs: 260, md: 460 } }}
+            sx={{
+              overflow: "hidden",
+              aspectRatio: "16 / 9",
+              maxHeight: compact ? 220 : { xs: 360, md: 560 },
+            }}
           >
             <MediaTrack
               track={screen.screenVideoTrack}
@@ -142,9 +153,9 @@ export function VideoStage({
             {visible.map((participant) => (
               <Box
                 key={participant.participantId}
-                sx={{ width: 180, flex: "0 0 auto" }}
+                sx={{ width: compact ? 128 : 180, flex: "0 0 auto" }}
               >
-                <ParticipantTile participant={participant} />
+                <ParticipantTile participant={participant} compact />
               </Box>
             ))}
           </Stack>
@@ -155,14 +166,15 @@ export function VideoStage({
             display: "grid",
             gridTemplateColumns:
               visible.length > 1 ? { xs: "1fr", sm: "repeat(2, 1fr)" } : "1fr",
-            gap: 1,
-            p: 1,
+            gap: compact ? 0.5 : 1,
+            p: compact ? 0.5 : 1,
           }}
         >
           {visible.map((participant) => (
             <ParticipantTile
               key={participant.participantId}
               participant={participant}
+              compact={compact}
             />
           ))}
         </Box>
@@ -170,15 +182,20 @@ export function VideoStage({
         <Stack
           role="status"
           sx={{
-            minHeight: { xs: 260, md: 460 },
+            minHeight: compact ? 160 : { xs: 260, md: 460 },
             alignItems: "center",
             justifyContent: "center",
             color: "grey.300",
+            px: 3,
+            textAlign: "center",
           }}
         >
           <VideocamOffOutlinedIcon fontSize="large" aria-hidden="true" />
-          <Typography sx={{ mt: 1 }}>
-            No participant video is available.
+          <Typography variant="subtitle1" sx={{ mt: 1 }}>
+            {emptyTitle}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5, color: "grey.400" }}>
+            {emptyDescription}
           </Typography>
         </Stack>
       )}

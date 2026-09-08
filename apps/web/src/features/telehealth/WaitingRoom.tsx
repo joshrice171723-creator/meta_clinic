@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { useTelehealthDevices } from "./useTelehealthDevices";
-import type { TelehealthVisit } from "./types";
+import type { TelehealthVisit, TelehealthAllowedAction } from "./types";
 
 export function WaitingRoom({
   visit,
+  allowedActions,
   busy,
   error,
   onUpdatePreparation,
@@ -12,6 +13,7 @@ export function WaitingRoom({
   onJoin,
 }: {
   visit: TelehealthVisit;
+  allowedActions: TelehealthAllowedAction[];
   busy: boolean;
   error?: string | null;
   onUpdatePreparation: () => void;
@@ -25,14 +27,13 @@ export function WaitingRoom({
     videoRef.current.srcObject = check.stream;
     if (check.stream) void videoRef.current.play().catch(() => undefined);
   }, [check.stream]);
-  const canJoin =
-    visit.access_state === "join" ||
-    visit.access_state === "rejoin" ||
-    visit.current_step === "call";
+  const canJoin = allowedActions.includes("telehealth.join");
   return (
     <Stack spacing={2}>
       <Alert severity="info">
-        You're checked in. Waiting for your care team.
+        {canJoin
+          ? "Your care team is ready. Join when you are ready."
+          : "You're checked in. Waiting for your care team."}
       </Alert>
       <Typography>
         Scheduled{" "}
@@ -66,15 +67,34 @@ export function WaitingRoom({
           <Typography color="grey.300">Camera preview is off</Typography>
         )}
       </Box>
-      <Button variant="outlined" onClick={() => void check.enable()}>
-        Enable camera and microphone
+      <Button
+        variant="outlined"
+        disabled={busy || check.requesting}
+        onClick={() =>
+          check.stream
+            ? check.stop()
+            : void check.enable().catch(() => undefined)
+        }
+      >
+        {check.requesting
+          ? "Opening preview…"
+          : check.stream
+            ? "Turn off preview"
+            : "Preview camera and microphone"}
       </Button>
+      <Typography variant="body2" color="text.secondary">
+        The preview stays on this device. Your care team receives audio and
+        video only after you join.
+      </Typography>
       {canJoin ? (
         <Button
           variant="contained"
           size="large"
           disabled={busy}
-          onClick={() => void onJoin()}
+          onClick={() => {
+            check.stop();
+            void onJoin().catch(() => undefined);
+          }}
         >
           {busy
             ? "Joining…"
@@ -84,8 +104,8 @@ export function WaitingRoom({
         </Button>
       ) : (
         <Typography role="status" color="text.secondary">
-          Camera and microphone access will be requested only after your care
-          team admits you.
+          This page updates automatically. The join button appears when your
+          care team admits you.
         </Typography>
       )}
       {(check.error || error) && (
@@ -97,10 +117,14 @@ export function WaitingRoom({
         useFlexGap
         sx={{ flexWrap: "wrap" }}
       >
-        <Button onClick={onUpdatePreparation}>
+        <Button disabled={busy} onClick={onUpdatePreparation}>
           Update location or callback
         </Button>
-        <Button color="inherit" disabled={busy} onClick={() => void onLeave()}>
+        <Button
+          color="inherit"
+          disabled={busy}
+          onClick={() => void onLeave().catch(() => undefined)}
+        >
           Leave waiting room
         </Button>
         {visit.support?.url ? (

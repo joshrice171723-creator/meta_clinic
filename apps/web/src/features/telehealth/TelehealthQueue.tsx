@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import VideoCallOutlinedIcon from "@mui/icons-material/VideoCallOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import {
   Alert,
   Box,
@@ -24,6 +25,9 @@ import {
 import type { Clinician } from "../../api/contracts";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "../clinic/Workspace";
+import type { BookingOptions } from "../clinic/TelehealthBookingFormat";
+import { ApiError, loginDestination } from "../../api/client";
+import { useVisiblePolling } from "./useVisiblePolling";
 import { loadTelehealthQueue } from "./api";
 import type {
   TelehealthEnvelope,
@@ -66,23 +70,68 @@ function waitingLabel(value: string | null | undefined) {
   return minutes < 1 ? "Less than a minute" : `${minutes} min`;
 }
 
+export function telehealthDate(timeZone: string, now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: string) =>
+    parts.find((value) => value.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function QueueBookingAction() {
+  const options = useResource<BookingOptions>(
+    "/api/clinic/telehealth/booking_options",
+  );
+  const available =
+    options.data?.data.enabled &&
+    options.data.data.allowed_modalities.includes("video");
+  return (
+    <Stack spacing={0.5} sx={{ maxWidth: 300 }}>
+      <Button
+        variant="contained"
+        startIcon={<VideoCallOutlinedIcon />}
+        disabled={!available}
+        href={available ? "/clinic/schedule?visit_modality=video" : undefined}
+      >
+        Book video visit
+      </Button>
+      {!available && (
+        <Typography variant="caption" color="text.secondary">
+          {options.error
+            ? "Booking availability could not be checked."
+            : options.data
+              ? "Video booking needs clinic configuration."
+              : "Checking booking availability…"}
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
 export function TelehealthQueue() {
   const clinic = useClinic();
   const clinicians = useResource<{ clinicians: Clinician[] }>(
     "/api/clinic/clinicians?per_page=100",
   );
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() =>
+    telehealthDate(clinic.practice.timezone),
+  );
   const [siteId, setSiteId] = useState(
     clinic.current_site?.id?.toString() || "",
   );
   const [clinicianId, setClinicianId] = useState("");
   const [status, setStatus] = useState("");
-  const [response, setResponse] =
+  const [cachedResponse, setResponse] =
     useState<TelehealthEnvelope<TelehealthQueueData> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [drawerVisitId, setDrawerVisitId] = useState<string | null>(null);
-  const timerRef = useRef<number | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const responseScopeRef = useRef<string | null>(null);
   const generationRef = useRef(0);
   const query = useMemo(() => {
     const params = new URLSearchParams({ date, limit: "100" });
@@ -91,17 +140,37 @@ export function TelehealthQueue() {
     if (status) params.set("status", status);
     return params;
   }, [clinicianId, date, siteId, status]);
+  const requestScope = `${clinic.user_id}:${clinic.membership_id}:${clinic.practice.id}:${query.toString()}`;
+  const response =
+    responseScopeRef.current === requestScope ? cachedResponse : null;
 
   const refresh = useCallback(async () => {
     const generation = ++generationRef.current;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     setLoading(true);
     try {
-      const next = await loadTelehealthQueue(query);
+      const next = await loadTelehealthQueue(query, controller.signal);
       if (generation !== generationRef.current) return;
+      responseScopeRef.current = requestScope;
       setResponse(next);
       setError(null);
     } catch (reason) {
       if (generation !== generationRef.current) return;
+      if (
+        reason instanceof ApiError &&
+        [401, 403, 404].includes(reason.status)
+      ) {
+        setResponse(null);
+        setDrawerVisitId(null);
+        if (reason.status === 401) {
+          window.location.replace(
+            `/login?next=${encodeURIComponent(loginDestination(window.location.pathname))}`,
+          );
+          return;
+        }
+      }
       setError(
         reason instanceof Error
           ? reason.message
@@ -110,27 +179,26 @@ export function TelehealthQueue() {
     } finally {
       if (generation === generationRef.current) setLoading(false);
     }
-  }, [query]);
+  }, [query, requestScope]);
 
   useEffect(() => {
+    setResponse(null);
+    setError(null);
+    setDrawerVisitId(null);
     void refresh();
     return () => {
       generationRef.current += 1;
+      requestRef.current?.abort();
     };
   }, [refresh]);
 
-  useEffect(() => {
-    if (document.visibilityState !== "visible") return;
-    timerRef.current = window.setTimeout(
-      () => void refresh(),
-      error ? 15_000 : 5_000,
-    );
-    return () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    };
-  }, [error, refresh, response]);
+  useVisiblePolling(refresh, true, error ? 15_000 : 5_000);
 
-  const clinicianLabel = (membershipId: number | null) => {
+  const clinicianLabel = (
+    membershipId: number | null,
+    displayName?: string | null,
+  ) => {
+    if (displayName) return displayName;
     if (!membershipId) return "Not assigned";
     const clinician = clinicians.data?.clinicians.find(
       (item) => item.membership_id === membershipId,
@@ -153,8 +221,8 @@ export function TelehealthQueue() {
             Virtual waiting room
           </Typography>
           <Typography color="text.secondary">
-            Review recorded preparation and connection state for video visits.
-            Queue order does not indicate clinical priority.
+            See who is preparing, waiting, or connected, then open the next
+            visit.
           </Typography>
           {response && (
             <Typography
@@ -162,18 +230,26 @@ export function TelehealthQueue() {
               color={error ? "warning.main" : "text.secondary"}
             >
               Updated {dateTime(response.as_of, clinic.practice.timezone)}
+              {" · Updates automatically"}
               {error ? " · Showing the last available result" : ""}
             </Typography>
           )}
         </Box>
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="contained"
-            startIcon={<VideoCallOutlinedIcon />}
-            href="/clinic/schedule?visit_modality=video"
-          >
-            Book video visit
-          </Button>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap", alignItems: "flex-start" }}
+        >
+          {clinic.capabilities.appointments_book && <QueueBookingAction />}
+          {clinic.capabilities.telehealth_configure && (
+            <Button
+              startIcon={<SettingsOutlinedIcon />}
+              href="/clinic/settings/telehealth"
+            >
+              Settings
+            </Button>
+          )}
           <Button
             startIcon={<RefreshOutlinedIcon />}
             disabled={loading}
@@ -196,6 +272,7 @@ export function TelehealthQueue() {
             value={date}
             onChange={(event) => setDate(event.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
+            helperText={`Appointments in ${clinic.practice.timezone}`}
           />
           <FormControl sx={{ minWidth: 190 }}>
             <InputLabel id="telehealth-site-filter">Site</InputLabel>
@@ -250,7 +327,18 @@ export function TelehealthQueue() {
                 "no_show",
               ].map((item) => (
                 <MenuItem key={item} value={item}>
-                  {item.replaceAll("_", " ")}
+                  {
+                    (
+                      {
+                        scheduled: "Scheduled",
+                        in_progress: "In progress",
+                        ending: "Ending",
+                        ended: "Ended",
+                        cancelled: "Cancelled",
+                        no_show: "Missed appointment",
+                      } as Record<string, string>
+                    )[item]
+                  }
                 </MenuItem>
               ))}
             </Select>
@@ -269,7 +357,29 @@ export function TelehealthQueue() {
         <Typography role="status">Loading video visits…</Typography>
       )}
       {response && visits.length === 0 && (
-        <Alert severity="info">No video visits match these filters.</Alert>
+        <Paper
+          variant="outlined"
+          sx={{ p: { xs: 3, md: 5 }, textAlign: "center" }}
+        >
+          <Typography variant="h6" component="h2">
+            No video visits match these filters
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+            Scheduled video appointments will appear here as patients prepare
+            and check in.
+          </Typography>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setDate(telehealthDate(clinic.practice.timezone));
+              setSiteId(clinic.current_site?.id?.toString() || "");
+              setClinicianId("");
+              setStatus("");
+            }}
+          >
+            Show today’s visits
+          </Button>
+        </Paper>
       )}
       {visits.length > 0 && (
         <TableContainer component={Paper} variant="outlined">
@@ -307,6 +417,7 @@ export function TelehealthQueue() {
                     <TableCell>
                       {clinicianLabel(
                         visit.appointment.clinician_membership_id,
+                        visit.appointment.clinician?.display_name,
                       )}
                     </TableCell>
                     <TableCell>

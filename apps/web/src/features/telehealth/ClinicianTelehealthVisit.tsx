@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -60,8 +61,21 @@ function visitEnvelope(
 
 function connectionLabel(state: string) {
   if (state === "idle") return "Not connected";
-  if (state === "reconnecting") return "Connection interrupted";
-  return state.replaceAll("_", " ");
+  if (state === "joining") return "Connecting";
+  if (state === "joined") return "Connected";
+  if (state === "reconnecting") return "Reconnecting";
+  if (state === "leaving") return "Leaving call";
+  if (state === "ended") return "Call ended";
+  if (state === "error") return "Connection failed";
+  return "Not connected";
+}
+
+function safePhoneHref(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const normalized = trimmed.replace(/[^\d+]/g, "");
+  if (!/^\+?\d{7,15}$/.test(normalized)) return null;
+  return `tel:${normalized}`;
 }
 
 export function ClinicianTelehealthVisit({
@@ -79,7 +93,6 @@ export function ClinicianTelehealthVisit({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [participantsOpen, setParticipantsOpen] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   const [endConfirm, setEndConfirm] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
@@ -187,12 +200,25 @@ export function ClinicianTelehealthVisit({
     try {
       const response = await action();
       resource.setResponse(visitEnvelope(response));
-      setNotice(
-        response.data.operation &&
-          !["succeeded", "failed"].includes(response.data.operation.status)
-          ? `${success} The provider operation is still ${response.data.operation.status}.`
-          : success,
-      );
+      const operation = response.data.operation;
+      if (operation?.status === "failed") {
+        throw new Error(
+          "APPly saved the visit change, but the video service could not complete this step. Check the current status before trying again.",
+        );
+      } else if (operation?.status === "unknown") {
+        setNotice(
+          "APPly accepted the request, but the video service has not confirmed the result. Check status before repeating it.",
+        );
+      } else if (
+        operation?.status === "pending" ||
+        operation?.status === "leased"
+      ) {
+        setNotice(
+          `${success} This may take a moment; APPly will keep checking.`,
+        );
+      } else {
+        setNotice(success);
+      }
       return response;
     } catch (reason) {
       const unknown = reason instanceof ApiError && reason.status === 409;
@@ -209,19 +235,56 @@ export function ClinicianTelehealthVisit({
     }
   };
 
-  if (lookupError) return <Alert severity="error">{lookupError}</Alert>;
+  if (lookupError)
+    return (
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+        <Stack spacing={2}>
+          <Alert severity="error">{lookupError}</Alert>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ flexWrap: "wrap" }}
+          >
+            <Button variant="contained" href="/clinic/telehealth">
+              Back to video visits
+            </Button>
+            {patientId && (
+              <Button href={`/clinic/patients/${patientId}`}>
+                Open patient chart
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </Paper>
+    );
   if (!resolvedVisitId || !visit || !resource.response) {
     return resource.error ? (
-      <Alert
-        severity="error"
-        action={
-          <Button onClick={() => void resource.refresh()}>Try again</Button>
-        }
-      >
-        {resource.error}
-      </Alert>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+        <Stack spacing={2}>
+          <Alert severity="error">{resource.error}</Alert>
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={() => void resource.refresh()}>
+              Try again
+            </Button>
+            <Button href="/clinic/telehealth">Back to video visits</Button>
+          </Stack>
+        </Stack>
+      </Paper>
     ) : (
-      <Typography role="status">Loading video visit…</Typography>
+      <Paper variant="outlined" sx={{ p: 4 }}>
+        <Stack
+          spacing={1.5}
+          role="status"
+          sx={{ alignItems: "center", textAlign: "center" }}
+        >
+          <CircularProgress size={32} />
+          <Typography variant="h6">Loading video visit</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Checking the latest preparation, room, and participant status…
+          </Typography>
+        </Stack>
+      </Paper>
     );
   }
 
@@ -290,7 +353,7 @@ export function ClinicianTelehealthVisit({
           participantId,
           resource.response!.version,
         ),
-      "Participant access was revoked. Provider media disconnection is being requested.",
+      "Participant access was revoked. APPly is requesting that their call disconnect.",
     );
     const removed = response.data.visit.participants.find(
       (participant) => participant.id === participantId,
@@ -298,7 +361,7 @@ export function ClinicianTelehealthVisit({
     const providerSubjectId = removed?.provider_subject_id;
     if (!providerSubjectId) {
       setNotice(
-        "Participant access was revoked. No matching provider media identity remains; server reconciliation will confirm shutdown.",
+        "Participant access was revoked. No active video connection was found; APPly will keep checking the visit.",
       );
       return;
     }
@@ -306,17 +369,17 @@ export function ClinicianTelehealthVisit({
       const requested = await session.ejectParticipant(providerSubjectId);
       if (!requested) {
         setNotice(
-          "Participant access was revoked. No matching remote media connection is present.",
+          "Participant access was revoked. That participant is no longer connected to this call.",
         );
         return;
       }
       setRemovalPending({ participantId, providerSubjectId });
       setNotice(
-        "Participant access was revoked. Media disconnection was requested and is awaiting roster confirmation.",
+        "Participant access was revoked. Disconnection was requested and is awaiting confirmation.",
       );
     } catch {
       setNotice(
-        "Participant access was revoked, but this browser could not request media ejection. Server reconciliation remains pending.",
+        "Participant access was revoked, but this browser could not complete the disconnect request. APPly will keep checking the visit.",
       );
     }
   };
@@ -330,6 +393,198 @@ export function ClinicianTelehealthVisit({
   const roomMinutesRemaining = visit.room.expires_at
     ? Math.ceil((new Date(visit.room.expires_at).valueOf() - clock) / 60_000)
     : null;
+  const callbackHref = safePhoneHref(visit.preparation.callback_phone);
+  const locationLabel = visit.preparation.location
+    ? [
+        visit.preparation.location.address_line1,
+        visit.preparation.location.unit,
+        visit.preparation.location.city,
+        visit.preparation.location.region_code,
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : null;
+  const nextStep: {
+    title: string;
+    description: string;
+    action?: ReactNode;
+  } = (() => {
+    if (visit.status === "ending")
+      return {
+        title: "Ending the video visit",
+        description:
+          "New admissions are blocked while APPly confirms that the call has ended for everyone.",
+      };
+    if (visit.status === "ended")
+      return {
+        title: "Video visit ended",
+        description:
+          "The encounter remains open. Resume only when another video room is needed for this encounter.",
+        action: allowed.includes("telehealth.resume") ? (
+          <Button variant="contained" onClick={() => setResumeConfirm(true)}>
+            Resume video visit
+          </Button>
+        ) : undefined,
+      };
+    if (callActive && session.authorizationStatus !== "confirmed")
+      return {
+        title: "Connection needs attention",
+        description:
+          "APPly is checking your access. Media controls will return after authorization is confirmed.",
+        action: (
+          <Button
+            variant="outlined"
+            disabled={resource.refreshing}
+            onClick={() => void resource.refresh()}
+          >
+            Check status
+          </Button>
+        ),
+      };
+    if (callActive)
+      return {
+        title:
+          session.callState === "reconnecting"
+            ? "Reconnecting to the visit"
+            : "Visit in progress",
+        description:
+          session.callState === "reconnecting"
+            ? "Keep this page open while APPly restores the connection."
+            : "Use the call controls below. Patient context and participants remain available beside the video.",
+      };
+    if (!visit.encounter_id && allowed.includes("telehealth.start_encounter"))
+      return {
+        title: "Start the encounter",
+        description:
+          "Start the encounter before admitting the patient or using Scribe.",
+        action: (
+          <Button
+            variant="contained"
+            disabled={busy}
+            onClick={() => void start()}
+          >
+            Start encounter
+          </Button>
+        ),
+      };
+    if (
+      !visit.preparation.verified &&
+      visit.preparation.checkin_id != null &&
+      allowed.includes("telehealth.verify_preparation")
+    )
+      return {
+        title: "Verify the patient and location",
+        description:
+          "Review the patient-reported details below before continuing.",
+        action: (
+          <Button
+            variant="contained"
+            disabled={busy}
+            onClick={() =>
+              void applyMutation(
+                () =>
+                  verifyPreparation(
+                    visit.public_id,
+                    resource.response!.version,
+                    visit.preparation.checkin_id!,
+                  ),
+                "Patient and location verified for this check-in.",
+              )
+            }
+          >
+            Verify patient and location
+          </Button>
+        ),
+      };
+    if (!visit.preparation.complete)
+      return {
+        title: "Waiting for patient preparation",
+        description:
+          "The patient still needs to complete the required visit details or device checks.",
+      };
+    if (
+      visit.room.status === "not_prepared" &&
+      allowed.includes("telehealth.prepare_room")
+    )
+      return {
+        title: "Prepare the video room",
+        description:
+          "Create the secure room before admitting or joining the visit.",
+        action: (
+          <Button
+            variant="contained"
+            disabled={busy}
+            onClick={() =>
+              void applyMutation(
+                () => prepareRoom(visit.public_id, resource.response!.version),
+                "Video room preparation requested.",
+              )
+            }
+          >
+            Prepare video room
+          </Button>
+        ),
+      };
+    if (visit.room.status === "pending" || visit.room.status === "provisioning")
+      return {
+        title: "Video room is getting ready",
+        description:
+          "APPly will update this page when the room is ready. No action is needed yet.",
+      };
+    if (
+      patientParticipant?.status === "waiting" &&
+      allowed.includes("telehealth.admit")
+    )
+      return {
+        title: "Patient is ready to admit",
+        description:
+          "Admit the patient when the care team is ready to begin the video visit.",
+        action: (
+          <Button
+            variant="contained"
+            disabled={busy}
+            onClick={() =>
+              void applyMutation(
+                () =>
+                  admitParticipant(
+                    visit.public_id,
+                    patientParticipant.id,
+                    resource.response!.version,
+                  ),
+                `${visit.appointment.patient.display_name} was admitted to the video visit.`,
+              )
+            }
+          >
+            Admit patient
+          </Button>
+        ),
+      };
+    if (
+      allowed.includes("telehealth.join") &&
+      (visit.room.status === "ready" || visit.room.status === "active")
+    )
+      return {
+        title: "Ready to join",
+        description:
+          patientParticipant?.status === "admitted"
+            ? "The patient has been admitted. Join when you are ready."
+            : "The video room is ready. You can join while the patient waits.",
+        action: (
+          <Button
+            variant="contained"
+            disabled={busy}
+            onClick={() => void join()}
+          >
+            Join video visit
+          </Button>
+        ),
+      };
+    return {
+      title: "Waiting for the next visit step",
+      description:
+        "APPly will show the next available action when preparation and room status allow it.",
+    };
+  })();
 
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
@@ -351,6 +606,11 @@ export function ClinicianTelehealthVisit({
           <Typography color="text.secondary">
             {appointmentLabel(visit)} ·{" "}
             {visit.clinician?.display_name || "Clinician not recorded"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {visit.encounter_id
+              ? "Encounter started"
+              : "Encounter has not started"}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
@@ -375,8 +635,16 @@ export function ClinicianTelehealthVisit({
         </Stack>
       </Stack>
       {resource.stale && (
-        <Alert severity="warning">
-          Refresh failed. This page is showing the last confirmed visit state.
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" onClick={() => void resource.refresh()}>
+              Try again
+            </Button>
+          }
+        >
+          The latest update could not be confirmed. This page is showing the
+          last confirmed visit status.
         </Alert>
       )}
       {error && (
@@ -434,10 +702,43 @@ export function ClinicianTelehealthVisit({
           >
             {roomMinutesRemaining > 0
               ? `The video room expires in about ${roomMinutesRemaining} minute${roomMinutesRemaining === 1 ? "" : "s"}.`
-              : "The video room expiry has passed. Check the provider status."}
+              : "The video room time has ended. Check the current visit status."}
           </Alert>
         )}
-      <Paper variant="outlined" sx={{ p: 1.5 }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          borderLeft: 4,
+          borderLeftColor:
+            callActive && session.callState === "joined"
+              ? "success.main"
+              : "primary.main",
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
+        >
+          <Box>
+            <Typography variant="overline" color="text.secondary">
+              Next step
+            </Typography>
+            <Typography variant="h6">{nextStep.title}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {nextStep.description}
+            </Typography>
+          </Box>
+          {nextStep.action && (
+            <Box sx={{ flexShrink: 0 }}>{nextStep.action}</Box>
+          )}
+        </Stack>
+      </Paper>
+      <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }}>
+        <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 700 }}>
+          Visit readiness
+        </Typography>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -447,25 +748,27 @@ export function ClinicianTelehealthVisit({
             <Typography variant="subtitle2">
               Patient-reported location
             </Typography>
-            <Typography>
-              {visit.preparation.location
-                ? [
-                    visit.preparation.location.address_line1,
-                    visit.preparation.location.unit,
-                    visit.preparation.location.city,
-                    visit.preparation.location.region_code,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")
-                : "Not available for this role"}
-            </Typography>
+            <Typography>{locationLabel || "Not available"}</Typography>
           </Box>
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2">Callback</Typography>
-            <Typography>
-              {visit.preparation.callback_phone ||
-                "Not available for this role"}
-            </Typography>
+            {visit.preparation.callback_phone ? (
+              callbackHref ? (
+                <Button
+                  href={callbackHref}
+                  size="small"
+                  sx={{ justifyContent: "flex-start", px: 0 }}
+                >
+                  {visit.preparation.callback_phone}
+                </Button>
+              ) : (
+                <Typography>{visit.preparation.callback_phone}</Typography>
+              )
+            ) : (
+              <Typography color="text.secondary">
+                Use the patient chart’s contact options if the call drops.
+              </Typography>
+            )}
           </Box>
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2">Preparation</Typography>
@@ -482,93 +785,6 @@ export function ClinicianTelehealthVisit({
             <Typography>Policy version {visit.policy.version}</Typography>
           </Box>
         </Stack>
-        <Stack
-          direction="row"
-          spacing={1}
-          useFlexGap
-          sx={{ mt: 1.5, flexWrap: "wrap" }}
-        >
-          {!visit.encounter_id &&
-            allowed.includes("telehealth.start_encounter") && (
-              <Button
-                variant="contained"
-                disabled={busy}
-                onClick={() => void start()}
-              >
-                Start encounter
-              </Button>
-            )}
-          {!visit.preparation.verified &&
-            visit.preparation.checkin_id != null &&
-            allowed.includes("telehealth.verify_preparation") && (
-              <Button
-                variant="outlined"
-                disabled={busy}
-                onClick={() =>
-                  void applyMutation(
-                    () =>
-                      verifyPreparation(
-                        visit.public_id,
-                        resource.response!.version,
-                        visit.preparation.checkin_id!,
-                      ),
-                    "Patient and location verified for this check-in.",
-                  )
-                }
-              >
-                Verify patient and location
-              </Button>
-            )}
-          {visit.room.status === "not_prepared" &&
-            allowed.includes("telehealth.prepare_room") && (
-              <Button
-                variant="outlined"
-                disabled={busy}
-                onClick={() =>
-                  void applyMutation(
-                    () =>
-                      prepareRoom(visit.public_id, resource.response!.version),
-                    "Room preparation requested.",
-                  )
-                }
-              >
-                Prepare video room
-              </Button>
-            )}
-          {patientParticipant?.status === "waiting" &&
-            allowed.includes("telehealth.admit") && (
-              <Button
-                variant="contained"
-                disabled={busy}
-                onClick={() =>
-                  void applyMutation(
-                    () =>
-                      admitParticipant(
-                        visit.public_id,
-                        patientParticipant.id,
-                        resource.response!.version,
-                      ),
-                    `${visit.appointment.patient.display_name} admitted.`,
-                  )
-                }
-              >
-                Admit patient
-              </Button>
-            )}
-          {!callActive && allowed.includes("telehealth.join") && (
-            <Button
-              variant="contained"
-              disabled={
-                busy ||
-                (visit.room.status !== "ready" &&
-                  visit.room.status !== "active")
-              }
-              onClick={() => void join()}
-            >
-              Join video visit
-            </Button>
-          )}
-        </Stack>
         {visit.preparation.reasons.length > 0 && (
           <Alert severity="warning" sx={{ mt: 1.5 }}>
             {visit.preparation.reasons.join(" · ")}
@@ -580,19 +796,35 @@ export function ClinicianTelehealthVisit({
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            lg: "minmax(0, 3fr) minmax(360px, 2fr)",
+            md: "minmax(0, 1.45fr) minmax(320px, .85fr)",
           },
           gap: 2,
           minWidth: 0,
         }}
       >
         <Paper variant="outlined" sx={{ overflow: "hidden", minWidth: 0 }}>
-          <VideoStage participants={callActive ? session.participants : []} />
+          <VideoStage
+            participants={callActive ? session.participants : []}
+            emptyTitle={
+              session.callState === "reconnecting"
+                ? "Reconnecting to the visit"
+                : callActive
+                  ? "Waiting for participant video"
+                  : "Join when the visit is ready"
+            }
+            emptyDescription={
+              session.callState === "reconnecting"
+                ? "Keep this page open while APPly restores the connection."
+                : callActive
+                  ? "Video appears here when an admitted participant connects or turns on their camera."
+                  : "The secure video room appears here after you join."
+            }
+          />
           {callActive ? (
             <CallControls
               allowScreenShare={visit.policy.allow_staff_screen_share}
-              showParticipants={participantsOpen}
-              onShowParticipants={() => setParticipantsOpen((value) => !value)}
+              showParticipants={tab === 2}
+              onShowParticipants={() => setTab(2)}
               onLeave={() => setLeaveConfirm(true)}
               onEnd={() => setEndConfirm(true)}
               canEnd={allowed.includes("telehealth.end")}
@@ -600,28 +832,58 @@ export function ClinicianTelehealthVisit({
             />
           ) : (
             <Alert severity="info" sx={{ borderRadius: 0 }}>
-              Join access is issued only after the server confirms room
-              readiness and your current authorization.
+              Video access becomes available after APPly confirms the room is
+              ready and you are authorized for this visit.
             </Alert>
           )}
         </Paper>
         <Paper variant="outlined" sx={{ minWidth: 0 }}>
           <Tabs
-            value={participantsOpen ? 2 : tab}
-            onChange={(_, value) => {
-              setParticipantsOpen(value === 2);
-              setTab(value);
-            }}
+            value={tab}
+            onChange={(_, value) => setTab(value)}
             variant="fullWidth"
             aria-label="Visit workspace"
           >
-            <Tab label="Scribe & note" />
-            <Tab label="Patient context" />
-            <Tab label="Participants" />
+            <Tab
+              id="telehealth-tab-scribe"
+              aria-controls="telehealth-panel-scribe"
+              label="Scribe & note"
+            />
+            <Tab
+              id="telehealth-tab-context"
+              aria-controls="telehealth-panel-context"
+              label="Patient context"
+            />
+            <Tab
+              id="telehealth-tab-participants"
+              aria-controls="telehealth-panel-participants"
+              label="Participants"
+            />
           </Tabs>
           <Divider />
-          <Box sx={{ p: 2, maxHeight: { lg: 640 }, overflow: "auto" }}>
-            {(participantsOpen ? 2 : tab) === 0 &&
+          <Box
+            role="tabpanel"
+            id={
+              tab === 0
+                ? "telehealth-panel-scribe"
+                : tab === 1
+                  ? "telehealth-panel-context"
+                  : "telehealth-panel-participants"
+            }
+            aria-labelledby={
+              tab === 0
+                ? "telehealth-tab-scribe"
+                : tab === 1
+                  ? "telehealth-tab-context"
+                  : "telehealth-tab-participants"
+            }
+            sx={{
+              p: 2,
+              maxHeight: { md: "calc(100vh - 260px)" },
+              overflow: "auto",
+            }}
+          >
+            {tab === 0 &&
               (visit.encounter_id ? (
                 <ScribeInCall
                   visitPublicId={visit.public_id}
@@ -633,16 +895,58 @@ export function ClinicianTelehealthVisit({
                 />
               ) : (
                 <Alert severity="info">
-                  Start the encounter before binding Scribe to this visit.
+                  Start the encounter to use Scribe for this visit.
                 </Alert>
               ))}
-            {(participantsOpen ? 2 : tab) === 1 && (
+            {tab === 1 && (
               <Stack spacing={2}>
                 <Typography variant="h6">Patient context</Typography>
-                <Typography color="text.secondary">
-                  Open the patient chart for the complete encounter-bound
-                  clinical context. This panel does not copy or invent chart
-                  data.
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Patient
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    {visit.appointment.patient.display_name}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Appointment
+                  </Typography>
+                  <Typography>{appointmentLabel(visit)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Patient-reported location
+                  </Typography>
+                  <Typography>{locationLabel || "Not available"}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Callback
+                  </Typography>
+                  {visit.preparation.callback_phone ? (
+                    callbackHref ? (
+                      <Button
+                        href={callbackHref}
+                        size="small"
+                        sx={{ justifyContent: "flex-start", px: 0 }}
+                      >
+                        {visit.preparation.callback_phone}
+                      </Button>
+                    ) : (
+                      <Typography>
+                        {visit.preparation.callback_phone}
+                      </Typography>
+                    )
+                  ) : (
+                    <Typography>
+                      Use the patient chart’s contact options.
+                    </Typography>
+                  )}
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Open the chart for the complete clinical context.
                 </Typography>
                 {visit.encounter_id && (
                   <Button
@@ -654,7 +958,7 @@ export function ClinicianTelehealthVisit({
                 )}
               </Stack>
             )}
-            {(participantsOpen ? 2 : tab) === 2 && (
+            {tab === 2 && (
               <ParticipantPanel
                 participants={visit.participants}
                 mediaParticipants={session.participants}
@@ -662,11 +966,11 @@ export function ClinicianTelehealthVisit({
                 onRemove={(id) => setRemoveTarget(id)}
                 eligibleCareTeam={visit.eligible_staff.map((member) => ({
                   membershipId: member.membership_id,
-                  displayName: `${member.display_name} · ${member.role}`,
+                  displayName: `${member.display_name} · ${member.role === "clinician" ? "Clinician" : "Assistant"}`,
                 }))}
                 canAdd={allowed.includes("telehealth.add_participant")}
-                onAdd={(membershipId) =>
-                  void applyMutation(
+                onAdd={async (membershipId) => {
+                  await applyMutation(
                     () =>
                       addParticipant(
                         visit.public_id,
@@ -674,35 +978,14 @@ export function ClinicianTelehealthVisit({
                         membershipId,
                       ),
                     "Care-team member added to this visit.",
-                  )
-                }
+                  );
+                }}
                 busy={busy}
               />
             )}
           </Box>
         </Paper>
       </Box>
-      {visit.status === "ending" && (
-        <Alert severity="warning">
-          Provider shutdown is pending. Do not close the encounter until media
-          termination is confirmed.
-        </Alert>
-      )}
-      {visit.status === "ended" && (
-        <Alert
-          severity="info"
-          action={
-            allowed.includes("telehealth.resume") ? (
-              <Button color="inherit" onClick={() => setResumeConfirm(true)}>
-                Resume video visit
-              </Button>
-            ) : undefined
-          }
-        >
-          Video transport ended. Connected times shown by the provider are
-          operational records and do not determine billing duration.
-        </Alert>
-      )}
       <Dialog open={leaveConfirm} onClose={() => setLeaveConfirm(false)}>
         <DialogTitle>Leave this call?</DialogTitle>
         <DialogContent>
@@ -726,8 +1009,8 @@ export function ClinicianTelehealthVisit({
       <Dialog open={endConfirm} onClose={() => setEndConfirm(false)}>
         <DialogTitle>End video for everyone?</DialogTitle>
         <DialogContent>
-          This immediately blocks new admission and requests provider shutdown.
-          It does not sign notes or close the encounter.
+          This blocks new admissions and disconnects everyone from the video
+          room. It does not sign notes or close the encounter.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEndConfirm(false)}>Keep call active</Button>
@@ -747,8 +1030,8 @@ export function ClinicianTelehealthVisit({
       >
         <DialogTitle>Remove this participant?</DialogTitle>
         <DialogContent>
-          Their access will be revoked and provider ejection requested. Removal
-          is not confirmed until the server reports it.
+          Their access will be revoked and APPly will request that their call
+          disconnect. The participant list updates after removal is confirmed.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRemoveTarget(null)}>Cancel</Button>
@@ -768,10 +1051,9 @@ export function ClinicianTelehealthVisit({
       <Dialog open={resumeConfirm} onClose={() => setResumeConfirm(false)}>
         <DialogTitle>Resume this video visit?</DialogTitle>
         <DialogContent>
-          This creates a new media generation and room for the existing open
-          encounter. Current preparation and consent are rechecked, and the
-          patient must be admitted again. The encounter and its documentation
-          status do not change.
+          This opens a new video room for the existing encounter. APPly will
+          recheck preparation and consent, and the patient must be admitted
+          again. The encounter and its documentation status stay unchanged.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setResumeConfirm(false)}>Cancel</Button>
@@ -782,7 +1064,7 @@ export function ClinicianTelehealthVisit({
               setResumeConfirm(false);
               void applyMutation(
                 () => resumeVisit(visit.public_id, resource.response!.version),
-                "A new video room generation was requested. Recheck preparation and admit the patient when the room is ready.",
+                "A new video room was requested. Recheck preparation and admit the patient when the room is ready.",
               );
             }}
           >

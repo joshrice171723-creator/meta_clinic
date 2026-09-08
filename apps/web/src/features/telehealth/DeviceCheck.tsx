@@ -87,7 +87,12 @@ export function DeviceCheck({
       </Box>
       <Button
         variant="contained"
-        onClick={() => void check.enable(audioDevice, videoDevice, !audioOnly)}
+        disabled={busy || check.requesting}
+        onClick={() =>
+          void check
+            .enable(audioDevice, videoDevice, !audioOnly)
+            .catch(() => undefined)
+        }
       >
         {check.running ? "Try again" : "Enable camera and microphone"}
       </Button>
@@ -100,7 +105,9 @@ export function DeviceCheck({
             value={audioDevice}
             onChange={(event) => {
               setAudioDevice(event.target.value);
-              void check.enable(event.target.value, videoDevice, !audioOnly);
+              void check
+                .enable(event.target.value, videoDevice, !audioOnly)
+                .catch(() => undefined);
             }}
           >
             <MenuItem value="">System default</MenuItem>
@@ -122,7 +129,9 @@ export function DeviceCheck({
             onChange={(event) => {
               setAudioOnly(false);
               setVideoDevice(event.target.value);
-              void check.enable(audioDevice, event.target.value, true);
+              void check
+                .enable(audioDevice, event.target.value, true)
+                .catch(() => undefined);
             }}
           >
             <MenuItem value="">System default</MenuItem>
@@ -172,7 +181,9 @@ export function DeviceCheck({
       </div>
       <Button
         variant="outlined"
-        onClick={() => void check.playSpeakerTest(outputDevice)}
+        onClick={() =>
+          void check.playSpeakerTest(outputDevice).catch(() => undefined)
+        }
       >
         Play test sound
       </Button>
@@ -217,7 +228,7 @@ export function DeviceCheck({
         <Button
           variant="contained"
           disabled={!ready || busy}
-          onClick={() => void onContinue(results)}
+          onClick={() => void onContinue(results).catch(() => undefined)}
         >
           {busy ? "Saving…" : "Continue"}
         </Button>

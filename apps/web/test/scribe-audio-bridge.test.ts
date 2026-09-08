@@ -5,12 +5,18 @@ import {
 } from "../src/features/telehealth/ScribeAudioBridge";
 
 class FakeTrack {
+  private static nextId = 1;
+  readonly id: string;
   kind = "audio";
   readyState: MediaStreamTrackState = "live";
   enabled = true;
   muted = false;
   stopped = false;
   clones: FakeTrack[] = [];
+
+  constructor(id = `track-${FakeTrack.nextId++}`) {
+    this.id = id;
+  }
 
   clone() {
     const clone = new FakeTrack();
@@ -173,6 +179,34 @@ describe("ScribeAudioBridge", () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(clone.enabled).toBe(false);
     await attachment.detach();
+  });
+
+  it("deduplicates the same live provider track and releases only Scribe-owned audio", async () => {
+    const shared = new FakeTrack("shared-call-audio");
+
+    const attachment = await attachScribeTracks({
+      localAudioTrack: shared as unknown as MediaStreamTrack,
+      remoteAudioTracks: [
+        {
+          participantId: "duplicate-provider-slot",
+          track: shared as unknown as MediaStreamTrack,
+          subscribed: true,
+        },
+      ],
+    });
+
+    const context = FakeAudioContext.instances[0];
+    expect(attachment.sourceCount).toBe(1);
+    expect(shared.clones).toHaveLength(1);
+    expect(context.sources).toHaveLength(1);
+
+    await attachment.detach();
+
+    expect(shared.stopped).toBe(false);
+    expect(shared.clones[0].stopped).toBe(true);
+    expect(context.outputTrack.stopped).toBe(true);
+    expect(context.sources[0].disconnected).toBe(true);
+    expect(context.closed).toBe(true);
   });
 
   it("refuses to create a capture graph without authorized live call audio", async () => {

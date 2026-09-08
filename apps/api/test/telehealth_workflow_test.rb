@@ -8,18 +8,20 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   PASSWORD = "Telehealth-test-password-123!".freeze
 
   setup do
+    @rails_environment = Rails.env
     Rails.cache.clear
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
     @environment = %w[
       APP_TELEHEALTH_ENABLED APP_TELEHEALTH_PROVIDER APP_TELEHEALTH_DAILY_ACCOUNT_REF
-      APP_TELEHEALTH_DAILY_API_KEY APP_TELEHEALTH_DAILY_WEBHOOK_SECRET
+      APP_TELEHEALTH_DAILY_API_KEY APP_TELEHEALTH_DAILY_WEBHOOK_SECRET APP_DEVELOPMENT_LOGIN
     ].to_h { |key| [ key, ENV[key] ] }
     ENV.update(
       "APP_TELEHEALTH_ENABLED" => "true",
       "APP_TELEHEALTH_PROVIDER" => "daily",
       "APP_TELEHEALTH_DAILY_ACCOUNT_REF" => TEST_ACCOUNT_REF,
-      "APP_TELEHEALTH_DAILY_API_KEY" => TEST_API_KEY
+      "APP_TELEHEALTH_DAILY_API_KEY" => TEST_API_KEY,
+      "APP_DEVELOPMENT_LOGIN" => "1"
     )
     ENV.delete("APP_TELEHEALTH_DAILY_WEBHOOK_SECRET")
 
@@ -35,7 +37,8 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     @other_site = create_site!(@practice, "VIDEO-OTHER")
     @visit_type = @practice.visit_types.create!(code: "VIDEO-FOLLOW-UP")
     @patient = @practice.patients.create!(display_name: "Telehealth Patient", reference: "TH-001")
-    @patient_user = User.create!(email_address: "telehealth-patient@example.invalid", password: PASSWORD)
+    @patient_user = User.create!(email_address: Development::TestAccounts::PROFILES.dig("patient", :email),
+      password: Development::TestAccounts.send(:password_for, "patient"))
     @identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: @patient,
       user: @patient_user, status: :active, invited_at: 1.day.ago, activated_at: 1.day.ago)
     @clinician = @practice.clinician_profiles.create!(membership: @membership,
@@ -45,6 +48,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
+    Rails.env = @rails_environment
     @environment.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
   end
 
@@ -148,6 +152,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
 
     checkin = Clinic::Telehealth::SubmitCheckin.call(visit: visit, identity: @identity,
       request_key: "telehealth-checkin", expected_version: version, checkin: complete_checkin)
+    version = visit.reload.lock_version
     Clinic::Telehealth::RecordConsent.call(visit: visit, identity: @identity,
       request_key: "telehealth-treatment-consent", expected_version: version,
       policy_version: visit.policy_version.version, decision: "accepted", purpose: "telehealth")
@@ -187,6 +192,160 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
         treatment_consent.update_column(:decision, "withdrawn")
       end
     end
+  end
+
+  test "patient HTTP preparation contract resumes through device consent and explicit waiting entry" do
+    visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    login_patient
+
+    get "/api/patient_portal/telehealth/visits/#{visit.public_id}", headers: @headers
+    assert_response :success
+    initial = response.parsed_body
+    assert_equal({ "id" => @patient.id, "display_name" => @patient.display_name },
+      initial.dig("data", "appointment", "patient"))
+    assert_equal @site.id, initial.dig("data", "appointment", "site_id")
+    assert_equal @membership.id, initial.dig("data", "appointment", "clinician_membership_id")
+    assert_equal({ "membership_id" => @membership.id, "display_name" => @clinician.display_name },
+      initial.dig("data", "appointment", "clinician"))
+    assert_equal true, initial.dig("data", "policy", "require_location")
+    assert_equal true, initial.dig("data", "policy", "require_callback")
+    assert_equal "visit", initial.dig("data", "current_step")
+    initial_version = initial.fetch("version")
+
+    missing_postal = complete_checkin
+    missing_postal[:location].delete(:postal_code)
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/checkins",
+      params: { request_key: "patient-http-missing-postal", expected_version: initial_version,
+        checkin: missing_postal }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "location_required", response.parsed_body.fetch("code")
+    assert_equal "location", response.parsed_body.fetch("field")
+    assert_equal initial_version, visit.reload.lock_version
+
+    unchecked = complete_checkin
+    unchecked[:location].delete(:unit)
+    unchecked[:device_results].merge!(camera: "not_checked", microphone: "not_checked",
+      speaker: "not_checked", browser: "unknown")
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/checkins",
+      params: { request_key: "patient-http-initial-checkin", expected_version: initial_version,
+        checkin: unchecked }, headers: csrf_headers, as: :json
+    assert_response :created
+    after_checkin = response.parsed_body
+    assert_operator after_checkin.fetch("version"), :>, initial_version
+    assert_equal "device_check", after_checkin.dig("data", "visit", "current_step")
+    assert_nil after_checkin.dig("data", "visit", "preparation", "location", "unit")
+
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/checkins",
+      params: { request_key: "patient-http-stale-checkin", expected_version: initial_version,
+        checkin: complete_checkin }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "stale_record", response.parsed_body.fetch("code")
+
+    checkin_version = after_checkin.fetch("version")
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/checkins",
+      params: { request_key: "patient-http-device-check", expected_version: checkin_version,
+        checkin: complete_checkin }, headers: csrf_headers, as: :json
+    assert_response :created
+    after_devices = response.parsed_body
+    assert_operator after_devices.fetch("version"), :>, checkin_version
+    assert_equal "consent", after_devices.dig("data", "visit", "current_step")
+
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/consents",
+      params: { request_key: "patient-http-consent", expected_version: after_devices.fetch("version"),
+        consent: { policy_version: visit.policy_version.version, decision: "accepted" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    after_consent = response.parsed_body
+    assert_equal "consent", after_consent.dig("data", "visit", "current_step")
+    assert_includes after_consent.fetch("allowed_actions"), "telehealth.enter_waiting_room"
+
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/enter_waiting_room",
+      params: { request_key: "patient-http-enter-waiting", expected_version: after_consent.fetch("version"),
+        consent: { policy_version: visit.policy_version.version, decision: "accepted" } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "waiting_room", response.parsed_body.dig("data", "visit", "current_step")
+    assert_equal "waiting", response.parsed_body.dig("data", "visit", "access_state")
+  end
+
+  test "patient HTTP checkin permits omitted location and callback only when the bound policy makes them optional" do
+    optional_policy = @setting.policy_versions.create!(practice: @practice, version: 2, status: "published",
+      **policy_payload.merge(require_location: false, require_callback: false,
+        consent_title: "Optional preparation policy",
+        content_digest: Digest::SHA256.hexdigest("optional-preparation-policy")),
+      created_by_membership: @membership, published_by_membership: @membership, published_at: Time.current)
+    appointment = @practice.appointments.create!(patient: @patient, site: @site,
+      booked_clinician: @clinician, visit_type: @visit_type, starts_at: 10.minutes.from_now,
+      ends_at: 40.minutes.from_now, status: "scheduled", visit_modality: "video")
+    visit = Clinic::Telehealth::Visit.create!(practice: @practice, patient: @patient, appointment: appointment,
+      policy_version: optional_policy, created_by_membership: @membership, status: "scheduled")
+    visit.participants.create!(practice: @practice, role: "patient", portal_identity: @identity, status: "eligible")
+    visit.participants.create!(practice: @practice, role: "clinician", membership: @membership, status: "eligible")
+    login_patient
+
+    get "/api/patient_portal/telehealth/visits/#{visit.public_id}", headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.dig("data", "policy", "require_location")
+    assert_equal false, response.parsed_body.dig("data", "policy", "require_callback")
+    version = response.parsed_body.fetch("version")
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/checkins",
+      params: { request_key: "patient-http-optional-preparation", expected_version: version,
+        checkin: { location_attested: false, device_results: complete_checkin.fetch(:device_results) } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    payload = response.parsed_body.dig("data", "visit")
+    assert_nil payload.dig("preparation", "location")
+    assert_nil payload.dig("preparation", "callback_phone")
+    assert_equal "consent", payload.fetch("current_step")
+  end
+
+  test "material patient checkin change fences admission grants Scribe capture and queues ejection" do
+    visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    room = ready_room!(visit)
+    patient = visit.participants.patient.sole
+    original = Clinic::Telehealth::SubmitCheckin.call(visit: visit, identity: @identity,
+      request_key: "material-change-original", expected_version: visit.reload.lock_version,
+      checkin: complete_checkin)
+    Clinic::Telehealth::RecordConsent.call(visit: visit, identity: @identity,
+      request_key: "material-change-consent", expected_version: visit.reload.lock_version,
+      policy_version: visit.policy_version.version, decision: "accepted")
+    Clinic::Telehealth::EnterWaitingRoom.call(visit: visit, identity: @identity,
+      request_key: "material-change-wait", expected_version: visit.reload.lock_version)
+    Clinic::Telehealth::VerifyPreparation.call(visit: visit, actor: @staff,
+      request_key: "material-change-verify", checkin_id: original.id,
+      expected_version: visit.reload.lock_version)
+    Clinic::Telehealth::AdmitParticipant.call(visit: visit, participant: patient, actor: @staff,
+      request_key: "material-change-admit", expected_version: visit.reload.lock_version)
+    grant = create_join_grant!(visit: visit, participant: patient, room: room, token: "material-change-grant")
+    owner = visit.participants.clinician.sole
+    visit.reload.update!(scribe_capture_owner_participant: owner,
+      scribe_capture_owner_token_digest: Digest::SHA256.hexdigest("material-change-capture"),
+      scribe_capture_epoch: 5, scribe_capture_lease_expires_at: 1.minute.from_now)
+    expected_version = visit.reload.lock_version
+    login_patient
+
+    changed = complete_checkin
+    changed[:callback_phone] = "+15555550199"
+    post "/api/patient_portal/telehealth/visits/#{visit.public_id}/checkins",
+      params: { request_key: "material-change-http", expected_version: expected_version, checkin: changed },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_operator response.parsed_body.fetch("version"), :>, expected_version
+    assert_equal "waiting_room", response.parsed_body.dig("data", "visit", "current_step")
+    assert_equal original.id, visit.checkins.order(sequence: :desc).first.supersedes_checkin_id
+    assert_not Clinic::Telehealth::CurrentPreparation.call(visit: visit.reload).fetch(:verified)
+    assert_predicate patient.reload, :waiting?
+    assert_nil patient.admitted_at
+    assert_nil patient.admitted_generation
+    assert_nil patient.admitted_checkin_id
+    assert_equal "preparation_changed", grant.reload.revocation_reason
+    assert_nil visit.reload.scribe_capture_owner_participant_id
+    assert_nil visit.scribe_capture_owner_token_digest
+    assert_nil visit.scribe_capture_lease_expires_at
+    assert_equal 6, visit.scribe_capture_epoch
+    eject = visit.commands.find_by!(kind: "eject_participant", participant_id: patient.id,
+      room_attempt_id: room.id, status: "pending")
+    assert_equal visit.access_generation, eject.access_generation
   end
 
   test "tenant patient and site boundaries deny forged visit access" do
@@ -727,5 +886,11 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     post "/api/session", params: { email_address: user.email_address, password: PASSWORD },
       headers: csrf_headers, as: :json
     assert_response :success
+  end
+
+  def login_patient
+    Rails.env = "development"
+    post "/api/development_session", params: { profile: "patient" }, headers: csrf_headers, as: :json
+    assert_response :created
   end
 end

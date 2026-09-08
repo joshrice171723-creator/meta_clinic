@@ -44,6 +44,10 @@ module Clinic
           id: value.id, starts_at: value.starts_at.iso8601(6), ends_at: value.ends_at.iso8601(6),
           timezone: value.practice.timezone, site_id: value.site_id,
           clinician_membership_id: value.booked_clinician&.membership_id,
+          clinician: value.booked_clinician && {
+            membership_id: value.booked_clinician.membership_id,
+            display_name: value.booked_clinician.display_name
+          },
           visit_modality: value.visit_modality,
           patient: { id: value.patient_id, display_name: value.patient.display_name }
         }
@@ -54,6 +58,7 @@ module Clinic
           version: value.version, title: value.consent_title, body: value.consent_body,
           content_digest: value.content_digest, instructions: value.patient_instructions,
           allow_audio_only: value.allow_audio_only, allow_staff_screen_share: value.allow_staff_screen_share,
+          require_location: value.require_location, require_callback: value.require_callback,
           scribe_enabled: value.scribe_enabled, scribe_consent_title: value.scribe_consent_title,
           scribe_consent_body: value.scribe_consent_body
         }

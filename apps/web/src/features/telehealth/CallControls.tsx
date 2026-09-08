@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CallEndOutlinedIcon from "@mui/icons-material/CallEndOutlined";
 import DevicesOutlinedIcon from "@mui/icons-material/DevicesOutlined";
 import MicOffOutlinedIcon from "@mui/icons-material/MicOffOutlined";
@@ -12,18 +12,33 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   InputLabel,
   MenuItem,
   Select,
   Stack,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import { useTelehealthSession } from "./TelehealthSessionProvider";
+
+function connectionMessage(state: string, authorized: boolean) {
+  if (!authorized)
+    return "Call access needs to be confirmed before media controls can be used.";
+  if (state === "joining") return "Connecting to the video visit…";
+  if (state === "reconnecting")
+    return "Reconnecting… Camera and microphone controls will return when the connection is stable.";
+  if (state === "joined") return "Connected";
+  if (state === "leaving") return "Leaving the call…";
+  if (state === "error") return "The call connection needs attention.";
+  return "Call controls will be available after you join.";
+}
 
 export function CallControls({
   allowScreenShare,
@@ -47,133 +62,204 @@ export function CallControls({
   const session = useTelehealthSession();
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [deviceLoadError, setDeviceLoadError] = useState<string | null>(null);
   const [audioDevice, setAudioDevice] = useState("");
   const [videoDevice, setVideoDevice] = useState("");
-  const joined =
-    (session.callState === "joined" || session.callState === "reconnecting") &&
-    session.authorizationStatus === "confirmed";
+  const authorizationConfirmed = session.authorizationStatus === "confirmed";
+  const mediaReady =
+    session.callState === "joined" && authorizationConfirmed && !busy;
+  const canLeave = Boolean(session.active) && session.callState !== "leaving";
+  const audioInputs = useMemo(
+    () => devices.filter((device) => device.kind === "audioinput"),
+    [devices],
+  );
+  const videoInputs = useMemo(
+    () => devices.filter((device) => device.kind === "videoinput"),
+    [devices],
+  );
 
   useEffect(() => {
-    if (!devicesOpen || !navigator.mediaDevices?.enumerateDevices) return;
+    if (!devicesOpen) return;
+    if (typeof navigator.mediaDevices?.enumerateDevices !== "function") {
+      setDevices([]);
+      setDeviceLoadError("Device selection is not available in this browser.");
+      return;
+    }
+    let active = true;
+    setDevicesLoading(true);
+    setDeviceLoadError(null);
     void navigator.mediaDevices
       .enumerateDevices()
-      .then(setDevices)
-      .catch(() => setDevices([]));
+      .then((nextDevices) => {
+        if (active) setDevices(nextDevices);
+      })
+      .catch(() => {
+        if (active) {
+          setDevices([]);
+          setDeviceLoadError(
+            "APPly could not read the available call devices. Check browser permissions and try again.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setDevicesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [devicesOpen]);
 
   return (
     <Box
       component="section"
       aria-label="Call controls"
-      sx={{ bgcolor: "grey.950", color: "common.white", p: 1.25 }}
+      sx={{ bgcolor: "grey.950", color: "common.white", p: 1.5 }}
     >
-      <Stack
-        direction="row"
-        spacing={1}
-        useFlexGap
-        sx={{ flexWrap: "wrap", justifyContent: "center" }}
+      <Typography
+        variant="caption"
+        component="p"
+        aria-live="polite"
+        sx={{ color: "grey.300", mb: 1, textAlign: "center" }}
       >
-        <Tooltip
-          title={
-            session.microphoneEnabled ? "Mute microphone" : "Unmute microphone"
-          }
+        {connectionMessage(session.callState, authorizationConfirmed)}
+      </Typography>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ alignItems: { sm: "center" }, justifyContent: "center" }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap", justifyContent: "center" }}
+        >
+          <Tooltip
+            title={
+              session.microphoneEnabled
+                ? "Mute microphone"
+                : "Unmute microphone"
+            }
+          >
+            <Button
+              color="inherit"
+              variant={session.microphoneEnabled ? "outlined" : "contained"}
+              aria-pressed={!session.microphoneEnabled}
+              startIcon={
+                session.microphoneEnabled ? (
+                  <MicOutlinedIcon />
+                ) : (
+                  <MicOffOutlinedIcon />
+                )
+              }
+              disabled={!mediaReady}
+              onClick={() => void session.toggleMicrophone()}
+            >
+              {session.microphoneEnabled ? "Mute" : "Unmute"}
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={session.cameraEnabled ? "Turn camera off" : "Turn camera on"}
+          >
+            <Button
+              color="inherit"
+              variant={session.cameraEnabled ? "outlined" : "contained"}
+              aria-pressed={!session.cameraEnabled}
+              startIcon={
+                session.cameraEnabled ? (
+                  <VideocamOutlinedIcon />
+                ) : (
+                  <VideocamOffOutlinedIcon />
+                )
+              }
+              disabled={!mediaReady}
+              onClick={() => void session.toggleCamera()}
+            >
+              {session.cameraEnabled ? "Camera off" : "Camera on"}
+            </Button>
+          </Tooltip>
+        </Stack>
+        <Divider
+          orientation="vertical"
+          flexItem
+          sx={{ borderColor: "grey.700", display: { xs: "none", sm: "block" } }}
+        />
+        <Stack
+          direction="row"
+          spacing={0.5}
+          useFlexGap
+          sx={{ flexWrap: "wrap", justifyContent: "center" }}
         >
           <Button
             color="inherit"
-            variant={session.microphoneEnabled ? "outlined" : "contained"}
-            startIcon={
-              session.microphoneEnabled ? (
-                <MicOutlinedIcon />
-              ) : (
-                <MicOffOutlinedIcon />
-              )
-            }
-            disabled={!joined || busy}
-            onClick={() => void session.toggleMicrophone()}
+            startIcon={<DevicesOutlinedIcon />}
+            disabled={!mediaReady}
+            onClick={() => setDevicesOpen(true)}
           >
-            {session.microphoneEnabled
-              ? "Mute microphone"
-              : "Unmute microphone"}
+            Devices
           </Button>
-        </Tooltip>
-        <Tooltip
-          title={session.cameraEnabled ? "Turn camera off" : "Turn camera on"}
-        >
+          {allowScreenShare && (
+            <Button
+              color={session.screenShareEnabled ? "warning" : "inherit"}
+              variant={session.screenShareEnabled ? "contained" : "text"}
+              aria-pressed={session.screenShareEnabled}
+              startIcon={
+                session.screenShareEnabled ? (
+                  <StopScreenShareOutlinedIcon />
+                ) : (
+                  <PresentToAllOutlinedIcon />
+                )
+              }
+              disabled={!mediaReady}
+              onClick={() =>
+                void (session.screenShareEnabled
+                  ? session.stopScreenShare()
+                  : session.startScreenShare())
+              }
+            >
+              {session.screenShareEnabled ? "Stop sharing" : "Share screen"}
+            </Button>
+          )}
+          {showParticipantsControl && (
+            <Button
+              color="inherit"
+              variant={showParticipants ? "outlined" : "text"}
+              aria-pressed={showParticipants}
+              startIcon={<PeopleOutlineOutlinedIcon />}
+              disabled={!mediaReady}
+              onClick={onShowParticipants}
+            >
+              Participants
+            </Button>
+          )}
+        </Stack>
+        <Divider
+          orientation="vertical"
+          flexItem
+          sx={{ borderColor: "grey.700", display: { xs: "none", sm: "block" } }}
+        />
+        <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
           <Button
             color="inherit"
-            variant={session.cameraEnabled ? "outlined" : "contained"}
-            startIcon={
-              session.cameraEnabled ? (
-                <VideocamOutlinedIcon />
-              ) : (
-                <VideocamOffOutlinedIcon />
-              )
-            }
-            disabled={!joined || busy}
-            onClick={() => void session.toggleCamera()}
-          >
-            {session.cameraEnabled ? "Turn camera off" : "Turn camera on"}
-          </Button>
-        </Tooltip>
-        <Button
-          color="inherit"
-          startIcon={<DevicesOutlinedIcon />}
-          disabled={!joined || busy}
-          onClick={() => setDevicesOpen(true)}
-        >
-          Devices
-        </Button>
-        {allowScreenShare && (
-          <Button
-            color={session.screenShareEnabled ? "warning" : "inherit"}
-            variant={session.screenShareEnabled ? "contained" : "text"}
-            startIcon={
-              session.screenShareEnabled ? (
-                <StopScreenShareOutlinedIcon />
-              ) : (
-                <PresentToAllOutlinedIcon />
-              )
-            }
-            disabled={!joined || busy}
-            onClick={() =>
-              void (session.screenShareEnabled
-                ? session.stopScreenShare()
-                : session.startScreenShare())
-            }
-          >
-            {session.screenShareEnabled ? "Stop sharing" : "Share screen"}
-          </Button>
-        )}
-        {showParticipantsControl && (
-          <Button
-            color="inherit"
-            variant={showParticipants ? "outlined" : "text"}
-            startIcon={<PeopleOutlineOutlinedIcon />}
-            disabled={!joined || busy}
-            onClick={onShowParticipants}
-          >
-            Participants
-          </Button>
-        )}
-        <Button
-          color="inherit"
-          startIcon={<CallEndOutlinedIcon />}
-          disabled={!joined || busy}
-          onClick={onLeave}
-        >
-          Leave call
-        </Button>
-        {canEnd && onEnd && (
-          <Button
-            color="error"
-            variant="contained"
             startIcon={<CallEndOutlinedIcon />}
-            disabled={!joined || busy}
-            onClick={onEnd}
+            disabled={!canLeave || busy}
+            onClick={onLeave}
           >
-            End for everyone
+            Leave
           </Button>
-        )}
+          {canEnd && onEnd && (
+            <Button
+              color="error"
+              variant="contained"
+              startIcon={<CallEndOutlinedIcon />}
+              disabled={busy}
+              onClick={onEnd}
+            >
+              End for everyone
+            </Button>
+          )}
+        </Stack>
       </Stack>
       {session.error && (
         <Alert severity="error" sx={{ mt: 1 }}>
@@ -194,7 +280,30 @@ export function CallControls({
         <DialogTitle>Call devices</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <FormControl fullWidth>
+            {devicesLoading && (
+              <Stack
+                direction="row"
+                spacing={1}
+                role="status"
+                sx={{ alignItems: "center" }}
+              >
+                <CircularProgress size={20} />
+                <Typography variant="body2">
+                  Finding available devices…
+                </Typography>
+              </Stack>
+            )}
+            {deviceLoadError && (
+              <Alert severity="warning">{deviceLoadError}</Alert>
+            )}
+            {!devicesLoading &&
+              !deviceLoadError &&
+              audioInputs.length === 0 && (
+                <Alert severity="info">
+                  No microphone is available to select.
+                </Alert>
+              )}
+            <FormControl fullWidth disabled={audioInputs.length === 0}>
               <InputLabel id="telehealth-call-microphone">
                 Microphone
               </InputLabel>
@@ -208,16 +317,19 @@ export function CallControls({
                   void session.selectInputDevice("audio", value);
                 }}
               >
-                {devices
-                  .filter((device) => device.kind === "audioinput")
-                  .map((device, index) => (
-                    <MenuItem key={device.deviceId} value={device.deviceId}>
-                      {device.label || `Microphone ${index + 1}`}
-                    </MenuItem>
-                  ))}
+                {audioInputs.map((device, index) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Microphone ${index + 1}`}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
-            <FormControl fullWidth>
+            {!devicesLoading &&
+              !deviceLoadError &&
+              videoInputs.length === 0 && (
+                <Alert severity="info">No camera is available to select.</Alert>
+              )}
+            <FormControl fullWidth disabled={videoInputs.length === 0}>
               <InputLabel id="telehealth-call-camera">Camera</InputLabel>
               <Select
                 labelId="telehealth-call-camera"
@@ -229,13 +341,11 @@ export function CallControls({
                   void session.selectInputDevice("video", value);
                 }}
               >
-                {devices
-                  .filter((device) => device.kind === "videoinput")
-                  .map((device, index) => (
-                    <MenuItem key={device.deviceId} value={device.deviceId}>
-                      {device.label || `Camera ${index + 1}`}
-                    </MenuItem>
-                  ))}
+                {videoInputs.map((device, index) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Camera ${index + 1}`}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Stack>

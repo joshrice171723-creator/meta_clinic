@@ -29,7 +29,9 @@ module Clinic
             unless Time.current.between?(opens_at, closes_at)
               raise Error.new("The waiting room is not open.", code: "waiting_window_closed", status: :conflict)
             end
-            preparation[:participant].update!(status: "waiting", last_seen_at: Time.current)
+            participant = preparation.fetch(:participant)
+            participant.update!(status: "waiting", last_seen_at: Time.current)
+            participant
           end
         end
         outcome.value
