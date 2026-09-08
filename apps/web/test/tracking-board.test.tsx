@@ -466,7 +466,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:100%;min-width:1180px;table-layout:auto"',
+      'style="width:100%;min-width:1234px;table-layout:auto"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
