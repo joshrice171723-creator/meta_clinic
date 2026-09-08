@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -6,6 +7,14 @@ import {
   staffMessageDraftWarning,
   type StaffMessagingState,
 } from "../src/features/staff-messaging/StaffMessagingWorkspace";
+
+const staffMessagingSource = readFileSync(
+  new URL(
+    "../src/features/staff-messaging/StaffMessagingWorkspace.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("staff messaging workspace", () => {
   it("renders an accountable inbox and conversation composer", () => {
@@ -64,5 +73,20 @@ describe("staff messaging workspace", () => {
     expect(staffMessageDraftWarning({ 201: "", 202: "Call the lab" })).toBe(
       "You have unsent staff message drafts. Leave Messages and discard them?",
     );
+  });
+
+  it("renders an accessible, reversible unread and urgent conversation focus", () => {
+    const html = renderToStaticMarkup(<StaffMessagingWorkspace />);
+
+    expect(html).toContain('aria-label="Show unread and urgent conversations"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-controls="staff-conversation-list"');
+    expect(staffMessagingSource).toContain(
+      "setShowUnreadAndUrgentOnly((current) => !current)",
+    );
+    expect(staffMessagingSource).toContain(
+      "setShowUnreadAndUrgentOnly(false)",
+    );
+    expect(staffMessagingSource).toContain("No unread or urgent conversations.");
   });
 });
