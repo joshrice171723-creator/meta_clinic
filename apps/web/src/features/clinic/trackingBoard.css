@@ -523,20 +523,29 @@
   color: var(--clinic-muted);
 }
 .clinic-theme .tracking-chart-action {
-  width: 44px;
   min-width: 44px;
   height: 44px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   border: 0;
-  padding: 0;
+  padding: 0 8px;
+  gap: 6px;
   background: transparent;
   color: var(--clinic-accent);
-  font-size: 30px;
   text-decoration: none;
   cursor: pointer;
+}
+.clinic-theme .tracking-chart-action-icon {
+  flex: 0 0 auto;
+  font-size: 24px;
+}
+.clinic-theme .tracking-chart-action-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .clinic-theme .tracking-chart-action-icon-unopened {
   color: var(--clinic-accent);

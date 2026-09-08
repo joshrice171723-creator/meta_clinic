@@ -331,7 +331,7 @@ describe("board and Operations presentation boundaries", () => {
       tone: "draft",
     });
     expect(chartActionPresentation("signed", "open")).toEqual({
-      label: "Open Chart",
+      label: "Choose chart",
       tone: "signed",
     });
     expect(chartActionPresentation("unavailable", "open")).toEqual({
@@ -346,7 +346,8 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("Not verified");
     expect(html).toContain("Start new Chart");
     expect(html).toContain("Open Draft");
-    expect(html).toContain("Open Chart");
+    expect(html).toContain("Choose chart");
+    expect(html).toContain("tracking-chart-action-label");
     expect(html).toContain("tracking-chart-action-icon-draft");
     expect(html).toContain("tracking-chart-action-icon-signed");
     for (const { label } of VISIT_STAGES) expect(html).toContain(label);
@@ -356,7 +357,6 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain('for="board-stage"');
     expect(html).toContain('for="board-patient-filter"');
     expect(html).toContain("Clinic patient tracking board");
-    expect(html).not.toContain("tracking-chart-action-label");
     const source = readSource("src/features/clinic/TrackingBoardPage.tsx");
     expect(source).toContain('<Tooltip title={primaryAction} placement="top">');
     expect(html).toContain("Above normal limits");

@@ -28,7 +28,10 @@ describe("clinic shell composition", () => {
     expect(frame).toContain('className="practice-location"');
     expect(frame).toContain('aria-label="Current clinic location"');
     expect(frame).not.toContain("data-focus-mode");
-    expect(frame).toContain("Select a location");
+    expect(frame).toContain(
+      'const locationScopeLabel = visibleLocationName || "All locations"',
+    );
+    expect(frame).toContain("{locationScopeLabel}");
     expect(frame).not.toContain("clinic-chart-tab");
   });
 

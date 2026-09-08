@@ -74,7 +74,7 @@ export function chartActionPresentation(
 ): { label: string; tone: ChartActionTone } {
   if (status === "unopened") return { label: "Start new Chart", tone: status };
   if (status === "draft") return { label: "Open Draft", tone: status };
-  if (status === "signed") return { label: "Open Chart", tone: status };
+  if (status === "signed") return { label: "Choose chart", tone: status };
 
   return {
     label:
@@ -1009,6 +1009,9 @@ function TrackingBoardRow({
                   className={`tracking-chart-action-icon tracking-chart-action-icon-${chartAction.tone}`}
                   aria-hidden="true"
                 />
+                <span className="tracking-chart-action-label">
+                  {primaryAction}
+                </span>
               </CareSummaryTrigger>
             </Tooltip>
           </TableCell>

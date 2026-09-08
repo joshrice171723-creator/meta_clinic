@@ -16,7 +16,7 @@ module Development
         supplier = Clinic::Inventory::Supplier.find_by!(practice_id: practice.id, name: "MedSupply Co.")
         products = PRODUCT_FIXTURES.to_h do |fixture|
           product = practice.pharmacy_products.find_or_initialize_by(sku: fixture[:sku])
-          attributes = { name: fixture[:name], generic_name: fixture[:generic_name], ndc: fixture[:ndc], dosage_form: "Tablet", route: "Oral", labeler: "Synthetic manufacturer", ingredients: fixture[:generic_name], package_description: "Bottle of 100 tablets", source: "synthetic", reorder_point: fixture[:reorder_point], active: true, stock_unit: "tablet", quantity_scale: 0, package_size: 100, unit_reference: "tablet", dea_schedule: fixture[:dea_schedule] }
+          attributes = { name: fixture[:name], generic_name: fixture[:generic_name], ndc: fixture[:ndc], dosage_form: "Tablet", route: "Oral", labeler: "Reference manufacturer", ingredients: fixture[:generic_name], package_description: "Bottle of 100 tablets", source: "synthetic", reorder_point: fixture[:reorder_point], active: true, stock_unit: "tablet", quantity_scale: 0, package_size: 100, unit_reference: "tablet", dea_schedule: fixture[:dea_schedule] }
           if product.new_record?
             product.update!(attributes)
           elsif attributes.any? { |name, value| product.public_send(name) != value }

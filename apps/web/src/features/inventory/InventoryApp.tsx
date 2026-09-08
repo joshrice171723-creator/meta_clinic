@@ -4321,22 +4321,33 @@ function PurchaseCartWorkspace({
                     </small>
                   )}
                 </div>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  disabled={
-                    busy ||
-                    writeBlocked ||
-                    Boolean(cartAction) ||
-                    !offer ||
-                    !canProcure ||
-                    alreadyInCart ||
-                    hasUnitMismatch
-                  }
-                  onClick={() => addItem(product)}
-                >
-                  {alreadyInCart ? "In draft" : "Add"}
-                </Button>
+                {offer ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={
+                      busy ||
+                      writeBlocked ||
+                      Boolean(cartAction) ||
+                      !canProcure ||
+                      alreadyInCart ||
+                      hasUnitMismatch
+                    }
+                    onClick={() => addItem(product)}
+                  >
+                    {alreadyInCart ? "In draft" : "Add"}
+                  </Button>
+                ) : (
+                  <Button
+                    component="a"
+                    href={`/clinic/inventory/suppliers?q=${encodeURIComponent(product.name)}`}
+                    variant="outlined"
+                    size="small"
+                    disabled={!data.capabilities.supplier_pricing}
+                  >
+                    Review pricing
+                  </Button>
+                )}
               </div>
             );
           })}

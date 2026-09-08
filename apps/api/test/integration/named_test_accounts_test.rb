@@ -252,6 +252,8 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_equal 105, practice.observations.where(value_kind: "numeric").count
       assert_equal 6, practice.encounters.open.count
       assert_equal 6, practice.encounters.open.joins(:room).distinct.count("clinic_rooms.code")
+      assert_equal 0, practice.pharmacy_products.where("name LIKE ?", "Omni Item %").count
+      assert_operator practice.pharmacy_products.where("name LIKE ?", "Catalog item %").count, :>, 0
 
       get "/api/settings", headers: @headers
       assert_response :success

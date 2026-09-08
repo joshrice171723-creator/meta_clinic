@@ -85,7 +85,9 @@ const scheduleBooleanKeys = [
 
 function localDateTime() {
   const current = businessNow();
-  const now = new Date(current.getTime() - current.getTimezoneOffset() * 60_000);
+  const now = new Date(
+    current.getTime() - current.getTimezoneOffset() * 60_000,
+  );
   return now.toISOString().slice(0, 16);
 }
 
@@ -109,6 +111,21 @@ function emptyValues(data: WorkforceSettingsData): WorkforceSettingValues {
       return [key, null];
     }),
   );
+}
+
+export function workforceBooleanSelectValue(
+  value: WorkforceSettingValue | undefined,
+  siteScope: boolean,
+) {
+  if (value === null || value === undefined) return siteScope ? "inherit" : "";
+  return value ? "true" : "false";
+}
+
+export function workforceEnumSelectValue(
+  value: WorkforceSettingValue | undefined,
+  siteScope: boolean,
+) {
+  return value ?? (siteScope ? "inherit" : "unconfigured");
 }
 
 export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
@@ -189,17 +206,11 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
       <Select
         required={!siteScope}
         label={labels[key]}
-        value={
-          values[key] === null || values[key] === undefined
-            ? "inherit"
-            : values[key]
-              ? "true"
-              : "false"
-        }
+        value={workforceBooleanSelectValue(values[key], siteScope)}
         onChange={(event) =>
           setValue(
             key,
-            event.target.value === "inherit"
+            event.target.value === "inherit" || event.target.value === ""
               ? null
               : event.target.value === "true",
           )
@@ -209,7 +220,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
           <MenuItem value="inherit">Inherit practice setting</MenuItem>
         )}
         {!siteScope && (
-          <MenuItem value="inherit" disabled>
+          <MenuItem value="" disabled>
             Choose a value
           </MenuItem>
         )}
@@ -224,7 +235,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
       <InputLabel>{labels[key]}</InputLabel>
       <Select
         label={labels[key]}
-        value={values[key] ?? "inherit"}
+        value={workforceEnumSelectValue(values[key], siteScope)}
         onChange={(event) =>
           setValue(
             key,

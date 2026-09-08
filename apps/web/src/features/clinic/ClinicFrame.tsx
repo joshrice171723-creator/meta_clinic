@@ -42,6 +42,7 @@ export function ClinicFrame({
   );
   const visibleLocationName =
     locationName || selectedLocation?.name || selectedLocation?.code;
+  const locationScopeLabel = visibleLocationName || "All locations";
   const selectLocation = (siteId: number) => {
     setLocationMenuOpen(false);
     onLocationChange?.(siteId);
@@ -112,7 +113,7 @@ export function ClinicFrame({
                     }}
                   >
                     <span className="practice-location-trigger-name">
-                      {visibleLocationName || "Select a location"}
+                      {locationScopeLabel}
                     </span>
                     <ExpandMoreIcon
                       aria-hidden="true"
@@ -204,9 +205,7 @@ export function ClinicFrame({
           </div>
         </aside>
       </div>
-      <div className="clinic-main">
-        {children}
-      </div>
+      <div className="clinic-main">{children}</div>
     </div>
   );
 }

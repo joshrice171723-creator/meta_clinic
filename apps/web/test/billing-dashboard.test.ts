@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BillingInvoiceSummary } from "../src/api/contracts";
 import {
+  billingAuditChangeSummary,
+  billingAuditEventLabel,
   filteredInvoices,
   invoicePaymentState,
   periodLabel,
@@ -117,5 +119,21 @@ describe("billing invoice presentation", () => {
     expect(sortedInvoices(values, "balance_desc").map(({ id }) => id)).toEqual([
       6, 7, 8,
     ]);
+  });
+
+  it("summarizes audit activity without exposing implementation fields", () => {
+    expect(billingAuditEventLabel("create")).toBe("Invoice created");
+    expect(billingAuditEventLabel("unexpected_event")).toBe(
+      "Invoice activity recorded",
+    );
+    expect(
+      billingAuditChangeSummary(
+        ["balance", "patient_id", "updated_at", "void_reason", "balance"],
+        "update",
+      ),
+    ).toBe("Balance, Void reason");
+    expect(billingAuditChangeSummary([], "create")).toBe(
+      "Invoice record created",
+    );
   });
 });

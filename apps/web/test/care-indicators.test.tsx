@@ -199,6 +199,9 @@ describe("tracking-board care indicators", () => {
     expect(html).toContain('href="/clinic/patients/7/encounters/9"');
     expect(html).toContain('aria-label="Open SOAP note for S. Pat"');
     expect(html).toContain('data-tooltip-anchor="true"');
+    expect(html).not.toContain("patientlabel=");
+    expect(html).not.toContain('state="[object Object]"');
+    expect(html).not.toContain('timezone="');
     expect(html).not.toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("aria-expanded");
     const source = readFileSync(

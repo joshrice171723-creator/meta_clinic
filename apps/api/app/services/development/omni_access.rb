@@ -71,6 +71,7 @@ module Development
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
       BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI")
+      normalize_legacy_catalog_names!(membership.practice, actor: user)
       seed_purchase_supplier_mix!(membership.practice)
       SubscriptionExamples.seed!(practice: membership.practice, actor: user)
       retire_legacy_workflow!(membership)
@@ -154,11 +155,24 @@ module Development
     end
     private_class_method :switch_locked!
 
+    def self.normalize_legacy_catalog_names!(practice, actor:)
+      practice.pharmacy_products.where("name LIKE 'Omni Item %'").find_each do |product|
+        item_number = product.name[/\d+\z/]
+        next unless item_number
+
+        product.update_catalog!(
+          { name: "Catalog item #{item_number.rjust(3, '0')}" },
+          actor: actor
+        )
+      end
+    end
+    private_class_method :normalize_legacy_catalog_names!
+
     def self.seed_purchase_supplier_mix!(practice)
       suppliers = practice.inventory_suppliers.where("name LIKE 'Omni Supplier %'").order(:name).to_a
       return unless suppliers.length == 5
 
-      practice.pharmacy_products.where("name LIKE 'Omni Item %'").find_each do |product|
+      practice.pharmacy_products.where("name LIKE 'Catalog item %'").find_each do |product|
         item_number = product.name[/\d+\z/].to_i
         cheapest_supplier = (item_number - 1) % suppliers.length
         base_price = BigDecimal("6.10") + BigDecimal("0.75") * (item_number - 1)

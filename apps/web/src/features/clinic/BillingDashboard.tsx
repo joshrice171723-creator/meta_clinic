@@ -78,6 +78,44 @@ type BillingWorkspaceDataWithPatients = Omit<
   recent_invoices: BillingInvoiceWithPatient[];
 };
 
+const billingAuditFieldLabels: Record<string, string> = {
+  balance: "Balance",
+  due_at: "Due date",
+  issued_at: "Issue date",
+  note: "Internal note",
+  status: "Status",
+  subtotal: "Subtotal",
+  total: "Total",
+  void_reason: "Void reason",
+};
+
+const billingAuditTechnicalFields = new Set([
+  "created_at",
+  "currency",
+  "encounter_id",
+  "id",
+  "patient_id",
+  "practice_id",
+  "rounding_policy_version",
+  "updated_at",
+]);
+
+export function billingAuditEventLabel(event: string) {
+  if (event === "create") return "Invoice created";
+  if (event === "destroy") return "Invoice removed";
+  if (event === "update") return "Invoice updated";
+  return "Invoice activity recorded";
+}
+
+export function billingAuditChangeSummary(fields: string[], event: string) {
+  if (event === "create") return "Invoice record created";
+  const labels = fields
+    .filter((field) => !billingAuditTechnicalFields.has(field))
+    .map((field) => billingAuditFieldLabels[field] ?? "Invoice details")
+    .filter((label, index, values) => values.indexOf(label) === index);
+  return labels.length ? labels.join(", ") : "Invoice details updated";
+}
+
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
@@ -247,13 +285,16 @@ function InvoiceAuditTimeline({
         <ol>
           {detail.audit_timeline.map((entry) => (
             <li key={entry.id}>
-              <strong>{entry.event}</strong>
+              <strong>{billingAuditEventLabel(entry.event)}</strong>
               <span>
                 {date(entry.occurred_at, "UTC", true)} ·{" "}
-                {entry.actor_reference ?? "System"}
+                {entry.actor_reference ? "Authorized clinic account" : "System"}
               </span>
               {entry.changed_fields.length > 0 && (
-                <small>Changed: {entry.changed_fields.join(", ")}</small>
+                <small>
+                  Changes:{" "}
+                  {billingAuditChangeSummary(entry.changed_fields, entry.event)}
+                </small>
               )}
             </li>
           ))}
@@ -727,7 +768,7 @@ export function BillingDashboard() {
           </Button>
         </div>
       </section>
-      {checkoutQueue.available && (
+      {checkoutQueue.available && checkoutQueue.items.length > 0 && (
         <section className="clinic-card billing-ledger-card">
           <div className="billing-section-heading billing-ledger-heading">
             <div>
