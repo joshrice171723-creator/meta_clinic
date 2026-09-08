@@ -19,5 +19,12 @@ module Clinic
     has_many :grant_events, class_name: "Clinic::RoleGrantEvent", foreign_key: :grantor_membership_id, dependent: :restrict_with_error
     validates :user_id, uniqueness: true
     scope :active, -> { where(active: true) }
+    after_update :revoke_telehealth_access, if: -> { saved_change_to_active? && !active? }
+
+    private
+
+    def revoke_telehealth_access
+      Clinic::Telehealth::RevokeMembershipAccess.call(membership: self, force: true)
+    end
   end
 end

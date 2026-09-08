@@ -74,6 +74,11 @@ export function FrontDesk() {
           </Typography>
         </div>
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+          {capabilities.telehealth_read && (
+            <Button href="/clinic/telehealth" variant="outlined">
+              Virtual waiting room
+            </Button>
+          )}
           {booking.visible && (
             <Button
               component="a"
@@ -687,7 +692,9 @@ function AppointmentRow({
   const actions = appointmentActions(appointment);
   const status = appointmentStatus(appointment);
   const patientName = appointment.patient?.display_name || "Patient record";
-  const patientReference = patientReferenceLabel(appointment.patient?.reference);
+  const patientReference = patientReferenceLabel(
+    appointment.patient?.reference,
+  );
   const anyActionBusy = busyAction.length > 0;
   const patientPath = `/clinic/patients/${appointment.patient_id}`;
   const chartPath = appointment.encounter_id
@@ -751,6 +758,15 @@ function AppointmentRow({
             {busyAction === `${appointment.id}:start`
               ? "Starting…"
               : "Start visit"}
+          </Button>
+        )}
+        {appointment.telehealth?.clinic_href && (
+          <Button
+            href={appointment.telehealth.clinic_href}
+            size="small"
+            variant="outlined"
+          >
+            Open video visit
           </Button>
         )}
         {chartPath && canPatients && (
@@ -995,7 +1011,9 @@ function IdentityLookup() {
           {patients.data.patients.map((patient) => (
             <li key={patient.id}>
               <strong>{patient.display_name}</strong>
-              {patientReferenceLabel(patient.reference) && <span>{patientReferenceLabel(patient.reference)}</span>}
+              {patientReferenceLabel(patient.reference) && (
+                <span>{patientReferenceLabel(patient.reference)}</span>
+              )}
             </li>
           ))}
         </ul>

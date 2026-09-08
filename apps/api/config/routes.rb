@@ -1,11 +1,44 @@
 Rails.application.routes.draw do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
+  post "api/integrations/telehealth/daily/events", to: "integrations/telehealth/daily_events#create"
+  post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
   scope path: "api", as: "api" do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"
     patch "context", to: "context#update"
+    namespace :telehealth do
+      get "booking_options", to: "booking_options#show"
+      get "visits", to: "visits#index"
+      get "visits/:visit_id", to: "visits#show"
+      post "visits/:visit_id/start_encounter", to: "visits#start_encounter"
+      post "visits/:visit_id/verify_preparation", to: "visits#verify_preparation"
+      post "visits/:visit_id/prepare_room", to: "visits#prepare_room"
+      post "visits/:visit_id/participants", to: "participants#create"
+      post "visits/:visit_id/participants/:id/admit", to: "participants#admit"
+      post "visits/:visit_id/participants/:id/remove", to: "participants#remove"
+      post "visits/:visit_id/join_grant", to: "visits#join_grant"
+      post "visits/:visit_id/leave", to: "visits#leave"
+      post "visits/:visit_id/end", to: "visits#end_visit"
+      post "visits/:visit_id/extend", to: "visits#extend_visit"
+      post "visits/:visit_id/resume", to: "visits#resume"
+      post "visits/:visit_id/reconcile", to: "visits#reconcile"
+      post "visits/:visit_id/save_wrap_up", to: "visits#save_wrap_up"
+      post "visits/:visit_id/finalize_wrap_up", to: "visits#finalize_wrap_up"
+      get "settings", to: "settings#show"
+      put "settings/draft", to: "settings#draft"
+      post "settings/publish", to: "settings#publish"
+      post "settings/check_connection", to: "settings#check_connection"
+      post "settings/disable", to: "settings#disable"
+      get "visits/:visit_id/scribe_context", to: "scribe#context"
+      post "visits/:visit_id/request_scribe", to: "scribe#request_scribe"
+      post "visits/:visit_id/scribe_consent", to: "scribe#consent"
+      post "visits/:visit_id/start_scribe_capture", to: "scribe#start_capture"
+      post "visits/:visit_id/renew_scribe_capture", to: "scribe#renew_capture"
+      post "visits/:visit_id/release_scribe_capture", to: "scribe#release_capture"
+      post "visits/:visit_id/take_over_scribe_capture", to: "scribe#take_over_capture"
+    end
     get "note_templates", to: "care/note_templates#index"
     get "facilities", to: "facilities#index"
     post "facilities", to: "facilities#create"
@@ -316,6 +349,15 @@ Rails.application.routes.draw do
   end
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do
+      namespace :telehealth do
+        get "visits/:visit_id", to: "visits#show"
+        post "visits/:visit_id/checkins", to: "visits#checkins"
+        post "visits/:visit_id/consents", to: "visits#consents"
+        post "visits/:visit_id/enter_waiting_room", to: "visits#enter_waiting_room"
+        post "visits/:visit_id/join_grant", to: "visits#join_grant"
+        post "visits/:visit_id/leave", to: "visits#leave"
+        post "visits/:visit_id/scribe_consent", to: "scribe#consent"
+      end
       resources :invoices, only: [] do
         post "online_payment/start", on: :member, to: "invoice_online_payments#start"
         post "online_payment/reconcile", on: :member, to: "invoice_online_payments#reconcile"

@@ -18,6 +18,7 @@ module Clinic
           end
 
           appointment.transition_to!(to)
+          Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor)
           Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)
           appointment
         end

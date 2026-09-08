@@ -26,8 +26,16 @@ module Clinic
     validate :scope_matches_site
     validate :related_records_belong_to_practice
     before_destroy { throw :abort }
+    after_update :reconcile_telehealth_access, if: -> {
+      saved_change_to_revoked_at? || saved_change_to_effective_until? || saved_change_to_effective_from? ||
+        saved_change_to_role_version_id? || saved_change_to_scope_kind? || saved_change_to_site_id?
+    }
 
     private
+
+    def reconcile_telehealth_access
+      Clinic::Telehealth::RevokeMembershipAccess.call(membership: membership)
+    end
 
     def scope_matches_site
       errors.add(:site, "must be blank for a practice grant") if practice? && site_id.present?

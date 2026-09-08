@@ -25,6 +25,8 @@ export type ScribeInputSource =
       kind: "transcript";
       source_id: number;
       digest: string;
+      source_order?: number;
+      capture_epoch?: number;
     }
   | {
       kind: "reviewer_authored_context";
@@ -47,6 +49,12 @@ export type ScribeSource = {
   source_type: "transcript";
   status: ScribeSourceStatus;
   content_digest: string;
+  telehealth_visit_id?: number | null;
+  telehealth_recording_id?: number | null;
+  capture_epoch?: number | null;
+  recording_segment_index?: number | null;
+  source_order?: number | null;
+  source_set_digest?: string | null;
   metadata: Record<string, unknown>;
   content: string | null;
   segments: ScribeSourceSegment[];

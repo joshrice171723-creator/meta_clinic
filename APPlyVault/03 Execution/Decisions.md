@@ -1,9 +1,15 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-03
+updated: 2026-09-08
 ---
 # Decisions
+
+## Telehealth video provider selection
+
+**D-063 — 2026-09-08 / founder's explicit direction:** use Twilio Video with the existing Twilio account to minimize separate provider accounts. Preserve the existing SMS sandbox. Reuse the already configured OpenRouter account for Scribe. This supersedes the assistant-selected Daily implementation direction for new video configuration; it does not assert that Daily was ever activated or that a Daily account existed.
+
+**Limits:** implement in the isolated telehealth checkout while the separate APPly audit is active. Account access and setup are authorized by the founder, but live credentials, provider activation, two-party media and transcription are not established by that authorization. Keep credentials out of source and chat. Real patient data, clinical acceptance and deployment remain outside this decision.
 
 Home: [[00 Home]] · Context: [[Company Foundation]] · Uncertainty: [[Risks and Assumptions]]
 

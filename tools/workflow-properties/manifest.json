@@ -1,0 +1,1822 @@
+[
+  {
+    "name": "visit_type model rejects missing code",
+    "workflows": [
+      4
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "supplier model rejects missing name",
+    "workflows": [
+      15
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "location model rejects missing name",
+    "workflows": [
+      13
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "product model rejects missing name",
+    "workflows": [
+      14
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "product model rejects missing sku",
+    "workflows": [
+      14
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "product model rejects missing stock_unit",
+    "workflows": [
+      14
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "appointment model rejects missing starts_at",
+    "workflows": [
+      21
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "appointment model rejects missing ends_at",
+    "workflows": [
+      21
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "appointment model rejects missing status",
+    "workflows": [
+      21
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "encounter model rejects missing started_at",
+    "workflows": [
+      28
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "encounter model rejects missing status",
+    "workflows": [
+      28
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "lab_report model rejects missing source_name",
+    "workflows": [
+      45
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "observation model rejects missing code",
+    "workflows": [
+      31
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "observation model rejects missing observed_at",
+    "workflows": [
+      31
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "observation model rejects missing unit_code",
+    "workflows": [
+      31
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "observation model rejects missing numeric_value",
+    "workflows": [
+      31
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "staff model rejects missing display_name",
+    "workflows": [
+      5,
+      97
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "staff model rejects missing job_title",
+    "workflows": [
+      5,
+      97
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "employment model rejects missing effective_from",
+    "workflows": [
+      5,
+      97
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "drawer model rejects missing opening_float",
+    "workflows": [
+      56
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "Scribe processing requires accepted unwithdrawn consent and an undeleted session",
+    "workflows": [
+      41,
+      42,
+      43,
+      44
+    ],
+    "layer": "model policy",
+    "executed": true
+  },
+  {
+    "name": "product model rejects zero and negative package conversion",
+    "workflows": [
+      14
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "inventory location hard deletion is rejected",
+    "workflows": [
+      13
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "facility creation rejects missing identity or shipping address atomically",
+    "workflows": [
+      3
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "failed facility hours edit preserves facility name",
+    "workflows": [
+      3
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "patient creation requires an explicit sex response",
+    "workflows": [
+      17
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "patient creation rejects missing identity fields atomically",
+    "workflows": [
+      17
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "patient creation rejects an invalid sex enumeration atomically",
+    "workflows": [
+      17
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "patient creation rejects an explicitly provided impossible email",
+    "workflows": [
+      17
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "patient creation rejects an explicitly provided phone with no digits",
+    "workflows": [
+      17
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "failed patient edit does not partially rename the patient",
+    "workflows": [
+      18
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "partial patient edit preserves omitted demographics",
+    "workflows": [
+      18
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "patient hard delete is unavailable through the clinic API",
+    "workflows": [
+      18
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "administration and exact retry deduct stock exactly once",
+    "workflows": [
+      37,
+      38,
+      39
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "insufficient stock rejects administration without partial deductions",
+    "workflows": [
+      37,
+      38
+    ],
+    "layer": "Rails integration / persistence",
+    "executed": true
+  },
+  {
+    "name": "payment replay creates only one allocation",
+    "workflows": [
+      53
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "overpayment cannot leave a payment event or allocation",
+    "workflows": [
+      53
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "billing_service model rejects missing name",
+    "workflows": [
+      9
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "billing_service model rejects missing unit_amount",
+    "workflows": [
+      9
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "billing_service model rejects missing currency",
+    "workflows": [
+      9
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "membership_package model rejects missing name",
+    "workflows": [
+      11
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "office_item model rejects missing name",
+    "workflows": [
+      16
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "office_item model rejects missing sku",
+    "workflows": [
+      16
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "purchase_order model rejects missing number",
+    "workflows": [
+      63
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "purchase_order model rejects missing destination",
+    "workflows": [
+      63
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "purchase_order model rejects missing reason",
+    "workflows": [
+      63
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "schedule model rejects missing week_start_on",
+    "workflows": [
+      81
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "schedule model rejects missing timezone",
+    "workflows": [
+      81
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "care_need model rejects missing description",
+    "workflows": [
+      30
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "care_need model rejects missing effective_from",
+    "workflows": [
+      30
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "care_need model rejects missing recorded_at",
+    "workflows": [
+      30
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "invoice creation rejects no invoice lines without persistence",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice creation rejects missing line description without persistence",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice creation rejects missing line price without persistence",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice creation rejects missing line quantity without persistence",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invalid invoice edit retains all original line data",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "posted invoice rejects edit and preserves lines",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice credit requires a nonblank reason",
+    "workflows": [
+      54
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice void requires a nonblank reason",
+    "workflows": [
+      54
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice credit replay creates one credit and no cash refund",
+    "workflows": [
+      54
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invoice credit cannot exceed original charges",
+    "workflows": [
+      54
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "paid invoice cannot be voided",
+    "workflows": [
+      54
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "cash payment retry keeps one tender receipt and exact change",
+    "workflows": [
+      50,
+      60
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "cash payment rejects insufficient tender atomically",
+    "workflows": [
+      50
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "closed drawer refuses new cash payment",
+    "workflows": [
+      50,
+      56
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "cash refund creates its receipt and removes cash from drawer totals",
+    "workflows": [
+      55,
+      56,
+      60
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "cash over-refund leaves no refund or refund receipt",
+    "workflows": [
+      55
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication definition rejects omitted amount",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication definition rejects omitted duration",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication definition rejects omitted duration_unit",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication definition rejects omitted terms",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication definition rejects omitted components",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication requires nonblank terms",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership publication rejects zero or negative prices",
+    "workflows": [
+      11
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "receipt service rejects missing reason without partial stock",
+    "workflows": [
+      65
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "receipt service rejects missing lot_number without partial stock",
+    "workflows": [
+      65
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "receipt service rejects missing expires_on without partial stock",
+    "workflows": [
+      65
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "receipt service rejects missing amount without partial stock",
+    "workflows": [
+      65
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "receipt service rejects missing location_id without partial stock",
+    "workflows": [
+      65
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "receipt service rejects missing lines without partial stock",
+    "workflows": [
+      65
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "inventory transfer same_location preserves stock conservation",
+    "workflows": [
+      69
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "inventory transfer overdraw preserves stock conservation",
+    "workflows": [
+      69
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "inventory transfer retry preserves stock conservation",
+    "workflows": [
+      69
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count creation rejects unanswered location_id",
+    "workflows": [
+      70
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count creation rejects unanswered assignee_id",
+    "workflows": [
+      70
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count creation rejects unanswered due_on",
+    "workflows": [
+      70
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count creation rejects unanswered blind",
+    "workflows": [
+      70
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count creation rejects unanswered reason",
+    "workflows": [
+      70
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count cannot complete before outstanding lines are resolved",
+    "workflows": [
+      70
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "count skip retry and resume retain one event per action",
+    "workflows": [
+      96
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "recall creation rejects missing reference",
+    "workflows": [
+      71
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "recall creation rejects missing reason",
+    "workflows": [
+      71
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "recall creation rejects missing required_disposition",
+    "workflows": [
+      71
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "recall creation rejects missing lot_ids",
+    "workflows": [
+      71
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "recall retry keeps one hold and cannot close with stock remaining",
+    "workflows": [
+      71
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "office supply use overdraw protects available quantity",
+    "workflows": [
+      40
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "office supply use missing_reason protects available quantity",
+    "workflows": [
+      40
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "office supply use retry protects available quantity",
+    "workflows": [
+      40
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "invalid reorder point edit preserves catalog and does not create an order",
+    "workflows": [
+      94
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "clinic creation model requires a nonblank clinic name",
+    "workflows": [
+      1
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": true
+  },
+  {
+    "name": "portal invitation refuses an inactive patient account",
+    "workflows": [
+      19
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "portal activation requires affirmative terms acceptance",
+    "workflows": [
+      19
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "portal activation refuses missing terms version",
+    "workflows": [
+      19
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "expired portal invitation cannot create a session",
+    "workflows": [
+      19
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "portal activation token cannot be reused after success",
+    "workflows": [
+      19
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "portal revocation removes all sessions and invitation token",
+    "workflows": [
+      20
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "inactive staff access cannot read clinic patients",
+    "workflows": [
+      7
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "revoked staff access cannot read clinic patients",
+    "workflows": [
+      7
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "expired staff access cannot read clinic patients",
+    "workflows": [
+      7
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "membership retirement preserves published terms and blocks republishing",
+    "workflows": [
+      12
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "posted invoice rejects delete_line and preserves lines",
+    "workflows": [
+      49
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "inventory transfer missing_reason preserves stock conservation",
+    "workflows": [
+      69
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "exception review requires a reason before creating review evidence",
+    "workflows": [
+      72
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "exception review retry does not release stock or reactivate product",
+    "workflows": [
+      72
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "partial supplier delivery replay retains remaining order balance",
+    "workflows": [
+      64,
+      66
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "supplier return overreturn preserves receipt and stock accounting",
+    "workflows": [
+      67
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "supplier return missing_reason preserves receipt and stock accounting",
+    "workflows": [
+      67
+    ],
+    "layer": "application service",
+    "executed": true
+  },
+  {
+    "name": "required creation fields visibly distinguish required from optional",
+    "workflows": [
+      3,
+      4,
+      5,
+      9,
+      13,
+      14,
+      15,
+      16,
+      17,
+      21,
+      31,
+      45,
+      49,
+      56,
+      65,
+      73
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "arrival never starts a second encounter",
+    "workflows": [
+      28
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "cancelled and no-show appointments require replacement",
+    "workflows": [
+      26,
+      27
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "patient search text cannot alter queue parameters",
+    "workflows": [
+      21,
+      25
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "invoice creation rejects a blank service description",
+    "workflows": [
+      49
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "invoice creation rejects zero and negative quantities",
+    "workflows": [
+      49
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "invoice catalog references must be positive",
+    "workflows": [
+      49
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "recorded invoice line references must be positive",
+    "workflows": [
+      49,
+      53
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "inventory deduction retains exact hundredths",
+    "workflows": [
+      38
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "purchase package rounding never underorders",
+    "workflows": [
+      61,
+      62
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "purchase cost is exact for generated unit quantities",
+    "workflows": [
+      61,
+      62
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "membership retry keeps the original action and request key",
+    "workflows": [
+      58,
+      59
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "membership unresolved action cannot move to another patient membership",
+    "workflows": [
+      58,
+      59
+    ],
+    "layer": "frontend helper / SSR",
+    "executed": true
+  },
+  {
+    "name": "previsit import preserves original subjective text and source attribution",
+    "workflows": [
+      90
+    ],
+    "layer": "frontend helper",
+    "executed": true
+  },
+  {
+    "name": "blank previsit import cannot replace existing clinician text",
+    "workflows": [
+      90
+    ],
+    "layer": "frontend helper",
+    "executed": true
+  },
+  {
+    "name": "tracking board stage filter cannot leak another stage or mutate source order",
+    "workflows": [
+      92
+    ],
+    "layer": "frontend helper",
+    "executed": true
+  },
+  {
+    "name": "tracking board cannot show wait duration that predates arrival",
+    "workflows": [
+      92
+    ],
+    "layer": "frontend helper",
+    "executed": true
+  },
+  {
+    "name": "employee activation rejects expired invitation without creating an account",
+    "workflows": [
+      6
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "employee activation rejects short password without partial employment",
+    "workflows": [
+      6
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "employee activation rejects mismatched password confirmation atomically",
+    "workflows": [
+      6
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "employee activation consumes invitation once and links employment sites",
+    "workflows": [
+      6
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "prior document download rejects every nonclean scan state",
+    "workflows": [
+      36
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "prior clean document download returns the authorized document",
+    "workflows": [
+      36
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "workforce site settings inherit null overrides without mutating practice settings",
+    "workflows": [
+      8
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "future workforce settings cannot take effect before their effective time",
+    "workflows": [
+      8
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "supplier return retry preserves receipt and stock accounting",
+    "workflows": [
+      67
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "supplier invoice valid validates reconciliation evidence",
+    "workflows": [
+      68
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "supplier invoice wrong_total validates reconciliation evidence",
+    "workflows": [
+      68
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "supplier invoice missing_reference validates reconciliation evidence",
+    "workflows": [
+      68
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "inventory scan is exact and never records stock movement",
+    "workflows": [
+      93
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "lot adjustment missing_reason protects stock accounting",
+    "workflows": [
+      95
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "lot adjustment overdraw protects stock accounting",
+    "workflows": [
+      95
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "lot adjustment retry protects stock accounting",
+    "workflows": [
+      95
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "standard login rejects blank email_address without creating session",
+    "workflows": [
+      2
+    ],
+    "layer": "Rails integration / independent authenticated session",
+    "executed": false
+  },
+  {
+    "name": "standard login rejects blank password without creating session",
+    "workflows": [
+      2
+    ],
+    "layer": "Rails integration / independent authenticated session",
+    "executed": false
+  },
+  {
+    "name": "standard login inactive cannot retain authenticated access",
+    "workflows": [
+      2
+    ],
+    "layer": "Rails integration / independent authenticated session",
+    "executed": false
+  },
+  {
+    "name": "standard login logout cannot retain authenticated access",
+    "workflows": [
+      2
+    ],
+    "layer": "Rails integration / independent authenticated session",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: empty SOAP creation is rejected",
+    "workflows": [
+      33
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: creation retry preserves one note and revision",
+    "workflows": [
+      33,
+      91
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: revision retry preserves previous content and rejects stale edits",
+    "workflows": [
+      33,
+      91
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: signing rejects invalid content_digest",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: signing rejects invalid revision_no",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: signing rejects invalid attestation_version",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: signing retry is unique and signed content cannot be edited",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: unsigned notes cannot enter signed correction flow",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: correction payload requires a reason",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: correction retry preserves signed original and separate unsigned revision",
+    "workflows": [
+      34
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: closure rejects end times at or before arrival",
+    "workflows": [
+      35
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Clinical notes: closure retry commits once and rejects changed time",
+    "workflows": [
+      35,
+      91
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires source_name",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires title",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires name",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires value",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires collected_at",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires issued_at",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires patient confirmation",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation requires at least one result",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: creation replay keeps one report and version",
+    "workflows": [
+      45
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: corrected version retry preserves original and blocks stale review",
+    "workflows": [
+      46,
+      47
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: required follow-up instructions cannot be blank",
+    "workflows": [
+      47,
+      48
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: follow-up cannot precede report review",
+    "workflows": [
+      48
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: review replay records one follow-up decision",
+    "workflows": [
+      47,
+      48
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: follow-up completion requires an outcome",
+    "workflows": [
+      48
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "Lab workflow: follow-up completion replay commits once",
+    "workflows": [
+      48
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "portal message model rejects missing creation input",
+    "workflows": [
+      76
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "portal booking model rejects missing creation input",
+    "workflows": [
+      22
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "portal change request model requires source appointment snapshot",
+    "workflows": [
+      89
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "portal reviewed request model requires review attribution",
+    "workflows": [
+      23
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "previsit exact retry creates one version and changed retry conflicts",
+    "workflows": [
+      32
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "patient confirmation rejects changed appointment material",
+    "workflows": [
+      24
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "reschedule rejects nonpositive duration without mutation",
+    "workflows": [
+      25
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "terminal appointment cannot be confirmed again",
+    "workflows": [
+      24,
+      26,
+      27
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "appointment approval rejects missing time or clinic atomically",
+    "workflows": [
+      23
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "appointment decline exact retry preserves one reviewed request",
+    "workflows": [
+      23
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "simulated online invoice checkout retry preserves payment state",
+    "workflows": [
+      51
+    ],
+    "layer": "application service / in-memory provider simulation",
+    "executed": false
+  },
+  {
+    "name": "simulated online invoice checkout cancel preserves payment state",
+    "workflows": [
+      52
+    ],
+    "layer": "application service / in-memory provider simulation",
+    "executed": false
+  },
+  {
+    "name": "simulated online invoice checkout complete_unpaid preserves payment state",
+    "workflows": [
+      52
+    ],
+    "layer": "application service / in-memory provider simulation",
+    "executed": false
+  },
+  {
+    "name": "simulated online invoice checkout inactive_cards preserves payment state",
+    "workflows": [
+      51
+    ],
+    "layer": "application service / in-memory provider simulation",
+    "executed": false
+  },
+  {
+    "name": "local fixture membership replay activates exactly once",
+    "workflows": [
+      57
+    ],
+    "layer": "application service / local fixture processor",
+    "executed": false
+  },
+  {
+    "name": "local fixture membership unknown_recovery activates exactly once",
+    "workflows": [
+      57
+    ],
+    "layer": "application service / local fixture processor",
+    "executed": false
+  },
+  {
+    "name": "provider_completed rejects assignment without a participant mutation",
+    "workflows": [
+      29
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "provider_stale rejects assignment without a participant mutation",
+    "workflows": [
+      29
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "provider_wrong_site rejects assignment without a participant mutation",
+    "workflows": [
+      29
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "provider assignment accepts a current clinician at the encounter site",
+    "workflows": [
+      29
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "staff attachment rejects missing filename or checksum before creation",
+    "workflows": [
+      78
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "staff attachment rejects nonpositive or oversized files",
+    "workflows": [
+      78
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "staff acknowledgement rejects messages without acknowledgement request",
+    "workflows": [
+      78
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "marking staff conversation read does not acknowledge a message",
+    "workflows": [
+      80
+    ],
+    "layer": "application service",
+    "executed": false
+  },
+  {
+    "name": "time_off model rejects missing creation data",
+    "workflows": [
+      82
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "availability model rejects missing creation data",
+    "workflows": [
+      82
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "template model rejects missing creation data",
+    "workflows": [
+      81
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "payroll_configuration model rejects missing creation data",
+    "workflows": [
+      84,
+      100
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "badge model rejects missing creation data",
+    "workflows": [
+      83,
+      98
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "timecard model rejects missing creation data",
+    "workflows": [
+      84,
+      99
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "reminder model rejects missing creation data",
+    "workflows": [
+      73,
+      74
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "message model rejects missing creation data",
+    "workflows": [
+      77
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "staff_request model rejects missing creation data",
+    "workflows": [
+      79
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "time off model rejects zero or negative duration",
+    "workflows": [
+      82
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "availability model rejects impossible clock values",
+    "workflows": [
+      82
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "badge model rejects revocation without attribution",
+    "workflows": [
+      83,
+      98
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "timecard model rejects approval without reviewer and submission",
+    "workflows": [
+      84,
+      99
+    ],
+    "layer": "ActiveRecord validation",
+    "executed": false
+  },
+  {
+    "name": "reminder terminal state cannot be restarted",
+    "workflows": [
+      75
+    ],
+    "layer": "model persistence policy",
+    "executed": false
+  },
+  {
+    "name": "resolved staff request cannot be reopened",
+    "workflows": [
+      79
+    ],
+    "layer": "model persistence policy",
+    "executed": false
+  },
+  {
+    "name": "approved timecard rejects edit and deletion",
+    "workflows": [
+      84,
+      99,
+      100
+    ],
+    "layer": "model persistence policy",
+    "executed": false
+  }
+]

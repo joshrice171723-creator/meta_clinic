@@ -359,6 +359,13 @@ export type Pagination = {
   total_pages: number;
 };
 export type ClinicCapabilities = {
+  telehealth_read?: boolean;
+  telehealth_prepare_read?: boolean;
+  telehealth_prepare_verify?: boolean;
+  telehealth_host?: boolean;
+  telehealth_participate?: boolean;
+  telehealth_configure?: boolean;
+  telehealth_reconcile?: boolean;
   workforce_self?: boolean;
   workforce_admin?: boolean;
   workforce_settings?: boolean;
@@ -679,6 +686,14 @@ export type ClinicWorkspaceContext = {
   current_site: ClinicSite | null;
   sites: ClinicSite[];
 };
+export type TelehealthSummary = {
+  public_id: string;
+  status: string;
+  access_state: string;
+  prepare_href: string;
+  clinic_href: string | null;
+  allowed_actions: string[];
+};
 export type Appointment = {
   id: number;
   patient_id: number;
@@ -690,6 +705,8 @@ export type Appointment = {
   ends_at: string;
   status: string;
   encounter_id: number | null;
+  visit_modality?: "in_person" | "video";
+  telehealth?: TelehealthSummary | null;
   patient?: Pick<Patient, "id" | "display_name" | "reference"> & {
     phone?: string | null;
   };
@@ -717,6 +734,7 @@ export type Clinician = {
   }[];
 };
 export type Encounter = {
+  telehealth?: TelehealthSummary | null;
   id: number;
   patient_id: number;
   appointment_id: number | null;

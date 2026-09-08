@@ -640,6 +640,21 @@ export function PatientPortal({
                               >
                                 View appointment
                               </Button>
+                              {nextAppointment.telehealth && (
+                                <Button
+                                  variant="contained"
+                                  href={nextAppointment.telehealth.prepare_href}
+                                >
+                                  {["join", "rejoin", "admitted"].includes(
+                                    nextAppointment.telehealth.access_state,
+                                  )
+                                    ? "Return to video visit"
+                                    : nextAppointment.telehealth
+                                          .access_state === "waiting"
+                                      ? "Open waiting room"
+                                      : "Prepare for video visit"}
+                                </Button>
+                              )}
                               <Button
                                 variant="outlined"
                                 onClick={() =>

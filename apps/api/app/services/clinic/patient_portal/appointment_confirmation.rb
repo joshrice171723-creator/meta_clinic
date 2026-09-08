@@ -68,6 +68,7 @@ module Clinic
           id: payload.fetch(:id),
           starts_at: payload.fetch(:starts_at),
           ends_at: payload.fetch(:ends_at),
+          visit_modality: payload.fetch(:visit_modality),
           site: payload.fetch(:site),
           room: payload.fetch(:room),
           clinician: payload.fetch(:clinician),

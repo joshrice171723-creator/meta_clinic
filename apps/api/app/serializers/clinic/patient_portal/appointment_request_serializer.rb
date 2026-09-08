@@ -8,6 +8,7 @@ module Clinic
           id: request.id,
           request_key: request.request_key,
           request_kind: request.request_kind,
+          requested_modality: request.requested_modality,
           starts_at: request.starts_at&.iso8601(6),
           ends_at: request.ends_at&.iso8601(6),
           status: request.status,
@@ -37,6 +38,10 @@ module Clinic
           starts_at: record.starts_at&.iso8601(6),
           ends_at: record.ends_at&.iso8601(6),
           status: record.status,
+          visit_modality: record.visit_modality,
+          telehealth: Clinic::Telehealth::SummarySerializer.call(record.telehealth_visit)&.slice(
+            :public_id, :status, :prepare_href, :clinic_href
+          ),
           updated_at: record.updated_at&.iso8601(6),
           site: site(record.site),
           room: record.room && { id: record.room.id, code: record.room.code },
@@ -55,6 +60,7 @@ module Clinic
           id: request.source_appointment_id,
           starts_at: request.source_starts_at&.iso8601(6),
           ends_at: request.source_ends_at&.iso8601(6),
+          visit_modality: request.source_appointment&.visit_modality,
           status: request.source_status,
           updated_at: request.source_appointment_updated_at&.iso8601(6),
           site: site(request.source_site)
@@ -65,8 +71,9 @@ module Clinic
         record && { id: record.id, code: record.code, name: record.name }
       end
 
-      def visit_type(record)
-        record && { id: record.id, code: record.code }
+      def visit_type(record, allowed_modalities: nil)
+        record && { id: record.id, code: record.code,
+          allowed_modalities: allowed_modalities || [ "in_person" ] }
       end
     end
   end

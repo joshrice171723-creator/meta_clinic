@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     module AppointmentSerializer
-      def self.call(appointment)
+      def self.call(appointment, actor: nil)
         {
           id: appointment.id,
           patient_id: appointment.patient_id,
@@ -19,12 +19,20 @@ module Clinic
           starts_at: appointment.starts_at&.iso8601(6),
           ends_at: appointment.ends_at&.iso8601(6),
           status: appointment.status,
+          visit_modality: appointment.visit_modality,
+          telehealth: telehealth(appointment.telehealth_visit, actor: actor),
           updated_at: appointment.updated_at&.iso8601(6),
           encounter_id: appointment.encounter&.id,
           encounter_status: appointment.encounter&.status,
           encounter_started_at: appointment.encounter&.started_at&.iso8601(6),
           encounter_ended_at: appointment.encounter&.ended_at&.iso8601(6)
         }
+      end
+
+      def self.telehealth(visit, actor:)
+        Clinic::Telehealth::SummarySerializer.call(visit, actor: actor)&.slice(
+          :public_id, :status, :prepare_href, :clinic_href
+        )
       end
     end
   end

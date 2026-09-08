@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-03
+updated: 2026-09-08
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,10 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-08 — Telehealth provider choice clarified
+
+The founder selected Twilio Video to reuse the existing messaging account and avoid a separate Daily account (D-063). Existing local messaging configuration contains test credentials; that is not evidence of Video activation. Existing OpenRouter configuration remains the selected Scribe route. The change is confined to the isolated telehealth checkout while the APPly audit remains separate. [Local operation](../../josh_current_work/telehealth/LOCAL_OPERATION.md) records configuration and [implementation evidence](../../josh_current_work/telehealth/IMPLEMENTATION_EVIDENCE.md) distinguishes checks from live-provider proof. Account access attempts through Chrome and Windows Computer Use timed out before a dashboard could be inspected; no account was created or live call established by those attempts.
 
 ## 2026-09-03 — Shortcut OAuth recovery added to agent coordination
 

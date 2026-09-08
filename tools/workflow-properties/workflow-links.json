@@ -1,0 +1,18 @@
+{
+  "arrival never starts a second encounter": [28],
+  "cancelled and no-show appointments require replacement": [26,27],
+  "appointment model rejects missing starts_at": [21],
+  "appointment model rejects missing ends_at": [21],
+  "appointment model rejects missing status": [21],
+  "failed patient edit does not partially rename the patient": [18],
+  "partial patient edit preserves omitted demographics": [18],
+  "patient hard delete is unavailable through the clinic API": [18],
+  "inventory deduction retains exact hundredths": [38],
+  "administration and exact retry deduct stock exactly once": [37,38,39],
+  "insufficient stock rejects administration without partial deductions": [37,38],
+  "payment replay creates only one allocation": [53],
+  "overpayment cannot leave a payment event or allocation": [53],
+  "membership retry keeps the original action and request key": [58,59],
+  "membership unresolved action cannot move to another patient membership": [58,59],
+  "product model rejects zero and negative package conversion": [14]
+}

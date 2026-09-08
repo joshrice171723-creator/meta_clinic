@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Switch from "@mui/material/Switch";
+import Button from "@mui/material/Button";
+import { useClinic } from "../clinic/Workspace";
 import type { User, UserSettings } from "../../api/contracts";
 import { api } from "../../api/client";
 import { Card, ErrorMessage, Field, Form, LoadState } from "../../shared/ui";
@@ -243,7 +245,8 @@ export function AppearanceSettings({
         <div className="development-settings">
           <Card title="Workspace view">
             <p>
-              Choose a workspace view. Omni access and permissions stay the same.
+              Choose a workspace view. Omni access and permissions stay the
+              same.
             </p>
             <Form
               endpoint="/api/development_access"
@@ -284,6 +287,7 @@ export function AppearanceSettings({
 
 export function Settings({ user }: { user: User }) {
   const appearance = useAppearance();
+  const clinic = useClinic();
   if (!appearance.settings)
     return (
       <div className="clinic-settings">
@@ -297,11 +301,22 @@ export function Settings({ user }: { user: User }) {
       </div>
     );
   return (
-    <AppearanceSettings
-      user={user}
-      settings={appearance.settings}
-      accept={appearance.accept}
-      systemDark={appearance.systemDark}
-    />
+    <>
+      {clinic.capabilities.telehealth_configure && (
+        <Button
+          href="/clinic/settings/telehealth"
+          variant="outlined"
+          sx={{ mb: 2 }}
+        >
+          Telehealth settings
+        </Button>
+      )}
+      <AppearanceSettings
+        user={user}
+        settings={appearance.settings}
+        accept={appearance.accept}
+        systemDark={appearance.systemDark}
+      />
+    </>
   );
 }

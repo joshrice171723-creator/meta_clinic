@@ -74,6 +74,7 @@ export type ScribeReviewWorkspaceProps = {
   discardEditsToken?: number;
   documentId?: number;
   followCurrentDraftId?: number | null;
+  exportLabel?: string;
 };
 
 const sectionLabels: Record<ScribeDraftSection["section_key"], string> = {
@@ -146,6 +147,17 @@ function sourceForDraft(encounter: ScribeEncounter, draft?: ScribeDraft) {
       encounter.sources.find((source) => source.id === draft.source_id)) ??
     encounter.sources[0]
   );
+}
+function sourcesForDraft(encounter: ScribeEncounter, draft?: ScribeDraft) {
+  const sourceIds = draft?.input_sources
+    ?.filter((source) => source.kind === "transcript")
+    .map((source) => source.source_id);
+  if (sourceIds?.length)
+    return sourceIds
+      .map((id) => encounter.sources.find((source) => source.id === id))
+      .filter((source): source is ScribeSource => Boolean(source));
+  const fallback = sourceForDraft(encounter, draft);
+  return fallback ? [fallback] : [];
 }
 function baselineForDraft(draft: ScribeDraft) {
   return Object.fromEntries(
@@ -282,24 +294,29 @@ export function sectionAcceptBlocked(
 }
 
 function SourceTranscript({
-  source,
+  sources,
   contextGrounded,
   selectedSegmentId,
   onSelect,
 }: {
-  source?: ScribeSource;
+  sources: ScribeSource[];
   contextGrounded?: boolean;
   selectedSegmentId: number | null;
   onSelect: (id: number) => void;
 }) {
-  if (!source && contextGrounded)
+  if (!sources.length && contextGrounded)
     return (
       <Alert severity="info">
         Reviewer context is the grounding source for this revision. No spoken
         transcript is attached.
       </Alert>
     );
-  if (!source || source.content === null || source.status === "deleted")
+  if (
+    !sources.length ||
+    sources.some(
+      (source) => source.content === null || source.status === "deleted",
+    )
+  )
     return (
       <Alert severity="warning">
         Source transcript is unavailable. Approval remains blocked.
@@ -315,45 +332,47 @@ function SourceTranscript({
           Imported evidence for this revision. This is not generated content.
         </Typography>
       </Box>
-      {source.status !== "ready" && (
+      {sources.some((source) => source.status !== "ready") && (
         <Alert severity="warning">
-          Source status is {source.status.replaceAll("_", " ")}. Resolve it
-          before approval.
+          One or more source segments are not ready. Resolve them before
+          approval.
         </Alert>
       )}
       <List disablePadding aria-label="Transcript source spans">
-        {source.segments.length ? (
-          source.segments.map((segment) => (
-            <ListItemButton
-              key={segment.id}
-              id={`scribe-source-segment-${segment.id}`}
-              selected={selectedSegmentId === segment.id}
-              onClick={() => onSelect(segment.id)}
-              sx={{ borderRadius: 1, alignItems: "flex-start", mb: 0.5 }}
-            >
-              <ListItemText
-                primary={`${speakerLabels[segment.speaker]} · ${formatTime(segment.start_ms)}`}
-                secondary={
-                  segment.content?.trim() || "Transcript text unavailable."
-                }
-                slotProps={{
-                  primary: {
-                    variant: "caption",
-                    color: "text.secondary",
-                    sx: { fontVariantNumeric: "tabular-nums" },
-                  },
-                  secondary: {
-                    color: "text.primary",
-                    sx: {
-                      mt: 0.25,
-                      whiteSpace: "pre-wrap",
-                      overflowWrap: "anywhere",
+        {sources.some((source) => source.segments.length) ? (
+          sources.flatMap((source) =>
+            source.segments.map((segment) => (
+              <ListItemButton
+                key={segment.id}
+                id={`scribe-source-segment-${segment.id}`}
+                selected={selectedSegmentId === segment.id}
+                onClick={() => onSelect(segment.id)}
+                sx={{ borderRadius: 1, alignItems: "flex-start", mb: 0.5 }}
+              >
+                <ListItemText
+                  primary={`${speakerLabels[segment.speaker]} · ${formatTime(segment.start_ms)}`}
+                  secondary={
+                    segment.content?.trim() || "Transcript text unavailable."
+                  }
+                  slotProps={{
+                    primary: {
+                      variant: "caption",
+                      color: "text.secondary",
+                      sx: { fontVariantNumeric: "tabular-nums" },
                     },
-                  },
-                }}
-              />
-            </ListItemButton>
-          ))
+                    secondary: {
+                      color: "text.primary",
+                      sx: {
+                        mt: 0.25,
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                      },
+                    },
+                  }}
+                />
+              </ListItemButton>
+            )),
+          )
         ) : (
           <Typography color="text.secondary" variant="body2">
             No transcript spans are available.
@@ -370,7 +389,7 @@ function ReviewDrawer({
   encounter,
   draft,
   currentDraftId,
-  source,
+  sources,
   selectedSegmentId,
   onEvidenceSelect,
   onSelectDraft,
@@ -380,7 +399,7 @@ function ReviewDrawer({
   encounter: ScribeEncounter;
   draft: ScribeDraft;
   currentDraftId?: number;
-  source?: ScribeSource;
+  sources: ScribeSource[];
   selectedSegmentId: number | null;
   onEvidenceSelect: (id: number) => void;
   onSelectDraft: (id: number) => void;
@@ -455,7 +474,7 @@ function ReviewDrawer({
             </Box>
             <Divider />
             <SourceTranscript
-              source={source}
+              sources={sources}
               contextGrounded={hasContextInput(draft)}
               selectedSegmentId={selectedSegmentId}
               onSelect={onEvidenceSelect}
@@ -510,9 +529,9 @@ function ReviewDrawer({
                           sx={{ mt: 0.5, flexWrap: "wrap" }}
                         >
                           {section.evidence_segment_ids.map((id) => {
-                            const segment = source?.segments.find(
-                              (item) => item.id === id,
-                            );
+                            const segment = sources
+                              .flatMap((source) => source.segments)
+                              .find((item) => item.id === id);
                             return segment ? (
                               <Button
                                 key={id}
@@ -564,6 +583,7 @@ export function ScribeReviewWorkspace({
   discardEditsToken,
   documentId,
   followCurrentDraftId,
+  exportLabel = "Save to chart",
 }: ScribeReviewWorkspaceProps) {
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(
     null,
@@ -592,10 +612,11 @@ export function ScribeReviewWorkspace({
       ) ?? latestDraft,
     [documentId, encounter, latestDraft, selectedDraftId],
   );
-  const source = useMemo(
-    () => (encounter ? sourceForDraft(encounter, draft) : undefined),
+  const sources = useMemo(
+    () => (encounter ? sourcesForDraft(encounter, draft) : []),
     [encounter, draft],
   );
+  const source = sources.at(-1);
   const isCurrentRevision = Boolean(
     draft &&
     latestDraft &&
@@ -1186,7 +1207,7 @@ export function ScribeReviewWorkspace({
                   ? "Saved to chart"
                   : reviewSummary.exported
                     ? "Export recorded"
-                    : "Save to chart"}
+                    : exportLabel}
               </Button>
               {reviewSummary.chartWritten &&
                 encounter.clinical_encounter_id && (
@@ -1207,7 +1228,7 @@ export function ScribeReviewWorkspace({
         encounter={encounter}
         draft={draft}
         currentDraftId={latestDraft?.id}
-        source={source}
+        sources={sources}
         selectedSegmentId={selectedSegmentId}
         onEvidenceSelect={selectEvidence}
         onSelectDraft={(id) => {

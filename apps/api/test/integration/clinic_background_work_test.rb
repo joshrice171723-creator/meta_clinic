@@ -3,6 +3,7 @@ require "test_helper"
 class ClinicBackgroundWorkTest < ActionDispatch::IntegrationTest
   setup do
     @at = Time.utc(2026, 9, 7, 15)
+    travel_to @at
     @organization = Organization.create!(name: "Background Work Test Organization")
     @practice = Clinic::Practice.create!(name: "Background Work Test Practice", organization: @organization, timezone: "UTC")
     @actor = User.create!(email_address: "background-work@example.invalid", password: SecureRandom.hex(20))

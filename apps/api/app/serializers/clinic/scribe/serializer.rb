@@ -31,6 +31,9 @@ module Clinic
       def source(source)
         {
           id: source.id, source_type: source.source_type, status: source.status, content_digest: source.content_digest,
+          telehealth_visit_id: source.telehealth_visit_id, telehealth_recording_id: source.telehealth_recording_id,
+          capture_epoch: source.capture_epoch, recording_segment_index: source.recording_segment_index,
+          source_order: source.source_order, source_set_digest: source.source_set_digest,
           metadata: source.source_metadata, content: source.status == "deleted" ? nil : source.content,
           segments: source.segments.order(:sequence).map { |segment| segment(segment) }
         }

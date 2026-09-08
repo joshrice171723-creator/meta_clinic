@@ -1,0 +1,402 @@
+[
+  {
+    "id": 1,
+    "name": "Create the clinic organization [Administrative setup]"
+  },
+  {
+    "id": 2,
+    "name": "Sign in and select the working clinic"
+  },
+  {
+    "id": 3,
+    "name": "Create or update a clinic site"
+  },
+  {
+    "id": 4,
+    "name": "Configure visit types"
+  },
+  {
+    "id": 5,
+    "name": "Create a staff member and employment"
+  },
+  {
+    "id": 6,
+    "name": "Activate an employee account"
+  },
+  {
+    "id": 7,
+    "name": "Grant change or revoke clinic permissions"
+  },
+  {
+    "id": 8,
+    "name": "Configure workforce settings and onboarding"
+  },
+  {
+    "id": 9,
+    "name": "Create the billable service catalog"
+  },
+  {
+    "id": 10,
+    "name": "Connect the clinic to Stripe [Sandbox only]"
+  },
+  {
+    "id": 11,
+    "name": "Create and publish a membership package"
+  },
+  {
+    "id": 12,
+    "name": "Update or retire a membership offering"
+  },
+  {
+    "id": 13,
+    "name": "Configure inventory and storage locations"
+  },
+  {
+    "id": 14,
+    "name": "Create or update an inventory product"
+  },
+  {
+    "id": 15,
+    "name": "Create suppliers and import supplier pricing"
+  },
+  {
+    "id": 16,
+    "name": "Create an office supply item and starting balance"
+  },
+  {
+    "id": 17,
+    "name": "Register a patient"
+  },
+  {
+    "id": 18,
+    "name": "Update patient demographics and address"
+  },
+  {
+    "id": 19,
+    "name": "Invite and activate patient portal access"
+  },
+  {
+    "id": 20,
+    "name": "Recover or revoke patient portal access"
+  },
+  {
+    "id": 21,
+    "name": "Schedule an appointment"
+  },
+  {
+    "id": 22,
+    "name": "Request an appointment from the patient portal"
+  },
+  {
+    "id": 23,
+    "name": "Approve or decline an appointment request"
+  },
+  {
+    "id": 24,
+    "name": "Confirm an appointment"
+  },
+  {
+    "id": 25,
+    "name": "Reschedule an appointment"
+  },
+  {
+    "id": 26,
+    "name": "Cancel an appointment or mark a no show"
+  },
+  {
+    "id": 27,
+    "name": "Schedule a replacement after cancellation or no show"
+  },
+  {
+    "id": 28,
+    "name": "Start a scheduled or walk in visit"
+  },
+  {
+    "id": 29,
+    "name": "Assign or change the visit provider"
+  },
+  {
+    "id": 30,
+    "name": "Review and update clinical history"
+  },
+  {
+    "id": 31,
+    "name": "Record vital signs and observations"
+  },
+  {
+    "id": 32,
+    "name": "Submit and review a previsit note"
+  },
+  {
+    "id": 33,
+    "name": "Create and revise an encounter note"
+  },
+  {
+    "id": 34,
+    "name": "Sign a note and correct a signed note"
+  },
+  {
+    "id": 35,
+    "name": "Complete a visit and provide visit instructions"
+  },
+  {
+    "id": 36,
+    "name": "Open previous notes documents and care summaries"
+  },
+  {
+    "id": 37,
+    "name": "Record a medication administration and deduct stock"
+  },
+  {
+    "id": 38,
+    "name": "Verify the visit actually consumed inventory"
+  },
+  {
+    "id": 39,
+    "name": "Recover an uncertain medication posting"
+  },
+  {
+    "id": 40,
+    "name": "Record office supply use or a stock correction"
+  },
+  {
+    "id": 41,
+    "name": "Create a Scribe session and record consent"
+  },
+  {
+    "id": 42,
+    "name": "Record finalize and transcribe audio"
+  },
+  {
+    "id": 43,
+    "name": "Generate review and approve a Scribe draft"
+  },
+  {
+    "id": 44,
+    "name": "Finish review or discard a Scribe session"
+  },
+  {
+    "id": 45,
+    "name": "Record a lab report"
+  },
+  {
+    "id": 46,
+    "name": "Add a corrected lab version and inspect trends"
+  },
+  {
+    "id": 47,
+    "name": "Review a lab report"
+  },
+  {
+    "id": 48,
+    "name": "Create and complete lab follow up"
+  },
+  {
+    "id": 49,
+    "name": "Create edit and post a visit invoice"
+  },
+  {
+    "id": 50,
+    "name": "Collect and allocate a cash payment"
+  },
+  {
+    "id": 51,
+    "name": "Collect an online visit payment [Sandbox only]"
+  },
+  {
+    "id": 52,
+    "name": "Recover or cancel an online checkout"
+  },
+  {
+    "id": 53,
+    "name": "Allocate an existing payment to an invoice"
+  },
+  {
+    "id": 54,
+    "name": "Credit or void an invoice"
+  },
+  {
+    "id": 55,
+    "name": "Refund a cash payment and verify the receipt"
+  },
+  {
+    "id": 56,
+    "name": "Open close and reconcile a cash drawer"
+  },
+  {
+    "id": 57,
+    "name": "Purchase and activate a patient membership"
+  },
+  {
+    "id": 58,
+    "name": "Review eligibility or activate from an existing payment"
+  },
+  {
+    "id": 59,
+    "name": "Renew cancel or refund a membership"
+  },
+  {
+    "id": 60,
+    "name": "Review patient balances receipts and billing totals"
+  },
+  {
+    "id": 61,
+    "name": "Build a replenishment order"
+  },
+  {
+    "id": 62,
+    "name": "Edit and check out a purchase cart"
+  },
+  {
+    "id": 63,
+    "name": "Create and progress a purchase order"
+  },
+  {
+    "id": 64,
+    "name": "Record a shipment or cancel an order remainder"
+  },
+  {
+    "id": 65,
+    "name": "Receive a purchase order delivery"
+  },
+  {
+    "id": 66,
+    "name": "Receive a partial delivery and manage shortages"
+  },
+  {
+    "id": 67,
+    "name": "Record a supplier return and credit"
+  },
+  {
+    "id": 68,
+    "name": "Match a supplier invoice to the order"
+  },
+  {
+    "id": 69,
+    "name": "Transfer inventory between locations"
+  },
+  {
+    "id": 70,
+    "name": "Perform and approve an inventory count"
+  },
+  {
+    "id": 71,
+    "name": "Contain and close a recall"
+  },
+  {
+    "id": 72,
+    "name": "Investigate exceptions and certify controlled stock"
+  },
+  {
+    "id": 73,
+    "name": "Create and send a patient reminder"
+  },
+  {
+    "id": 74,
+    "name": "Preview and schedule a reminder batch"
+  },
+  {
+    "id": 75,
+    "name": "Pause cancel retry or hand off a reminder"
+  },
+  {
+    "id": 76,
+    "name": "Respond to reminders and manage patient requests"
+  },
+  {
+    "id": 77,
+    "name": "Create a staff conversation and send a message"
+  },
+  {
+    "id": 78,
+    "name": "Attach a file and acknowledge a message"
+  },
+  {
+    "id": 79,
+    "name": "Accept complete or escalate a staff request"
+  },
+  {
+    "id": 80,
+    "name": "Manage notifications and operational follow ups"
+  },
+  {
+    "id": 81,
+    "name": "Build validate and publish a staff schedule"
+  },
+  {
+    "id": 82,
+    "name": "Request availability time off or a shift swap"
+  },
+  {
+    "id": 83,
+    "name": "Enroll a kiosk issue a badge and record punches"
+  },
+  {
+    "id": 84,
+    "name": "Correct approve and export timecards"
+  },
+  {
+    "id": 85,
+    "name": "Complete guidance training [Separate product]"
+  },
+  {
+    "id": 86,
+    "name": "Complete guidance paperwork and contact support [Separate product]"
+  },
+  {
+    "id": 87,
+    "name": "Conduct a telehealth visit [Separate development lane]"
+  },
+  {
+    "id": 88,
+    "name": "Handle work outside the documented application scope [External or not established]"
+  },
+  {
+    "id": 89,
+    "name": "Request a reschedule or cancellation from the portal"
+  },
+  {
+    "id": 90,
+    "name": "Import patient previsit context into a note"
+  },
+  {
+    "id": 91,
+    "name": "Recover an uncertain note save or visit closure"
+  },
+  {
+    "id": 92,
+    "name": "Customize and navigate the tracking board"
+  },
+  {
+    "id": 93,
+    "name": "Scan an inventory product"
+  },
+  {
+    "id": 94,
+    "name": "Change a product reorder point"
+  },
+  {
+    "id": 95,
+    "name": "Record a lot adjustment or status change"
+  },
+  {
+    "id": 96,
+    "name": "Reassign skip resume or cancel a count session"
+  },
+  {
+    "id": 97,
+    "name": "Deactivate or update an employee"
+  },
+  {
+    "id": 98,
+    "name": "Revoke a lost badge or retired kiosk"
+  },
+  {
+    "id": 99,
+    "name": "Review employee hours and request a correction"
+  },
+  {
+    "id": 100,
+    "name": "Correct a previous payroll export"
+  }
+]

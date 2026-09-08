@@ -32,7 +32,10 @@ import { api } from "../../api/client";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import {
   ScribeRecordingControls,
+  type ScribeRecordingAudioSource,
   type ScribeRecordingState,
+  type ScribeSegmentCompletionReason,
+  type ScribeTelehealthCaptureAuthorization,
 } from "./ScribeRecordingControls";
 
 export type ScribeRecordingSessionInput = {
@@ -43,9 +46,18 @@ export type ScribeRecordingSessionInput = {
   patientLabel: string;
   contextContent: string;
   returnPath?: string;
+  presentation?: "floating" | "in_call";
+  telehealthVisitPublicId?: string;
+  audioSource?: ScribeRecordingAudioSource;
+  telehealthCapture?: ScribeTelehealthCaptureAuthorization;
+  deferProcessing?: boolean;
+  onSegmentFinalized?: (
+    recordingId: number,
+    reason: ScribeSegmentCompletionReason,
+  ) => void;
 };
 
-type PersistentScribeValue = {
+export type PersistentScribeValue = {
   session: ScribeRecordingSessionInput | null;
   state: ScribeRecordingState;
   begin: (
@@ -58,8 +70,25 @@ type PersistentScribeValue = {
     processingAllowed: boolean;
     contextContent: string;
     scrubContext?: boolean;
+    audioSource?: ScribeRecordingAudioSource;
+    telehealthCapture?: ScribeTelehealthCaptureAuthorization;
+    deferProcessing?: boolean;
+    onSegmentFinalized?: ScribeRecordingSessionInput["onSegmentFinalized"];
   }) => void;
   expand: () => void;
+  start: () => void;
+  finish: () => void;
+  discard: () => void;
+  terminateTelehealthCapture: (visitPublicId: string, reason?: string) => void;
+  contextValue: string;
+  setContextValue: (value: string) => void;
+  contextDirty: boolean;
+  contextSaving: boolean;
+  contextError: string | null;
+  latestSavedContext: string | null;
+  useLatestSavedContext: () => void;
+  keepTypedContext: () => void;
+  saveContext: () => Promise<boolean>;
 };
 
 const initialState: ScribeRecordingState = {
@@ -140,7 +169,16 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
   const finishPendingRef = useRef(false);
   const contextMutationRef = useRef<Promise<boolean> | null>(null);
   const contextGenerationRef = useRef(0);
+  const directFinishRef = useRef<(() => void) | null>(null);
   const dirty = contextValue !== contextBaseline;
+  const sessionRef = useRef(session);
+  const stateRef = useRef(state);
+  const dirtyRef = useRef(dirty);
+  const contextBaselineRef = useRef(contextBaseline);
+  sessionRef.current = session;
+  stateRef.current = state;
+  dirtyRef.current = dirty;
+  contextBaselineRef.current = contextBaseline;
 
   const begin = useCallback(
     (
@@ -148,16 +186,20 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       options: { startRecording?: boolean } = {},
     ) => {
       const startRecording = options.startRecording !== false;
-      if (!canBeginPersistentScribeSession(session, input, startRecording))
+      const current = sessionRef.current;
+      if (!canBeginPersistentScribeSession(current, input, startRecording))
         return false;
-      if (session) {
-        if (session.encounterId === input.encounterId) {
+      if (current) {
+        if (current.encounterId === input.encounterId) {
+          const merged = { ...current, ...input };
+          sessionRef.current = merged;
+          setSession(merged);
           setExpanded(true);
-          if (startRecording && !state.active)
-            setStartToken((value) => value + 1);
+          if (startRecording) setStartToken((value) => value + 1);
         }
-        return session.encounterId === input.encounterId;
+        return current.encounterId === input.encounterId;
       }
+      sessionRef.current = input;
       setSession(input);
       setContextValue(input.contextContent);
       setContextBaseline(input.contextContent);
@@ -169,7 +211,7 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       if (startRecording) setStartToken((value) => value + 1);
       return true;
     },
-    [session, state.active],
+    [],
   );
 
   const reconcile = useCallback(
@@ -179,17 +221,30 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       processingAllowed: boolean;
       contextContent: string;
       scrubContext?: boolean;
+      audioSource?: ScribeRecordingAudioSource;
+      telehealthCapture?: ScribeTelehealthCaptureAuthorization;
+      deferProcessing?: boolean;
+      onSegmentFinalized?: ScribeRecordingSessionInput["onSegmentFinalized"];
     }) => {
-      if (!session || session.encounterId !== input.encounterId) return;
-      setSession((current) =>
-        current
-          ? {
-              ...current,
-              encounterVersion: input.encounterVersion,
-              processingAllowed: input.processingAllowed,
-            }
-          : current,
-      );
+      const current = sessionRef.current;
+      if (!current || current.encounterId !== input.encounterId) return;
+      const merged = {
+        ...current,
+        encounterVersion: input.encounterVersion,
+        processingAllowed: input.processingAllowed,
+        ...(input.audioSource ? { audioSource: input.audioSource } : {}),
+        ...(input.telehealthCapture
+          ? { telehealthCapture: input.telehealthCapture }
+          : {}),
+        ...(input.deferProcessing === undefined
+          ? {}
+          : { deferProcessing: input.deferProcessing }),
+        ...(input.onSegmentFinalized
+          ? { onSegmentFinalized: input.onSegmentFinalized }
+          : {}),
+      };
+      sessionRef.current = merged;
+      setSession(merged);
       if (input.scrubContext) {
         contextGenerationRef.current += 1;
         setContextValue(input.contextContent);
@@ -198,11 +253,11 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
         setLatestSavedContext(null);
         setLatestSavedVersion(null);
         setError(null);
-      } else if (!dirty) {
+      } else if (!dirtyRef.current) {
         setContextValue(input.contextContent);
         setContextBaseline(input.contextContent);
         setEncounterVersion(input.encounterVersion);
-      } else if (input.contextContent === contextBaseline) {
+      } else if (input.contextContent === contextBaselineRef.current) {
         setEncounterVersion(input.encounterVersion);
       } else {
         setLatestSavedContext(input.contextContent);
@@ -213,7 +268,7 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
         setExpanded(true);
       }
     },
-    [dirty, session],
+    [],
   );
 
   const saveContext = useCallback(async () => {
@@ -242,6 +297,8 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
         setContextValue(saved);
         setContextBaseline(saved);
         setEncounterVersion(response.encounter.version);
+        setLatestSavedContext(null);
+        setLatestSavedVersion(null);
         return true;
       } catch (reason) {
         try {
@@ -280,6 +337,26 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
     return request;
   }, [contextBaseline, contextValue, encounterVersion, session]);
 
+  const useLatestSavedContext = useCallback(() => {
+    if (latestSavedContext === null || latestSavedVersion === null) return;
+    contextGenerationRef.current += 1;
+    setContextValue(latestSavedContext);
+    setContextBaseline(latestSavedContext);
+    setEncounterVersion(latestSavedVersion);
+    setLatestSavedContext(null);
+    setLatestSavedVersion(null);
+    setError(null);
+  }, [latestSavedContext, latestSavedVersion]);
+
+  const keepTypedContext = useCallback(() => {
+    if (latestSavedContext === null || latestSavedVersion === null) return;
+    setContextBaseline(latestSavedContext);
+    setEncounterVersion(latestSavedVersion);
+    setLatestSavedContext(null);
+    setLatestSavedVersion(null);
+    setError(null);
+  }, [latestSavedContext, latestSavedVersion]);
+
   const returnToNote = useCallback(
     (reviewToken?: string | number) => {
       if (!session) return false;
@@ -311,6 +388,38 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
     else setFinishToken((value) => value + 1);
   }, [returnToNote, saveContext, session, state.recordingId]);
 
+  const startRecording = useCallback(() => {
+    if (sessionRef.current && !stateRef.current.active)
+      setStartToken((value) => value + 1);
+  }, []);
+
+  const registerExternalFinish = useCallback((finish: (() => void) | null) => {
+    directFinishRef.current = finish;
+  }, []);
+
+  const finishRecording = useCallback(() => {
+    if (!sessionRef.current || !stateRef.current.active) return;
+    if (directFinishRef.current) directFinishRef.current();
+    else setFinishToken((value) => value + 1);
+  }, []);
+
+  const discardRecording = useCallback(() => {
+    if (sessionRef.current && stateRef.current.active)
+      setDiscardToken((value) => value + 1);
+  }, []);
+
+  const terminateTelehealthCapture = useCallback(
+    (visitPublicId: string, _reason?: string) => {
+      if (
+        sessionRef.current?.telehealthVisitPublicId === visitPublicId &&
+        stateRef.current.active
+      )
+        if (directFinishRef.current) directFinishRef.current();
+        else setFinishToken((value) => value + 1);
+    },
+    [],
+  );
+
   const value = useMemo<PersistentScribeValue>(
     () => ({
       session,
@@ -318,8 +427,38 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
       begin,
       reconcile,
       expand: () => setExpanded(true),
+      start: startRecording,
+      finish: finishRecording,
+      discard: discardRecording,
+      terminateTelehealthCapture,
+      contextValue,
+      setContextValue,
+      contextDirty: dirty,
+      contextSaving: saving,
+      contextError: error,
+      latestSavedContext,
+      useLatestSavedContext,
+      keepTypedContext,
+      saveContext,
     }),
-    [begin, reconcile, session, state],
+    [
+      begin,
+      contextValue,
+      dirty,
+      discardRecording,
+      error,
+      finishRecording,
+      keepTypedContext,
+      latestSavedContext,
+      reconcile,
+      saveContext,
+      saving,
+      session,
+      startRecording,
+      state,
+      terminateTelehealthCapture,
+      useLatestSavedContext,
+    ],
   );
 
   useEffect(() => {
@@ -351,7 +490,26 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
   return (
     <PersistentScribeContext value={value}>
       {children}
-      {session && (
+      {session?.presentation === "in_call" && (
+        <ScribeRecordingControls
+          encounterId={session.encounterId}
+          encounterVersion={encounterVersion}
+          processingAllowed={session.processingAllowed}
+          scopeKey={session.scopeKey}
+          startRequestToken={startToken}
+          finishRequestToken={finishToken}
+          discardRequestToken={discardToken}
+          onRecordingStateChange={setState}
+          onCancelled={() => setSession(null)}
+          audioSource={session.audioSource}
+          telehealthCapture={session.telehealthCapture}
+          deferProcessing={session.deferProcessing}
+          onFinalized={session.onSegmentFinalized}
+          registerExternalFinish={registerExternalFinish}
+          headless
+        />
+      )}
+      {session && session.presentation !== "in_call" && (
         <Paper
           component="aside"
           elevation={8}
@@ -495,29 +653,13 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
                     slotProps={{ input: { readOnly: true } }}
                   />
                   <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        setContextValue(latestSavedContext);
-                        setContextBaseline(latestSavedContext);
-                        setEncounterVersion(latestSavedVersion);
-                        setLatestSavedContext(null);
-                        setLatestSavedVersion(null);
-                        setError(null);
-                      }}
-                    >
+                    <Button size="small" onClick={useLatestSavedContext}>
                       Use latest saved
                     </Button>
                     <Button
                       size="small"
                       variant="outlined"
-                      onClick={() => {
-                        setContextBaseline(latestSavedContext);
-                        setEncounterVersion(latestSavedVersion);
-                        setLatestSavedContext(null);
-                        setLatestSavedVersion(null);
-                        setError(null);
-                      }}
+                      onClick={keepTypedContext}
                     >
                       Keep my typed context
                     </Button>

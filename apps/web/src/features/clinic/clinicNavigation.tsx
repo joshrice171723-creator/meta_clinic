@@ -29,10 +29,18 @@ export function normalizeClinicPath(pathname: string) {
 }
 
 function scheduleAliasSearch(search: string) {
-  const patientId = new URLSearchParams(search).get("patient_id");
-  if (!patientId || !/^[1-9]\d*$/.test(patientId)) return "";
-  const value = Number(patientId);
-  return Number.isSafeInteger(value) ? `?patient_id=${value}` : "";
+  const input = new URLSearchParams(search);
+  const output = new URLSearchParams();
+  const patientId = input.get("patient_id");
+  if (
+    patientId &&
+    /^[1-9]\d*$/.test(patientId) &&
+    Number.isSafeInteger(Number(patientId))
+  )
+    output.set("patient_id", String(Number(patientId)));
+  if (input.get("visit_modality") === "video")
+    output.set("visit_modality", "video");
+  return output.size ? `?${output}` : "";
 }
 
 export function clinicRoute(
@@ -48,7 +56,9 @@ export function clinicRoute(
   return {
     path: normalizeClinicPath(originalPath),
     search:
-      originalPath === "/clinic/schedule" ? scheduleAliasSearch(search) : search,
+      originalPath === "/clinic/schedule"
+        ? scheduleAliasSearch(search)
+        : search,
     homeView:
       originalPath === "/clinic/schedule"
         ? "schedule"

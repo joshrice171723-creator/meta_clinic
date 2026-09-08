@@ -15,8 +15,11 @@ module Clinic
           source = source_for(recording)
           if source
             draft = recording.encounter.drafts.where(source_id: source.id).order(:revision_number, :id).last
+            message = recording.capture_source == "telehealth_mix" ?
+              "The acknowledged transcript segment is ready. Generate the encounter draft from the ordered source set." :
+              "Transcript and SOAP draft are ready for review."
             return {
-              status: "ready", message: "Transcript and SOAP draft are ready for review.",
+              status: "ready", message:,
               source_id: source.id, draft_id: draft&.id
             }
           end
@@ -31,13 +34,14 @@ module Clinic
             code: event.metadata["code"] }
         end
 
-        def process!(recording:, actor:, provider: OpenRouter)
+        def process!(recording:, actor:, provider: OpenRouter, capture_epoch: nil)
           authorize!(recording, actor)
+          ensure_processable!(recording, actor:, capture_epoch:)
           ready = status(recording)
           return ready if ready[:status] == "ready"
           return availability unless provider.configured?
 
-          audio = assembled_audio(recording)
+          audio = assembled_audio(recording, actor:, capture_epoch:)
           provider_inputs = Workflow.capture_provider_inputs!(encounter: recording.encounter, actor: actor)
           record_event!(recording, actor, "recording_processing", model: provider.model)
           result = provider.process(audio: audio, format: audio_format(recording.mime_type), duration_ms: recording.duration_ms,
@@ -46,30 +50,42 @@ module Clinic
           Recording.transaction do
             recording.encounter.lock!
             recording.lock!
-            ensure_processable!(recording)
+            ensure_processable!(recording, actor:, capture_epoch:)
             existing = source_for(recording)
             if existing
               source = existing
               draft = recording.encounter.drafts.where(source_id: source.id).order(:revision_number, :id).last
             else
+              source_attributes = telehealth_source_attributes(recording)
               source = Workflow.ingest_transcript(encounter: recording.encounter, actor: actor,
                 content: result.fetch(:transcript), metadata: { "duration_ms" => recording.duration_ms },
                 trusted_metadata: {
                   "recording_id" => recording.id, "provider" => result.fetch(:provider),
-                  "model" => result.fetch(:model), "model_version" => result.fetch(:model_version)
-                })
-              draft, = Workflow.generate_provider_draft!(encounter: recording.encounter, actor: actor,
-                source: source, sections: result.fetch(:sections),
-                uncertain_sections: result.fetch(:uncertain_sections), provider: result.fetch(:provider),
-                model: result.fetch(:model), model_version: result.fetch(:model_version),
-                prompt_digest: result.fetch(:prompt_digest),
-                expected_provider_input_digest: provider_inputs.fetch(:digest))
+                  "model" => result.fetch(:model), "model_version" => result.fetch(:model_version),
+                  "capture_source" => recording.capture_source,
+                  "telehealth_visit_id" => source_attributes[:telehealth_visit]&.id,
+                  "capture_epoch" => source_attributes[:capture_epoch],
+                  "recording_segment_index" => source_attributes[:recording_segment_index],
+                  "source_order" => source_attributes[:source_order],
+                  "source_set_digest" => source_attributes[:source_set_digest]
+                }, trusted_source_attributes: source_attributes)
+              unless recording.capture_source == "telehealth_mix"
+                draft, = Workflow.generate_provider_draft!(encounter: recording.encounter, actor: actor,
+                  source: source, sections: result.fetch(:sections),
+                  uncertain_sections: result.fetch(:uncertain_sections), provider: result.fetch(:provider),
+                  model: result.fetch(:model), model_version: result.fetch(:model_version),
+                  prompt_digest: result.fetch(:prompt_digest),
+                  expected_provider_input_digest: provider_inputs.fetch(:digest))
+              end
               record_event!(recording, actor, "recording_processing_ready", source_id: source.id,
-                draft_id: draft.id, provider: result.fetch(:provider), model: result.fetch(:model),
+                draft_id: draft&.id, provider: result.fetch(:provider), model: result.fetch(:model),
                 provider_request_id: result[:provider_request_id])
             end
           end
-          { status: "ready", message: "Transcript and SOAP draft are ready for review.", source_id: source.id, draft_id: draft&.id }
+          message = recording.capture_source == "telehealth_mix" ?
+            "The acknowledged transcript segment is ready. Generate the encounter draft from the ordered source set." :
+            "Transcript and SOAP draft are ready for review."
+          { status: "ready", message:, source_id: source.id, draft_id: draft&.id }
         rescue OpenRouter::Error => error
           record_failure(recording, actor, error.code,
             http_status: error.http_status, provider_code: error.provider_code)
@@ -81,8 +97,8 @@ module Clinic
 
         private
 
-        def assembled_audio(recording)
-          ensure_processable!(recording)
+        def assembled_audio(recording, actor:, capture_epoch:)
+          ensure_processable!(recording, actor:, capture_epoch:)
           chunks = recording.chunks.where(status: "acknowledged").order(:sequence).to_a
           raise ArgumentError, "Recording chunks are incomplete." unless chunks.map(&:sequence) == (0...recording.total_chunks).to_a
 
@@ -96,17 +112,50 @@ module Clinic
           raise ArgumentError, "The saved recording could not be assembled."
         end
 
-        def ensure_processable!(recording)
+        def ensure_processable!(recording, actor: nil, capture_epoch: nil)
           encounter = recording.encounter
           raise ArgumentError, "Only a completed recording can be transcribed." unless recording.status == "completed"
           raise ArgumentError, "The recording is incomplete." unless recording.total_chunks.to_i.positive? && recording.duration_ms.to_i.positive?
-          raise ArgumentError, "Current consent does not allow processing." unless encounter.processing_allowed?
-          same_epoch = encounter.consent_policy_version == recording.consent_policy_version && encounter.consented_at == recording.consented_at
-          raise ArgumentError, "Consent changed after this recording was made." unless same_epoch
+          if recording.capture_source == "telehealth_mix"
+            Clinic::Telehealth::Scribe::ValidateCaptureEpoch.processing!(visit: recording.telehealth_visit,
+              actor:, recording:, capture_epoch: capture_epoch || recording.capture_epoch)
+            same_consent = encounter.consent_policy_version == recording.consent_policy_version &&
+              encounter.consented_at == recording.consented_at
+            unless same_consent
+              raise Clinic::Telehealth::Error.new("Consent changed after this recording segment was captured.",
+                code: "scribe_consent_not_current", status: :conflict)
+            end
+          else
+            raise ArgumentError, "Current consent does not allow processing." unless encounter.processing_allowed?
+            same_consent = encounter.consent_policy_version == recording.consent_policy_version &&
+              encounter.consented_at == recording.consented_at
+            raise ArgumentError, "Consent changed after this recording was made." unless same_consent
+          end
+        end
+
+        def telehealth_source_attributes(recording)
+          return {} unless recording.capture_source == "telehealth_mix"
+
+          ordered = Clinic::Scribe::Recording.where(practice_id: recording.practice_id,
+            telehealth_visit_id: recording.telehealth_visit_id, status: "completed")
+            .order(:capture_epoch, :source_order, :id).map do |item|
+              [ item.id, item.capture_epoch, item.recording_segment_index, item.source_order,
+                item.total_chunks, item.total_bytes, item.duration_ms ]
+            end
+          {
+            telehealth_visit: recording.telehealth_visit,
+            telehealth_recording: recording,
+            capture_epoch: recording.capture_epoch,
+            recording_segment_index: recording.recording_segment_index,
+            source_order: recording.source_order,
+            source_set_digest: Digest::SHA256.hexdigest(ordered.flatten.join("\0"))
+          }
         end
 
         def authorize!(recording, actor)
           Authorization.authorize!(actor: actor, practice: recording.practice, action: "scribe.write", site: recording.encounter.site)
+          return if recording.capture_source == "telehealth_mix"
+
           raise Authorization::Denied, "Only the recording owner can process this recording." unless recording.created_by_id == actor.id
         end
 

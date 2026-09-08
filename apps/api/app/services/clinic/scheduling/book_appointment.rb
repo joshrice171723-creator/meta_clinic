@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
-        request_key: nil)
+        request_key: nil, visit_modality: "in_person")
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
@@ -10,6 +10,12 @@ module Clinic
         authorize.call
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
 
+        visit_modality = visit_modality.to_s.presence || "in_person"
+        raise ArgumentError, "Visit format must be in person or video." unless %w[in_person video].include?(visit_modality)
+        if visit_modality == "video"
+          raise ArgumentError, "A video visit cannot reserve a physical room." if room
+          raise ArgumentError, "Choose a clinician for a video visit." unless booked_clinician
+        end
         attributes = {
           patient: patient,
           site: site,
@@ -17,7 +23,9 @@ module Clinic
           booked_clinician: booked_clinician,
           visit_type: visit_type,
           starts_at: starts_at,
-          ends_at: ends_at
+          ends_at: ends_at,
+          visit_modality: visit_modality,
+          actor: actor
         }
         return create_appointment(practice: practice, **attributes) if request_key.nil?
 
@@ -35,7 +43,8 @@ module Clinic
             booked_clinician_id: booked_clinician&.id,
             visit_type_id: visit_type&.id,
             starts_at: starts_at.utc.iso8601(6),
-            ends_at: ends_at.utc.iso8601(6)
+            ends_at: ends_at.utc.iso8601(6),
+            visit_modality: visit_modality
           }
         ) do
           create_appointment(practice: practice, **attributes)
@@ -47,19 +56,15 @@ module Clinic
         raise ArgumentError, "The selected room or clinician is already reserved for that interval."
       end
 
-      def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:)
-        appointment = practice.appointments.new(
-          patient: patient,
-          site: site,
-          room: room,
-          booked_clinician: booked_clinician,
-          visit_type: visit_type,
-          starts_at: starts_at,
-          ends_at: ends_at,
-          status: "scheduled"
-        )
-        appointment.save!
-        appointment
+      def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:,
+        visit_modality:, actor:)
+        ApplicationRecord.transaction do
+          appointment = practice.appointments.create!(patient: patient, site: site, room: room,
+            booked_clinician: booked_clinician, visit_type: visit_type, starts_at: starts_at, ends_at: ends_at,
+            status: "scheduled", visit_modality: visit_modality)
+          Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor) if visit_modality == "video"
+          appointment
+        end
       end
       private_class_method :create_appointment
     end

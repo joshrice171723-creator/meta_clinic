@@ -24,10 +24,15 @@ import {
 import { PatientPrevisitNote } from "./PatientPrevisitNote";
 
 type Site = { id: number; code: string; name: string };
-type VisitType = { id: number; code: string };
+type VisitType = {
+  id: number;
+  code: string;
+  allowed_modalities?: ("in_person" | "video")[];
+};
 export type UpcomingAppointment = ConfirmableAppointment;
 type AppointmentSnapshot = UpcomingAppointment;
 type AppointmentRequest = {
+  requested_modality?: "in_person" | "video";
   id: number;
   request_key: string;
   request_kind: "new_booking" | "reschedule" | "cancel";
@@ -103,6 +108,9 @@ export function PatientAppointmentRequests({
   });
   const [siteId, setSiteId] = useState("");
   const [visitTypeId, setVisitTypeId] = useState("");
+  const [requestedModality, setRequestedModality] = useState<
+    "in_person" | "video"
+  >("in_person");
   const [busy, setBusy] = useState(false);
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [error, setError] = useState("");
@@ -168,6 +176,7 @@ export function PatientAppointmentRequests({
             ends_at: new Date(endsAt).toISOString(),
             site_id: Number(siteId),
             visit_type_id: visitTypeId ? Number(visitTypeId) : undefined,
+            requested_modality: requestedModality,
           },
         },
       });
@@ -319,6 +328,22 @@ export function PatientAppointmentRequests({
                                 : "Scheduled"
                             }
                           />
+                          {appointment.telehealth && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              href={appointment.telehealth.prepare_href}
+                            >
+                              {["join", "rejoin", "admitted"].includes(
+                                appointment.telehealth.access_state,
+                              )
+                                ? "Return to video visit"
+                                : appointment.telehealth.access_state ===
+                                    "waiting"
+                                  ? "Open waiting room"
+                                  : "Prepare for video visit"}
+                            </Button>
+                          )}
                           {pendingChange ? (
                             <Chip
                               size="small"
@@ -451,6 +476,7 @@ export function PatientAppointmentRequests({
                   helperText="Choose one if you have a preference."
                   onChange={(event) => {
                     setVisitTypeId(event.target.value);
+                    setRequestedModality("in_person");
                     setRequestKey(crypto.randomUUID());
                   }}
                 >
@@ -460,6 +486,31 @@ export function PatientAppointmentRequests({
                       {type.code}
                     </MenuItem>
                   ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Preferred visit format"
+                  value={requestedModality}
+                  disabled={busy || outcomeUnconfirmed}
+                  onChange={(event) => {
+                    setRequestedModality(
+                      event.target.value as "in_person" | "video",
+                    );
+                    setRequestKey(crypto.randomUUID());
+                  }}
+                  helperText="Video visits require an eligible visit type and clinic approval."
+                >
+                  <MenuItem value="in_person">In person</MenuItem>
+                  <MenuItem
+                    value="video"
+                    disabled={
+                      !resource.data.options.visit_types
+                        .find((type) => String(type.id) === visitTypeId)
+                        ?.allowed_modalities?.includes("video")
+                    }
+                  >
+                    Video
+                  </MenuItem>
                 </TextField>
               </Box>
               <Stack

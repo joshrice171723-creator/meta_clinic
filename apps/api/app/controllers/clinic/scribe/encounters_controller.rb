@@ -117,10 +117,19 @@ module Clinic
 
       def generate
         encounter = scoped_encounter
-        input = params[:generation].present? ? parameter_hash!(:generation, %i[template_id document_id expected_version]) : {}
+        input = params[:generation].present? ? parameter_hash!(:generation,
+          %i[template_id document_id expected_version telehealth_visit_public_id capture_epoch], arrays: %i[source_ids]) : {}
+        if input[:telehealth_visit_public_id].present?
+          visit = Clinic::Telehealth::Visit.find_by!(practice_id: current_practice.id,
+            public_id: input[:telehealth_visit_public_id])
+          unless visit.scribe_encounter_id == encounter.id && visit.scribe_capture_epoch == input[:capture_epoch].to_i
+            raise ArgumentError, "The Scribe source set is not current for this telehealth visit."
+          end
+        end
         draft, document = Workflow.generate_draft(encounter: encounter, actor: current_user,
           template_id: input[:template_id].presence || Workflow::DEFAULT_TEMPLATE_ID,
           document_id: input[:document_id].presence,
+          source_ids: input[:source_ids],
           expected_version: input[:expected_version].nil? ? nil : bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647))
         render json: { draft: Serializer.draft(draft), document: Serializer.document(document),
           encounter: Serializer.encounter(encounter.reload) }, status: :created

@@ -179,6 +179,22 @@ $$;
 
 
 --
+-- Name: clinic_telehealth_wrap_ups_protect_finalized(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_telehealth_wrap_ups_protect_finalized() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.status = 'finalized' THEN
+    RAISE EXCEPTION 'Finalized telehealth wrap-ups are immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: erd_freeze_granted_role(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1578,6 +1594,43 @@ END $$;
 
 
 --
+-- Name: telehealth_join_grant_freeze(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.telehealth_join_grant_freeze() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' OR
+     (to_jsonb(OLD) - 'revoked_at' - 'revocation_reason') <> (to_jsonb(NEW) - 'revoked_at' - 'revocation_reason') OR
+     (OLD.revoked_at IS NOT NULL AND OLD.revoked_at IS DISTINCT FROM NEW.revoked_at) THEN
+    RAISE EXCEPTION 'telehealth join grants are immutable except for first revocation';
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+--
+-- Name: telehealth_policy_freeze(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.telehealth_policy_freeze() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' OR OLD.status = 'retired' OR
+     (OLD.status = 'published' AND NOT (
+       NEW.status = 'retired' AND NEW.retired_at IS NOT NULL AND
+       (to_jsonb(OLD) - 'status' - 'retired_at' - 'updated_at' - 'lock_version') =
+         (to_jsonb(NEW) - 'status' - 'retired_at' - 'updated_at' - 'lock_version')
+     )) THEN
+    RAISE EXCEPTION 'published telehealth policy versions are immutable';
+  END IF;
+  RETURN NEW;
+END; $$;
+
+
+--
 -- Name: workforce_adjustment_freeze(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1707,9 +1760,11 @@ CREATE TABLE public.clinic_appointments (
     status character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    visit_modality character varying(16) DEFAULT 'in_person'::character varying NOT NULL,
     CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
     CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
-    CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at))
+    CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at)),
+    CONSTRAINT clinic_appointments_visit_modality CHECK ((((visit_modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying])::text[])) AND (((visit_modality)::text <> 'video'::text) OR (room_id IS NULL))))
 );
 
 
@@ -1812,7 +1867,7 @@ CREATE TABLE public.clinic_audit_resource_manifests (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     audit_event_id bigint NOT NULL,
-    protected_resource_version_ref character varying NOT NULL,
+    protected_resource_version_ref character varying CONSTRAINT clinic_audit_resource_manif_protected_resource_version_not_null NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_audit_manifests_ref_present CHECK ((length(TRIM(BOTH FROM protected_resource_version_ref)) > 0))
@@ -3279,14 +3334,14 @@ CREATE TABLE public.clinic_inventory_purchase_cart_items (
     practice_id bigint NOT NULL,
     cart_id bigint NOT NULL,
     product_id bigint NOT NULL,
-    requested_packages numeric(20,6) NOT NULL,
+    requested_packages numeric(20,6) CONSTRAINT clinic_inventory_purchase_cart_item_requested_packages_not_null NOT NULL,
     input_unit character varying NOT NULL,
     selected_currency character varying NOT NULL,
     source character varying NOT NULL,
     status character varying NOT NULL,
     conversion_factor numeric(20,6) NOT NULL,
-    selected_unit_price numeric(20,6) NOT NULL,
-    selected_package_quantity numeric(20,6) NOT NULL,
+    selected_unit_price numeric(20,6) CONSTRAINT clinic_inventory_purchase_cart_ite_selected_unit_price_not_null NOT NULL,
+    selected_package_quantity numeric(20,6) CONSTRAINT clinic_inventory_purchase_ca_selected_package_quantity_not_null NOT NULL,
     selected_supplier_product_id bigint,
     selected_supplier_id bigint,
     price_snapshot_at timestamp(6) without time zone,
@@ -3363,7 +3418,7 @@ ALTER SEQUENCE public.clinic_inventory_purchase_carts_id_seq OWNED BY public.cli
 CREATE TABLE public.clinic_inventory_purchase_order_events (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
-    purchase_order_id bigint NOT NULL,
+    purchase_order_id bigint CONSTRAINT clinic_inventory_purchase_order_even_purchase_order_id_not_null NOT NULL,
     actor_id bigint NOT NULL,
     from_status character varying NOT NULL,
     to_status character varying NOT NULL,
@@ -3401,14 +3456,14 @@ ALTER SEQUENCE public.clinic_inventory_purchase_order_events_id_seq OWNED BY pub
 CREATE TABLE public.clinic_inventory_purchase_order_lines (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
-    purchase_order_id bigint NOT NULL,
+    purchase_order_id bigint CONSTRAINT clinic_inventory_purchase_order_line_purchase_order_id_not_null NOT NULL,
     product_id bigint NOT NULL,
     product_name character varying NOT NULL,
     stock_unit character varying NOT NULL,
     input_unit character varying NOT NULL,
     ordered_quantity numeric(20,6) NOT NULL,
-    received_quantity numeric(20,6) NOT NULL,
-    conversion_factor numeric(20,6) NOT NULL,
+    received_quantity numeric(20,6) CONSTRAINT clinic_inventory_purchase_order_line_received_quantity_not_null NOT NULL,
+    conversion_factor numeric(20,6) CONSTRAINT clinic_inventory_purchase_order_line_conversion_factor_not_null NOT NULL,
     unit_price numeric(20,6) NOT NULL,
     currency character varying,
     created_at timestamp(6) without time zone NOT NULL,
@@ -3544,7 +3599,7 @@ CREATE TABLE public.clinic_inventory_recall_dispositions (
     actor_id bigint NOT NULL,
     quantity numeric(20,6) NOT NULL,
     method character varying NOT NULL,
-    evidence_reference character varying NOT NULL,
+    evidence_reference character varying CONSTRAINT clinic_inventory_recall_disposition_evidence_reference_not_null NOT NULL,
     reason character varying NOT NULL,
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
@@ -3825,14 +3880,14 @@ CREATE TABLE public.clinic_inventory_shipment_reconciliations (
     actor_id bigint NOT NULL,
     profile_id bigint NOT NULL,
     receipt_id bigint,
-    accepted_packages numeric(20,6) NOT NULL,
-    missing_packages numeric(20,6) NOT NULL,
-    rejected_packages numeric(20,6) NOT NULL,
-    excess_packages numeric(20,6) NOT NULL,
+    accepted_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconcilia_accepted_packages_not_null NOT NULL,
+    missing_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconciliat_missing_packages_not_null NOT NULL,
+    rejected_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconcilia_rejected_packages_not_null NOT NULL,
+    excess_packages numeric(20,6) CONSTRAINT clinic_inventory_shipment_reconciliati_excess_packages_not_null NOT NULL,
     exception character varying NOT NULL,
     reason character varying NOT NULL,
     request_key character varying NOT NULL,
-    payload_digest character varying NOT NULL,
+    payload_digest character varying CONSTRAINT clinic_inventory_shipment_reconciliatio_payload_digest_not_null NOT NULL,
     observations jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
@@ -4446,11 +4501,11 @@ ALTER SEQUENCE public.clinic_lab_result_follow_ups_id_seq OWNED BY public.clinic
 CREATE TABLE public.clinic_medication_administration_movements (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
-    medication_administration_id bigint NOT NULL,
-    inventory_entry_id bigint NOT NULL,
+    medication_administration_id bigint CONSTRAINT clinic_medication_administr_medication_administration__not_null NOT NULL,
+    inventory_entry_id bigint CONSTRAINT clinic_medication_administration_mo_inventory_entry_id_not_null NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    stock_snapshot text NOT NULL
+    stock_snapshot text CONSTRAINT clinic_medication_administration_moveme_stock_snapshot_not_null NOT NULL
 );
 
 
@@ -4483,7 +4538,7 @@ CREATE TABLE public.clinic_medication_administrations (
     patient_id bigint NOT NULL,
     encounter_id bigint NOT NULL,
     site_id bigint NOT NULL,
-    administered_by_membership_id bigint NOT NULL,
+    administered_by_membership_id bigint CONSTRAINT clinic_medication_administr_administered_by_membership_not_null NOT NULL,
     product_id bigint NOT NULL,
     dose_text text NOT NULL,
     route_text text NOT NULL,
@@ -4663,7 +4718,7 @@ CREATE TABLE public.clinic_message_delivery_events (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     message_intent_id bigint NOT NULL,
-    provider_event_reference character varying NOT NULL,
+    provider_event_reference character varying CONSTRAINT clinic_message_delivery_event_provider_event_reference_not_null NOT NULL,
     outcome character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
@@ -5064,9 +5119,9 @@ CREATE TABLE public.clinic_patient_communication_preferences (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     patient_id bigint NOT NULL,
-    preferred_contact_method character varying NOT NULL,
-    appointment_reminders_consent boolean DEFAULT false NOT NULL,
-    general_communications_consent boolean DEFAULT false NOT NULL,
+    preferred_contact_method character varying CONSTRAINT clinic_patient_communication__preferred_contact_method_not_null NOT NULL,
+    appointment_reminders_consent boolean DEFAULT false CONSTRAINT clinic_patient_communicatio_appointment_reminders_cons_not_null NOT NULL,
+    general_communications_consent boolean DEFAULT false CONSTRAINT clinic_patient_communicatio_general_communications_con_not_null NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_patient_communication_preferences_method CHECK (((preferred_contact_method)::text = ANY (ARRAY[('text'::character varying)::text, ('phone'::character varying)::text, ('email'::character varying)::text, ('portal'::character varying)::text])))
@@ -5179,7 +5234,7 @@ CREATE TABLE public.clinic_patient_emergency_contacts (
     name text NOT NULL,
     relationship character varying NOT NULL,
     phone text NOT NULL,
-    permission_to_contact boolean DEFAULT false NOT NULL,
+    permission_to_contact boolean DEFAULT false CONSTRAINT clinic_patient_emergency_contact_permission_to_contact_not_null NOT NULL,
     effective_from timestamp(6) with time zone NOT NULL,
     effective_until timestamp(6) with time zone,
     created_at timestamp(6) without time zone NOT NULL,
@@ -5305,21 +5360,23 @@ CREATE TABLE public.clinic_patient_portal_appointment_requests (
     site_id bigint,
     visit_type_id bigint,
     status character varying DEFAULT 'pending'::character varying NOT NULL,
-    requested_at timestamp(6) without time zone NOT NULL,
+    requested_at timestamp(6) without time zone CONSTRAINT clinic_patient_portal_appointment_request_requested_at_not_null NOT NULL,
     reviewed_at timestamp(6) without time zone,
     review_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     appointment_id bigint,
     reviewed_by_membership_id bigint,
-    request_kind character varying DEFAULT 'new_booking'::character varying NOT NULL,
+    request_kind character varying DEFAULT 'new_booking'::character varying CONSTRAINT clinic_patient_portal_appointment_request_request_kind_not_null NOT NULL,
     source_appointment_id bigint,
     source_appointment_updated_at timestamp(6) without time zone,
     source_starts_at timestamp(6) without time zone,
     source_ends_at timestamp(6) without time zone,
     source_site_id bigint,
     source_status character varying,
-    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY (ARRAY[('new_booking'::character varying)::text, ('reschedule'::character varying)::text, ('cancel'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('declined'::character varying)::text, ('cancelled'::character varying)::text])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL)))))
+    requested_modality character varying(16),
+    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY (ARRAY[('new_booking'::character varying)::text, ('reschedule'::character varying)::text, ('cancel'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('declined'::character varying)::text, ('cancelled'::character varying)::text])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL))))),
+    CONSTRAINT clinic_portal_requests_modality CHECK (((requested_modality IS NULL) OR ((requested_modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying])::text[]))))
 );
 
 
@@ -5475,14 +5532,14 @@ CREATE TABLE public.clinic_patient_reminder_delivery_attempts (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     reminder_id bigint NOT NULL,
-    attempt_number integer NOT NULL,
+    attempt_number integer CONSTRAINT clinic_patient_reminder_delivery_attemp_attempt_number_not_null NOT NULL,
     provider character varying DEFAULT 'synthetic'::character varying NOT NULL,
-    idempotency_key character varying NOT NULL,
+    idempotency_key character varying CONSTRAINT clinic_patient_reminder_delivery_attem_idempotency_key_not_null NOT NULL,
     status character varying NOT NULL,
     failure_class character varying,
     retryable boolean DEFAULT false NOT NULL,
     provider_message_id character varying,
-    masked_destination character varying NOT NULL,
+    masked_destination character varying CONSTRAINT clinic_patient_reminder_delivery_at_masked_destination_not_null NOT NULL,
     queued_at timestamp(6) without time zone NOT NULL,
     accepted_at timestamp(6) without time zone,
     completed_at timestamp(6) without time zone,
@@ -5802,7 +5859,7 @@ CREATE TABLE public.clinic_payment_processor_events (
     patient_id bigint,
     payment_collection_intent_id bigint,
     processor character varying NOT NULL,
-    processor_event_reference character varying NOT NULL,
+    processor_event_reference character varying CONSTRAINT clinic_payment_processor_eve_processor_event_reference_not_null NOT NULL,
     processor_intent_reference character varying,
     event_type character varying NOT NULL,
     payload_version character varying,
@@ -6642,6 +6699,13 @@ CREATE TABLE public.clinic_scribe_recordings (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    telehealth_visit_id bigint,
+    capture_owner_participant_id bigint,
+    capture_epoch integer,
+    capture_source character varying(24) DEFAULT 'microphone'::character varying NOT NULL,
+    recording_segment_index integer,
+    source_order integer,
+    CONSTRAINT scribe_recordings_telehealth_values CHECK ((((capture_source)::text = ANY ((ARRAY['microphone'::character varying, 'telehealth_mix'::character varying])::text[])) AND ((((capture_source)::text = 'microphone'::text) AND (telehealth_visit_id IS NULL) AND (capture_owner_participant_id IS NULL) AND (capture_epoch IS NULL) AND (recording_segment_index IS NULL) AND (source_order IS NULL)) OR (((capture_source)::text = 'telehealth_mix'::text) AND (telehealth_visit_id IS NOT NULL) AND (capture_owner_participant_id IS NOT NULL) AND (capture_epoch > 0) AND (recording_segment_index >= 0) AND (source_order > 0))))),
     CONSTRAINT scribe_recordings_values CHECK ((((status)::text = ANY (ARRAY[('recording'::character varying)::text, ('interrupted'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((mime_type)::text = ANY (ARRAY[('audio/webm'::character varying)::text, ('audio/ogg'::character varying)::text, ('audio/mp4'::character varying)::text])) AND (expected_encounter_version >= 0) AND (total_bytes >= 0) AND ((total_chunks IS NULL) OR (total_chunks >= 0)) AND ((duration_ms IS NULL) OR (duration_ms >= 0)) AND (length(TRIM(BOTH FROM request_digest)) = 64)))
 );
 
@@ -6722,6 +6786,13 @@ CREATE TABLE public.clinic_scribe_sources (
     deleted_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    telehealth_visit_id bigint,
+    telehealth_recording_id bigint,
+    capture_epoch integer,
+    recording_segment_index integer,
+    source_order integer,
+    source_set_digest character varying(64),
+    CONSTRAINT scribe_sources_telehealth_values CHECK ((((telehealth_visit_id IS NULL) AND (telehealth_recording_id IS NULL) AND (capture_epoch IS NULL) AND (recording_segment_index IS NULL) AND (source_order IS NULL) AND (source_set_digest IS NULL)) OR ((telehealth_visit_id IS NOT NULL) AND (telehealth_recording_id IS NOT NULL) AND (capture_epoch > 0) AND (recording_segment_index >= 0) AND (source_order > 0) AND (length((source_set_digest)::text) = 64)))),
     CONSTRAINT scribe_sources_values CHECK ((((source_type)::text = 'transcript'::text) AND ((status)::text = ANY (ARRAY[('ready'::character varying)::text, ('incomplete'::character varying)::text, ('pending_deletion'::character varying)::text, ('deleted'::character varying)::text])) AND (length(TRIM(BOTH FROM content_digest)) = 64)))
 );
 
@@ -7063,7 +7134,7 @@ CREATE TABLE public.clinic_staff_message_attachments (
     byte_size bigint NOT NULL,
     checksum character varying NOT NULL,
     scan_state character varying DEFAULT 'quarantined'::character varying NOT NULL,
-    created_by_membership_id bigint NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_staff_message_attachme_created_by_membership_id_not_null NOT NULL,
     expires_at timestamp(6) without time zone,
     deleted_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
@@ -7745,6 +7816,608 @@ ALTER SEQUENCE public.clinic_supplier_address_versions_id_seq OWNED BY public.cl
 
 
 --
+-- Name: clinic_telehealth_checkins; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_checkins (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    participant_id bigint NOT NULL,
+    sequence integer NOT NULL,
+    access_generation integer NOT NULL,
+    location_payload text,
+    callback_phone text,
+    location_attested boolean NOT NULL,
+    device_results jsonb DEFAULT '{}'::jsonb NOT NULL,
+    submitted_at timestamp(6) without time zone NOT NULL,
+    supersedes_checkin_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_checkin_values CHECK (((sequence > 0) AND (access_generation > 0) AND (jsonb_typeof(device_results) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_telehealth_checkins_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_checkins_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_checkins_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_checkins_id_seq OWNED BY public.clinic_telehealth_checkins.id;
+
+
+--
+-- Name: clinic_telehealth_commands; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_commands (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    room_attempt_id bigint,
+    participant_id bigint,
+    kind character varying(32) NOT NULL,
+    requested_expires_at timestamp(6) without time zone,
+    dedupe_key character varying(160) NOT NULL,
+    access_generation integer NOT NULL,
+    status character varying(16) DEFAULT 'pending'::character varying NOT NULL,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    available_at timestamp(6) without time zone NOT NULL,
+    lease_token uuid,
+    leased_until timestamp(6) without time zone,
+    last_attempt_at timestamp(6) without time zone,
+    completed_at timestamp(6) without time zone,
+    last_error_code character varying(80),
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_command_values CHECK ((((kind)::text = ANY ((ARRAY['create_room'::character varying, 'end_room'::character varying, 'extend_room'::character varying, 'eject_participant'::character varying, 'reconcile_room'::character varying, 'delete_room'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'succeeded'::character varying, 'failed'::character varying, 'unknown'::character varying, 'suppressed'::character varying])::text[])) AND (access_generation > 0) AND (attempt_count >= 0) AND ((((kind)::text = 'extend_room'::text) AND (requested_expires_at IS NOT NULL)) OR (((kind)::text <> 'extend_room'::text) AND (requested_expires_at IS NULL))) AND ((((status)::text = 'leased'::text) AND (lease_token IS NOT NULL) AND (leased_until IS NOT NULL)) OR ((status)::text <> 'leased'::text))))
+);
+
+
+--
+-- Name: clinic_telehealth_commands_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_commands_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_commands_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_commands_id_seq OWNED BY public.clinic_telehealth_commands.id;
+
+
+--
+-- Name: clinic_telehealth_consents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_consents (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    participant_id bigint NOT NULL,
+    policy_version_id bigint NOT NULL,
+    purpose character varying(24) DEFAULT 'telehealth'::character varying NOT NULL,
+    decision character varying(16) NOT NULL,
+    sequence integer NOT NULL,
+    decided_at timestamp(6) without time zone NOT NULL,
+    method character varying(24) DEFAULT 'portal_authenticated'::character varying NOT NULL,
+    policy_content_digest character varying(64) NOT NULL,
+    supersedes_consent_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_consent_values CHECK ((((purpose)::text = ANY ((ARRAY['telehealth'::character varying, 'scribe_recording'::character varying])::text[])) AND ((decision)::text = ANY ((ARRAY['accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])) AND (sequence > 0) AND ((method)::text = ANY ((ARRAY['portal_authenticated'::character varying, 'staff_authenticated'::character varying])::text[])) AND (length((policy_content_digest)::text) = 64)))
+);
+
+
+--
+-- Name: clinic_telehealth_consents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_consents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_consents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_consents_id_seq OWNED BY public.clinic_telehealth_consents.id;
+
+
+--
+-- Name: clinic_telehealth_join_grants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_join_grants (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    participant_id bigint NOT NULL,
+    room_attempt_id bigint NOT NULL,
+    access_generation integer NOT NULL,
+    token_digest character varying(64) NOT NULL,
+    request_digest character varying(64) NOT NULL,
+    issued_at timestamp(6) without time zone NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    revocation_reason character varying(40),
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_join_grant_values CHECK (((access_generation > 0) AND (length((token_digest)::text) = 64) AND (length((request_digest)::text) = 64) AND (expires_at > issued_at)))
+);
+
+
+--
+-- Name: clinic_telehealth_join_grants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_join_grants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_join_grants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_join_grants_id_seq OWNED BY public.clinic_telehealth_join_grants.id;
+
+
+--
+-- Name: clinic_telehealth_participants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_participants (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    role character varying(24) NOT NULL,
+    portal_identity_id bigint,
+    membership_id bigint,
+    provider_subject_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    status character varying(24) DEFAULT 'eligible'::character varying NOT NULL,
+    admitted_by_membership_id bigint,
+    admitted_at timestamp(6) without time zone,
+    admitted_generation integer,
+    admitted_checkin_id bigint,
+    last_seen_at timestamp(6) without time zone,
+    revoked_at timestamp(6) without time zone,
+    revocation_reason character varying(40),
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_participant_values CHECK ((((role)::text = ANY ((ARRAY['patient'::character varying, 'clinician'::character varying, 'assistant'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['eligible'::character varying, 'waiting'::character varying, 'admitted'::character varying, 'left'::character varying, 'removed'::character varying])::text[])) AND ((((role)::text = 'patient'::text) AND (portal_identity_id IS NOT NULL) AND (membership_id IS NULL)) OR (((role)::text = ANY ((ARRAY['clinician'::character varying, 'assistant'::character varying])::text[])) AND (portal_identity_id IS NULL) AND (membership_id IS NOT NULL))) AND ((((status)::text = 'admitted'::text) AND (admitted_at IS NOT NULL) AND (admitted_generation IS NOT NULL)) OR ((status)::text <> 'admitted'::text))))
+);
+
+
+--
+-- Name: clinic_telehealth_participants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_participants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_participants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_participants_id_seq OWNED BY public.clinic_telehealth_participants.id;
+
+
+--
+-- Name: clinic_telehealth_patient_receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_patient_receipts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    portal_identity_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    request_key character varying(160) NOT NULL,
+    operation_code character varying(80) NOT NULL,
+    payload_digest character varying(64) NOT NULL,
+    digest_key_id character varying(80) NOT NULL,
+    digest_algorithm character varying(32) NOT NULL,
+    outcome character varying(24) NOT NULL,
+    result_kind character varying(24) NOT NULL,
+    result_id bigint,
+    result_version integer,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_patient_receipt_values CHECK (((length((payload_digest)::text) = 64) AND ((digest_algorithm)::text = 'HMAC-SHA256'::text) AND ((outcome)::text = ANY ((ARRAY['committed'::character varying, 'outcome_unconfirmed'::character varying])::text[])) AND ((result_kind)::text = ANY ((ARRAY['checkin'::character varying, 'consent'::character varying, 'participant'::character varying, 'visit'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_telehealth_patient_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_patient_receipts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_patient_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_patient_receipts_id_seq OWNED BY public.clinic_telehealth_patient_receipts.id;
+
+
+--
+-- Name: clinic_telehealth_policy_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_policy_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    settings_id bigint NOT NULL,
+    version integer NOT NULL,
+    status character varying(16) DEFAULT 'draft'::character varying NOT NULL,
+    consent_title character varying(160) NOT NULL,
+    consent_body text NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    locale character varying(20) NOT NULL,
+    patient_instructions text NOT NULL,
+    support_label character varying(120) NOT NULL,
+    support_phone character varying(32),
+    support_url text,
+    join_early_minutes integer NOT NULL,
+    join_late_minutes integer NOT NULL,
+    max_room_minutes integer NOT NULL,
+    grant_ttl_seconds integer NOT NULL,
+    checkin_max_age_minutes integer CONSTRAINT clinic_telehealth_policy_versi_checkin_max_age_minutes_not_null NOT NULL,
+    allow_audio_only boolean DEFAULT false NOT NULL,
+    allow_staff_screen_share boolean DEFAULT true CONSTRAINT clinic_telehealth_policy_vers_allow_staff_screen_share_not_null NOT NULL,
+    scribe_enabled boolean DEFAULT false NOT NULL,
+    require_location boolean DEFAULT true NOT NULL,
+    require_callback boolean DEFAULT true NOT NULL,
+    scribe_consent_title character varying(160),
+    scribe_consent_body text,
+    scribe_consent_digest character varying(64),
+    created_by_membership_id bigint CONSTRAINT clinic_telehealth_policy_vers_created_by_membership_id_not_null NOT NULL,
+    published_by_membership_id bigint,
+    published_at timestamp(6) without time zone,
+    retired_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_policy_values CHECK (((version > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'retired'::character varying])::text[])) AND (length((content_digest)::text) = 64) AND ((join_early_minutes >= 0) AND (join_early_minutes <= 120)) AND ((join_late_minutes >= 0) AND (join_late_minutes <= 120)) AND ((max_room_minutes >= 5) AND (max_room_minutes <= 240)) AND ((grant_ttl_seconds >= 30) AND (grant_ttl_seconds <= 300)) AND ((checkin_max_age_minutes >= 5) AND (checkin_max_age_minutes <= 1440)) AND (((scribe_consent_title IS NULL) AND (scribe_consent_body IS NULL) AND (scribe_consent_digest IS NULL) AND (scribe_enabled = false)) OR ((scribe_consent_title IS NOT NULL) AND (scribe_consent_body IS NOT NULL) AND (length((scribe_consent_digest)::text) = 64))) AND ((((status)::text = 'draft'::text) AND (published_at IS NULL) AND (published_by_membership_id IS NULL)) OR (((status)::text = ANY ((ARRAY['published'::character varying, 'retired'::character varying])::text[])) AND (published_at IS NOT NULL) AND (published_by_membership_id IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_telehealth_policy_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_policy_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_policy_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_policy_versions_id_seq OWNED BY public.clinic_telehealth_policy_versions.id;
+
+
+--
+-- Name: clinic_telehealth_provider_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_provider_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    room_attempt_id bigint NOT NULL,
+    participant_id bigint,
+    provider_code character varying(32) NOT NULL,
+    provider_account_ref character varying(128) NOT NULL,
+    provider_event_id character varying(160) NOT NULL,
+    event_type character varying(48) NOT NULL,
+    provider_session_ref character varying(160),
+    occurred_at timestamp(6) without time zone NOT NULL,
+    received_at timestamp(6) without time zone NOT NULL,
+    payload_digest character varying(64) NOT NULL,
+    normalized_metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_provider_event_values CHECK ((((provider_code)::text = ANY ((ARRAY['daily'::character varying, 'twilio'::character varying])::text[])) AND (length((payload_digest)::text) = 64) AND (jsonb_typeof(normalized_metadata) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_telehealth_provider_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_provider_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_provider_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_provider_events_id_seq OWNED BY public.clinic_telehealth_provider_events.id;
+
+
+--
+-- Name: clinic_telehealth_room_attempts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_room_attempts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    attempt_no integer NOT NULL,
+    provider_code character varying(32) NOT NULL,
+    provider_account_ref character varying(128) NOT NULL,
+    provider_room_name character varying(128) NOT NULL,
+    provider_room_url text,
+    status character varying(24) DEFAULT 'pending'::character varying NOT NULL,
+    access_generation integer NOT NULL,
+    provisioned_at timestamp(6) without time zone,
+    expires_at timestamp(6) without time zone NOT NULL,
+    started_at timestamp(6) without time zone,
+    ended_at timestamp(6) without time zone,
+    last_reconciled_at timestamp(6) without time zone,
+    last_error_code character varying(80),
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    provider_room_ref character varying(64),
+    CONSTRAINT telehealth_room_attempt_values CHECK (((attempt_no > 0) AND ((provider_code)::text = ANY ((ARRAY['daily'::character varying, 'twilio'::character varying])::text[])) AND (access_generation > 0) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'provisioning'::character varying, 'ready'::character varying, 'active'::character varying, 'ending'::character varying, 'ended'::character varying, 'failed'::character varying, 'unknown'::character varying])::text[])) AND (expires_at > created_at) AND ((provider_room_ref IS NULL) OR (((provider_code)::text = 'twilio'::text) AND ((provider_room_ref)::text ~ '^RM[0-9A-Fa-f]{32}$'::text)))))
+);
+
+
+--
+-- Name: clinic_telehealth_room_attempts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_room_attempts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_room_attempts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_room_attempts_id_seq OWNED BY public.clinic_telehealth_room_attempts.id;
+
+
+--
+-- Name: clinic_telehealth_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_settings (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    provider_code character varying(32) DEFAULT 'twilio'::character varying NOT NULL,
+    provider_account_ref character varying(128),
+    enabled boolean DEFAULT false NOT NULL,
+    active_policy_version_id bigint,
+    health_status character varying(24) DEFAULT 'not_checked'::character varying NOT NULL,
+    health_checked_at timestamp(6) without time zone,
+    last_error_code character varying(80),
+    updated_by_membership_id bigint NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_settings_values CHECK ((((provider_code)::text = ANY ((ARRAY['daily'::character varying, 'twilio'::character varying])::text[])) AND ((health_status)::text = ANY ((ARRAY['not_checked'::character varying, 'ready'::character varying, 'degraded'::character varying, 'unconfigured'::character varying])::text[]))))
+);
+
+
+--
+-- Name: clinic_telehealth_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_settings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_settings_id_seq OWNED BY public.clinic_telehealth_settings.id;
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_visit_type_rules (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_type_id bigint NOT NULL,
+    site_id bigint,
+    enabled boolean DEFAULT false NOT NULL,
+    allowed_region_codes jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_telehealth_visit_type_rule_allowed_region_codes_not_null NOT NULL,
+    min_patient_age_years integer,
+    max_patient_age_years integer,
+    updated_by_membership_id bigint CONSTRAINT clinic_telehealth_visit_type__updated_by_membership_id_not_null NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_visit_type_rule_values CHECK (((jsonb_typeof(allowed_region_codes) = 'array'::text) AND (jsonb_array_length(allowed_region_codes) <= 250) AND ((min_patient_age_years IS NULL) OR ((min_patient_age_years >= 0) AND (min_patient_age_years <= 130))) AND ((max_patient_age_years IS NULL) OR ((max_patient_age_years >= 0) AND (max_patient_age_years <= 130))) AND ((min_patient_age_years IS NULL) OR (max_patient_age_years IS NULL) OR (min_patient_age_years <= max_patient_age_years))))
+);
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_visit_type_rules_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_visit_type_rules_id_seq OWNED BY public.clinic_telehealth_visit_type_rules.id;
+
+
+--
+-- Name: clinic_telehealth_visits; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_visits (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    public_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id bigint NOT NULL,
+    appointment_id bigint NOT NULL,
+    encounter_id bigint,
+    policy_version_id bigint NOT NULL,
+    status character varying(20) DEFAULT 'scheduled'::character varying NOT NULL,
+    access_generation integer DEFAULT 1 NOT NULL,
+    current_room_attempt_id bigint,
+    first_started_at timestamp(6) without time zone,
+    last_ended_at timestamp(6) without time zone,
+    ended_by_membership_id bigint,
+    end_reason_code character varying(40),
+    created_by_membership_id bigint NOT NULL,
+    scribe_encounter_id bigint,
+    scribe_capture_owner_participant_id bigint,
+    scribe_capture_owner_token_digest character varying(64),
+    scribe_capture_epoch integer DEFAULT 0 NOT NULL,
+    scribe_capture_lease_expires_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_visit_values CHECK ((((status)::text = ANY ((ARRAY['scheduled'::character varying, 'in_progress'::character varying, 'ending'::character varying, 'ended'::character varying, 'cancelled'::character varying, 'no_show'::character varying])::text[])) AND (access_generation > 0) AND (scribe_capture_epoch >= 0) AND (((scribe_capture_owner_participant_id IS NULL) AND (scribe_capture_owner_token_digest IS NULL) AND (scribe_capture_lease_expires_at IS NULL)) OR ((scribe_capture_owner_participant_id IS NOT NULL) AND (length((scribe_capture_owner_token_digest)::text) = 64) AND (scribe_capture_lease_expires_at IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_telehealth_visits_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_visits_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_visits_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_visits_id_seq OWNED BY public.clinic_telehealth_visits.id;
+
+
+--
+-- Name: clinic_telehealth_wrap_ups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_telehealth_wrap_ups (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    visit_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    appointment_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    status character varying(16) DEFAULT 'draft'::character varying NOT NULL,
+    outcome character varying(32),
+    clinician_notes text DEFAULT ''::text NOT NULL,
+    patient_instructions text DEFAULT ''::text NOT NULL,
+    instruction_note_id bigint,
+    instruction_note_revision_id bigint,
+    instruction_note_signature_id bigint,
+    follow_up_status character varying(16),
+    follow_up_plan text DEFAULT ''::text NOT NULL,
+    follow_up_appointment_id bigint,
+    scribe_review_status character varying(24),
+    scribe_encounter_id bigint,
+    scribe_encounter_status character varying(24),
+    scribe_draft_id bigint,
+    scribe_draft_status character varying(24),
+    scribe_export_id bigint,
+    scribe_export_state character varying(24),
+    scribe_encounter_note_id bigint,
+    scribe_encounter_note_revision_id bigint,
+    created_by_membership_id bigint NOT NULL,
+    updated_by_membership_id bigint NOT NULL,
+    finalized_by_membership_id bigint,
+    finalized_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT telehealth_wrap_ups_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'finalized'::character varying])::text[])) AND ((outcome IS NULL) OR ((outcome)::text = ANY ((ARRAY['completed'::character varying, 'technical_failure'::character varying, 'follow_up_needed'::character varying])::text[]))) AND ((follow_up_status IS NULL) OR ((follow_up_status)::text = ANY ((ARRAY['none'::character varying, 'needed'::character varying, 'arranged'::character varying])::text[]))) AND ((scribe_review_status IS NULL) OR ((scribe_review_status)::text = ANY ((ARRAY['not_used'::character varying, 'reviewed'::character varying, 'deferred'::character varying])::text[]))) AND ((((follow_up_status)::text = 'arranged'::text) AND (follow_up_appointment_id IS NOT NULL)) OR (((follow_up_status)::text IS DISTINCT FROM 'arranged'::text) AND (follow_up_appointment_id IS NULL))) AND ((((status)::text = 'draft'::text) AND (finalized_at IS NULL) AND (finalized_by_membership_id IS NULL)) OR (((status)::text = 'finalized'::text) AND (outcome IS NOT NULL) AND (follow_up_status IS NOT NULL) AND (scribe_review_status IS NOT NULL) AND (instruction_note_id IS NOT NULL) AND (instruction_note_revision_id IS NOT NULL) AND (instruction_note_signature_id IS NOT NULL) AND (finalized_at IS NOT NULL) AND (finalized_by_membership_id IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_telehealth_wrap_ups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_telehealth_wrap_ups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_telehealth_wrap_ups_id_seq OWNED BY public.clinic_telehealth_wrap_ups.id;
+
+
+--
 -- Name: clinic_visit_types; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7786,19 +8459,19 @@ CREATE TABLE public.clinic_workforce_adjustment_requests (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     employment_id bigint NOT NULL,
-    timecard_version_id bigint NOT NULL,
+    timecard_version_id bigint CONSTRAINT clinic_workforce_adjustment_reques_timecard_version_id_not_null NOT NULL,
     status character varying DEFAULT 'submitted'::character varying NOT NULL,
     correction_type character varying NOT NULL,
     proposed_changes jsonb DEFAULT '{}'::jsonb NOT NULL,
     reason character varying(1000) NOT NULL,
-    requested_by_membership_id bigint NOT NULL,
+    requested_by_membership_id bigint CONSTRAINT clinic_workforce_adjustment_requested_by_membership_id_not_null NOT NULL,
     requested_at timestamp(6) without time zone NOT NULL,
     reviewed_by_membership_id bigint,
     reviewed_at timestamp(6) without time zone,
     decision_reason character varying(1000),
     request_key character varying(36) NOT NULL,
     payload_digest character varying(64) NOT NULL,
-    source_lock_version integer NOT NULL,
+    source_lock_version integer CONSTRAINT clinic_workforce_adjustment_reques_source_lock_version_not_null NOT NULL,
     resulting_timecard_version_id bigint,
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
@@ -7846,7 +8519,7 @@ CREATE TABLE public.clinic_workforce_availability_versions (
     request_digest character varying NOT NULL,
     decision_reason character varying,
     weekly_rules jsonb DEFAULT '[]'::jsonb NOT NULL,
-    decision_receipts jsonb DEFAULT '{}'::jsonb NOT NULL,
+    decision_receipts jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_workforce_availability_versio_decision_receipts_not_null NOT NULL,
     reviewed_by_id bigint,
     submitted_at timestamp(6) without time zone,
     decided_at timestamp(6) without time zone,
@@ -7890,7 +8563,7 @@ CREATE TABLE public.clinic_workforce_badge_credentials (
     pin_digest character varying,
     format character varying DEFAULT 'code128'::character varying NOT NULL,
     status character varying DEFAULT 'issued'::character varying NOT NULL,
-    issued_by_membership_id bigint NOT NULL,
+    issued_by_membership_id bigint CONSTRAINT clinic_workforce_badge_credent_issued_by_membership_id_not_null NOT NULL,
     issued_at timestamp(6) without time zone NOT NULL,
     revoked_by_membership_id bigint,
     revoked_at timestamp(6) without time zone,
@@ -7928,7 +8601,7 @@ CREATE TABLE public.clinic_workforce_employee_invitations (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     staff_member_id bigint NOT NULL,
-    invited_by_membership_id bigint NOT NULL,
+    invited_by_membership_id bigint CONSTRAINT clinic_workforce_employee_inv_invited_by_membership_id_not_null NOT NULL,
     email_address text NOT NULL,
     email_digest character varying(64),
     token_digest character varying(64),
@@ -8049,8 +8722,8 @@ CREATE TABLE public.clinic_workforce_export_batches (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     site_id bigint NOT NULL,
-    configuration_version_id bigint NOT NULL,
-    created_by_membership_id bigint NOT NULL,
+    configuration_version_id bigint CONSTRAINT clinic_workforce_export_batch_configuration_version_id_not_null NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_workforce_export_batch_created_by_membership_id_not_null NOT NULL,
     supersedes_batch_id bigint,
     request_key character varying NOT NULL,
     payload_digest character varying NOT NULL,
@@ -8094,7 +8767,7 @@ CREATE TABLE public.clinic_workforce_kiosk_enrollments (
     site_id bigint NOT NULL,
     token_digest character varying(64) NOT NULL,
     status character varying DEFAULT 'issued'::character varying NOT NULL,
-    issued_by_membership_id bigint NOT NULL,
+    issued_by_membership_id bigint CONSTRAINT clinic_workforce_kiosk_enrollm_issued_by_membership_id_not_null NOT NULL,
     expires_at timestamp(6) without time zone NOT NULL,
     enrolled_at timestamp(6) without time zone,
     revoked_by_membership_id bigint,
@@ -8169,17 +8842,17 @@ ALTER SEQUENCE public.clinic_workforce_kiosk_sessions_id_seq OWNED BY public.cli
 
 CREATE TABLE public.clinic_workforce_payroll_configuration_versions (
     id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    site_id bigint NOT NULL,
-    created_by_membership_id bigint NOT NULL,
-    revision integer NOT NULL,
-    effective_from timestamp(6) without time zone NOT NULL,
+    practice_id bigint CONSTRAINT clinic_workforce_payroll_configuration_ver_practice_id_not_null NOT NULL,
+    site_id bigint CONSTRAINT clinic_workforce_payroll_configuration_version_site_id_not_null NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_workforce_payroll_conf_created_by_membership_id_not_null NOT NULL,
+    revision integer CONSTRAINT clinic_workforce_payroll_configuration_versio_revision_not_null NOT NULL,
+    effective_from timestamp(6) without time zone CONSTRAINT clinic_workforce_payroll_configuration__effective_from_not_null NOT NULL,
     name character varying NOT NULL,
-    provider character varying DEFAULT 'custom_file'::character varying NOT NULL,
-    columns jsonb DEFAULT '[]'::jsonb NOT NULL,
-    employee_identifiers jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
+    provider character varying DEFAULT 'custom_file'::character varying CONSTRAINT clinic_workforce_payroll_configuration_versio_provider_not_null NOT NULL,
+    columns jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_workforce_payroll_configuration_version_columns_not_null NOT NULL,
+    employee_identifiers jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_workforce_payroll_configur_employee_identifiers_not_null NOT NULL,
+    created_at timestamp(6) without time zone CONSTRAINT clinic_workforce_payroll_configuration_vers_created_at_not_null NOT NULL,
+    updated_at timestamp(6) without time zone CONSTRAINT clinic_workforce_payroll_configuration_vers_updated_at_not_null NOT NULL,
     CONSTRAINT wf_payroll_provider CHECK ((((provider)::text = 'custom_file'::text) AND (revision > 0)))
 );
 
@@ -8213,7 +8886,7 @@ CREATE TABLE public.clinic_workforce_punch_challenges (
     kiosk_session_id bigint NOT NULL,
     employment_id bigint NOT NULL,
     challenge_digest character varying(64) NOT NULL,
-    permitted_transitions jsonb DEFAULT '[]'::jsonb NOT NULL,
+    permitted_transitions jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_workforce_punch_challenge_permitted_transitions_not_null NOT NULL,
     expires_at timestamp(6) without time zone NOT NULL,
     consumed_at timestamp(6) without time zone,
     failed_attempts integer DEFAULT 0 NOT NULL,
@@ -8336,7 +9009,7 @@ CREATE TABLE public.clinic_workforce_schedule_publications (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     site_id bigint NOT NULL,
-    schedule_draft_id bigint NOT NULL,
+    schedule_draft_id bigint CONSTRAINT clinic_workforce_schedule_publicatio_schedule_draft_id_not_null NOT NULL,
     published_by_id bigint NOT NULL,
     supersedes_id bigint,
     week_start_on date NOT NULL,
@@ -8423,7 +9096,7 @@ CREATE TABLE public.clinic_workforce_settings_versions (
     revision integer NOT NULL,
     effective_from timestamp(6) without time zone NOT NULL,
     "values" jsonb NOT NULL,
-    created_by_membership_id bigint NOT NULL,
+    created_by_membership_id bigint CONSTRAINT clinic_workforce_settings_ver_created_by_membership_id_not_null NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT workforce_settings_values CHECK (((revision > 0) AND (jsonb_typeof("values") = 'object'::text) AND (octet_length(("values")::text) <= 65536) AND ((((scope_kind)::text = 'practice'::text) AND (site_id IS NULL)) OR (((scope_kind)::text = 'site'::text) AND (site_id IS NOT NULL)))))
@@ -8457,14 +9130,14 @@ CREATE TABLE public.clinic_workforce_shift_swap_requests (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     site_id bigint NOT NULL,
-    requester_employment_id bigint NOT NULL,
-    target_employment_id bigint NOT NULL,
+    requester_employment_id bigint CONSTRAINT clinic_workforce_shift_swap_re_requester_employment_id_not_null NOT NULL,
+    target_employment_id bigint CONSTRAINT clinic_workforce_shift_swap_reque_target_employment_id_not_null NOT NULL,
     requested_by_id bigint NOT NULL,
     target_decided_by_id bigint,
     reviewed_by_id bigint,
-    schedule_publication_id bigint NOT NULL,
+    schedule_publication_id bigint CONSTRAINT clinic_workforce_shift_swap_re_schedule_publication_id_not_null NOT NULL,
     public_id character varying NOT NULL,
-    offered_shift_public_id character varying NOT NULL,
+    offered_shift_public_id character varying CONSTRAINT clinic_workforce_shift_swap_re_offered_shift_public_id_not_null NOT NULL,
     status character varying NOT NULL,
     reason character varying NOT NULL,
     idempotency_key character varying NOT NULL,
@@ -8662,9 +9335,9 @@ CREATE TABLE public.clinic_workforce_timecard_versions (
     previous_version_id bigint,
     settings_provenance jsonb DEFAULT '{}'::jsonb NOT NULL,
     snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
-    unresolved_exceptions jsonb DEFAULT '[]'::jsonb NOT NULL,
+    unresolved_exceptions jsonb DEFAULT '[]'::jsonb CONSTRAINT clinic_workforce_timecard_versio_unresolved_exceptions_not_null NOT NULL,
     raw_total_minutes integer DEFAULT 0 NOT NULL,
-    rounded_total_minutes integer DEFAULT 0 NOT NULL,
+    rounded_total_minutes integer DEFAULT 0 CONSTRAINT clinic_workforce_timecard_versio_rounded_total_minutes_not_null NOT NULL,
     regular_minutes integer,
     overtime_minutes integer,
     submitted_at timestamp(6) without time zone,
@@ -10188,6 +10861,97 @@ ALTER TABLE ONLY public.clinic_supplier_address_versions ALTER COLUMN id SET DEF
 
 
 --
+-- Name: clinic_telehealth_checkins id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_checkins ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_checkins_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_commands id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_commands ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_commands_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_consents id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_consents_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_join_grants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_join_grants ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_join_grants_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_participants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_participants_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_patient_receipts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_patient_receipts ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_patient_receipts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_policy_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_policy_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_policy_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_provider_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_provider_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_provider_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_room_attempts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_room_attempts ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_room_attempts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_settings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_settings ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_settings_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visit_type_rules ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_visit_type_rules_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_visits id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_visits_id_seq'::regclass);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups ALTER COLUMN id SET DEFAULT nextval('public.clinic_telehealth_wrap_ups_id_seq'::regclass);
+
+
+--
 -- Name: clinic_visit_types id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -11655,6 +12419,110 @@ ALTER TABLE ONLY public.clinic_subscription_versions
 
 ALTER TABLE ONLY public.clinic_supplier_address_versions
     ADD CONSTRAINT clinic_supplier_address_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_checkins clinic_telehealth_checkins_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_checkins
+    ADD CONSTRAINT clinic_telehealth_checkins_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_commands clinic_telehealth_commands_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_commands
+    ADD CONSTRAINT clinic_telehealth_commands_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_consents clinic_telehealth_consents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents
+    ADD CONSTRAINT clinic_telehealth_consents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_join_grants clinic_telehealth_join_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_join_grants
+    ADD CONSTRAINT clinic_telehealth_join_grants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_participants clinic_telehealth_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT clinic_telehealth_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_patient_receipts clinic_telehealth_patient_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_patient_receipts
+    ADD CONSTRAINT clinic_telehealth_patient_receipts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_policy_versions clinic_telehealth_policy_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_policy_versions
+    ADD CONSTRAINT clinic_telehealth_policy_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_provider_events clinic_telehealth_provider_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_provider_events
+    ADD CONSTRAINT clinic_telehealth_provider_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_room_attempts clinic_telehealth_room_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_room_attempts
+    ADD CONSTRAINT clinic_telehealth_room_attempts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_settings clinic_telehealth_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_settings
+    ADD CONSTRAINT clinic_telehealth_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules clinic_telehealth_visit_type_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visit_type_rules
+    ADD CONSTRAINT clinic_telehealth_visit_type_rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_visits clinic_telehealth_visits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT clinic_telehealth_visits_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups clinic_telehealth_wrap_ups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT clinic_telehealth_wrap_ups_pkey PRIMARY KEY (id);
 
 
 --
@@ -13494,6 +14362,13 @@ CREATE INDEX idx_on_practice_id_actor_session_reference_occurred_814d8dd62d ON p
 
 
 --
+-- Name: idx_on_practice_id_appointment_id_f9e07d7cc7; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_appointment_id_f9e07d7cc7 ON public.clinic_telehealth_visits USING btree (practice_id, appointment_id);
+
+
+--
 -- Name: idx_on_practice_id_booked_clinician_id_starts_at_9122dfc127; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -13876,6 +14751,181 @@ CREATE INDEX idx_on_practice_id_site_id_effective_from_9a85bf6413 ON public.clin
 --
 
 CREATE INDEX idx_on_practice_id_site_id_status_b22685788d ON public.clinic_workforce_kiosk_sessions USING btree (practice_id, site_id, status);
+
+
+--
+-- Name: idx_on_practice_id_status_appointment_id_bc07440aaf; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_status_appointment_id_bc07440aaf ON public.clinic_telehealth_visits USING btree (practice_id, status, appointment_id);
+
+
+--
+-- Name: idx_on_practice_id_visit_id_sequence_f654bdfb4d; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_practice_id_visit_id_sequence_f654bdfb4d ON public.clinic_telehealth_checkins USING btree (practice_id, visit_id, sequence);
+
+
+--
+-- Name: idx_one_active_telehealth_recording; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_one_active_telehealth_recording ON public.clinic_scribe_recordings USING btree (practice_id, telehealth_visit_id) WHERE ((telehealth_visit_id IS NOT NULL) AND ((status)::text = 'recording'::text));
+
+
+--
+-- Name: idx_scribe_exports_tenant_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_scribe_exports_tenant_identity ON public.clinic_scribe_exports USING btree (practice_id, id);
+
+
+--
+-- Name: idx_scribe_recordings_telehealth_provenance; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_scribe_recordings_telehealth_provenance ON public.clinic_scribe_recordings USING btree (practice_id, telehealth_visit_id, capture_epoch, recording_segment_index, source_order) WHERE (telehealth_visit_id IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_consent_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_consent_sequence ON public.clinic_telehealth_consents USING btree (practice_id, visit_id, participant_id, purpose, sequence);
+
+
+--
+-- Name: idx_telehealth_join_grant_expiry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_telehealth_join_grant_expiry ON public.clinic_telehealth_join_grants USING btree (practice_id, visit_id, participant_id, expires_at);
+
+
+--
+-- Name: idx_telehealth_join_grant_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_join_grant_request ON public.clinic_telehealth_join_grants USING btree (practice_id, participant_id, access_generation, request_digest);
+
+
+--
+-- Name: idx_telehealth_one_live_room; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_one_live_room ON public.clinic_telehealth_room_attempts USING btree (practice_id, visit_id) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'provisioning'::character varying, 'ready'::character varying, 'active'::character varying, 'ending'::character varying, 'unknown'::character varying])::text[]));
+
+
+--
+-- Name: idx_telehealth_one_patient_participant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_one_patient_participant ON public.clinic_telehealth_participants USING btree (practice_id, visit_id) WHERE ((role)::text = 'patient'::text);
+
+
+--
+-- Name: idx_telehealth_one_setting_per_practice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_one_setting_per_practice ON public.clinic_telehealth_settings USING btree (practice_id);
+
+
+--
+-- Name: idx_telehealth_participant_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_participant_identity ON public.clinic_telehealth_participants USING btree (practice_id, visit_id, portal_identity_id) WHERE (portal_identity_id IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_participant_membership; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_participant_membership ON public.clinic_telehealth_participants USING btree (practice_id, visit_id, membership_id) WHERE (membership_id IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_patient_receipt; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_patient_receipt ON public.clinic_telehealth_patient_receipts USING btree (practice_id, portal_identity_id, request_key);
+
+
+--
+-- Name: idx_telehealth_policy_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_policy_version ON public.clinic_telehealth_policy_versions USING btree (practice_id, settings_id, version);
+
+
+--
+-- Name: idx_telehealth_provider_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_provider_event ON public.clinic_telehealth_provider_events USING btree (provider_code, provider_account_ref, provider_event_id);
+
+
+--
+-- Name: idx_telehealth_provider_room; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_provider_room ON public.clinic_telehealth_room_attempts USING btree (provider_code, provider_account_ref, provider_room_name);
+
+
+--
+-- Name: idx_telehealth_provider_room_ref; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_provider_room_ref ON public.clinic_telehealth_room_attempts USING btree (provider_code, provider_account_ref, provider_room_ref) WHERE (provider_room_ref IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_room_attempt; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_room_attempt ON public.clinic_telehealth_room_attempts USING btree (practice_id, visit_id, attempt_no);
+
+
+--
+-- Name: idx_telehealth_rule_practice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_rule_practice ON public.clinic_telehealth_visit_type_rules USING btree (practice_id, visit_type_id) WHERE (site_id IS NULL);
+
+
+--
+-- Name: idx_telehealth_rule_site; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_rule_site ON public.clinic_telehealth_visit_type_rules USING btree (practice_id, visit_type_id, site_id) WHERE (site_id IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_scribe_source_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_scribe_source_order ON public.clinic_scribe_sources USING btree (practice_id, telehealth_visit_id, capture_epoch, recording_segment_index, source_order) WHERE (telehealth_visit_id IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_visit_scribe_encounter; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_visit_scribe_encounter ON public.clinic_telehealth_visits USING btree (practice_id, scribe_encounter_id) WHERE (scribe_encounter_id IS NOT NULL);
+
+
+--
+-- Name: idx_telehealth_wrap_ups_tenant_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_wrap_ups_tenant_identity ON public.clinic_telehealth_wrap_ups USING btree (practice_id, id);
+
+
+--
+-- Name: idx_telehealth_wrap_ups_visit; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_telehealth_wrap_ups_visit ON public.clinic_telehealth_wrap_ups USING btree (practice_id, visit_id);
 
 
 --
@@ -14737,6 +15787,132 @@ CREATE UNIQUE INDEX index_clinic_subscription_packages_on_practice_id_and_id ON 
 --
 
 CREATE UNIQUE INDEX index_clinic_subscription_versions_on_practice_id_and_id ON public.clinic_subscription_versions USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_checkins_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_checkins_on_practice_id_and_id ON public.clinic_telehealth_checkins USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_commands_on_practice_id_and_dedupe_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_commands_on_practice_id_and_dedupe_key ON public.clinic_telehealth_commands USING btree (practice_id, dedupe_key);
+
+
+--
+-- Name: index_clinic_telehealth_commands_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_commands_on_practice_id_and_id ON public.clinic_telehealth_commands USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_commands_on_status_and_available_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_telehealth_commands_on_status_and_available_at ON public.clinic_telehealth_commands USING btree (status, available_at);
+
+
+--
+-- Name: index_clinic_telehealth_consents_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_consents_on_practice_id_and_id ON public.clinic_telehealth_consents USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_join_grants_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_join_grants_on_practice_id_and_id ON public.clinic_telehealth_join_grants USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_join_grants_on_token_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_telehealth_join_grants_on_token_digest ON public.clinic_telehealth_join_grants USING btree (token_digest);
+
+
+--
+-- Name: index_clinic_telehealth_participants_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_participants_on_practice_id_and_id ON public.clinic_telehealth_participants USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_participants_on_provider_subject_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_participants_on_provider_subject_id ON public.clinic_telehealth_participants USING btree (provider_subject_id);
+
+
+--
+-- Name: index_clinic_telehealth_patient_receipts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_patient_receipts_on_practice_id_and_id ON public.clinic_telehealth_patient_receipts USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_policy_versions_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_policy_versions_on_practice_id_and_id ON public.clinic_telehealth_policy_versions USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_provider_events_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_provider_events_on_practice_id_and_id ON public.clinic_telehealth_provider_events USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_room_attempts_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_room_attempts_on_practice_id_and_id ON public.clinic_telehealth_room_attempts USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_settings_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_settings_on_practice_id_and_id ON public.clinic_telehealth_settings USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_visit_type_rules_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_visit_type_rules_on_practice_id_and_id ON public.clinic_telehealth_visit_type_rules USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_visits_on_practice_id_and_encounter_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_visits_on_practice_id_and_encounter_id ON public.clinic_telehealth_visits USING btree (practice_id, encounter_id) WHERE (encounter_id IS NOT NULL);
+
+
+--
+-- Name: index_clinic_telehealth_visits_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_visits_on_practice_id_and_id ON public.clinic_telehealth_visits USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_telehealth_visits_on_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_telehealth_visits_on_public_id ON public.clinic_telehealth_visits USING btree (public_id);
 
 
 --
@@ -16364,6 +17540,13 @@ CREATE TRIGGER clinic_supplier_address_versions_immutable BEFORE DELETE OR UPDAT
 
 
 --
+-- Name: clinic_telehealth_wrap_ups clinic_telehealth_wrap_ups_protect_finalized; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_telehealth_wrap_ups_protect_finalized BEFORE DELETE OR UPDATE ON public.clinic_telehealth_wrap_ups FOR EACH ROW EXECUTE FUNCTION public.clinic_telehealth_wrap_ups_protect_finalized();
+
+
+--
 -- Name: clinic_visit_types clinic_visit_types_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -16935,6 +18118,48 @@ CREATE TRIGGER stripe_connection_routing BEFORE DELETE OR UPDATE ON public.clini
 --
 
 CREATE TRIGGER stripe_cycles_immutable BEFORE DELETE OR UPDATE ON public.clinic_stripe_membership_cycles FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_telehealth_checkins telehealth_checkins_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER telehealth_checkins_immutable BEFORE DELETE OR UPDATE ON public.clinic_telehealth_checkins FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_telehealth_consents telehealth_consents_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER telehealth_consents_immutable BEFORE DELETE OR UPDATE ON public.clinic_telehealth_consents FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_telehealth_join_grants telehealth_join_grants_freeze; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER telehealth_join_grants_freeze BEFORE DELETE OR UPDATE ON public.clinic_telehealth_join_grants FOR EACH ROW EXECUTE FUNCTION public.telehealth_join_grant_freeze();
+
+
+--
+-- Name: clinic_telehealth_patient_receipts telehealth_patient_receipts_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER telehealth_patient_receipts_immutable BEFORE DELETE OR UPDATE ON public.clinic_telehealth_patient_receipts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_telehealth_policy_versions telehealth_policy_versions_freeze; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER telehealth_policy_versions_freeze BEFORE DELETE OR UPDATE ON public.clinic_telehealth_policy_versions FOR EACH ROW EXECUTE FUNCTION public.telehealth_policy_freeze();
+
+
+--
+-- Name: clinic_telehealth_provider_events telehealth_provider_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER telehealth_provider_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_telehealth_provider_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -18939,6 +20164,14 @@ ALTER TABLE ONLY public.clinic_inventory_receiving_sessions
 
 
 --
+-- Name: clinic_telehealth_participants fk_rails_09723b30c4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT fk_rails_09723b30c4 FOREIGN KEY (practice_id, portal_identity_id) REFERENCES public.clinic_patient_portal_identities(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_shipment_reconciliations fk_rails_0a8145c02d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18963,6 +20196,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipt_lines
 
 
 --
+-- Name: clinic_telehealth_join_grants fk_rails_0d11535ca4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_join_grants
+    ADD CONSTRAINT fk_rails_0d11535ca4 FOREIGN KEY (practice_id, participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
+
+
+--
 -- Name: clinic_items fk_rails_0eb41eb72a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18971,11 +20212,27 @@ ALTER TABLE ONLY public.clinic_items
 
 
 --
+-- Name: clinic_telehealth_consents fk_rails_103f951780; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents
+    ADD CONSTRAINT fk_rails_103f951780 FOREIGN KEY (practice_id, policy_version_id) REFERENCES public.clinic_telehealth_policy_versions(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_purchase_order_lines fk_rails_1045935d36; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
     ADD CONSTRAINT fk_rails_1045935d36 FOREIGN KEY (practice_id, purchase_order_id) REFERENCES public.clinic_inventory_purchase_orders(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_provider_events fk_rails_128e080be9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_provider_events
+    ADD CONSTRAINT fk_rails_128e080be9 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -18992,6 +20249,14 @@ ALTER TABLE ONLY public.clinic_inventory_transfers
 
 ALTER TABLE ONLY public.clinic_subscription_versions
     ADD CONSTRAINT fk_rails_133849c302 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_scribe_sources fk_rails_135679e729; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_sources
+    ADD CONSTRAINT fk_rails_135679e729 FOREIGN KEY (practice_id, telehealth_visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
 
 
 --
@@ -19051,6 +20316,14 @@ ALTER TABLE ONLY public.clinic_inventory_entries
 
 
 --
+-- Name: clinic_telehealth_participants fk_rails_194567602d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT fk_rails_194567602d FOREIGN KEY (practice_id, admitted_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_supplier_invoices fk_rails_199cad596f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19088,6 +20361,14 @@ ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
 
 ALTER TABLE ONLY public.clinic_workforce_schedule_drafts
     ADD CONSTRAINT fk_rails_1c01481252 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_1db6515ca2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_1db6515ca2 FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
 
 
 --
@@ -19291,6 +20572,22 @@ ALTER TABLE ONLY public.clinic_pharmacy_movements
 
 
 --
+-- Name: clinic_telehealth_provider_events fk_rails_2f5d36bf39; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_provider_events
+    ADD CONSTRAINT fk_rails_2f5d36bf39 FOREIGN KEY (practice_id, participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_2ff43dd588; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_2ff43dd588 FOREIGN KEY (practice_id, scribe_encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_control_reviews fk_rails_30306e2c82; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19323,11 +20620,27 @@ ALTER TABLE ONLY public.clinic_inventory_profiles
 
 
 --
+-- Name: clinic_telehealth_visits fk_rails_30ec88d827; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_30ec88d827 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_cash_drawer_sessions fk_rails_3168137046; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_cash_drawer_sessions
     ADD CONSTRAINT fk_rails_3168137046 FOREIGN KEY (closed_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_32b00b3677; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_32b00b3677 FOREIGN KEY (practice_id, patient_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
 
 
 --
@@ -19395,6 +20708,14 @@ ALTER TABLE ONLY public.clinic_stripe_connections
 
 
 --
+-- Name: clinic_telehealth_visit_type_rules fk_rails_3830f653b2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visit_type_rules
+    ADD CONSTRAINT fk_rails_3830f653b2 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_holds fk_rails_384dda0594; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19427,6 +20748,14 @@ ALTER TABLE ONLY public.clinic_communication_endpoints
 
 
 --
+-- Name: clinic_telehealth_commands fk_rails_3933c6c99f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_commands
+    ADD CONSTRAINT fk_rails_3933c6c99f FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_transfers fk_rails_3979f721e6; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19456,6 +20785,30 @@ ALTER TABLE ONLY public.clinic_inventory_recall_lots
 
 ALTER TABLE ONLY public.clinic_pharmacy_movements
     ADD CONSTRAINT fk_rails_3ba75f9cd3 FOREIGN KEY (practice_id, batch_id) REFERENCES public.clinic_pharmacy_batches(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_consents fk_rails_3c54a101da; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents
+    ADD CONSTRAINT fk_rails_3c54a101da FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_3c6710e91f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_3c6710e91f FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_checkins fk_rails_3c8fde2025; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_checkins
+    ADD CONSTRAINT fk_rails_3c8fde2025 FOREIGN KEY (practice_id, supersedes_checkin_id) REFERENCES public.clinic_telehealth_checkins(practice_id, id);
 
 
 --
@@ -19531,11 +20884,27 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_orders
 
 
 --
+-- Name: clinic_telehealth_patient_receipts fk_rails_43c4d415fc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_patient_receipts
+    ADD CONSTRAINT fk_rails_43c4d415fc FOREIGN KEY (practice_id, portal_identity_id) REFERENCES public.clinic_patient_portal_identities(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_punches fk_rails_43f74c088e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_workforce_punches
     ADD CONSTRAINT fk_rails_43f74c088e FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_visits fk_rails_444013bc41; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_444013bc41 FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -19571,6 +20940,14 @@ ALTER TABLE ONLY public.clinic_workforce_employments
 
 
 --
+-- Name: clinic_telehealth_commands fk_rails_48d6c09072; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_commands
+    ADD CONSTRAINT fk_rails_48d6c09072 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_vendor_returns fk_rails_496020bffe; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19592,6 +20969,14 @@ ALTER TABLE ONLY public.clinic_workforce_timecard_versions
 
 ALTER TABLE ONLY public.clinic_inventory_profiles
     ADD CONSTRAINT fk_rails_4a6252adbd FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_telehealth_room_attempts fk_rails_4bdb009ae7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_room_attempts
+    ADD CONSTRAINT fk_rails_4bdb009ae7 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
 
 
 --
@@ -19659,6 +21044,22 @@ ALTER TABLE ONLY public.clinic_cash_drawer_sessions
 
 
 --
+-- Name: clinic_telehealth_settings fk_rails_55fe5a64ed; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_settings
+    ADD CONSTRAINT fk_rails_55fe5a64ed FOREIGN KEY (practice_id, active_policy_version_id) REFERENCES public.clinic_telehealth_policy_versions(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_policy_versions fk_rails_56ff0bb49c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_policy_versions
+    ADD CONSTRAINT fk_rails_56ff0bb49c FOREIGN KEY (practice_id, published_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_supplier_invoices fk_rails_573b65e26e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19723,6 +21124,14 @@ ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_rails_5dfe5faa88; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_5dfe5faa88 FOREIGN KEY (practice_id, scribe_draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_punches fk_rails_5e65f1e661; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19731,11 +21140,27 @@ ALTER TABLE ONLY public.clinic_workforce_punches
 
 
 --
+-- Name: clinic_telehealth_visits fk_rails_5ea7ce9f3d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_5ea7ce9f3d FOREIGN KEY (practice_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_adjustment_requests fk_rails_5ec252c636; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
     ADD CONSTRAINT fk_rails_5ec252c636 FOREIGN KEY (practice_id, employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_checkins fk_rails_5f0a50aae7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_checkins
+    ADD CONSTRAINT fk_rails_5f0a50aae7 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -19752,6 +21177,14 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 ALTER TABLE ONLY public.clinic_workforce_availability_versions
     ADD CONSTRAINT fk_rails_602daedec6 FOREIGN KEY (practice_id, created_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_telehealth_participants fk_rails_61a6855fcf; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT fk_rails_61a6855fcf FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
 
 
 --
@@ -19800,6 +21233,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_cart_items
 
 ALTER TABLE ONLY public.clinic_subscription_agreements
     ADD CONSTRAINT fk_rails_650da6ee4a FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_join_grants fk_rails_671e4b0b6a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_join_grants
+    ADD CONSTRAINT fk_rails_671e4b0b6a FOREIGN KEY (practice_id, room_attempt_id) REFERENCES public.clinic_telehealth_room_attempts(practice_id, id);
 
 
 --
@@ -19859,6 +21300,14 @@ ALTER TABLE ONLY public.clinic_notes
 
 
 --
+-- Name: clinic_telehealth_consents fk_rails_6e39cd498d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents
+    ADD CONSTRAINT fk_rails_6e39cd498d FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_catalog_events fk_rails_6e4308849d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19904,6 +21353,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
 
 ALTER TABLE ONLY public.clinic_service_options
     ADD CONSTRAINT fk_rails_715983834e FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_visits fk_rails_71b594b7c0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_71b594b7c0 FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, id);
 
 
 --
@@ -19979,6 +21436,14 @@ ALTER TABLE ONLY public.clinic_notes
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_rails_797a80c709; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_797a80c709 FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
 -- Name: clinic_inventory_transfers fk_rails_7a15973961; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20008,6 +21473,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_carts
 
 ALTER TABLE ONLY public.clinic_stripe_checkouts
     ADD CONSTRAINT fk_rails_7b57f27555 FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_join_grants fk_rails_7b811f2438; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_join_grants
+    ADD CONSTRAINT fk_rails_7b811f2438 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -20075,11 +21548,43 @@ ALTER TABLE ONLY public.clinic_inventory_lots
 
 
 --
+-- Name: clinic_telehealth_participants fk_rails_83a5d08d3d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT fk_rails_83a5d08d3d FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_visits fk_rails_843617e407; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_843617e407 FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_shift_swap_requests fk_rails_845032cdc6; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
     ADD CONSTRAINT fk_rails_845032cdc6 FOREIGN KEY (practice_id, requested_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules fk_rails_848c7a9995; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visit_type_rules
+    ADD CONSTRAINT fk_rails_848c7a9995 FOREIGN KEY (practice_id, visit_type_id) REFERENCES public.clinic_visit_types(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_consents fk_rails_84b22f91bc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents
+    ADD CONSTRAINT fk_rails_84b22f91bc FOREIGN KEY (practice_id, participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
 
 
 --
@@ -20099,6 +21604,14 @@ ALTER TABLE ONLY public.clinic_scribe_encounters
 
 
 --
+-- Name: clinic_telehealth_join_grants fk_rails_864581cee5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_join_grants
+    ADD CONSTRAINT fk_rails_864581cee5 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_availability_versions fk_rails_880acd5a76; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20107,11 +21620,27 @@ ALTER TABLE ONLY public.clinic_workforce_availability_versions
 
 
 --
+-- Name: clinic_scribe_sources fk_rails_886cbb25b8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_sources
+    ADD CONSTRAINT fk_rails_886cbb25b8 FOREIGN KEY (practice_id, telehealth_recording_id) REFERENCES public.clinic_scribe_recordings(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_counts fk_rails_88b808adc3; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_counts
     ADD CONSTRAINT fk_rails_88b808adc3 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_897bf894bc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_897bf894bc FOREIGN KEY (practice_id, instruction_note_signature_id) REFERENCES public.clinic_encounter_note_signatures(practice_id, id);
 
 
 --
@@ -20155,11 +21684,27 @@ ALTER TABLE ONLY public.clinic_workforce_schedule_publications
 
 
 --
+-- Name: clinic_telehealth_checkins fk_rails_8ed3369c01; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_checkins
+    ADD CONSTRAINT fk_rails_8ed3369c01 FOREIGN KEY (practice_id, participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_shipment_lines fk_rails_8fc90ea7a2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_shipment_lines
     ADD CONSTRAINT fk_rails_8fc90ea7a2 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_90269df054; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_90269df054 FOREIGN KEY (practice_id, instruction_note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
 
 
 --
@@ -20203,11 +21748,27 @@ ALTER TABLE ONLY public.clinic_cash_tenders
 
 
 --
+-- Name: clinic_telehealth_visits fk_rails_97352d0542; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_97352d0542 FOREIGN KEY (practice_id, ended_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_patients fk_rails_97dd7e2d22; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_patients
     ADD CONSTRAINT fk_rails_97dd7e2d22 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_visits fk_rails_985576644a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_985576644a FOREIGN KEY (practice_id, scribe_capture_owner_participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
 
 
 --
@@ -20307,11 +21868,27 @@ ALTER TABLE ONLY public.clinic_scribe_events
 
 
 --
+-- Name: clinic_telehealth_commands fk_rails_9d3628d4e2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_commands
+    ADD CONSTRAINT fk_rails_9d3628d4e2 FOREIGN KEY (practice_id, participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_availability_versions fk_rails_9f1c6209c8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_workforce_availability_versions
     ADD CONSTRAINT fk_rails_9f1c6209c8 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules fk_rails_a0ea7f99a7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visit_type_rules
+    ADD CONSTRAINT fk_rails_a0ea7f99a7 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -20387,11 +21964,27 @@ ALTER TABLE ONLY public.clinic_scribe_drafts
 
 
 --
+-- Name: clinic_telehealth_settings fk_rails_a4e7ddf6fe; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_settings
+    ADD CONSTRAINT fk_rails_a4e7ddf6fe FOREIGN KEY (practice_id, updated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_shipment_lines fk_rails_a56c476f5d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_shipment_lines
     ADD CONSTRAINT fk_rails_a56c476f5d FOREIGN KEY (practice_id, shipment_id) REFERENCES public.clinic_inventory_shipments(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_policy_versions fk_rails_a5b9e703f8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_policy_versions
+    ADD CONSTRAINT fk_rails_a5b9e703f8 FOREIGN KEY (practice_id, settings_id) REFERENCES public.clinic_telehealth_settings(practice_id, id);
 
 
 --
@@ -20499,6 +22092,38 @@ ALTER TABLE ONLY public.clinic_workforce_employment_sites
 
 
 --
+-- Name: clinic_telehealth_visits fk_rails_b173f22f71; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_b173f22f71 FOREIGN KEY (practice_id, scribe_encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_policy_versions fk_rails_b1ec9863ea; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_policy_versions
+    ADD CONSTRAINT fk_rails_b1ec9863ea FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_patient_receipts fk_rails_b26986da09; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_patient_receipts
+    ADD CONSTRAINT fk_rails_b26986da09 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_consents fk_rails_b3a71c5a3b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_consents
+    ADD CONSTRAINT fk_rails_b3a71c5a3b FOREIGN KEY (practice_id, supersedes_consent_id) REFERENCES public.clinic_telehealth_consents(practice_id, id);
+
+
+--
 -- Name: clinic_scribe_lab_selections fk_rails_b3dbff35c5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20571,6 +22196,14 @@ ALTER TABLE ONLY public.clinic_inventory_count_approvals
 
 
 --
+-- Name: clinic_scribe_recordings fk_rails_b91e10fcc5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT fk_rails_b91e10fcc5 FOREIGN KEY (practice_id, telehealth_visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
 -- Name: clinic_scribe_events fk_rails_b9b5c0bce2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20587,6 +22220,30 @@ ALTER TABLE ONLY public.learning_progresses
 
 
 --
+-- Name: clinic_telehealth_settings fk_rails_bb7e7d9d65; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_settings
+    ADD CONSTRAINT fk_rails_bb7e7d9d65 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_participants fk_rails_bbaba425e6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT fk_rails_bbaba425e6 FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_recordings fk_rails_bbf15a4b44; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT fk_rails_bbf15a4b44 FOREIGN KEY (practice_id, capture_owner_participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
+
+
+--
 -- Name: clinic_stock_movements fk_rails_bcd06826f5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20600,6 +22257,14 @@ ALTER TABLE ONLY public.clinic_stock_movements
 
 ALTER TABLE ONLY public.clinic_inventory_supplier_credits
     ADD CONSTRAINT fk_rails_be18ebcf18 FOREIGN KEY (practice_id, purchase_order_id) REFERENCES public.clinic_inventory_purchase_orders(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_commands fk_rails_be7480538c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_commands
+    ADD CONSTRAINT fk_rails_be7480538c FOREIGN KEY (practice_id, room_attempt_id) REFERENCES public.clinic_telehealth_room_attempts(practice_id, id);
 
 
 --
@@ -20723,6 +22388,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipts
 
 
 --
+-- Name: clinic_telehealth_checkins fk_rails_d17fcfc8c1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_checkins
+    ADD CONSTRAINT fk_rails_d17fcfc8c1 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_payroll_configuration_versions fk_rails_d19cb84774; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20795,11 +22468,27 @@ ALTER TABLE ONLY public.clinic_subscription_agreements
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_rails_d8aeb013b0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_d8aeb013b0 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_purchase_orders fk_rails_d9e8cb8ec2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_inventory_purchase_orders
     ADD CONSTRAINT fk_rails_d9e8cb8ec2 FOREIGN KEY (practice_id, purchase_cart_id) REFERENCES public.clinic_inventory_purchase_carts(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_visit_type_rules fk_rails_da83a8fd34; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visit_type_rules
+    ADD CONSTRAINT fk_rails_da83a8fd34 FOREIGN KEY (practice_id, updated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -20835,6 +22524,14 @@ ALTER TABLE ONLY public.clinic_inventory_recalls
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_rails_defea0f536; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_defea0f536 FOREIGN KEY (practice_id, updated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_supplier_credits fk_rails_df09b50840; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20848,6 +22545,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_credits
 
 ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
     ADD CONSTRAINT fk_rails_df65e14823 FOREIGN KEY (practice_id, resulting_timecard_version_id) REFERENCES public.clinic_workforce_timecard_versions(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_provider_events fk_rails_e032280499; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_provider_events
+    ADD CONSTRAINT fk_rails_e032280499 FOREIGN KEY (practice_id, room_attempt_id) REFERENCES public.clinic_telehealth_room_attempts(practice_id, id);
 
 
 --
@@ -20872,6 +22577,14 @@ ALTER TABLE ONLY public.clinic_workforce_employee_invitations
 
 ALTER TABLE ONLY public.clinic_workforce_badge_credentials
     ADD CONSTRAINT fk_rails_e1be38af55 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_e2f0e5598d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_e2f0e5598d FOREIGN KEY (practice_id, scribe_export_id) REFERENCES public.clinic_scribe_exports(practice_id, id);
 
 
 --
@@ -20904,6 +22617,14 @@ ALTER TABLE ONLY public.clinic_subscription_agreements
 
 ALTER TABLE ONLY public.clinic_inventory_counts
     ADD CONSTRAINT fk_rails_e3e20ad7be FOREIGN KEY (practice_id, batch_id) REFERENCES public.clinic_pharmacy_batches(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_visits fk_rails_e59fdfa9b1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_e59fdfa9b1 FOREIGN KEY (practice_id, policy_version_id) REFERENCES public.clinic_telehealth_policy_versions(practice_id, id);
 
 
 --
@@ -20947,11 +22668,35 @@ ALTER TABLE ONLY public.clinic_inventory_receipt_lines
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_rails_e922425fc5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_e922425fc5 FOREIGN KEY (practice_id, instruction_note_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, id);
+
+
+--
 -- Name: clinic_invoice_stripe_checkouts fk_rails_e999cfba54; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
     ADD CONSTRAINT fk_rails_e999cfba54 FOREIGN KEY (practice_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_rails_e9e2e652e2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_e9e2e652e2 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_visits fk_rails_edb4dbf576; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_visits
+    ADD CONSTRAINT fk_rails_edb4dbf576 FOREIGN KEY (practice_id, current_room_attempt_id) REFERENCES public.clinic_telehealth_room_attempts(practice_id, id);
 
 
 --
@@ -20971,11 +22716,27 @@ ALTER TABLE ONLY public.clinic_workforce_employments
 
 
 --
+-- Name: clinic_telehealth_participants fk_rails_edfdd0766b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_participants
+    ADD CONSTRAINT fk_rails_edfdd0766b FOREIGN KEY (practice_id, admitted_checkin_id) REFERENCES public.clinic_telehealth_checkins(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_shifts fk_rails_eeb20d59e1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_workforce_shifts
     ADD CONSTRAINT fk_rails_eeb20d59e1 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_policy_versions fk_rails_eedb041db9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_policy_versions
+    ADD CONSTRAINT fk_rails_eedb041db9 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -20992,6 +22753,14 @@ ALTER TABLE ONLY public.clinic_inventory_entries
 
 ALTER TABLE ONLY public.clinic_subscription_families
     ADD CONSTRAINT fk_rails_efc2999f57 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_patient_receipts fk_rails_f0444651a5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_patient_receipts
+    ADD CONSTRAINT fk_rails_f0444651a5 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
 
 
 --
@@ -21067,6 +22836,14 @@ ALTER TABLE ONLY public.clinic_cash_drawer_sessions
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_rails_f753ac1438; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_rails_f753ac1438 FOREIGN KEY (practice_id, finalized_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_patient_reminders fk_rails_f912e04043; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21104,6 +22881,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipt_lines
 
 ALTER TABLE ONLY public.clinic_inventory_lots
     ADD CONSTRAINT fk_rails_fba4dc453c FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_telehealth_room_attempts fk_rails_fc1939a661; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_room_attempts
+    ADD CONSTRAINT fk_rails_fc1939a661 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -21691,6 +23476,30 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 
 
 --
+-- Name: clinic_telehealth_wrap_ups fk_telehealth_wrap_ups_follow_up_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_telehealth_wrap_ups_follow_up_appointment FOREIGN KEY (practice_id, patient_id, follow_up_appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_telehealth_wrap_ups_scribe_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_telehealth_wrap_ups_scribe_note FOREIGN KEY (practice_id, scribe_encounter_note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_telehealth_wrap_ups_scribe_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_telehealth_wrap_ups_scribe_revision FOREIGN KEY (practice_id, scribe_encounter_note_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_shift_swap_requests fk_workforce_swap_requester; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21729,6 +23538,9 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260908220000'),
+('20260908210000'),
+('20260908001000'),
 ('20260908000100'),
 ('20260907001000'),
 ('20260907000900'),
@@ -21841,4 +23653,3 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260830000300'),
 ('20260830000200'),
 ('20260830000100');
-

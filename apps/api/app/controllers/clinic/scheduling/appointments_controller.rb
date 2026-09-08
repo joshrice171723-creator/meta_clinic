@@ -28,19 +28,21 @@ module Clinic
           )
           appointments = appointments.where(patient_id: matching_patients.select(:id))
         end
-        paginate(appointments.includes(:encounter, :room, patient: :communication_endpoints), key: :appointments,
-          serializer: ->(appointment) { AppointmentSerializer.call(appointment) }, order: { starts_at: :asc, id: :asc })
+        paginate(appointments.includes(:encounter, :room, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
+          patient: :communication_endpoints), key: :appointments,
+          serializer: ->(appointment) { AppointmentSerializer.call(appointment, actor: current_user) }, order: { starts_at: :asc, id: :asc })
       end
 
       def show
         appointment_scope = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
-        appointment = appointment_scope.includes(:encounter, :room, :patient).find(requested_id!(params[:id], :id))
+        appointment = appointment_scope.includes(:encounter, :room, :patient,
+          telehealth_visit: [ :policy_version, :current_room_attempt, :participants ]).find(requested_id!(params[:id], :id))
         require_capability_with_legacy("appointments.read", "patients.read", site: appointment.site)
-        render json: { appointment: AppointmentSerializer.call(appointment) }
+        render json: { appointment: AppointmentSerializer.call(appointment, actor: current_user) }
       end
 
       def create
-        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id request_key])
+        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id request_key visit_modality])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = find_optional(current_practice.sites, input[:site_id], :site_id)
         room = find_optional(current_practice.rooms, input[:room_id], :room_id)
@@ -57,9 +59,10 @@ module Clinic
           visit_type: visit_type,
           starts_at: time_param!(input[:starts_at], field: :starts_at),
           ends_at: time_param!(input[:ends_at], field: :ends_at),
-          request_key: request_key
+          request_key: request_key,
+          visit_modality: input[:visit_modality].presence || "in_person"
         )
-        render json: { appointment: AppointmentSerializer.call(appointment), request_key: request_key }, status: :created
+        render json: { appointment: AppointmentSerializer.call(appointment, actor: current_user), request_key: request_key }, status: :created
       end
 
       def transition
@@ -71,11 +74,11 @@ module Clinic
           to: enum_param!(input[:to], field: :to, allowed: Clinic::Appointment::TRANSITIONS.keys),
           expected_status: input[:expected_status].presence && enum_param!(input[:expected_status], field: :expected_status, allowed: Clinic::Appointment::TRANSITIONS.keys)
         )
-        render json: { appointment: AppointmentSerializer.call(updated) }
+        render json: { appointment: AppointmentSerializer.call(updated, actor: current_user) }
       end
 
       def update
-        input = parameter_hash!(:appointment, %i[starts_at ends_at expected_updated_at request_key])
+        input = parameter_hash!(:appointment, %i[starts_at ends_at expected_updated_at request_key visit_modality])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         updated = Clinic::Scheduling::RescheduleAppointment.call(
@@ -83,9 +86,10 @@ module Clinic
           starts_at: time_param!(input[:starts_at], field: :starts_at),
           ends_at: time_param!(input[:ends_at], field: :ends_at),
           expected_updated_at: time_param!(input[:expected_updated_at], field: :expected_updated_at),
-          request_key: request_key
+          request_key: request_key,
+          visit_modality: input[:visit_modality]
         )
-        render json: { appointment: AppointmentSerializer.call(updated), request_key: request_key }
+        render json: { appointment: AppointmentSerializer.call(updated, actor: current_user), request_key: request_key }
       end
 
       private
