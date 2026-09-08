@@ -36,16 +36,21 @@ fieldset {
   margin-left: auto;
 }
 .development-toolbar {
-  min-height: 64px;
-  padding: 10px 24px;
+  display: grid;
+  grid-template-columns: minmax(156px, 0.5fr) minmax(0, auto);
+  min-height: 72px;
+  padding: 12px 28px;
   align-items: center;
-  justify-content: space-between;
+  gap: 28px;
   background: #17372f;
   color: #f7fbf8;
   border-bottom: 1px solid #0f2922;
 }
 .development-toolbar-heading {
   flex: 0 0 auto;
+  min-height: 32px;
+  padding-right: 20px;
+  border-right: 1px solid #45665b;
 }
 .development-toolbar-heading h2 {
   margin: 0;
@@ -61,18 +66,22 @@ fieldset {
   color: #f7fbf8;
 }
 .development-toolbar .development-controls {
+  display: grid;
+  grid-template-columns: auto minmax(200px, 240px) auto auto;
+  grid-template-areas: "portal account date login";
   min-width: 0;
-  flex-direction: row;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  gap: 12px;
 }
 .development-toolbar .development-control-row {
-  min-width: 0;
-  flex-wrap: nowrap;
+  display: contents;
+}
+.development-toolbar .development-portal-toggle {
+  grid-area: portal;
 }
 .development-toolbar .development-account-switcher {
-  width: clamp(180px, 20vw, 240px);
+  grid-area: account;
+  width: 100%;
   min-width: 0;
 }
 .development-toolbar .development-account-select {
@@ -80,6 +89,12 @@ fieldset {
 }
 .development-toolbar .development-date-input {
   width: 154px;
+}
+.development-toolbar .development-date-picker {
+  grid-area: date;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid #45665b;
 }
 .development-toolbar .development-date-input .MuiOutlinedInput-root {
   background: #ffffff;
@@ -107,28 +122,42 @@ fieldset {
   color: #f7fbf8;
 }
 .development-toolbar .development-login-button {
+  grid-area: login;
   background: #d9e6b8;
   color: #17372f;
 }
 .development-toolbar .development-login-button:hover {
   background: #e7efd1;
 }
-@media (max-width: 1199px) {
+@media (max-width: 1280px) {
   .development-toolbar {
-    align-items: stretch;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 12px;
+  }
+  .development-toolbar-heading {
+    padding-right: 0;
+    border-right: 0;
   }
   .development-toolbar .development-controls {
-    justify-content: flex-start;
+    grid-template-columns: auto minmax(200px, 1fr) auto;
+    grid-template-areas:
+      "portal account login"
+      "portal date login";
+    justify-content: start;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 860px) {
   .development-toolbar {
     padding: 12px 16px;
   }
-  .development-toolbar .development-controls,
-  .development-toolbar .development-control-row {
-    align-items: stretch;
-    flex-direction: column;
+  .development-toolbar .development-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "portal portal"
+      "account account"
+      "date login";
+    align-items: end;
   }
   .development-toolbar .development-account-switcher,
   .development-toolbar .development-date-input {
@@ -137,6 +166,10 @@ fieldset {
   .development-toolbar .development-date-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .development-toolbar .development-date-picker {
+    padding-left: 0;
+    border-left: 0;
   }
   .development-toolbar .development-login-button {
     min-height: 40px;

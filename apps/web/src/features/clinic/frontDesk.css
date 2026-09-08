@@ -33,6 +33,10 @@
   background: var(--clinic-soft);
 }
 
+.front-desk-filters .MuiInputBase-root {
+  min-height: 40px;
+}
+
 .front-desk-alert {
   margin: 16px 24px;
 }
@@ -85,6 +89,37 @@
   gap: 5px;
 }
 
+.front-desk-row > div[data-label="Status"] {
+  align-self: stretch;
+  justify-content: center;
+}
+
+.front-desk-row > div[data-label="Status"] .MuiChip-root {
+  min-height: 26px;
+  border: 1px solid currentColor;
+  background: var(--clinic-soft);
+  color: var(--clinic-text);
+}
+
+.front-desk-row > div[data-label="Status"] .MuiChip-colorSuccess {
+  background: var(--clinic-success-bg);
+  color: var(--clinic-success);
+}
+
+.front-desk-row > div[data-label="Status"] .MuiChip-colorWarning {
+  background: var(--clinic-warning-bg);
+  color: var(--clinic-warning);
+}
+
+.front-desk-row > div[data-label="Status"] .MuiChip-colorInfo {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+
+.front-desk-row > div[data-label="Status"] .MuiChip-label {
+  padding-inline: 9px;
+}
+
 .front-desk-time {
   font-variant-numeric: tabular-nums;
 }
@@ -109,6 +144,8 @@
 }
 
 .front-desk-actions {
+  align-self: stretch;
+  justify-content: flex-start;
   flex-flow: row wrap !important;
   align-items: center !important;
   gap: 6px 8px !important;
@@ -239,7 +276,13 @@
     display: flex;
   }
 
+  .front-desk-row > div[data-label="Status"] {
+    align-self: auto;
+    justify-content: flex-start;
+  }
+
   .front-desk-actions {
+    align-self: auto;
     grid-column: 1 / -1;
   }
 

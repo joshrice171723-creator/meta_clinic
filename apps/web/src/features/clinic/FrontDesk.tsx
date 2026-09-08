@@ -395,6 +395,7 @@ function AppointmentDayQueue({
         <TextField
           label="Appointment date"
           type="date"
+          size="small"
           value={date}
           onChange={(event) => {
             if (!event.target.value) return;
@@ -417,6 +418,7 @@ function AppointmentDayQueue({
         <TextField
           select
           label="Site"
+          size="small"
           value={siteId}
           slotProps={{
             select: { displayEmpty: true },
@@ -436,6 +438,7 @@ function AppointmentDayQueue({
         </TextField>
         <TextField
           label="Search appointments"
+          size="small"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
