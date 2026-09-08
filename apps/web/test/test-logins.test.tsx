@@ -34,10 +34,14 @@ describe("development account preview", () => {
     expect(html).toContain("Log in");
     expect(html).toContain("Choose a portal and account, then log in");
     expect(html).toContain("2032-04-15");
-    expect(html).toContain("Uses the real current time with this date.");
-    expect(html).not.toContain("Email address");
-    expect(html).not.toContain("Password");
-    expect(html).not.toContain(">Sign in<");
+    expect(html).toContain("Apply date");
+    expect(html).toContain('min="2000-01-01"');
+    expect(html).toContain('max="2100-12-31"');
+    expect(html).toContain("Login and permissions use real time.");
+    expect(html).toContain("Email address");
+    expect(html).toContain("Password");
+    expect(html).toContain(">Sign in<");
+    expect(html).toContain('href="/workforce/activate"');
     expect(html).not.toContain("clinician1@test.com");
   });
 

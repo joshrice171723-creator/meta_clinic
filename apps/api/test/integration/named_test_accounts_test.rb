@@ -148,6 +148,74 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_not account.key?(:email_address)
       assert_equal employee, Development::TestAccounts.sign_in_account(account.fetch(:id))
       assert Development::TestAccounts.matches?(employee, account.fetch(:id))
+      assert_equal account, Development::TestAccounts.preview_account_for(employee, profile: account.fetch(:id))
+
+      queries = []
+      ActiveSupport::Notifications.subscribed(->(*args) { queries << args.last[:sql] }, "sql.active_record") do
+        assert_equal employee, Development::TestAccounts.sign_in_account(account.fetch(:id))
+        assert Development::TestAccounts.matches?(employee, account.fetch(:id))
+        assert_equal account, Development::TestAccounts.preview_account_for(employee, profile: account.fetch(:id))
+      end
+      assert_not queries.any? { |sql| sql.include?("clinic_patient_portal_identities") }, "Checking one employee must not enumerate patient accounts"
+
+      enter(account.fetch(:id))
+      assert_response :created
+      assert_equal account.fetch(:id), response.parsed_body.dig("user", "development_account_id")
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
+      patch "/api/development_date", params: { date: "2000-01-01" }, headers: csrf, as: :json
+      assert_response :success
+      get "/api/session", headers: @headers
+      assert_response :success
+      assert_equal account.fetch(:id), response.parsed_body.dig("user", "development_account_id")
+
+      membership.update!(active: false)
+      assert_nil Development::TestAccounts.sign_in_account(account.fetch(:id))
+      assert_not Development::TestAccounts.matches?(employee, account.fetch(:id))
+      get "/api/session", headers: @headers
+      assert_response :unauthorized
+    end
+  end
+
+  test "app date preserves Omni and patient sessions without restoring revoked access" do
+    local_mode do
+      practice = Clinic::Practice.create!(name: "Clock boundary clinic")
+      omni = User.create!(email_address: "omni@test.com", admin: false,
+        password: Development::TestAccounts.send(:password_for, "omni"))
+      membership = Clinic::Membership.create!(practice: practice, user: omni)
+      role = RoleVersion.create!(role_code: "development-omni-clinician", version: 1)
+      grant = membership.role_grants.create!(practice: practice, role_version: role,
+        scope_kind: "practice", effective_from: 1.minute.ago, revision: 1)
+      patient_user = User.create!(email_address: "clock-patient@example.invalid", password: SecureRandom.hex(20))
+      patient = practice.patients.create!(display_name: "Clock Patient", reference: "CLOCK-PATIENT")
+      identity = Clinic::PatientPortal::Identity.create!(practice: practice, patient: patient, user: patient_user,
+        status: :active, invited_at: Time.current, activated_at: Time.current)
+
+      patch "/api/development_date", params: { date: "2000-01-01" }, headers: csrf, as: :json
+      assert_response :success
+      enter("omni")
+      assert_response :created
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
+      assert_equal "omni", response.parsed_body.dig("user", "development_account_id")
+      get "/api/csrf", headers: @headers
+      assert_equal "2000-01-01", response.parsed_body.fetch("business_date")
+      assert_includes response.parsed_body.fetch("development_accounts").pluck("id"), "omni"
+      get "/api/session", headers: @headers
+      assert_response :success
+      grant.update!(revoked_at: Time.current)
+      get "/api/session", headers: @headers
+      assert_response :unauthorized
+      assert_nil Development::TestAccounts.sign_in_account("omni")
+      assert_nil Development::TestAccounts.sign_in_account("employee-#{omni.id}")
+
+      enter("patient-#{patient_user.id}")
+      assert_response :created
+      assert_equal "/patient-portal", response.parsed_body.fetch("destination")
+      assert_equal "patient-#{patient_user.id}", response.parsed_body.dig("user", "development_account_id")
+      assert_nil Development::TestAccounts.sign_in_account("employee-#{patient_user.id}")
+      identity.update!(status: :revoked, revoked_at: Time.current)
+      assert_nil Development::TestAccounts.sign_in_account("patient-#{patient_user.id}")
+      get "/api/session", headers: @headers
+      assert_response :unauthorized
     end
   end
 

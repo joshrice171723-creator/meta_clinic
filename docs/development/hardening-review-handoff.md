@@ -29,3 +29,13 @@ This is a local, fictional-development review handoff. It records implementation
 ## Working-tree boundary
 
 Preserve unrelated dirty API authorization/test-account/structure files and web App, Workspace, identity, workforce, and login-test files. Do not reset, format broadly, or fold them into a hardening change. Consult [production-finalization-checkpoint.md](production-finalization-checkpoint.md) for detailed contracts, commands, logs, and historical evidence.
+
+## Resumed hardening batch
+
+The user instructed continuation after the Shortcut claim blocker was explained. This batch proceeds under that task-specific override because Shortcut tools remain unavailable; no Story claim or tracker update is asserted. The user redeemed a usage reset themselves; the agent did not redeem one.
+
+The integration base is `88af72e`. Three non-overlapping lanes cover procurement cart drafts (Terra medium), subscription uncertain-outcome recovery (Sol high), and clean patient-form components (Sol high). Shared contracts, unrelated modified files, backend records and established design remain outside the edit boundary. This is implementation evidence for independent review, not a new feature roadmap.
+
+Failure-first scope: saving one cart line must not erase another line's typed quantity or unsaved header values. Same-cart server refresh must preserve dirty values, while changing cart identity must clear prior-cart state. Subscription retry after an uncertain response must retain its original action/body/key, suppress competing actions and distinguish server rejection from unknown outcome. Source proves the current reset/fresh-key behaviors; it does not prove a duplicate financial effect. Verification will cover the corrected transitions after all writers stop, and live evidence will be identified separately. If authoritative server contracts cannot safely support a retry, expose the existing recovery path rather than claim success or replay a new action.
+
+The third lane confirmed registration edits were protected only by dialog Cancel/onClose. `Patients.tsx` now registers the existing clinic-navigation blocker and native unload guard while the dialog is open and dirty, with cleanup after save/discard/unmount. Required verification distinguishes same-document Back (clinic routing) from actual reload/tab close (`beforeunload`). No new contact verification or clinical authority is added.

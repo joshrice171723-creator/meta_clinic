@@ -341,15 +341,6 @@ export function Workspace({
                   }
                   developmentPreview={!!user.development_demo}
                 >
-                  {!scribePage && user.development_demo && (
-                    <DevelopmentToolbar
-                      className="clinic-development-toolbar"
-                      accounts={developmentAccounts}
-                      activeId={user.development_account_id}
-                      businessDate={businessDate}
-                      environment={environment}
-                    />
-                  )}
                   {!scribePage && (
                     <header
                       className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}
@@ -378,6 +369,15 @@ export function Workspace({
                     tabIndex={-1}
                     className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}${scribePage ? " scribe-page" : ""}`}
                   >
+                    {path === "/clinic/settings" && user.development_demo && (
+                      <DevelopmentToolbar
+                        className="clinic-development-toolbar"
+                        accounts={developmentAccounts}
+                        activeId={user.development_account_id}
+                        businessDate={businessDate}
+                        environment={environment}
+                      />
+                    )}
                     {children}
                   </main>
                 </ClinicFrame>

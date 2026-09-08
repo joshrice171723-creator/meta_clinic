@@ -54,11 +54,9 @@ module Development
     end
 
     def self.matches?(user, profile)
-      database_account = preview_accounts.find { |account| account.fetch(:id) == profile }
-      if database_account
-        database_user = dynamic_preview_user(database_account)
-        return database_user.id == user&.id if database_user
-      end
+      ensure_local!
+      return false unless user&.active?
+      return dynamic_preview_user(profile)&.id == user.id if profile.to_s.match?(/\A(employee|patient)-\d+\z/)
 
       preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
       return preview_user(preview, authenticate: false)&.id == user&.id if preview
@@ -72,11 +70,7 @@ module Development
 
     def self.sign_in_account(profile)
       ensure_local!
-      database_account = preview_accounts.find { |account| account.fetch(:id) == profile }
-      if database_account
-        database_user = dynamic_preview_user(database_account)
-        return database_user if database_user
-      end
+      return dynamic_preview_user(profile) if profile.to_s.match?(/\A(employee|patient)-\d+\z/)
 
       preview = PREVIEW_ACCOUNTS.find { |account| account.fetch(:id) == profile }
       return preview_user(preview) if preview
@@ -93,17 +87,25 @@ module Development
     end
 
     def self.preview_account_for(user, profile: nil)
-      return unless user
+      ensure_local!
+      return unless user&.active?
+
+      if profile.to_s.match?(/\A(employee|patient)-\d+\z/)
+        return unless matches?(user, profile)
+        return profile.start_with?("employee-") ? employee_accounts(user_id: user.id).first : patient_accounts(user_id: user.id).first
+      end
+      return omni_account.first if profile == "omni" && matches?(user, profile)
 
       legacy = PREVIEW_ACCOUNTS.find do |account|
         account.fetch(:id) == profile && preview_user(account, authenticate: false)&.id == user.id
       end
       return legacy if legacy
 
-      accounts = preview_accounts
-      accounts.find { |account| account.fetch(:id) == profile && account[:email_address] == user.email_address } ||
-        accounts.find { |account| account[:email_address] == user.email_address } ||
-        PREVIEW_ACCOUNTS.find { |account| preview_user(account, authenticate: false)&.id == user.id }
+      employee_accounts(user_id: user.id).first || patient_accounts(user_id: user.id).first ||
+        PREVIEW_ACCOUNTS.find do |account|
+          email = account[:email] || PROFILES.dig(account[:profile], :email)
+          email == user.email_address && preview_user(account, authenticate: false)&.id == user.id
+        end
     end
 
     def self.prepare!
@@ -213,23 +215,32 @@ module Development
     end
     private_class_method :preview_user
 
-    def self.dynamic_preview_user(account)
-      prefix = case account.fetch(:account_type)
-      when "employee" then "employee"
-      when "patient" then "patient"
-      else return
+    def self.dynamic_preview_user(profile)
+      match = profile.to_s.match(/\A(employee|patient)-(\d+)\z/)
+      return unless match
+      user = User.find_by(id: match[2], active: true)
+      return unless user
+
+      eligible = if match[1] == "employee"
+        user.email_address != PROFILES.fetch("omni").fetch(:email) &&
+          Clinic::Membership.active.exists?(user_id: user.id)
+      else
+        Clinic::PatientPortal::Identity.available.exists?(user_id: user.id)
       end
-      user_id = account.fetch(:id).match(/\A#{prefix}-(\d+)\z/)&.captures&.first
-      User.find_by(id: user_id, active: true) if user_id
+      user if eligible
     end
     private_class_method :dynamic_preview_user
 
-    def self.employee_accounts
-      Clinic::Membership.active.joins(:user)
+    def self.employee_accounts(user_id: nil)
+      memberships = Clinic::Membership.active.joins(:user)
         .where(users: { active: true }).where.not(users: { email_address: PROFILES.fetch("omni").fetch(:email) })
-        .includes(:practice, :user, role_grants: :role_version)
-        .order("users.email_address", :id).map do |membership|
-          roles = membership.role_grants.active.map { |grant| role_label(grant.role_version.role_code) }.uniq.sort
+        .order("users.email_address", :id)
+      memberships = memberships.where(user_id: user_id) if user_id
+      memberships = memberships.to_a
+      grants = Clinic::RoleGrant.active.where(membership_id: memberships.map(&:id))
+        .includes(:role_version).group_by(&:membership_id)
+      memberships.map do |membership|
+          roles = grants.fetch(membership.id, []).map { |grant| role_label(grant.role_version.role_code) }.uniq.sort
           {
             id: "employee-#{membership.user_id}",
             label: roles.join(" · ").presence || "Employee",
@@ -240,9 +251,11 @@ module Development
     end
     private_class_method :employee_accounts
 
-    def self.patient_accounts
-      Clinic::PatientPortal::Identity.available.joins(:user).where(users: { active: true })
-        .includes(:patient, :user).order("users.email_address", :id).map do |identity|
+    def self.patient_accounts(user_id: nil)
+      identities = Clinic::PatientPortal::Identity.available.joins(:user).where(users: { active: true })
+        .includes(:patient).order("users.email_address", :id)
+      identities = identities.where(user_id: user_id) if user_id
+      identities.map do |identity|
           {
             id: "patient-#{identity.user_id}",
             label: identity.patient.display_name,
@@ -254,7 +267,8 @@ module Development
     private_class_method :patient_accounts
 
     def self.omni_account
-      return [] unless preview_user({ profile: "omni" }, authenticate: false)
+      user = User.find_by(email_address: PROFILES.fetch("omni").fetch(:email), active: true)
+      return [] unless user && OmniAccess.profile_for(user).present?
 
       [ { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic" } ]
     end

@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import {
   Alert,
   Button,
@@ -104,8 +104,11 @@ export function DevelopmentDatePicker({
 }: {
   businessDate: string;
 }) {
+  const [draftDate, setDraftDate] = useState(businessDate);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => setDraftDate(businessDate), [businessDate]);
 
   const save = async (date: string) => {
     setSaving(true);
@@ -139,17 +142,30 @@ export function DevelopmentDatePicker({
           label="App date"
           type="date"
           size="small"
-          value={businessDate}
+          value={draftDate}
           disabled={saving}
-          onChange={(event) => void save(event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          onChange={(event) => {
+            setDraftDate(event.target.value);
+            setError("");
+          }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { min: "2000-01-01", max: "2100-12-31" },
+          }}
         />
+        <Button
+          size="small"
+          disabled={saving || !draftDate || draftDate === businessDate}
+          onClick={() => void save(draftDate)}
+        >
+          Apply date
+        </Button>
         <Button size="small" disabled={saving} onClick={() => void save("")}>
           Today
         </Button>
       </Stack>
       <Typography className="development-date-note" variant="caption">
-        Uses the real current time with this date.
+        Changes workflow dates only. Login and permissions use real time.
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
     </Stack>

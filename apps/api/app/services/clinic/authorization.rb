@@ -2,7 +2,7 @@ module Clinic
   module Authorization
     class Denied < StandardError; end
 
-    def self.authorize!(actor:, practice:, action:, site: nil, subject: nil, any_site: false, at: Current.business_time)
+    def self.authorize!(actor:, practice:, action:, site: nil, subject: nil, any_site: false, at: Time.current)
       normalized_action = Ability.normalize_permission(action)
       rule = Ability.rule_for(normalized_action)
       ability = Ability.new(actor, practice: practice, at: at)
@@ -25,7 +25,7 @@ module Clinic
     # Existing broad permissions remain usable by established clients while
     # new roles receive only atomic capabilities. This bridge is explicit at
     # each call site and does not make an atomic capability imply another one.
-    def self.authorize_with_legacy!(actor:, practice:, action:, legacy_action:, site: nil, any_site: false, at: Current.business_time)
+    def self.authorize_with_legacy!(actor:, practice:, action:, legacy_action:, site: nil, any_site: false, at: Time.current)
       normalized = Ability.normalize_permission(action)
       ability = Ability.new(actor, practice: practice, at: at)
       return ability.membership if ability.allowed_permission?(normalized, site: site, any_site: any_site)

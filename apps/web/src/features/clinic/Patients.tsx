@@ -26,6 +26,7 @@ import {
 import { PatientSupport } from "./CareFlow";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { useClinic } from "./Workspace";
+import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
 
@@ -274,10 +275,26 @@ function PatientRecord({
   onRegistrationSaved: () => void;
   patient: Patient;
 }) {
+  const { registerBlocker } = useClinicNavigation();
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [registrationDirty, setRegistrationDirty] = useState(false);
   const [discardPending, setDiscardPending] = useState(false);
   const registrationDialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!registrationOpen || !registrationDirty) return;
+    const unregister = registerBlocker(
+      () => "Unsaved registration changes will be lost. Leave this patient?",
+    );
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [registerBlocker, registrationDirty, registrationOpen]);
   const closeRegistration = () => {
     if (registrationDialogRef.current?.querySelector("fieldset[disabled]"))
       return;

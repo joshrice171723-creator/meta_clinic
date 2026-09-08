@@ -32,6 +32,19 @@ class WorkforceFoundationTest < ActiveSupport::TestCase
     assert @employee_membership.reload.active?, "workforce inactivation must not mutate clinic membership"
   end
 
+  test "app date cannot activate or restore workforce authorization grants" do
+    grant = permission_grant!(@manager_membership, "workforce.admin")
+
+    Current.business_date = 1.day.ago.to_date
+    assert Clinic::Workforce::Access.new(actor: @manager, practice: @practice).allow?("workforce.admin")
+
+    grant.update!(effective_from: 3.days.ago, effective_until: 1.day.ago)
+    Current.business_date = 2.days.ago.to_date
+    assert_not Clinic::Workforce::Access.new(actor: @manager, practice: @practice).allow?("workforce.admin")
+  ensure
+    Current.reset
+  end
+
   test "cross-practice membership cannot be linked" do
     other_practice = Clinic::Practice.create!(name: "Other Workforce Clinic", timezone: "UTC")
     other_user = User.create!(email_address: "foreign-#{SecureRandom.hex(6)}@example.com",

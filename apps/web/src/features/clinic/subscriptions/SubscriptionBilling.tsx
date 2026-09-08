@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -19,9 +19,10 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { api } from "../../../api/client";
+import { api, ApiError } from "../../../api/client";
 import { LoadState, useResource } from "../../../shared/ui";
 import { StripeConnectPanel } from "../billing/StripeConnectPanel";
+import { useClinicNavigation } from "../clinicNavigation";
 import {
   stateLabel,
   subscriptionDate,
@@ -44,6 +45,141 @@ const FILTER_STATES = [
   "refunded",
 ];
 
+type SubscriptionAction =
+  "review" | "reconcile" | "cancel" | "refund" | "reconcile_ledger";
+
+export type SubscriptionActionAttempt = {
+  subscriptionId: number;
+  action: SubscriptionAction;
+  body: Readonly<Record<string, unknown>>;
+};
+
+type SubscriptionActionRequester = (
+  path: string,
+  options: { method: "POST"; body: Readonly<Record<string, unknown>> },
+) => Promise<unknown>;
+
+export function createSubscriptionActionAttempt(
+  subscriptionId: number,
+  action: SubscriptionAction,
+  body: Record<string, unknown> = {},
+  requestKey: string = crypto.randomUUID(),
+): SubscriptionActionAttempt {
+  return {
+    subscriptionId,
+    action,
+    body: Object.freeze({ ...body, request_key: requestKey }),
+  };
+}
+
+export function subscriptionActionOutcomeIsUnknown(reason: unknown) {
+  return (
+    !(reason instanceof ApiError) ||
+    reason.status === 408 ||
+    reason.status >= 500 ||
+    reason.code === "outcome_unconfirmed"
+  );
+}
+
+export function resolveSubscriptionActionAttempt(
+  current: SubscriptionActionAttempt | null,
+  subscriptionId: number,
+  action: SubscriptionAction,
+  body: Record<string, unknown> = {},
+  requestKey?: string,
+) {
+  if (!current) {
+    return createSubscriptionActionAttempt(
+      subscriptionId,
+      action,
+      body,
+      requestKey,
+    );
+  }
+  return current.subscriptionId === subscriptionId && current.action === action
+    ? current
+    : null;
+}
+
+export function subscriptionActionFailure(
+  attempt: SubscriptionActionAttempt,
+  reason: unknown,
+) {
+  const outcomeUnconfirmed = subscriptionActionOutcomeIsUnknown(reason);
+  return {
+    outcomeUnconfirmed,
+    pendingAttempt: outcomeUnconfirmed ? attempt : null,
+  };
+}
+
+export function subscriptionActionResponse(
+  value: unknown,
+  expectedSubscriptionId: number,
+): Subscription {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    (value as { id?: unknown }).id !== expectedSubscriptionId ||
+    typeof (value as { state?: unknown }).state !== "string" ||
+    !(value as { state: string }).state.trim()
+  ) {
+    throw new Error(
+      "The membership action returned an invalid response. Its outcome is not confirmed.",
+    );
+  }
+  return value as Subscription;
+}
+
+export async function submitSubscriptionActionAttempt(
+  attempt: SubscriptionActionAttempt,
+  request: SubscriptionActionRequester = api,
+) {
+  const result = await request(
+    `/api/clinic/subscriptions/${attempt.subscriptionId}/${attempt.action}`,
+    { method: "POST", body: attempt.body },
+  );
+  return subscriptionActionResponse(result, attempt.subscriptionId);
+}
+
+function subscriptionActionLabel(attempt: SubscriptionActionAttempt) {
+  if (attempt.action === "review") {
+    return attempt.body.approved
+      ? "eligibility approval"
+      : "eligibility decline";
+  }
+  if (attempt.action === "reconcile_ledger") return "membership activation";
+  if (attempt.action === "reconcile") return "payment reconciliation";
+  if (attempt.action === "refund") return "membership refund";
+  return "membership cancellation";
+}
+
+type SubscriptionActionNotice = {
+  severity: "info" | "success";
+  message: string;
+};
+
+function subscriptionActionNotice(
+  attempt: SubscriptionActionAttempt,
+  subscription: Subscription,
+): SubscriptionActionNotice {
+  const currentStatus = stateLabel(subscription.state);
+  if (attempt.action === "reconcile") {
+    return {
+      severity: ["processing", "outcome_unknown", "payment_failed"].includes(
+        subscription.state,
+      )
+        ? "info"
+        : "success",
+      message: `Payment status refreshed for membership #${attempt.subscriptionId}. Current status: ${currentStatus}.`,
+    };
+  }
+  const label = subscriptionActionLabel(attempt);
+  return {
+    severity: "success",
+    message: `${label.charAt(0).toUpperCase()}${label.slice(1)} confirmed for membership #${attempt.subscriptionId}. Current status: ${currentStatus}.`,
+  };
+}
+
 function stateColor(
   state: string,
 ): "default" | "success" | "warning" | "error" {
@@ -62,6 +198,7 @@ function renewalNeedsPayment(subscription: Subscription) {
 }
 
 export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
+  const { registerBlocker } = useClinicNavigation();
   const [state, setState] = useState("");
   const [search, setSearch] = useState("");
   const resource = useResource<{
@@ -74,37 +211,87 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
     };
   }>(`/api/clinic/subscriptions?${new URLSearchParams({ state, search })}`);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState<SubscriptionActionNotice | null>(null);
   const [busy, setBusy] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Subscription | null>(null);
+  const [pendingAttempt, setPendingAttempt] =
+    useState<SubscriptionActionAttempt | null>(null);
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
+  const requestInFlight = useRef(false);
 
-  const act = async (
-    subscription: Subscription,
-    action: string,
-    body: Record<string, unknown> = {},
-  ) => {
+  useEffect(() => {
+    if (!pendingAttempt) return;
+    const warning = `The ${subscriptionActionLabel(pendingAttempt)} outcome is unresolved. Retry the exact request before leaving membership billing.`;
+    const unregister = registerBlocker(() => warning);
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [pendingAttempt, registerBlocker]);
+
+  const runAttempt = async (attempt: SubscriptionActionAttempt) => {
+    if (requestInFlight.current) return false;
+    requestInFlight.current = true;
+    setPendingAttempt(attempt);
+    setOutcomeUnconfirmed(false);
     setBusy(true);
     setError("");
+    setNotice(null);
     try {
-      await api(`/api/clinic/subscriptions/${subscription.id}/${action}`, {
-        method: "POST",
-        body: { ...body, request_key: crypto.randomUUID() },
-      });
+      const result = await submitSubscriptionActionAttempt(attempt);
+      setPendingAttempt(null);
+      setOutcomeUnconfirmed(false);
+      setNotice(subscriptionActionNotice(attempt, result));
       resource.refresh();
       onChanged();
       return true;
     } catch (reason) {
+      const failure = subscriptionActionFailure(attempt, reason);
+      setOutcomeUnconfirmed(failure.outcomeUnconfirmed);
+      setPendingAttempt(failure.pendingAttempt);
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "The membership action did not complete.",
+        failure.outcomeUnconfirmed
+          ? `${reason instanceof Error ? reason.message : "The server response did not confirm the action."} Membership records are refreshing. Review the updated record, then retry only this same request if confirmation is still needed.`
+          : reason instanceof Error
+            ? reason.message
+            : "The membership action did not complete.",
       );
+      if (failure.outcomeUnconfirmed) {
+        resource.refresh();
+        onChanged();
+      }
     } finally {
+      requestInFlight.current = false;
       setBusy(false);
     }
     return false;
   };
 
+  const act = async (
+    subscription: Subscription,
+    action: SubscriptionAction,
+    body: Record<string, unknown> = {},
+  ) => {
+    const attempt = resolveSubscriptionActionAttempt(
+      pendingAttempt,
+      subscription.id,
+      action,
+      body,
+    );
+    return attempt ? runAttempt(attempt) : false;
+  };
+
   const data = resource.data;
+  const actionsLocked = busy || outcomeUnconfirmed;
+  const cancelRetryPending =
+    outcomeUnconfirmed &&
+    pendingAttempt?.action === "cancel" &&
+    pendingAttempt.subscriptionId === cancelTarget?.id;
   return (
     <Box
       component="section"
@@ -189,7 +376,28 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
             </Stack>
 
             {(!data || resource.error) && <LoadState error={resource.error} />}
-            {error && <Alert severity="error">{error}</Alert>}
+            {error && (
+              <Alert
+                severity={outcomeUnconfirmed ? "warning" : "error"}
+                action={
+                  outcomeUnconfirmed && pendingAttempt ? (
+                    <Button
+                      color="inherit"
+                      disabled={busy}
+                      onClick={() => void runAttempt(pendingAttempt)}
+                      size="small"
+                    >
+                      {busy ? "Retrying…" : "Retry same action"}
+                    </Button>
+                  ) : undefined
+                }
+              >
+                {error}
+              </Alert>
+            )}
+            {notice && (
+              <Alert severity={notice.severity}>{notice.message}</Alert>
+            )}
             {data?.truncated && (
               <Alert severity="info">
                 Showing the first 200 memberships. Narrow the search or status.
@@ -437,7 +645,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                             "payment_failed",
                           ].includes(subscription.state) && (
                             <Button
-                              disabled={busy}
+                              disabled={actionsLocked}
                               onClick={() =>
                                 void act(subscription, "reconcile_ledger")
                               }
@@ -449,7 +657,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                           data.capabilities.review && (
                             <>
                               <Button
-                                disabled={busy}
+                                disabled={actionsLocked}
                                 onClick={() =>
                                   void act(subscription, "review", {
                                     approved: true,
@@ -460,7 +668,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                               </Button>
                               <Button
                                 color="error"
-                                disabled={busy}
+                                disabled={actionsLocked}
                                 onClick={() =>
                                   void act(subscription, "review", {
                                     approved: false,
@@ -482,7 +690,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                                 (outcome) => (
                                   <Button
                                     key={outcome}
-                                    disabled={busy}
+                                    disabled={actionsLocked}
                                     onClick={() =>
                                       void act(subscription, "reconcile", {
                                         outcome,
@@ -505,7 +713,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                                   ? "contained"
                                   : "outlined"
                               }
-                              disabled={busy}
+                              disabled={actionsLocked}
                               onClick={() =>
                                 void act(subscription, "reconcile")
                               }
@@ -535,7 +743,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                             ].includes(subscription.state)) && (
                             <Button
                               color="error"
-                              disabled={busy}
+                              disabled={actionsLocked}
                               onClick={() => setCancelTarget(subscription)}
                             >
                               {subscription.terms.renewal === "automatic"
@@ -552,7 +760,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                           data.capabilities.reconcile &&
                           data.capabilities.fixture_processor && (
                             <Button
-                              disabled={busy}
+                              disabled={actionsLocked}
                               onClick={() =>
                                 void act(subscription, "refund", {
                                   amount: subscription.amount,
@@ -607,7 +815,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
 
       <Dialog
         open={Boolean(cancelTarget)}
-        onClose={() => !busy && setCancelTarget(null)}
+        onClose={() => !actionsLocked && setCancelTarget(null)}
         fullWidth
         maxWidth="xs"
         aria-labelledby="cancel-membership-title"
@@ -621,15 +829,27 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
               ? `Stripe will stop future charges. Current paid access continues${cancelTarget.ends_at ? ` through ${subscriptionDate(cancelTarget.ends_at)}` : " through the verified paid period"}.`
               : "This cancels the membership according to its recorded cancellation terms."}
           </Typography>
+          {cancelRetryPending && error && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy} onClick={() => setCancelTarget(null)}>
+          <Button
+            disabled={actionsLocked}
+            onClick={() => setCancelTarget(null)}
+          >
             Keep membership
           </Button>
           <Button
             color="error"
             variant="contained"
-            disabled={busy || !cancelTarget}
+            disabled={
+              busy ||
+              !cancelTarget ||
+              (outcomeUnconfirmed && !cancelRetryPending)
+            }
             onClick={() => {
               if (!cancelTarget) return;
               void act(cancelTarget, "cancel").then((completed) => {
@@ -637,7 +857,11 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
               });
             }}
           >
-            {busy ? "Canceling…" : "Confirm cancellation"}
+            {busy
+              ? "Canceling…"
+              : cancelRetryPending
+                ? "Retry same cancellation"
+                : "Confirm cancellation"}
           </Button>
         </DialogActions>
       </Dialog>

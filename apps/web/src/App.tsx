@@ -10,7 +10,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { Button } from "@mui/material";
+import { Button, Stack } from "@mui/material";
 import type {
   DevelopmentAccount,
   RuntimeEnvironment,
@@ -19,10 +19,7 @@ import type {
 import { api, ApiError, csrf, loginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
-import {
-  DevelopmentControls,
-  EnvironmentLabel,
-} from "./features/identity/DevelopmentAccountSwitcher";
+import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
 import { SessionGuard } from "./features/identity/SessionGuard";
 import {
   ClinicNavigationProvider,
@@ -235,7 +232,6 @@ function LaunchLayout({
   user,
   children,
   clinicAvailable,
-  environment,
 }: {
   user: User | null;
   children: ReactNode;
@@ -252,7 +248,6 @@ function LaunchLayout({
           APPly
           <span className="brand-dot" />
         </a>
-        <EnvironmentLabel environment={environment} />
         <nav aria-label="Main navigation">
           <a href="/#approach">The approach</a>
           <a href="/#process">How it works</a>
@@ -290,17 +285,7 @@ function LaunchLayout({
     </>
   );
 }
-function MemberLayout({
-  user,
-  children,
-  developmentAccounts,
-  businessDate,
-}: {
-  user: User;
-  children: ReactNode;
-  developmentAccounts: DevelopmentAccount[];
-  businessDate: string;
-}) {
+function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
   return (
     <main id="main" className="wrap inner-page portal-page">
       <nav className="member-navigation" aria-label="Member navigation">
@@ -308,23 +293,53 @@ function MemberLayout({
         <a href="/paperwork">Paperwork</a>
         <a href="/training">Training</a>
         {user.admin && <a href="/inquiries">Inquiries</a>}
-        {user.development_demo ? (
-          <DevelopmentControls
-            accounts={developmentAccounts}
-            activeId={user.development_account_id}
-            businessDate={businessDate}
-          />
-        ) : (
-          <Form
-            endpoint="/api/session"
-            method="DELETE"
-            submit="Sign out"
-            onSuccess={() => window.location.replace("/login")}
-          />
-        )}
+        <a href="/portal/settings">Settings</a>
+        <Form
+          endpoint="/api/session"
+          method="DELETE"
+          submit="Sign out"
+          onSuccess={() => window.location.replace("/login")}
+        />
       </nav>
       {children}
     </main>
+  );
+}
+
+function PortalSettings({
+  user,
+  accounts,
+  environment,
+  businessDate,
+  returnHref,
+}: {
+  user: User;
+  accounts: DevelopmentAccount[];
+  environment: RuntimeEnvironment;
+  businessDate: string;
+  returnHref: string;
+}) {
+  return (
+    <Stack spacing={3}>
+      <Button href={returnHref} sx={{ alignSelf: "flex-start" }}>
+        Back to portal
+      </Button>
+      <h1>Settings</h1>
+      {user.development_demo && (
+        <DevelopmentToolbar
+          accounts={accounts}
+          activeId={user.development_account_id}
+          environment={environment}
+          businessDate={businessDate}
+        />
+      )}
+      <Form
+        endpoint="/api/session"
+        method="DELETE"
+        submit="Sign out"
+        onSuccess={() => window.location.replace("/login")}
+      />
+    </Stack>
   );
 }
 
@@ -729,6 +744,14 @@ export function App() {
         environment={configuration.environment}
         businessDate={configuration.business_date}
       />
+    ) : path === "/portal/settings" && user ? (
+      <PortalSettings
+        user={user}
+        accounts={configuration.development_accounts}
+        environment={configuration.environment}
+        businessDate={configuration.business_date}
+        returnHref="/portal"
+      />
     ) : path === "/portal" ? (
       <Portal clinicAvailable={configuration.clinic_available} />
     ) : path === "/paperwork" ? (
@@ -755,12 +778,7 @@ export function App() {
       ) : (
         user && (
           <SessionGuard key={user.id}>
-            <MemberLayout
-              key={user.id}
-              user={user}
-              developmentAccounts={configuration.development_accounts}
-              businessDate={configuration.business_date}
-            >
+            <MemberLayout key={user.id} user={user}>
               <RouteBoundary>{page}</RouteBoundary>
             </MemberLayout>
           </SessionGuard>

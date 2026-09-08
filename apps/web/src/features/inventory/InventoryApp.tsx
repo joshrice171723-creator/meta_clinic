@@ -52,6 +52,7 @@ import type {
   InventorySupplierProduct,
   InventoryFacility,
   InventoryPurchaseOrder,
+  InventoryPurchaseCart,
   NadacBenchmark,
   GudidResult,
   NdcResult,
@@ -3906,6 +3907,47 @@ function ReplenishmentScreen({
   );
 }
 
+export type PurchaseCartDraft = {
+  reason: string;
+  destinationId: string;
+  lineQuantities: Record<string, string>;
+};
+
+export function mergePurchaseCartDraft(
+  previousCart: InventoryPurchaseCart | null | undefined,
+  cart: InventoryPurchaseCart | null | undefined,
+  draft: PurchaseCartDraft,
+): PurchaseCartDraft {
+  const sameCart = Boolean(previousCart?.id && previousCart.id === cart?.id);
+  return {
+    reason:
+      sameCart && draft.reason !== (previousCart?.reason ?? "")
+        ? draft.reason
+        : (cart?.reason ?? ""),
+    destinationId:
+      sameCart &&
+      draft.destinationId !== (previousCart?.destination_site_id ?? "")
+        ? draft.destinationId
+        : (cart?.destination_site_id ?? ""),
+    lineQuantities: Object.fromEntries(
+      (cart?.items ?? []).map((item) => {
+        const previousItem = previousCart?.items.find(
+          (candidate) => candidate.id === item.id,
+        );
+        const draftQuantity = draft.lineQuantities[item.id];
+        return [
+          item.id,
+          sameCart &&
+          draftQuantity !== undefined &&
+          draftQuantity !== previousItem?.requested_packages
+            ? draftQuantity
+            : item.requested_packages,
+        ];
+      }),
+    ),
+  };
+}
+
 function PurchaseCartWorkspace({
   data,
   busy,
@@ -3941,6 +3983,9 @@ function PurchaseCartWorkspace({
         ]),
       ),
   );
+  const syncedCart = useRef<InventoryPurchaseCart | null | undefined>(
+    data.purchase_cart,
+  );
   const [cartAction, setCartAction] = useState<string | null>(null);
   const [cartError, setCartError] = useState("");
   const cart = data.purchase_cart;
@@ -3956,13 +4001,32 @@ function PurchaseCartWorkspace({
   };
   useEffect(() => setSearch(result.query), [result.query]);
   useEffect(() => {
-    setReason(cart?.reason ?? "");
-    setDestinationId(cart?.destination_site_id ?? "");
-    setLineQuantities(
-      Object.fromEntries(
-        (cart?.items ?? []).map((item) => [item.id, item.requested_packages]),
-      ),
+    const previousCart = syncedCart.current;
+    setReason(
+      (current) =>
+        mergePurchaseCartDraft(previousCart, cart, {
+          reason: current,
+          destinationId,
+          lineQuantities,
+        }).reason,
     );
+    setDestinationId(
+      (current) =>
+        mergePurchaseCartDraft(previousCart, cart, {
+          reason,
+          destinationId: current,
+          lineQuantities,
+        }).destinationId,
+    );
+    setLineQuantities(
+      (current) =>
+        mergePurchaseCartDraft(previousCart, cart, {
+          reason,
+          destinationId,
+          lineQuantities: current,
+        }).lineQuantities,
+    );
+    syncedCart.current = cart;
   }, [cart?.id, cart?.version]);
 
   const refresh = () => onRead(applied);

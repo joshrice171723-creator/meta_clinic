@@ -11,7 +11,8 @@ module Clinic
     belongs_to :site, class_name: "Clinic::Site", optional: true
     has_many :events, class_name: "Clinic::RoleGrantEvent", foreign_key: :grant_id, dependent: :restrict_with_error
 
-    scope :active, ->(at = Current.business_time) {
+    # Simulated workflow dates must not change live access rights.
+    scope :active, ->(at = Time.current) {
       where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?) AND revoked_at IS NULL", at, at)
     }
 

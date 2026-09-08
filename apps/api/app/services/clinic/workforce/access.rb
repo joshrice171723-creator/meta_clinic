@@ -5,7 +5,8 @@ module Clinic
 
       attr_reader :actor, :practice, :at
 
-      def initialize(actor:, practice:, at: Current.business_time)
+      # Simulated workflow dates must not change live workforce authorization.
+      def initialize(actor:, practice:, at: Time.current)
         @actor = actor
         @practice = practice
         @at = at
