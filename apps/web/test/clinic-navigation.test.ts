@@ -137,6 +137,9 @@ describe("clinic-local navigation", () => {
     expect(frame).toContain("nav a, nav button, .clinic-sidebar-bottom a");
     expect(frame).toContain("if (!drawer) return;");
     expect(frame).toContain("panel.current?.querySelector<HTMLAnchorElement>");
+    expect(frame).toMatch(
+      /drawer &&\s*!event\.defaultPrevented &&\s*event\.key === "Escape"/,
+    );
     expect(frame).toContain('window.location.replace("/login")');
   });
 });
