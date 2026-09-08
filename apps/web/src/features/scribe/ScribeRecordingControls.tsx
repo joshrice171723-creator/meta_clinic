@@ -429,21 +429,25 @@ export function ScribeRecordingControls({
       await finalizeRecording();
     } else if (stopModeRef.current === "discard") {
       const recording = recordingRef.current;
+      let discarded = !recording;
       if (recording) {
         try {
           await api<RecordingResponse>(
             `/api/clinic/scribe/recordings/${recording.id}`,
             { method: "DELETE" },
           );
+          discarded = true;
         } catch (error) {
+          updatePhase("upload_error");
           if (mountedRef.current)
             setMessage(
               error instanceof Error
                 ? error.message
-                : "The recording could not be discarded.",
+                : "The recording could not be discarded. The saved recording remains available.",
             );
         }
       }
+      if (!discarded) return;
       pendingRef.current = [];
       uploadFailedRef.current = false;
       if (mountedRef.current) setPendingCount(0);
