@@ -99,6 +99,9 @@ function useTrackingBoard(active = true) {
     error?: string;
     stale: boolean;
   }>({ stale: false });
+  const [refreshRevision, setRefreshRevision] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const reload = () => setRefreshRevision((revision) => revision + 1);
 
   useEffect(() => {
     if (!active) return;
@@ -108,6 +111,7 @@ function useTrackingBoard(active = true) {
       controller?.abort();
       const requestController = new AbortController();
       controller = requestController;
+      setRefreshing(true);
       setState((current) => ({
         ...current,
         error: undefined,
@@ -134,6 +138,10 @@ function useTrackingBoard(active = true) {
                 : "Unable to refresh the tracking board.",
             stale: Boolean(current.data),
           }));
+        })
+        .finally(() => {
+          if (mounted && !requestController.signal.aborted)
+            setRefreshing(false);
         });
     };
     refresh();
@@ -143,9 +151,9 @@ function useTrackingBoard(active = true) {
       controller?.abort();
       window.removeEventListener("focus", refresh);
     };
-  }, [active]);
+  }, [active, refreshRevision]);
 
-  return state;
+  return { ...state, reload, refreshing };
 }
 
 function patientTableLabel(visit: BoardVisit) {
@@ -1021,6 +1029,8 @@ export function TrackingBoardView({
   truncated = false,
   stale = false,
   refreshError,
+  onReload,
+  reloading = false,
   careSummaryStates,
   onPersistProvider,
   clinicians = [],
@@ -1032,6 +1042,8 @@ export function TrackingBoardView({
   truncated?: boolean;
   stale?: boolean;
   refreshError?: string;
+  onReload?: () => void;
+  reloading?: boolean;
   careSummaryStates?: Record<string, CareSummaryLoadState>;
   onPersistProvider?: (
     visit: BoardVisit,
@@ -1222,6 +1234,16 @@ export function TrackingBoardView({
             ? "Last confirmed snapshot"
             : `Updated ${formatClockTime(now, timezone)}`}
         </div>
+        {onReload && (
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={reloading}
+            onClick={onReload}
+          >
+            {reloading ? "Reloading board…" : "Reload board"}
+          </Button>
+        )}
       </header>
       {truncated && (
         <p className="tracking-data-warning" role="alert">
@@ -1532,7 +1554,7 @@ export function Overview({ active = true }: { active?: boolean }) {
 
 export function TrackingBoardPage({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
-  const { data, error, stale } = useTrackingBoard(active);
+  const { data, error, stale, reload, refreshing } = useTrackingBoard(active);
   const eligibleClinicians = useMemo<BoardClinician[]>(
     () =>
       (data?.eligible_providers ?? []).map((provider) => {
@@ -1585,6 +1607,8 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
       truncated={data.truncated}
       stale={stale}
       refreshError={error}
+      onReload={reload}
+      reloading={refreshing}
       careSummaryStates={careSummaryStates}
       clinicians={eligibleClinicians}
       onPersistProvider={async (
