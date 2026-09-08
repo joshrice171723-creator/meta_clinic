@@ -40,7 +40,10 @@ import {
   type UpcomingAppointment,
 } from "./PatientAppointmentRequests";
 import { AfterVisitInstructions } from "./AfterVisitInstructions";
-import { patientPortalLabel } from "./patientPortalLabels";
+import {
+  patientPortalLabel,
+  patientPortalReferenceLabel,
+} from "./patientPortalLabels";
 import { patientPortalTheme } from "./patientPortalTheme";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import {
@@ -186,6 +189,9 @@ export function PatientPortal({
   const [checkoutReturnRetry, setCheckoutReturnRetry] = useState(0);
   const checkoutReturnHandled = useRef(false);
   const context = resource.data;
+  const patientReference = context
+    ? patientPortalReferenceLabel(context.patient.reference)
+    : null;
 
   useEffect(() => {
     const syncSection = () => {
@@ -398,14 +404,13 @@ export function PatientPortal({
                 ? patientPortalLabel(context.patient.display_name)
                 : "Your account"}
             </Typography>
-            {context && (
+            {context && patientReference && (
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ mt: 0.25 }}
               >
-                Patient reference{" "}
-                {patientPortalLabel(context.patient.reference)}
+                Patient reference {patientReference}
               </Typography>
             )}
           </Box>
@@ -982,14 +987,15 @@ export function PatientPortal({
                             <Typography sx={{ fontWeight: 650 }}>
                               {patientPortalLabel(context.patient.display_name)}
                             </Typography>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mt: 0.25 }}
-                            >
-                              Patient reference{" "}
-                              {patientPortalLabel(context.patient.reference)}
-                            </Typography>
+                            {patientReference && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.25 }}
+                              >
+                                Patient reference {patientReference}
+                              </Typography>
+                            )}
                             <Typography variant="body2" color="text.secondary">
                               {context.practice.name}
                             </Typography>
