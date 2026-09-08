@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 function featureSource(path: string) {
-  return readFileSync(new URL(`../src/features/${path}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../src/features/${path}`, import.meta.url),
+    "utf8",
+  );
 }
 
 describe("appointment safety guards", () => {
@@ -11,9 +14,9 @@ describe("appointment safety guards", () => {
       "patientPortal/PatientAppointmentRequests.tsx",
     );
 
-    expect(source.match(/intervalDuration <= 4 \* 60 \* 60 \* 1_000/g)).toHaveLength(
-      2,
-    );
+    expect(
+      source.match(/intervalDuration <= 4 \* 60 \* 60 \* 1_000/g),
+    ).toHaveLength(2);
     expect(source).toContain(
       "Choose an end time after the start and within four hours.",
     );

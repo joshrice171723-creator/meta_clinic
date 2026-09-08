@@ -25,10 +25,7 @@ export type StaffMessageClass =
   "routine" | "time_sensitive" | "urgent" | "safety_critical";
 
 export type StaffRequestTransitionState =
-  | "acknowledged"
-  | "in_progress"
-  | "resolved"
-  | "declined";
+  "acknowledged" | "in_progress" | "resolved" | "declined";
 
 export type StaffMessage = {
   id: number;
@@ -87,7 +84,10 @@ type StaffMessagingWorkspaceProps = {
   onSelectConversation?: (conversationId: number) => void;
   onSend?: (conversationId: number, body: string) => void | Promise<void>;
   onAcknowledge?: (messageId: number) => void | Promise<void>;
-  onTransitionRequest?: (requestId: number, state: "acknowledged" | "in_progress") => void | Promise<void>;
+  onTransitionRequest?: (
+    requestId: number,
+    state: "acknowledged" | "in_progress",
+  ) => void | Promise<void>;
   onResolveRequest?: (requestId: number) => void | Promise<void>;
   onDeclineRequest?: (requestId: number) => void | Promise<void>;
   onEscalateRequest?: (requestId: number) => void | Promise<void>;
@@ -238,14 +238,18 @@ function MessageCard({
   onAcknowledge?: (messageId: number) => void | Promise<void>;
   canTransition?: boolean;
   canEscalate?: boolean;
-  onTransitionRequest?: (requestId: number, state: "acknowledged" | "in_progress") => void | Promise<void>;
+  onTransitionRequest?: (
+    requestId: number,
+    state: "acknowledged" | "in_progress",
+  ) => void | Promise<void>;
   onResolveRequest?: (requestId: number) => void | Promise<void>;
   onDeclineRequest?: (requestId: number) => void | Promise<void>;
   onEscalateRequest?: (requestId: number) => void | Promise<void>;
   pendingActions: ReadonlySet<string>;
 }) {
   const request = message.request;
-  const requestIsActive = request && !["resolved", "declined", "expired"].includes(request.state);
+  const requestIsActive =
+    request && !["resolved", "declined", "expired"].includes(request.state);
   const acknowledgementKey = `acknowledge:${message.id}`;
 
   return (
@@ -298,14 +302,21 @@ function MessageCard({
           {message.body}
         </Typography>
         {message.reminderId && (
-          <Button component="a" href={`/clinic/reminders?reminder_id=${message.reminderId}`} size="small" sx={{ alignSelf: "flex-start" }}>
+          <Button
+            component="a"
+            href={`/clinic/reminders?reminder_id=${message.reminderId}`}
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
             Open source reminder
           </Button>
         )}
         {request && (
           <Typography variant="body2" color="text.secondary">
-            {request.state.replaceAll("_", " ")} · {request.assignee_label || "Assigned staff member unavailable"}
-            {request.due_at && ` · Due ${new Date(request.due_at).toLocaleString()}`}
+            {request.state.replaceAll("_", " ")} ·{" "}
+            {request.assignee_label || "Assigned staff member unavailable"}
+            {request.due_at &&
+              ` · Due ${new Date(request.due_at).toLocaleString()}`}
             {request.resolution_code && ` · ${request.resolution_code}`}
           </Typography>
         )}
@@ -337,32 +348,68 @@ function MessageCard({
           </Stack>
         )}
         {request && requestIsActive && (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ alignItems: { sm: "center" } }}
+          >
             <Typography variant="body2" color="text.secondary">
               Request: {request.state.replaceAll("_", " ")}
             </Typography>
             {canTransition && request.state === "open" && (
-              <Button size="small" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onTransitionRequest?.(request.id, "acknowledged")}>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={pendingActions.has(`request:${request.id}`)}
+                onClick={() =>
+                  void onTransitionRequest?.(request.id, "acknowledged")
+                }
+              >
                 Acknowledge request
               </Button>
             )}
-            {canTransition && ["open", "acknowledged"].includes(request.state) && (
-              <Button size="small" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onTransitionRequest?.(request.id, "in_progress")}>
-                Start request
-              </Button>
-            )}
+            {canTransition &&
+              ["open", "acknowledged"].includes(request.state) && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={pendingActions.has(`request:${request.id}`)}
+                  onClick={() =>
+                    void onTransitionRequest?.(request.id, "in_progress")
+                  }
+                >
+                  Start request
+                </Button>
+              )}
             {canTransition && onResolveRequest && (
-              <Button size="small" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onResolveRequest?.(request.id)}>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={pendingActions.has(`request:${request.id}`)}
+                onClick={() => void onResolveRequest?.(request.id)}
+              >
                 Resolve
               </Button>
             )}
             {canTransition && onDeclineRequest && (
-              <Button size="small" color="inherit" variant="outlined" disabled={pendingActions.has(`request:${request.id}`)} onClick={() => void onDeclineRequest?.(request.id)}>
+              <Button
+                size="small"
+                color="inherit"
+                variant="outlined"
+                disabled={pendingActions.has(`request:${request.id}`)}
+                onClick={() => void onDeclineRequest?.(request.id)}
+              >
                 Decline
               </Button>
             )}
             {canEscalate && (
-              <Button size="small" color="warning" variant="outlined" disabled={pendingActions.has(`escalate:${request.id}`)} onClick={() => void onEscalateRequest?.(request.id)}>
+              <Button
+                size="small"
+                color="warning"
+                variant="outlined"
+                disabled={pendingActions.has(`escalate:${request.id}`)}
+                onClick={() => void onEscalateRequest?.(request.id)}
+              >
                 Escalate
               </Button>
             )}
@@ -388,9 +435,10 @@ export function StaffMessagingWorkspace({
 }: StaffMessagingWorkspaceProps) {
   const { registerBlocker } = useClinicNavigation();
   const [drafts, setDrafts] = useState<Record<number, string>>({});
-  const [showUnreadAndUrgentOnly, setShowUnreadAndUrgentOnly] =
-    useState(false);
-  const [sendingConversationIds, setSendingConversationIds] = useState<Set<number>>(new Set());
+  const [showUnreadAndUrgentOnly, setShowUnreadAndUrgentOnly] = useState(false);
+  const [sendingConversationIds, setSendingConversationIds] = useState<
+    Set<number>
+  >(new Set());
   const sendingConversationKeys = useRef(new Set<number>());
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
   const pendingActionKeys = useRef(new Set<string>());
@@ -477,14 +525,23 @@ export function StaffMessagingWorkspace({
     const conversationId = selectedConversation.id;
     const draft = drafts[conversationId] || "";
     const body = draft.trim();
-    if (!body || !state.canSend || sendingConversationKeys.current.has(conversationId)) return;
+    if (
+      !body ||
+      !state.canSend ||
+      sendingConversationKeys.current.has(conversationId)
+    )
+      return;
     sendingConversationKeys.current.add(conversationId);
-    setSendingConversationIds((current) => new Set(current).add(conversationId));
+    setSendingConversationIds((current) =>
+      new Set(current).add(conversationId),
+    );
     try {
       await onSend?.(conversationId, body);
-      setDrafts((current) => current[conversationId] === draft
-        ? { ...current, [conversationId]: "" }
-        : current);
+      setDrafts((current) =>
+        current[conversationId] === draft
+          ? { ...current, [conversationId]: "" }
+          : current,
+      );
     } catch {
       // The adapter owns the user-visible failure. Keep the draft for retry.
     } finally {
@@ -647,7 +704,11 @@ export function StaffMessagingWorkspace({
                   spacing={1}
                   sx={{ alignItems: "center", justifyContent: "space-between" }}
                 >
-                  <Typography variant="body2" color="text.secondary" role="status">
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    role="status"
+                  >
                     Showing {visibleConversations.length} unread or urgent
                     {visibleConversations.length === 1
                       ? " conversation"
@@ -729,10 +790,18 @@ export function StaffMessagingWorkspace({
                 </Box>
               )}
             </List>
-            {(state.conversationPage || 1) < (state.conversationTotalPages || 1) && (
+            {(state.conversationPage || 1) <
+              (state.conversationTotalPages || 1) && (
               <Box sx={{ p: 1.5 }}>
-                <Button fullWidth variant="outlined" disabled={state.loadingMoreConversations} onClick={() => void onLoadMoreConversations?.()}>
-                  {state.loadingMoreConversations ? "Loading conversations…" : "Load more conversations"}
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  disabled={state.loadingMoreConversations}
+                  onClick={() => void onLoadMoreConversations?.()}
+                >
+                  {state.loadingMoreConversations
+                    ? "Loading conversations…"
+                    : "Load more conversations"}
                 </Button>
               </Box>
             )}
@@ -793,8 +862,16 @@ export function StaffMessagingWorkspace({
             <Divider />
             <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
               {(selectedConversation.messagePage || 1) > 1 && (
-                <Button variant="outlined" disabled={selectedConversation.loadingEarlierMessages} onClick={() => void onLoadEarlierMessages?.(selectedConversation.id)}>
-                  {selectedConversation.loadingEarlierMessages ? "Loading earlier messages…" : "Load earlier messages"}
+                <Button
+                  variant="outlined"
+                  disabled={selectedConversation.loadingEarlierMessages}
+                  onClick={() =>
+                    void onLoadEarlierMessages?.(selectedConversation.id)
+                  }
+                >
+                  {selectedConversation.loadingEarlierMessages
+                    ? "Loading earlier messages…"
+                    : "Load earlier messages"}
                 </Button>
               )}
               {selectedConversation.messages.map((message) => (
@@ -802,13 +879,33 @@ export function StaffMessagingWorkspace({
                   key={message.id}
                   message={message}
                   canAcknowledge={state.canAcknowledge}
-                  onAcknowledge={(messageId) => runAction(`acknowledge:${messageId}`, () => onAcknowledge?.(messageId))}
+                  onAcknowledge={(messageId) =>
+                    runAction(`acknowledge:${messageId}`, () =>
+                      onAcknowledge?.(messageId),
+                    )
+                  }
                   canTransition={state.canTransition}
                   canEscalate={state.canEscalate}
-                  onTransitionRequest={(requestId, requestState) => runAction(`request:${requestId}`, () => onTransitionRequest?.(requestId, requestState))}
-                  onResolveRequest={(requestId) => runAction(`request:${requestId}`, () => onResolveRequest?.(requestId))}
-                  onDeclineRequest={(requestId) => runAction(`request:${requestId}`, () => onDeclineRequest?.(requestId))}
-                  onEscalateRequest={(requestId) => runAction(`escalate:${requestId}`, () => onEscalateRequest?.(requestId))}
+                  onTransitionRequest={(requestId, requestState) =>
+                    runAction(`request:${requestId}`, () =>
+                      onTransitionRequest?.(requestId, requestState),
+                    )
+                  }
+                  onResolveRequest={(requestId) =>
+                    runAction(`request:${requestId}`, () =>
+                      onResolveRequest?.(requestId),
+                    )
+                  }
+                  onDeclineRequest={(requestId) =>
+                    runAction(`request:${requestId}`, () =>
+                      onDeclineRequest?.(requestId),
+                    )
+                  }
+                  onEscalateRequest={(requestId) =>
+                    runAction(`escalate:${requestId}`, () =>
+                      onEscalateRequest?.(requestId),
+                    )
+                  }
                   pendingActions={pendingActions}
                 />
               ))}
@@ -827,7 +924,12 @@ export function StaffMessagingWorkspace({
                     multiline
                     minRows={3}
                     value={selectedDraft}
-                    onChange={(event) => setDrafts((current) => ({ ...current, [selectedConversation.id]: event.target.value }))}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [selectedConversation.id]: event.target.value,
+                      }))
+                    }
                     disabled={!state.canSend || sending}
                     slotProps={{ htmlInput: { maxLength: 10000 } }}
                     helperText={
@@ -851,7 +953,11 @@ export function StaffMessagingWorkspace({
                       type="submit"
                       variant="contained"
                       endIcon={<SendRoundedIcon />}
-                      disabled={!state.canSend || sending || selectedDraft.trim().length === 0}
+                      disabled={
+                        !state.canSend ||
+                        sending ||
+                        selectedDraft.trim().length === 0
+                      }
                     >
                       Send message
                     </Button>

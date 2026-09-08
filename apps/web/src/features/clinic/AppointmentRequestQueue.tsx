@@ -233,8 +233,7 @@ function ReviewDialog({
   const optionalOptionsError = rooms.error || clinicians.error;
   const ready = sites.data && visitTypes.data;
   const intervalValid =
-    isCancellation ||
-    new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
+    isCancellation || new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
 
   async function approve() {
     if (

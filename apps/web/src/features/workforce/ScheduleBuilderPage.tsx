@@ -98,9 +98,10 @@ export function ScheduleBuilderPage() {
       )
         return;
       setData(next);
-      const openDraft = draft?.site_id === expectedSiteId
-        ? next.drafts.find((item) => item.id === draft.id)
-        : next.drafts[0];
+      const openDraft =
+        draft?.site_id === expectedSiteId
+          ? next.drafts.find((item) => item.id === draft.id)
+          : next.drafts[0];
       if (openDraft) {
         const nextDraft = await loadDraft(openDraft.id, expectedSiteId);
         if (nextDraft) setDraft(nextDraft);

@@ -397,7 +397,7 @@ describe("board and Operations presentation boundaries", () => {
     );
 
     expect(html).toContain("Reloading board…");
-    expect(html).toContain("disabled=\"\"");
+    expect(html).toContain('disabled=""');
     const source = readSource("src/features/clinic/TrackingBoardPage.tsx");
     expect(source).toContain("const [refreshRevision, setRefreshRevision]");
     expect(source).toContain("onReload={reload}");

@@ -84,9 +84,9 @@ describe("staff messaging workspace", () => {
     expect(staffMessagingSource).toContain(
       "setShowUnreadAndUrgentOnly((current) => !current)",
     );
+    expect(staffMessagingSource).toContain("setShowUnreadAndUrgentOnly(false)");
     expect(staffMessagingSource).toContain(
-      "setShowUnreadAndUrgentOnly(false)",
+      "No unread or urgent conversations.",
     );
-    expect(staffMessagingSource).toContain("No unread or urgent conversations.");
   });
 });

@@ -30,7 +30,9 @@ describe("PatientLabReports patient scope", () => {
   });
 
   it("offers an explicit retry and labels retained results after a refresh failure", () => {
-    expect(patientLabReportsSource).toContain("setReportsStale(data !== undefined);");
+    expect(patientLabReportsSource).toContain(
+      "setReportsStale(data !== undefined);",
+    );
     expect(patientLabReportsSource).toContain("setReportsStale(false);");
     expect(patientLabReportsSource).toContain(
       "onClick={() => setReload((current) => current + 1)}",
