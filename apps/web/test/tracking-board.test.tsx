@@ -386,6 +386,23 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).not.toContain("Items at reorder");
     expect(html).not.toContain("Active directory");
   });
+  it("exposes an explicit disabled reload control while a board recovery is in flight", () => {
+    const html = renderToStaticMarkup(
+      <TestTrackingBoard
+        stale={true}
+        refreshError="Unable to refresh the tracking board."
+        onReload={() => {}}
+        reloading={true}
+      />,
+    );
+
+    expect(html).toContain("Reloading board…");
+    expect(html).toContain('disabled=""');
+    const source = readSource("src/features/clinic/TrackingBoardPage.tsx");
+    expect(source).toContain("const [refreshRevision, setRefreshRevision]");
+    expect(source).toContain("onReload={reload}");
+    expect(source).toContain("disabled={reloading}");
+  });
   it("distinguishes expected, late, and checked-in operational states", () => {
     const scheduled = {
       ...EXAMPLE_VISITS[0],

@@ -63,7 +63,10 @@ import {
   MembershipCatalog,
   membershipPrice,
 } from "../src/features/patientPortal/MembershipCatalog";
-import { patientPortalLabel } from "../src/features/patientPortal/patientPortalLabels";
+import {
+  patientPortalLabel,
+  patientPortalReferenceLabel,
+} from "../src/features/patientPortal/patientPortalLabels";
 import { PatientSubscriptions } from "../src/features/patientPortal/PatientSubscriptions";
 import {
   subscriptionMoney,
@@ -236,6 +239,11 @@ describe("subscription purchase presentation", () => {
     expect(patientPortalLabel("SYN_Mercer, Alex")).toBe("Mercer, Alex");
     expect(patientPortalLabel("SYN-BASE-001")).toBe("BASE-001");
     expect(terms.family_name).toBe("Any family");
+  });
+  it("suppresses internal synthetic patient references", () => {
+    expect(patientPortalReferenceLabel("SYN-BASE-001")).toBeNull();
+    expect(patientPortalReferenceLabel("SYN_patient-42")).toBeNull();
+    expect(patientPortalReferenceLabel("CLINIC-42")).toBe("CLINIC-42");
   });
   it("formats US storefront prices without losing cents or changing other currencies", () => {
     expect(membershipPrice("99999999999999.99", "USD")).toBe(

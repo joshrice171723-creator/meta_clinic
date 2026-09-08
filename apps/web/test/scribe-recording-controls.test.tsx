@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -11,6 +12,14 @@ import {
   scribeReviewPath,
   type ScribeRecordingSessionInput,
 } from "../src/features/scribe/ScribeRecordingProvider";
+
+const recordingControlsSource = readFileSync(
+  new URL(
+    "../src/features/scribe/ScribeRecordingControls.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("ScribeRecordingControls", () => {
   it("keeps every live or retryable capture phase inside the workspace navigation guard", () => {
@@ -29,6 +38,25 @@ describe("ScribeRecordingControls", () => {
       "error",
     ] satisfies ScribeRecordingPhase[])
       expect(scribeRecordingBlocksNavigation(phase)).toBe(false);
+  });
+
+  it("keeps the saved recording and cancellation callback behind a successful discard", () => {
+    const discardBranch = recordingControlsSource.slice(
+      recordingControlsSource.indexOf(
+        '} else if (stopModeRef.current === "discard")',
+      ),
+      recordingControlsSource.indexOf("  const stopRecorder"),
+    );
+
+    expect(discardBranch).toContain("let discarded = !recording;");
+    expect(discardBranch).toContain('updatePhase("upload_error");');
+    expect(discardBranch).toContain("if (!discarded) return;");
+    expect(discardBranch.indexOf("if (!discarded) return;")).toBeLessThan(
+      discardBranch.indexOf("recordingRef.current = null;"),
+    );
+    expect(discardBranch.indexOf("if (!discarded) return;")).toBeLessThan(
+      discardBranch.indexOf("cancelledRef.current?.();"),
+    );
   });
 
   it("renders an explicit consent-disabled Record action and microphone meter", () => {

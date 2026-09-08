@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   currentPatientAttempt,
   isCurrentPatientRequest,
 } from "../src/features/clinic/PatientLabReports";
+
+const patientLabReportsSource = readFileSync(
+  new URL("../src/features/clinic/PatientLabReports.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("PatientLabReports patient scope", () => {
   it("never reuses an outcome-unknown mutation for another patient", () => {
@@ -21,5 +27,16 @@ describe("PatientLabReports patient scope", () => {
   it("rejects a stale response after returning to the same patient", () => {
     expect(isCurrentPatientRequest(42, 2, 42, 0)).toBe(false);
     expect(isCurrentPatientRequest(42, 2, 42, 2)).toBe(true);
+  });
+
+  it("offers an explicit retry and labels retained results after a refresh failure", () => {
+    expect(patientLabReportsSource).toContain(
+      "setReportsStale(data !== undefined);",
+    );
+    expect(patientLabReportsSource).toContain("setReportsStale(false);");
+    expect(patientLabReportsSource).toContain(
+      "onClick={() => setReload((current) => current + 1)}",
+    );
+    expect(patientLabReportsSource).toContain("Prior results — refresh failed");
   });
 });

@@ -232,10 +232,12 @@ function ReviewDialog({
   const schedulingError = sites.error || visitTypes.error;
   const optionalOptionsError = rooms.error || clinicians.error;
   const ready = sites.data && visitTypes.data;
+  const intervalValid =
+    isCancellation || new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
 
   async function approve() {
     if (
-      (!isCancellation && (!startsAt || !endsAt)) ||
+      (!isCancellation && (!startsAt || !endsAt || !intervalValid)) ||
       (isNewBooking && !siteId)
     )
       return;
@@ -591,7 +593,7 @@ function ReviewDialog({
             disabled={
               busy ||
               (isNewBooking && (!ready || !siteId)) ||
-              (!isCancellation && (!startsAt || !endsAt))
+              (!isCancellation && (!startsAt || !endsAt || !intervalValid))
             }
             variant="contained"
             onClick={() => void approve()}

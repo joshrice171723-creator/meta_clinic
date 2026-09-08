@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -185,6 +186,7 @@ export function PatientLabReports({
   const { capabilities } = useClinic();
   const [data, setData] = useState<Index>();
   const [error, setError] = useState("");
+  const [reportsStale, setReportsStale] = useState(false);
   const [form, setForm] = useState<Form>(blankForm);
   const [formBaseline, setFormBaseline] = useState<Form>(blankForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -275,6 +277,7 @@ export function PatientLabReports({
     directReview.current = initialDirectReview();
     setData(undefined);
     setError("");
+    setReportsStale(false);
     setForm(blankForm());
     setFormBaseline(blankForm());
     setFormOpen(false);
@@ -303,11 +306,16 @@ export function PatientLabReports({
     if (!canRead) return;
     const controller = new AbortController();
     setError("");
+    setReportsStale(data !== undefined);
     api<Index>(
       `/api/clinic/patients/${patientId}/lab_reports?page=${page}&per_page=25`,
       { signal: controller.signal },
     )
-      .then((result) => !controller.signal.aborted && setData(result))
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setData(result);
+        setReportsStale(false);
+      })
       .catch(
         (reason: unknown) =>
           !controller.signal.aborted &&
@@ -734,7 +742,22 @@ export function PatientLabReports({
           Record reported results manually. Review is a separate action.
         </Typography>
       </Box>
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => setReload((current) => current + 1)}
+            >
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
       {directReviewError && (
         <Alert severity="warning">{directReviewError}</Alert>
       )}
@@ -745,7 +768,17 @@ export function PatientLabReports({
             direction={{ xs: "column", sm: "row" }}
             sx={{ justifyContent: "space-between" }}
           >
-            <Typography variant="subtitle1">Recorded reports</Typography>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Typography variant="subtitle1">Recorded reports</Typography>
+              {reportsStale && (
+                <Chip
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  label="Prior results — refresh failed"
+                />
+              )}
+            </Stack>
             {canWrite && (
               <Button
                 startIcon={<AddIcon />}

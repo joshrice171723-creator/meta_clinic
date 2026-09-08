@@ -7,3 +7,7 @@ export function patientPortalLabel(value: string) {
     .trim();
   return cleaned;
 }
+
+export function patientPortalReferenceLabel(value: string) {
+  return /^SYN[-_]/i.test(value.trim()) ? null : patientPortalLabel(value);
+}
