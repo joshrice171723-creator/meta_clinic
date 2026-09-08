@@ -153,7 +153,7 @@ class PatientPortalStepUpControllerTest < ActionController::TestCase
 
     assert_response :service_unavailable
     assert_equal "step_up_unavailable", response.parsed_body.fetch("code")
-    assert_equal "Step-up authentication is not enabled for this synthetic portal. Contact the clinic support team.",
+    assert_equal "Step-up authentication is not enabled for this patient portal. Contact the clinic support team.",
       response.parsed_body.fetch("error")
   end
 end
