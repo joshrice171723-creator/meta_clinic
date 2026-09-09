@@ -36,9 +36,9 @@ module Clinic
           raise ActiveRecord::StaleObjectError.new(draft, "publish") unless draft.revision == expected_revision
           raise ArgumentError, "Only a draft schedule can be published." unless draft.editable?
 
-          draft.shifts.order(:employment_id).pluck(:employment_id).uniq.each do |employment_id|
-            Employment.lock.find_by!(practice_id: draft.practice_id, id: employment_id)
-          end
+          employment_ids = draft.shifts.order(:employment_id).distinct.pluck(:employment_id)
+          locked_employments = Employment.where(practice_id: draft.practice_id, id: employment_ids).order(:id).lock.index_by(&:id)
+          employment_ids.each { |employment_id| locked_employments.fetch(employment_id) { raise ActiveRecord::RecordNotFound } }
           result = ValidateSchedule.call(draft: draft)
           raise InvalidSchedule, result.errors unless result.valid?
 

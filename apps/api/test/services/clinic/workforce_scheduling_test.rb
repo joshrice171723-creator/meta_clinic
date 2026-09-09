@@ -62,6 +62,35 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     end
   end
 
+  test "schedule publication batches employment locks" do
+    draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: @site,
+      created_by_id: @manager.membership.user_id, week_start_on: Date.new(2026, 9, 7), timezone: "America/Chicago",
+      status: "draft", revision: 1)
+    6.times do |index|
+      employment = create_employee("publish-#{index}", @practice)
+      employment.update!(effective_from: Time.utc(2026, 9, 1))
+      employment.employment_sites.create!(practice: @practice, site: @site, active: true,
+        effective_from: Time.utc(2026, 9, 1))
+      interval = Clinic::Workforce::ResolveLocalInterval.call(timezone: draft.timezone,
+        local_start: "2026-09-07T09:00", local_end: "2026-09-07T17:00")
+      draft.shifts.create!(practice: @practice, employment: employment, timezone: draft.timezone,
+        local_start: interval[:local_start], local_end: interval[:local_end], starts_at: interval[:starts_at], ends_at: interval[:ends_at],
+        start_occurrence: "only", end_occurrence: "only", break_minutes: 30)
+    end
+    employment_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { employment_queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        Clinic::Workforce::PublishSchedule.call(draft: draft, actor: @manager.membership.user,
+          expected_revision: 1, idempotency_key: "publish-employment-batch")
+      end
+    end
+
+    assert_operator employment_queries.count { |sql| sql.match?(/FROM "clinic_workforce_employments"/i) }, :<=, 3,
+      employment_queries.join("\n")
+  end
+
   test "validation blocks cross-site overlap approved time off and unavailable intervals" do
     published = draft_with_shift(@site, @employee, "2026-09-07T09:00", "2026-09-07T17:00")
     Clinic::Workforce::PublishSchedule.call(draft: published, actor: @manager.membership.user,
