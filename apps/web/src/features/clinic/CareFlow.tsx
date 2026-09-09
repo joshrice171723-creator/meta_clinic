@@ -1251,32 +1251,19 @@ export function Schedule({
       ? replacementPatientId
       : undefined;
   const [page, setPage] = useState(1);
-  const [createdAppointment, setCreatedAppointment] = useState<Appointment>();
-  const { data, error } = useResource<{
+  const { data, error, refresh } = useResource<{
     appointments: Appointment[];
     pagination: PageInfo;
-  }>(`/api/clinic/appointments?page=${page}`);
+  }>(`/api/clinic/appointments?page=${page}`, {
+    retainDataOnRefresh: true,
+  });
   if (!data) return <LoadState error={error} />;
-  const includesCreated = data.appointments.some(
-    (appointment) => appointment.id === createdAppointment?.id,
-  );
-  const appointments =
-    createdAppointment && !includesCreated
-      ? [...data.appointments, createdAppointment].sort((left, right) =>
-          left.starts_at.localeCompare(right.starts_at),
-        )
-      : data.appointments;
   return (
     <ScheduleView
       context={context}
-      appointments={appointments}
-      pagination={{
-        ...data.pagination,
-        total:
-          data.pagination.total +
-          (createdAppointment && !includesCreated ? 1 : 0),
-      }}
-      onAppointmentCreated={setCreatedAppointment}
+      appointments={data.appointments}
+      pagination={data.pagination}
+      onAppointmentCreated={() => refresh()}
       onPageChange={setPage}
       initialPatientId={initialPatientId}
       initialVisitModality={
@@ -2381,7 +2368,9 @@ export function ProviderEncounterWorkflow({
                 </TableRow>
                 <TableRow>
                   <TableCell component="th">Patient</TableCell>
-                  <TableCell>{patient.display_name || "Not recorded"}</TableCell>
+                  <TableCell>
+                    {patient.display_name || "Not recorded"}
+                  </TableCell>
                   <TableCell component="th">Age</TableCell>
                   <TableCell>
                     {patientAge(
