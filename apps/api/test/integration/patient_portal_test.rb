@@ -117,4 +117,54 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
   ensure
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
   end
+
+  test "production portal access follows the enabled pilot practice" do
+    practice = Clinic::Practice.create!(name: "Pilot Portal Practice", timezone: "UTC")
+    patient = practice.patients.create!(display_name: "Portal Patient", reference: "PILOT-001")
+    user = User.create!(email_address: "portal-pilot-#{SecureRandom.hex(6)}@example.invalid",
+      password: SecureRandom.hex(20))
+    actor = User.create!(email_address: "portal-actor-#{SecureRandom.hex(6)}@example.invalid",
+      password: SecureRandom.hex(20))
+    invitation = Clinic::PatientPortal::InviteIdentity.call(
+      practice: practice, patient: patient, user: user, actor: actor
+    )
+    payload = {
+      patient_portal_activation: {
+        token: invitation.fetch(:token), accepted_terms: true,
+        terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
+      }
+    }
+
+    deployed do
+      post "/api/patient_portal/invitation/activate", params: payload, headers: local_csrf, as: :json
+      assert_response :unprocessable_entity
+      assert invitation.fetch(:identity).reload.invited?
+
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = practice.id.to_s
+      post "/api/patient_portal/invitation/activate", params: payload, headers: local_csrf, as: :json
+      assert_response :created
+      get "/api/patient_portal/context", headers: @headers
+      assert_response :success
+      assert_equal patient.id, response.parsed_body.dig("patient", "id")
+
+      ENV.delete("APP_CLINIC_PILOT_PRACTICE_IDS")
+      get "/api/patient_portal/context", headers: @headers
+      assert_response :not_found
+    end
+  end
+
+  private
+
+  def deployed
+    previous = [ Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"],
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] ]
+    Rails.env = "production"
+    ENV["APP_DEPLOYMENT_ENV"] = "staging"
+    ENV["APP_DEVELOPMENT_LOGIN"] = "0"
+    ENV.delete("APP_CLINIC_PILOT_PRACTICE_IDS")
+    yield
+  ensure
+    Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"],
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = previous
+  end
 end
