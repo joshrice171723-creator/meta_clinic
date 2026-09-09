@@ -31,6 +31,12 @@ export function Login({
     typeof window === "undefined" ? "" : window.location.search,
   ).get("next");
   const employeePortal = returnTo?.startsWith("/clinic");
+  const patientPortal = returnTo?.startsWith("/patient-portal");
+  const portalName = employeePortal
+    ? "Employee portal"
+    : patientPortal
+      ? "Patient portal"
+      : "Customer portal";
   const done = () =>
     window.location.assign(
       loginDestination(new URLSearchParams(window.location.search).get("next")),
@@ -39,15 +45,25 @@ export function Login({
     <main id="main" className="wrap inner-page login-layout">
       <div className="inner-page-copy">
         <h1>
-          {employeePortal ? "Your workday." : "Your launch."}
+          {employeePortal
+            ? "Your workday."
+            : patientPortal
+              ? "Your care."
+              : "Your launch."}
           <br />
           <em>
-            {employeePortal ? "One place to work." : "One place to start."}
+            {employeePortal
+              ? "One place to work."
+              : patientPortal
+                ? "One secure place."
+                : "One place to start."}
           </em>
         </h1>
         <p>
           {employeePortal
             ? "Sign in to work in your clinic and access the employee tools assigned to your account."
+            : patientPortal
+              ? "Sign in to view the patient portal access assigned by your clinic."
             : "Sign in to review your paperwork and work through onboarding and training."}
         </p>
         {!developmentLogin && (
@@ -62,10 +78,18 @@ export function Login({
         <>
           <div className="portal-type-links" aria-label="Choose account type">
             <a
-              aria-current={!employeePortal ? "page" : undefined}
+              aria-current={
+                !employeePortal && !patientPortal ? "page" : undefined
+              }
               href="/login"
             >
               Customer portal
+            </a>
+            <a
+              aria-current={patientPortal ? "page" : undefined}
+              href="/login?next=%2Fpatient-portal"
+            >
+              Patient portal
             </a>
             <a
               aria-current={employeePortal ? "page" : undefined}
@@ -74,10 +98,12 @@ export function Login({
               Employee portal
             </a>
           </div>
-          <h2>{employeePortal ? "Employee portal" : "Customer portal"}</h2>
+          <h2>{portalName}</h2>
           <p>
             {employeePortal
               ? "Clinic employees use the account provided by their organization."
+              : patientPortal
+                ? "Patients use the account activated from their clinic invitation."
               : "Customers use the account provided by APPly."}
           </p>
           <Form endpoint="/api/session" submit="Sign in" onSuccess={done}>

@@ -75,6 +75,53 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     end
   end
 
+  test "email invitation provisions an inactive account and activation establishes reusable credentials" do
+    email = "portal-provisioned-#{SecureRandom.hex(6)}@example.invalid"
+    invitation = Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: email, actor: @actor, now: @now
+    )
+    user = invitation.fetch(:identity).user
+
+    assert_not user.active?
+    assert_not user.authenticate(PORTAL_PASSWORD)
+
+    activated = activate(invitation.fetch(:token))
+
+    assert activated.active?
+    assert user.reload.active?
+    assert user.authenticate(PORTAL_PASSWORD)
+    assert_equal user.id, MemberSession.find(@session.fetch(:member_session_id)).user_id
+  end
+
+  test "email invitation cannot claim an unrelated account or cross-patient identity" do
+    assert_raises(ArgumentError) do
+      Clinic::PatientPortal::InviteIdentity.call(
+        practice: @practice, patient: @patient, email_address: @actor.email_address, actor: @actor, now: @now
+      )
+    end
+
+    email = "portal-bound-#{SecureRandom.hex(6)}@example.invalid"
+    Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: email, actor: @actor, now: @now
+    )
+    assert_raises(ArgumentError) do
+      Clinic::PatientPortal::InviteIdentity.call(
+        practice: @other_practice, patient: @other_patient, email_address: email, actor: @actor, now: @now
+      )
+    end
+  end
+
+  test "invalid password rolls back account and invitation activation" do
+    invitation = invite_identity
+
+    assert_raises(Clinic::PatientPortal::ActivateIdentity::InvalidPassword) do
+      activate(invitation.fetch(:token), password: PORTAL_PASSWORD, password_confirmation: "different-password-2026")
+    end
+
+    assert invitation.fetch(:identity).reload.invited?
+    assert_nil @session&.fetch(:member_session_id, nil)
+  end
+
   test "reserved synthetic patient activation creates access and revocation invalidates its session" do
     invitation = invite_identity
     activated = activate(invitation.fetch(:token))
@@ -99,6 +146,8 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
 
   private
 
+  PORTAL_PASSWORD = "Patient-portal-password-2026!"
+
   def invite_identity(practice: @practice, patient: @patient, user: @patient_user)
     Clinic::PatientPortal::InviteIdentity.call(
       practice: practice,
@@ -109,11 +158,11 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     )
   end
 
-  def activate(token, accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION,
-    now: @now)
+  def activate(token, password: PORTAL_PASSWORD, password_confirmation: password, accepted_terms: true,
+    terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION, now: @now)
     @session ||= {}
     Clinic::PatientPortal::ActivateIdentity.call(
-      token: token,
+      token: token, password: password, password_confirmation: password_confirmation,
       accepted_terms: accepted_terms,
       terms_version: terms_version,
       session: @session,

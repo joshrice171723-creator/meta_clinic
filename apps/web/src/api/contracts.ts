@@ -388,6 +388,7 @@ export type ClinicCapabilities = {
   facilities_read?: boolean;
   facilities_write?: boolean;
   patient_identity_read?: boolean;
+  patient_portal_invite?: boolean;
   appointments_read?: boolean;
   appointments_book?: boolean;
   appointments_status_transition?: boolean;
