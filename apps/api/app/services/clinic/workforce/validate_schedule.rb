@@ -16,7 +16,8 @@ module Clinic
       end
 
       def call
-        shifts = draft.shifts.includes(employment: :staff_member).order(:starts_at, :id).to_a
+        shifts = draft.shifts.includes(employment: [ :staff_member, :employment_sites, { membership: :user } ])
+          .order(:starts_at, :id).to_a
         validate_each(shifts)
         validate_internal_overlaps(shifts)
         validate_published_overlaps(shifts)
