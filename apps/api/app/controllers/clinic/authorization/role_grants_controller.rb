@@ -4,7 +4,7 @@ module Clinic
       before_action -> { require_capability("roles.manage") }
 
       def index
-        grants = current_practice.role_grants.includes(:events, role_version: :permissions)
+        grants = current_practice.role_grants
         grants = grants.where(membership_id: requested_id!(params[:membership_id], :membership_id)) if params[:membership_id].present?
         grants = grants.where(scope_kind: enum_param!(params[:scope_kind], field: :scope_kind, allowed: %w[practice site])) if params[:scope_kind].present?
         paginate(grants, key: :grants, serializer: ->(grant) { AuthorizationSerializer.role_grant(grant) }, order: { id: :desc })
