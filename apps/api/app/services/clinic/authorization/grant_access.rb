@@ -4,12 +4,11 @@ module Clinic
       def self.call(grantor:, membership:, role_version:, scope_kind:, site: nil, source_employment: nil,
         effective_from: Time.current, effective_until: nil)
         raise Denied, "A grant cannot elevate its own account." if grantor.id == membership.user_id
-        practice = membership.practice
-        Authorization.authorize!(actor: grantor, practice: practice, action: "roles.manage", site: site)
-        grantor_membership = Clinic::Membership.find_by!(practice: practice, user: grantor)
-        ensure_grantor_can_delegate!(grantor_membership, role_version, site)
-
         ApplicationRecord.transaction do
+          practice = membership.practice
+          grantor_membership = Clinic::Membership.active.lock.find_by!(practice: practice, user: grantor)
+          Authorization.authorize!(actor: grantor, practice: practice, action: "roles.manage", site: site)
+          ensure_grantor_can_delegate!(grantor_membership, role_version, site)
           locked_membership = Clinic::Membership.lock.find(membership.id)
           grant = Clinic::RoleGrant.create!(
             practice: practice,

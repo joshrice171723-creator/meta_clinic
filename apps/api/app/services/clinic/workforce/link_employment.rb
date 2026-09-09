@@ -3,11 +3,12 @@ module Clinic
     class LinkEmployment
       def self.call(practice:, membership:, site_ids:, effective_from:, actor:, role_version: nil,
         staff_member: nil, display_name: nil, job_title: nil)
-        Access.new(actor: actor, practice: practice).authorize!("workforce.admin")
         normalized_site_ids = normalize_site_ids(site_ids)
 
         ApplicationRecord.transaction do
           locked_practice = Clinic::Practice.lock.find(practice.id)
+          Clinic::Membership.active.lock.find_by!(practice_id: locked_practice.id, user_id: actor.id)
+          Access.new(actor: actor, practice: locked_practice).authorize!("workforce.admin")
           locked_staff = if staff_member
             Clinic::Staff::Member.lock.find(staff_member.id)
           else
@@ -41,11 +42,12 @@ module Clinic
 
       def self.update!(employment:, actor:, status: nil, site_ids: nil, role_version: nil,
         effective_until: :unchanged, now: Time.current)
-        Access.new(actor: actor, practice: employment.practice, at: now).authorize!("workforce.admin")
         normalized_site_ids = site_ids.nil? ? nil : normalize_site_ids(site_ids)
 
         ApplicationRecord.transaction do
           locked = Employment.lock.find(employment.id)
+          Clinic::Membership.active.lock.find_by!(practice_id: locked.practice_id, user_id: actor.id)
+          Access.new(actor: actor, practice: locked.practice, at: now).authorize!("workforce.admin")
           raise ArgumentError, "The employment does not belong to this practice." unless locked.practice_id == employment.practice_id
 
           attributes = {}

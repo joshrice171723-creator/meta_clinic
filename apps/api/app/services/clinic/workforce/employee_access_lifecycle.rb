@@ -11,12 +11,12 @@ module Clinic
       end
 
       def self.change!(employment:, actor:, active:, role_version: nil, sites: [], now:)
-        Access.new(actor: actor, practice: employment.practice, at: now).authorize!("workforce.admin")
-        raise Clinic::Authorization::Denied, "You cannot revoke your own account." if employment.membership.user_id == actor.id
-
         ApplicationRecord.transaction do
           locked = Employment.lock.find(employment.id)
           membership = Clinic::Membership.lock.find(locked.membership_id)
+          Clinic::Membership.active.lock.find_by!(practice_id: locked.practice_id, user_id: actor.id)
+          Access.new(actor: actor, practice: locked.practice, at: now).authorize!("workforce.admin")
+          raise Clinic::Authorization::Denied, "You cannot revoke your own account." if membership.user_id == actor.id
           user = User.lock.find(membership.user_id)
           if active
             user.update!(active: true)
