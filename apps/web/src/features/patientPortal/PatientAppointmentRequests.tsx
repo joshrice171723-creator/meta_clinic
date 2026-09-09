@@ -586,6 +586,12 @@ export function PatientAppointmentRequests({
                       }
                     />
                   </Stack>
+                  {request.status === "expired" && (
+                    <Alert severity="info" icon={false} sx={{ mt: 1 }}>
+                      This request expired before it was approved. Submit a new
+                      request if you still need this appointment change.
+                    </Alert>
+                  )}
                   {request.appointment && (
                     <Alert
                       severity={

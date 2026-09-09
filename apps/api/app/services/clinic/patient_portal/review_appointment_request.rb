@@ -50,6 +50,9 @@ module Clinic
             source_appointment: locked_source
           )
           ensure_active_identity!(practice, locked_request)
+          ExpireAppointmentRequests.call(scope: practice.patient_portal_appointment_requests.where(id: locked_request.id),
+            actor: actor)
+          locked_request.reload
           ensure_pending!(locked_request)
           validate_approval_input!(
             locked_request,
@@ -181,6 +184,9 @@ module Clinic
             site: source_site(locked_request)
           )
           ensure_active_identity!(practice, locked_request)
+          ExpireAppointmentRequests.call(scope: practice.patient_portal_appointment_requests.where(id: locked_request.id),
+            actor: actor)
+          locked_request.reload
           ensure_pending!(locked_request)
           locked_request.update!(
             status: :declined,

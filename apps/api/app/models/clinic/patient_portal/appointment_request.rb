@@ -10,7 +10,13 @@ module Clinic
         reschedule: "reschedule",
         cancel: "cancel"
       }, validate: true
-      enum :status, { pending: "pending", approved: "approved", declined: "declined", cancelled: "cancelled" }, validate: true
+      enum :status, {
+        pending: "pending",
+        approved: "approved",
+        declined: "declined",
+        cancelled: "cancelled",
+        expired: "expired"
+      }, validate: true
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :identity, class_name: "Clinic::PatientPortal::Identity"

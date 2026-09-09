@@ -18,8 +18,9 @@ module Clinic
       end
 
       def index
-        requests = AppointmentRequest.for_practice(portal_practice)
-          .where(patient: portal_patient).includes(*REQUEST_INCLUDES).recent.limit(20)
+        request_scope = AppointmentRequest.for_practice(portal_practice).where(patient: portal_patient)
+        ExpireAppointmentRequests.call(scope: request_scope, actor: current_user)
+        requests = request_scope.includes(*REQUEST_INCLUDES).recent.limit(20)
         appointments = upcoming_appointments.to_a
         pending_change_ids = AppointmentConfirmation.pending_change_ids(
           practice: portal_practice,

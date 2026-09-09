@@ -12,7 +12,9 @@ module Clinic
       def index
         status = enum_param!(params[:status].presence || "pending", field: :status, allowed: STATUSES)
         site_id = params[:site_id].present? ? requested_id!(params[:site_id], :site_id) : nil
-        requests = visible_requests(site_id).where(status: status).includes(*INCLUDES)
+        visible = visible_requests(site_id)
+        Clinic::PatientPortal::ExpireAppointmentRequests.call(scope: visible, actor: current_user)
+        requests = visible.where(status: status).includes(*INCLUDES)
           .order(requested_at: :asc, id: :asc).limit(50)
         render json: {
           appointment_requests: requests.map do |request|

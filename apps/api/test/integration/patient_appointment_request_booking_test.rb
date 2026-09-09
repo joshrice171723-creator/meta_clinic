@@ -287,6 +287,32 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     assert_not_equal row.fetch("starts_at"), row.dig("appointment", "starts_at")
   end
 
+  test "expired requests become terminal before staff can create an appointment" do
+    request = create_request(
+      key: "expired-booking-request",
+      site: @site,
+      starts_at: 3.hours.ago.change(usec: 0)
+    )
+
+    get_patient_requests
+
+    row = @patient_session.response.parsed_body.fetch("appointment_requests").find do |item|
+      item.fetch("id") == request.id
+    end
+    assert_equal "expired", row.fetch("status")
+    assert request.reload.expired?
+
+    future_start = 2.days.from_now.change(usec: 0)
+    @staff_session.post "#{staff_requests_path}/#{request.id}/approve",
+      params: approval_payload("expired-booking-review", future_start, future_start + 1.hour),
+      headers: @staff_headers, as: :json
+
+    assert_equal 409, @staff_session.response.status
+    assert request.reload.expired?
+    assert_nil request.appointment_id
+    assert_empty @practice.appointments.where(patient: @patient)
+  end
+
   test "staff cannot review a hidden source request into an allowed target site" do
     request = create_request(key: "hidden-source-request", site: @other_site)
     revoke_all_permissions!(@staff_membership)
