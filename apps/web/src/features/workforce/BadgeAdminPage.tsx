@@ -72,6 +72,14 @@ export function BadgeAdminPage() {
         setEmployees(badgeData.employees);
         setBadges(badgeData.badges);
         setKiosks(kioskData.kiosks);
+        setEmploymentId((current) =>
+          badgeData.employees.some(
+            (employment) =>
+              employment.active_for_work && String(employment.id) === current,
+          )
+            ? current
+            : "",
+        );
       })
       .catch((reason: unknown) => {
         if (!abort.signal.aborted)
