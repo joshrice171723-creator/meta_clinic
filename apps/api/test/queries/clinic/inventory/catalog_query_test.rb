@@ -56,4 +56,55 @@ class Clinic::Inventory::CatalogQueryTest < ActiveSupport::TestCase
     assert_equal 1, details.histories.fetch(@batch.id).size
     assert_raises(ActiveRecord::RecordNotFound) { Clinic::Inventory::ProductDetailsQuery.call(practice: @other, product_id: @product.id) }
   end
+
+  test "product details keep a bounded batch page without per-batch query growth" do
+    Clinic::Inventory::Count.observe!(
+      batch: @batch, actor: @user, observed: "4", reason: "Synthetic baseline count",
+      request_key: SecureRandom.uuid
+    )
+    baseline_queries = product_detail_query_count
+
+    10.times do |index|
+      batch = @product.batches.create!(
+        practice: @practice,
+        lot_number: "QUERY-PAGE-#{index}",
+        location: "Shelf #{index}",
+        expires_on: Date.current + 20 + index
+      )
+      batch.move!(
+        kind: "receipt", amount: 2, reason: "Synthetic paged receipt", actor: @user,
+        request_key: SecureRandom.uuid
+      )
+      Clinic::Inventory::Count.observe!(
+        batch: batch, actor: @user, observed: "2", reason: "Synthetic paged count",
+        request_key: SecureRandom.uuid
+      )
+    end
+
+    expanded_queries = product_detail_query_count
+    details = Clinic::Inventory::ProductDetailsQuery.call(practice: @practice, product_id: @product.id)
+
+    assert_equal 11, details.batch_count
+    assert_equal 10, details.batches.size
+    details.batches.each do |batch|
+      assert_equal 1, details.counts.fetch(batch.id).size
+      assert_equal 1, details.receipt_lines.fetch(batch.id).size
+      assert_equal 1, details.histories.fetch(batch.id).size
+    end
+    assert_operator expanded_queries, :<=, baseline_queries + 2
+  end
+
+  private
+
+  def product_detail_query_count
+    queries = []
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s.lstrip
+      queries << sql if sql.match?(/\ASELECT\b/i)
+    end
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+      Clinic::Inventory::ProductDetailsQuery.call(practice: @practice, product_id: @product.id)
+    end
+    queries.length
+  end
 end

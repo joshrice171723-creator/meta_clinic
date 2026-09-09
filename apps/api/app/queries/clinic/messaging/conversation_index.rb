@@ -72,7 +72,7 @@ module Clinic
         private
 
         def apply_site_scope(scope, ability)
-          return scope if ability.practice_scope_for?("staff_messaging.read")
+          return scope if ability.allowed_permission?("staff_messaging.read")
 
           allowed_site_ids = ability.accessible_site_ids.select do |site_id|
             ability.allowed_permission?("staff_messaging.read", site: site_id)

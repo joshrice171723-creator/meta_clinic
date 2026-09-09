@@ -55,6 +55,49 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "calendar ranges include the complete clinic day across both DST transitions without leaking tenants" do
+    practice = @own.fetch(:practice)
+    practice.update!(timezone: "America/Chicago")
+    grant_permissions!(practice.memberships.find_by!(user: @own.fetch(:user)), "appointments.read")
+
+    [
+      [ "2026-03-08", "2026-03-08T06:00:00Z", "2026-03-09T05:00:00Z" ],
+      [ "2026-11-01", "2026-11-01T05:00:00Z", "2026-11-02T06:00:00Z" ]
+    ].each do |date, first_instant, next_day|
+      from = Time.iso8601(first_instant)
+      through = Time.iso8601(next_day)
+      appointments = [ from - 1.second, from, through - 1.second, through ].map do |instant|
+        practice.appointments.create!(patient: @own.fetch(:patient), site: @own.fetch(:site),
+          starts_at: instant, ends_at: instant + 30.minutes, status: "scheduled", visit_modality: "in_person")
+      end
+      @foreign.fetch(:practice).appointments.create!(patient: @foreign.fetch(:patient), site: @foreign.fetch(:site),
+        starts_at: from, ends_at: from + 30.minutes, status: "scheduled", visit_modality: "in_person")
+
+      get "/api/clinic/appointments", params: { from_date: date, through_date: date }, headers: @headers
+      assert_response :success
+      assert_equal appointments[1..2].map(&:id), response.parsed_body.fetch("appointments").pluck("id")
+      assert_equal 2, response.parsed_body.dig("pagination", "total")
+
+      get "/api/clinic/appointments", params: { from: first_instant, to: next_day }, headers: @headers
+      assert_response :success
+      assert_equal appointments[1..2].map(&:id), response.parsed_body.fetch("appointments").pluck("id")
+    end
+  end
+
+  test "incomplete and reversed calendar ranges fail instead of widening the appointment search" do
+    grant_permissions!(@own.fetch(:practice).memberships.find_by!(user: @own.fetch(:user)), "appointments.read")
+    [
+      { from_date: "", through_date: "2026-09-10" },
+      { from_date: "2026-09-10" },
+      { from_date: "2026-09-11", through_date: "2026-09-10" },
+      { from_date: "2026-02-30", through_date: "2026-03-01" }
+    ].each do |range|
+      get "/api/clinic/appointments", params: range, headers: @headers
+      assert_response :bad_request
+      assert response.parsed_body.fetch("error").present?
+    end
+  end
+
   private
 
   def tenant(label)

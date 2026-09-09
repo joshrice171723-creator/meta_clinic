@@ -174,9 +174,6 @@ module Clinic
         raise ArgumentError, "The attachment is not available until its safety scan is complete." unless attachment.scan_state == "clean"
         head :not_implemented
       end
-
-      private
-
     end
   end
 end

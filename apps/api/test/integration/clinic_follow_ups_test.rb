@@ -76,7 +76,7 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
   end
 
   test "filters mine overdue and unassigned without changing the accessible summary" do
-    travel_to Time.utc(2026, 9, 7, 16) do
+    travel_to Time.current.change(usec: 0) do
       login
       conversation = create_conversation(title: "Filter requests", members: [ @membership, @coworker ])
       mine = create_request(conversation: conversation, assignee: @membership, due_at: 30.minutes.ago)
@@ -157,6 +157,105 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
     assert_nil response.parsed_body.fetch("reminder_attention_count")
   end
 
+  test "staff conversation filters preserve site visibility without query growth" do
+    allowed_site = @practice.sites.create!(code: "MESSAGING-ALLOWED")
+    denied_site = @practice.sites.create!(code: "MESSAGING-DENIED")
+    assigned = create_conversation(title: "Assigned urgent", members: [ @membership, @coworker ], site: allowed_site)
+    assigned_message = create_staff_message(
+      conversation: assigned, sender: @coworker, message_class: "urgent", recipient: @membership
+    )
+    assigned_message.create_request!(
+      practice: @practice, assignee_membership: @membership, due_at: 1.hour.from_now, state: "open"
+    )
+    unread_only = create_conversation(title: "Unread routine", members: [ @membership, @coworker ], site: allowed_site)
+    create_staff_message(
+      conversation: unread_only, sender: @coworker, message_class: "routine", recipient: @membership
+    )
+    urgent_only = create_conversation(title: "Read urgent", members: [ @membership, @coworker ], site: allowed_site)
+    create_staff_message(
+      conversation: urgent_only, sender: @coworker, message_class: "safety_critical",
+      recipient: @membership, read_at: Time.current
+    )
+    denied = create_conversation(title: "Denied urgent", members: [ @membership, @coworker ], site: denied_site)
+    denied_message = create_staff_message(
+      conversation: denied, sender: @coworker, message_class: "urgent", recipient: @membership
+    )
+    denied_message.create_request!(
+      practice: @practice, assignee_membership: @membership, due_at: 1.hour.from_now, state: "open"
+    )
+
+    omni = User.create!(email_address: "omni@test.com", admin: true, password: SecureRandom.hex(18))
+    omni_membership = @practice.memberships.create!(user: omni)
+    [ assigned, denied ].each do |conversation|
+      conversation.members.create!(practice: @practice, membership: omni_membership, joined_at: Time.current)
+    end
+    omni_visible = Clinic::Messaging::ConversationIndex.call(
+      practice: @practice,
+      ability: Ability.new(omni, practice: @practice),
+      membership: omni_membership,
+      filter: "urgent"
+    )
+    assert_equal [ assigned.id, denied.id ].sort, omni_visible.pluck(:id).sort
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "staff_messaging.read", scope_kind: "site", site: allowed_site)
+
+    assert_equal [ assigned.id, unread_only.id ].sort, staff_conversation_ids("unread").sort
+    assert_equal [ assigned.id, urgent_only.id ].sort, staff_conversation_ids("urgent").sort
+    assert_equal [ assigned.id ], staff_conversation_ids("assigned")
+    assert_equal [ assigned.id ], staff_conversation_ids("unresolved")
+
+    baseline_queries = staff_conversation_query_count("urgent")
+    8.times do |index|
+      conversation = create_conversation(
+        title: "Additional urgent #{index}", members: [ @membership, @coworker ], site: allowed_site
+      )
+      create_staff_message(
+        conversation: conversation, sender: @coworker, message_class: "urgent", recipient: @membership
+      )
+    end
+    expanded_queries = staff_conversation_query_count("urgent")
+
+    assert_operator expanded_queries, :<=, baseline_queries + 1
+  end
+
+  test "marking staff messages read rolls back receipt and cursor when audit recording fails" do
+    conversation = create_conversation(title: "Atomic read", members: [ @membership, @coworker ])
+    message = create_staff_message(
+      conversation: conversation, sender: @coworker, message_class: "routine", recipient: @membership
+    )
+    receipt = message.receipts.find_by!(recipient_membership_id: @membership.id)
+    conversation_member = conversation.members.find_by!(membership_id: @membership.id)
+    audit_failure = Class.new(StandardError)
+    original_record = Clinic::AuditRecorder.method(:record!)
+
+    Clinic::AuditRecorder.define_singleton_method(:record!) do |**|
+      raise audit_failure, "synthetic audit failure"
+    end
+    begin
+      assert_raises(audit_failure) do
+        PaperTrail.request(whodunnit: @user.id.to_s, controller_info: { request_id: "atomic-read-rollback" }) do
+          Clinic::Messaging::MarkStaffMessageRead.call(
+            practice: @practice, actor: @user, conversation: conversation
+          )
+        end
+      end
+    ensure
+      Clinic::AuditRecorder.define_singleton_method(:record!, original_record)
+    end
+
+    assert_nil receipt.reload.read_at
+    assert_nil receipt.presented_at
+    assert_nil conversation_member.reload.last_read_message_id
+    assert_nil conversation_member.last_read_at
+
+    Clinic::Messaging::MarkStaffMessageRead.call(
+      practice: @practice, actor: @user, conversation: conversation
+    )
+    assert_not_nil receipt.reload.read_at
+    assert_equal message.id, conversation_member.reload.last_read_message_id
+  end
+
   private
 
   def follow_ups_path
@@ -200,6 +299,45 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
       response_due_at: due_at
     )
     message.create_request!(practice: practice, assignee_membership: assignee, due_at: due_at, state: state)
+  end
+
+  def create_staff_message(conversation:, sender:, message_class:, recipient:, read_at: nil)
+    message = conversation.messages.create!(
+      practice: conversation.practice,
+      sender_membership: sender,
+      body: "Synthetic staff message",
+      message_class: message_class,
+      status: "active",
+      request_key: "staff-message-#{SecureRandom.hex(10)}"
+    )
+    message.receipts.create!(
+      practice: conversation.practice,
+      recipient_membership: recipient,
+      delivered_at: Time.current,
+      presented_at: read_at,
+      read_at: read_at
+    )
+    conversation.update!(last_message_at: Time.current)
+    message
+  end
+
+  def staff_conversation_ids(filter)
+    get "/api/clinic/staff-messaging/conversations", params: { filter: filter }, headers: @headers
+    assert_response :success
+    response.parsed_body.fetch("conversations").map { |conversation| conversation.fetch("id") }
+  end
+
+  def staff_conversation_query_count(filter)
+    queries = []
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s.lstrip
+      queries << sql if sql.match?(/\ASELECT\b/i)
+    end
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+      get "/api/clinic/staff-messaging/conversations", params: { filter: filter }, headers: @headers
+    end
+    assert_response :success
+    queries.length
   end
 
   def create_reminder(practice, actor, patient, endpoint, key)
