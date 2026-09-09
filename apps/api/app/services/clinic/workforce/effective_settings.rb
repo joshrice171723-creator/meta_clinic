@@ -28,6 +28,33 @@ module Clinic
         }
       end
 
+      def self.for_sites(practice:, sites:, at: Current.business_time)
+        sites = sites.to_a
+        return {} if sites.empty?
+        raise ArgumentError, "The selected site does not belong to this practice." if sites.any? { |site| site.practice_id != practice.id }
+
+        versions = SettingsVersion.where(practice_id: practice.id, site_id: [ nil, sites.map(&:id) ])
+          .effective_at(at).order(effective_from: :desc, revision: :desc).to_a
+        practice_version = versions.select(&:practice?).first
+        raise Unconfigured, "Workforce settings have not been configured for this practice." unless practice_version
+
+        site_versions = versions.select(&:site?).group_by(&:site_id).transform_values(&:first)
+        sites.to_h do |site|
+          site_version = site_versions[site.id]
+          values = practice_version.values.deep_stringify_keys
+          site_version&.values&.deep_stringify_keys&.each do |key, value|
+            values[key] = value unless value.nil?
+          end
+          [ site.id, {
+            values: values,
+            versions: {
+              practice: provenance(practice_version),
+              site: site_version && provenance(site_version)
+            }
+          } ]
+        end
+      end
+
       def self.provenance(version)
         {
           id: version.id,

@@ -45,6 +45,26 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     assert_equal 1.hour, second[:starts_at] - first[:starts_at]
   end
 
+  test "effective workforce settings batch site versions" do
+    site_values = settings.except("timezone", "workweek_start_day", "workweek_start_time")
+      .merge("schedule_enabled" => false)
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "site", site: @site, revision: 1,
+      effective_from: 1.hour.ago, created_by_membership: @manager.membership, values: site_values)
+    setting_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { setting_queries << payload[:sql].to_s }
+    result = nil
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        result = Clinic::Workforce::EffectiveSettings.for_sites(practice: @practice, sites: [ @site, @other_site ])
+      end
+    end
+
+    assert_equal false, result.fetch(@site.id).dig(:values, "schedule_enabled")
+    assert_equal true, result.fetch(@other_site.id).dig(:values, "schedule_enabled")
+    assert_equal 1, setting_queries.count { |sql| sql.match?(/FROM "clinic_workforce_settings_versions"/i) }, setting_queries.join("\n")
+  end
+
   test "publication is immutable retryable and rejects stale drafts" do
     draft = draft_with_shift(@site, @employee, "2026-09-07T09:00", "2026-09-07T17:00")
     publication = Clinic::Workforce::PublishSchedule.call(draft: draft, actor: @manager.membership.user,

@@ -144,14 +144,16 @@ module Clinic
       def eligible_sites(employment)
         return [] unless employment
         employment.employment_sites.load
+        sites = current_practice.sites.includes(:operating_hours).to_a
+        settings_by_site = EffectiveSettings.for_sites(practice: current_practice, sites: sites, at: Current.business_time)
 
-        current_practice.sites.includes(:operating_hours).select { |site| employment.eligible_site?(site, at: Current.business_time) }.map do |site|
-          values = effective_settings(site)
+        sites.select { |site| employment.eligible_site?(site, at: Current.business_time) }.map do |site|
+          values = settings_by_site.fetch(site.id).fetch(:values)
           { id: site.id.to_s, name: site.name, timezone: site.timezone_override || current_practice.timezone,
             request_options: %w[availability_editing_enabled time_off_enabled shift_swaps_enabled availability_approval_required time_off_approval_required shift_swap_approval_required].to_h { |key| [ key, values.fetch(key) ] } }
-        rescue EffectiveSettings::Unconfigured
-          nil
-        end.compact
+        end
+      rescue EffectiveSettings::Unconfigured
+        []
       end
 
       def idempotent_create(klass, key_value, payload)
