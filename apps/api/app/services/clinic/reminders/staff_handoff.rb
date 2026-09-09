@@ -4,7 +4,14 @@ module Clinic
       ACTION_TYPES = %w[request_help request_reschedule].freeze
       MAX_DUE_WINDOW = 30.days
       MESSAGE_BODY = "A patient reminder needs staff follow-up. Open the reminder worklist to review the permitted details."
-      REQUESTED_ACTION = "Review the reminder outcome and record the operational follow-up."
+      REQUESTED_ACTIONS = {
+        "delivery_failed" => "Review the failed delivery evidence. Do not resend until you confirm a safe contact method and record the outcome.",
+        "delivery_unknown" => "Reconcile the delivery outcome before any resend. Do not send a duplicate while delivery is uncertain.",
+        "retry_exhausted" => "Review the retry history and choose a safe contact or documented follow-up. Do not retry this reminder again.",
+        "request_help" => "Review the patient's request for help and record the appropriate operational follow-up.",
+        "request_reschedule" => "Review the reschedule request through the authorized appointment-request workflow. Do not change the appointment from this message."
+      }.freeze
+      DEFAULT_REQUESTED_ACTION = "Review the reminder outcome and record the operational follow-up."
       OPERATION_CODE = "reminders.staff_handoff.create"
 
       SourceEvent = Data.define(:kind, :id, :reason_code) do
@@ -39,7 +46,7 @@ module Clinic
 
           receipt = source_receipt!(practice: practice, source: source)
           if receipt
-            message = message_from_receipt!(practice: practice, receipt: receipt, reminder: reminder)
+            message = message_from_receipt!(practice: practice, receipt: receipt, reminder: reminder, source: source)
             validate_existing_target!(message: message, conversation: conversation, assignee: assignee, due_at: due_at)
             Clinic::Messaging::StaffPolicy.conversation_for!(
               practice: practice,
@@ -90,7 +97,7 @@ module Clinic
               message_class: "time_sensitive",
               response_due_at: due_at,
               assignee_membership_id: assignee.membership_id,
-              requested_action: REQUESTED_ACTION,
+              requested_action: requested_action_for(source.reason_code),
               linked_object_type: "patient_reminder",
               linked_object_id: reminder.id
             )
@@ -154,7 +161,7 @@ module Clinic
           receipt = receipt_from_group!(receipts_by_key.fetch(source.key, []))
           message = receipt && messages[receipt.resource_id]
           if receipt
-            validate_receipt_message!(message: message, reminder: reminder)
+            validate_receipt_message!(message: message, reminder: reminder, source: source)
             membership = read_memberships.fetch(message.conversation.site_id) do |site_id|
               read_memberships[site_id] = Clinic::Messaging::StaffPolicy.authorize!(
                 practice: practice,
@@ -187,6 +194,11 @@ module Clinic
         { eligible: false, source_type: nil, source_id: nil, reason_code: nil, request: nil }
       end
       private_class_method :empty_summary
+
+      def self.requested_action_for(reason_code)
+        REQUESTED_ACTIONS.fetch(reason_code.to_s, DEFAULT_REQUESTED_ACTION)
+      end
+      private_class_method :requested_action_for
 
       def self.source_event!(reminder:, action_id:)
         action = actionable_action(reminder: reminder, action_id: action_id)
@@ -251,17 +263,17 @@ module Clinic
       end
       private_class_method :receipt_from_group!
 
-      def self.message_from_receipt!(practice:, receipt:, reminder:)
+      def self.message_from_receipt!(practice:, receipt:, reminder:, source:)
         message = Clinic::StaffMessage.where(practice_id: practice.id)
           .includes(:request, :conversation)
           .find_by(id: receipt.resource_id)
-        validate_receipt_message!(message: message, reminder: reminder)
+        validate_receipt_message!(message: message, reminder: reminder, source: source)
       end
       private_class_method :message_from_receipt!
 
-      def self.validate_receipt_message!(message:, reminder:)
+      def self.validate_receipt_message!(message:, reminder:, source:)
         valid = message && message.body == MESSAGE_BODY && message.message_class == "time_sensitive" &&
-          message.requested_action == REQUESTED_ACTION && message.linked_object_type == "patient_reminder" &&
+          message.requested_action == requested_action_for(source.reason_code) && message.linked_object_type == "patient_reminder" &&
           message.linked_object_id == reminder.id && message.request.present?
         return message if valid
 

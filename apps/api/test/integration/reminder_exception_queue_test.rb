@@ -72,6 +72,27 @@ class ReminderExceptionQueueTest < ActionDispatch::IntegrationTest
     assert_includes ids, requests.fetch("expired").id
   end
 
+  test "delivery-unknown handoff tells staff to reconcile before any retry" do
+    reminder = create_reminder(@practice, @user, @patient, @endpoint, "unknown-delivery")
+    reminder.delivery_attempts.create!(
+      practice: @practice, attempt_number: 1, provider: "local_test",
+      idempotency_key: "unknown-delivery-attempt", status: "unknown",
+      failure_class: "provider_outcome_unknown", retryable: false,
+      masked_destination: @endpoint.masked_value, queued_at: Time.current,
+      completed_at: Time.current
+    )
+    reminder.update!(status: "delivery_unknown", policy_decision_code: "provider_outcome_unknown")
+
+    request = Clinic::Reminders::StaffHandoff.call(
+      practice: @practice, actor: @user, reminder: reminder,
+      conversation_id: @conversation.id, assignee_membership_id: @membership.id,
+      due_at: 2.days.from_now
+    )
+
+    assert_equal "Reconcile the delivery outcome before any resend. Do not send a duplicate while delivery is uncertain.",
+      request.message.requested_action
+  end
+
   private
 
   def attention_ids
