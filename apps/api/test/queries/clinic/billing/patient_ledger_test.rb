@@ -23,6 +23,8 @@ class PatientLedgerTest < ActiveSupport::TestCase
 
     assert_equal "45.0", payments.fetch(applied_and_refunded.id).fetch(:unapplied_amount)
     assert_equal "0.0", payments.fetch(fully_consumed.id).fetch(:unapplied_amount)
+    assert_equal false, payments.fetch(applied_and_refunded.id).fetch(:cash_refund_available)
+    assert_equal "not_cash_payment", payments.fetch(applied_and_refunded.id).fetch(:cash_refund_unavailable_reason)
   end
 
   test "bounds history pages without truncating all-history balances" do
@@ -59,6 +61,29 @@ class PatientLedgerTest < ActiveSupport::TestCase
     assert_nil older_payments.fetch(:next_cursor)
     assert_empty ledger.fetch(:invoices).map { |item| item.fetch(:id) } & older_invoices.fetch(:items).map { |item| item.fetch(:id) }
     assert_empty ledger.fetch(:payments).map { |item| item.fetch(:id) } & older_payments.fetch(:items).map { |item| item.fetch(:id) }
+  end
+
+  test "projects cash refund availability from the payment drawer state" do
+    actor = User.create!(email_address: "ledger-cash@example.invalid", password: SecureRandom.hex(20))
+    site = @practice.sites.create!(code: "LEDGER-CASH")
+    drawer = @practice.cash_drawer_sessions.create!(site: site, opened_by: actor, opening_float: "0")
+    cash_payment = payment(reference: "ledger-cash", amount: "100.00")
+    Clinic::CashTender.create!(
+      practice: @practice, patient: @patient, payment_event: cash_payment,
+      cash_drawer_session: drawer, recorded_by: actor, request_key: "ledger-cash-tender",
+      tendered_amount: "100.00", change_amount: "0"
+    )
+
+    projected = Clinic::Billing::PatientLedger.call(practice: @practice, patient: @patient)
+      .fetch(:payments).find { |entry| entry.fetch(:id) == cash_payment.id }
+    assert_equal true, projected.fetch(:cash_refund_available)
+    assert_nil projected.fetch(:cash_refund_unavailable_reason)
+
+    drawer.update_columns(status: "closed")
+    projected = Clinic::Billing::PatientLedger.call(practice: @practice, patient: @patient)
+      .fetch(:payments).find { |entry| entry.fetch(:id) == cash_payment.id }
+    assert_equal false, projected.fetch(:cash_refund_available)
+    assert_equal "cash_drawer_closed", projected.fetch(:cash_refund_unavailable_reason)
   end
 
   private

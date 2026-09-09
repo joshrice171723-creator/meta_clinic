@@ -796,28 +796,52 @@ export function PatientLabReports({
               No lab reports are recorded for this patient.
             </Typography>
           ) : (
-            <Stack component="ul" spacing={1.5} sx={{ listStyle: "none", m: 0, p: 0 }}>
+            <Stack
+              component="ul"
+              spacing={1.5}
+              sx={{ listStyle: "none", m: 0, p: 0 }}
+            >
               {data.reports.map((report) => (
-                <Paper component="li" key={report.id} variant="outlined" sx={{ p: 2 }}>
+                <Paper
+                  component="li"
+                  key={report.id}
+                  variant="outlined"
+                  sx={{ p: 2 }}
+                >
                   <Stack spacing={1.5}>
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
                       spacing={1}
-                      sx={{ alignItems: { sm: "flex-start" }, justifyContent: "space-between" }}
+                      sx={{
+                        alignItems: { sm: "flex-start" },
+                        justifyContent: "space-between",
+                      }}
                     >
                       <Box>
                         <Typography sx={{ fontWeight: 600 }}>
                           {report.current_version.title}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {report.source_name} · {report.current_version.status} ·{" "}
-                          {formatDateTime(report.current_version.issued_at)}
+                          {report.source_name} · {report.current_version.status}{" "}
+                          · {formatDateTime(report.current_version.issued_at)}
                         </Typography>
                       </Box>
-                      <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75 }}>
+                      <Stack
+                        direction="row"
+                        spacing={0.75}
+                        sx={{ flexWrap: "wrap", gap: 0.75 }}
+                      >
                         <Chip
-                          color={report.current_version.reviewed_at ? "success" : "warning"}
-                          label={report.current_version.reviewed_at ? "Reviewed" : "Needs review"}
+                          color={
+                            report.current_version.reviewed_at
+                              ? "success"
+                              : "warning"
+                          }
+                          label={
+                            report.current_version.reviewed_at
+                              ? "Reviewed"
+                              : "Needs review"
+                          }
                           size="small"
                           variant="outlined"
                         />
@@ -839,7 +863,10 @@ export function PatientLabReports({
                           disabled={busy || reviewRetryPending}
                           onClick={() => {
                             setError("");
-                            setReviewTarget({ report, version: report.current_version });
+                            setReviewTarget({
+                              report,
+                              version: report.current_version,
+                            });
                             setReviewConfirmed(false);
                             setReviewDisposition(null);
                             setReviewFollowUpNote("");
@@ -857,7 +884,11 @@ export function PatientLabReports({
                             disabled={busy || followUpRetryPending}
                             onClick={() => {
                               setError("");
-                              setFollowUpTarget({ report, version: report.current_version, action: "set" });
+                              setFollowUpTarget({
+                                report,
+                                version: report.current_version,
+                                action: "set",
+                              });
                               setFollowUpDisposition(null);
                               setFollowUpNote("");
                             }}
@@ -865,19 +896,24 @@ export function PatientLabReports({
                             Set follow-up
                           </Button>
                         )}
-                      {report.current_version.follow_up?.state === "open" && canReview && (
-                        <Button
-                          size="small"
-                          disabled={busy || followUpRetryPending}
-                          onClick={() => {
-                            setError("");
-                            setFollowUpTarget({ report, version: report.current_version, action: "complete" });
-                            setFollowUpOutcome("");
-                          }}
-                        >
-                          Complete follow-up
-                        </Button>
-                      )}
+                      {report.current_version.follow_up?.state === "open" &&
+                        canReview && (
+                          <Button
+                            size="small"
+                            disabled={busy || followUpRetryPending}
+                            onClick={() => {
+                              setError("");
+                              setFollowUpTarget({
+                                report,
+                                version: report.current_version,
+                                action: "complete",
+                              });
+                              setFollowUpOutcome("");
+                            }}
+                          >
+                            Complete follow-up
+                          </Button>
+                        )}
                       <Button
                         size="small"
                         startIcon={<HistoryOutlinedIcon />}
@@ -905,33 +941,48 @@ export function PatientLabReports({
                       <Typography color="text.secondary" variant="caption">
                         Recent results
                       </Typography>
-                      {report.current_version.results.slice(0, 2).map((row, resultIndex) => (
-                        <Stack
-                          key={`${report.current_version_id}-${resultIndex}`}
-                          direction={{ xs: "column", sm: "row" }}
-                          spacing={0.5}
-                          sx={{ alignItems: { sm: "center" }, justifyContent: "space-between", py: 0.5 }}
-                        >
-                          <Typography variant="body2">
-                            {row.name}: {row.value}{row.unit ? ` ${row.unit}` : ""}
-                            {row.reference_range ? ` (${row.reference_range})` : ""}
-                            {row.flag ? ` · ${row.flag}` : ""}
-                          </Typography>
-                          {report.current_version.status !== "cancelled" && (
-                            <Button
-                              size="small"
-                              aria-label={`Compare ${row.name} results`}
-                              disabled={busy}
-                              onClick={() => compareResult(report, resultIndex)}
-                            >
-                              Compare results
-                            </Button>
-                          )}
-                        </Stack>
-                      ))}
+                      {report.current_version.results
+                        .slice(0, 2)
+                        .map((row, resultIndex) => (
+                          <Stack
+                            key={`${report.current_version_id}-${resultIndex}`}
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={0.5}
+                            sx={{
+                              alignItems: { sm: "center" },
+                              justifyContent: "space-between",
+                              py: 0.5,
+                            }}
+                          >
+                            <Typography variant="body2">
+                              {row.name}: {row.value}
+                              {row.unit ? ` ${row.unit}` : ""}
+                              {row.reference_range
+                                ? ` (${row.reference_range})`
+                                : ""}
+                              {row.flag ? ` · ${row.flag}` : ""}
+                            </Typography>
+                            {report.current_version.status !== "cancelled" && (
+                              <Button
+                                size="small"
+                                aria-label={`Compare ${row.name} results`}
+                                disabled={busy}
+                                onClick={() =>
+                                  compareResult(report, resultIndex)
+                                }
+                              >
+                                Compare results
+                              </Button>
+                            )}
+                          </Stack>
+                        ))}
                       {report.current_version.results.length > 2 && (
-                        <Button size="small" onClick={() => void openHistory(report)}>
-                          View all {report.current_version.results.length} results
+                        <Button
+                          size="small"
+                          onClick={() => void openHistory(report)}
+                        >
+                          View all {report.current_version.results.length}{" "}
+                          results
                         </Button>
                       )}
                     </Box>
@@ -1437,7 +1488,11 @@ function LabForm({
       ),
     });
   return (
-    <Paper component="section" variant="outlined" sx={{ minWidth: 0, p: 2, width: "100%" }}>
+    <Paper
+      component="section"
+      variant="outlined"
+      sx={{ minWidth: 0, p: 2, width: "100%" }}
+    >
       <Stack spacing={1.5}>
         <Typography variant="subtitle1">
           {editing

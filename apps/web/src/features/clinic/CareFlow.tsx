@@ -15,7 +15,14 @@ import type {
   SoapNoteSections,
   VisitType,
 } from "../../api/contracts";
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
@@ -72,7 +79,6 @@ import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
-
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -538,8 +544,9 @@ function BookingFormEditor({
   const [roomId, setRoomId] = useState(restoredDraft.roomId);
   const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
   const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
-  const [visitModality, setVisitModality] =
-    useState<VisitModality>(restoredDraft.visitModality ?? initialVisitModality);
+  const [visitModality, setVisitModality] = useState<VisitModality>(
+    restoredDraft.visitModality ?? initialVisitModality,
+  );
   const [busy, setBusy] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
     initialDraft?.attempt ?? null,
@@ -572,7 +579,16 @@ function BookingFormEditor({
       visitTypeId,
       visitModality,
     }),
-    [patientId, startsAt, endsAt, siteId, roomId, clinicianId, visitTypeId, visitModality],
+    [
+      patientId,
+      startsAt,
+      endsAt,
+      siteId,
+      roomId,
+      clinicianId,
+      visitTypeId,
+      visitModality,
+    ],
   );
   const draftChanged = bookingDraftHasChanges(currentDraft, baseline);
   const dirty = hasWorkingDraft || draftChanged;
@@ -653,7 +669,14 @@ function BookingFormEditor({
         autosaveTimer.current = undefined;
       }
     };
-  }, [bookingAttempt, busy, currentDraft, dirty, outcomeUnconfirmed, workingDraft.save]);
+  }, [
+    bookingAttempt,
+    busy,
+    currentDraft,
+    dirty,
+    outcomeUnconfirmed,
+    workingDraft.save,
+  ]);
   useEffect(() => {
     if ((!dirty && !outcomeUnconfirmed) || typeof window === "undefined")
       return;
@@ -1042,9 +1065,7 @@ function BookingFormEditor({
                 if (format === "video") setRoomId("");
               }}
             />
-            <Typography variant="subtitle2">
-              Appointment setup
-            </Typography>
+            <Typography variant="subtitle2">Appointment setup</Typography>
             <Box
               sx={{
                 display: "grid",
@@ -1052,7 +1073,11 @@ function BookingFormEditor({
                 gap: 2,
               }}
             >
-              <FormControl fullWidth required disabled={busy || outcomeUnconfirmed}>
+              <FormControl
+                fullWidth
+                required
+                disabled={busy || outcomeUnconfirmed}
+              >
                 <InputLabel id="site-label">Site</InputLabel>
                 <Select
                   labelId="site-label"
@@ -1063,7 +1088,9 @@ function BookingFormEditor({
                     setRoomId("");
                   }}
                 >
-                  <MenuItem value="" disabled>Select a site</MenuItem>
+                  <MenuItem value="" disabled>
+                    Select a site
+                  </MenuItem>
                   {facilities.data.sites.map((site) => (
                     <MenuItem key={site.id} value={site.id.toString()}>
                       {site.code}
@@ -1092,7 +1119,11 @@ function BookingFormEditor({
                   </Select>
                 </FormControl>
               )}
-              <FormControl fullWidth required disabled={busy || outcomeUnconfirmed}>
+              <FormControl
+                fullWidth
+                required
+                disabled={busy || outcomeUnconfirmed}
+              >
                 <InputLabel id="clinician-label">Booked clinician</InputLabel>
                 <Select
                   labelId="clinician-label"
@@ -1100,15 +1131,25 @@ function BookingFormEditor({
                   value={clinicianId}
                   onChange={(event) => setClinicianId(event.target.value)}
                 >
-                  <MenuItem value="" disabled>Select a clinician</MenuItem>
+                  <MenuItem value="" disabled>
+                    Select a clinician
+                  </MenuItem>
                   {clinicians.data.clinicians.map((clinician) => (
-                    <MenuItem key={clinician.id} value={clinician.id.toString()}>
-                      {clinician.reference ?? `Clinician profile #${clinician.id}`}
+                    <MenuItem
+                      key={clinician.id}
+                      value={clinician.id.toString()}
+                    >
+                      {clinician.reference ??
+                        `Clinician profile #${clinician.id}`}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              <FormControl fullWidth required disabled={busy || outcomeUnconfirmed}>
+              <FormControl
+                fullWidth
+                required
+                disabled={busy || outcomeUnconfirmed}
+              >
                 <InputLabel id="visit-type-label">Visit type</InputLabel>
                 <Select
                   labelId="visit-type-label"
@@ -1116,7 +1157,9 @@ function BookingFormEditor({
                   value={visitTypeId}
                   onChange={(event) => setVisitTypeId(event.target.value)}
                 >
-                  <MenuItem value="" disabled>Select a visit type</MenuItem>
+                  <MenuItem value="" disabled>
+                    Select a visit type
+                  </MenuItem>
                   {visitTypes.data.visit_types
                     .filter((type) => !type.retired_at)
                     .map((type) => (
@@ -3635,7 +3678,11 @@ function VisitWrapUp({
             )}
         </Stack>
       </Stack>
-      <EncounterFollowUpPanel patient={patient} encounter={current} timezone={timezone} />
+      <EncounterFollowUpPanel
+        patient={patient}
+        encounter={current}
+        timezone={timezone}
+      />
       <Dialog
         open={confirmation !== null}
         onClose={() => !busy && setConfirmation(null)}

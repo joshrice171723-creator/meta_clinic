@@ -355,7 +355,9 @@ function AppointmentDayQueue({
         result.encounter.patient_id !== appointment.patient_id ||
         result.encounter.appointment_id !== appointment.id
       )
-        throw new Error("The created encounter did not match this appointment.");
+        throw new Error(
+          "The created encounter did not match this appointment.",
+        );
       setNotice(`${patientName} is checked in and the visit is in progress.`);
       appointments.refresh();
     } catch (error) {
@@ -425,7 +427,11 @@ function AppointmentDayQueue({
       );
       return;
     }
-    if (!reschedule.siteId || !reschedule.clinicianId || !reschedule.visitTypeId) {
+    if (
+      !reschedule.siteId ||
+      !reschedule.clinicianId ||
+      !reschedule.visitTypeId
+    ) {
       setReschedule((current) =>
         current
           ? {
@@ -871,7 +877,9 @@ function AppointmentRow({
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />
         {needsSetup && (
-          <span>Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}</span>
+          <span>
+            Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}
+          </span>
         )}
         {appointment.encounter_status === "open" && (
           <span>Clinical encounter open</span>
@@ -1101,12 +1109,16 @@ function RescheduleDialog({
               onChange({
                 ...draft,
                 siteId: event.target.value,
-                requestKey: draft.error ? crypto.randomUUID() : draft.requestKey,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
                 error: "",
               })
             }
           >
-            <MenuItem value="" disabled>Select a site</MenuItem>
+            <MenuItem value="" disabled>
+              Select a site
+            </MenuItem>
             {sites.map((site) => (
               <MenuItem key={site.id} value={String(site.id)}>
                 {site.name || site.code}
@@ -1124,12 +1136,16 @@ function RescheduleDialog({
               onChange({
                 ...draft,
                 clinicianId: event.target.value,
-                requestKey: draft.error ? crypto.randomUUID() : draft.requestKey,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
                 error: "",
               })
             }
           >
-            <MenuItem value="" disabled>Select a clinician</MenuItem>
+            <MenuItem value="" disabled>
+              Select a clinician
+            </MenuItem>
             {clinicians.map((clinician) => (
               <MenuItem key={clinician.id} value={String(clinician.id)}>
                 {clinician.reference || `Clinician profile #${clinician.id}`}
@@ -1147,17 +1163,23 @@ function RescheduleDialog({
               onChange({
                 ...draft,
                 visitTypeId: event.target.value,
-                requestKey: draft.error ? crypto.randomUUID() : draft.requestKey,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
                 error: "",
               })
             }
           >
-            <MenuItem value="" disabled>Select a visit type</MenuItem>
-            {visitTypes.filter((type) => !type.retired_at).map((type) => (
-              <MenuItem key={type.id} value={String(type.id)}>
-                {type.code}
-              </MenuItem>
-            ))}
+            <MenuItem value="" disabled>
+              Select a visit type
+            </MenuItem>
+            {visitTypes
+              .filter((type) => !type.retired_at)
+              .map((type) => (
+                <MenuItem key={type.id} value={String(type.id)}>
+                  {type.code}
+                </MenuItem>
+              ))}
           </TextField>
           {draft?.error && (
             <Alert

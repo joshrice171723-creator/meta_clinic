@@ -126,7 +126,8 @@ describe("clinic-local navigation", () => {
     const app = readSource(new URL("../src/App.tsx", import.meta.url));
     expect(careFlow).toContain("registerBlocker(");
     expect(careFlow).toContain("unsaved changes. Leave the chart");
-    expect(careFlow).toContain('window.location.replace("/login")');
+    expect(careFlow).toContain("window.location.replace(");
+    expect(careFlow).toContain("currentLoginDestination()");
     expect(app).toContain('window.location.replace(\n        "/login?next="');
   });
 

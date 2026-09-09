@@ -16,6 +16,10 @@ class PatientPortalAppointmentConfirmationTest < ActionDispatch::IntegrationTest
     @identity.update!(patient: @patient)
     @site = @practice.sites.create!(code: "CONFIRMATION", name: "Confirmation Site")
     @other_site = @practice.sites.create!(code: "CONFIRMATION-OTHER", name: "Other Confirmation Site")
+    @clinician = @practice.clinician_profiles.first || @practice.clinician_profiles.create!(
+      membership: @practice.memberships.first!, display_name: "Confirmation Clinician"
+    )
+    @visit_type = @practice.visit_types.create!(code: "CONFIRMATION-VISIT")
 
     post "/api/development_session", params: { profile: "patient" }, headers: csrf_headers, as: :json
     assert_response :created
@@ -163,7 +167,7 @@ class PatientPortalAppointmentConfirmationTest < ActionDispatch::IntegrationTest
     @identity.update!(status: :revoked, revoked_at: Time.current)
     put confirmation_path(owned), params: { confirmation: { version: owned_version } },
       headers: csrf_headers, as: :json
-    assert_response :forbidden
+    assert_response :not_found
     assert_equal "scheduled", owned.reload.status
     assert_empty confirmation_audits
   end
@@ -179,6 +183,8 @@ class PatientPortalAppointmentConfirmationTest < ActionDispatch::IntegrationTest
     @practice.appointments.create!(
       patient: patient,
       site: @site,
+      booked_clinician: @clinician,
+      visit_type: @visit_type,
       starts_at: starts_at,
       ends_at: starts_at + 30.minutes,
       status: status

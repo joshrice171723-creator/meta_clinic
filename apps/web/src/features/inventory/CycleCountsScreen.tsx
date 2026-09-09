@@ -825,12 +825,13 @@ export function CycleCountsScreen({
                                 ? "Approved"
                                 : "Approve latest count"}
                           </Button>
-                          {!canApprove && !selectedLine.latest_count.approved && (
-                            <p className="inventory-permission">
-                              A different eligible reviewer is required. Variances
-                              also require inventory.adjust.
-                            </p>
-                          )}
+                          {!canApprove &&
+                            !selectedLine.latest_count.approved && (
+                              <p className="inventory-permission">
+                                A different eligible reviewer is required.
+                                Variances also require inventory.adjust.
+                              </p>
+                            )}
                         </>
                       )}
                     </>

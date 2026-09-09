@@ -775,6 +775,9 @@ export type Appointment = {
   ends_at: string;
   status: string;
   encounter_id: number | null;
+  needs_setup?: boolean;
+  readiness?: "ready" | "needs_setup";
+  setup_missing?: ("site" | "clinician" | "visit_type")[];
   visit_modality?: "in_person" | "video";
   telehealth?: TelehealthSummary | null;
   patient?: Pick<Patient, "id" | "display_name" | "reference"> & {

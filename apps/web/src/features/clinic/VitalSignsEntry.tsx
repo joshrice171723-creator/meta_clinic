@@ -708,7 +708,9 @@ export function VitalSignsEntry({
                       <strong>Encounter:</strong> #{encounterId}
                     </Typography>
                     <Typography>
-                      <strong>Observed (clinic time · {practice.timezone}):</strong>{" "}
+                      <strong>
+                        Observed (clinic time · {practice.timezone}):
+                      </strong>{" "}
                       {dateLabel(
                         new Date(observedAt).toISOString(),
                         practice.timezone,

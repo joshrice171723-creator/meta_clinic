@@ -121,10 +121,7 @@ function persistCashRefundAttempt(
   else pendingCashRefundAttempts.delete(key);
 }
 
-function chargeAdjustmentScopeKey(
-  scope: CashRefundScope,
-  invoiceId: number,
-) {
+function chargeAdjustmentScopeKey(scope: CashRefundScope, invoiceId: number) {
   return `${cashRefundScopeKey(scope)}:invoice:${invoiceId}`;
 }
 
@@ -224,7 +221,9 @@ function PatientDirectory({
             >
               <ListItemText
                 primary={patient.display_name}
-                secondary={patientReferenceLabel(patient.reference) ?? undefined}
+                secondary={
+                  patientReferenceLabel(patient.reference) ?? undefined
+                }
                 slotProps={{
                   primary: { sx: { fontWeight: 650 } },
                   secondary: { sx: { fontVariantNumeric: "tabular-nums" } },
@@ -393,7 +392,10 @@ export function Billing() {
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={0.75}
-              sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+              sx={{
+                alignItems: { sm: "center" },
+                justifyContent: "space-between",
+              }}
             >
               <Box>
                 <Typography component="h2" variant="subtitle2">
@@ -402,13 +404,18 @@ export function Billing() {
                 <Typography sx={{ fontWeight: 700 }}>
                   {ledger.data?.patient.display_name ?? "Loading patient…"}
                 </Typography>
-                {ledger.data && patientReferenceLabel(ledger.data.patient.reference) && (
-                  <Typography color="text.secondary" variant="body2">
-                    Clinic reference · {patientReferenceLabel(ledger.data.patient.reference)}
-                  </Typography>
-                )}
+                {ledger.data &&
+                  patientReferenceLabel(ledger.data.patient.reference) && (
+                    <Typography color="text.secondary" variant="body2">
+                      Clinic reference ·{" "}
+                      {patientReferenceLabel(ledger.data.patient.reference)}
+                    </Typography>
+                  )}
               </Box>
-              <Chip label={`Encounter #${checkoutEncounterId}`} variant="outlined" />
+              <Chip
+                label={`Encounter #${checkoutEncounterId}`}
+                variant="outlined"
+              />
             </Stack>
           </Paper>
         ) : (
@@ -510,8 +517,7 @@ function LedgerDetails({
 }) {
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
   const actionableInvoice =
-    checkoutEncounterId &&
-    checkoutInvoice.active?.id !== selectedInvoice?.id
+    checkoutEncounterId && checkoutInvoice.active?.id !== selectedInvoice?.id
       ? undefined
       : selectedInvoice;
   return (
@@ -685,11 +691,20 @@ function LedgerDetails({
         <Accordion disableGutters variant="outlined">
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box>
-              <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700 }}>
+              <Typography
+                component="h2"
+                variant="subtitle1"
+                sx={{ fontWeight: 700 }}
+              >
                 Invoice #{selectedInvoice.id} details
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                {invoiceState(selectedInvoice)} · {money(selectedInvoice.balance_amount, selectedInvoice.currency)} balance
+                {invoiceState(selectedInvoice)} ·{" "}
+                {money(
+                  selectedInvoice.balance_amount,
+                  selectedInvoice.currency,
+                )}{" "}
+                balance
               </Typography>
             </Box>
           </AccordionSummary>
@@ -698,13 +713,16 @@ function LedgerDetails({
           </AccordionDetails>
         </Accordion>
       )}
-      {checkoutEncounterId && selectedInvoice && !actionableInvoice && (
-        <Alert severity="info">
-          Invoice #{selectedInvoice.id} is historical for this patient. Return
-          to invoice #{checkoutInvoice.active?.id} to continue this encounter's
-          checkout.
-        </Alert>
-      )}
+      {checkoutEncounterId &&
+        checkoutInvoice.active &&
+        selectedInvoice &&
+        !actionableInvoice && (
+          <Alert severity="info">
+            Invoice #{selectedInvoice.id} is historical for this patient. Return
+            to invoice #{checkoutInvoice.active?.id} to continue this
+            encounter's checkout.
+          </Alert>
+        )}
       {actionableInvoice && (
         <ChargeAdjustmentDialog
           canAdjust={canAdjust}
@@ -940,8 +958,8 @@ function CheckoutSettlement({
                 <Stack spacing={1.25}>
                   <Typography variant="body2">
                     Posting outcome for invoice #{postAttempt.invoiceId} is
-                    pending confirmation. The original submission remains
-                    locked to this invoice.
+                    pending confirmation. The original submission remains locked
+                    to this invoice.
                   </Typography>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                     <Button
@@ -1010,16 +1028,16 @@ function CheckoutSettlement({
         clinic.capabilities.billing_cash_reconcile === true) &&
         (collectionInvoice || cashPending) &&
         !postingPending && (
-        <CashDrawerOperations
-          invoice={onlinePaymentPending ? null : collectionInvoice}
-          patientId={patientId}
-          encounterId={encounterId ?? undefined}
-          recoveryInvoiceId={cashRecoveryInvoiceId.current}
-          refreshVersion={financialRevision}
-          onPendingChange={setCashPending}
-          onRecorded={onFinancialChange}
-        />
-      )}
+          <CashDrawerOperations
+            invoice={onlinePaymentPending ? null : collectionInvoice}
+            patientId={patientId}
+            encounterId={encounterId ?? undefined}
+            recoveryInvoiceId={cashRecoveryInvoiceId.current}
+            refreshVersion={financialRevision}
+            onPendingChange={setCashPending}
+            onRecorded={onFinancialChange}
+          />
+        )}
       <Dialog
         fullWidth
         maxWidth="sm"
@@ -1096,7 +1114,8 @@ function DraftInvoiceForm({
       restored.action !== "create" ||
       restored.patientId !== patientId ||
       restored.encounterId !== encounterId
-    ) return;
+    )
+      return;
     setCurrency(restored.currency);
     setLines(restored.lines);
     requestKeyRef.current = restored.requestKey;
@@ -1123,16 +1142,20 @@ function DraftInvoiceForm({
     setNotice("");
     const retryKey = requestKeyRef.current || crypto.randomUUID();
     requestKeyRef.current = retryKey;
-    if (!(await recovery.save({
-      action: "create",
-      patientId,
-      encounterId,
-      requestKey: retryKey,
-      currency,
-      lines,
-    }))) {
+    if (
+      !(await recovery.save({
+        action: "create",
+        patientId,
+        encounterId,
+        requestKey: retryKey,
+        currency,
+        lines,
+      }))
+    ) {
       setBusy(false);
-      setError(recovery.error || "The checkout draft could not be saved for recovery.");
+      setError(
+        recovery.error || "The checkout draft could not be saved for recovery.",
+      );
       return;
     }
     try {
@@ -1328,7 +1351,8 @@ function DraftInvoiceEditor({
   useEffect(() => {
     if (!recovery.ready || !recovery.restored || requestKeyRef.current) return;
     const restored = recovery.restored;
-    if (restored.action !== "update" || restored.invoiceId !== invoice.id) return;
+    if (restored.action !== "update" || restored.invoiceId !== invoice.id)
+      return;
     setCurrency(restored.currency);
     setLines(restored.lines);
     requestKeyRef.current = restored.requestKey;
@@ -1362,42 +1386,52 @@ function DraftInvoiceEditor({
     };
     if (!(await recovery.save(attempt))) {
       setBusy(false);
-      setError(recovery.error || "The invoice edit could not be saved for recovery.");
+      setError(
+        recovery.error || "The invoice edit could not be saved for recovery.",
+      );
       return;
     }
     requestKeyRef.current = requestKey;
     setRetryPending(true);
     try {
-      const result = await api<{ invoice: BillingInvoiceDetail }>(`/api/clinic/invoices/${invoice.id}/draft`, {
-        method: "PATCH",
-        body: {
-          invoice: {
-            currency,
-            request_key: requestKey,
-            expected_updated_at: invoice.updated_at,
-            lines: lines.map((line) =>
-              line.kind === "recorded"
-                ? {
-                    invoice_line_id: line.invoice_line_id,
-                    quantity: line.quantity.trim(),
-                  }
-                : line.kind === "catalog"
+      const result = await api<{ invoice: BillingInvoiceDetail }>(
+        `/api/clinic/invoices/${invoice.id}/draft`,
+        {
+          method: "PATCH",
+          body: {
+            invoice: {
+              currency,
+              request_key: requestKey,
+              expected_updated_at: invoice.updated_at,
+              lines: lines.map((line) =>
+                line.kind === "recorded"
                   ? {
-                      billing_service_id: line.billing_service_id,
-                      service_lock_version: line.service_lock_version,
+                      invoice_line_id: line.invoice_line_id,
                       quantity: line.quantity.trim(),
                     }
-                  : {
-                      quantity: line.quantity.trim(),
-                      unit_amount: line.unit_amount.trim(),
-                      description_snapshot: line.description_snapshot.trim(),
-                    },
-            ),
+                  : line.kind === "catalog"
+                    ? {
+                        billing_service_id: line.billing_service_id,
+                        service_lock_version: line.service_lock_version,
+                        quantity: line.quantity.trim(),
+                      }
+                    : {
+                        quantity: line.quantity.trim(),
+                        unit_amount: line.unit_amount.trim(),
+                        description_snapshot: line.description_snapshot.trim(),
+                      },
+              ),
+            },
           },
         },
-      });
-      if (result.invoice.id !== invoice.id || result.invoice.patient_id !== patientId) {
-        throw new Error("The saved invoice did not match this checkout context.");
+      );
+      if (
+        result.invoice.id !== invoice.id ||
+        result.invoice.patient_id !== patientId
+      ) {
+        throw new Error(
+          "The saved invoice did not match this checkout context.",
+        );
       }
       requestKeyRef.current = null;
       setRetryPending(false);
@@ -1409,7 +1443,10 @@ function DraftInvoiceEditor({
       }
       onSaved();
     } catch (reason) {
-      if (deterministicPostError(reason) || (reason instanceof ApiError && reason.status === 409)) {
+      if (
+        deterministicPostError(reason) ||
+        (reason instanceof ApiError && reason.status === 409)
+      ) {
         requestKeyRef.current = null;
         setRetryPending(false);
         await recovery.clear();
@@ -1529,14 +1566,13 @@ function ChargeAdjustmentDialog({
       );
       return;
     }
-    const nextAttempt =
-      attempt ?? {
-        action,
-        ...(action === "credit" ? { amount: amount.trim() } : {}),
-        invoiceId: invoice.id,
-        reason: reason.trim(),
-        requestKey: crypto.randomUUID(),
-      };
+    const nextAttempt = attempt ?? {
+      action,
+      ...(action === "credit" ? { amount: amount.trim() } : {}),
+      invoiceId: invoice.id,
+      reason: reason.trim(),
+      requestKey: crypto.randomUUID(),
+    };
     persistChargeAdjustmentAttempt(clinic, invoice.id, nextAttempt);
     setAttempt(nextAttempt);
     setBusy(true);
@@ -1607,7 +1643,8 @@ function ChargeAdjustmentDialog({
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography color="text.secondary">
-              Invoice #{invoice.id} · {money(invoice.total_amount, invoice.currency)}
+              Invoice #{invoice.id} ·{" "}
+              {money(invoice.total_amount, invoice.currency)}
             </Typography>
             {retryPending ? (
               <Alert severity="warning">
@@ -1625,7 +1662,8 @@ function ChargeAdjustmentDialog({
                 onClick={() => setAction("credit")}
                 variant={action === "credit" ? "contained" : "outlined"}
               >
-                Credit charges · available {money(creditAvailable, invoice.currency)}
+                Credit charges · available{" "}
+                {money(creditAvailable, invoice.currency)}
               </Button>
             )}
             {canVoid && (
@@ -1660,8 +1698,8 @@ function ChargeAdjustmentDialog({
             {action === "void" && (
               <Typography color="text.secondary" variant="body2">
                 Voiding is available only while this invoice has no allocations,
-                credits, or active collection work. The server verifies that state
-                again when you submit.
+                credits, or active collection work. The server verifies that
+                state again when you submit.
               </Typography>
             )}
             {error && <Alert severity="error">{error}</Alert>}
@@ -1671,7 +1709,11 @@ function ChargeAdjustmentDialog({
           <Button disabled={busy || retryPending} onClick={close}>
             Cancel
           </Button>
-          <Button disabled={busy} onClick={() => void submit()} variant="contained">
+          <Button
+            disabled={busy}
+            onClick={() => void submit()}
+            variant="contained"
+          >
             {busy
               ? "Recording…"
               : retryPending
@@ -1877,9 +1919,11 @@ function PaymentHistory({
   const clinic = useClinic();
   const { capabilities } = clinic;
   const refundScope = cashRefundScopeKey(clinic);
-  const initialRefundAttempt = pendingCashRefundAttempts.get(refundScope) ?? null;
-  const [refundAttempt, setRefundAttempt] =
-    useState<CashRefundAttempt | null>(initialRefundAttempt);
+  const initialRefundAttempt =
+    pendingCashRefundAttempts.get(refundScope) ?? null;
+  const [refundAttempt, setRefundAttempt] = useState<CashRefundAttempt | null>(
+    initialRefundAttempt,
+  );
   const [refundPaymentId, setRefundPaymentId] = useState<number | null>(
     initialRefundAttempt?.patientId === patientId
       ? initialRefundAttempt.paymentId
@@ -1955,7 +1999,9 @@ function PaymentHistory({
     if (
       !payment ||
       targetInvoiceId === null ||
-      !eligibleInvoices(payment).some((invoice) => invoice.id === targetInvoiceId) ||
+      !eligibleInvoices(payment).some(
+        (invoice) => invoice.id === targetInvoiceId,
+      ) ||
       !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(allocationAmount) ||
       isZero(allocationAmount)
     ) {
@@ -1995,9 +2041,7 @@ function PaymentHistory({
     }
   };
 
-  const reviewRefund = (
-    payment: BillingPatientLedger["payments"][number],
-  ) => {
+  const reviewRefund = (payment: BillingPatientLedger["payments"][number]) => {
     if (
       !refundAttempt &&
       (!payment.cash_refund_available ||
@@ -2036,16 +2080,19 @@ function PaymentHistory({
     setRefundBusy(true);
     setRefundError("");
     try {
-      await api(`/api/clinic/payment_events/${attempt.paymentId}/cash_refunds`, {
-        method: "POST",
-        body: {
-          cash_refund: {
-            amount: attempt.amount,
-            reason: attempt.reason,
-            request_key: attempt.requestKey,
+      await api(
+        `/api/clinic/payment_events/${attempt.paymentId}/cash_refunds`,
+        {
+          method: "POST",
+          body: {
+            cash_refund: {
+              amount: attempt.amount,
+              reason: attempt.reason,
+              request_key: attempt.requestKey,
+            },
           },
         },
-      });
+      );
       persistCashRefundAttempt(clinic, null);
       setRefundAttempt(null);
       setRefundAmount("");
@@ -2078,282 +2125,294 @@ function PaymentHistory({
 
   return (
     <>
-    <Paper component="section" variant="outlined">
-      <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
-        <ReceiptLongOutlinedIcon color="primary" />
-        <Typography component="h2" variant="h2">
-          Payment and refund history
-        </Typography>
-      </Box>
-      <Divider />
-      {refundAttempt && refundAttempt.patientId !== patientId && (
-        <Alert
-          severity="warning"
-          action={onSelectPatient ? (
-            <Button
-              color="inherit"
-              onClick={() => onSelectPatient(refundAttempt.patientId)}
-              size="small"
-            >
-              Open retained ledger
-            </Button>
-          ) : undefined}
-          sx={{ m: 2.5 }}
-        >
-          A cash refund has an unconfirmed outcome for payment #
-          {refundAttempt.paymentId}. Reopen that patient ledger before recording
-          another refund.
-        </Alert>
-      )}
-      {payments.length === 0 ? (
-        <Typography color="text.secondary" sx={{ p: 2.5 }}>
-          No payments were returned for this patient.
-        </Typography>
-      ) : (
-        <List disablePadding>
-          {payments.map((payment) => (
-            <Box
-              component="li"
-              key={payment.id}
-              sx={{ listStyle: "none", p: 2.5 }}
-            >
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{ justifyContent: "space-between" }}
+      <Paper component="section" variant="outlined">
+        <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
+          <ReceiptLongOutlinedIcon color="primary" />
+          <Typography component="h2" variant="h2">
+            Payment and refund history
+          </Typography>
+        </Box>
+        <Divider />
+        {refundAttempt && refundAttempt.patientId !== patientId && (
+          <Alert
+            severity="warning"
+            action={
+              onSelectPatient ? (
+                <Button
+                  color="inherit"
+                  onClick={() => onSelectPatient(refundAttempt.patientId)}
+                  size="small"
+                >
+                  Open retained ledger
+                </Button>
+              ) : undefined
+            }
+            sx={{ m: 2.5 }}
+          >
+            A cash refund has an unconfirmed outcome for payment #
+            {refundAttempt.paymentId}. Reopen that patient ledger before
+            recording another refund.
+          </Alert>
+        )}
+        {payments.length === 0 ? (
+          <Typography color="text.secondary" sx={{ p: 2.5 }}>
+            No payments were returned for this patient.
+          </Typography>
+        ) : (
+          <List disablePadding>
+            {payments.map((payment) => (
+              <Box
+                component="li"
+                key={payment.id}
+                sx={{ listStyle: "none", p: 2.5 }}
               >
-                <Box>
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {money(payment.amount, payment.currency)}
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    Recorded {date(payment.created_at, true)}
-                  </Typography>
-                </Box>
-                <Typography color="text.secondary" variant="body2">
-                  {payment.allocations.length} allocation
-                  {payment.allocations.length === 1 ? "" : "s"}
-                  {` · Unapplied ${money(payment.unapplied_amount, payment.currency)}`}
-                </Typography>
-              </Stack>
-              {!isZero(payment.unapplied_amount) && (
-                <Typography color="warning.main" variant="body2" sx={{ mt: 1 }}>
-                  Unapplied remainder:{" "}
-                  {money(payment.unapplied_amount, payment.currency)}
-                </Typography>
-              )}
-              {!isZero(payment.unapplied_amount) &&
-                capabilities.billing_payment_record === true &&
-                eligibleInvoices(payment).length > 0 && (
-                  <Box sx={{ mt: 1.5 }}>
-                    {allocationPaymentId === payment.id ? (
-                      <Stack
-                        component="form"
-                        direction={{ xs: "column", md: "row" }}
-                        spacing={1}
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void allocatePayment(payment.id);
-                        }}
-                      >
-                        <TextField
-                          select
-                          label="Apply to invoice"
-                          value={allocationInvoiceId}
-                          onChange={(event) => {
-                            setAllocationInvoiceId(event.target.value);
-                            setAllocationRequestKey("");
-                          }}
-                          sx={{ minWidth: 190 }}
-                        >
-                          {eligibleInvoices(payment).map((invoice) => (
-                            <MenuItem key={invoice.id} value={invoice.id}>
-                              #{invoice.id} ·{" "}
-                              {money(invoice.balance_amount, invoice.currency)}{" "}
-                              due
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                        <TextField
-                          label="Amount"
-                          inputMode="decimal"
-                          value={allocationAmount}
-                          onChange={(event) => {
-                            setAllocationAmount(event.target.value);
-                            setAllocationRequestKey("");
-                          }}
-                        />
-                        <Button
-                          disabled={allocationBusy}
-                          type="submit"
-                          variant="contained"
-                        >
-                          {allocationBusy ? "Allocating…" : "Allocate"}
-                        </Button>
-                        <Button
-                          disabled={allocationBusy}
-                          onClick={() => {
-                            setAllocationPaymentId(null);
-                            setAllocationError("");
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </Stack>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          setAllocationError("");
-                          setAllocationPaymentId(payment.id);
-                          setAllocationInvoiceId(
-                            String(eligibleInvoices(payment)[0].id),
-                          );
-                          setAllocationAmount(payment.unapplied_amount);
-                          setAllocationRequestKey("");
-                        }}
-                        variant="outlined"
-                      >
-                        Allocate remainder
-                      </Button>
-                    )}
-                    {allocationError && allocationPaymentId === payment.id && (
-                      <Alert severity="error" sx={{ mt: 1 }}>
-                        {allocationError}
-                      </Alert>
-                    )}
-                  </Box>
-                )}
-              {payment.cash_payment && (
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
                   spacing={1}
-                  sx={{ mt: 1.5 }}
+                  sx={{ justifyContent: "space-between" }}
                 >
-                  {payment.receipt_available && (
-                    <Button
-                      component="a"
-                      href={`/api/clinic/payment_events/${payment.id}/receipt`}
-                      rel="noopener"
-                      target="_blank"
-                      variant="outlined"
-                    >
-                      Print receipt
-                    </Button>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {money(payment.amount, payment.currency)}
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2">
+                      Recorded {date(payment.created_at, true)}
+                    </Typography>
+                  </Box>
+                  <Typography color="text.secondary" variant="body2">
+                    {payment.allocations.length} allocation
+                    {payment.allocations.length === 1 ? "" : "s"}
+                    {` · Unapplied ${money(payment.unapplied_amount, payment.currency)}`}
+                  </Typography>
+                </Stack>
+                {!isZero(payment.unapplied_amount) && (
+                  <Typography
+                    color="warning.main"
+                    variant="body2"
+                    sx={{ mt: 1 }}
+                  >
+                    Unapplied remainder:{" "}
+                    {money(payment.unapplied_amount, payment.currency)}
+                  </Typography>
+                )}
+                {!isZero(payment.unapplied_amount) &&
+                  capabilities.billing_payment_record === true &&
+                  eligibleInvoices(payment).length > 0 && (
+                    <Box sx={{ mt: 1.5 }}>
+                      {allocationPaymentId === payment.id ? (
+                        <Stack
+                          component="form"
+                          direction={{ xs: "column", md: "row" }}
+                          spacing={1}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void allocatePayment(payment.id);
+                          }}
+                        >
+                          <TextField
+                            select
+                            label="Apply to invoice"
+                            value={allocationInvoiceId}
+                            onChange={(event) => {
+                              setAllocationInvoiceId(event.target.value);
+                              setAllocationRequestKey("");
+                            }}
+                            sx={{ minWidth: 190 }}
+                          >
+                            {eligibleInvoices(payment).map((invoice) => (
+                              <MenuItem key={invoice.id} value={invoice.id}>
+                                #{invoice.id} ·{" "}
+                                {money(
+                                  invoice.balance_amount,
+                                  invoice.currency,
+                                )}{" "}
+                                due
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                          <TextField
+                            label="Amount"
+                            inputMode="decimal"
+                            value={allocationAmount}
+                            onChange={(event) => {
+                              setAllocationAmount(event.target.value);
+                              setAllocationRequestKey("");
+                            }}
+                          />
+                          <Button
+                            disabled={allocationBusy}
+                            type="submit"
+                            variant="contained"
+                          >
+                            {allocationBusy ? "Allocating…" : "Allocate"}
+                          </Button>
+                          <Button
+                            disabled={allocationBusy}
+                            onClick={() => {
+                              setAllocationPaymentId(null);
+                              setAllocationError("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            setAllocationError("");
+                            setAllocationPaymentId(payment.id);
+                            setAllocationInvoiceId(
+                              String(eligibleInvoices(payment)[0].id),
+                            );
+                            setAllocationAmount(payment.unapplied_amount);
+                            setAllocationRequestKey("");
+                          }}
+                          variant="outlined"
+                        >
+                          Allocate remainder
+                        </Button>
+                      )}
+                      {allocationError &&
+                        allocationPaymentId === payment.id && (
+                          <Alert severity="error" sx={{ mt: 1 }}>
+                            {allocationError}
+                          </Alert>
+                        )}
+                    </Box>
                   )}
-                  {capabilities.billing_payment_record === true &&
-                    payment.cash_refund_available &&
-                    !refundRetryPending && (
+                {payment.cash_payment && (
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    sx={{ mt: 1.5 }}
+                  >
+                    {payment.receipt_available && (
+                      <Button
+                        component="a"
+                        href={`/api/clinic/payment_events/${payment.id}/receipt`}
+                        rel="noopener"
+                        target="_blank"
+                        variant="outlined"
+                      >
+                        Print receipt
+                      </Button>
+                    )}
+                    {capabilities.billing_payment_record === true &&
+                      payment.cash_refund_available &&
+                      !refundRetryPending && (
+                        <Button
+                          disabled={refundBusy}
+                          onClick={() => {
+                            setRefundError("");
+                            setRefundPaymentId(payment.id);
+                            setRefundAmount("");
+                            setRefundReason("");
+                          }}
+                          variant="outlined"
+                        >
+                          Refund cash
+                        </Button>
+                      )}
+                    {payment.cash_refund_unavailable_reason ===
+                      "cash_drawer_closed" && (
+                      <Typography color="text.secondary" variant="body2">
+                        Refund unavailable: the cash drawer used for this
+                        payment is closed.
+                      </Typography>
+                    )}
+                    {payment.cash_refund_unavailable_reason ===
+                      "payment_fully_refunded" && (
+                      <Typography color="text.secondary" variant="body2">
+                        This payment has already been fully refunded.
+                      </Typography>
+                    )}
+                  </Stack>
+                )}
+                {refundPaymentId === payment.id && (
+                  <Stack
+                    component="form"
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={1}
+                    sx={{ mt: 1.5 }}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      reviewRefund(payment);
+                    }}
+                  >
+                    <TextField
+                      autoFocus
+                      label="Cash refund amount"
+                      inputMode="decimal"
+                      onChange={(event) => setRefundAmount(event.target.value)}
+                      value={refundAmount}
+                      disabled={refundBusy || refundRetryPending}
+                    />
+                    <TextField
+                      label="Refund reason"
+                      value={refundReason}
+                      required
+                      multiline
+                      minRows={2}
+                      slotProps={{ htmlInput: { maxLength: 200 } }}
+                      onChange={(event) => setRefundReason(event.target.value)}
+                      disabled={refundBusy || refundRetryPending}
+                    />
                     <Button
                       disabled={refundBusy}
+                      type="submit"
+                      variant="contained"
+                    >
+                      {refundBusy
+                        ? "Recording…"
+                        : refundRetryPending
+                          ? "Review same refund"
+                          : "Review refund"}
+                    </Button>
+                    <Button
+                      disabled={refundBusy || refundRetryPending}
                       onClick={() => {
-                        setRefundError("");
-                        setRefundPaymentId(payment.id);
+                        setRefundPaymentId(null);
                         setRefundAmount("");
                         setRefundReason("");
+                        setRefundError("");
                       }}
-                      variant="outlined"
+                      type="button"
                     >
-                      Refund cash
+                      Cancel
                     </Button>
-                  )}
-                  {payment.cash_refund_unavailable_reason ===
-                    "cash_drawer_closed" && (
-                    <Typography color="text.secondary" variant="body2">
-                      Refund unavailable: the cash drawer used for this payment
-                      is closed.
-                    </Typography>
-                  )}
-                  {payment.cash_refund_unavailable_reason ===
-                    "payment_fully_refunded" && (
-                    <Typography color="text.secondary" variant="body2">
-                      This payment has already been fully refunded.
-                    </Typography>
-                  )}
-                </Stack>
-              )}
-              {refundPaymentId === payment.id && (
-                <Stack
-                  component="form"
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={1}
-                  sx={{ mt: 1.5 }}
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    reviewRefund(payment);
-                  }}
-                >
-                  <TextField
-                    autoFocus
-                    label="Cash refund amount"
-                    inputMode="decimal"
-                    onChange={(event) => setRefundAmount(event.target.value)}
-                    value={refundAmount}
-                    disabled={refundBusy || refundRetryPending}
-                  />
-                  <TextField
-                    label="Refund reason"
-                    value={refundReason}
-                    required
-                    multiline
-                    minRows={2}
-                    slotProps={{ htmlInput: { maxLength: 200 } }}
-                    onChange={(event) => setRefundReason(event.target.value)}
-                    disabled={refundBusy || refundRetryPending}
-                  />
-                  <Button
-                    disabled={refundBusy}
-                    type="submit"
-                    variant="contained"
-                  >
-                    {refundBusy
-                      ? "Recording…"
-                      : refundRetryPending
-                        ? "Review same refund"
-                        : "Review refund"}
-                  </Button>
-                  <Button
-                    disabled={refundBusy || refundRetryPending}
-                    onClick={() => {
-                      setRefundPaymentId(null);
-                      setRefundAmount("");
-                      setRefundReason("");
-                      setRefundError("");
-                    }}
-                    type="button"
-                  >
-                    Cancel
-                  </Button>
-                </Stack>
-              )}
-              {refundPaymentId === payment.id && refundError && (
-                <Alert severity="error" sx={{ mt: 1.5 }}>
-                  {refundError}
-                  {refundRetryPending &&
-                    " The amount is locked so a retry cannot create a different refund."}
-                </Alert>
-              )}
-              {payment.refunds.length > 0 && (
-                <Alert severity="info" sx={{ mt: 1.5 }}>
-                  Refund history:{" "}
-                  {payment.refunds
-                    .map(
-                      (refund) =>
-                        `${money(refund.amount, payment.currency)} on ${date(refund.created_at, true)} · ${refund.reason}`,
-                    )
-                    .join("; ")}
-                  . Refunds are shown separately from invoice balances.
-                </Alert>
-              )}
-            </Box>
-          ))}
-        </List>
-      )}
-    </Paper>
+                  </Stack>
+                )}
+                {refundPaymentId === payment.id && refundError && (
+                  <Alert severity="error" sx={{ mt: 1.5 }}>
+                    {refundError}
+                    {refundRetryPending &&
+                      " The amount is locked so a retry cannot create a different refund."}
+                  </Alert>
+                )}
+                {payment.refunds.length > 0 && (
+                  <Alert severity="info" sx={{ mt: 1.5 }}>
+                    Refund history:{" "}
+                    {payment.refunds
+                      .map(
+                        (refund) =>
+                          `${money(refund.amount, payment.currency)} on ${date(refund.created_at, true)} · ${refund.reason}`,
+                      )
+                      .join("; ")}
+                    . Refunds are shown separately from invoice balances.
+                  </Alert>
+                )}
+              </Box>
+            ))}
+          </List>
+        )}
+      </Paper>
       <Dialog
         fullWidth
         maxWidth="sm"
         open={refundConfirmationPayment !== undefined}
-        onClose={refundBusy ? undefined : () => setRefundConfirmationPaymentId(null)}
+        onClose={
+          refundBusy ? undefined : () => setRefundConfirmationPaymentId(null)
+        }
       >
         <DialogTitle>Confirm cash refund</DialogTitle>
         <DialogContent dividers>
@@ -2363,7 +2422,9 @@ function PaymentHistory({
             </Typography>
             <Paper variant="outlined" sx={{ p: 1.5 }}>
               <Stack spacing={0.75}>
-                <Typography><strong>Patient:</strong> {patientName}</Typography>
+                <Typography>
+                  <strong>Patient:</strong> {patientName}
+                </Typography>
                 <Typography>
                   <strong>Payment:</strong> #{refundConfirmationPayment?.id}
                 </Typography>
@@ -2374,7 +2435,9 @@ function PaymentHistory({
                     refundConfirmationPayment?.currency ?? "USD",
                   )}
                 </Typography>
-                <Typography><strong>Reason:</strong> {refundConfirmationReason}</Typography>
+                <Typography>
+                  <strong>Reason:</strong> {refundConfirmationReason}
+                </Typography>
               </Stack>
             </Paper>
             {refundRetryPending && (

@@ -506,8 +506,8 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
         {invitation && (
           <>
             <Alert severity="success">
-              {invitation.purpose === "recovery" ? "Recovery" : "Activation"} link
-              created for {invitation.email_address}. It expires at{" "}
+              {invitation.purpose === "recovery" ? "Recovery" : "Activation"}{" "}
+              link created for {invitation.email_address}. It expires at{" "}
               {new Date(invitation.expires_at).toLocaleString()}.
             </Alert>
             <TextField
@@ -530,7 +530,11 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
           onClick={() => void createInvitation()}
           variant="contained"
         >
-          {busy ? "Creating…" : invitation ? "Replace one-time link" : "Create one-time link"}
+          {busy
+            ? "Creating…"
+            : invitation
+              ? "Replace one-time link"
+              : "Create one-time link"}
         </Button>
       </Stack>
     </Card>
@@ -675,8 +679,8 @@ function RegistrationConflictReview({
     <Alert severity="warning">
       <Stack spacing={1.5}>
         <Typography sx={{ fontWeight: 700 }}>
-          This patient changed while you were editing. Your entries are still
-          in the form.
+          This patient changed while you were editing. Your entries are still in
+          the form.
         </Typography>
         <Typography variant="body2">
           The latest saved values are shown beside your edits. Review them
@@ -698,8 +702,12 @@ function RegistrationConflictReview({
                     <TableCell component="th" scope="row">
                       {label}
                     </TableCell>
-                    <TableCell>{registrationDisplayValue(local[field])}</TableCell>
-                    <TableCell>{registrationDisplayValue(saved[field])}</TableCell>
+                    <TableCell>
+                      {registrationDisplayValue(local[field])}
+                    </TableCell>
+                    <TableCell>
+                      {registrationDisplayValue(saved[field])}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -772,7 +780,9 @@ function PatientFields({ values }: { values: RegistrationValues }) {
       <Accordion disableGutters>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Box>
-            <Typography sx={{ fontWeight: 700 }}>Contact preferences</Typography>
+            <Typography sx={{ fontWeight: 700 }}>
+              Contact preferences
+            </Typography>
             <Typography variant="body2" color="text.secondary">
               Contact destination, preferred method, and consent
             </Typography>
@@ -780,57 +790,57 @@ function PatientFields({ values }: { values: RegistrationValues }) {
         </AccordionSummary>
         <AccordionDetails>
           <Box className="pharmacy-form-grid">
-      <Field
-        name="clinic_patient[contact_type]"
-        label="Contact type"
-        required={false}
-        value={values.contact_type}
-        options={["phone", "email"]}
-      />
-      <Field
-        name="clinic_patient[contact_value]"
-        label="Phone or email"
-        required={false}
-        value={values.contact_value}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[preferred]"
-        label="Preferred contact"
-        required={false}
-        value={values.preferred}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[preferred_contact_method]"
-        label="Preferred contact method"
-        required={false}
-        value={values.preferred_contact_method}
-        options={["portal", "text", "phone", "email"]}
-      />
-      <Field
-        name="clinic_patient[appointment_reminders_consent]"
-        label="Appointment reminders consent"
-        required={false}
-        value={values.appointment_reminders_consent}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[general_communications_consent]"
-        label="General communications consent"
-        required={false}
-        value={values.general_communications_consent}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
+            <Field
+              name="clinic_patient[contact_type]"
+              label="Contact type"
+              required={false}
+              value={values.contact_type}
+              options={["phone", "email"]}
+            />
+            <Field
+              name="clinic_patient[contact_value]"
+              label="Phone or email"
+              required={false}
+              value={values.contact_value}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[preferred]"
+              label="Preferred contact"
+              required={false}
+              value={values.preferred}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+            <Field
+              name="clinic_patient[preferred_contact_method]"
+              label="Preferred contact method"
+              required={false}
+              value={values.preferred_contact_method}
+              options={["portal", "text", "phone", "email"]}
+            />
+            <Field
+              name="clinic_patient[appointment_reminders_consent]"
+              label="Appointment reminders consent"
+              required={false}
+              value={values.appointment_reminders_consent}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+            <Field
+              name="clinic_patient[general_communications_consent]"
+              label="General communications consent"
+              required={false}
+              value={values.general_communications_consent}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
           </Box>
         </AccordionDetails>
       </Accordion>
@@ -845,37 +855,37 @@ function PatientFields({ values }: { values: RegistrationValues }) {
         </AccordionSummary>
         <AccordionDetails>
           <Box className="pharmacy-form-grid">
-      <Field
-        name="clinic_patient[emergency_name]"
-        label="Emergency contact name"
-        required={false}
-        value={values.emergency_name}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[emergency_relationship]"
-        label="Emergency contact relationship"
-        required={false}
-        value={values.emergency_relationship}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[emergency_phone]"
-        label="Emergency contact phone"
-        required={false}
-        value={values.emergency_phone}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[permission_to_contact]"
-        label="Permission to contact"
-        required={false}
-        value={values.permission_to_contact}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
+            <Field
+              name="clinic_patient[emergency_name]"
+              label="Emergency contact name"
+              required={false}
+              value={values.emergency_name}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[emergency_relationship]"
+              label="Emergency contact relationship"
+              required={false}
+              value={values.emergency_relationship}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[emergency_phone]"
+              label="Emergency contact phone"
+              required={false}
+              value={values.emergency_phone}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[permission_to_contact]"
+              label="Permission to contact"
+              required={false}
+              value={values.permission_to_contact}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
           </Box>
         </AccordionDetails>
       </Accordion>
@@ -890,27 +900,27 @@ function PatientFields({ values }: { values: RegistrationValues }) {
         </AccordionSummary>
         <AccordionDetails>
           <Box className="pharmacy-form-grid">
-      {(
-        [
-          "tobacco_use",
-          "alcohol_use",
-          "exercise_habits",
-          "diet",
-          "occupation",
-          "living_situation",
-          "relevant_social_factors",
-        ] as const
-      ).map((name) => (
-        <Field
-          key={name}
-          name={`clinic_patient[${name}]`}
-          label={name.replaceAll("_", " ")}
-          type="textarea"
-          required={false}
-          value={values[name]}
-          maxLength={2000}
-        />
-      ))}
+            {(
+              [
+                "tobacco_use",
+                "alcohol_use",
+                "exercise_habits",
+                "diet",
+                "occupation",
+                "living_situation",
+                "relevant_social_factors",
+              ] as const
+            ).map((name) => (
+              <Field
+                key={name}
+                name={`clinic_patient[${name}]`}
+                label={name.replaceAll("_", " ")}
+                type="textarea"
+                required={false}
+                value={values[name]}
+                maxLength={2000}
+              />
+            ))}
           </Box>
         </AccordionDetails>
       </Accordion>
@@ -1022,7 +1032,8 @@ function PatientRegistrationEditor({
   );
 
   const snapshotFrom = (form: HTMLFormElement): RegistrationDraft => {
-    const values = formBody(new FormData(form)).clinic_patient as RegistrationValues;
+    const values = formBody(new FormData(form))
+      .clinic_patient as RegistrationValues;
     const officialValues = {
       ...values,
       request_key: requestKey.current,
@@ -1193,7 +1204,8 @@ function PatientRegistrationEditor({
             <Box>
               <Typography sx={{ fontWeight: 700 }}>Patient identity</Typography>
               <Typography variant="body2" color="text.secondary">
-                Start with the name and clinic reference used to find this record.
+                Start with the name and clinic reference used to find this
+                record.
               </Typography>
             </Box>
             <Box className="pharmacy-form-grid">
@@ -1203,7 +1215,8 @@ function PatientRegistrationEditor({
                 value={initialValues.display_name}
                 maxLength={120}
               />
-              {(!patient?.reference || patientReferenceLabel(patient.reference)) && (
+              {(!patient?.reference ||
+                patientReferenceLabel(patient.reference)) && (
                 <Field
                   name="clinic_patient[reference]"
                   label="Clinic reference"
@@ -1211,13 +1224,14 @@ function PatientRegistrationEditor({
                   maxLength={32}
                 />
               )}
-              {patient?.reference && !patientReferenceLabel(patient.reference) && (
-                <input
-                  type="hidden"
-                  name="clinic_patient[reference]"
-                  value={initialValues.reference}
-                />
-              )}
+              {patient?.reference &&
+                !patientReferenceLabel(patient.reference) && (
+                  <input
+                    type="hidden"
+                    name="clinic_patient[reference]"
+                    value={initialValues.reference}
+                  />
+                )}
             </Box>
             <PatientFields values={initialValues} />
           </Stack>
@@ -1228,42 +1242,45 @@ function PatientRegistrationEditor({
             local={registrationConflict.local}
           />
         )}
-      {workingDraft.status === "saving" && (
-        <Typography role="status">Saving working copy…</Typography>
-      )}
-      {workingDraft.status === "saved" && dirty && (
-        <Typography color="text.secondary" role="status">
-          Working copy saved.
-        </Typography>
-      )}
-      {(workingDraft.status === "error" || workingDraft.status === "conflict") && (
-        <Alert
-          severity="error"
-          action={
-            workingDraft.status === "error" ? (
-              <Button onClick={() => void workingDraft.save(lastSnapshot.current)}>
-                Retry working-copy save
-              </Button>
-            ) : (
-              <Button onClick={() => onReloadDraft(lastSnapshot.current)}>
-                Reload version and keep my edits
-              </Button>
-            )
-          }
-        >
-          {workingDraft.error}
-        </Alert>
-      )}
-      {error && <Alert severity="error">{error}</Alert>}
-      <Button type="submit" variant="contained" disabled={busy}>
-        {busy
-          ? "Saving…"
-          : outcomeUnconfirmed
-            ? "Retry same request"
-            : patient
-              ? "Save registration details"
-              : "Register patient"}
-      </Button>
+        {workingDraft.status === "saving" && (
+          <Typography role="status">Saving working copy…</Typography>
+        )}
+        {workingDraft.status === "saved" && dirty && (
+          <Typography color="text.secondary" role="status">
+            Working copy saved.
+          </Typography>
+        )}
+        {(workingDraft.status === "error" ||
+          workingDraft.status === "conflict") && (
+          <Alert
+            severity="error"
+            action={
+              workingDraft.status === "error" ? (
+                <Button
+                  onClick={() => void workingDraft.save(lastSnapshot.current)}
+                >
+                  Retry working-copy save
+                </Button>
+              ) : (
+                <Button onClick={() => onReloadDraft(lastSnapshot.current)}>
+                  Reload version and keep my edits
+                </Button>
+              )
+            }
+          >
+            {workingDraft.error}
+          </Alert>
+        )}
+        {error && <Alert severity="error">{error}</Alert>}
+        <Button type="submit" variant="contained" disabled={busy}>
+          {busy
+            ? "Saving…"
+            : outcomeUnconfirmed
+              ? "Retry same request"
+              : patient
+                ? "Save registration details"
+                : "Register patient"}
+        </Button>
       </Stack>
     </Box>
   );
