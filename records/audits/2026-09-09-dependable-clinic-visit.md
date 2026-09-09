@@ -277,6 +277,10 @@ The exercise uses one invented patient, **Morgan Rowan / VISIT-0909**, in the is
 
 ### Evidence limits
 
+Final database inspection independently confirmed one patient and one registration receipt for `VISIT-0909`; appointment **23** and encounter **19** completed; observations **108/109/110** retained 118/76/72; note **13**, revision **24 / revision number 1**, and signature **11** had a matching body/instruction digest. Invoice **6** retained one USD 25 payment event and allocation (**3**), settled fully with zero balance. Follow-up **1** was completed with its outcome. Checkout working copies **7/version 2** and **8/version 3** were cleared tombstones. The compact machine-readable and Markdown evidence artifacts accompany the user-facing report.
+
+The final encounter page was reopened after the last follow-up UI correction and displayed the persisted completed follow-up and outcome. The implementation was merged with current upstream `main` and pushed as **60ce937**; subsequent documentation-only commits record the final evidence. The clean canonical checkout was fast-forwarded to that implementation. This task's isolated runtime and database remain separately recoverable.
+
 This bounded pass establishes the checked local journey and targeted integrity contracts. It does not prove every possible timing interleaving, all browser/device combinations, production deployment, external hosted-payment settlement, external reminders, clinical appropriateness or regulatory readiness. Hosted online payment was truthfully unavailable in this isolated clinic and was not exercised against a provider.
 
 An edit is crash-durable only after its server working-copy acknowledgment. Keystrokes entered while disconnected and never acknowledged cannot survive browser/device destruction under the requirement to avoid protected browser storage. The UI must show unsaved/recovery status until acknowledgment; no offline-success claim is made.
