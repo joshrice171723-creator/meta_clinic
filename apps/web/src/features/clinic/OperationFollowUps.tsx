@@ -53,6 +53,13 @@ type EncounterFollowUpWorkItem = EncounterFollowUpRecord & {
   assignee_label: string | null;
   overdue: boolean;
 };
+type CompletionAttempt = {
+  action: "complete";
+  followUpId: number;
+  requestKey: string;
+  expectedVersion: number;
+  outcome: string;
+};
 
 const filters: {
   value: FollowUpFilter;
@@ -88,13 +95,8 @@ function EncounterFollowUpItem({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const requestKeyRef = useRef<string | null>(null);
-  const recovery = useWorkingDraft<{
-    action: "complete";
-    followUpId: number;
-    requestKey: string;
-    expectedVersion: number;
-    outcome: string;
-  }>({
+  const completionRef = useRef<CompletionAttempt | null>(null);
+  const recovery = useWorkingDraft<CompletionAttempt>({
     kind: "follow_up",
     patientId: followUp.patient_id,
     encounterId: followUp.encounter_id,
@@ -104,6 +106,7 @@ function EncounterFollowUpItem({
     const restored = recovery.restored;
     if (!recovery.ready || !restored || restored.followUpId !== followUp.id) return;
     requestKeyRef.current = restored.requestKey;
+    completionRef.current = restored;
     setOutcome(restored.outcome);
     setError(
       "A saved completion attempt was restored. Refresh this worklist before retrying the same completion.",
@@ -116,19 +119,22 @@ function EncounterFollowUpItem({
       if (!outcome.trim()) setError("Record the follow-up outcome.");
       return;
     }
-    const requestKey = requestKeyRef.current ?? crypto.randomUUID();
-    const attempt = {
-      action: "complete" as const,
-      followUpId: followUp.id,
-      requestKey,
-      expectedVersion: followUp.version,
-      outcome: outcome.trim(),
-    };
-    if (!(await recovery.save(attempt))) {
-      setError(recovery.error || "The completion attempt could not be saved for recovery.");
-      return;
+    let attempt = completionRef.current;
+    if (!attempt) {
+      attempt = {
+        action: "complete",
+        followUpId: followUp.id,
+        requestKey: crypto.randomUUID(),
+        expectedVersion: followUp.version,
+        outcome: outcome.trim(),
+      };
+      if (!(await recovery.save(attempt))) {
+        setError(recovery.error || "The completion attempt could not be saved for recovery.");
+        return;
+      }
+      completionRef.current = attempt;
+      requestKeyRef.current = attempt.requestKey;
     }
-    requestKeyRef.current = requestKey;
     setBusy(true);
     setError("");
     try {
@@ -139,8 +145,8 @@ function EncounterFollowUpItem({
           body: {
             follow_up: {
               action: "complete",
-              request_key: requestKey,
-              expected_version: followUp.version,
+              request_key: attempt.requestKey,
+              expected_version: attempt.expectedVersion,
               outcome: attempt.outcome,
             },
           },
@@ -152,6 +158,7 @@ function EncounterFollowUpItem({
         result.follow_up.status !== "completed"
       ) throw new Error("The completed follow-up did not match this work item.");
       requestKeyRef.current = null;
+      completionRef.current = null;
       if (!(await recovery.clear())) {
         setError(
           recovery.error ||
@@ -170,6 +177,7 @@ function EncounterFollowUpItem({
         reason.code === "outcome_unconfirmed";
       if (!outcomeUnknown) {
         requestKeyRef.current = null;
+        completionRef.current = null;
         if (!(await recovery.clear())) {
           setError(
             recovery.error ||
@@ -218,7 +226,7 @@ function EncounterFollowUpItem({
           <Stack spacing={1.5}>
             <Typography>{followUp.patient_display_name} · Encounter #{followUp.encounter_id}</Typography>
             {error && <Alert severity="error">{error}</Alert>}
-            <TextField label="Outcome" multiline minRows={4} value={outcome} disabled={busy}
+            <TextField label="Outcome" multiline minRows={4} value={outcome} disabled={busy || requestKeyRef.current !== null}
               onChange={(event) => setOutcome(event.target.value)} slotProps={{ htmlInput: { maxLength: 4000 } }} />
           </Stack>
         </DialogContent>
