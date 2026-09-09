@@ -39,6 +39,7 @@ function reportSessionChanged() {
 async function withDeadline<T>(
   signal: AbortSignal | undefined,
   action: (signal: AbortSignal) => Promise<T>,
+  mutation = false,
 ): Promise<T> {
   const controller = new AbortController();
   let timedOut = false;
@@ -59,8 +60,10 @@ async function withDeadline<T>(
     if (timedOut)
       throw new ApiError(
         504,
-        "The request timed out. Its outcome is unconfirmed. Check the saved record or retry the same action before starting another.",
-        "outcome_unconfirmed",
+        mutation
+          ? "The request timed out. Its outcome is unconfirmed. Check the saved record or retry the same action before starting another."
+          : "The request timed out. Reconnect and try again.",
+        mutation ? "outcome_unconfirmed" : "request_timeout",
       );
     throw reason;
   } finally {
@@ -132,75 +135,82 @@ export async function api<T>(
       "Your session changed. Reopen this page before continuing.",
       "session_changed",
     );
-  return withDeadline(options.signal, async (signal) => {
-    const response = await fetch(path, {
-      method,
-      credentials: "same-origin",
-      cache: "no-store",
-      redirect: "error",
-      signal,
-      headers: {
-        Accept: "application/json",
-        ...(path.startsWith("/api/clinic") && requestActor !== undefined
-          ? { "X-Clinic-Actor": String(requestActor) }
-          : {}),
-        ...(method === "GET"
-          ? {}
-          : { "Content-Type": "application/json", "X-CSRF-Token": csrfToken! }),
-      },
-      body:
-        options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
-    if (generation !== actorGeneration)
-      throw new ApiError(
-        409,
-        "Your session changed. Reopen this page before continuing.",
-        "session_changed",
-      );
-    if (response.status === 204) {
-      if (path === "/api/session") clearCsrf();
-      return undefined as T;
-    }
-    const data = (await response.json().catch(() => {
-      if (response.ok)
+  return withDeadline(
+    options.signal,
+    async (signal) => {
+      const response = await fetch(path, {
+        method,
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        signal,
+        headers: {
+          Accept: "application/json",
+          ...(path.startsWith("/api/clinic") && requestActor !== undefined
+            ? { "X-Clinic-Actor": String(requestActor) }
+            : {}),
+          ...(method === "GET"
+            ? {}
+            : {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrfToken!,
+              }),
+        },
+        body:
+          options.body === undefined ? undefined : JSON.stringify(options.body),
+      });
+      if (generation !== actorGeneration)
+        throw new ApiError(
+          409,
+          "Your session changed. Reopen this page before continuing.",
+          "session_changed",
+        );
+      if (response.status === 204) {
+        if (path === "/api/session") clearCsrf();
+        return undefined as T;
+      }
+      const data = (await response.json().catch(() => {
+        if (response.ok)
+          throw new ApiError(
+            502,
+            "The server response could not be confirmed. Check the saved record before retrying.",
+            "outcome_unconfirmed",
+          );
+        return {};
+      })) as {
+        error?: string;
+        code?: string;
+      };
+      signal.throwIfAborted();
+      if (generation !== actorGeneration)
+        throw new ApiError(
+          409,
+          "Your session changed. Reopen this page before continuing.",
+          "session_changed",
+        );
+      if (!response.ok) {
+        if (data?.code === "session_changed") reportSessionChanged();
+        if (response.status === 401 || response.status === 422) clearCsrf();
+        throw new ApiError(
+          response.status,
+          data?.error || "The request could not be completed.",
+          data?.code,
+        );
+      }
+      if (data === null || typeof data !== "object")
         throw new ApiError(
           502,
           "The server response could not be confirmed. Check the saved record before retrying.",
           "outcome_unconfirmed",
         );
-      return {};
-    })) as {
-      error?: string;
-      code?: string;
-    };
-    signal.throwIfAborted();
-    if (generation !== actorGeneration)
-      throw new ApiError(
-        409,
-        "Your session changed. Reopen this page before continuing.",
-        "session_changed",
-      );
-    if (!response.ok) {
-      if (data.code === "session_changed") reportSessionChanged();
-      if (response.status === 401 || response.status === 422) clearCsrf();
-      throw new ApiError(
-        response.status,
-        data.error || "The request could not be completed.",
-        data.code,
-      );
-    }
-    if (data === null || typeof data !== "object")
-      throw new ApiError(
-        502,
-        "The server response could not be confirmed. Check the saved record before retrying.",
-        "outcome_unconfirmed",
-      );
-    // Session rotation invalidates the old CSRF token. Never replay mutations.
-    if (path === "/api/session" || path === "/api/development_session") {
-      if (method !== "GET") clearCsrf();
-    }
-    return data as T;
-  });
+      // Session rotation invalidates the old CSRF token. Never replay mutations.
+      if (path === "/api/session" || path === "/api/development_session") {
+        if (method !== "GET") clearCsrf();
+      }
+      return data as T;
+    },
+    method !== "GET" && method !== "HEAD",
+  );
 }
 
 export function loginDestination(value: string | null): string {
