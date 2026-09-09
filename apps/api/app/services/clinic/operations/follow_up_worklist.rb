@@ -21,12 +21,22 @@ module Clinic
         raise ArgumentError, "The follow-up filter is unsupported." unless FILTERS.include?(filter)
 
         member = Clinic::Messaging::StaffPolicy.member_for!(practice: practice, actor: actor)
-        accessible_conversation_ids = accessible_conversations(member).select(:id)
-        base_scope = Clinic::StaffMessageRequest
-          .where(practice_id: practice.id, state: ACTIONABLE_STATES)
-          .joins(message: :conversation)
-          .where(clinic_staff_messages: { practice_id: practice.id, status: "active" })
-          .where(clinic_staff_conversations: { practice_id: practice.id, id: accessible_conversation_ids })
+        ability = Ability.new(actor, practice: practice)
+        can_read_messages = ability.allowed_permission?("staff_messaging.read", any_site: true)
+        can_manage_encounters = ability.allowed_permission?("patients.read", any_site: true) &&
+          ability.allowed_permission?("encounters.write", any_site: true)
+        raise Clinic::Authorization::Denied unless can_read_messages || can_manage_encounters
+
+        base_scope = if can_read_messages
+          accessible_conversation_ids = accessible_conversations(member).select(:id)
+          Clinic::StaffMessageRequest
+            .where(practice_id: practice.id, state: ACTIONABLE_STATES)
+            .joins(message: :conversation)
+            .where(clinic_staff_messages: { practice_id: practice.id, status: "active" })
+            .where(clinic_staff_conversations: { practice_id: practice.id, id: accessible_conversation_ids })
+        else
+          Clinic::StaffMessageRequest.none
+        end
 
         summary = {
           open: base_scope.count,
@@ -40,9 +50,22 @@ module Clinic
           .order(:due_at, :id)
           .limit(LIMIT)
 
+        encounter_scope = can_manage_encounters ? accessible_encounter_follow_ups(ability) : Clinic::EncounterFollowUp.none
+        encounter_summary = {
+          open: encounter_scope.count,
+          overdue: encounter_scope.where("clinic_encounter_follow_ups.due_at < ?", at).count,
+          mine: encounter_scope.where(assigned_to_membership_id: member.id).count,
+          unassigned: encounter_scope.where(assigned_to_membership_id: nil).count
+        }
+        encounter_follow_ups = filtered_encounter_follow_ups(encounter_scope, member)
+          .includes(:patient, :encounter, :follow_up_appointment, assigned_to_membership: :user)
+          .order(:due_at, :id).limit(LIMIT)
+
         {
           summary: summary,
           requests: requests.map { |request| serialize(request, member) },
+          encounter_summary: encounter_summary,
+          encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
           reminder_attention_count: reminder_attention_count
         }
       end
@@ -89,6 +112,42 @@ module Clinic
         when "unassigned" then scope.where(assignee_membership_id: nil)
         else scope
         end
+      end
+
+      def accessible_encounter_follow_ups(ability)
+        scope = Clinic::EncounterFollowUp.active.where(practice_id: practice.id).joins(:encounter)
+        if site_id
+          site = practice.sites.find(site_id)
+          return scope.none unless ability.allowed_permission?("encounters.write", site: site)
+
+          return scope.where(clinic_encounters: { site_id: site.id })
+        end
+        return scope if ability.practice_scope_for?("encounters.write")
+
+        allowed_site_ids = ability.accessible_site_ids.select do |candidate_site_id|
+          ability.allowed_permission?("encounters.write", site: candidate_site_id)
+        end
+        scope.where(clinic_encounters: { site_id: allowed_site_ids })
+      end
+
+      def filtered_encounter_follow_ups(scope, member)
+        case filter
+        when "mine" then scope.where(assigned_to_membership_id: member.id)
+        when "overdue" then scope.where("clinic_encounter_follow_ups.due_at < ?", at)
+        when "unassigned" then scope.where(assigned_to_membership_id: nil)
+        else scope
+        end
+      end
+
+      def serialize_encounter_follow_up(follow_up, member)
+        payload = Clinic::Operations::EncounterFollowUps.serialize(follow_up)
+        payload.merge(
+          patient_display_name: follow_up.patient.display_name,
+          patient_reference: follow_up.patient.reference,
+          assigned_to_me: follow_up.assigned_to_membership_id == member.id,
+          assignee_label: follow_up.assigned_to_membership&.user&.email,
+          overdue: payload[:due_at].present? && Time.iso8601(payload[:due_at]) < at
+        )
       end
 
       def serialize(request, member)

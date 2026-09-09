@@ -20,6 +20,7 @@ import type {
 } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
 
 function money(value: string, currency: string) {
@@ -82,11 +83,17 @@ export function CashDrawerOperations({
   invoice,
   onRecorded,
   onPendingChange,
+  patientId,
+  encounterId,
+  recoveryInvoiceId,
   refreshVersion = 0,
 }: {
   invoice: BillingInvoiceSummary | null;
   onRecorded: (invoiceId?: number) => void;
   onPendingChange?: (pending: boolean) => void;
+  patientId?: number;
+  encounterId?: number;
+  recoveryInvoiceId?: number;
   refreshVersion?: number;
 }) {
   const clinic = useClinic();
@@ -112,12 +119,69 @@ export function CashDrawerOperations({
   const [cashAttempt, setCashAttempt] = useState<CashAttempt | null>(() =>
     storedCashAttempt(clinic),
   );
+  const permitted = capabilities.billing_payment_record === true;
+  const exactInvoiceId = recoveryInvoiceId ?? invoice?.id;
+  const durableRecoveryEnabled =
+    permitted && patientId !== undefined && exactInvoiceId !== undefined;
+  const recovery = useWorkingDraft<CashAttempt>({
+    kind: "checkout",
+    scope: "cash_payment",
+    patientId,
+    encounterId,
+    recordId: exactInvoiceId,
+    enabled: durableRecoveryEnabled,
+  });
+  const onRecordedRef = useRef(onRecorded);
+  const onPendingChangeRef = useRef(onPendingChange);
+  const lastPendingNotification = useRef<boolean | null>(null);
+  const routedAttempt = useRef("");
+  const consumedRestoration = useRef("");
+  onRecordedRef.current = onRecorded;
+  onPendingChangeRef.current = onPendingChange;
   const allocationInvoiceSelection = useRef("");
   const drawerRefreshVersion = useRef(refreshVersion);
   useEffect(() => {
     persistCashAttempt(clinic, cashAttempt);
-    onPendingChange?.(cashAttempt !== null);
-  }, [clinic, cashAttempt, onPendingChange]);
+    const pending = cashAttempt !== null;
+    if (lastPendingNotification.current !== pending) {
+      lastPendingNotification.current = pending;
+      onPendingChangeRef.current?.(pending);
+    }
+  }, [clinic, cashAttempt]);
+  useEffect(() => {
+    if (!cashAttempt || exactInvoiceId === undefined || exactInvoiceId === cashAttempt.invoiceId) {
+      if (!cashAttempt || exactInvoiceId === cashAttempt?.invoiceId) routedAttempt.current = "";
+      return;
+    }
+    const identity = `${cashAttempt.invoiceId}:${cashAttempt.requestKey}`;
+    if (routedAttempt.current === identity) return;
+    routedAttempt.current = identity;
+    onRecordedRef.current(cashAttempt.invoiceId);
+  }, [cashAttempt, exactInvoiceId]);
+  useEffect(() => {
+    const restored = recovery.restored;
+    if (!recovery.ready || !restored || cashAttempt) return;
+    const identity = `${restored.invoiceId}:${restored.requestKey}`;
+    if (consumedRestoration.current === identity) return;
+    if (restored.invoiceId !== exactInvoiceId) {
+      setError(
+        "The recovered cash payment belongs to another invoice. Return to that invoice before retrying it.",
+      );
+      if (exactInvoiceId !== undefined && routedAttempt.current !== identity) {
+        routedAttempt.current = identity;
+        onRecordedRef.current(restored.invoiceId);
+      }
+      return;
+    }
+    consumedRestoration.current = identity;
+    setCashAttempt(restored);
+    setSelectedDrawerId(String(restored.drawerId));
+    setTenderedAmount(restored.tenderedAmount);
+    setAllocationAmount(restored.allocationAmount);
+    setError(
+      "A saved cash payment attempt was restored. Refresh payment activity before retrying the same payment.",
+    );
+  }, [cashAttempt, exactInvoiceId, recovery.ready, recovery.restored]);
   useEffect(() => {
     if (drawerRefreshVersion.current === refreshVersion) return;
 
@@ -154,7 +218,6 @@ export function CashDrawerOperations({
     allDrawers.find(
       (candidate) => candidate.id.toString() === selectedDrawerId,
     ) ?? null;
-  const permitted = capabilities.billing_payment_record === true;
   const payable =
     invoice?.status === "posted" && !/^0+(?:\.0+)?$/.test(invoice.balance);
   useEffect(() => {
@@ -207,7 +270,7 @@ export function CashDrawerOperations({
   };
 
   const recordCash = async () => {
-    if (!permitted) return;
+    if (!permitted || busy !== null) return;
     if (
       !cashAttempt &&
       (!invoice ||
@@ -228,9 +291,17 @@ export function CashDrawerOperations({
       allocationAmount,
       requestKey: requestKey(),
     };
+    setBusy("cash");
+    if (durableRecoveryEnabled && !(await recovery.save(attempt))) {
+      setBusy(null);
+      setError(
+        recovery.error ||
+          "The cash payment attempt could not be saved for recovery. Try again before recording cash.",
+      );
+      return;
+    }
     persistCashAttempt(clinic, attempt);
     setCashAttempt(attempt);
-    setBusy("cash");
     setError("");
     setNotice("");
     try {
@@ -248,6 +319,20 @@ export function CashDrawerOperations({
           },
         },
       );
+      if (result.cash_tender.cash_drawer_session_id !== attempt.drawerId) {
+        throw new Error(
+          "The recorded cash payment did not match the selected drawer. Refresh payment activity before another action.",
+        );
+      }
+      if (durableRecoveryEnabled && !(await recovery.clear())) {
+        setError(
+          recovery.error ||
+            "The cash payment was recorded, but its recovery record could not be cleared. Refresh payment activity before another action.",
+        );
+        drawers.refresh();
+        onRecorded(attempt.invoiceId);
+        return;
+      }
       persistCashAttempt(clinic, null);
       setCashAttempt(null);
       setReceiptPaymentId(result.payment_allocation.payment_event_id);
@@ -260,9 +345,16 @@ export function CashDrawerOperations({
       onRecorded(attempt.invoiceId);
     } catch (reason) {
       if (deterministicCashError(reason)) {
-        persistCashAttempt(clinic, null);
-        setCashAttempt(null);
-        reportError(reason, "The cash payment could not be recorded.");
+        if (!durableRecoveryEnabled || await recovery.clear()) {
+          persistCashAttempt(clinic, null);
+          setCashAttempt(null);
+          reportError(reason, "The cash payment could not be recorded.");
+        } else {
+          setError(
+            recovery.error ||
+              "The payment was rejected, but its recovery record could not be cleared. Refresh before another action.",
+          );
+        }
       } else {
         setError(
           `${reason instanceof Error ? reason.message : "The payment outcome could not be confirmed."} Review the refreshed payment activity, then retry only this same cash payment if it is still missing.`,
@@ -422,7 +514,14 @@ export function CashDrawerOperations({
               <Button
                 color="inherit"
                 disabled={busy !== null}
-                onClick={() => {
+                onClick={() => void (async () => {
+                  if (durableRecoveryEnabled && !(await recovery.clear())) {
+                    setError(
+                      recovery.error ||
+                        "The verified payment recovery record could not be cleared. Try again before another action.",
+                    );
+                    return;
+                  }
                   persistCashAttempt(clinic, null);
                   setCashAttempt(null);
                   setTenderedAmount("");
@@ -431,7 +530,7 @@ export function CashDrawerOperations({
                   setNotice(
                     "Pending payment cleared after operator verification. No additional cash payment was submitted.",
                   );
-                }}
+                })()}
                 size="small"
                 sx={{ alignSelf: "flex-start" }}
               >

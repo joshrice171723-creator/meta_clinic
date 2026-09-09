@@ -1,5 +1,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { api, ApiError, formBody } from "../api/client";
+import {
+  api,
+  ApiError,
+  formBody,
+  currentLoginDestination,
+} from "../api/client";
 
 export function ErrorMessage({ message }: { message: string }) {
   return (
@@ -43,7 +48,9 @@ export function useResource<T>(
       .catch((error: unknown) => {
         if (abort.signal.aborted) return;
         if (error instanceof ApiError && error.status === 401) {
-          window.location.replace("/login");
+          window.location.replace(
+            `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+          );
           return;
         }
         setResult({
@@ -214,12 +221,12 @@ export function Form({
         } catch (error) {
           setError(
             endpoint === "/api/session" &&
-            error instanceof ApiError &&
-            error.status === 422
+              error instanceof ApiError &&
+              error.status === 422
               ? "We couldn't verify this sign-in. Reload the page and try again."
               : error instanceof Error
-              ? error.message
-              : "The request failed. Check its status before trying again.",
+                ? error.message
+                : "The request failed. Check its status before trying again.",
           );
         } finally {
           form

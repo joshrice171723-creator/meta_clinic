@@ -1,7 +1,6 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
-import PlayArrowOutlinedIcon from "@mui/icons-material/PlayArrowOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
@@ -22,8 +21,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { api, ApiError } from "../../api/client";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { api, ApiError, currentLoginDestination } from "../../api/client";
 import type { ClinicSite, EncounterDetail, Patient } from "../../api/contracts";
 import { useResource } from "../../shared/ui";
 import { bookingAvailability } from "./CareFlow";
@@ -70,7 +69,7 @@ export function FrontDesk() {
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 720 }}>
             Run today’s appointment queue, open the right patient record, and
-            start a visit when care begins.
+            check patients in when they arrive.
           </Typography>
         </div>
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
@@ -179,6 +178,7 @@ function AppointmentDayQueue({
   const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
   const [busyAction, setBusyAction] = useState("");
+  const busyActionRef = useRef("");
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
   const [noticePatientId, setNoticePatientId] = useState<number>();
@@ -195,6 +195,24 @@ function AppointmentDayQueue({
     page,
   });
   const appointments = useResource<FrontDeskAppointmentResponse>(path);
+
+  const unknownMutationFailure = (error: unknown) =>
+    !(error instanceof ApiError) ||
+    error.status === 408 ||
+    error.status >= 500 ||
+    error.code === "outcome_unconfirmed";
+
+  async function refreshedAppointment(appointment: FrontDeskAppointment) {
+    const result = await api<{ appointment: FrontDeskAppointment }>(
+      `/api/clinic/appointments/${appointment.id}`,
+    );
+    if (
+      result.appointment.id !== appointment.id ||
+      result.appointment.patient_id !== appointment.patient_id
+    )
+      throw new Error("The refreshed appointment did not match this patient.");
+    return result.appointment;
+  }
 
   useEffect(() => {
     if (appointments.data) setRefreshedAt(new Date());
@@ -216,6 +234,8 @@ function AppointmentDayQueue({
     }
 
     const actionKey = `${appointment.id}:${to}`;
+    if (busyActionRef.current) return;
+    busyActionRef.current = actionKey;
     setBusyAction(actionKey);
     setActionError("");
     setNotice("");
@@ -234,8 +254,35 @@ function AppointmentDayQueue({
       );
       appointments.refresh();
     } catch (error) {
-      handleMutationError(error, setActionError);
+      if (!unknownMutationFailure(error)) {
+        handleMutationError(error, setActionError);
+      } else {
+        try {
+          const refreshed = await refreshedAppointment(appointment);
+          if (refreshed.status === to) {
+            setNotice(
+              to === "confirmed"
+                ? `${patientName} is confirmed.`
+                : to === "cancelled"
+                  ? `${patientName}’s appointment was cancelled.`
+                  : `${patientName} was marked as a no-show.`,
+            );
+          } else if (refreshed.status === appointment.status) {
+            setActionError(
+              "The schedule confirms that the action was not applied. You can retry it.",
+            );
+          } else {
+            setActionError(
+              `The appointment changed to ${refreshed.status.replaceAll("_", " ")} while the request was being checked.`,
+            );
+          }
+          appointments.refresh();
+        } catch (refreshError) {
+          handleMutationError(refreshError, setActionError);
+        }
+      }
     } finally {
+      if (busyActionRef.current === actionKey) busyActionRef.current = "";
       setBusyAction("");
     }
   }
@@ -251,12 +298,14 @@ function AppointmentDayQueue({
     }
 
     const actionKey = `${appointment.id}:start`;
+    if (busyActionRef.current) return;
+    busyActionRef.current = actionKey;
     setBusyAction(actionKey);
     setActionError("");
     setNotice("");
     setNoticePatientId(undefined);
     try {
-      await api<{ encounter: EncounterDetail }>(
+      const result = await api<{ encounter: EncounterDetail }>(
         `/api/clinic/patients/${appointment.patient_id}/encounters`,
         {
           method: "POST",
@@ -268,11 +317,35 @@ function AppointmentDayQueue({
           },
         },
       );
-      setNotice(`${patientName}’s visit is now in progress.`);
+      if (
+        result.encounter.patient_id !== appointment.patient_id ||
+        result.encounter.appointment_id !== appointment.id
+      )
+        throw new Error("The created encounter did not match this appointment.");
+      setNotice(`${patientName} is checked in and the visit is in progress.`);
       appointments.refresh();
     } catch (error) {
-      handleMutationError(error, setActionError);
+      if (!unknownMutationFailure(error)) {
+        handleMutationError(error, setActionError);
+      } else {
+        try {
+          const refreshed = await refreshedAppointment(appointment);
+          if (refreshed.encounter_id) {
+            setNotice(
+              `${patientName} is checked in and the visit is in progress.`,
+            );
+          } else {
+            setActionError(
+              "The schedule confirms that check-in was not applied. You can retry it.",
+            );
+          }
+          appointments.refresh();
+        } catch (refreshError) {
+          handleMutationError(refreshError, setActionError);
+        }
+      }
     } finally {
+      if (busyActionRef.current === actionKey) busyActionRef.current = "";
       setBusyAction("");
     }
   }
@@ -337,7 +410,9 @@ function AppointmentDayQueue({
       appointments.refresh();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       const message =
@@ -599,7 +674,7 @@ function AppointmentDayQueue({
       >
         <DialogTitle id="appointment-action-title">
           {confirmation?.action === "start"
-            ? "Start visit"
+            ? "Check in patient"
             : confirmation?.action === "cancelled"
               ? "Cancel appointment"
               : "Mark as no-show"}
@@ -617,7 +692,7 @@ function AppointmentDayQueue({
           )}
           <Typography sx={{ mt: 2 }}>
             {confirmation?.action === "start"
-              ? "Start this visit when care begins. This opens the patient's clinical encounter."
+              ? "Check this patient in after confirming they have arrived. This opens the clinical encounter."
               : confirmation?.action === "cancelled"
                 ? "Cancel this appointment? This updates the schedule and cancels pending reminders. It does not send a cancellation message to the patient."
                 : "Record that the patient did not attend this appointment?"}
@@ -639,7 +714,7 @@ function AppointmentDayQueue({
             }}
           >
             {confirmation?.action === "start"
-              ? "Start visit"
+              ? "Check in"
               : confirmation?.action === "cancelled"
                 ? "Cancel appointment"
                 : "Mark as no-show"}
@@ -754,13 +829,13 @@ function AppointmentRow({
           <Button
             size="small"
             variant="contained"
-            startIcon={<PlayArrowOutlinedIcon />}
+            startIcon={<CheckCircleOutlineIcon />}
             disabled={anyActionBusy}
             onClick={() => void onStartVisit(appointment)}
           >
             {busyAction === `${appointment.id}:start`
-              ? "Starting…"
-              : "Start visit"}
+              ? "Checking in…"
+              : "Check in"}
           </Button>
         )}
         {appointment.telehealth?.clinic_href && (
@@ -1030,7 +1105,9 @@ function handleMutationError(
   setError: (message: string) => void,
 ) {
   if (error instanceof ApiError && error.status === 401) {
-    window.location.replace("/login");
+    window.location.replace(
+      `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+    );
     return;
   }
   const message =

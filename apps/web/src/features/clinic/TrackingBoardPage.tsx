@@ -36,7 +36,7 @@ import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import { useClinic } from "./Workspace";
 import type { ClinicTrackingBoard } from "../../api/contracts";
-import { api, ApiError } from "../../api/client";
+import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { LoadState } from "../../shared/ui";
 import {
   CareIndicators,
@@ -141,7 +141,9 @@ function useTrackingBoard(active = true) {
         .catch((error: unknown) => {
           if (!mounted || requestController.signal.aborted) return;
           if (error instanceof ApiError && error.status === 401) {
-            window.location.replace("/login");
+            window.location.replace(
+              `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+            );
             return;
           }
           setState((current) => ({

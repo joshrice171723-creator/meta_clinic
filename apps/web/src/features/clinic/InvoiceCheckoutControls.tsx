@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import type { InvoiceOnlinePayment } from "../../api/contracts";
+import { useWorkingDraft } from "./useWorkingDraft";
 
 type CheckoutEnvelope = {
   online_payment: InvoiceOnlinePayment;
@@ -69,6 +70,9 @@ export function InvoiceCheckoutControls({
   actionLabel,
   actionsEnabled = true,
   allowPaidRefresh = false,
+  patientId,
+  encounterId,
+  invoiceId,
   onChanged,
 }: {
   onlinePayment: InvoiceOnlinePayment;
@@ -76,6 +80,9 @@ export function InvoiceCheckoutControls({
   actionLabel: "Pay securely" | "Collect online";
   actionsEnabled?: boolean;
   allowPaidRefresh?: boolean;
+  patientId?: number;
+  encounterId?: number;
+  invoiceId?: number;
   onChanged: () => void;
 }) {
   const [payment, setPayment] = useState(onlinePayment);
@@ -86,6 +93,32 @@ export function InvoiceCheckoutControls({
     useState<CheckoutConfirmation | null>(null);
   const startKey = useRef<string | undefined>(undefined);
   const cancelKey = useRef<string | undefined>(undefined);
+  const recovery = useWorkingDraft<{
+    action: "start" | "cancel";
+    invoiceId: number;
+    requestKey: string;
+  }>({
+    kind: "checkout",
+    scope: "online_payment",
+    patientId,
+    encounterId,
+    recordId: invoiceId,
+    enabled: patientId !== undefined && invoiceId !== undefined,
+  });
+
+  useEffect(() => {
+    const restored = recovery.restored;
+    if (!recovery.ready || !restored || restored.invoiceId !== invoiceId) return;
+    if (["available", "paid", "unavailable"].includes(onlinePayment.state)) {
+      void recovery.clear();
+      return;
+    }
+    if (restored.action === "start") startKey.current = restored.requestKey;
+    else cancelKey.current = restored.requestKey;
+    setError(
+      `A saved online payment ${restored.action} attempt was restored. Refresh payment status before retrying the same action.`,
+    );
+  }, [invoiceId, onlinePayment.state, recovery.clear, recovery.ready, recovery.restored]);
 
   useEffect(() => {
     setPayment(onlinePayment);
@@ -114,6 +147,20 @@ export function InvoiceCheckoutControls({
           : action === "cancel"
             ? (cancelKey.current ??= crypto.randomUUID())
             : undefined;
+      const durableAction =
+        action === "start" || action === "cancel" ? action : null;
+      if (
+        requestKey &&
+        durableAction &&
+        invoiceId !== undefined &&
+        !(await recovery.save({ action: durableAction, invoiceId, requestKey }))
+      ) {
+        setError(
+          recovery.error ||
+            "The payment attempt could not be saved for recovery. Try again before continuing.",
+        );
+        return;
+      }
       const result = await api<CheckoutEnvelope>(`${endpoint}/${action}`, {
         method: "POST",
         ...(requestKey ? { body: { online_payment: { request_key: requestKey } } } : {}),
@@ -127,6 +174,13 @@ export function InvoiceCheckoutControls({
         startKey.current = undefined;
       }
       if (!result.online_payment.can_cancel) cancelKey.current = undefined;
+      if (requestKey && !(await recovery.clear())) {
+        setError(
+          recovery.error ||
+            "The payment status changed, but the recovery record could not be cleared. Refresh payment status before another action.",
+        );
+        return;
+      }
       onChanged();
       if (action === "start" && result.online_payment.checkout_url) {
         openHostedStripeCheckout(result.online_payment.checkout_url);

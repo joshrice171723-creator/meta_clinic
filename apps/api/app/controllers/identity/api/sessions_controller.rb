@@ -23,7 +23,7 @@ module Identity
           return render json: { error: "Your session expired. Please sign in again." }, status: :unauthorized
         end
 
-        render json: { session_policy: session_policy }
+        render json: { user: session_user(current_user), session_policy: session_policy }
       end
 
       def create

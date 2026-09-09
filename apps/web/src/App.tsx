@@ -16,7 +16,7 @@ import type {
   RuntimeEnvironment,
   User,
 } from "./api/contracts";
-import { api, ApiError, csrf, loginDestination } from "./api/client";
+import { api, ApiError, csrf, currentLoginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
@@ -515,7 +515,7 @@ function ClinicApplication({
     ),
   );
   const routeRef = useRef(route);
-  const blockerRef = useRef<(() => string | null) | null>(null);
+  const blockerRef = useRef(new Set<() => string | null>());
   const historyIndexRef = useRef(
     Number.isSafeInteger(window.history.state?.clinicIndex)
       ? window.history.state.clinicIndex
@@ -526,15 +526,18 @@ function ClinicApplication({
 
   const registerBlocker = useCallback(
     (blocker: (() => string | null) | null) => {
-      blockerRef.current = blocker;
+      if (blocker) blockerRef.current.add(blocker);
       return () => {
-        if (blockerRef.current === blocker) blockerRef.current = null;
+        if (blocker) blockerRef.current.delete(blocker);
       };
     },
     [],
   );
   const confirmNavigation = useCallback(() => {
-    const message = blockerRef.current?.();
+    const messages = [...blockerRef.current]
+      .map((blocker) => blocker())
+      .filter(Boolean);
+    const message = [...new Set(messages)].join("\n\n");
     return !message || window.confirm(message);
   }, []);
   const navigate = useCallback(
@@ -732,7 +735,7 @@ export function App() {
   useEffect(() => {
     if (!publicPage && session.user === null)
       window.location.replace(
-        "/login?next=" + encodeURIComponent(loginDestination(path)),
+        "/login?next=" + encodeURIComponent(currentLoginDestination()),
       );
   }, [session.user, path, publicPage]);
   if (!publicPage && (!session.user || session.error))
@@ -748,7 +751,7 @@ export function App() {
   let page: ReactNode;
   if (patientVideo && user)
     return (
-      <SessionGuard key={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id}>
         <RouteBoundary root>
           <TelehealthSessionProvider contextKey={`patient:${user.id}`}>
             <PatientTelehealthVisit visitId={patientVideo[1]} />
@@ -776,7 +779,7 @@ export function App() {
     );
   if (path.startsWith("/clinic") && user) {
     return (
-      <SessionGuard key={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id}>
         <ClinicApplication
           user={user}
           developmentAccounts={configuration.development_accounts}
@@ -791,7 +794,7 @@ export function App() {
     user
   )
     return (
-      <SessionGuard key={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id}>
         <RouteBoundary root>
           <PatientPortal
             user={user}
@@ -849,7 +852,7 @@ export function App() {
         <RouteBoundary root>{page}</RouteBoundary>
       ) : (
         user && (
-          <SessionGuard key={user.id}>
+          <SessionGuard key={user.id} expectedUserId={user.id}>
             <MemberLayout key={user.id} user={user}>
               <RouteBoundary>{page}</RouteBoundary>
             </MemberLayout>

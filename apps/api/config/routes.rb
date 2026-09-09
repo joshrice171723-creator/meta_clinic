@@ -8,6 +8,8 @@ Rails.application.routes.draw do
     root "dashboard#show"
     get "context", to: "context#show"
     patch "context", to: "context#update"
+    get "working_drafts/:kind", to: "working_drafts#show"
+    put "working_drafts/:kind", to: "working_drafts#update"
     namespace :telehealth do
       get "booking_options", to: "booking_options#show"
       get "visits", to: "visits#index"
@@ -56,7 +58,10 @@ Rails.application.routes.draw do
     get "tracking_board", to: "scheduling/tracking_board#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
+      patch "encounter_follow_ups/:id", to: "encounter_follow_ups#update"
     end
+    get "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#show"
+    put "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#upsert"
     get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       post :close, on: :member

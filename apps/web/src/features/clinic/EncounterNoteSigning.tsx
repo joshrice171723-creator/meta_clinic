@@ -12,9 +12,9 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EncounterNote, SoapNoteSections } from "../../api/contracts";
-import { api, ApiError } from "../../api/client";
+import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { useClinic } from "./Workspace";
 
 type Attempt = { revisionNo: number; digest: string };
@@ -32,6 +32,7 @@ export function EncounterNoteSigning({
   canSign,
   disabled,
   onSigned,
+  onRefresh,
   patientName,
 }: {
   note: EncounterNote;
@@ -40,6 +41,7 @@ export function EncounterNoteSigning({
   canSign: boolean;
   disabled: boolean;
   onSigned: () => void;
+  onRefresh?: () => void;
   patientName?: string;
 }) {
   const { membership_id } = useClinic();
@@ -52,9 +54,23 @@ export function EncounterNoteSigning({
   const revision = note.current_revision;
   const signed = revision?.signed === true;
   const body = revision?.body;
+  useEffect(() => {
+    attempt.current = null;
+    setAttested(false);
+    setUnknown(false);
+    setError("");
+  }, [
+    encounterId,
+    note.id,
+    patientId,
+    revision?.id,
+    revision?.revision_no,
+    revision?.content_digest,
+  ]);
   const close = () => {
     if (!busy && !unknown) {
       attempt.current = null;
+      setUnknown(false);
       setOpen(false);
       setAttested(false);
       setError("");
@@ -90,13 +106,35 @@ export function EncounterNoteSigning({
         setUnknown(false);
         setOpen(false);
         onSigned();
-      } else {
+      } else if (
+        result.note.id === note.id &&
+        result.note.patient_id === patientId &&
+        result.note.encounter_id === encounterId &&
+        result.note.current_revision?.revision_no === target.revisionNo &&
+        result.note.current_revision?.content_digest === target.digest &&
+        result.note.current_revision.signed === false
+      ) {
         setUnknown(false);
+        setAttested(false);
         setError(
-          "The note is not signed with the reviewed revision. Review the saved note before trying again.",
+          "The reviewed revision is still unsigned. Review it again, renew the attestation, and retry the exact signature.",
         );
+      } else {
+        attempt.current = null;
+        setUnknown(false);
+        setAttested(false);
+        setError(
+          "The saved note changed. The latest revision is loading and must be reviewed before signing.",
+        );
+        onRefresh?.();
       }
     } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 401) {
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
+        return;
+      }
       setError(
         reason instanceof Error
           ? reason.message
@@ -143,6 +181,8 @@ export function EncounterNoteSigning({
           "The signing response did not confirm the reviewed revision.",
         );
       attempt.current = null;
+      setAttested(false);
+      setUnknown(false);
       setOpen(false);
       onSigned();
     } catch (reason) {
@@ -151,9 +191,11 @@ export function EncounterNoteSigning({
         (reason.status === 409 || reason.status === 422)
       ) {
         attempt.current = null;
+        setAttested(false);
         setError(
           "The note changed or could not be signed. Reload and review the saved revision again.",
         );
+        onRefresh?.();
       } else {
         setUnknown(true);
         setError(
@@ -207,7 +249,8 @@ export function EncounterNoteSigning({
                 Patient instructions
               </Typography>
               <Typography sx={{ whiteSpace: "pre-wrap" }}>
-                {body.patient_instructions || "No patient instructions recorded."}
+                {body.patient_instructions ||
+                  "No patient instructions recorded."}
               </Typography>
               <Divider sx={{ mt: 1 }} />
             </Box>

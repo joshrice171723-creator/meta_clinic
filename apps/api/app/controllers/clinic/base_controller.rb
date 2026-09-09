@@ -5,6 +5,7 @@ module Clinic
 
     before_action :require_prototype
     before_action :require_member
+    before_action :require_expected_actor
     before_action :require_clinic
     around_action :attribute_clinic_mutations
 
@@ -29,6 +30,13 @@ module Clinic
     end
 
     private
+
+    def require_expected_actor
+      expected = request.headers["X-Clinic-Actor"]
+      return if expected.blank? || expected == current_user&.id.to_s
+
+      render json: { error: "Your account changed in another window. Reopen the clinic workspace before continuing.", code: "session_changed" }, status: :conflict
+    end
 
     def attribute_clinic_mutations
       # Generate correlation on the server; never trust submitted audit metadata.

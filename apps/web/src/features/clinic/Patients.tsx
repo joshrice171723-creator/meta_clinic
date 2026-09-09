@@ -12,13 +12,14 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { api, ApiError, formBody } from "../../api/client";
 import type { Encounter, Pagination, Patient } from "../../api/contracts";
 import {
   Card,
   createdPath,
   Field,
-  Form,
   LoadState,
   Pager,
   useResource,
@@ -29,6 +30,7 @@ import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
+import { useWorkingDraft } from "./useWorkingDraft";
 
 type LegacyNote = {
   id: number;
@@ -436,12 +438,58 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
   );
 }
 
-function PatientFields({ patient }: { patient?: Patient }) {
+type RegistrationValues = Record<string, string>;
+type RegistrationDraft = {
+  body: { clinic_patient: RegistrationValues };
+  requestKey: string;
+  pending: boolean;
+  outcomeUnconfirmed: boolean;
+};
+type RegistrationPatient = Patient & { updated_at?: string };
+
+function registrationValues(patient?: RegistrationPatient): RegistrationValues {
   const d = patient?.demographics;
-  const c = patient?.contacts?.[0];
-  const e = patient?.emergency_contacts?.[0];
+  const latestContact =
+    patient?.contacts?.find((contact) => contact.preferred) ??
+    patient?.contacts?.[0];
+  const latestEmergency = patient?.emergency_contacts?.[0];
+  const latestSocial = patient?.social_histories?.[0];
+  const c = latestContact?.effective_until ? undefined : latestContact;
+  const e = latestEmergency?.effective_until ? undefined : latestEmergency;
+  const s = latestSocial?.effective_until ? undefined : latestSocial;
   const p = patient?.communication_preference;
-  const s = patient?.social_histories?.[0];
+  return {
+    display_name: patient?.display_name ?? "",
+    reference: patient?.reference ?? "",
+    date_of_birth: d?.date_of_birth ?? "",
+    sex: d?.sex ?? "",
+    primary_language: d?.primary_language ?? "",
+    interpreter_required: d?.interpreter_required ? "true" : "false",
+    contact_type: c?.contact_type ?? "phone",
+    contact_value: c?.contact_value ?? "",
+    preferred: c?.preferred ? "true" : "false",
+    preferred_contact_method: p?.preferred_contact_method ?? "portal",
+    appointment_reminders_consent: p?.appointment_reminders_consent
+      ? "true"
+      : "false",
+    general_communications_consent: p?.general_communications_consent
+      ? "true"
+      : "false",
+    emergency_name: e?.name ?? "",
+    emergency_relationship: e?.relationship ?? "",
+    emergency_phone: e?.phone ?? "",
+    permission_to_contact: e?.permission_to_contact ? "true" : "false",
+    tobacco_use: s?.tobacco_use ?? "",
+    alcohol_use: s?.alcohol_use ?? "",
+    exercise_habits: s?.exercise_habits ?? "",
+    diet: s?.diet ?? "",
+    occupation: s?.occupation ?? "",
+    living_situation: s?.living_situation ?? "",
+    relevant_social_factors: s?.relevant_social_factors ?? "",
+  };
+}
+
+function PatientFields({ values }: { values: RegistrationValues }) {
   return (
     <>
       <Field
@@ -449,13 +497,13 @@ function PatientFields({ patient }: { patient?: Patient }) {
         label="Date of birth"
         type="date"
         required={false}
-        value={d?.date_of_birth ?? undefined}
+        value={values.date_of_birth}
       />
       <Field
         name="clinic_patient[sex]"
         label="Sex"
         required
-        value={d?.sex ?? ""}
+        value={values.sex}
         options={[
           ["", "Select sex"],
           ["female", "Female"],
@@ -468,14 +516,14 @@ function PatientFields({ patient }: { patient?: Patient }) {
         name="clinic_patient[primary_language]"
         label="Primary language"
         required={false}
-        value={d?.primary_language}
+        value={values.primary_language}
         maxLength={80}
       />
       <Field
         name="clinic_patient[interpreter_required]"
         label="Interpreter required"
         required={false}
-        value={d?.interpreter_required ? "true" : "false"}
+        value={values.interpreter_required}
         options={[
           ["false", "No"],
           ["true", "Yes"],
@@ -485,28 +533,38 @@ function PatientFields({ patient }: { patient?: Patient }) {
         name="clinic_patient[contact_type]"
         label="Contact type"
         required={false}
-        value={c?.contact_type}
+        value={values.contact_type}
         options={["phone", "email"]}
       />
       <Field
         name="clinic_patient[contact_value]"
         label="Phone or email"
         required={false}
-        value={c?.contact_value}
+        value={values.contact_value}
         maxLength={320}
+      />
+      <Field
+        name="clinic_patient[preferred]"
+        label="Preferred contact"
+        required={false}
+        value={values.preferred}
+        options={[
+          ["false", "No"],
+          ["true", "Yes"],
+        ]}
       />
       <Field
         name="clinic_patient[preferred_contact_method]"
         label="Preferred contact method"
         required={false}
-        value={p?.preferred_contact_method}
+        value={values.preferred_contact_method}
         options={["portal", "text", "phone", "email"]}
       />
       <Field
         name="clinic_patient[appointment_reminders_consent]"
         label="Appointment reminders consent"
         required={false}
-        value={p?.appointment_reminders_consent ? "true" : "false"}
+        value={values.appointment_reminders_consent}
         options={[
           ["false", "No"],
           ["true", "Yes"],
@@ -516,7 +574,7 @@ function PatientFields({ patient }: { patient?: Patient }) {
         name="clinic_patient[general_communications_consent]"
         label="General communications consent"
         required={false}
-        value={p?.general_communications_consent ? "true" : "false"}
+        value={values.general_communications_consent}
         options={[
           ["false", "No"],
           ["true", "Yes"],
@@ -526,28 +584,28 @@ function PatientFields({ patient }: { patient?: Patient }) {
         name="clinic_patient[emergency_name]"
         label="Emergency contact name"
         required={false}
-        value={e?.name}
+        value={values.emergency_name}
         maxLength={320}
       />
       <Field
         name="clinic_patient[emergency_relationship]"
         label="Emergency contact relationship"
         required={false}
-        value={e?.relationship}
+        value={values.emergency_relationship}
         maxLength={320}
       />
       <Field
         name="clinic_patient[emergency_phone]"
         label="Emergency contact phone"
         required={false}
-        value={e?.phone}
+        value={values.emergency_phone}
         maxLength={320}
       />
       <Field
         name="clinic_patient[permission_to_contact]"
         label="Permission to contact"
         required={false}
-        value={e?.permission_to_contact ? "true" : "false"}
+        value={values.permission_to_contact}
         options={[
           ["false", "No"],
           ["true", "Yes"],
@@ -570,7 +628,7 @@ function PatientFields({ patient }: { patient?: Patient }) {
           label={name.replaceAll("_", " ")}
           type="textarea"
           required={false}
-          value={s?.[name] ?? undefined}
+          value={values[name]}
           maxLength={2000}
         />
       ))}
@@ -585,32 +643,276 @@ export function PatientRegistrationForm({
   patient?: Patient;
   onSuccess?: (result: Record<string, unknown> | undefined) => void;
 }) {
+  const workingDraft = useWorkingDraft<RegistrationDraft>({
+    kind: patient ? "patient_update" : "registration",
+    patientId: patient?.id,
+  });
+  const preserved = useRef<RegistrationDraft | null | undefined>(undefined);
+  if (!workingDraft.ready)
+    return workingDraft.error ? (
+      <Alert
+        severity="error"
+        action={<Button onClick={workingDraft.reload}>Retry recovery</Button>}
+      >
+        {workingDraft.error}
+      </Alert>
+    ) : (
+      <LoadState />
+    );
+
   return (
-    <Form
-      endpoint={
-        patient ? `/api/clinic/patients/${patient.id}` : "/api/clinic/patients"
-      }
-      method={patient ? "PATCH" : "POST"}
-      submit={patient ? "Save registration details" : "Register patient"}
+    <PatientRegistrationEditor
+      patient={patient as RegistrationPatient | undefined}
+      initialDraft={preserved.current ?? workingDraft.restored}
+      workingDraft={workingDraft}
+      onReloadDraft={(snapshot) => {
+        preserved.current = snapshot;
+        workingDraft.reload();
+      }}
       onSuccess={onSuccess}
+    />
+  );
+}
+
+function PatientRegistrationEditor({
+  patient,
+  initialDraft,
+  workingDraft,
+  onReloadDraft,
+  onSuccess,
+}: {
+  patient?: RegistrationPatient;
+  initialDraft: RegistrationDraft | null;
+  workingDraft: ReturnType<typeof useWorkingDraft<RegistrationDraft>>;
+  onReloadDraft: (snapshot: RegistrationDraft) => void;
+  onSuccess?: (result: Record<string, unknown> | undefined) => void;
+}) {
+  const { registerBlocker } = useClinicNavigation();
+  const initialValues = useMemo(
+    () => initialDraft?.body.clinic_patient ?? registrationValues(patient),
+    [initialDraft, patient],
+  );
+  const requestKey = useRef(initialDraft?.requestKey || crypto.randomUUID());
+  const attempt = useRef<RegistrationDraft | null>(
+    initialDraft?.pending ? initialDraft : null,
+  );
+  const lastSnapshot = useRef<RegistrationDraft>(
+    initialDraft ?? {
+      body: { clinic_patient: initialValues },
+      requestKey: requestKey.current,
+      pending: false,
+      outcomeUnconfirmed: false,
+    },
+  );
+  const autosaveTimer = useRef<number | undefined>(undefined);
+  const inFlight = useRef(false);
+  const [dirty, setDirty] = useState(Boolean(initialDraft));
+  const [busy, setBusy] = useState(false);
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
+    Boolean(initialDraft?.pending),
+  );
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!dirty && !attempt.current) return;
+    const unregister = registerBlocker(() =>
+      attempt.current
+        ? "The registration save is unresolved. Retry the exact request before leaving."
+        : "This registration has saved working changes that are not on the patient record yet.",
+    );
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [dirty, outcomeUnconfirmed, registerBlocker]);
+  useEffect(
+    () => () => {
+      if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    },
+    [],
+  );
+
+  const snapshotFrom = (form: HTMLFormElement): RegistrationDraft => {
+    const values = formBody(new FormData(form)).clinic_patient as RegistrationValues;
+    const officialValues = {
+      ...values,
+      request_key: requestKey.current,
+      ...(patient?.updated_at ? { expected_updated_at: patient.updated_at } : {}),
+    };
+    return {
+      body: { clinic_patient: officialValues },
+      requestKey: requestKey.current,
+      pending: false,
+      outcomeUnconfirmed: false,
+    };
+  };
+  const queueAutosave = (form: HTMLFormElement) => {
+    const snapshot = snapshotFrom(form);
+    lastSnapshot.current = snapshot;
+    setDirty(true);
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = window.setTimeout(() => {
+      autosaveTimer.current = undefined;
+      void workingDraft.save(snapshot);
+    }, 500);
+  };
+
+  return (
+    <Box
+      component="form"
       className="pharmacy-form-grid"
+      onInput={(event) => queueAutosave(event.currentTarget)}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (inFlight.current) return;
+        const form = event.currentTarget;
+        inFlight.current = true;
+        if (autosaveTimer.current) {
+          window.clearTimeout(autosaveTimer.current);
+          autosaveTimer.current = undefined;
+        }
+        const current = attempt.current ?? snapshotFrom(event.currentTarget);
+        const pending = { ...current, pending: true };
+        lastSnapshot.current = pending;
+        if (!(await workingDraft.save(pending))) {
+          inFlight.current = false;
+          setError(
+            "The working copy could not be saved. Keep this page open and retry before saving the patient record.",
+          );
+          return;
+        }
+        attempt.current = pending;
+        setBusy(true);
+        setError("");
+        try {
+          const result = await api<Record<string, unknown>>(
+            patient
+              ? `/api/clinic/patients/${patient.id}`
+              : "/api/clinic/patients",
+            { method: patient ? "PATCH" : "POST", body: pending.body },
+          );
+          if (!(await workingDraft.clear())) {
+            setOutcomeUnconfirmed(true);
+            setError(
+              "The patient record was saved, but its working copy could not be cleared. Retry the same request to finish recovery.",
+            );
+            return;
+          }
+          attempt.current = null;
+          requestKey.current = crypto.randomUUID();
+          form.reset();
+          flushSync(() => {
+            setDirty(false);
+            setOutcomeUnconfirmed(false);
+            setBusy(false);
+          });
+          onSuccess?.(result);
+        } catch (reason) {
+          const unknown =
+            !(reason instanceof ApiError) ||
+            reason.status === 408 ||
+            reason.status >= 500 ||
+            reason.code === "outcome_unconfirmed";
+          if (unknown) {
+            const unresolved = { ...pending, outcomeUnconfirmed: true };
+            attempt.current = unresolved;
+            lastSnapshot.current = unresolved;
+            await workingDraft.save(unresolved);
+          } else {
+            attempt.current = null;
+            requestKey.current = crypto.randomUUID();
+            const editable = {
+              ...pending,
+              body: {
+                clinic_patient: {
+                  ...pending.body.clinic_patient,
+                  request_key: requestKey.current,
+                },
+              },
+              requestKey: requestKey.current,
+              pending: false,
+              outcomeUnconfirmed: false,
+            };
+            lastSnapshot.current = editable;
+            await workingDraft.save(editable);
+          }
+          setOutcomeUnconfirmed(unknown);
+          setError(
+            unknown
+              ? "The registration outcome is unknown. Retry this exact request to reconcile it."
+              : reason instanceof Error
+                ? reason.message
+                : "The patient record could not be saved.",
+          );
+        } finally {
+          inFlight.current = false;
+          setBusy(false);
+        }
+      }}
     >
-      <Field
-        name="clinic_patient[display_name]"
-        label="Patient display name"
-        value={patient?.display_name}
-        maxLength={120}
-      />
-      {(!patient?.reference || patientReferenceLabel(patient.reference)) && (
+      <fieldset disabled={busy || outcomeUnconfirmed}>
         <Field
-          name="clinic_patient[reference]"
-          label="Clinic reference"
-          value={patient?.reference}
-          maxLength={32}
+          name="clinic_patient[display_name]"
+          label="Patient display name"
+          value={initialValues.display_name}
+          maxLength={120}
         />
+        {(!patient?.reference || patientReferenceLabel(patient.reference)) && (
+          <Field
+            name="clinic_patient[reference]"
+            label="Clinic reference"
+            value={initialValues.reference}
+            maxLength={32}
+          />
+        )}
+        {patient?.reference && !patientReferenceLabel(patient.reference) && (
+          <input
+            type="hidden"
+            name="clinic_patient[reference]"
+            value={initialValues.reference}
+          />
+        )}
+        <PatientFields values={initialValues} />
+      </fieldset>
+      {workingDraft.status === "saving" && (
+        <Typography role="status">Saving working copy…</Typography>
       )}
-      <PatientFields patient={patient} />
-    </Form>
+      {workingDraft.status === "saved" && dirty && (
+        <Typography color="text.secondary" role="status">
+          Working copy saved.
+        </Typography>
+      )}
+      {(workingDraft.status === "error" || workingDraft.status === "conflict") && (
+        <Alert
+          severity="error"
+          action={
+            workingDraft.status === "error" ? (
+              <Button onClick={() => void workingDraft.save(lastSnapshot.current)}>
+                Retry working-copy save
+              </Button>
+            ) : (
+              <Button onClick={() => onReloadDraft(lastSnapshot.current)}>
+                Reload version and keep my edits
+              </Button>
+            )
+          }
+        >
+          {workingDraft.error}
+        </Alert>
+      )}
+      {error && <Alert severity="error">{error}</Alert>}
+      <Button type="submit" variant="contained" disabled={busy}>
+        {busy
+          ? "Saving…"
+          : outcomeUnconfirmed
+            ? "Retry same request"
+            : patient
+              ? "Save registration details"
+              : "Register patient"}
+      </Button>
+    </Box>
   );
 }
 

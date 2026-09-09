@@ -15,8 +15,8 @@ import type {
   SoapNoteSections,
   VisitType,
 } from "../../api/contracts";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { api, ApiError } from "../../api/client";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
   TelehealthBookingFormat,
@@ -71,6 +71,9 @@ import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
 import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
+import { useWorkingDraft } from "./useWorkingDraft";
+import { EncounterFollowUpPanel } from "./EncounterFollowUp";
+
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -112,6 +115,12 @@ type BookingAttempt = {
       visit_modality?: VisitModality;
     };
   };
+};
+
+type AppointmentWorkingDraft = {
+  draft: BookingDraft;
+  attempt: BookingAttempt | null;
+  outcomeUnconfirmed: boolean;
 };
 
 export function bookingDraftHasChanges(
@@ -439,7 +448,6 @@ export function bookingAvailability(
 function BookingForm({
   timezone,
   onCreated,
-  identityLookup = false,
   initialPatientId,
   initialVisitModality = "in_person",
 }: {
@@ -449,8 +457,59 @@ function BookingForm({
   initialPatientId?: number;
   initialVisitModality?: VisitModality;
 }) {
+  const workingDraft = useWorkingDraft<AppointmentWorkingDraft>({
+    kind: "appointment",
+  });
+  const preserved = useRef<AppointmentWorkingDraft | null | undefined>(
+    undefined,
+  );
+  if (!workingDraft.ready)
+    return workingDraft.error ? (
+      <Alert
+        severity="error"
+        action={<Button onClick={workingDraft.reload}>Retry recovery</Button>}
+      >
+        {workingDraft.error}
+      </Alert>
+    ) : (
+      <LoadState />
+    );
+
+  return (
+    <BookingFormEditor
+      timezone={timezone}
+      onCreated={onCreated}
+      initialPatientId={initialPatientId}
+      initialVisitModality={initialVisitModality}
+      initialDraft={preserved.current ?? workingDraft.restored}
+      workingDraft={workingDraft}
+      onReloadDraft={(snapshot) => {
+        preserved.current = snapshot;
+        workingDraft.reload();
+      }}
+    />
+  );
+}
+
+function BookingFormEditor({
+  timezone,
+  onCreated,
+  initialPatientId,
+  initialVisitModality = "in_person",
+  initialDraft,
+  workingDraft,
+  onReloadDraft,
+}: {
+  timezone: string;
+  onCreated?: (appointment: Appointment) => void;
+  initialPatientId?: number;
+  initialVisitModality?: VisitModality;
+  initialDraft: AppointmentWorkingDraft | null;
+  workingDraft: ReturnType<typeof useWorkingDraft<AppointmentWorkingDraft>>;
+  onReloadDraft: (snapshot: AppointmentWorkingDraft) => void;
+}) {
   const { registerBlocker } = useClinicNavigation();
-  const [baseline, setBaseline] = useState<BookingDraft>(() => {
+  const defaultDraft = useMemo<BookingDraft>(() => {
     const defaults = appointmentDefaults();
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
@@ -462,36 +521,53 @@ function BookingForm({
       visitTypeId: "",
       visitModality: initialVisitModality,
     };
-  });
-  const [patientId, setPatientId] = useState(baseline.patientId);
+  }, [initialPatientId, initialVisitModality]);
+  const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
+  const [patientId, setPatientId] = useState(restoredDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
     number | undefined
-  >(initialPatientId);
+  >(restoredDraft.patientId ? Number(restoredDraft.patientId) : undefined);
   const [replacementPatient, setReplacementPatient] = useState<Patient>();
   const [replacementPatientError, setReplacementPatientError] = useState("");
   const [replacementPatientLoading, setReplacementPatientLoading] = useState(
-    Boolean(initialPatientId),
+    Boolean(restoredDraft.patientId),
   );
-  const [startsAt, setStartsAt] = useState(baseline.startsAt);
-  const [endsAt, setEndsAt] = useState(baseline.endsAt);
-  const [siteId, setSiteId] = useState("");
-  const [roomId, setRoomId] = useState("");
-  const [clinicianId, setClinicianId] = useState("");
-  const [visitTypeId, setVisitTypeId] = useState("");
+  const [startsAt, setStartsAt] = useState(restoredDraft.startsAt);
+  const [endsAt, setEndsAt] = useState(restoredDraft.endsAt);
+  const [siteId, setSiteId] = useState(restoredDraft.siteId);
+  const [roomId, setRoomId] = useState(restoredDraft.roomId);
+  const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
+  const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
   const [visitModality, setVisitModality] =
-    useState<VisitModality>(initialVisitModality);
+    useState<VisitModality>(restoredDraft.visitModality ?? initialVisitModality);
   const [showDetails, setShowDetails] = useState(
-    initialVisitModality === "video",
+    restoredDraft.visitModality === "video" ||
+      Boolean(restoredDraft.siteId || restoredDraft.clinicianId || restoredDraft.visitTypeId),
   );
   const [busy, setBusy] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
-    null,
+    initialDraft?.attempt ?? null,
   );
-  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
+    Boolean(initialDraft?.attempt),
+  );
+  const [hasWorkingDraft, setHasWorkingDraft] = useState(Boolean(initialDraft));
+  const autosaveTimer = useRef<number | undefined>(undefined);
+  const inFlight = useRef(false);
+  const lastWorkingDraft = useRef<AppointmentWorkingDraft>(
+    initialDraft ?? {
+      draft: restoredDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+    },
+  );
+  const [patientQuery, setPatientQuery] = useState("");
+  const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
-  const dirty = bookingDraftHasChanges(
-    {
+  const currentDraft = useMemo<BookingDraft>(
+    () => ({
       patientId,
       startsAt,
       endsAt,
@@ -500,13 +576,13 @@ function BookingForm({
       clinicianId,
       visitTypeId,
       visitModality,
-    },
-    baseline,
+    }),
+    [patientId, startsAt, endsAt, siteId, roomId, clinicianId, visitTypeId, visitModality],
   );
+  const draftChanged = bookingDraftHasChanges(currentDraft, baseline);
+  const dirty = hasWorkingDraft || draftChanged;
   const patients = useResource<{ patients: Patient[] }>(
-    identityLookup
-      ? "/api/clinic/patients/lookup?per_page=100"
-      : "/api/clinic/patients?per_page=100",
+    `/api/clinic/patients/lookup?q=${encodeURIComponent(deferredPatientQuery.trim())}&per_page=25`,
   );
   const facilities = useResource<{ sites: FacilitySite[] }>(
     "/api/clinic/facilities?type=sites",
@@ -521,8 +597,10 @@ function BookingForm({
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
   useEffect(() => {
+    if (draftChanged) setHasWorkingDraft(true);
+  }, [draftChanged]);
+  useEffect(() => {
     if (!replacementPatientId) {
-      setReplacementPatient(undefined);
       setReplacementPatientError("");
       setReplacementPatientLoading(false);
       return;
@@ -542,7 +620,7 @@ function BookingForm({
         );
         if (!patient) {
           setReplacementPatientError(
-            "The replacement patient could not be verified. Choose a patient before scheduling.",
+            "The selected patient could not be verified. Choose a patient before scheduling.",
           );
           return;
         }
@@ -553,7 +631,7 @@ function BookingForm({
         setReplacementPatientError(
           reason instanceof Error
             ? reason.message
-            : "The replacement patient could not be loaded.",
+            : "The selected patient could not be loaded.",
         );
       })
       .finally(() => {
@@ -561,6 +639,26 @@ function BookingForm({
       });
     return () => controller.abort();
   }, [replacementPatientId]);
+  useEffect(() => {
+    if (!dirty || bookingAttempt || outcomeUnconfirmed || busy) return;
+    const snapshot: AppointmentWorkingDraft = {
+      draft: currentDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+    };
+    lastWorkingDraft.current = snapshot;
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = window.setTimeout(() => {
+      autosaveTimer.current = undefined;
+      void workingDraft.save(snapshot);
+    }, 500);
+    return () => {
+      if (autosaveTimer.current) {
+        window.clearTimeout(autosaveTimer.current);
+        autosaveTimer.current = undefined;
+      }
+    };
+  }, [bookingAttempt, busy, currentDraft, dirty, outcomeUnconfirmed, workingDraft.save]);
   useEffect(() => {
     if ((!dirty && !outcomeUnconfirmed) || typeof window === "undefined")
       return;
@@ -598,6 +696,7 @@ function BookingForm({
   const clearReplacementPatient = () => {
     setPatientId("");
     setReplacementPatientId(undefined);
+    setReplacementPatient(undefined);
   };
   if (replacementPatientId && replacementPatientLoading) return <LoadState />;
   if (replacementPatientId && replacementPatientError)
@@ -608,7 +707,7 @@ function BookingForm({
           onClick={clearReplacementPatient}
           sx={{ alignSelf: "flex-start" }}
         >
-          Clear replacement patient
+          Clear selected patient
         </Button>
       </Stack>
     );
@@ -655,6 +754,21 @@ function BookingForm({
     setShowDetails(false);
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
+    setHasWorkingDraft(false);
+    setPatientQuery("");
+  };
+  const discard = async () => {
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    if (!(await workingDraft.clear())) {
+      setSubmitError(
+        "The saved working copy could not be cleared. Retry before starting another appointment.",
+      );
+      return;
+    }
+    reset();
   };
   return (
     <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
@@ -709,9 +823,7 @@ function BookingForm({
               </Button>
             }
           >
-            Scheduling a new appointment for{" "}
-            {patientDisplayLabel(replacementPatient)}. This does not reopen the
-            cancelled or no-show appointment.
+            Scheduling for {patientDisplayLabel(replacementPatient)}.
           </Alert>
         )}
         <Box
@@ -719,6 +831,7 @@ function BookingForm({
           noValidate
           onSubmit={async (event) => {
             event.preventDefault();
+            if (inFlight.current) return;
             setSubmitError("");
             if (!bookingAttempt && !patientId)
               return setSubmitError("Select a patient before scheduling.");
@@ -732,6 +845,11 @@ function BookingForm({
               return setSubmitError(
                 "Choose a clinician and an eligible visit type for this video appointment.",
               );
+            inFlight.current = true;
+            if (autosaveTimer.current) {
+              window.clearTimeout(autosaveTimer.current);
+              autosaveTimer.current = undefined;
+            }
             const attempt =
               bookingAttempt ??
               ({
@@ -749,6 +867,19 @@ function BookingForm({
                   },
                 },
               } satisfies BookingAttempt);
+            const pendingDraft: AppointmentWorkingDraft = {
+              draft: currentDraft,
+              attempt,
+              outcomeUnconfirmed: false,
+            };
+            lastWorkingDraft.current = pendingDraft;
+            if (!(await workingDraft.save(pendingDraft))) {
+              inFlight.current = false;
+              setSubmitError(
+                "The working copy could not be saved. Keep this page open and retry before scheduling.",
+              );
+              return;
+            }
             setBookingAttempt(attempt);
             setBusy(true);
             try {
@@ -759,9 +890,14 @@ function BookingForm({
                   body: attempt.body,
                 },
               );
+              if (!(await workingDraft.clear())) {
+                setOutcomeUnconfirmed(true);
+                setSubmitError(
+                  "The appointment was scheduled, but its working copy could not be cleared. Retry the same request to finish recovery.",
+                );
+                return;
+              }
               setCreated(result.appointment);
-              setBookingAttempt(null);
-              setOutcomeUnconfirmed(false);
               reset();
               onCreated?.(result.appointment);
             } catch (reason) {
@@ -771,7 +907,23 @@ function BookingForm({
                 reason.status >= 500 ||
                 reason.code === "outcome_unconfirmed";
               setOutcomeUnconfirmed(unknown);
-              if (!unknown) setBookingAttempt(null);
+              if (unknown) {
+                const unresolved = {
+                  ...pendingDraft,
+                  outcomeUnconfirmed: true,
+                };
+                lastWorkingDraft.current = unresolved;
+                await workingDraft.save(unresolved);
+              } else {
+                setBookingAttempt(null);
+                const editable = {
+                  draft: currentDraft,
+                  attempt: null,
+                  outcomeUnconfirmed: false,
+                };
+                lastWorkingDraft.current = editable;
+                await workingDraft.save(editable);
+              }
               setSubmitError(
                 unknown
                   ? "The scheduling outcome is unknown. Retry this exact request before editing or leaving scheduling."
@@ -780,11 +932,21 @@ function BookingForm({
                     : "The appointment could not be scheduled.",
               );
             } finally {
+              inFlight.current = false;
               setBusy(false);
             }
           }}
         >
           <Stack spacing={2.5}>
+            <TextField
+              label="Find patient"
+              value={patientQuery}
+              disabled={busy || outcomeUnconfirmed}
+              onChange={(event) => setPatientQuery(event.target.value)}
+              placeholder="Name or clinic reference"
+              helperText="Searches the complete patient directory."
+              fullWidth
+            />
             <TextField
               label="Patient"
               select
@@ -794,12 +956,11 @@ function BookingForm({
               onChange={(event) => {
                 const nextPatientId = event.target.value;
                 setPatientId(nextPatientId);
-                if (
-                  replacementPatientId &&
-                  nextPatientId !== String(replacementPatientId)
-                ) {
-                  setReplacementPatientId(undefined);
-                }
+                const selected = selectablePatients.find(
+                  (patient) => String(patient.id) === nextPatientId,
+                );
+                setReplacementPatient(selected);
+                setReplacementPatientId(undefined);
               }}
               fullWidth
               helperText={
@@ -997,6 +1158,41 @@ function BookingForm({
                 {submitError}
               </Alert>
             )}
+            {workingDraft.status === "saving" && (
+              <Typography role="status">Saving working copy…</Typography>
+            )}
+            {workingDraft.status === "saved" && dirty && (
+              <Typography color="text.secondary" role="status">
+                Working copy saved.
+              </Typography>
+            )}
+            {(workingDraft.status === "error" ||
+              workingDraft.status === "conflict") && (
+              <Alert
+                severity="error"
+                action={
+                  workingDraft.status === "error" ? (
+                    <Button
+                      color="inherit"
+                      onClick={() =>
+                        void workingDraft.save(lastWorkingDraft.current)
+                      }
+                    >
+                      Retry working-copy save
+                    </Button>
+                  ) : (
+                    <Button
+                      color="inherit"
+                      onClick={() => onReloadDraft(lastWorkingDraft.current)}
+                    >
+                      Reload version and keep my edits
+                    </Button>
+                  )
+                }
+              >
+                {workingDraft.error}
+              </Alert>
+            )}
             <Divider />
             <Stack
               direction={{ xs: "column-reverse", sm: "row" }}
@@ -1006,7 +1202,7 @@ function BookingForm({
               <Button
                 type="button"
                 color="inherit"
-                onClick={reset}
+                onClick={() => void discard()}
                 disabled={busy || outcomeUnconfirmed}
               >
                 Clear
@@ -1393,6 +1589,8 @@ type NoteSaveAttempt = {
   operationCode: "notes.create" | "notes.revise" | "notes.correct";
   noteId: number | null;
   expectedRevision: number;
+  endpoint: string;
+  body: Record<string, unknown>;
 };
 
 type CorrectionTarget = {
@@ -1400,6 +1598,62 @@ type CorrectionTarget = {
   revisionNo: number;
   reason: string;
 };
+
+type SoapEditorBaseline = {
+  noteId: number | null;
+  revisionId: number | null;
+  revisionNo: number | null;
+  sections: SoapNoteSections;
+  patientInstructions: string;
+  template: { id: string; version: number } | null;
+};
+
+type SoapWorkingDraft = {
+  schema_version: 1;
+  patient_id: number;
+  encounter_id: number;
+  baseline: SoapEditorBaseline;
+  sections: SoapNoteSections;
+  patient_instructions: string;
+  applied_template: { id: string; version: number } | null;
+  correction_target: CorrectionTarget | null;
+  pending_attempt: NoteSaveAttempt | null;
+};
+
+function validSoapSections(value: unknown): value is SoapNoteSections {
+  if (!value || typeof value !== "object") return false;
+  const sections = value as Record<string, unknown>;
+  return SOAP_SECTION_LABELS.every(
+    ([key]) => typeof sections[key] === "string",
+  );
+}
+
+function noteAttemptMatchesContext(
+  attempt: NoteSaveAttempt,
+  baseline: SoapEditorBaseline,
+  encounterId: number,
+) {
+  const expectedEndpoint =
+    attempt.operationCode === "notes.create"
+      ? `/api/clinic/encounters/${encounterId}/notes`
+      : attempt.operationCode === "notes.correct"
+        ? `/api/clinic/notes/${baseline.noteId}/corrections`
+        : `/api/clinic/notes/${baseline.noteId}/revisions`;
+  const root =
+    attempt.operationCode === "notes.create"
+      ? "encounter_note"
+      : attempt.operationCode === "notes.correct"
+        ? "correction"
+        : "revision";
+  const input = attempt.body?.[root];
+  return (
+    attempt.endpoint === expectedEndpoint &&
+    typeof attempt.requestKey === "string" &&
+    typeof input === "object" &&
+    input !== null &&
+    (input as Record<string, unknown>).request_key === attempt.requestKey
+  );
+}
 
 class NoteReconciliationError extends Error {}
 
@@ -1447,22 +1701,33 @@ export function SoapNoteForm({
 }) {
   const { registerBlocker } = useClinicNavigation();
   const savedBody = note?.current_revision?.body;
-  const initialSections = savedBody?.sections ?? EMPTY_SOAP_SECTIONS;
-  const initialPatientInstructions = savedBody?.patient_instructions ?? "";
-  const [sections, setSections] = useState<SoapNoteSections>(initialSections);
-  const [patientInstructions, setPatientInstructions] = useState(
-    initialPatientInstructions,
-  );
-  const [appliedTemplate, setAppliedTemplate] = useState<{
-    id: string;
-    version: number;
-  } | null>(
-    savedBody
+  const workingDraft = useWorkingDraft<SoapWorkingDraft>({
+    kind: "soap",
+    patientId,
+    encounterId,
+    enabled: canWrite,
+  });
+  const initialBaseline = (): SoapEditorBaseline => ({
+    noteId: note?.id ?? null,
+    revisionId: note?.current_revision?.id ?? null,
+    revisionNo: note?.current_revision?.revision_no ?? null,
+    sections: savedBody?.sections ?? EMPTY_SOAP_SECTIONS,
+    patientInstructions: savedBody?.patient_instructions ?? "",
+    template: savedBody
       ? { id: savedBody.template_id, version: savedBody.template_version }
       : templates[0]
         ? { id: templates[0].id, version: templates[0].version }
         : null,
+  });
+  const [baseline, setBaseline] = useState<SoapEditorBaseline>(initialBaseline);
+  const [sections, setSections] = useState<SoapNoteSections>(baseline.sections);
+  const [patientInstructions, setPatientInstructions] = useState(
+    baseline.patientInstructions,
   );
+  const [appliedTemplate, setAppliedTemplate] = useState<{
+    id: string;
+    version: number;
+  } | null>(baseline.template);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -1474,32 +1739,160 @@ export function SoapNoteForm({
   const [correctionConfirmed, setCorrectionConfirmed] = useState(false);
   const [correctionTarget, setCorrectionTarget] =
     useState<CorrectionTarget | null>(null);
+  const [incomingNote, setIncomingNote] = useState<EncounterNote | null>(null);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [replaceWorkingCopy, setReplaceWorkingCopy] = useState(false);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
+  const restoredDraft = useRef(false);
+  const skipNextDraftSave = useRef(false);
+  const draftSaveTimer = useRef<number | null>(null);
   const dirty =
     SOAP_SECTION_LABELS.some(
-      ([key]) => sections[key] !== initialSections[key],
-    ) || patientInstructions !== initialPatientInstructions;
+      ([key]) => sections[key] !== baseline.sections[key],
+    ) || patientInstructions !== baseline.patientInstructions;
   const signed = note?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
+    !workingDraft.ready ||
     !noteSaveAllowsMutation(saveState) ||
+    Boolean(incomingNote) ||
     (signed && !correctionTarget) ||
     !canWrite;
-  useEffect(() => {
-    if (saveAttemptRef.current) return;
-    setSections(initialSections);
-    setPatientInstructions(initialPatientInstructions);
-    if (savedBody) {
-      setAppliedTemplate({
-        id: savedBody.template_id,
-        version: savedBody.template_version,
-      });
+  const workingSnapshot = (
+    pendingAttempt = saveAttemptRef.current,
+  ): SoapWorkingDraft | null =>
+    patientId == null
+      ? null
+      : {
+          schema_version: 1,
+          patient_id: patientId,
+          encounter_id: encounterId,
+          baseline,
+          sections,
+          patient_instructions: patientInstructions,
+          applied_template: appliedTemplate,
+          correction_target: correctionTarget,
+          pending_attempt: pendingAttempt,
+        };
+
+  const cancelPendingDraftSave = () => {
+    if (draftSaveTimer.current !== null) {
+      window.clearTimeout(draftSaveTimer.current);
+      draftSaveTimer.current = null;
     }
+  };
+
+  const reloadWorkingDraft = () => {
+    cancelPendingDraftSave();
+    setReplaceWorkingCopy(false);
+    restoredDraft.current = false;
+    workingDraft.reload();
+  };
+
+  const retryWorkingDraft = async () => {
+    cancelPendingDraftSave();
+    const snapshot = workingSnapshot();
+    if (!snapshot || !(await workingDraft.save(snapshot)))
+      setError(
+        "The current working note is still only in this window. Keep it open and retry when the connection is available.",
+      );
+  };
+
+  useEffect(() => {
+    if (!workingDraft.ready || restoredDraft.current) return;
+    restoredDraft.current = true;
+    const restored = workingDraft.restored;
+    if (
+      !restored ||
+      patientId == null ||
+      restored.schema_version !== 1 ||
+      restored.patient_id !== patientId ||
+      restored.encounter_id !== encounterId ||
+      !restored.baseline ||
+      !validSoapSections(restored.baseline.sections) ||
+      !validSoapSections(restored.sections) ||
+      typeof restored.patient_instructions !== "string" ||
+      (restored.pending_attempt !== null &&
+        !noteAttemptMatchesContext(
+          restored.pending_attempt,
+          restored.baseline,
+          encounterId,
+        ))
+    ) {
+      if (restored)
+        setError(
+          "The protected working note did not match this editor version and was not loaded.",
+        );
+      return;
+    }
+    skipNextDraftSave.current = true;
+    setBaseline(restored.baseline);
+    setSections(restored.sections);
+    setPatientInstructions(restored.patient_instructions);
+    setAppliedTemplate(restored.applied_template);
+    setCorrectionTarget(restored.correction_target);
+    saveAttemptRef.current = restored.pending_attempt;
+    if (restored.pending_attempt) {
+      setRequestKey(restored.pending_attempt.requestKey);
+      setSaveState("outcome_unconfirmed");
+      setError(
+        "A submitted note save was restored. Check its retained status before continuing.",
+      );
+    }
+    if (
+      note?.id !== restored.baseline.noteId ||
+      note?.current_revision?.revision_no !== restored.baseline.revisionNo
+    ) {
+      setIncomingNote(note ?? null);
+      setConflictDialogOpen(Boolean(note));
+    }
+  }, [encounterId, note, patientId, workingDraft.ready, workingDraft.restored]);
+
+  useEffect(() => {
+    const revision = note?.current_revision;
+    if (!revision?.body || revision.revision_no === baseline.revisionNo) return;
+    if (
+      dirty ||
+      correctionTarget ||
+      saveAttemptRef.current ||
+      workingDraft.status === "saving" ||
+      workingDraft.status === "conflict"
+    ) {
+      setIncomingNote(note ?? null);
+      return;
+    }
+    const next = initialBaseline();
+    setBaseline(next);
+    setSections(next.sections);
+    setPatientInstructions(next.patientInstructions);
+    setAppliedTemplate(next.template);
+    setIncomingNote(null);
+  }, [note?.current_revision?.id, note?.current_revision?.revision_no]);
+
+  useEffect(() => {
+    if (busy || !workingDraft.ready || !restoredDraft.current) return;
+    if (skipNextDraftSave.current) {
+      skipNextDraftSave.current = false;
+      return;
+    }
+    if (!dirty && !correctionTarget && !saveAttemptRef.current) return;
+    const snapshot = workingSnapshot();
+    if (!snapshot) return;
+    cancelPendingDraftSave();
+    draftSaveTimer.current = window.setTimeout(() => {
+      draftSaveTimer.current = null;
+      void workingDraft.save(snapshot);
+    }, 650);
+    return cancelPendingDraftSave;
   }, [
-    savedBody?.template_id,
-    savedBody?.template_version,
-    savedBody?.patient_instructions,
-    note?.current_revision?.revision_no,
+    appliedTemplate,
+    baseline,
+    busy,
+    correctionTarget,
+    dirty,
+    patientInstructions,
+    sections,
+    workingDraft.ready,
   ]);
 
   useEffect(() => {
@@ -1525,27 +1918,57 @@ export function SoapNoteForm({
       !appliedTemplate ||
       busy ||
       !noteSaveAllowsMutation(saveState) ||
+      incomingNote ||
       (signed && !correctionTarget) ||
       !canWrite ||
       (!dirty && !correctionTarget)
     )
       return;
+    cancelPendingDraftSave();
     const operationCode = correctionTarget
       ? "notes.correct"
-      : note?.current_revision
+      : baseline.noteId
         ? "notes.revise"
         : "notes.create";
+    const fields = {
+      template_id: appliedTemplate.id,
+      template_version: appliedTemplate.version,
+      ...sections,
+      patient_instructions: patientInstructions,
+    };
+    const requestKey = noteSaveRequestKey(
+      saveAttemptRef.current?.requestKey ?? null,
+    );
+    const noteId = baseline.noteId;
+    const endpoint =
+      operationCode === "notes.create"
+        ? `/api/clinic/encounters/${encounterId}/notes`
+        : operationCode === "notes.correct"
+          ? `/api/clinic/notes/${noteId}/corrections`
+          : `/api/clinic/notes/${noteId}/revisions`;
     const attempt: NoteSaveAttempt = {
-      requestKey: noteSaveRequestKey(
-        saveAttemptRef.current?.requestKey ?? null,
-      ),
+      requestKey,
       operationCode,
-      noteId: note?.id ?? null,
+      noteId,
       expectedRevision: correctionTarget
         ? correctionTarget.revisionNo + 1
-        : note?.current_revision
-          ? note.current_revision.revision_no + 1
+        : baseline.revisionNo
+          ? baseline.revisionNo + 1
           : 1,
+      endpoint,
+      body: noteSaveRequestBody(
+        operationCode,
+        fields,
+        requestKey,
+        baseline.revisionNo ?? undefined,
+        correctionTarget
+          ? {
+              reason: correctionTarget.reason,
+              expectedRevisionId: correctionTarget.revisionId,
+              expectedRevision: correctionTarget.revisionNo,
+            }
+          : undefined,
+      ),
     };
     saveAttemptRef.current = attempt;
     setRequestKey(attempt.requestKey);
@@ -1553,58 +1976,38 @@ export function SoapNoteForm({
     setError("");
     setNotice("");
     setSaveState("saving");
-    const fields = {
-      template_id: appliedTemplate.id,
-      template_version: appliedTemplate.version,
-      ...sections,
-      patient_instructions: patientInstructions,
-    };
     try {
+      const snapshot = workingSnapshot(attempt);
+      if (!snapshot || !(await workingDraft.save(snapshot))) {
+        setSaveState("idle");
+        setError(
+          "The working note was not saved. The official save was stopped so this documentation remains recoverable.",
+        );
+        return;
+      }
       if (
         (attempt.operationCode === "notes.revise" ||
           attempt.operationCode === "notes.correct") &&
-        note?.current_revision
+        attempt.noteId
       ) {
-        await api<{ revision: { revision_no: number } }>(
-          attempt.operationCode === "notes.correct"
-            ? `/api/clinic/notes/${note.id}/corrections`
-            : `/api/clinic/notes/${note.id}/revisions`,
-          {
-            method: "POST",
-            body: noteSaveRequestBody(
-              attempt.operationCode,
-              fields,
-              attempt.requestKey,
-              note.current_revision.revision_no,
-              correctionTarget
-                ? {
-                    reason: correctionTarget.reason,
-                    expectedRevisionId: correctionTarget.revisionId,
-                    expectedRevision: correctionTarget.revisionNo,
-                  }
-                : undefined,
-            ),
-          },
-        );
+        await api<{ revision: { revision_no: number } }>(attempt.endpoint, {
+          method: "POST",
+          body: attempt.body,
+        });
       } else {
-        const result = await api<{ note: EncounterNote }>(
-          `/api/clinic/encounters/${encounterId}/notes`,
-          {
-            method: "POST",
-            body: noteSaveRequestBody(
-              attempt.operationCode,
-              fields,
-              attempt.requestKey,
-            ),
-          },
-        );
+        const result = await api<{ note: EncounterNote }>(attempt.endpoint, {
+          method: "POST",
+          body: attempt.body,
+        });
         attempt.noteId = result.note.id;
       }
       const reconciled = await reconcileNoteSave(attempt);
-      completeNoteSave(attempt, reconciled);
+      await completeNoteSave(attempt, reconciled);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       if (isUnknownNoteSaveError(caught)) {
@@ -1617,6 +2020,11 @@ export function SoapNoteForm({
         setError(
           caught instanceof Error ? caught.message : "The draft was rejected.",
         );
+        if (
+          caught instanceof ApiError &&
+          (caught.code === "stale_record" || caught.code === "already_exists")
+        )
+          onRefresh?.();
       }
     } finally {
       setBusy(false);
@@ -1702,10 +2110,11 @@ export function SoapNoteForm({
     }
   };
 
-  const completeNoteSave = (
+  const completeNoteSave = async (
     attempt: NoteSaveAttempt,
     reconciled: EncounterNote,
   ) => {
+    cancelPendingDraftSave();
     const body = reconciled.current_revision?.body;
     if (body) {
       setSections(body.sections);
@@ -1714,6 +2123,24 @@ export function SoapNoteForm({
         id: body.template_id,
         version: body.template_version,
       });
+      setBaseline({
+        noteId: reconciled.id,
+        revisionId: reconciled.current_revision?.id ?? null,
+        revisionNo: reconciled.current_revision?.revision_no ?? null,
+        sections: body.sections,
+        patientInstructions: body.patient_instructions ?? "",
+        template: {
+          id: body.template_id,
+          version: body.template_version,
+        },
+      });
+    }
+    if (!(await workingDraft.clear())) {
+      setSaveState("outcome_unconfirmed");
+      setError(
+        "The note was saved, but its recovery copy could not be cleared. Check the retained save status to finish reconciliation.",
+      );
+      return;
     }
     setSaveState("idle");
     setNotice(
@@ -1762,10 +2189,12 @@ export function SoapNoteForm({
         return;
       }
       const reconciled = await reconcileNoteSave(attempt);
-      completeNoteSave(attempt, reconciled);
+      await completeNoteSave(attempt, reconciled);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       if (caught instanceof ApiError && caught.status === 404) {
@@ -1791,13 +2220,68 @@ export function SoapNoteForm({
     }
   };
 
-  const resetSaveAttempt = () => {
+  const retryExactNoteSave = async () => {
+    const attempt = saveAttemptRef.current;
+    if (busy || !attempt || saveState !== "not_found") return;
+    cancelPendingDraftSave();
+    setBusy(true);
+    setError("");
+    setSaveState("saving");
+    try {
+      const snapshot = workingSnapshot(attempt);
+      if (!snapshot || !(await workingDraft.save(snapshot))) {
+        setSaveState("not_found");
+        setError(
+          "The exact save attempt could not be preserved. Reload the working note before retrying.",
+        );
+        return;
+      }
+      await api(attempt.endpoint, { method: "POST", body: attempt.body });
+      const reconciled = await reconcileNoteSave(attempt);
+      await completeNoteSave(attempt, reconciled);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
+        return;
+      }
+      setSaveState(
+        isUnknownNoteSaveError(caught) ? "outcome_unconfirmed" : "rejected",
+      );
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The exact note save could not be reconciled.",
+      );
+      if (
+        caught instanceof ApiError &&
+        (caught.code === "stale_record" || caught.code === "already_exists")
+      )
+        onRefresh?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetSaveAttempt = async () => {
     if (busy || !saveAttemptRef.current) return;
+    cancelPendingDraftSave();
     setResetConfirmation(false);
+    setBusy(true);
+    const snapshot = workingSnapshot(null);
+    if (!snapshot || !(await workingDraft.save(snapshot))) {
+      setBusy(false);
+      setError(
+        "The pending save identity could not be cleared from the protected working note.",
+      );
+      return;
+    }
     saveAttemptRef.current = null;
     setRequestKey(null);
     setSaveState("idle");
     setError("");
+    setBusy(false);
   };
 
   const startCorrection = () => {
@@ -1821,6 +2305,79 @@ export function SoapNoteForm({
     );
   };
 
+  const incomingBody = incomingNote?.current_revision?.body;
+  const useIncomingRevision = async () => {
+    if (!incomingNote?.current_revision || !incomingBody || busy) return;
+    cancelPendingDraftSave();
+    setBusy(true);
+    if (!(await workingDraft.clear())) {
+      setBusy(false);
+      setError(
+        "The preserved working note could not be cleared. Keep this copy open and try again.",
+      );
+      return;
+    }
+    const next: SoapEditorBaseline = {
+      noteId: incomingNote.id,
+      revisionId: incomingNote.current_revision.id,
+      revisionNo: incomingNote.current_revision.revision_no,
+      sections: incomingBody.sections,
+      patientInstructions: incomingBody.patient_instructions ?? "",
+      template: {
+        id: incomingBody.template_id,
+        version: incomingBody.template_version,
+      },
+    };
+    saveAttemptRef.current = null;
+    setRequestKey(null);
+    setSaveState("idle");
+    setBaseline(next);
+    setSections(next.sections);
+    setPatientInstructions(next.patientInstructions);
+    setAppliedTemplate(next.template);
+    setCorrectionTarget(null);
+    setIncomingNote(null);
+    setConflictDialogOpen(false);
+    setError("");
+    setNotice(`Loaded saved revision ${next.revisionNo}.`);
+    setBusy(false);
+  };
+
+  const rebaseOntoIncomingRevision = () => {
+    if (
+      !incomingNote?.current_revision ||
+      !incomingBody ||
+      incomingNote.current_revision.signed
+    )
+      return;
+    cancelPendingDraftSave();
+    saveAttemptRef.current = null;
+    setRequestKey(null);
+    setSaveState("idle");
+    setBaseline({
+      noteId: incomingNote.id,
+      revisionId: incomingNote.current_revision.id,
+      revisionNo: incomingNote.current_revision.revision_no,
+      sections: incomingBody.sections,
+      patientInstructions: incomingBody.patient_instructions ?? "",
+      template: {
+        id: incomingBody.template_id,
+        version: incomingBody.template_version,
+      },
+    });
+    setAppliedTemplate({
+      id: incomingBody.template_id,
+      version: incomingBody.template_version,
+    });
+    setCorrectionTarget(null);
+    setIncomingNote(null);
+    setConflictDialogOpen(false);
+    setError("");
+    setNotice(
+      `Your preserved text is now based on saved revision ${incomingNote.current_revision.revision_no}. Review it before saving.`,
+    );
+  };
+
   return (
     <Box className="soap-workspace">
       {note && savedBody && (
@@ -1830,6 +2387,20 @@ export function SoapNoteForm({
             : correctionTarget
               ? `Correction in progress for signed revision ${correctionTarget.revisionNo}. Save creates an unsigned correction that must be reviewed and signed separately.`
               : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
+        </Alert>
+      )}
+      {incomingNote && (
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" onClick={() => setConflictDialogOpen(true)}>
+              Review versions
+            </Button>
+          }
+        >
+          Saved revision {incomingNote.current_revision?.revision_no} changed
+          while this working note was open. Your text is preserved and official
+          save is blocked until you review both versions.
         </Alert>
       )}
       {note?.revisions.length ? (
@@ -1927,6 +2498,11 @@ export function SoapNoteForm({
         </Alert>
       )}
       {error && <ErrorMessage message={error} />}
+      {workingDraft.status === "loading" && canWrite && (
+        <Typography variant="caption" role="status" color="text.secondary">
+          Recovering protected working note…
+        </Typography>
+      )}
       <Box role="status" aria-live="polite" aria-atomic="true">
         {saveState === "saving"
           ? "Saving unsigned draft…"
@@ -1934,6 +2510,42 @@ export function SoapNoteForm({
             ? "Verifying the protected receipt, note, and encounter…"
             : notice}
       </Box>
+      {workingDraft.status === "saving" && (
+        <Typography variant="caption" role="status" color="text.secondary">
+          Saving protected working note…
+        </Typography>
+      )}
+      {workingDraft.status === "saved" && dirty && (
+        <Typography variant="caption" role="status" color="text.secondary">
+          Working note saved for refresh recovery.
+        </Typography>
+      )}
+      {(workingDraft.status === "error" ||
+        workingDraft.status === "conflict") && (
+        <Alert
+          severity="warning"
+          action={
+            workingDraft.status === "error" ? (
+              <Button color="inherit" onClick={() => void retryWorkingDraft()}>
+                Retry saving current note
+              </Button>
+            ) : saveAttemptRef.current ? undefined : (
+              <Button
+                color="inherit"
+                onClick={() => setReplaceWorkingCopy(true)}
+              >
+                Load saved copy
+              </Button>
+            )
+          }
+        >
+          {workingDraft.error ||
+            "The protected working note could not be saved."}
+          {workingDraft.status === "conflict" && saveAttemptRef.current
+            ? " Reconcile the exact submitted request before replacing this copy."
+            : null}
+        </Alert>
+      )}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         {(!signed || correctionTarget) && (
           <Button
@@ -1941,9 +2553,11 @@ export function SoapNoteForm({
             onClick={() => void save()}
             disabled={
               busy ||
+              !workingDraft.ready ||
               !canWrite ||
               (!dirty && !correctionTarget) ||
               !noteSaveAllowsMutation(saveState) ||
+              Boolean(incomingNote) ||
               !appliedTemplate ||
               !hasSoapContent(sections)
             }
@@ -1982,6 +2596,11 @@ export function SoapNoteForm({
             Reset save attempt
           </Button>
         )}
+        {requestKey && saveState === "not_found" && !busy && (
+          <Button variant="outlined" onClick={() => void retryExactNoteSave()}>
+            Retry exact save
+          </Button>
+        )}
         {note && patientId && canSign && (
           <EncounterNoteSigning
             note={note}
@@ -1996,6 +2615,7 @@ export function SoapNoteForm({
               Boolean(saveAttemptRef.current)
             }
             onSigned={() => onRefresh?.()}
+            onRefresh={onRefresh}
           />
         )}
       </Stack>
@@ -2014,8 +2634,98 @@ export function SoapNoteForm({
           <Button onClick={() => setResetConfirmation(false)} disabled={busy}>
             Go back
           </Button>
-          <Button onClick={resetSaveAttempt} disabled={busy}>
+          <Button onClick={() => void resetSaveAttempt()} disabled={busy}>
             Reset attempt
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={replaceWorkingCopy}
+        onClose={() => setReplaceWorkingCopy(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Replace this working note?</DialogTitle>
+        <DialogContent>
+          Loading the server copy replaces newer note edits currently held in
+          this window. Continue only after confirming those local edits are no
+          longer needed.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReplaceWorkingCopy(false)}>
+            Keep local note
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={reloadWorkingDraft}
+          >
+            Replace with saved copy
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={conflictDialogOpen && Boolean(incomingNote)}
+        onClose={() => !busy && setConflictDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Review saved and preserved note versions</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="warning">
+              Your working text remains preserved. Choosing the saved revision
+              discards it. Rebasing keeps your text but makes the displayed
+              saved revision its new editing base.
+            </Alert>
+            <Typography variant="subtitle2">
+              Saved revision {incomingNote?.current_revision?.revision_no}
+            </Typography>
+            {SOAP_SECTION_LABELS.map(([key, label]) => (
+              <Box key={key}>
+                <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                  {incomingBody?.sections[key] || "Not recorded"}
+                </Typography>
+              </Box>
+            ))}
+            <Divider />
+            <Typography variant="subtitle2">
+              Your preserved working text
+            </Typography>
+            {SOAP_SECTION_LABELS.map(([key, label]) => (
+              <Box key={key}>
+                <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                  {sections[key] || "Not recorded"}
+                </Typography>
+              </Box>
+            ))}
+            {incomingNote?.current_revision?.signed && (
+              <Alert severity="info">
+                The newer revision is signed. Load it, then start a correction
+                if further documentation is required.
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConflictDialogOpen(false)} disabled={busy}>
+            Keep reviewing
+          </Button>
+          <Button
+            onClick={rebaseOntoIncomingRevision}
+            disabled={busy || incomingNote?.current_revision?.signed === true}
+          >
+            Keep my text and rebase
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => void useIncomingRevision()}
+            disabled={busy}
+          >
+            Use saved revision
           </Button>
         </DialogActions>
       </Dialog>
@@ -2126,6 +2836,15 @@ function ExistingSoapNote({
     `/api/clinic/notes/${noteId}`,
   );
   if (!resource.data) return <LoadState error={resource.error} />;
+  if (
+    resource.data.note.id !== noteId ||
+    resource.data.note.patient_id !== patientId ||
+    resource.data.note.encounter_id !== encounterId ||
+    resource.data.note.note_kind !== "soap"
+  )
+    return (
+      <ErrorMessage message="The loaded note did not match this patient and encounter." />
+    );
   if (!resource.data.note.current_revision?.body)
     return (
       <ErrorMessage message="This SOAP note does not contain a supported draft payload." />
@@ -2190,6 +2909,7 @@ function SoapNoteWorkspace({
       templates={templates.data.templates}
       canWrite
       onCreated={setCreated}
+      onRefresh={onChanged}
     />
   ) : (
     <div className="care-blocked">
@@ -2720,7 +3440,9 @@ function VisitWrapUp({
 
   const redirectIfUnauthorized = (caught: unknown) => {
     if (caught instanceof ApiError && caught.status === 401) {
-      window.location.replace("/login");
+      window.location.replace(
+        `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+      );
       return true;
     }
     return false;
@@ -2916,6 +3638,7 @@ function VisitWrapUp({
             )}
         </Stack>
       </Stack>
+      <EncounterFollowUpPanel patient={patient} encounter={current} timezone={timezone} />
       <Dialog
         open={confirmation !== null}
         onClose={() => !busy && setConfirmation(null)}

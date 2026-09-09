@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Alert,
   Box,
@@ -9,7 +15,13 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
-import { api, ApiError, loginDestination } from "../../api/client";
+import {
+  api,
+  ApiError,
+  currentLoginDestination,
+  SESSION_CHANGED_EVENT,
+  setApiActor,
+} from "../../api/client";
 
 type SessionPolicy = {
   idle_expires_at: string;
@@ -18,7 +30,13 @@ type SessionPolicy = {
   server_time: string;
 };
 
-export function SessionGuard({ children }: { children: ReactNode }) {
+export function SessionGuard({
+  children,
+  expectedUserId,
+}: {
+  children: ReactNode;
+  expectedUserId?: number;
+}) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [expired, setExpired] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +46,10 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   const acknowledgedActivity = useRef(0);
   const requestActive = useRef(false);
   const alive = useRef(true);
+  useLayoutEffect(() => {
+    setApiActor(expectedUserId);
+    return () => setApiActor(undefined);
+  }, [expectedUserId]);
 
   const accept = (policy: SessionPolicy | undefined) => {
     if (!alive.current) return;
@@ -50,11 +72,18 @@ export function SessionGuard({ children }: { children: ReactNode }) {
     const activity = lastActivity.current;
     if (extend) setBusy(true);
     try {
-      const response = await api<{ session_policy?: SessionPolicy }>(
-        "/api/session",
-        { method: extend ? "PATCH" : "GET" },
-      );
+      const response = await api<{
+        session_policy?: SessionPolicy;
+        user?: { id: number };
+      }>("/api/session", { method: extend ? "PATCH" : "GET" });
       if (!alive.current) return;
+      if (
+        expectedUserId !== undefined &&
+        response.user?.id !== expectedUserId
+      ) {
+        setExpired(true);
+        return;
+      }
       accept(response.session_policy);
       if (extend) acknowledgedActivity.current = activity;
       setError("");
@@ -102,18 +131,21 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       void check(false);
     };
     window.addEventListener("focus", focus);
+    const lock = () => setExpired(true);
+    window.addEventListener(SESSION_CHANGED_EVENT, lock);
     return () => {
       alive.current = false;
       window.clearInterval(timer);
       window.clearInterval(heartbeat);
       window.removeEventListener("focus", focus);
+      window.removeEventListener(SESSION_CHANGED_EVENT, lock);
       events.forEach((event) => window.removeEventListener(event, activity));
     };
-  }, []);
+  }, [expectedUserId]);
 
   const signIn = () =>
     window.location.replace(
-      `/login?next=${encodeURIComponent(loginDestination(window.location.pathname))}`,
+      `/login?next=${encodeURIComponent(currentLoginDestination())}`,
     );
   if (expired)
     return (

@@ -103,6 +103,7 @@ module Clinic
               instruction_note: revision.note, instruction_note_signature: signature,
               **snapshot_attributes(snapshot), finalized_by_membership_id: membership.id,
               updated_by_membership_id: membership.id, finalized_at: Current.business_time)
+            Clinic::Operations::EncounterFollowUps.sync_from_wrap_up!(wrap_up: wrap_up, actor: actor)
             visit.touch
             audit!(visit, actor, wrap_up, "finalize")
             wrap_up

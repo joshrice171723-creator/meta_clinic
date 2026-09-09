@@ -20,6 +20,7 @@ import type { Observation } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { useClinicNavigation } from "./clinicNavigation";
+import { useWorkingDraft } from "./useWorkingDraft";
 
 type VitalField = {
   code: string;
@@ -47,6 +48,41 @@ type Attempt = {
   };
 };
 
+type VitalWorkingDraft = {
+  schema_version: 1;
+  patient_id: number;
+  encounter_id: number;
+  values: Record<string, string>;
+  units: Record<string, string>;
+  observed_at: string;
+  reviewing: boolean;
+  pending_attempt: Attempt | null;
+};
+
+function validVitalWorkingDraft(
+  value: VitalWorkingDraft,
+  patientId: number,
+  encounterId: number,
+) {
+  const pending = value.pending_attempt?.body?.vital_signs;
+  return (
+    value.schema_version === 1 &&
+    value.patient_id === patientId &&
+    value.encounter_id === encounterId &&
+    value.values !== null &&
+    typeof value.values === "object" &&
+    value.units !== null &&
+    typeof value.units === "object" &&
+    typeof value.observed_at === "string" &&
+    (!pending ||
+      (typeof pending.request_key === "string" &&
+        typeof pending.dictionary_version === "string" &&
+        typeof pending.observed_at === "string" &&
+        pending.confirmed_patient === true &&
+        Array.isArray(pending.readings)))
+  );
+}
+
 function localDateTime(value = businessNow()) {
   const local = new Date(value.valueOf() - value.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
@@ -68,6 +104,52 @@ export function isLatestVitalLoad(
   return currentSequence === requestSequence;
 }
 
+function normalizedDecimal(value: string | null | undefined) {
+  const match = value?.match(/^([+-]?)(\d+)(?:\.(\d+))?$/);
+  if (!match) return null;
+  const integer = match[2].replace(/^0+(?=\d)/, "");
+  const fraction = (match[3] ?? "").replace(/0+$/, "");
+  const sign =
+    match[1] === "-" && `${integer}${fraction}`.replace(/0/g, "") ? "-" : "";
+  return `${sign}${integer}${fraction ? `.${fraction}` : ""}`;
+}
+
+export function vitalSignsResponseMatches(
+  observations: Observation[],
+  patientId: number,
+  encounterId: number,
+  attempt: Attempt,
+) {
+  const request = attempt.body.vital_signs;
+  if (
+    observations.length === 0 ||
+    observations.some(
+      (observation) =>
+        observation.patient_id !== patientId ||
+        observation.encounter_id !== encounterId ||
+        observation.code_system !== "urn:apply:vital-signs" ||
+        observation.code_version !== request.dictionary_version,
+    ) ||
+    !observations.some(
+      (observation) =>
+        observation.code === "vital-signs" &&
+        observation.value_kind === "group",
+    )
+  )
+    return false;
+
+  return request.readings.every((reading) =>
+    observations.some(
+      (observation) =>
+        observation.code === reading.code &&
+        observation.value_kind === "numeric" &&
+        observation.unit_code === reading.unit_code &&
+        normalizedDecimal(observation.numeric_value) ===
+          normalizedDecimal(reading.value),
+    ),
+  );
+}
+
 export function VitalSignsEntry({
   patientId,
   patientName,
@@ -80,6 +162,11 @@ export function VitalSignsEntry({
   onRecorded: (observations: Observation[]) => void;
 }) {
   const { registerBlocker } = useClinicNavigation();
+  const workingDraft = useWorkingDraft<VitalWorkingDraft>({
+    kind: "vitals",
+    patientId,
+    encounterId,
+  });
   const [open, setOpen] = useState(false);
   const [definitions, setDefinitions] = useState<VitalDefinitions | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,8 +178,12 @@ export function VitalSignsEntry({
   const [busy, setBusy] = useState(false);
   const [outcomeUnknown, setOutcomeUnknown] = useState(false);
   const [error, setError] = useState("");
+  const [replaceWorkingCopy, setReplaceWorkingCopy] = useState(false);
   const attempt = useRef<Attempt | null>(null);
   const loadSequence = useRef(0);
+  const restored = useRef(false);
+  const skipNextAutosave = useRef(false);
+  const draftSaveTimer = useRef<number | null>(null);
 
   const endpoint = `/api/clinic/patients/${patientId}/encounters/${encounterId}/vital_signs`;
   const readings = useMemo(() => {
@@ -119,6 +210,92 @@ export function VitalSignsEntry({
     Object.values(values).some((value) => value.trim()) ||
     Object.values(units).some(Boolean);
   const blocked = open && (hasDraft || outcomeUnknown);
+  const draftReady = workingDraft.ready;
+
+  const workingSnapshot = (
+    pendingAttempt = attempt.current,
+  ): VitalWorkingDraft => ({
+    schema_version: 1,
+    patient_id: patientId,
+    encounter_id: encounterId,
+    values,
+    units,
+    observed_at: observedAt,
+    reviewing,
+    pending_attempt: pendingAttempt,
+  });
+
+  const cancelPendingDraftSave = () => {
+    if (draftSaveTimer.current !== null) {
+      window.clearTimeout(draftSaveTimer.current);
+      draftSaveTimer.current = null;
+    }
+  };
+
+  const reloadWorkingDraft = () => {
+    cancelPendingDraftSave();
+    setReplaceWorkingCopy(false);
+    restored.current = false;
+    workingDraft.reload();
+  };
+
+  const retryWorkingDraft = async () => {
+    cancelPendingDraftSave();
+    if (!(await workingDraft.save(workingSnapshot())))
+      setError(
+        "The current working entry is still only in this window. Keep it open and retry when the connection is available.",
+      );
+  };
+
+  useEffect(() => {
+    if (!workingDraft.ready || restored.current) return;
+    restored.current = true;
+    const saved = workingDraft.restored;
+    if (!saved) return;
+    if (!validVitalWorkingDraft(saved, patientId, encounterId)) {
+      setError(
+        "The protected working entry did not match this patient and encounter and was not loaded.",
+      );
+      return;
+    }
+    skipNextAutosave.current = true;
+    setValues(saved.values ?? {});
+    setUnits(saved.units ?? {});
+    setObservedAt(saved.observed_at ?? "");
+    setReviewing(saved.reviewing === true);
+    attempt.current = saved.pending_attempt ?? null;
+    if (saved.pending_attempt) {
+      setConfirmedPatient(true);
+      setOutcomeUnknown(true);
+      setError(
+        "A submitted vital-sign request was restored. Retry the exact request to reconcile its saved outcome.",
+      );
+    }
+  }, [encounterId, patientId, workingDraft.ready, workingDraft.restored]);
+
+  useEffect(() => {
+    if (busy || !workingDraft.ready || !restored.current) return;
+    if (skipNextAutosave.current) {
+      skipNextAutosave.current = false;
+      return;
+    }
+    if (!hasDraft && !attempt.current) return;
+    cancelPendingDraftSave();
+    draftSaveTimer.current = window.setTimeout(() => {
+      draftSaveTimer.current = null;
+      void workingDraft.save(workingSnapshot());
+    }, 650);
+    return cancelPendingDraftSave;
+  }, [
+    busy,
+    confirmedPatient,
+    hasDraft,
+    observedAt,
+    reviewing,
+    units,
+    values,
+    workingDraft.ready,
+  ]);
 
   useEffect(() => {
     if (!blocked) return;
@@ -177,7 +354,6 @@ export function VitalSignsEntry({
     }
   };
   const openDialog = () => {
-    reset();
     setOpen(true);
     void load();
   };
@@ -190,8 +366,18 @@ export function VitalSignsEntry({
     setOpen(false);
     reset();
   };
-  const discard = () => {
+  const discard = async () => {
     if (busy || outcomeUnknown) return;
+    cancelPendingDraftSave();
+    setBusy(true);
+    const cleared = await workingDraft.clear();
+    setBusy(false);
+    if (!cleared) {
+      setError(
+        "The saved working entry could not be cleared. Try again before closing.",
+      );
+      return;
+    }
     reset();
     setOpen(false);
   };
@@ -230,6 +416,7 @@ export function VitalSignsEntry({
   };
   const save = async () => {
     if (busy) return;
+    cancelPendingDraftSave();
     const message = validate();
     if (!confirmedPatient) {
       setError(
@@ -258,11 +445,37 @@ export function VitalSignsEntry({
     setBusy(true);
     setError("");
     try {
+      const durable = await workingDraft.save(workingSnapshot(current));
+      if (!durable) {
+        setError(
+          "The working entry was not saved. Recording was stopped so these measurements are not lost on refresh.",
+        );
+        return;
+      }
       const result = await api<{ observations: Observation[] }>(endpoint, {
         method: "POST",
         body: current.body,
       });
+      if (
+        !vitalSignsResponseMatches(
+          result.observations,
+          patientId,
+          encounterId,
+          current,
+        )
+      )
+        throw new Error(
+          "The recorded vital-sign response did not match this patient, encounter, and exact entry.",
+        );
       onRecorded(result.observations);
+      const cleared = await workingDraft.clear();
+      if (!cleared) {
+        setOutcomeUnknown(true);
+        setError(
+          "Vital signs were recorded, but the recovery copy could not be cleared. Retry the exact request to finish reconciling it.",
+        );
+        return;
+      }
       setOpen(false);
       reset();
     } catch (reason) {
@@ -321,6 +534,50 @@ export function VitalSignsEntry({
               </Typography>
             )}
             {error && <Alert severity="error">{error}</Alert>}
+            {workingDraft.status === "saving" && (
+              <Typography role="status" color="text.secondary">
+                Saving working entry…
+              </Typography>
+            )}
+            {workingDraft.status === "loading" && (
+              <Typography role="status" color="text.secondary">
+                Recovering protected working entry…
+              </Typography>
+            )}
+            {workingDraft.status === "saved" && !outcomeUnknown && (
+              <Typography role="status" color="text.secondary">
+                Working entry saved.
+              </Typography>
+            )}
+            {(workingDraft.status === "error" ||
+              workingDraft.status === "conflict") && (
+              <Alert
+                severity="warning"
+                action={
+                  workingDraft.status === "error" ? (
+                    <Button
+                      color="inherit"
+                      onClick={() => void retryWorkingDraft()}
+                    >
+                      Retry saving current entry
+                    </Button>
+                  ) : attempt.current ? undefined : (
+                    <Button
+                      color="inherit"
+                      onClick={() => setReplaceWorkingCopy(true)}
+                    >
+                      Load saved entry
+                    </Button>
+                  )
+                }
+              >
+                {workingDraft.error ||
+                  "The working entry could not be saved. Reload it before recording."}
+                {workingDraft.status === "conflict" && attempt.current
+                  ? " Reconcile the exact submitted request before replacing this copy."
+                  : ""}
+              </Alert>
+            )}
             {definitions && !definitions.can_write && (
               <Alert severity="info">
                 Vital signs cannot be recorded for this encounter.
@@ -361,7 +618,10 @@ export function VitalSignsEntry({
                         }}
                         fullWidth
                         disabled={
-                          !definitions.can_write || busy || outcomeUnknown
+                          !definitions.can_write ||
+                          busy ||
+                          outcomeUnknown ||
+                          !draftReady
                         }
                       />
                       <TextField
@@ -379,7 +639,8 @@ export function VitalSignsEntry({
                           !definitions.can_write ||
                           field.units.length === 1 ||
                           busy ||
-                          outcomeUnknown
+                          outcomeUnknown ||
+                          !draftReady
                         }
                       >
                         {field.units.length !== 1 && (
@@ -400,14 +661,24 @@ export function VitalSignsEntry({
                   value={observedAt}
                   onChange={(event) => setObservedAt(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
-                  disabled={!definitions.can_write || busy || outcomeUnknown}
+                  disabled={
+                    !definitions.can_write ||
+                    busy ||
+                    outcomeUnknown ||
+                    !draftReady
+                  }
                   helperText="Use this device's local time."
                   fullWidth
                 />
                 <Button
                   size="small"
                   sx={{ alignSelf: "flex-start" }}
-                  disabled={!definitions.can_write || busy || outcomeUnknown}
+                  disabled={
+                    !definitions.can_write ||
+                    busy ||
+                    outcomeUnknown ||
+                    !draftReady
+                  }
                   onClick={() => setObservedAt(localDateTime())}
                 >
                   Use current time
@@ -457,7 +728,10 @@ export function VitalSignsEntry({
                         setConfirmedPatient(event.target.checked)
                       }
                       disabled={
-                        !definitions.can_write || busy || outcomeUnknown
+                        !definitions.can_write ||
+                        busy ||
+                        outcomeUnknown ||
+                        !draftReady
                       }
                     />
                   }
@@ -472,7 +746,7 @@ export function VitalSignsEntry({
             Close
           </Button>
           {hasDraft && !busy && !outcomeUnknown && (
-            <Button color="error" onClick={discard}>
+            <Button color="error" onClick={() => void discard()}>
               Discard entry
             </Button>
           )}
@@ -484,7 +758,11 @@ export function VitalSignsEntry({
           {definitions?.can_write &&
             definitions.fields.length > 0 &&
             !reviewing && (
-              <Button variant="contained" disabled={busy} onClick={startReview}>
+              <Button
+                variant="contained"
+                disabled={busy || !draftReady}
+                onClick={startReview}
+              >
                 Review measurements
               </Button>
             )}
@@ -494,7 +772,7 @@ export function VitalSignsEntry({
               <>
                 {!outcomeUnknown && (
                   <Button
-                    disabled={busy}
+                    disabled={busy || !draftReady}
                     onClick={() => {
                       setConfirmedPatient(false);
                       setReviewing(false);
@@ -505,7 +783,11 @@ export function VitalSignsEntry({
                 )}
                 <Button
                   variant="contained"
-                  disabled={busy || (!confirmedPatient && !outcomeUnknown)}
+                  disabled={
+                    busy ||
+                    !draftReady ||
+                    (!confirmedPatient && !outcomeUnknown)
+                  }
                   onClick={() => void save()}
                 >
                   {busy
@@ -516,6 +798,33 @@ export function VitalSignsEntry({
                 </Button>
               </>
             )}
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={replaceWorkingCopy}
+        onClose={() => setReplaceWorkingCopy(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Replace this working entry?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Loading the server copy replaces the measurements currently in this
+            window. Continue only after confirming those local values are no
+            longer needed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReplaceWorkingCopy(false)}>
+            Keep local entry
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={reloadWorkingDraft}
+          >
+            Replace with saved entry
+          </Button>
         </DialogActions>
       </Dialog>
     </>
