@@ -8,7 +8,7 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parent
-REPO = 'Fibrodysplasia/APPly'
+REPO = 'joshrice171723-creator/meta_clinic'
 
 
 def run(args, payload=None, missing_ok=False):

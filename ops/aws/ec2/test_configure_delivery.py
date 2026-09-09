@@ -56,7 +56,7 @@ class ConfigureDeliveryTest(unittest.TestCase):
     def test_repository_endpoint_has_no_trailing_slash(self):
         with patch.object(configure, 'run', return_value={}) as run:
             configure.github('')
-            self.assertEqual('repos/Fibrodysplasia/APPly', run.call_args.args[0][-1])
+            self.assertEqual('repos/joshrice171723-creator/meta_clinic', run.call_args.args[0][-1])
 
     def test_immutable_default_does_not_require_explicit_opt_in(self):
         oidc = {"use_default": True, "use_immutable_subject": False,
