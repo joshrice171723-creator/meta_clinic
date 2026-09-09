@@ -261,6 +261,7 @@ The live browser exposed defects which a build alone did not catch:
 2. Successful registration attempted navigation before its dirty-state blocker was removed. `5fa2a61` clears that state synchronously and resets the consumed form/operation before the success callback.
 3. Cash collection initially retained the pending identity only in module memory. `d96544f` connects it to the encrypted cash-payment recovery scope.
 4. A failed cash request exposed an invoice-resolution refresh loop. `31f6f34` keeps the invoice identity stable while loading, routes recovery once per attempt and prevents cleared recovered payloads from being restored again.
+5. Final follow-up integration exposed a retry-contract gap: retaining only a key allowed a retry to rebuild its body or version from changed state. `453f6c5` retains the exact pending endpoint/method/body/version, locks its fields, and supplies status reconciliation plus local-copy recovery controls. The final TypeScript/Vite build passed after this correction and the cash-loop repair.
 
 ### Browser journey evidence
 
