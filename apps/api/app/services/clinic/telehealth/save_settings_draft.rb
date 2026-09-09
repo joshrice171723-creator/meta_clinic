@@ -107,14 +107,36 @@ module Clinic
         VisitTypeRule.where(practice_id: practice.id).find_each do |existing|
           existing.update!(enabled: false, updated_by_membership_id: membership.id) unless supplied.include?([ existing.visit_type_id, existing.site_id ])
         end
+        visit_type_ids = rules.pluck(:visit_type_id).uniq
+        site_ids = rules.pluck(:site_id).compact.uniq
+        visit_types_by_id, sites_by_id = validate_rule_resources!(practice, visit_type_ids, site_ids)
+        existing_by_rule = VisitTypeRule.where(practice_id: practice.id, visit_type_id: visit_type_ids)
+          .index_by { |record| [ record.visit_type_id, record.site_id ] }
+
         rules.each do |rule|
-          practice.visit_types.find(rule[:visit_type_id])
-          practice.sites.find(rule[:site_id]) if rule[:site_id]
-          record = VisitTypeRule.find_or_initialize_by(practice_id: practice.id, visit_type_id: rule[:visit_type_id], site_id: rule[:site_id])
+          key = [ rule[:visit_type_id], rule[:site_id] ]
+          record = existing_by_rule[key] || VisitTypeRule.new(practice_id: practice.id,
+            visit_type_id: rule[:visit_type_id], site_id: rule[:site_id])
           record.assign_attributes(rule.merge(updated_by_membership_id: membership.id))
+          record.visit_type = visit_types_by_id.fetch(rule[:visit_type_id])
+          record.site = sites_by_id[rule[:site_id]]
           record.save!
+          existing_by_rule[key] = record
         end
       end
+
+      def validate_rule_resources!(practice, visit_type_ids, site_ids)
+        visit_types_by_id = practice.visit_types.where(id: visit_type_ids).index_by(&:id)
+        if visit_types_by_id.length != visit_type_ids.length
+          raise ActiveRecord::RecordNotFound
+        end
+
+        sites_by_id = practice.sites.where(id: site_ids).index_by(&:id)
+        raise ActiveRecord::RecordNotFound unless sites_by_id.length == site_ids.length
+
+        [ visit_types_by_id, sites_by_id ]
+      end
+      private_class_method :validate_rule_resources!
 
       def enabled_value(value)
         ActiveModel::Type::Boolean.new.cast(value)

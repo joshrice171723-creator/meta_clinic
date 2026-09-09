@@ -353,6 +353,31 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, TEST_API_KEY
   end
 
+  test "settings draft batches visit type and site rule lookups" do
+    visit_types = [ @visit_type ] + 2.times.map do |index|
+      @practice.visit_types.create!(code: "VIDEO-BATCH-#{index}")
+    end
+    rules = visit_types.each_with_index.map do |visit_type, index|
+      { visit_type_id: visit_type.id, site_id: index.even? ? @site.id : @other_site.id, enabled: true,
+        allowed_region_codes: [ "TX" ] }
+    end
+    rule_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { rule_queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        Clinic::Telehealth::SaveSettingsDraft.call(practice: @practice, actor: @staff,
+          request_key: "telehealth-settings-rule-batch", expected_version: @setting.lock_version,
+          settings: { provider_account_ref: TEST_ACCOUNT_REF, enabled: true }, policy: policy_payload,
+          visit_type_rules: rules)
+      end
+    end
+
+    assert_equal rules.length, Clinic::Telehealth::VisitTypeRule.where(practice: @practice, enabled: true).count
+    assert_equal 1, rule_queries.count { |sql| sql.match?(/FROM "clinic_visit_types"/i) }, rule_queries.join("\n")
+    assert_equal 1, rule_queries.count { |sql| sql.match?(/FROM "clinic_sites"/i) }, rule_queries.join("\n")
+  end
+
   test "legacy appointment requests without modality remain reviewable without rewriting their history" do
     request = Clinic::PatientPortal::AppointmentRequest.create!(practice: @practice,
       patient: @patient, identity: @identity, request_key: "legacy-request-without-modality",
