@@ -54,11 +54,16 @@ function patientFacingTerms(terms: PackageTerms): PackageTerms {
   const displayComponent = (component: PackageTerms["components"][number]) => ({
     ...component,
     name: patientPortalLabel(component.name) || "Included service",
+    description: patientPortalLabel(component.description),
+    group: patientPortalLabel(component.group),
   });
   return {
     ...terms,
     family_name: patientPortalLabel(terms.family_name) || "Membership",
     package_name: patientPortalLabel(terms.package_name) || "Selected plan",
+    tier: patientPortalLabel(terms.tier),
+    description: patientPortalLabel(terms.description),
+    terms: patientPortalLabel(terms.terms),
     components: terms.components.map(displayComponent),
     selected_components: terms.selected_components?.map(displayComponent),
   };

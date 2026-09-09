@@ -113,7 +113,7 @@ const terms: PackageTerms = {
 };
 
 describe("subscription purchase presentation", () => {
-  it("renders published program and tier copy verbatim including service descriptions and terms", () => {
+  it("projects published catalog copy without internal fixture markers", () => {
     const published = {
       ...terms,
       package_name: "A custom tier",
@@ -135,8 +135,8 @@ describe("subscription purchase presentation", () => {
             number: 2,
             program: {
               id: 1,
-              name: "Clinic-authored program",
-              description: "Program introduction",
+              name: "Fixture Clinic-authored program",
+              description: "Synthetic Program introduction",
               display_order: 9,
             },
             terms: published,
@@ -151,7 +151,7 @@ describe("subscription purchase presentation", () => {
       "Clinic-authored program",
       "Program introduction",
       "A custom tier",
-      "synthetic materials explained by the clinic",
+      "materials explained by the clinic",
       "exact service",
       service.description,
       "lowercase terms",
@@ -160,6 +160,9 @@ describe("subscription purchase presentation", () => {
       "renew manually",
     ])
       expect(html).toContain(value);
+    expect(html).not.toContain("synthetic");
+    expect(html).not.toContain("Fixture");
+    expect(html).not.toContain("Dev seed");
     expect(html).not.toContain("Dev seed exact service");
     expect(html).not.toContain("no automatic renewal");
   });
@@ -238,6 +241,9 @@ describe("subscription purchase presentation", () => {
     );
     expect(patientPortalLabel("SYN_Mercer, Alex")).toBe("Mercer, Alex");
     expect(patientPortalLabel("SYN-BASE-001")).toBe("BASE-001");
+    expect(patientPortalLabel("Fixture annual membership")).toBe(
+      "annual membership",
+    );
     expect(terms.family_name).toBe("Any family");
   });
   it("suppresses internal synthetic patient references", () => {

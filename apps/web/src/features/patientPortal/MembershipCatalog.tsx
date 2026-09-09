@@ -9,9 +9,14 @@ function patientFacingTerms(terms: PublishedPackage["terms"]) {
     ...terms,
     family_name: patientPortalLabel(terms.family_name) || "Membership",
     package_name: patientPortalLabel(terms.package_name) || "Selected plan",
+    tier: patientPortalLabel(terms.tier),
+    description: patientPortalLabel(terms.description),
+    terms: patientPortalLabel(terms.terms),
     components: terms.components.map((component) => ({
       ...component,
       name: patientPortalLabel(component.name) || "Included service",
+      description: patientPortalLabel(component.description),
+      group: patientPortalLabel(component.group),
     })),
   };
 }
@@ -44,7 +49,11 @@ export function MembershipCatalog({
         },
       ]),
     ).values(),
-  ];
+  ].map((program) => ({
+    ...program,
+    name: patientPortalLabel(program.name) || "Membership program",
+    description: patientPortalLabel(program.description),
+  }));
   const activeFamily = families.some((program) => program.id === familyId)
     ? familyId
     : families[0]?.id;
@@ -118,7 +127,7 @@ export function MembershipCatalog({
             id={`program-${id}`}
             aria-controls={`program-panel-${id}`}
             value={id}
-            label={patientPortalLabel(name) || "Membership program"}
+            label={name}
           />
         ))}
       </Tabs>
