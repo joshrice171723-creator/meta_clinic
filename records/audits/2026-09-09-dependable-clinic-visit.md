@@ -217,3 +217,65 @@ The full initial issue inventory was committed before application edits in `2fbc
 Independent source implementation branches are `codex/visit-registration` in `APPly-visit-registration`, `codex/visit-clinical` in `APPly-visit-clinical` and `codex/visit-checkout` in `APPly-visit-checkout`, under `C:/Users/joshr/Desktop/Worktrees/`. They are not delivered until integrated into the primary candidate. Shared API/types/routes/schema and final integration belong to the primary candidate. Checkout's follow-up migration is allocated `20260909004100`; the working-draft migration is `20260909004000`.
 
 The user narrowed verification to high-value checks and asked not to spend substantial time testing. The final pass will therefore concentrate on persisted outcomes, stale/wrong-context rejection, exact replay, draft restoration and one complete local browser journey. Cosmetic assertions, repeated full-suite runs and source-text-mirroring tests are excluded.
+
+### Integrated implementation — 2026-09-09
+
+All three implementation branches were integrated into the primary candidate. Registration/scheduling landed as `b7218b1`, clinical editing as `4796391` and `82f1d5c`, and checkout/follow-up as `61b28df`, followed by the integration repairs below. The full issue descriptions above retain their original audit evidence; they describe the defects at the baseline, not the final behavior.
+
+| Issues | Implemented solution and principal files |
+| --- | --- |
+| J01 | Independent navigation-blocker registrations in `App.tsx`; successful registration synchronously releases its own blocker before navigating (`5fa2a61`). |
+| J02 | `api/client.ts` bounds CSRF, fetch and response-body processing at 30 seconds; malformed successful responses and uncertain writes are recoverable errors with no automatic mutation replay. |
+| J03 | Actor-generation fences in the client and `SessionGuard`; clinic requests carry an expected actor precondition checked against the authenticated session in `clinic/base_controller.rb`. The header never grants authority. |
+| J04 | Validated same-origin clinic return routes and query parameters, including the schedule view, survive login redirects in resource loading, FrontDesk, tracking and clinical editors. |
+| J05 | Encrypted actor/practice/patient/encounter-scoped server working copies, optimistic versions, exact immediate replay and versioned clearing in `WorkingDraft`, `WorkingDraftsController` and `useWorkingDraft.ts`. Forms display acknowledgment or recovery errors. No protected record is stored in browser local/session storage. |
+| J06 | Registration POST has a durable request key and server idempotency; exact retry returns the same patient. |
+| J07 | Registration updates compare current child values before appending; retained historical rows are not rewritten, and current projections respect successor/closure records. Preferred-contact data survives unrelated edits. |
+| J08 | Patient updates require the reviewed `expected_updated_at`; stale changes are rejected before replacing patient details. |
+| J09 | Scheduling searches the complete authorized patient directory and verifies the exact selected patient independently of the initial directory page. |
+| J10 | FrontDesk uses check-in/arrival language consistent with creating or reusing the clinical encounter. |
+| J11 | FrontDesk reconciles the exact appointment/encounter after uncertain transitions and guards click reentry. |
+| J12–J13 | SOAP working copies retain baseline/revision identity and dirty edits; incoming revisions are reviewed explicitly, with conflict rebase and exact pending-save recovery. |
+| J14 | Note-signing recovery distinguishes an already signed revision, an unchanged unsigned revision requiring renewed attestation, and a different revision requiring new review. |
+| J15 | SOAP and vital-sign responses are checked against the intended patient/encounter and expected saved values. |
+| J16 | Invoice draft updates require idempotency identity plus the reviewed timestamp; the backend rejects stale replacement bodies. |
+| J17 | Invoice creation/edit/post/hosted-payment attempts use separate server working-copy scopes. Cash collection saves its exact invoice/drawer/amount/key before submission and restores that same attempt after interruption. |
+| J18 | New encounter follow-up records, API and in-person panel connect to the Operations worklist, with documented completion outcomes and version checks. Finalized telehealth follow-up plans bridge into the same work queue. |
+| J19 | The follow-up projection derives current appointment disposition and timing, so cancellation/no-show becomes needed work and valid rescheduling reflects current timing without rewriting finalized history. |
+| J20 | Encounter checkout pins actionable invoice selection to the linked encounter invoice; other ledger rows cannot receive that encounter's checkout actions. |
+| J21 | Invoice editors are keyed/scoped by invoice identity, restore their own values, and submit only to the corresponding invoice with version checks. |
+
+### Verification and repairs discovered in the integrated journey
+
+Verification was deliberately limited to integrity and recovery behavior:
+
+- Frontend production build (TypeScript and Vite) passed after correcting the concrete combined-source errors. Affected frontend builds are repeated only when a subsequent repair changes their inputs.
+- `npm test -- test/client.test.ts`: **14 passed**, including hung CSRF, hung mutation body, malformed success, stale actor response and safe return-route behavior; 828 ms reported by Vitest.
+- `dependable_visit_recovery_test.rb`: **4 runs, 78 assertions, zero failures/errors/skips**, in 13.825 seconds. Covers registration replay/stale writes, encrypted draft replay and actor/patient isolation, follow-up cancellation/completion/version checks, and invoice draft replay/stale writes.
+- Existing note idempotency, vitals and appointment/checkout lifecycle files ran together: **28 runs**, no assertion failures, with one obsolete invoice-update fixture error. Only that fixture was updated for the new required request key and reviewed timestamp; only the affected checkout file was rerun: **8 runs, 44 assertions, zero failures/errors/skips** (`de103ac`). The note/vitals cases passed in the original run. An initial environment-authentication failure ran no tests and was corrected through the repository's PostgreSQL wrapper.
+- No whole-application suite, source-text assertion expansion, cosmetic test suite or repeated successful clinical test run was performed.
+
+The live browser exposed defects which a build alone did not catch:
+
+1. The first working-copy PUT incorrectly returned a version conflict because PaperTrail's `version` accessor shadowed the draft counter. `7622b15` removes model-history tracking from this private working-copy model, retains explicit metadata audit events, and uses the stored counter directly. First save and exact replay then passed both API and browser checks.
+2. Successful registration attempted navigation before its dirty-state blocker was removed. `5fa2a61` clears that state synchronously and resets the consumed form/operation before the success callback.
+3. Cash collection initially retained the pending identity only in module memory. `d96544f` connects it to the encrypted cash-payment recovery scope.
+4. A failed cash request exposed an invoice-resolution refresh loop. `31f6f34` keeps the invoice identity stable while loading, routes recovery once per attempt and prevents cleared recovered payloads from being restored again.
+
+### Browser journey evidence
+
+The exercise uses one invented patient, **Morgan Rowan / VISIT-0909**, in the isolated local clinic. No real patient, external message or actual financial transaction is involved.
+
+- Registration values were saved as a private working copy and recovered in a fresh browser page before registration. The official patient is **37**. Repeating the successful create with the same identity returned that patient rather than a second registration.
+- An appointment for that exact patient was booked through Schedule and checked in through FrontDesk. The opened chart identifies **patient 37 / encounter 19**.
+- One vital-sign set recorded **118/76 mmHg and heart rate 72/min**; the chart showed those persisted values.
+- The SOAP working copy and patient instructions recovered in a fresh encounter page. The recovered draft was saved as **revision 1**, explicitly reviewed and signed, and appeared read-only afterward. Reopening the encounter showed **Signed**.
+- Encounter closure produced a recorded end time and a checkout link retaining both patient and encounter IDs.
+- Checkout created and posted **invoice 6 for USD 25.00**. A deliberately blocked local cash-payment request left a durable locked attempt. After reconnecting and refreshing, the UI restored invoice, drawer and exact amounts, and **Retry same payment** completed the payment. The ledger showed **Paid, USD 25.00 allocated, USD 0.00 remaining**, with **payment 3 and one allocation**.
+- The encounter follow-up plan appeared as one needed item in Operations. Staff recorded an outcome using **Complete follow-up**, after which the open queue showed zero remaining items. This is internal workflow persistence, not proof of any external communication or later appointment attendance.
+
+### Evidence limits
+
+This bounded pass establishes the checked local journey and targeted integrity contracts. It does not prove every possible timing interleaving, all browser/device combinations, production deployment, external hosted-payment settlement, external reminders, clinical appropriateness or regulatory readiness. Hosted online payment was truthfully unavailable in this isolated clinic and was not exercised against a provider.
+
+An edit is crash-durable only after its server working-copy acknowledgment. Keystrokes entered while disconnected and never acknowledged cannot survive browser/device destruction under the requirement to avoid protected browser storage. The UI must show unsaved/recovery status until acknowledgment; no offline-success claim is made.
