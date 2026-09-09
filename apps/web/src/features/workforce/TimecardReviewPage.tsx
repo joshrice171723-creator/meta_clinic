@@ -17,6 +17,9 @@ import { TimecardSummary } from "./TimecardSummary";
 
 export function TimecardReviewPage() {
   const clinic = useClinic();
+  const canRead = clinic.capabilities.workforce_timecards_read === true;
+  const canReview = clinic.capabilities.workforce_timecards_review === true;
+  const canApprove = clinic.capabilities.workforce_timecards_approve === true;
   const [siteId, setSiteId] = useState(
     String(clinic.current_site?.id ?? clinic.sites[0]?.id ?? ""),
   );
@@ -26,6 +29,7 @@ export function TimecardReviewPage() {
   const [periodStart, setPeriodStart] = useState("");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [error, setError] = useState("");
+  const [reviewError, setReviewError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -35,20 +39,32 @@ export function TimecardReviewPage() {
   >({});
 
   useEffect(() => {
-    if (!siteId) return;
+    if (!siteId || !canRead) return;
     const abort = new AbortController();
     setError("");
+    setReviewError("");
     const query = `?site_id=${encodeURIComponent(siteId)}`;
+    const adjustmentRequest = canReview
+      ? api<{ adjustments: Adjustment[] }>(
+          `/api/clinic/workforce/adjustments${query}`,
+          { signal: abort.signal },
+        ).catch((reason: unknown) => {
+          if (!abort.signal.aborted)
+            setReviewError(
+              reason instanceof Error
+                ? reason.message
+                : "Correction requests are unavailable.",
+            );
+          return { adjustments: [] };
+        })
+      : Promise.resolve({ adjustments: [] });
     Promise.all([
       api<{
         timecards: Timecard[];
         employees: TimecardEmployee[];
         default_period_start: string;
       }>(`/api/clinic/workforce/timecards${query}`, { signal: abort.signal }),
-      api<{ adjustments: Adjustment[] }>(
-        `/api/clinic/workforce/adjustments${query}`,
-        { signal: abort.signal },
-      ),
+      adjustmentRequest,
     ])
       .then(([timecardData, adjustmentData]) => {
         if (!abort.signal.aborted) {
@@ -76,7 +92,7 @@ export function TimecardReviewPage() {
           );
       });
     return () => abort.abort();
-  }, [siteId, revision]);
+  }, [canRead, canReview, siteId, revision]);
 
   const latestCards = useMemo(() => {
     const found = new Map<string, Timecard>();
@@ -183,7 +199,7 @@ export function TimecardReviewPage() {
           current calculated versions.
         </Typography>
       </Box>
-      <Paper variant="outlined" sx={{ p: 2 }}>
+      {canReview && <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={2}>
           <Typography variant="h3">Calculate a timecard</Typography>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -234,10 +250,15 @@ export function TimecardReviewPage() {
             </Typography>
           )}
         </Stack>
-      </Paper>
+      </Paper>}
       {error && <Alert severity="error">{error}</Alert>}
+      {reviewError && (
+        <Alert severity="warning">
+          {reviewError} Authorized timecard records remain available below.
+        </Alert>
+      )}
       {notice && <Alert severity="success">{notice}</Alert>}
-      {adjustments
+      {canReview && adjustments
         .filter((adjustment) => adjustment.status === "submitted")
         .map((adjustment) => (
           <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
@@ -285,8 +306,9 @@ export function TimecardReviewPage() {
         <TimecardSummary
           key={card.id}
           card={card}
-          actions={
+          actions={canReview || canApprove ? (
             <>
+              {canApprove && (
               <Button
                 variant="contained"
                 disabled={
@@ -298,14 +320,17 @@ export function TimecardReviewPage() {
               >
                 Approve timecard
               </Button>
+              )}
+              {canReview && (
               <Button
                 disabled={busy || card.status === "superseded"}
                 onClick={() => setCorrectionCard(card)}
               >
                 Add manager correction
               </Button>
+              )}
             </>
-          }
+          ) : undefined}
         />
       ))}
       {!latestCards.length && (
@@ -313,7 +338,7 @@ export function TimecardReviewPage() {
           No calculated timecards are available for this location.
         </Alert>
       )}
-      {correctionCard && (
+      {canReview && correctionCard && (
         <AdjustmentDialog
           card={correctionCard}
           siteId={Number(siteId)}
