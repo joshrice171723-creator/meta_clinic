@@ -24,6 +24,7 @@ const apiMocks = vi.hoisted(() => ({
 }));
 
 const mediaMocks = vi.hoisted(() => ({
+  createAdapter: vi.fn(),
   instances: [] as Array<{
     join: ReturnType<typeof vi.fn>;
     leave: ReturnType<typeof vi.fn>;
@@ -74,8 +75,11 @@ vi.mock("react/jsx-runtime", () => ({
 vi.mock("../src/features/telehealth/api", () => apiMocks);
 
 vi.mock("../src/features/telehealth/mediaAdapter", () => ({
-  createTelehealthMediaAdapter: vi.fn(() =>
-    new (class {
+  createTelehealthMediaAdapter: mediaMocks.createAdapter,
+}));
+
+function createMediaAdapter() {
+  return new (class {
     join = vi.fn().mockResolvedValue(undefined);
     leave = vi.fn().mockResolvedValue(undefined);
     destroy = vi.fn().mockResolvedValue(undefined);
@@ -90,8 +94,8 @@ vi.mock("../src/features/telehealth/mediaAdapter", () => ({
     constructor() {
       mediaMocks.instances.push(this);
     }
-    })()),
-}));
+  })();
+}
 
 vi.mock("../src/features/scribe/ScribeRecordingProvider", () => ({
   useOptionalScribeRecording: () => ({ terminateTelehealthCapture }),
@@ -186,6 +190,8 @@ type ProviderHarnessValue = {
     visitId: string,
     status: number,
   ) => Promise<void>;
+  leave: (notifyServer?: boolean) => Promise<void>;
+  registerVisitPolling: (visitId: string) => () => void;
 };
 
 function renderProvider() {
@@ -213,6 +219,19 @@ async function joinStaff() {
   return renderProvider();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+
+let visibility: DocumentVisibilityState;
+let documentTarget: EventTarget;
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-08T12:00:00Z"));
@@ -223,10 +242,17 @@ beforeEach(() => {
   hooks.effects = [];
   mediaMocks.instances = [];
   vi.clearAllMocks();
+  mediaMocks.createAdapter.mockImplementation(async () => createMediaAdapter());
   apiMocks.requestStaffJoinGrant.mockResolvedValue(grantEnvelope);
   apiMocks.requestPatientJoinGrant.mockResolvedValue(grantEnvelope);
   apiMocks.leaveStaffVisit.mockResolvedValue(undefined);
   apiMocks.leavePatientVisit.mockResolvedValue(undefined);
+  visibility = "visible";
+  documentTarget = new EventTarget();
+  Object.defineProperty(documentTarget, "visibilityState", {
+    get: () => visibility,
+  });
+  vi.stubGlobal("document", documentTarget);
   vi.stubGlobal("window", {
     setTimeout: (callback: () => void, delay?: number) =>
       setTimeout(callback, delay) as unknown as number,
@@ -264,6 +290,66 @@ describe("persistent telehealth session authorization", () => {
     });
     expect(JSON.stringify(active)).not.toContain("ephemeral-provider-token");
     expect(active).not.toHaveProperty("roomUrl");
+  });
+
+  it("disposes a lazy adapter that resolves after leave invalidates its join", async () => {
+    const adapter = createMediaAdapter();
+    const factory = deferred<typeof adapter>();
+    mediaMocks.createAdapter.mockReturnValueOnce(factory.promise);
+    const provider = renderProvider();
+    const joining = provider.join({
+      actor: "staff",
+      visitId: "visit-1",
+      version: 6,
+      patientId: 41,
+      patientName: "Patient One",
+      encounterId: 73,
+      returnPath: "/clinic/patients/41/encounters/73/telehealth",
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mediaMocks.createAdapter).toHaveBeenCalledTimes(1);
+
+    await provider.leave();
+    factory.resolve(adapter);
+    await joining;
+
+    expect(adapter.destroy).toHaveBeenCalledTimes(1);
+    expect(adapter.join).not.toHaveBeenCalled();
+    expect(hooks.states[0].value).toBeNull();
+  });
+
+  it("disposes a lazy adapter that resolves after the provider unmounts", async () => {
+    const adapter = createMediaAdapter();
+    const factory = deferred<typeof adapter>();
+    mediaMocks.createAdapter.mockReturnValueOnce(factory.promise);
+    const provider = renderProvider();
+    const joining = provider.join({
+      actor: "staff",
+      visitId: "visit-1",
+      version: 6,
+      patientId: 41,
+      patientName: "Patient One",
+      encounterId: 73,
+      returnPath: "/clinic/patients/41/encounters/73/telehealth",
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    const cleanups = hooks.effects
+      .map((effect) => effect())
+      .filter(
+        (cleanup): cleanup is () => void => typeof cleanup === "function",
+      );
+    expect(cleanups).toHaveLength(1);
+    cleanups[0]();
+
+    factory.resolve(adapter);
+    await joining;
+
+    expect(adapter.destroy).toHaveBeenCalledTimes(1);
+    expect(adapter.join).not.toHaveBeenCalled();
   });
 
   it("stops Scribe before media when the canonical participant is removed", async () => {
@@ -313,5 +399,35 @@ describe("persistent telehealth session authorization", () => {
         String(slot.value).includes("could not be rechecked in time"),
       ),
     ).toBe(true);
+  });
+
+  it("lets the visible visit page own polling, resumes the fallback when hidden, and retains the 20 second disconnect bound", async () => {
+    const provider = await joinStaff();
+    const adapter = mediaMocks.instances[0];
+    const unregister = provider.registerVisitPolling("visit-1");
+    apiMocks.loadVisit.mockRejectedValue(new TypeError("Network unavailable"));
+
+    for (const effect of hooks.effects) effect();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(apiMocks.loadVisit).not.toHaveBeenCalled();
+
+    visibility = "hidden";
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(apiMocks.loadVisit).toHaveBeenCalledTimes(1);
+
+    visibility = "visible";
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(adapter.leave).toHaveBeenCalledTimes(1);
+    expect(hooks.states[0].value).toBeNull();
+    unregister();
+  });
+
+  it("keeps the active snapshot identity for an unchanged authorization response", async () => {
+    const provider = await joinStaff();
+    const active = hooks.states[0].value;
+
+    await provider.reconcileAuthorization(visit(), 7);
+
+    expect(hooks.states[0].value).toBe(active);
   });
 });

@@ -58,22 +58,24 @@ vi.mock("react/jsx-runtime", () => ({
 }));
 vi.mock("../src/features/telehealth/api", () => api);
 vi.mock("../src/features/telehealth/mediaAdapter", () => ({
-  createTelehealthMediaAdapter: vi.fn(() =>
-    new (class {
-    join = vi.fn().mockResolvedValue(undefined);
-    leave = vi.fn().mockResolvedValue(undefined);
-    destroy = vi.fn().mockResolvedValue(undefined);
-    setMicrophone = vi.fn();
-    setCamera = vi.fn();
-    selectInputDevice = vi.fn();
-    startScreenShare = vi.fn();
-    stopScreenShare = vi.fn();
-    ejectParticipant = vi.fn();
-    ejectAllRemoteParticipants = vi.fn();
-    constructor() {
-      media.instances.push(this);
-    }
-    })()),
+  createTelehealthMediaAdapter: vi.fn(
+    () =>
+      new (class {
+        join = vi.fn().mockResolvedValue(undefined);
+        leave = vi.fn().mockResolvedValue(undefined);
+        destroy = vi.fn().mockResolvedValue(undefined);
+        setMicrophone = vi.fn();
+        setCamera = vi.fn();
+        selectInputDevice = vi.fn();
+        startScreenShare = vi.fn();
+        stopScreenShare = vi.fn();
+        ejectParticipant = vi.fn();
+        ejectAllRemoteParticipants = vi.fn();
+        constructor() {
+          media.instances.push(this);
+        }
+      })(),
+  ),
 }));
 vi.mock("../src/features/scribe/ScribeRecordingProvider", () => ({
   useOptionalScribeRecording: () => ({
@@ -168,7 +170,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("telehealth connection recovery", () => {
   it("tears down old media before using a fresh grant for the same encounter", async () => {
     const provider = await joinedProvider();
-    const adapter = media.instances[0];
+    const oldAdapter = media.instances[0];
     api.requestStaffJoinGrant.mockResolvedValueOnce(
       grant("fresh-token", 9, "participant-2"),
     );
@@ -176,15 +178,18 @@ describe("telehealth connection recovery", () => {
     await provider.retryConnection();
     const recovered = renderProvider();
 
-    expect(adapter.destroy).toHaveBeenCalledTimes(1);
+    const freshAdapter = media.instances[1];
+    expect(oldAdapter.destroy).toHaveBeenCalledTimes(1);
+    expect(freshAdapter).toBeDefined();
     expect(terminateCapture).toHaveBeenCalledWith(
       "visit-1",
       expect.stringContaining("restarting"),
     );
-    expect(adapter.destroy.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(oldAdapter.destroy.mock.invocationCallOrder[0]).toBeLessThan(
       api.requestStaffJoinGrant.mock.invocationCallOrder[1],
     );
-    expect(adapter.join).toHaveBeenLastCalledWith({
+    expect(oldAdapter.join).toHaveBeenCalledTimes(1);
+    expect(freshAdapter.join).toHaveBeenCalledWith({
       roomName: "apply-visit-1",
       token: "fresh-token",
     });
@@ -213,7 +218,13 @@ describe("telehealth connection recovery", () => {
     resolveGrant(grant("fresh-token", 9, "participant-2"));
     await Promise.all([first, duplicate]);
 
-    expect(media.instances[0].join).toHaveBeenCalledTimes(2);
+    expect(media.instances).toHaveLength(2);
+    expect(media.instances[0].destroy).toHaveBeenCalledTimes(1);
+    expect(media.instances[0].join).toHaveBeenCalledTimes(1);
+    expect(media.instances[1].join).toHaveBeenCalledWith({
+      roomName: "apply-visit-1",
+      token: "fresh-token",
+    });
   });
 
   it("disconnects and clears the session when fresh authorization is denied", async () => {
@@ -226,8 +237,9 @@ describe("telehealth connection recovery", () => {
     await provider.retryConnection();
     const denied = renderProvider();
 
-    expect(adapter.leave).toHaveBeenCalledTimes(1);
+    expect(adapter.destroy).toHaveBeenCalledTimes(1);
     expect(adapter.join).toHaveBeenCalledTimes(1);
+    expect(media.instances).toHaveLength(1);
     expect(denied.active).toBeNull();
   });
 });

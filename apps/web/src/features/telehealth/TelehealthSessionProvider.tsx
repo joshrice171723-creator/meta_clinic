@@ -801,13 +801,17 @@ export function TelehealthSessionProvider({
 
   useEffect(() => {
     return () => {
+      generationRef.current += 1;
       const session = activeRef.current;
+      const adapter = adapterRef.current;
+      adapterRef.current = null;
+      adapterProviderRef.current = null;
       if (session)
         scribeRef.current?.terminateTelehealthCapture(
           session.visitId,
           "Your account or clinic context changed. Scribe is saving the permitted audio segment.",
         );
-      void adapterRef.current?.destroy();
+      void adapter?.destroy();
       if (session) {
         const request =
           session.actor === "staff"

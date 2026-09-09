@@ -103,11 +103,7 @@ function mediaStreamTrack(id: string, kind: "audio" | "video") {
   } as unknown as MediaStreamTrack;
 }
 
-function localTrack(
-  id: string,
-  kind: "audio" | "video",
-  name: string = kind,
-) {
+function localTrack(id: string, kind: "audio" | "video", name: string = kind) {
   const media = mediaStreamTrack(id, kind);
   return {
     kind,
@@ -234,9 +230,7 @@ function callbacks() {
 }
 
 async function joinedAdapter(fixture = roomFixture()) {
-  twilio.connect.mockReturnValueOnce(
-    cancelable(Promise.resolve(fixture.room)),
-  );
+  twilio.connect.mockReturnValueOnce(cancelable(Promise.resolve(fixture.room)));
   const events = callbacks();
   const adapter = new TwilioMediaAdapter(events);
   await adapter.join({
@@ -445,9 +439,9 @@ describe("Twilio media lifecycle", () => {
     expect(adapter.ejectAllRemoteParticipants()).toBe(0);
   });
 
-  it("rejects a legacy Daily grant before creating media", () => {
-    expect(() =>
+  it("rejects a legacy Daily grant before creating media", async () => {
+    await expect(
       createTelehealthMediaAdapter("daily", callbacks()),
-    ).toThrow(/retired video connection/i);
+    ).rejects.toThrow(/retired video connection/i);
   });
 });
