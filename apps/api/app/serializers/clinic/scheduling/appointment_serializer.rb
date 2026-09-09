@@ -30,9 +30,14 @@ module Clinic
       end
 
       def self.telehealth(visit, actor:)
-        Clinic::Telehealth::SummarySerializer.call(visit, actor: actor)&.slice(
-          :public_id, :status, :prepare_href, :clinic_href
-        )
+        return unless visit
+
+        {
+          public_id: visit.public_id,
+          status: visit.status,
+          prepare_href: "/patient-portal/telehealth/#{visit.public_id}",
+          clinic_href: Clinic::Telehealth::SummarySerializer.clinic_href(visit)
+        }
       end
     end
   end
