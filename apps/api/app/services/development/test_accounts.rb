@@ -180,7 +180,7 @@ module Development
         practice = omni.clinic_membership&.practice
         raise Unavailable, "Prepare the local Omni clinic first." unless practice
         unless practice.patients.where("reference LIKE ?", "SYN-OMNI-%").exists?
-          practice.patients.create!(display_name: "Dev seed subscription patient", reference: "SYN-OMNI-SUBSCRIPTION")
+          practice.patients.create!(display_name: "Subscription portal member", reference: "SYN-OMNI-SUBSCRIPTION")
         end
         Development::PatientPortal.prepare!(user)
         user

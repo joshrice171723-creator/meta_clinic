@@ -237,7 +237,7 @@ module Clinic
           @eligible.map do |profile|
             {
               clinician_profile_id: profile.id.to_s,
-              display_name: profile.display_name.presence || "Provider name not recorded",
+              display_name: display_name(profile),
               site_ids: profile.assignments.select do |assignment|
                 @eligible_site_ids.include?(assignment.site_id) && effective?(assignment)
               end.map { |assignment| assignment.site_id.to_s }.uniq
@@ -248,7 +248,11 @@ module Clinic
         private
 
         def profile_payload(profile, participant = nil)
-          { clinician_profile_id: profile.id.to_s, display_name: profile.display_name.presence || "Provider name not recorded", token: participant&.id&.to_s }
+          { clinician_profile_id: profile.id.to_s, display_name: display_name(profile), token: participant&.id&.to_s }
+        end
+
+        def display_name(profile)
+          profile.display_name.presence || profile.reference.presence || "Provider profile #{profile.id}"
         end
 
         def effective?(assignment)

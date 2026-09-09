@@ -1503,8 +1503,13 @@ code {
 }
 .purchase-cart-layout { align-items: start; }
 .purchase-cart-layout > .purchase-cart-panel { position: sticky; top: 1rem; }
-.purchase-cart-toolbar { align-items: center; justify-content: space-between; gap: .75rem; }
-.purchase-cart-toolbar input { min-width: 15rem; }
+.purchase-cart-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: .75rem;
+}
+.purchase-cart-toolbar .inventory-field { min-width: 0; }
+.purchase-cart-toolbar input { min-width: 0; width: 100%; }
 .purchase-catalog-search .MuiOutlinedInput-root { height: 40px; }
 .purchase-cart-details { grid-template-columns: minmax(0, 1fr); }
 .inventory-segmented { display: inline-flex; gap: .25rem; padding: .25rem; border: 1px solid var(--clinic-border, #d8ddd8); border-radius: 999px; background: color-mix(in srgb, var(--clinic-surface, #fff) 88%, #dfe8e1); }

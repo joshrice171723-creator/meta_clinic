@@ -342,7 +342,7 @@ export function PatientPortal({
     setError("");
     try {
       await api("/api/session", { method: "DELETE" });
-      window.location.assign("/login");
+      window.location.assign("/login?next=%2Fpatient-portal");
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to sign out.",

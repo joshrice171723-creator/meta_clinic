@@ -1,5 +1,7 @@
 export function patientPortalLabel(value: string) {
   const cleaned = value
+    .replace(/\bexample\s+catalog\s*/gi, "")
+    .replace(/\bomni\s*/gi, "")
     .replace(/\bdev\s+seed\s*/gi, "")
     .replace(/\bsynthetic\s*/gi, "")
     .replace(/\bSYN[_-]/g, "")

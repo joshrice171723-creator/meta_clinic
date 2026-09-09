@@ -54,8 +54,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  ToggleButton,
-  ToggleButtonGroup,
 } from "@mui/material";
 import { Card, ErrorMessage, LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
@@ -393,6 +391,27 @@ function localDateTimeValue(value: Date) {
   return local.toISOString().slice(0, 16);
 }
 
+function clinicDateForBooking(value: string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.valueOf())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+    const fields = Object.fromEntries(
+      parts
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    );
+    return `${fields.year}-${fields.month}-${fields.day}`;
+  } catch {
+    return null;
+  }
+}
+
 export function appointmentDefaults(now = businessNow()) {
   const start = new Date(now);
   start.setSeconds(0, 0);
@@ -566,6 +585,17 @@ function BookingFormEditor({
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
+  const resourceDate =
+    clinicDateForBooking(startsAt, timezone) ??
+    clinicDateForBooking(businessNow().toISOString(), timezone) ??
+    "1970-01-01";
+  const scheduledResourceParams = new URLSearchParams({
+    date: resourceDate,
+    per_page: "100",
+  });
+  if (siteId) scheduledResourceParams.set("site_id", siteId);
+  if (clinicianId)
+    scheduledResourceParams.set("booked_clinician_id", clinicianId);
   const currentDraft = useMemo<BookingDraft>(
     () => ({
       patientId,
@@ -595,6 +625,10 @@ function BookingFormEditor({
   );
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
     "/api/clinic/facilities?type=visit_types&per_page=100",
+  );
+  const scheduledResources = useResource<{ appointments: Appointment[] }>(
+    `/api/clinic/appointments?${scheduledResourceParams.toString()}`,
+    { retainDataOnRefresh: true },
   );
   useEffect(() => {
     if (draftChanged) setHasWorkingDraft(true);
@@ -722,6 +756,14 @@ function BookingFormEditor({
   const availableRooms = siteId
     ? rooms.data.rooms.filter((room) => room.site_id === Number(siteId))
     : [];
+  const scheduledResourceAppointments =
+    scheduledResources.data?.appointments.filter((appointment) => {
+      if (!roomId && !clinicianId) return false;
+      return (
+        appointment.room_id === Number(roomId) ||
+        appointment.booked_clinician_id === Number(clinicianId)
+      );
+    }) ?? [];
   const intervalError = appointmentIntervalError(startsAt, endsAt);
   const setDuration = (minutes: number) => {
     const start = new Date(startsAt);
@@ -1133,6 +1175,48 @@ function BookingFormEditor({
                     ))}
                   </Select>
                 </FormControl>
+                {(roomId || clinicianId) && (
+                  <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                    {scheduledResources.error ? (
+                      <Alert severity="warning">
+                        Scheduled resource activity could not be loaded. The
+                        booking check will still prevent a conflicting
+                        appointment.
+                      </Alert>
+                    ) : !scheduledResources.data ? (
+                      <Typography color="text.secondary" role="status">
+                        Checking scheduled resource activity…
+                      </Typography>
+                    ) : scheduledResourceAppointments.length === 0 ? (
+                      <Alert severity="success" variant="outlined">
+                        No scheduled appointments use the selected resource on
+                        {" "}
+                        {resourceDate}. Final availability is confirmed when
+                        you schedule.
+                      </Alert>
+                    ) : (
+                      <Alert severity="warning" variant="outlined">
+                        <Typography component="div" variant="body2">
+                          The selected resource is already scheduled on{" "}
+                          {resourceDate}:
+                        </Typography>
+                        <Stack component="ul" spacing={0.25} sx={{ m: 0, pl: 2.5 }}>
+                          {scheduledResourceAppointments.map((appointment) => (
+                            <Typography component="li" key={appointment.id} variant="body2">
+                              {clinicDateTime(appointment.starts_at, timezone)}
+                              {appointment.room_id === Number(roomId)
+                                ? " · selected room"
+                                : " · selected clinician"}
+                            </Typography>
+                          ))}
+                        </Stack>
+                        <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
+                          Choose another time or resource before scheduling.
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                )}
                 <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
                   <InputLabel id="visit-type-label">Visit type</InputLabel>
                   <Select
@@ -3001,7 +3085,6 @@ export function ProviderEncounterWorkflow({
     (observation) => observation.value_kind !== "group",
   );
   const [chartConfirmed, setChartConfirmed] = useState(false);
-  const [chartType, setChartType] = useState("soap");
   const signedChart = encounterHasSignedSoapNote(encounter);
   const existingChart = encounter.notes.some(
     (note) => note.note_kind === "soap",
@@ -3083,8 +3166,6 @@ export function ProviderEncounterWorkflow({
                   <TableCell>
                     {clinicDateTime(encounter.started_at, timezone)}
                   </TableCell>
-                  <TableCell component="th">Primary Care</TableCell>
-                  <TableCell>Not recorded</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell component="th">Patient</TableCell>
@@ -3098,8 +3179,6 @@ export function ProviderEncounterWorkflow({
                       encounter.started_at,
                     )}
                   </TableCell>
-                  <TableCell component="th">Member</TableCell>
-                  <TableCell>Not recorded</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell component="th">Sex</TableCell>
@@ -3186,25 +3265,9 @@ export function ProviderEncounterWorkflow({
           )}
           {!chartConfirmed && (
             <Box className="chart-type-picker">
-              <Typography variant="subtitle2">Choose a chart</Typography>
+              <Typography variant="subtitle2">SOAP chart</Typography>
               <Typography variant="body2" color="text.secondary">
-                Select the type of chart to open for this encounter.
-              </Typography>
-              <ToggleButtonGroup
-                exclusive
-                value={chartType}
-                onChange={(_, value) => value && setChartType(value)}
-                aria-label="Chart type"
-                size="small"
-              >
-                <ToggleButton value="soap">SOAP</ToggleButton>
-                <ToggleButton value="chest-pain" disabled>
-                  Chest Pain
-                </ToggleButton>
-              </ToggleButtonGroup>
-              <Typography variant="caption" color="text.secondary">
-                Additional complaint-specific charts will appear as they are
-                implemented.
+                This encounter uses the available SOAP chart.
               </Typography>
             </Box>
           )}
@@ -3241,8 +3304,7 @@ export function ProviderEncounterWorkflow({
           {!chartConfirmed && (
             <Button
               variant="contained"
-              onClick={() => chartType === "soap" && setChartConfirmed(true)}
-              disabled={chartType !== "soap"}
+              onClick={() => setChartConfirmed(true)}
               sx={{ alignSelf: "flex-start" }}
             >
               {signedChart

@@ -12,15 +12,17 @@ export const VISIT_STAGES = [
     waiting: true,
   },
   { id: "intake", label: "Intake", action: "Triage", waiting: false },
+  // Older cached payloads can still contain this state. The live board does
+  // not generate it until a durable readiness transition exists.
   {
     id: "ready",
-    label: "Ready",
+    label: "Ready for provider",
     action: "Provider",
     waiting: true,
   },
   {
     id: "clinician",
-    label: "With provider",
+    label: "Provider assigned",
     action: "Provider",
     waiting: false,
   },

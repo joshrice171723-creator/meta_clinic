@@ -517,7 +517,7 @@ const columnLabels: Record<ColumnKey, string> = {
   wait: "Timing",
   location: "Room",
   provider: "Provider",
-  reason: "Reason",
+  reason: "Visit type",
   care: "Care",
   triage: "Vitals",
   action: "Action",
@@ -1025,26 +1025,11 @@ function TrackingBoardRow({
         ) : column === "reason" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
             <div className="tracking-reason">
-              <div>
-                {visit.appointmentType !== "Recorded visit" &&
-                  visit.chiefComplaint !== visit.reason && (
-                    <Typography variant="caption" color="text.secondary">
-                      {visit.appointmentType}
-                    </Typography>
-                  )}
-                <Typography
-                  variant="body2"
-                  aria-label={
-                    visit.chiefComplaint === "Reason not recorded"
-                      ? "Reason not recorded"
-                      : undefined
-                  }
-                >
-                  {visit.chiefComplaint === "Reason not recorded"
-                    ? "—"
-                    : visit.chiefComplaint}
-                </Typography>
-              </div>
+              <Typography variant="body2">
+                {visit.visitType === "Visit type not recorded"
+                  ? "—"
+                  : visit.visitType}
+              </Typography>
               {visit.appointmentType === "Follow-up" && (
                 <Tooltip title="Open most recent signed chart">
                   <a
@@ -1401,6 +1386,9 @@ export function TrackingBoardView({
         <div>
           <h1>Patient Flow</h1>
           {boardDate && <p className="tracking-board-date">{boardDate}</p>}
+          <Typography variant="caption" color="text.secondary">
+            All times shown in {timezone}
+          </Typography>
         </div>
         <div className="tracking-freshness" role="status">
           <span className="tracking-freshness-dot" aria-hidden="true" />

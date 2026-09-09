@@ -164,7 +164,6 @@ export function trackingBoardVisitToBoardVisit(
   visit: ClinicTrackingBoardVisit,
 ): BoardVisit {
   const visitType = visit.appointment?.visit_type_code?.trim() || null;
-  const scenario = visit.synthetic_scenario;
   const encounter = visit.encounter;
   const locationRecord = encounter ?? visit.appointment;
   const room =
@@ -193,8 +192,8 @@ export function trackingBoardVisitToBoardVisit(
     age: visit.patient.demographics?.age ?? null,
     gender: displaySex(visit.patient.demographics?.sex),
     appointmentType: appointmentType(visitType),
-    chiefComplaint: scenario?.reason || "Reason not recorded",
-    reason: scenario?.reason || visitType || "Reason not recorded",
+    chiefComplaint: visitType || "Visit reason not recorded",
+    reason: visitType || "Visit reason not recorded",
     visitType: visitType || "Visit type not recorded",
     membership:
       membership === "member"
@@ -203,12 +202,17 @@ export function trackingBoardVisitToBoardVisit(
           ? "nonmember"
           : "unknown",
     stage:
-      scenario?.stage ??
-      (["upcoming", "on_time", "late"].includes(visit.operational_state)
-        ? "scheduled"
-        : visit.operational_state === "waiting_room"
-          ? "waiting"
-          : "unrecorded"),
+      encounter?.status === "completed"
+        ? "checkout"
+        : provider
+          ? "clinician"
+          : visit.intake_ownership?.state === "claimed"
+            ? "intake"
+            : ["upcoming", "on_time", "late"].includes(visit.operational_state)
+              ? "scheduled"
+              : visit.operational_state === "waiting_room"
+                ? "waiting"
+                : "unrecorded",
     locationId: locationRecord?.site_id
       ? `api-site-${locationRecord.site_id}`
       : "unassigned",

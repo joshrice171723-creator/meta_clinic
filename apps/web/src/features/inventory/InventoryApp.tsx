@@ -3464,7 +3464,11 @@ export function CatalogScreen({
                   </td>
                   <td data-label="Status">
                     <Badge tone={item.low_stock ? "warning" : "success"}>
-                      {item.low_stock ? "Reorder" : "In range"}
+                      {decimalCompare(item.available_units, item.reorder_point_units) < 0
+                        ? "Below reorder point"
+                        : item.low_stock
+                          ? "At reorder point"
+                          : "In range"}
                     </Badge>
                   </td>
                   <td data-label="Actions">
@@ -3760,6 +3764,21 @@ function ReplenishmentScreen({
           <strong>Projected replenishment</strong>
           <p>Available and inbound stock are below the reorder point.</p>
         </div>
+        {!supplierProduct && (
+          <div className="inventory-muted-panel" role="status">
+            <strong>No usable offer for the selected supplier</strong>
+            <p>
+              Add or correct a current package price before creating a purchase
+              order from this suggestion.
+            </p>
+            <a
+              className="inventory-button outline"
+              href={`/clinic/inventory/suppliers?q=${encodeURIComponent(item.name)}`}
+            >
+              Review supplier pricing
+            </a>
+          </div>
+        )}
         <form className="inventory-form-grid" onSubmit={submit}>
           <Field
             label={`Order quantity (${packageInfo?.input_unit ?? "unavailable unit"})`}

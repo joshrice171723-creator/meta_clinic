@@ -1032,6 +1032,26 @@ function PatientRegistrationEditor({
 
 function PatientDetails({ patient }: { patient: Patient }) {
   const d = patient.demographics;
+  const vitalLabel = (code: string) =>
+    ({
+      "vital-systolic-bp": "Systolic blood pressure",
+      "vital-diastolic-bp": "Diastolic blood pressure",
+      "vital-heart-rate": "Heart rate",
+      "vital-respiratory-rate": "Respiratory rate",
+      "vital-oxygen-saturation": "Oxygen saturation",
+      "vital-temperature": "Temperature",
+      "vital-weight": "Weight",
+    })[code] ?? "Vital sign";
+  const vitalUnit = (unit: string) =>
+    ({
+      "mm[Hg]": "mmHg",
+      "/min": "per minute",
+      "%": "%",
+      Cel: "°C",
+      "[degF]": "°F",
+      kg: "kg",
+      "[lb_av]": "lb",
+    })[unit] ?? unit;
   return (
     <div className="care-grid">
       <Card title="Demographics">
@@ -1053,7 +1073,7 @@ function PatientDetails({ patient }: { patient: Patient }) {
           </div>
         </dl>
       </Card>
-      <Card title="Contacts">
+      <Card title="Registration contacts">
         <p>
           {patient.contacts
             ?.map((c) => `${c.contact_type}: ${c.contact_value}`)
@@ -1063,6 +1083,10 @@ function PatientDetails({ patient }: { patient: Patient }) {
           {patient.emergency_contacts?.[0]
             ? `Emergency: ${patient.emergency_contacts[0].name} (${patient.emergency_contacts[0].relationship})`
             : "No emergency contact recorded."}
+        </p>
+        <p>
+          Reminder delivery uses a separately verified delivery endpoint. Review
+          that endpoint before scheduling a message.
         </p>
       </Card>
       <Card title="Communication preferences">
@@ -1092,7 +1116,12 @@ function PatientDetails({ patient }: { patient: Patient }) {
         <p>
           {patient.vital_signs?.length
             ? patient.vital_signs
-                .map((v) => `${v.code}: ${v.numeric_value} ${v.unit_code}`)
+                .map((v) => {
+                  const label = vitalLabel(v.code);
+                  const value = v.numeric_value ?? "Not recorded";
+                  const unit = vitalUnit(v.unit_code);
+                  return `${label}: ${value}${unit ? ` ${unit}` : ""}`;
+                })
                 .join(" · ")
             : "No vital-sign observations recorded."}
         </p>

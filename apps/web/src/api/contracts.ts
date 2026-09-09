@@ -948,9 +948,15 @@ export type ClinicTrackingBoardVisit = {
     room_code: string | null;
   } | null;
   care_summary: PatientCareSummary | null;
+  /** @deprecated The live board ignores scenario data and derives only persisted operations state. */
   synthetic_scenario?: {
     stage:
-      "waiting" | "intake" | "ready" | "clinician" | "checkout" | "unrecorded";
+      | "waiting"
+      | "intake"
+      | "ready"
+      | "clinician"
+      | "checkout"
+      | "unrecorded";
     reason: string;
   };
 };

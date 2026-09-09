@@ -121,7 +121,12 @@ export function Login({
               autoComplete="current-password"
             />
           </Form>
-          {(developmentLogin || employeePortal) && (
+          {patientPortal && (
+            <p>
+              <a href="/patient-portal/recovery">Forgot patient portal password?</a>
+            </p>
+          )}
+          {(employeePortal || (developmentLogin && !patientPortal)) && (
             <p>
               <a href="/workforce/activate">Activate employee account</a>
             </p>

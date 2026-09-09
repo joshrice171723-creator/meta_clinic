@@ -77,12 +77,12 @@ module Clinic
           eligible_providers: provider_batch.eligible,
           visits: visits.map do |visit|
             if visit.is_a?(Clinic::Encounter)
-              synthetic_scenario = Development::BackendSamples.tracking_board_scenario_for(visit)
               TrackingBoardSerializer.call(
                 visit,
                 care_summary: care_summary_batch.call(visit),
-                synthetic_scenario: synthetic_scenario,
-                operational_state: synthetic_scenario&.fetch(:stage) == "waiting" ? "waiting_room" : "unrecorded",
+                # The board only projects persisted operations state. It does
+                # not fabricate progress from development scenarios.
+                operational_state: visit.status == "open" ? "waiting_room" : "unrecorded",
                 demographics: demographic_projection(demographics[visit.patient_id], board_date),
                 vitals: vitals_batch.call(visit),
                 chart_status: chart_status_batch.call(visit),
