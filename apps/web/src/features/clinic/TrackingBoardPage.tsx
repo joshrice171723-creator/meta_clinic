@@ -677,7 +677,6 @@ function TrackingBoardRow({
                 role="img"
                 tabIndex={0}
                 aria-label={operationalStatusLabel(visit, now)}
-                title={operationalStatusLabel(visit, now)}
               >
                 {(() => {
                   const Icon = statusIcon(visit);
