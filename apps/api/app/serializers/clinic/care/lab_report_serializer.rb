@@ -5,6 +5,7 @@ module Clinic
         payload = {
           id: report.id,
           patient_id: report.patient_id,
+          site_id: report.site_id,
           source_name: report.source_name,
           external_report_id: report.external_report_id,
           current_version_id: report.current_version_id,
@@ -62,6 +63,7 @@ module Clinic
             reference: value.patient.reference
           },
           report_id: value.lab_report_id,
+          site_id: value.lab_report.site_id,
           version: {
             id: version.id,
             version_number: version.version_number,
@@ -81,6 +83,7 @@ module Clinic
             reference: report.patient.reference
           },
           report_id: report.id,
+          site_id: report.site_id,
           current_version: {
             id: version.id,
             title: version.title,

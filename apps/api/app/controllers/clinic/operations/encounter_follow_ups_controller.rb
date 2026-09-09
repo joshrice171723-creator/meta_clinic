@@ -3,9 +3,17 @@ module Clinic
     class EncounterFollowUpsController < Clinic::ApiController
       def show
         encounter = encounter_scope.find(requested_id!(params[:encounter_id], :encounter_id))
-        render json: Clinic::Operations::EncounterFollowUps.show(
+        payload = Clinic::Operations::EncounterFollowUps.show(
           practice: current_practice, actor: current_user, encounter: encounter
         )
+        Clinic::AuditRecorder.record!(
+          practice: current_practice,
+          actor: current_user,
+          action_code: "encounter_follow_up.read",
+          outcome: :released,
+          resource_version_ref: "encounter/#{encounter.id}:follow_up/#{payload.dig(:follow_up, :id) || 'none'}"
+        )
+        render json: payload
       end
 
       def upsert

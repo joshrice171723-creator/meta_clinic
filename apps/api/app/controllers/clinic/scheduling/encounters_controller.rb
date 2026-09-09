@@ -16,7 +16,7 @@ module Clinic
       def show
         patient_id = requested_id!(params[:patient_id], :patient_id)
         encounter = current_practice.encounters.where(patient_id: patient_id).find(requested_id!(params[:id], :id))
-        render json: { encounter: EncounterSerializer.call(encounter, detail: true) }
+        render json: { encounter: serialize_detail(encounter) }
       end
 
       def create
@@ -35,7 +35,7 @@ module Clinic
           room: room,
           started_at: input[:started_at].present? ? time_param!(input[:started_at], field: :started_at) : Current.business_time
         )
-        render json: { encounter: EncounterSerializer.call(encounter, detail: true) }, status: :created
+        render json: { encounter: serialize_detail(encounter) }, status: :created
       end
 
       def close
@@ -48,13 +48,21 @@ module Clinic
           ended_at: input[:ended_at].present? ? time_param!(input[:ended_at], field: :ended_at) : nil,
           request_key: input[:request_key]
         )
-        render json: { encounter: EncounterSerializer.call(updated, detail: true) }
+        render json: { encounter: serialize_detail(updated) }
       end
 
       private
 
       def find_optional(scope, value, field)
         value.present? ? scope.find(requested_id!(value, field)) : nil
+      end
+
+      def serialize_detail(encounter)
+        EncounterSerializer.call(
+          encounter,
+          detail: true,
+          include_note_metadata: current_ability.allowed_permission?("notes.read", site: encounter.site)
+        )
       end
     end
   end

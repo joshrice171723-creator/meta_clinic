@@ -8,7 +8,7 @@ module Clinic
         patient = practice.patients.find(patient.id)
         report = practice.lab_reports.where(patient:).find(report.id)
         version = report.report_versions.find(version.id)
-        authorize!(practice:, actor:, patient:)
+        authorize!(practice:, actor:, patient:, site: report.site)
         decision = normalize_decision(disposition:, note:)
         payload = {
           patient_id: patient.id, report_id: report.id, version_id: version.id,
@@ -16,7 +16,7 @@ module Clinic
         }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.follow_up.record", request_key:, payload:, resource: version,
-          authorization: -> { authorize!(practice:, actor:, patient:) }, authorization_action: "notes.write",
+          authorization: -> { authorize!(practice:, actor:, patient:, site: report.site) }, authorization_action: "notes.write",
           result_resource: ->(follow_up) { follow_up },
           resource_resolver: ->(practice:, receipt:) {
             LabResultFollowUp.where(
@@ -24,7 +24,7 @@ module Clinic
             ).find_by(id: receipt.resource_id)
           }
         ) do
-          member = authorize!(practice:, actor:, patient:)
+          member = authorize!(practice:, actor:, patient:, site: report.site)
           locked_report = practice.lab_reports.where(patient:).lock.find(report.id)
           unless locked_report.current_version_id == version.id
             raise ActiveRecord::StaleObjectError.new(locked_report, "record follow-up")
@@ -48,14 +48,14 @@ module Clinic
         patient = practice.patients.find(patient.id)
         report = practice.lab_reports.where(patient:).find(report.id)
         version = report.report_versions.find(version.id)
-        authorize!(practice:, actor:, patient:)
+        authorize!(practice:, actor:, patient:, site: report.site)
         normalized_outcome = required_text(outcome, "outcome")
         payload = {
           patient_id: patient.id, report_id: report.id, version_id: version.id, outcome: normalized_outcome
         }
         result = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.follow_up.complete", request_key:, payload:, resource: version,
-          authorization: -> { authorize!(practice:, actor:, patient:) }, authorization_action: "notes.write",
+          authorization: -> { authorize!(practice:, actor:, patient:, site: report.site) }, authorization_action: "notes.write",
           result_resource: ->(follow_up) { follow_up },
           resource_resolver: ->(practice:, receipt:) {
             LabResultFollowUp.where(
@@ -63,7 +63,7 @@ module Clinic
             ).find_by(id: receipt.resource_id)
           }
         ) do
-          member = authorize!(practice:, actor:, patient:)
+          member = authorize!(practice:, actor:, patient:, site: report.site)
           locked_report = practice.lab_reports.where(patient:).lock.find(report.id)
           unless locked_report.current_version_id == version.id
             raise ActiveRecord::StaleObjectError.new(locked_report, "complete follow-up")
@@ -140,9 +140,9 @@ module Clinic
       end
       private_class_method :create_decision!
 
-      def self.authorize!(practice:, actor:, patient:)
+      def self.authorize!(practice:, actor:, patient:, site:)
         Authorization.authorize!(practice:, actor:, action: "patients.read", subject: patient)
-        Authorization.authorize!(practice:, actor:, action: "notes.write", any_site: true)
+        Authorization.authorize!(practice:, actor:, action: "notes.write", site: site)
       end
       private_class_method :authorize!
 
