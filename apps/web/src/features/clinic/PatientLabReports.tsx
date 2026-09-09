@@ -183,7 +183,7 @@ export function PatientLabReports({
   patientId: number;
   patientName?: string;
 }) {
-  const { capabilities } = useClinic();
+  const { capabilities, practice } = useClinic();
   const [data, setData] = useState<Index>();
   const [error, setError] = useState("");
   const [reportsStale, setReportsStale] = useState(false);
@@ -999,6 +999,7 @@ export function PatientLabReports({
           editing={editing}
           busy={busy}
           disabled={busy || retryPending}
+          timezone={practice.timezone}
           onCancel={requestCloseForm}
           onSave={() => void save()}
         />
@@ -1436,6 +1437,7 @@ function LabForm({
   editing,
   busy,
   disabled,
+  timezone,
   onCancel,
   onSave,
 }: {
@@ -1444,6 +1446,7 @@ function LabForm({
   editing: LabReport | null;
   busy: boolean;
   disabled: boolean;
+  timezone: string;
   onCancel: () => void;
   onSave: () => void;
 }) {
@@ -1457,7 +1460,7 @@ function LabForm({
       ),
     });
   return (
-    <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+    <Paper component="section" variant="outlined" sx={{ minWidth: 0, p: 2, width: "100%" }}>
       <Stack spacing={1.5}>
         <Typography variant="subtitle1">
           {editing
@@ -1467,7 +1470,15 @@ function LabForm({
         <Box
           component="fieldset"
           disabled={disabled}
-          sx={{ border: 0, p: 0, m: 0, minWidth: 0, display: "grid", gap: 1.5 }}
+          sx={{
+            border: 0,
+            display: "grid",
+            gap: 1.5,
+            m: 0,
+            minWidth: 0,
+            p: 0,
+            "& .MuiTextField-root": { minWidth: 0 },
+          }}
         >
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
@@ -1499,6 +1510,7 @@ function LabForm({
             <TextField
               select
               label="Status"
+              required
               value={form.status}
               onChange={(event) =>
                 update({ status: event.target.value as Form["status"] })
@@ -1528,7 +1540,7 @@ function LabForm({
               }
               onChange={(event) => update({ collected_at: event.target.value })}
               slotProps={{ inputLabel: { shrink: true } }}
-              helperText="Your local time"
+              helperText={`Your local time · Clinic zone: ${timezone}`}
             />
             <TextField
               label="Reported at"
@@ -1537,7 +1549,7 @@ function LabForm({
               value={form.issued_at ? localDateTimeInput(form.issued_at) : ""}
               onChange={(event) => update({ issued_at: event.target.value })}
               slotProps={{ inputLabel: { shrink: true } }}
-              helperText="Your local time"
+              helperText={`Your local time · Clinic zone: ${timezone}`}
             />
           </Stack>
           {form.results.map((row, index) => (
@@ -1556,6 +1568,7 @@ function LabForm({
               <TextField
                 fullWidth
                 label="Test"
+                required
                 value={row.name}
                 onChange={(event) =>
                   result(index, { name: event.target.value })
@@ -1564,6 +1577,7 @@ function LabForm({
               <TextField
                 fullWidth
                 label="Value"
+                required
                 value={row.value}
                 onChange={(event) =>
                   result(index, { value: event.target.value })

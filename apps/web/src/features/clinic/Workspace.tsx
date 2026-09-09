@@ -338,6 +338,7 @@ export function Workspace({
                 >
                   <ClinicFrame
                     practiceName={data.practice.name}
+                    timezone={data.practice.timezone}
                     locationName={locationName}
                     locations={data.sites}
                     selectedLocationId={data.current_site?.id}

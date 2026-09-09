@@ -19,6 +19,7 @@ export function compactNavigation() {
 
 export function ClinicFrame({
   practiceName,
+  timezone,
   locationName,
   locations = [],
   selectedLocationId,
@@ -28,6 +29,7 @@ export function ClinicFrame({
   developmentPreview = false,
 }: {
   practiceName: string;
+  timezone: string;
   locationName?: string | null;
   locations?: Pick<ClinicSite, "id" | "code" | "name">[];
   selectedLocationId?: number | null;
@@ -182,6 +184,7 @@ export function ClinicFrame({
           </a>
           <div className="practice-label">
             <strong>{practiceName}</strong>
+            <small>Clinic time · {timezone}</small>
             <span className="practice-location">
               <small>Location</small>
               {locations.length > 1 ? (
