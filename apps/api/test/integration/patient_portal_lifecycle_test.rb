@@ -290,13 +290,14 @@ class PatientPortalRecoveryControllerTest < ActionController::TestCase
     @controller.allow_forgery_protection = false
   end
 
-  test "recovery returns the same generic unavailable response for a synthetic contact" do
+  test "recovery accepts an unknown contact without exposing a reset path" do
     post :create, params: { patient_portal_recovery: { contact: "unknown@example.invalid" } }, as: :json
 
-    assert_response :service_unavailable
-    assert_equal "recovery_unavailable", response.parsed_body.fetch("code")
-    assert_equal "Self-service recovery is not enabled. Contact the clinic support team.",
-      response.parsed_body.fetch("error")
+    assert_response :accepted
+    assert_equal true, response.parsed_body.fetch("accepted")
+    assert_equal "If a matching portal account exists, a secure recovery link is being prepared.",
+      response.parsed_body.fetch("message")
+    assert_nil response.parsed_body.fetch("recovery_path")
   end
 end
 
