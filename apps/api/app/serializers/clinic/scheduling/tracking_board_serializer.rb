@@ -271,7 +271,10 @@ module Clinic
             medications: @medications.fetch(patient.id, []),
             care_needs: @care_needs.fetch(patient.id, []),
             conditions: @conditions.fetch(patient.id, []),
-            history_reviews: @history_reviews.fetch(patient.id, []),
+            # The care-summary serializer scopes reviews to this encounter. Supplying
+            # only this encounter's records preserves that contract while avoiding a
+            # repeated in-memory scan of every board review for the same patient.
+            history_reviews: @history_reviews_by_encounter.fetch(encounter.id, []),
             demographics: @demographics[patient.id]
           )
           encounter_proxy = EncounterProxy.new(
@@ -306,10 +309,11 @@ module Clinic
               practice_id: @practice_id, patient_id: @patient_ids
             )
           )
-          @history_reviews = grouped(
+          @history_reviews_by_encounter = grouped(
             Clinic::Care::PatientHistoryReview.where(
               practice_id: @practice_id, patient_id: @patient_ids, encounter_id: @encounter_ids
-            )
+            ),
+            key: :encounter_id
           )
           @demographics = @provided_demographics || Clinic::Care::PatientDemographics.where(
             practice_id: @practice_id, patient_id: @patient_ids

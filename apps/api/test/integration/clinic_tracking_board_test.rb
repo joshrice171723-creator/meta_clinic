@@ -369,6 +369,41 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "tracking board keeps review evidence scoped when one patient has multiple board encounters" do
+    later_encounter = @practice.encounters.create!(
+      patient: @patient,
+      started_at: Time.utc(2026, 9, 2, 16),
+      status: "open"
+    )
+    @patient.history_reviews.create!(
+      practice: @practice,
+      encounter: @current,
+      topic: "allergies",
+      outcome: "none_reported",
+      information_source: "patient",
+      reviewer_membership: @membership,
+      reviewed_at: Time.utc(2026, 9, 2, 14, 5),
+      request_key: "tracking-board-current-review"
+    )
+    @patient.history_reviews.create!(
+      practice: @practice,
+      encounter: later_encounter,
+      topic: "allergies",
+      outcome: "unable_to_obtain",
+      information_source: "caregiver",
+      reviewer_membership: @membership,
+      reviewed_at: Time.utc(2026, 9, 2, 16, 5),
+      request_key: "tracking-board-later-review"
+    )
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    visits = response.parsed_body.fetch("visits").index_by { |visit| visit.fetch("encounter_id") }
+    assert_equal "none_reported", visits.fetch(@current.id).dig("care_summary", "reviews", "allergies", "state")
+    assert_equal "unable_to_obtain", visits.fetch(later_encounter.id).dig("care_summary", "reviews", "allergies", "state")
+  end
+
   test "tracking board preserves precaution states and care-need ordering in the batch adapter" do
     Clinic::Care::EncounterPrecaution.create!(
       practice: @practice,
