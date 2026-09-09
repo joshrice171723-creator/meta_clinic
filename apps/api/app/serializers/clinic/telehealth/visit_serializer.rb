@@ -36,23 +36,26 @@ module Clinic
       end
 
       def queue_rows(visits, actor:)
+        return [] if visits.empty?
+
         preparations = CurrentPreparation.queue_for(visits)
         presence = MediaPresence.for_visits(visits)
         history = MediaPresence.history_for_visits(visits)
+        ability = Ability.new(actor, practice: visits.first.practice)
         visits.map do |visit|
           queue_row(visit, actor: actor, preparation: preparations.fetch(visit.id),
             connected_participant_ids: presence.fetch(visit.id),
             departed_participant_ids: history[:departed_participant_ids].fetch(visit.current_room_attempt_id, []),
-            latest_event: history[:latest_events][visit.current_room_attempt_id])
+            latest_event: history[:latest_events][visit.current_room_attempt_id], ability: ability)
         end
       end
 
       def queue_row(visit, actor:, preparation: nil, connected_participant_ids: nil, departed_participant_ids: nil,
-        latest_event: nil)
+        latest_event: nil, ability: nil)
         preparation ||= CurrentPreparation.call(visit: visit)
         connected_participant_ids ||= MediaPresence.call(visit)
         participant = actor_participant(visit, actor)
-        allowed, = staff_actions(visit, actor: actor, participant: participant)
+        allowed, = staff_actions(visit, actor: actor, participant: participant, ability: ability)
         {
           public_id: visit.public_id,
           status: visit.status,
@@ -76,9 +79,9 @@ module Clinic
         end
       end
 
-      def staff_actions(visit, actor:, participant:)
+      def staff_actions(visit, actor:, participant:, ability: nil)
         allowed = AccessPolicy.allowed_actions(actor_context: { actor: actor, practice: visit.practice }, visit: visit,
-          participant: participant)
+          participant: participant, ability: ability)
         allowed.delete("telehealth.save_wrap_up")
         can_manage_wrap_up = WrapUpWorkflow.can_manage?(visit: visit, actor: actor)
         if can_manage_wrap_up && !visit.wrap_up&.finalized?

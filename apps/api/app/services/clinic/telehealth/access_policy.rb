@@ -24,9 +24,9 @@ module Clinic
         membership
       end
 
-      def allowed_actions(actor_context:, visit:, participant: nil)
+      def allowed_actions(actor_context:, visit:, participant: nil, ability: nil)
         actions = []
-        ability = Ability.new(actor_context.fetch(:actor), practice: visit.practice)
+        ability ||= Ability.new(actor_context.fetch(:actor), practice: visit.practice)
         action_names = {
           read: "telehealth.view_preparation", preparation_read: "telehealth.view_preparation",
           verify_preparation: "telehealth.verify_preparation", prepare_room: "telehealth.prepare_room",
