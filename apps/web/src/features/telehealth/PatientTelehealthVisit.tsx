@@ -322,6 +322,10 @@ function PatientCall({
 }
 
 export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
+  return <PatientTelehealthVisitWorkspace key={visitId} visitId={visitId} />;
+}
+
+function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
   const [pollEnabled, setPollEnabled] = useState(false);
   const resource = useTelehealthVisit("patient", visitId, {
     poll: pollEnabled,
@@ -331,6 +335,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
+  const mountedRef = useRef(false);
   const actionPendingRef = useRef(false);
   const withdrawalAttemptRef = useRef<{
     visitId: string;
@@ -341,6 +346,12 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
   const visit = resource.response?.data;
   const serverStep = useMemo(() => (visit ? stepForVisit(visit) : 0), [visit]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   useEffect(() => setStep(serverStep), [serverStep]);
   useEffect(() => {
     setPollEnabled(
@@ -373,10 +384,12 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
     setError(null);
     try {
       const response = await action();
+      if (!mountedRef.current) return;
       resource.setResponse(visitEnvelope(response));
       if (nextStep !== undefined) setStep(nextStep);
       return response;
     } catch (reason) {
+      if (!mountedRef.current) return;
       const unknown = reason instanceof ApiError && reason.status === 409;
       setError(
         unknown
@@ -388,7 +401,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
       throw reason;
     } finally {
       actionPendingRef.current = false;
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
@@ -443,9 +456,26 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
         "withdrawn",
         attempt.key,
       );
+      if (!mountedRef.current) return;
       resource.setResponse(visitEnvelope(response));
       withdrawalAttemptRef.current = null;
     } catch (reason) {
+      if (!mountedRef.current) return;
+      if (
+        reason instanceof ApiError &&
+        reason.status === 409 &&
+        reason.code === "stale_record"
+      ) {
+        withdrawalAttemptRef.current = null;
+        setError(
+          "The visit changed before consent withdrawal was recorded. Review the latest status, then retry withdrawal.",
+        );
+        setWithdrawalError(
+          "APPly stopped this browser's camera and microphone, but the visit changed before consent withdrawal was recorded. APPly requested the latest visit status; review it, then retry withdrawal.",
+        );
+        await resource.refresh();
+        return;
+      }
       const message =
         reason instanceof Error
           ? reason.message
@@ -459,7 +489,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
       throw reason;
     } finally {
       actionPendingRef.current = false;
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
   const saveInitial = async (checkin: PatientCheckinInput) => {
@@ -509,12 +539,15 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
         returnPath: window.location.pathname,
       });
     } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Unable to join the visit.",
-      );
+      if (mountedRef.current)
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to join the visit.",
+        );
     } finally {
       actionPendingRef.current = false;
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
