@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { api, ApiError, formBody } from "../../api/client";
 import type { Encounter, Pagination, Patient } from "../../api/contracts";
 import {
@@ -766,6 +767,7 @@ function PatientRegistrationEditor({
       onSubmit={async (event) => {
         event.preventDefault();
         if (inFlight.current) return;
+        const form = event.currentTarget;
         inFlight.current = true;
         if (autosaveTimer.current) {
           window.clearTimeout(autosaveTimer.current);
@@ -799,8 +801,13 @@ function PatientRegistrationEditor({
             return;
           }
           attempt.current = null;
-          setDirty(false);
-          setOutcomeUnconfirmed(false);
+          requestKey.current = crypto.randomUUID();
+          form.reset();
+          flushSync(() => {
+            setDirty(false);
+            setOutcomeUnconfirmed(false);
+            setBusy(false);
+          });
           onSuccess?.(result);
         } catch (reason) {
           const unknown =
