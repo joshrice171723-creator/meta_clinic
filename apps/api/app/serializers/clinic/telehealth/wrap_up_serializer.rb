@@ -6,6 +6,8 @@ module Clinic
       def staff(wrap_up)
         return unless wrap_up
 
+        follow_up = current_follow_up(wrap_up)
+
         snapshot = if wrap_up.finalized?
           {
             encounter_id: wrap_up.scribe_encounter_id,
@@ -27,10 +29,10 @@ module Clinic
           clinician_notes: wrap_up.clinician_notes,
           patient_instructions: wrap_up.patient_instructions,
           instruction_note_revision_id: wrap_up.instruction_note_revision_id,
-          follow_up_status: wrap_up.follow_up_status,
-          follow_up_plan: wrap_up.follow_up_plan,
-          follow_up_appointment: wrap_up.follow_up_appointment &&
-            VisitSerializer.appointment(wrap_up.follow_up_appointment),
+          follow_up_status: follow_up.fetch(:status),
+          follow_up_plan: follow_up.fetch(:plan),
+          follow_up_appointment: follow_up.fetch(:appointment) &&
+            VisitSerializer.appointment(follow_up.fetch(:appointment)),
           scribe_review_status: wrap_up.scribe_review_status,
           scribe_snapshot: snapshot,
           publication_state: WrapUpWorkflow.publication_state(wrap_up),
@@ -48,16 +50,27 @@ module Clinic
           return { status: "pending", outcome: nil, instructions: nil, follow_up_status: nil,
             follow_up_plan: nil, follow_up_appointment: nil, published_at: nil }
         end
+        follow_up = current_follow_up(wrap_up)
         {
           status: "ready",
           outcome: wrap_up.outcome,
           instructions: wrap_up.patient_instructions,
-          follow_up_status: wrap_up.follow_up_status,
-          follow_up_plan: wrap_up.follow_up_plan,
-          follow_up_appointment: wrap_up.follow_up_appointment &&
-            VisitSerializer.appointment(wrap_up.follow_up_appointment),
+          follow_up_status: follow_up.fetch(:status),
+          follow_up_plan: follow_up.fetch(:plan),
+          follow_up_appointment: follow_up.fetch(:appointment) &&
+            VisitSerializer.appointment(follow_up.fetch(:appointment)),
           published_at: wrap_up.encounter.ended_at.iso8601(6)
         }
+      end
+
+
+      def current_follow_up(wrap_up)
+        Clinic::Operations::EncounterFollowUps.projection(
+          encounter: wrap_up.encounter,
+          fallback_status: wrap_up.follow_up_status,
+          fallback_plan: wrap_up.follow_up_plan,
+          fallback_appointment: wrap_up.follow_up_appointment
+        )
       end
     end
   end
