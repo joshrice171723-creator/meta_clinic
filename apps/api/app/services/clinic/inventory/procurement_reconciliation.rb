@@ -50,10 +50,14 @@ module Clinic
           raise ArgumentError, "Currency must contain three letters." unless currency.match?(/\A[A-Z]{3}\z/)
           discrepancies = []
           matched = SupplierInvoice.where(practice_id: practice.id, purchase_order_id: order.id, status: "matched").to_a
+          line_ids = rows.map { |row| row.with_indifferent_access.fetch(:purchase_order_line_id) }
+          lines_by_id = order.lines.where(practice_id: practice.id, id: line_ids).index_by(&:id)
           subtotal = BigDecimal("0")
           snapshots = rows.map do |values|
             row = values.with_indifferent_access
-            line = order.lines.where(practice_id: practice.id).find(row.fetch(:purchase_order_line_id))
+            line = lines_by_id.fetch(row.fetch(:purchase_order_line_id).to_i) do
+              raise ActiveRecord::RecordNotFound
+            end
             packages = Quantity.parse(row.fetch(:quantity_packages), scale: 0)
             price = Quantity.parse(row.fetch(:unit_price), scale: 6, zero: true)
             used = matched.sum(BigDecimal("0")) { |invoice| invoice.details.fetch("lines").select { |r| r.fetch("purchase_order_line_id") == line.id.to_s }.sum(BigDecimal("0")) { |r| BigDecimal(r.fetch("quantity_packages")) } }

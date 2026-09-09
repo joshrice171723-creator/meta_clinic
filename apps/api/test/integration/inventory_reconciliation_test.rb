@@ -117,6 +117,34 @@ class InventoryReconciliationTest < ActionDispatch::IntegrationTest
     assert_equal 2, response.parsed_body.dig("data", "receipt_lines").size
   end
 
+  test "supplier invoice reconciliation batches order line lookups" do
+    lines = @lines + 8.times.map do |index|
+      product = @practice.pharmacy_products.create!(name: "Invoice batch fixture #{index}", sku: "INVOICE-BATCH-#{index}",
+        stock_unit: "each", package_size: 5, quantity_scale: 0, unit_reference: "Invoice batch package")
+      @order.lines.create!(practice: @practice, product: product, product_name: product.name, stock_unit: "each",
+        input_unit: "package", conversion_factor: 5, ordered_quantity: 3, received_quantity: 0,
+        unit_price: 5, currency: "USD")
+    end
+    input = { reference: "INV-BATCH", reason: "Batched invoice reconciliation", request_key: SecureRandom.uuid,
+      amount: "50", currency: "USD", tax: "0", shipping: "0",
+      lines: lines.map { |line| { purchase_order_line_id: line.id.to_s, quantity_packages: "1", unit_price: "5" } } }
+    line_queries = []
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s
+      line_queries << sql if sql.match?(/\ASELECT.*FROM "clinic_inventory_purchase_order_lines"/mi)
+    end
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        post_operation("invoices", :invoice, input)
+      end
+    end
+
+    assert_response :created
+    assert_equal lines.length, response.parsed_body.dig("data", "details", "lines").length
+    assert_equal 1, line_queries.length, line_queries.join("\n")
+  end
+
   test "mixed accepted and rejected lines commit one session without rejected stock" do
     input = session_input
     input[:lines][1].merge!(accepted_packages: "0", reconciliation: { missing_packages: "0", rejected_packages: "2", excess_packages: "0", exception: "damaged" })
