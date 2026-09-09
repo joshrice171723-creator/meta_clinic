@@ -47,7 +47,7 @@ module Clinic
           actions << "telehealth.start_encounter" if ability.allowed_permission?("encounters.write",
             site: visit.appointment.site)
         end
-        actions.delete("telehealth.join") unless participant&.admitted? && !visit.ending? && !visit.ended?
+        actions.delete("telehealth.join") unless participant&.admitted? && (visit.scheduled? || visit.in_progress?)
         actions << "telehealth.leave" if participant && !participant.removed? &&
           ability.allowed_permission?("telehealth.participate", site: visit.appointment.site)
         actions.uniq

@@ -29,6 +29,11 @@ module Clinic
             room = locked.current_room_attempt
             raise Error.new("The video room is not ready.", code: "room_not_ready", status: :conflict) unless room&.ready? || room&.active?
             raise Error.new("The patient is not waiting.", code: "participant_not_waiting", status: :conflict) unless target.waiting?
+            if locked.commands.where(room_attempt_id: room.id, participant_id: target.id, kind: "eject_participant",
+              access_generation: locked.access_generation, status: %w[pending leased unknown]).exists?
+              raise Error.new("Wait for the current removal to finish before readmitting this patient.",
+                code: "participant_ejection_pending", status: :conflict)
+            end
             target.update!(status: "admitted", admitted_by_membership_id: membership.id, admitted_at: Time.current,
               admitted_generation: locked.access_generation, admitted_checkin_id: preparation[:checkin].id)
             locked.update!(status: "in_progress", first_started_at: locked.first_started_at || Time.current)

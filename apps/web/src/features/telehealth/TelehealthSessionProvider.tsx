@@ -369,8 +369,7 @@ export function TelehealthSessionProvider({
       const participantRevoked =
         !currentParticipant ||
         currentParticipant.provider_subject_id !== session.providerSubjectId ||
-        currentParticipant.status === "removed" ||
-        currentParticipant.status === "left";
+        currentParticipant.status !== "admitted";
       const visitClosed =
         ["ending", "ended", "cancelled", "no_show"].includes(visit.status) ||
         ["ending", "ended", "failed"].includes(visit.room.status) ||
