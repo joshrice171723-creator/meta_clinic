@@ -1,4 +1,4 @@
-"""Deterministic coverage for Story-aware preflight and route precedence."""
+"""Deterministic coverage for preflight route precedence."""
 
 import importlib.util
 from importlib.machinery import SourceFileLoader
@@ -30,17 +30,6 @@ class PreflightTests(unittest.TestCase):
             "apps/web/src/shared/ui.tsx",
         )]
         self.assertEqual(names, ["react-frontend-launch", "react-frontend-identity-shared", "react-frontend-identity-shared"])
-
-    def test_story_reference_accepts_id_marker_and_url(self):
-        self.assertEqual(preflight.story_reference("78"), "sc-78")
-        self.assertEqual(preflight.story_reference("SC-78"), "sc-78")
-        self.assertEqual(
-            preflight.story_reference("https://app.shortcut.com/apply-1/story/78/adopt-shortcut"),
-            "sc-78",
-        )
-        with self.assertRaisesRegex(ValueError, "invalid Shortcut Story reference"):
-            preflight.story_reference("harness-cutover")
-
 
 if __name__ == "__main__":
     unittest.main()

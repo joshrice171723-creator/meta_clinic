@@ -5,8 +5,8 @@ These instructions apply to `APPlyVault/` and extend the repository root contrac
 ## Select context before editing
 
 1. Read `00 Home.md` and `01 Table of Contents.md`.
-2. Use the table's Story context route to select complete relevant sections, including frontmatter, scope/limits, linked decisions, risks and dated evidence.
-3. Follow only dependencies needed to understand the Story. A full-vault read is not required.
+2. Use the table of contents to select complete relevant sections, including frontmatter, scope/limits, linked decisions, risks and dated evidence.
+3. Follow only dependencies needed to understand the change. A full-vault read is not required.
 4. If the table is stale, use targeted `rg` searches and `rg --files --hidden --no-ignore APPlyVault`; do not assume missing evidence exists.
 5. Recheck selected files before writing when concurrent edits are possible.
 
@@ -25,14 +25,13 @@ Keep a short in-session record of selected paths/sections and material gaps. Mis
 - Durable product definitions and the portal/clinic separation: root `PRODUCT.md`.
 - Canonical clinic visual system: `03 Execution/Design.md`; implementation history and workflow boundaries remain in `03 Execution/Clinic Workspace Design.md`.
 - Current coherent state: the relevant foundation, research or implementation note.
-- Roadmap, task scope/acceptance, claims, owners and status: Shortcut APPly / Agent Workspace only; see `../docs/development/shortcut.md`. Do not create or mirror task lists, task briefs or Story state in the vault.
 - Explicit founder/team decision: `03 Execution/Decisions.md` only.
 - Open uncertainty: `03 Execution/Risks and Assumptions.md`.
 - Recent dated outcome and compatibility index: `03 Execution/Progress Log.md`; full dated evidence is in repository `records/`, with new progress records under `records/progress/YYYY/MM/`.
-- Navigation and Story context routing: `01 Table of Contents.md`.
+- Navigation and context routing: `01 Table of Contents.md`.
 - Overall direction/priority summary: `00 Home.md`, only when it actually changed.
 
-For a substantive vault change, update affected current-state notes, record a decision or risk only when it changed, and add one concise progress entry when the outcome is material. Update task state only in Shortcut. Do not maintain competing lists.
+For a substantive vault change, update affected current-state notes, record a decision or risk only when it changed, and add one concise progress entry when the outcome is material. Do not maintain competing task lists.
 
 ## Editing conventions
 

@@ -8,7 +8,7 @@ These instructions apply to the whole repository. APPly combines business planni
 2. Before changing a path, read the nearest applicable nested `AGENTS.md`. Tools that do not discover nested instructions automatically must read them explicitly.
 3. Load the relevant procedure from [`agent-harness/workflows/`](agent-harness/workflows/README.md) only when the task needs it.
 4. Load a repository skill from [`.agents/skills/`](.agents/skills/) only when explicitly invoked or when its description matches the task.
-5. Use Shortcut for the roadmap, active task coordination and status. Use the vault for current direction, requirements, decisions, risks and evidence. Do not create or maintain task lists, task briefs or status mirrors in the vault.
+5. Use the vault for current direction, requirements, decisions, risks and evidence. Keep active work coordination in the current task context rather than a checked-in task tracker.
 
 More-specific instructions may add safeguards or commands; they may not weaken the boundaries in this file. Each explicitly delegated agent reviews the instructions and vault context relevant to its own bounded subtask.
 
@@ -16,7 +16,7 @@ More-specific instructions may add safeguards or commands; they may not weaken t
 
 - Root and nested `AGENTS.md` files are the stable, always-on policy and path-routing layer. Their location is part of agent discovery, so they remain beside the paths they govern.
 - `agent-harness/workflows/` contains reusable procedures; `.agents/skills/` contains on-demand capabilities; `bin/agent-*` and the verification commands provide deterministic checks. Host integrations are added only when selected, not maintained speculatively.
-- Shortcut's APPly **Agent Workspace** is the active task, claim and work-in-progress coordination plane. `APPlyVault/` is the software knowledge base for current direction, requirements, decisions, risks, research and dated evidence. Application source, tests, migrations and runbooks are executable truth for implemented behavior.
+- `APPlyVault/` is the software knowledge base for current direction, requirements, decisions, risks, research and dated evidence. Application source, tests, migrations and runbooks are executable truth for implemented behavior.
 - Prompt instructions do not create a runtime permission boundary. A plan/act skill cannot change tool availability, sandboxing, approvals or deployment authority.
 
 See [`agent-harness/README.md`](agent-harness/README.md) for the component map and skill catalog.
@@ -46,15 +46,14 @@ When a missing choice would materially change the result or expand authority, st
 Before the first write:
 
 1. Run `git status --short` and preserve all existing and concurrent work. Do not reset, discard or blindly stash another person's changes.
-2. For any repository-changing task, use the configured Shortcut MCP to inspect the APPly **Agent Workspace** before editing. Search non-Done Stories for the same objective and review active claims for overlapping paths, branches or contracts. Reuse an exact unclaimed Story or create one bounded Story; place it in an existing Epic or Iteration only when the fit is clear.
-3. Claim the Story before editing: assign the current authenticated user, move it to **In Progress**, and add one concise comment with the agent/run identity, base commit, branch or worktree, intended outcome and bounded path scope. If another active claim overlaps, stop the conflicting write and coordinate in the Story instead of taking it over or creating a duplicate. Read-only review does not require a Story unless the user asks for one.
-4. Run `bin/agent-preflight --story sc-<id> --path <target>` for each major area in scope, or perform the equivalent checks manually.
-5. Read the applicable nested `AGENTS.md` and workflow playbooks, including [`shortcut-task.md`](agent-harness/workflows/shortcut-task.md) for repository-changing work.
+2. Check the current branch and working tree for overlapping work before editing.
+3. Run `bin/agent-preflight --path <target>` for each major area in scope, or perform the equivalent checks manually.
+4. Read the applicable nested `AGENTS.md` and workflow playbooks.
 6. For implementation or vault changes, read `APPlyVault/00 Home.md` and use `APPlyVault/01 Table of Contents.md` to select only the relevant current notes, decisions, risks and evidence.
 7. Development starts with `docs/development/README.md` and the relevant section of `docs/architecture/software-architecture.md`; use the vault table of contents only for the product, decision, risk and evidence context the change needs.
 8. Briefly state the reviewed scope, material gaps or conflicts and intended changes.
 
-Do not edit, rename, delete, format broadly, install dependencies, run generators, change settings or deploy until the review and Story claim are complete. If Shortcut is unavailable, continue read-only diagnosis but do not begin a repository-changing task. External links are not reviewed merely because a vault note references them.
+Do not edit, rename, delete, format broadly, install dependencies, run generators, change settings or deploy until the review is complete. External links are not reviewed merely because a vault note references them.
 
 ## Canonical records
 
@@ -64,7 +63,6 @@ Do not edit, rename, delete, format broadly, install dependencies, run generator
 | Orientation and priorities | `APPlyVault/00 Home.md` |
 | Context routes | `APPlyVault/01 Table of Contents.md` |
 | Clinic visual system | `APPlyVault/03 Execution/Design.md` |
-| Roadmap, task scope, acceptance, claim and status | Shortcut APPly / Agent Workspace; see `docs/development/shortcut.md` |
 | Explicit decisions and authority | `APPlyVault/03 Execution/Decisions.md` |
 | Risks and assumptions | `APPlyVault/03 Execution/Risks and Assumptions.md` |
 | Recent dated outcomes | `APPlyVault/03 Execution/Progress Log.md` |
@@ -72,7 +70,7 @@ Do not edit, rename, delete, format broadly, install dependencies, run generator
 | Development and CI workflow | `docs/development/` |
 | Code ownership and architecture | `docs/architecture/software-architecture.md` |
 
-Preserve reported facts, observations, sourced background, proposals and decisions as distinct evidence types. Follow later decisions and current evidence without erasing superseded history. Do not mirror Shortcut status in the vault or create a parallel task, decision or status register.
+Preserve reported facts, observations, sourced background, proposals and decisions as distinct evidence types. Follow later decisions and current evidence without erasing superseded history.
 
 ## Change discipline
 
@@ -94,11 +92,10 @@ Before finishing:
 1. Inspect the scoped diff and working-tree state.
 2. Run the checks required by the nearest `AGENTS.md`; use `bin/agent-check` to list or run checks selected from changed paths. Harness changes use `bin/verify-agent-harness`; vault changes use `bin/verify-vault`.
 3. Verify that no unrelated work, secret or sensitive material was included.
-4. Update canonical vault records only when direction, requirements, risks, evidence or a decision actually changed. Refresh Home only when overall direction or priorities changed; do not copy mutable Story status into the vault.
-5. Update the claimed Shortcut Story with the bounded result, changed paths or pull request, checks and evidence, and remaining blockers or risks. Move it to **In Review** when review remains, or **Done** only when the Story's bounded acceptance is actually satisfied. A Story transition does not close a professional, clinical, security, operational or release gate.
+4. Update canonical vault records only when direction, requirements, risks, evidence or a decision actually changed. Refresh Home only when overall direction or priorities changed.
 6. Report what changed, checks actually run and their outcomes, checks not run, remaining risks/gates and required human decisions.
 
-Never mark a Story, source review, professional gate, incident response, release or HIPAA assessment complete without the required evidence.
+Never mark a source review, professional gate, incident response, release or HIPAA assessment complete without the required evidence.
 
 <!-- graft:start -->
 ## Graft — repo context graph

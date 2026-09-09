@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Report a Shortcut claim, worktree state, instructions and context routes."""
+"""Report worktree state, instructions and context routes."""
 
 from __future__ import annotations
 
 import argparse
 import fnmatch
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -79,9 +78,6 @@ def route_manifest() -> dict[str, object]:
         raise ValueError(f"{ROUTES.relative_to(ROOT)}: unsupported route-manifest version")
     if not isinstance(manifest.get("routes"), list) or not isinstance(manifest.get("fallback"), dict):
         raise ValueError(f"{ROUTES.relative_to(ROOT)}: routes and fallback are required")
-    workflow = manifest.get("coordination_workflow")
-    if not isinstance(workflow, str) or not (ROOT / workflow).is_file():
-        raise ValueError(f"{ROUTES.relative_to(ROOT)}: valid coordination_workflow is required")
     return manifest
 
 
@@ -98,17 +94,6 @@ def route_for(relative_path: str, manifest: dict[str, object]) -> tuple[dict[str
     return manifest["fallback"], True
 
 
-def story_reference(raw: str) -> str:
-    """Normalize an sc-123, numeric ID or Shortcut Story URL for traceability."""
-    value = raw.strip()
-    match = re.fullmatch(r"(?:sc-)?(\d+)", value, re.IGNORECASE)
-    if not match:
-        match = re.search(r"/story/(\d+)(?:/|$)", value)
-    if not match:
-        raise ValueError(f"invalid Shortcut Story reference {raw!r}; expected sc-123, 123 or a Story URL")
-    return f"sc-{int(match.group(1))}"
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -116,10 +101,6 @@ def main() -> int:
         action="append",
         default=[],
         help="Repository-relative target path; repeat for multiple areas.",
-    )
-    parser.add_argument(
-        "--story",
-        help="Claimed Shortcut Story (for example sc-123). Required by policy before repository writes.",
     )
     args = parser.parse_args()
     paths = args.path or ["."]
@@ -129,25 +110,12 @@ def main() -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    story: str | None = None
-    if args.story:
-        try:
-            story = story_reference(args.story)
-        except ValueError as error:
-            print(f"error: {error}", file=sys.stderr)
-            return 2
-
     print(f"Repository: {ROOT}")
     print(f"Branch: {git('branch', '--show-current') or '(detached HEAD)'}")
     print(f"HEAD: {git('rev-parse', '--short=12', 'HEAD')}")
     status = git("status", "--short")
     print("Worktree:")
     print(status if status else "  clean")
-    print(f"Coordination workflow: {manifest['coordination_workflow']}")
-    if story:
-        print(f"Shortcut Story: {story} (claim/state must be verified through Shortcut MCP)")
-    else:
-        print("Shortcut Story: (not supplied; repository-changing work must claim one before writing)")
 
     for raw_path in paths:
         try:
@@ -179,7 +147,7 @@ def main() -> int:
             else:
                 print("  - (none)")
 
-    print("\nBefore writing, verify the Story is In Progress with the current claim, then state the reviewed scope, material gaps/conflicts and intended changes.")
+    print("\nBefore writing, state the reviewed scope, material gaps or conflicts and intended changes.")
     return 0
 
 

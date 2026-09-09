@@ -1,6 +1,5 @@
 {
   "version": 1,
-  "coordination_workflow": "agent-harness/workflows/shortcut-task.md",
   "fallback": {
     "name": "default",
     "workflows": ["agent-harness/workflows/code-change.md"],

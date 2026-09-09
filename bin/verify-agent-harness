@@ -30,7 +30,6 @@ REQUIRED_INSTRUCTION_FILES = [
     "agent-harness/THIRD_PARTY_NOTICES.md",
     "agent-harness/workflows/README.md",
     "agent-harness/workflows/code-change.md",
-    "agent-harness/workflows/shortcut-task.md",
     "agent-harness/workflows/failure-first.md",
     "agent-harness/workflows/knowledge-maintenance.md",
     "agent-harness/workflows/vault-change.md",
@@ -42,7 +41,6 @@ REQUIRED_INSTRUCTION_FILES = [
     "docs/AGENTS.md",
     "docs/README.md",
     "docs/development/README.md",
-    "docs/development/shortcut.md",
     "docs/architecture/README.md",
     "records/AGENTS.md",
     "records/README.md",
@@ -215,9 +213,6 @@ def main() -> int:
         route_manifest = {}
     if route_manifest.get("version") != 1:
         errors.append("agent-harness/routes.json: version must be 1")
-    coordination_workflow = route_manifest.get("coordination_workflow")
-    if coordination_workflow != "agent-harness/workflows/shortcut-task.md":
-        errors.append("agent-harness/routes.json: coordination_workflow must route to shortcut-task.md")
     routes = route_manifest.get("routes", [])
     route_names = {
         route.get("name")
@@ -248,36 +243,6 @@ def main() -> int:
     if ".agents/skills/frontend-ui/SKILL.md (for UI work)" not in rendered_routes:
         errors.append("agent-harness/routes.json: frontend route must surface the frontend-ui skill")
 
-    coordination_markers = {
-        "AGENTS.md": (
-            "Agent Workspace",
-            "bin/agent-preflight --story sc-<id>",
-            "In Progress",
-            "In Review",
-        ),
-        "agent-harness/workflows/shortcut-task.md": (
-            "before every repository-changing task",
-            "overlapping paths",
-            "codex mcp login shortcut",
-            "Done",
-        ),
-        "docs/development/shortcut.md": (
-            "https://app.shortcut.com/apply-1/roadmap",
-            "6a9a1399-c3ef-478b-ad87-4acd84f2b7fa",
-            "codex mcp login shortcut",
-            "500000008",
-            "500000010",
-        ),
-    }
-    for relative, markers in coordination_markers.items():
-        path = ROOT / relative
-        if not path.is_file():
-            continue
-        content = path.read_text(encoding="utf-8")
-        for marker in markers:
-            if marker not in content:
-                errors.append(f"{relative}: missing Shortcut coordination marker {marker!r}")
-
     preflight_path = ROOT / "bin" / "agent-preflight"
     if preflight_path.is_file():
         preflight_source = preflight_path.read_text(encoding="utf-8")
@@ -295,7 +260,7 @@ def main() -> int:
     for pattern in ("*Roadmap*.md", "*Task Brief*.md"):
         for path in (ROOT / "APPlyVault").rglob(pattern):
             errors.append(
-                f"Vault roadmap/task-tracking note remains after Shortcut cutover: {path.relative_to(ROOT)}"
+                f"Vault roadmap/task-tracking note remains: {path.relative_to(ROOT)}"
             )
 
     for path in sorted((ROOT / "docs").rglob("*.md")):

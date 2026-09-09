@@ -1,13 +1,10 @@
 # Developer documentation
 
-These documents explain how to work on APPly. They describe current source mechanics; the repository root and nested `AGENTS.md` files describe agent policy, Shortcut Roadmap and Agent Workspace own task scope/acceptance and coordination/status, and `APPlyVault/` records product context, decisions, risks and dated evidence.
+These documents explain how to work on APPly. They describe current source mechanics; the repository root and nested `AGENTS.md` files describe agent policy, and `APPlyVault/` records product context, decisions, risks and dated evidence.
 
 - [Getting started](getting-started.md): local prerequisites and the managed development lifecycle.
 - [Contributing](contributing.md): branches, focused changes, checks and review.
 - [CI](ci.md): GitHub checks and the boundary between CI, staging and production.
-- [Shortcut execution workspace](shortcut.md): the configured workspace/team,
-  Story claim and overlap protocol, Standard workflow, GitHub boundary and
-  completion updates.
 - [Architecture](../architecture/README.md): repository ownership, domain boundaries and implementation contracts.
 - [Stripe monthly memberships](stripe-memberships.md): sandbox Connect credentials, local webhook delivery, membership lifecycle and manual acceptance gate.
 - [Clinic background work](clinic-background-work.md): bounded PostgreSQL outbox recovery process, safety gates and deployment requirements.

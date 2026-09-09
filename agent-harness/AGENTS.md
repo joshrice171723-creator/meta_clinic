@@ -2,7 +2,7 @@
 
 These instructions apply to `agent-harness/` and extend the repository root contract.
 
-- Keep the harness product-agnostic except for repository safety, routing and the selected coordination adapter. Put current APPly requirements, decisions, risks and evidence in `APPlyVault/`; put the roadmap and all task-level scope, acceptance and status in Shortcut Agent Workspace.
+- Keep the harness product-agnostic except for repository safety and routing. Put current APPly requirements, decisions, risks and evidence in `APPlyVault/`.
 - Keep root and nested `AGENTS.md` files as the canonical always-on policy. Workflows and skills may refine a task but may not weaken authority, sensitive-data or release boundaries.
 - Keep `.agents/skills/` canonical. Do not add host-specific skill mirrors unless the user selects and authorizes that host integration.
 - Distinguish prompt guidance from runtime enforcement. Never claim that a skill changes tool availability, sandboxing, approvals or host mode.

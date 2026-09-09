@@ -13,7 +13,7 @@ Measure the current task from trace initialization through finalization. This re
 2. From the repository root, run `bin/task-trace start "LABEL"` and retain the returned absolute JSON path for the rest of the turn.
 3. State that tracing has started and that the final timing covers only activity after initialization.
 
-The trace is written incrementally under ignored `tmp/task-traces/`. Do not move it into source, the vault, records or Shortcut.
+The trace is written incrementally under ignored `tmp/task-traces/`. Do not move it into source, the vault or records.
 
 ## Record work
 
