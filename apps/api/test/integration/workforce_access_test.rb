@@ -210,6 +210,29 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal @employee.id, response.parsed_body.dig("user", "id")
   end
 
+  test "site participant eligibility requires both messaging access and an active work assignment" do
+    grant_permissions!(@manager_membership, "staff_messaging.read")
+    grant_permissions!(@employee_membership, "staff_messaging.read")
+    unassigned_user = create_user("unassigned-messaging-recipient")
+    unassigned_membership = @practice.memberships.create!(user: unassigned_user)
+    grant_permissions!(unassigned_membership, "staff_messaging.read")
+    ability = Ability.new(@manager, practice: @practice)
+
+    participant_ids = Clinic::Messaging::ParticipantIndex.call(
+      practice: @practice, ability: ability, site: @assigned_site
+    ).map(&:id)
+
+    assert_includes participant_ids, @employee_membership.id
+    assert_not_includes participant_ids, unassigned_membership.id
+
+    @employment.update!(status: "inactive", effective_until: Time.current)
+
+    participant_ids = Clinic::Messaging::ParticipantIndex.call(
+      practice: @practice, ability: ability, site: @assigned_site
+    ).map(&:id)
+    assert_not_includes participant_ids, @employee_membership.id
+  end
+
   test "employee activation requires CSRF and remains blocked by the production release gate" do
     invited_staff = @practice.staff_members.create!(display_name: "Alex Rivera",
       job_title: "Medical assistant", active: true)
@@ -231,9 +254,36 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     deployed("staging") do
       post "/api/employee_activation", params: payload, headers: csrf_headers, as: :json
       assert_response :not_found
+
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = @practice.id.to_s
+      post "/api/employee_activation", params: payload, headers: csrf_headers, as: :json
+      assert_response :created
     end
-    assert invitation.fetch(:invitation).reload.pending?
-    assert_not User.exists?(email_address: invitation.fetch(:invitation).email_address)
+    assert invitation.fetch(:invitation).reload.activated?
+    assert User.exists?(email_address: invitation.fetch(:invitation).email_address)
+  end
+
+  test "account revocation closes sessions and restore requires a fresh role grant" do
+    role = Clinic::Authorization::PilotRoleCatalog.current_versions.find { |candidate| candidate.role_code == "workforce-employee" }
+    login(@employee)
+    assert MemberSession.exists?(user_id: @employee.id)
+    original_generation = @employee_membership.authorization_generation
+
+    Clinic::Workforce::EmployeeAccessLifecycle.revoke!(employment: @employment, actor: @manager)
+
+    assert_not @employee.reload.active?
+    assert_not @employee_membership.reload.active?
+    assert @employment.reload.inactive?
+    assert_not MemberSession.exists?(user_id: @employee.id)
+    assert_operator @employee_membership.authorization_generation, :>, original_generation
+
+    Clinic::Workforce::EmployeeAccessLifecycle.restore!(employment: @employment, actor: @manager,
+      role_version: role, sites: [ @assigned_site ])
+
+    assert @employee.reload.active?
+    assert @employee_membership.reload.active?
+    assert @employment.reload.active?
+    assert @employee_membership.role_grants.active.where(source_employment_id: @employment.id).exists?
   end
 
   private
@@ -255,12 +305,12 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
   end
 
   def deployed(environment)
-    previous = [ Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"] ]
+    previous = [ Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"], ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] ]
     Rails.env = "production"
     ENV["APP_DEPLOYMENT_ENV"] = environment
     ENV["APP_DEVELOPMENT_LOGIN"] = "1"
     yield
   ensure
-    Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"] = previous
+    Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"], ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = previous
   end
 end

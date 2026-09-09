@@ -22,7 +22,9 @@ export type WorkforceEmployment = {
     active: boolean;
   };
   roles: Array<{
+    role_version_id: number;
     role_code: string;
+    label: string;
     scope_kind: "practice" | "site";
     site_id: number | null;
   }>;
@@ -50,6 +52,7 @@ export type EmploymentAdminData = {
     role_code: string;
     version: number;
     permissions: string[];
+    label: string;
   }>;
   invitations: Array<{
     id: number;

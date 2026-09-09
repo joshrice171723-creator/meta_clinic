@@ -45,6 +45,7 @@ export function SessionGuard({
   const lastActivity = useRef(0);
   const acknowledgedActivity = useRef(0);
   const requestActive = useRef(false);
+  const authorizationGeneration = useRef<number | null>(null);
   const alive = useRef(true);
   useLayoutEffect(() => {
     setApiActor(expectedUserId);
@@ -75,6 +76,7 @@ export function SessionGuard({
       const response = await api<{
         session_policy?: SessionPolicy;
         user?: { id: number };
+        clinic_access?: { active: boolean; authorization_generation: number } | null;
       }>("/api/session", { method: extend ? "PATCH" : "GET" });
       if (!alive.current) return;
       if (
@@ -83,6 +85,18 @@ export function SessionGuard({
       ) {
         setExpired(true);
         return;
+      }
+      if (response.clinic_access) {
+        if (!response.clinic_access.active) {
+          setExpired(true);
+          return;
+        }
+        if (authorizationGeneration.current === null) {
+          authorizationGeneration.current = response.clinic_access.authorization_generation;
+        } else if (authorizationGeneration.current !== response.clinic_access.authorization_generation) {
+          setExpired(true);
+          return;
+        }
       }
       accept(response.session_policy);
       if (extend) acknowledgedActivity.current = activity;

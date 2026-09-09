@@ -61,6 +61,168 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     assert_not @other_practice.audit_events.exists?(action_code: "patient_portal.identity.invite")
   end
 
+  test "production activation requires the identity practice to be explicitly enabled" do
+    invitation = invite_identity
+
+    deployed do
+      assert_raises(Clinic::PatientPortal::ActivateIdentity::InvalidInvitation) do
+        activate(invitation.fetch(:token))
+      end
+      assert invitation.fetch(:identity).reload.invited?
+
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = @practice.id.to_s
+      assert activate(invitation.fetch(:token)).active?
+    end
+  end
+
+  test "email invitation provisions an inactive account and activation establishes reusable credentials" do
+    email = "portal-provisioned-#{SecureRandom.hex(6)}@example.invalid"
+    invitation = Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: email, actor: @actor, now: @now
+    )
+    user = invitation.fetch(:identity).user
+
+    assert_not user.active?
+    assert_not user.authenticate(PORTAL_PASSWORD)
+
+    activated = activate(invitation.fetch(:token))
+
+    assert activated.active?
+    assert user.reload.active?
+    assert user.authenticate(PORTAL_PASSWORD)
+    assert_equal user.id, MemberSession.find(@session.fetch(:member_session_id)).user_id
+  end
+
+  test "email invitation cannot claim an unrelated account or cross-patient identity" do
+    assert_raises(ArgumentError) do
+      Clinic::PatientPortal::InviteIdentity.call(
+        practice: @practice, patient: @patient, email_address: @actor.email_address, actor: @actor, now: @now
+      )
+    end
+
+    email = "portal-bound-#{SecureRandom.hex(6)}@example.invalid"
+    Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: email, actor: @actor, now: @now
+    )
+    assert_raises(ArgumentError) do
+      Clinic::PatientPortal::InviteIdentity.call(
+        practice: @other_practice, patient: @other_patient, email_address: email, actor: @actor, now: @now
+      )
+    end
+  end
+
+  test "invalid password rolls back account and invitation activation" do
+    invitation = invite_identity
+
+    assert_raises(Clinic::PatientPortal::ActivateIdentity::InvalidPassword) do
+      activate(invitation.fetch(:token), password: PORTAL_PASSWORD, password_confirmation: "different-password-2026")
+    end
+
+    assert invitation.fetch(:identity).reload.invited?
+    assert_nil @session&.fetch(:member_session_id, nil)
+  end
+
+  test "audit failure preserves activation state credentials and prior browser session" do
+    original_password = "Original-patient-password-2026!"
+    @patient_user.update!(password: original_password)
+    invitation = invite_identity
+    prior_session = @patient_user.member_sessions.create!(expires_at: @now + MemberSession::MAX_DURATION)
+    @session = { member_session_id: prior_session.id, patient_portal_identity_id: "prior-portal-reference" }
+
+    unavailable_audit = Class.new do
+      def self.record!(**)
+        raise Clinic::AuditRecorder::Unavailable
+      end
+    end
+    assert_raises(Clinic::AuditRecorder::Unavailable) do
+      activate(invitation.fetch(:token), audit_recorder: unavailable_audit)
+    end
+
+    assert invitation.fetch(:identity).reload.invited?
+    assert MemberSession.exists?(prior_session.id)
+    assert_equal prior_session.id, @session.fetch(:member_session_id)
+    assert_equal "prior-portal-reference", @session.fetch(:patient_portal_identity_id)
+    assert @patient_user.reload.authenticate(original_password)
+    assert_not @patient_user.authenticate(PORTAL_PASSWORD)
+  end
+
+  test "active patient recovery preserves access until redemption then rotates credentials and sessions" do
+    invitation = invite_identity
+    identity = activate(invitation.fetch(:token))
+    original_session_id = @session.fetch(:member_session_id)
+    original_password = PORTAL_PASSWORD
+    recovery_password = "Recovered-patient-password-2026!"
+
+    recovery = Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: @patient_user.email_address,
+      actor: @actor, now: @now + 1.minute
+    )
+
+    assert_equal "recovery", recovery.fetch(:purpose)
+    assert identity.reload.active?
+    assert MemberSession.exists?(original_session_id)
+    assert @patient_user.reload.authenticate(original_password)
+
+    activate(recovery.fetch(:token), password: recovery_password, now: @now + 2.minutes)
+
+    assert identity.reload.active?
+    assert_not MemberSession.exists?(original_session_id)
+    assert_not @patient_user.reload.authenticate(original_password)
+    assert @patient_user.authenticate(recovery_password)
+    assert_equal @patient_user.id, MemberSession.find(@session.fetch(:member_session_id)).user_id
+  end
+
+  test "authenticated patient password change verifies current credentials and rotates sessions" do
+    identity = activate(invite_identity.fetch(:token))
+    original_session_id = @session.fetch(:member_session_id)
+    replacement_password = "Patient-portal-replacement-2026!"
+
+    assert_raises(Clinic::PatientPortal::ChangePassword::InvalidCurrentPassword) do
+      Clinic::PatientPortal::ChangePassword.call(identity: identity, current_password: "incorrect-password",
+        password: replacement_password, password_confirmation: replacement_password, session: @session, now: @now)
+    end
+    assert MemberSession.exists?(original_session_id)
+    assert @patient_user.reload.authenticate(PORTAL_PASSWORD)
+
+    replacement_session = Clinic::PatientPortal::ChangePassword.call(identity: identity,
+      current_password: PORTAL_PASSWORD, password: replacement_password,
+      password_confirmation: replacement_password, session: @session, now: @now + 1.minute)
+
+    assert_not MemberSession.exists?(original_session_id)
+    assert_equal replacement_session.id, @session.fetch(:member_session_id)
+    assert_equal identity.id, @session.fetch(:patient_portal_identity_id)
+    assert_not @patient_user.reload.authenticate(PORTAL_PASSWORD)
+    assert @patient_user.authenticate(replacement_password)
+    assert @practice.audit_events.exists?(action_code: "patient_portal.identity.password_change", outcome: "committed")
+  end
+
+  test "patient email changes preserve the bound portal identity and reject account collisions" do
+    identity = activate(invite_identity.fetch(:token))
+    original_session_id = @session.fetch(:member_session_id)
+    original_email = @patient_user.email_address
+
+    assert_raises(ArgumentError) do
+      Clinic::PatientPortal::InviteIdentity.call(
+        practice: @practice, patient: @patient, email_address: @actor.email_address,
+        actor: @actor, now: @now + 1.minute
+      )
+    end
+    assert_equal original_email, @patient_user.reload.email_address
+    assert_nil identity.reload.invitation_digest
+
+    changed_email = "changed-patient-#{SecureRandom.hex(6)}@example.invalid"
+    recovery = Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: changed_email,
+      actor: @actor, now: @now + 2.minutes
+    )
+
+    assert_equal identity.id, recovery.fetch(:identity).id
+    assert_equal "recovery", recovery.fetch(:purpose)
+    assert_equal changed_email, @patient_user.reload.email_address
+    assert_not User.exists?(email_address: original_email)
+    assert MemberSession.exists?(original_session_id)
+  end
+
   test "reserved synthetic patient activation creates access and revocation invalidates its session" do
     invitation = invite_identity
     activated = activate(invitation.fetch(:token))
@@ -85,6 +247,8 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
 
   private
 
+  PORTAL_PASSWORD = "Patient-portal-password-2026!"
+
   def invite_identity(practice: @practice, patient: @patient, user: @patient_user)
     Clinic::PatientPortal::InviteIdentity.call(
       practice: practice,
@@ -95,16 +259,27 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     )
   end
 
-  def activate(token, accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION,
-    now: @now)
+  def activate(token, password: PORTAL_PASSWORD, password_confirmation: password, accepted_terms: true,
+    terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION, now: @now,
+    audit_recorder: Clinic::AuditRecorder)
     @session ||= {}
     Clinic::PatientPortal::ActivateIdentity.call(
-      token: token,
+      token: token, password: password, password_confirmation: password_confirmation,
       accepted_terms: accepted_terms,
       terms_version: terms_version,
       session: @session,
-      now: now
+      now: now,
+      audit_recorder: audit_recorder
     )
+  end
+
+  def deployed
+    previous = [ Rails.env, ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] ]
+    Rails.env = "production"
+    ENV.delete("APP_CLINIC_PILOT_PRACTICE_IDS")
+    yield
+  ensure
+    Rails.env, ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = previous
   end
 end
 

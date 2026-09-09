@@ -1,7 +1,6 @@
 module Clinic
   module Workforce
     class RoleAssignment
-      WORKFORCE_ROLE_PREFIX = "workforce-"
       LOCATION_ROLE_CODE = "workforce-location-manager"
 
       def self.default_role_version
@@ -23,7 +22,7 @@ module Clinic
         false
       end
 
-      def self.grant!(actor:, membership:, role_version:, sites:, effective_from:)
+      def self.grant!(actor:, membership:, role_version:, sites:, effective_from:, source_employment: nil)
         role_version ||= default_role_version
         validate_role!(role_version)
         targets = role_version.role_code == LOCATION_ROLE_CODE ? sites : [ nil ]
@@ -34,14 +33,17 @@ module Clinic
             role_version: role_version,
             scope_kind: site ? "site" : "practice",
             site: site,
+            source_employment: source_employment,
             effective_from: effective_from
           )
         end
       end
 
       def self.validate_role!(role_version)
-        unless role_version.is_a?(RoleVersion) && role_version.role_code.start_with?(WORKFORCE_ROLE_PREFIX)
-          raise ArgumentError, "Choose a workforce access role."
+        allowed = role_version.is_a?(RoleVersion) &&
+          (role_version.role_code.start_with?("workforce-") || Clinic::Authorization::PilotRoleCatalog.assignable?(role_version))
+        unless allowed
+          raise ArgumentError, "Choose an employee access role."
         end
       end
       private_class_method :validate_role!

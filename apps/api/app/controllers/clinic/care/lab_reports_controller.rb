@@ -10,7 +10,7 @@ module Clinic
 
       def index
         patient = readable_patient!
-        relation = current_practice.lab_reports.where(patient:).includes(current_version: :follow_up)
+        relation = visible_reports("notes.read").where(patient:).includes(current_version: :follow_up)
         page = page_param
         per_page = per_page_param
         total = relation.count
@@ -27,7 +27,7 @@ module Clinic
         page = page_param
         per_page = per_page_param
         visible_patient_ids = current_practice.patients.accessible_by(current_ability, :read).select(:id)
-        relation = current_practice.lab_reports
+        relation = visible_reports("notes.read")
           .where(patient_id: visible_patient_ids)
           .joins(:current_version)
           .where(clinic_lab_report_versions: { reviewed_at: nil })
@@ -55,11 +55,11 @@ module Clinic
         visible_patient_ids = current_practice.patients.accessible_by(current_ability, :read).select(:id)
         relation = LabResultFollowUp.where(
           practice: current_practice, patient_id: visible_patient_ids, state: "open"
-        ).joins(:lab_report).where(
+        ).joins(:lab_report).merge(visible_reports("notes.read")).where(
           "clinic_lab_reports.current_version_id = clinic_lab_result_follow_ups.lab_report_version_id"
         )
         total = relation.count
-        follow_ups = relation.includes(:patient, :lab_report_version)
+        follow_ups = relation.includes(:patient, :lab_report, :lab_report_version)
           .order(recorded_at: :asc, id: :asc)
           .offset((page - 1) * per_page).limit(per_page)
         Clinic::AuditRecorder.record!(
@@ -81,6 +81,7 @@ module Clinic
         report = current_practice.lab_reports.where(patient:)
           .includes(current_version: :follow_up, report_versions: :follow_up)
           .find(requested_id!(params[:id], :id))
+        authorize_report!(report, "notes.read")
         audit_read!(patient, "report/#{report.id}")
         render json: { report: LabReportSerializer.report(report, detail: true), can_write: can_write?, can_review: can_review? }
       end
@@ -89,6 +90,7 @@ module Clinic
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient: patient)
           .includes(:current_version).find(requested_id!(params[:id], :id))
+        authorize_report!(report, "notes.read")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
         unless report.current_version_id == version.id
           raise ActiveRecord::StaleObjectError.new(report, "lab result history")
@@ -126,6 +128,7 @@ module Clinic
           nested_arrays: { results: RESULT_FIELDS })
         result = LabReports.create(
           practice: current_practice, actor: current_user, patient:,
+          site: selected_lab_site,
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
           confirmed_patient: boolean_param(input[:confirmed_patient], field: :confirmed_patient),
           source_name: required_string!(input[:source_name], field: :source_name, maximum: 160),
@@ -138,6 +141,7 @@ module Clinic
       def create_version
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
+        authorize_report!(report, "observations.write")
         input = parameter_hash!(:lab_report_version,
           [ :request_key, :confirmed_patient, :expected_current_version_id, *VERSION_FIELDS ],
           nested_arrays: { results: RESULT_FIELDS })
@@ -156,6 +160,7 @@ module Clinic
       def review
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
+        authorize_report!(report, "notes.write")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
         input = parameter_hash!(:review, %i[request_key confirmed_patient follow_up_disposition follow_up_note])
         follow_up = if input.key?(:follow_up_disposition) || input.key?(:follow_up_note)
@@ -178,6 +183,7 @@ module Clinic
       def record_follow_up
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
+        authorize_report!(report, "notes.write")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
         input = parameter_hash!(:follow_up, %i[request_key disposition note])
         result = LabResultFollowUps.record(
@@ -196,6 +202,7 @@ module Clinic
       def complete_follow_up
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
+        authorize_report!(report, "notes.write")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
         input = parameter_hash!(:follow_up, %i[request_key outcome])
         result = LabResultFollowUps.complete(
@@ -260,6 +267,25 @@ module Clinic
           practice: current_practice, actor: current_user, action_code: "lab_report.read", outcome: :released,
           resource_version_ref: "patient/#{patient.id}:#{suffix}"
         )
+      end
+
+      def selected_lab_site
+        site_id = session[:clinic_site_id]
+        site_id.present? ? current_practice.sites.find_by(id: site_id) : nil
+      end
+
+      def visible_reports(permission)
+        scope = current_practice.lab_reports
+        return scope if current_ability.practice_scope_for?(permission)
+
+        site_ids = current_ability.accessible_site_ids.select do |site_id|
+          current_ability.allowed_permission?(permission, site: site_id)
+        end
+        scope.where(site_id: site_ids)
+      end
+
+      def authorize_report!(report, permission)
+        require_capability(permission, site: report.site)
       end
     end
   end

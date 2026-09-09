@@ -22,8 +22,15 @@ module Clinic
             active: employment.membership.active && employment.membership.user.active
           },
           roles: role_grants
-            .select { |grant| grant.role_version.role_code.start_with?("workforce-") }
-            .map { |grant| { role_code: grant.role_version.role_code, scope_kind: grant.scope_kind, site_id: grant.site_id } },
+            .select { |grant| grant.source_employment_id == employment.id }
+            .map { |grant| {
+              role_version_id: grant.role_version_id,
+              role_code: grant.role_version.role_code,
+              label: Clinic::Authorization::PilotRoleCatalog.definition(grant.role_version.role_code)&.fetch(:label, nil) ||
+                grant.role_version.role_code.sub(/^workforce-/, "").titleize,
+              scope_kind: grant.scope_kind,
+              site_id: grant.site_id
+            } },
           sites: assignments.map do |assignment|
             {
               id: assignment.site.id,

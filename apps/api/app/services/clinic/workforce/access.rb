@@ -22,8 +22,7 @@ module Clinic
           return employment.eligible_site?(site, at: at)
         end
 
-        Ability.new(actor, practice: practice, at: at)
-          .allowed_permission?(normalized, site: site, any_site: any_site)
+        ability.allowed_permission?(normalized, site: site, any_site: any_site)
       end
 
       def authorize!(permission, site: nil, any_site: false)
@@ -36,8 +35,10 @@ module Clinic
           raise Clinic::Authorization::Denied, "Your account does not have active workforce access."
         end
 
-        Clinic::Authorization.authorize!(actor: actor, practice: practice, action: normalized,
-          site: site, any_site: any_site, at: at)
+        return ability.membership if ability.allowed_permission?(normalized, site: site, any_site: any_site)
+
+        Clinic::AuditRecorder.record!(practice: practice, actor: actor, action_code: normalized, outcome: :denied)
+        raise Clinic::Authorization::Denied, "Your account does not have permission for this workforce action."
       end
 
       def own_employment
@@ -49,6 +50,10 @@ module Clinic
         employment = Employment.includes(:staff_member, membership: :user)
           .find_by(practice_id: practice.id, membership_id: membership.id)
         employment if employment&.active_for_work?(at: at)
+      end
+
+      def ability
+        @ability ||= Ability.new(actor, practice: practice, at: at)
       end
     end
   end

@@ -11,10 +11,17 @@ import {
 import HowToRegOutlinedIcon from "@mui/icons-material/HowToRegOutlined";
 import { api } from "../../api/client";
 
+const activationTokenFromLocation = (() => {
+  if (typeof window === "undefined") return "";
+
+  const token = new URLSearchParams(window.location.search).get("token") ?? "";
+  if (window.location.search)
+    window.history.replaceState(window.history.state, "", "/workforce/activate");
+  return token;
+})();
+
 export function EmployeeActivationPage() {
-  const queryToken =
-    new URLSearchParams(window.location.search).get("token") ?? "";
-  const [token, setToken] = useState(queryToken);
+  const [token, setToken] = useState(activationTokenFromLocation);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [saving, setSaving] = useState(false);

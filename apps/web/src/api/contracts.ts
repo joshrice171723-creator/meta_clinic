@@ -95,6 +95,7 @@ export type PatientPortalContext = {
   capabilities: {
     billing_read: boolean;
     payment_collection: boolean;
+    password_change: boolean;
   };
   notices: string[];
   development_preview?: {
@@ -388,6 +389,7 @@ export type ClinicCapabilities = {
   facilities_read?: boolean;
   facilities_write?: boolean;
   patient_identity_read?: boolean;
+  patient_portal_invite?: boolean;
   appointments_read?: boolean;
   appointments_book?: boolean;
   appointments_status_transition?: boolean;
@@ -727,6 +729,7 @@ export type ClinicWorkspaceContext = {
   user_id: number;
   practice: { id: number; name: string; timezone: string };
   membership_id: number;
+  authorization_generation: number;
   current_clinician_profile_id: string | null;
   credentials: string[];
   policy_version: "clinic-authorization-v1";

@@ -319,6 +319,9 @@ function BillingConfirm({
 
 export function BillingDashboard() {
   const context = useClinic();
+  const canRecordPayment = context.capabilities.billing_payment_record === true;
+  const canUseCashDrawer =
+    canRecordPayment || context.capabilities.billing_cash_reconcile === true;
   const [activeTab, setActiveTab] = useState(() =>
     stripeSetupReturnMarker() ? "subscriptions" : "invoices",
   );
@@ -858,7 +861,7 @@ export function BillingDashboard() {
           ["payments", "Payments & receipts"],
           ["outlook", "Income outlook"],
           ["subscriptions", "Subscriptions"],
-          ["cash", "Cash drawer"],
+          ...(canUseCashDrawer ? [["cash", "Cash drawer"]] : []),
         ].map(([value, label]) => (
           <Tab
             key={value}
@@ -1200,10 +1203,7 @@ export function BillingDashboard() {
                     onlinePayment={selectedDetail.online_payment}
                     endpoint={`/api/clinic/invoices/${selectedInvoice.id}/online_payment`}
                     actionLabel="Collect online"
-                    actionsEnabled={
-                      context.capabilities.billing_payment_record === true ||
-                      context.capabilities.billing === true
-                    }
+                    actionsEnabled={canRecordPayment}
                     allowPaidRefresh
                     onChanged={() => {
                       refresh();
@@ -1233,8 +1233,7 @@ export function BillingDashboard() {
                   </p>
                 )}
                 {selectedInvoice.status === "draft" &&
-                  (context.capabilities.billing_invoice_post === true ||
-                    context.capabilities.billing) && (
+                  context.capabilities.billing_invoice_post === true && (
                     <div className="billing-action-row">
                       {confirmAction === "post" ? (
                         <BillingConfirm
@@ -1261,8 +1260,7 @@ export function BillingDashboard() {
                 {selectedInvoice.status === "posted" &&
                   !isZeroDecimal(selectedInvoice.balance) &&
                   !onlinePaymentPending &&
-                  (context.capabilities.billing_payment_record === true ||
-                    context.capabilities.billing) && (
+                  canRecordPayment && (
                     <form
                       className="billing-payment-form"
                       onSubmit={(event) => {
@@ -1377,7 +1375,7 @@ export function BillingDashboard() {
           {selectedInvoice?.status === "posted" &&
             !isZeroDecimal(selectedInvoice.balance) &&
             !onlinePaymentPending &&
-            context.capabilities.billing_payment_record === true && (
+            canRecordPayment && (
               <Button
                 onClick={() => {
                   setInvoiceOpen(false);
@@ -1436,7 +1434,7 @@ export function BillingDashboard() {
           />
         )}
       </div>
-      <div
+      {canUseCashDrawer && <div
         className="billing-panel"
         role="tabpanel"
         id="billing-panel-cash"
@@ -1460,7 +1458,7 @@ export function BillingDashboard() {
             detailResource.refresh();
           }}
         />
-      </div>
+      </div>}
     </div>
   );
 }

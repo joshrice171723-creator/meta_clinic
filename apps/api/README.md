@@ -35,6 +35,7 @@ The selling/onboarding application needs:
 
 - `RAILS_ENV=production`
 - `APP_DEPLOYMENT_ENV=staging` or `production` (missing defaults to production, with demos off)
+- `APP_CLINIC_PILOT_PRACTICE_IDS`: comma-separated clinic practice IDs explicitly approved for hosted employee access; an empty value denies ordinary clinic access
 - `APP_SITE_ORIGIN`: exact HTTPS origin, without path, credentials, query or fragment
 - `SECRET_KEY_BASE`: fresh strong secret, managed outside source/chat
 - `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY`
@@ -48,7 +49,7 @@ The Linux amd64 container is verified with separate PostgreSQL 18 storage, a 500
 
 Migrate explicitly with the maintenance identity, then apply `db/runtime_privileges.sql`; server startup does not run migrations. The runtime role cannot create schema, truncate tables or rewrite protected history. The owner can still bypass controls, and actor attribution does not establish a trusted security identity. RLS, independent read audit, MFA, operational key management and the complete clinical isolation architecture remain unimplemented. Keep one application process until process-local rate limits are replaced and scaling is reviewed.
 
-The local demo shortcut is denied in production regardless of its flag. Clinic routes are denied in production and to ordinary hosted accounts. Current source has one explicit exception for the managed `StagingDemoUser` identity when `APP_DEPLOYMENT_ENV=staging`; it still requires an active exact clinic assignment and server-enforced permissions. This is a bounded synthetic review release, not a compliance certification or sufficient real-data safeguard.
+The local demo shortcut is denied in production regardless of its flag. Hosted clinic routes require an active employee membership whose practice ID is explicitly listed in `APP_CLINIC_PILOT_PRACTICE_IDS`; the managed staging demo remains available only when `APP_DEPLOYMENT_ENV=staging`. The allowlist opens routing only. Every request still requires an active session, active membership, and server-enforced permissions. This is a bounded pilot control, not a compliance certification or sufficient real-data safeguard.
 
 ## Release work remaining
 

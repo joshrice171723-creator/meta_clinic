@@ -78,6 +78,7 @@ export function PayrollExportPage() {
   const [supersedes, setSupersedes] = useState("");
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const canConfigure = clinic.capabilities.workforce_payroll_configure === true;
+  const canExport = clinic.capabilities.workforce_payroll_export === true;
 
   useEffect(() => {
     if (!siteId) return;
@@ -320,7 +321,7 @@ export function PayrollExportPage() {
               </Button>
             </Stack>
           )}
-          <Stack
+          {canExport && <Stack
             component="section"
             spacing={2}
             aria-label="Prepare payroll file"
@@ -453,8 +454,8 @@ export function PayrollExportPage() {
                 )}
               </Box>
             )}
-          </Stack>
-          <Stack component="section" spacing={1} aria-label="Export history">
+          </Stack>}
+          {canExport && <Stack component="section" spacing={1} aria-label="Export history">
             <Typography variant="h6">Export history</Typography>
             {data.batches.map((batch) => (
               <Box
@@ -478,7 +479,7 @@ export function PayrollExportPage() {
                 No payroll files have been created for this location.
               </Typography>
             )}
-          </Stack>
+          </Stack>}
         </>
       )}
     </Stack>

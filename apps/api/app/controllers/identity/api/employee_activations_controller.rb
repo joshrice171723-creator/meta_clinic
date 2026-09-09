@@ -39,7 +39,11 @@ module Identity
       end
 
       def require_activation_available
-        head :not_found if Rails.env.production?
+        return unless Rails.env.production?
+
+        digest = Clinic::Workforce::EmployeeInvitation.digest(params.dig(:employee_activation, :token))
+        invitation = Clinic::Workforce::EmployeeInvitation.pending.find_by(token_digest: digest)
+        head :not_found unless invitation && Clinic::DeploymentAccess.practice_enabled?(invitation.practice_id)
       end
     end
   end

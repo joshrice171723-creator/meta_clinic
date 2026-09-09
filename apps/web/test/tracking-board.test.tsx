@@ -133,6 +133,7 @@ const context: ClinicWorkspaceContext = {
   user_id: 1,
   practice: clinic.practice,
   membership_id: 1,
+  authorization_generation: 1,
   current_clinician_profile_id: "profile-1",
   credentials: ["SYNTHETIC-NP"],
   policy_version: "clinic-authorization-v1",

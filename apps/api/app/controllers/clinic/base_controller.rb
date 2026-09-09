@@ -7,6 +7,7 @@ module Clinic
     before_action :require_member
     before_action :require_expected_actor
     before_action :require_clinic
+    before_action :capture_authorization_generation
     around_action :attribute_clinic_mutations
 
     rescue_from Clinic::Authorization::Denied, CanCan::AccessDenied do
@@ -40,10 +41,25 @@ module Clinic
 
     def attribute_clinic_mutations
       # Generate correlation on the server; never trust submitted audit metadata.
-      PaperTrail.request(whodunnit: current_user.id.to_s,
-        controller_info: { request_id: SecureRandom.uuid }) do
-        yield
-        record_sensitive_read
+      operation = lambda do
+        PaperTrail.request(whodunnit: current_user.id.to_s,
+          controller_info: { request_id: SecureRandom.uuid }) do
+          yield
+          record_sensitive_read
+        end
+      end
+      if request.get? || request.head?
+        operation.call
+      else
+        ApplicationRecord.transaction do
+          locked = Clinic::Membership.lock.find(clinic_membership.id)
+          unless locked.active? && locked.user.active? && locked.authorization_generation == @authorization_generation
+            raise Clinic::Authorization::Denied, "Your clinic access changed. Reopen the workspace before continuing."
+          end
+          @clinic_membership = locked
+          @current_ability = nil
+          operation.call
+        end
       end
     rescue Clinic::AuditRecorder::Unavailable
       # The action has rendered, but the response must not release protected data
@@ -67,8 +83,7 @@ module Clinic
     end
 
     def require_prototype
-      return unless Rails.env.production?
-      return if Staging::DemoClinic.available_to?(current_user)
+      return if Clinic::DeploymentAccess.available_to?(current_user)
 
       render_error("The clinic workspace is unavailable.", :not_found)
     end
@@ -85,9 +100,14 @@ module Clinic
       render_error("No active clinic assignment. Contact your clinic administrator.", :forbidden) unless clinic_membership
     end
 
-    def require_capability(capability, any_site: false)
+    def capture_authorization_generation
+      @authorization_generation = clinic_membership.authorization_generation
+    end
+
+    def require_capability(capability, site: nil, any_site: false)
       permission = Ability.normalize_permission(capability)
-      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice, action: permission, any_site: any_site)
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+        action: permission, site: site, any_site: any_site)
     end
 
     def require_capability_with_legacy(capability, legacy_capability, site: nil, any_site: false)

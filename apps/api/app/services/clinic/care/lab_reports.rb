@@ -7,24 +7,25 @@ module Clinic
       MAX_PAYLOAD_BYTES = 65_536
       Result = Data.define(:value, :replayed)
 
-      def self.create(practice:, actor:, patient:, request_key:, confirmed_patient:, source_name:, external_report_id:, version:)
+      def self.create(practice:, actor:, patient:, request_key:, confirmed_patient:, source_name:, external_report_id:, version:, site: nil)
         patient = practice.patients.find(patient.id)
-        authorize_write!(practice:, actor:, patient:)
+        site = practice.sites.find(site.id) if site
+        authorize_write!(practice:, actor:, patient:, site:)
         confirm_patient!(confirmed_patient)
         report_identity = {
           source_name: required_text(source_name, "source_name", 160),
           external_report_id: optional_text(external_report_id, "external_report_id", 255)
         }
         version_payload = normalize_version(version)
-        payload = { patient_id: patient.id, confirmed_patient: true, report: report_identity, version: version_payload }
+        payload = { patient_id: patient.id, site_id: site&.id, confirmed_patient: true, report: report_identity, version: version_payload }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.create", request_key:, payload:,
-          authorization: -> { authorize_write!(practice:, actor:, patient:) }, authorization_action: "observations.write",
+          authorization: -> { authorize_write!(practice:, actor:, patient:, site:) }, authorization_action: "observations.write",
           result_resource: ->(report) { report },
           resource_resolver: ->(practice:, receipt:) { practice.lab_reports.where(patient:).find_by(id: receipt.resource_id) }
         ) do
-          member = authorize_write!(practice:, actor:, patient:)
-          report = practice.lab_reports.create!(report_identity.merge(patient:))
+          member = authorize_write!(practice:, actor:, patient:, site:)
+          report = practice.lab_reports.create!(report_identity.merge(patient:, site:))
           lab_version = create_version!(report:, member:, number: 1, attributes: version_payload)
           report.update!(current_version: lab_version)
           audit!(practice:, actor:, action: "lab_report.create", report:, version: lab_version)
@@ -36,7 +37,7 @@ module Clinic
       def self.append_version(practice:, actor:, patient:, report:, request_key:, confirmed_patient:, expected_current_version_id:, version:)
         patient = practice.patients.find(patient.id)
         report = practice.lab_reports.where(patient:).find(report.id)
-        authorize_write!(practice:, actor:, patient:)
+        authorize_write!(practice:, actor:, patient:, site: report.site)
         confirm_patient!(confirmed_patient)
         expected_id = positive_integer(expected_current_version_id, "expected_current_version_id")
         version_payload = normalize_version(version)
@@ -46,13 +47,13 @@ module Clinic
         }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.version.create", request_key:, payload:, resource: report,
-          authorization: -> { authorize_write!(practice:, actor:, patient:) }, authorization_action: "observations.write",
+          authorization: -> { authorize_write!(practice:, actor:, patient:, site: report.site) }, authorization_action: "observations.write",
           result_resource: ->(lab_version) { lab_version },
           resource_resolver: ->(practice:, receipt:) {
             LabReportVersion.where(practice:, patient:, lab_report: report).find_by(id: receipt.resource_id)
           }
         ) do
-          member = authorize_write!(practice:, actor:, patient:)
+          member = authorize_write!(practice:, actor:, patient:, site: report.site)
           locked = practice.lab_reports.where(patient:).lock.find(report.id)
           unless locked.current_version_id == expected_id
             raise ActiveRecord::StaleObjectError.new(locked, "update")
@@ -73,7 +74,7 @@ module Clinic
         patient = practice.patients.find(patient.id)
         report = practice.lab_reports.where(patient:).find(report.id)
         version = report.report_versions.find(version.id)
-        authorize_review!(practice:, actor:, patient:)
+        authorize_review!(practice:, actor:, patient:, site: report.site)
         confirm_patient!(confirmed_patient)
         follow_up_payload = LabResultFollowUps.normalize_optional_decision(follow_up)
         payload = { patient_id: patient.id, report_id: report.id, version_id: version.id, confirmed_patient: true }
@@ -83,13 +84,13 @@ module Clinic
         end
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.version.review", request_key:, payload:, resource: version,
-          authorization: -> { authorize_review!(practice:, actor:, patient:) }, authorization_action: "notes.write",
+          authorization: -> { authorize_review!(practice:, actor:, patient:, site: report.site) }, authorization_action: "notes.write",
           result_resource: ->(reviewed) { reviewed },
           resource_resolver: ->(practice:, receipt:) {
             LabReportVersion.where(practice:, patient:, lab_report: report).find_by(id: receipt.resource_id)
           }
         ) do
-          member = authorize_review!(practice:, actor:, patient:)
+          member = authorize_review!(practice:, actor:, patient:, site: report.site)
           locked_report = practice.lab_reports.where(patient:).lock.find(report.id)
           unless locked_report.current_version_id == version.id
             raise ActiveRecord::StaleObjectError.new(locked_report, "review")
@@ -161,15 +162,15 @@ module Clinic
       end
       private_class_method :create_version!
 
-      def self.authorize_write!(practice:, actor:, patient:)
+      def self.authorize_write!(practice:, actor:, patient:, site:)
         Authorization.authorize!(practice:, actor:, action: "patients.read", subject: patient)
-        Authorization.authorize!(practice:, actor:, action: "observations.write", any_site: true)
+        Authorization.authorize!(practice:, actor:, action: "observations.write", site: site)
       end
       private_class_method :authorize_write!
 
-      def self.authorize_review!(practice:, actor:, patient:)
+      def self.authorize_review!(practice:, actor:, patient:, site:)
         Authorization.authorize!(practice:, actor:, action: "patients.read", subject: patient)
-        Authorization.authorize!(practice:, actor:, action: "notes.write", any_site: true)
+        Authorization.authorize!(practice:, actor:, action: "notes.write", site: site)
       end
       private_class_method :authorize_review!
 

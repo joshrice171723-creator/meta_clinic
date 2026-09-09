@@ -4496,6 +4496,7 @@ CREATE TABLE public.clinic_lab_reports (
     current_version_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    site_id bigint,
     CONSTRAINT clinic_lab_reports_values CHECK (((length(TRIM(BOTH FROM source_name)) > 0) AND ((external_report_id_digest IS NULL) OR (length((external_report_id_digest)::text) = 64))))
 );
 
@@ -4722,7 +4723,9 @@ CREATE TABLE public.clinic_memberships (
     inventory_release boolean DEFAULT false NOT NULL,
     inventory_count boolean DEFAULT false NOT NULL,
     inventory_configure boolean DEFAULT false NOT NULL,
-    inventory_transfer boolean DEFAULT false NOT NULL
+    inventory_transfer boolean DEFAULT false NOT NULL,
+    authorization_generation integer DEFAULT 1 NOT NULL,
+    CONSTRAINT clinic_memberships_authorization_generation_positive CHECK ((authorization_generation > 0))
 );
 
 
@@ -6303,6 +6306,7 @@ CREATE TABLE public.clinic_role_grants (
     revoked_at timestamp(6) with time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    source_employment_id bigint,
     CONSTRAINT clinic_role_grants_scope CHECK (((((scope_kind)::text = 'practice'::text) AND (site_id IS NULL)) OR (((scope_kind)::text = 'site'::text) AND (site_id IS NOT NULL)))),
     CONSTRAINT clinic_role_grants_window CHECK (((revision > 0) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
 );
@@ -13481,6 +13485,13 @@ CREATE UNIQUE INDEX clinic_lab_reports_practice_id ON public.clinic_lab_reports 
 
 
 --
+-- Name: clinic_lab_reports_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_lab_reports_site_id ON public.clinic_lab_reports USING btree (practice_id, site_id);
+
+
+--
 -- Name: clinic_medication_admin_movements_entry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -15826,6 +15837,13 @@ CREATE INDEX index_clinic_practices_on_organization_id ON public.clinic_practice
 
 
 --
+-- Name: index_clinic_role_grants_on_practice_and_source_employment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_role_grants_on_practice_and_source_employment ON public.clinic_role_grants USING btree (practice_id, source_employment_id);
+
+
+--
 -- Name: index_clinic_scribe_encounters_on_practice_id_and_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -17474,7 +17492,7 @@ CREATE TRIGGER clinic_lab_report_versions_protect BEFORE DELETE OR UPDATE ON pub
 -- Name: clinic_lab_reports clinic_lab_reports_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clinic_lab_reports FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'source_name', 'external_report_id', 'external_report_id_digest');
+CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clinic_lab_reports FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'site_id', 'source_name', 'external_report_id', 'external_report_id_digest');
 
 
 --
@@ -17663,7 +17681,7 @@ CREATE TRIGGER clinic_role_grant_events_immutable BEFORE DELETE OR UPDATE ON pub
 -- Name: clinic_role_grants clinic_role_grants_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER clinic_role_grants_preserve_identity BEFORE UPDATE ON public.clinic_role_grants FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'membership_id', 'role_version_id', 'scope_kind', 'site_id');
+CREATE TRIGGER clinic_role_grants_preserve_identity BEFORE UPDATE ON public.clinic_role_grants FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'membership_id', 'role_version_id', 'scope_kind', 'site_id', 'source_employment_id');
 
 
 --
@@ -19664,6 +19682,14 @@ ALTER TABLE ONLY public.clinic_lab_reports
 
 ALTER TABLE ONLY public.clinic_lab_reports
     ADD CONSTRAINT fk_lab_reports_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_lab_reports fk_lab_reports_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -23267,6 +23293,662 @@ ALTER TABLE ONLY public.clinic_role_grants
 
 
 --
+-- Name: clinic_role_grants fk_role_grants_source_employment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_source_employment FOREIGN KEY (practice_id, source_employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: role_version_permissions fk_role_version_permissions_permission; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_version_permissions
+    ADD CONSTRAINT fk_role_version_permissions_permission FOREIGN KEY (permission_id) REFERENCES public.permissions(id);
+
+
+--
+-- Name: role_version_permissions fk_role_version_permissions_role; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_version_permissions
+    ADD CONSTRAINT fk_role_version_permissions_role FOREIGN KEY (role_version_id) REFERENCES public.role_versions(id);
+
+
+--
+-- Name: clinic_rooms fk_rooms_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_rooms
+    ADD CONSTRAINT fk_rooms_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_documents fk_scribe_documents_current_draft; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT fk_scribe_documents_current_draft FOREIGN KEY (practice_id, id, current_draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, document_id, id);
+
+
+--
+-- Name: clinic_scribe_documents fk_scribe_documents_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_documents
+    ADD CONSTRAINT fk_scribe_documents_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_drafts fk_scribe_drafts_document; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_drafts
+    ADD CONSTRAINT fk_scribe_drafts_document FOREIGN KEY (practice_id, encounter_id, document_id) REFERENCES public.clinic_scribe_documents(practice_id, encounter_id, id);
+
+
+--
+-- Name: clinic_scribe_drafts fk_scribe_drafts_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_drafts
+    ADD CONSTRAINT fk_scribe_drafts_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_drafts fk_scribe_drafts_parent; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_drafts
+    ADD CONSTRAINT fk_scribe_drafts_parent FOREIGN KEY (practice_id, parent_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_drafts fk_scribe_drafts_source; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_drafts
+    ADD CONSTRAINT fk_scribe_drafts_source FOREIGN KEY (practice_id, source_id) REFERENCES public.clinic_scribe_sources(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_encounters fk_scribe_encounters_clinical_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_encounters
+    ADD CONSTRAINT fk_scribe_encounters_clinical_encounter FOREIGN KEY (practice_id, patient_id, clinical_encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_scribe_encounters fk_scribe_encounters_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_encounters
+    ADD CONSTRAINT fk_scribe_encounters_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_encounters fk_scribe_encounters_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_encounters
+    ADD CONSTRAINT fk_scribe_encounters_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_events fk_scribe_events_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_events
+    ADD CONSTRAINT fk_scribe_events_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_exports fk_scribe_exports_draft; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_exports
+    ADD CONSTRAINT fk_scribe_exports_draft FOREIGN KEY (practice_id, draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_exports fk_scribe_exports_encounter_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_exports
+    ADD CONSTRAINT fk_scribe_exports_encounter_note FOREIGN KEY (practice_id, encounter_note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_exports fk_scribe_exports_encounter_note_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_exports
+    ADD CONSTRAINT fk_scribe_exports_encounter_note_revision FOREIGN KEY (practice_id, encounter_note_id, encounter_note_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, note_id, id);
+
+
+--
+-- Name: clinic_scribe_lab_selections fk_scribe_lab_selections_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_scribe_lab_selections_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_scribe_lab_selections fk_scribe_lab_selections_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_scribe_lab_selections_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_lab_selections fk_scribe_lab_selections_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_lab_selections
+    ADD CONSTRAINT fk_scribe_lab_selections_version FOREIGN KEY (practice_id, patient_id, lab_report_version_id) REFERENCES public.clinic_lab_report_versions(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_scribe_recording_chunks fk_scribe_recording_chunks_recording; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recording_chunks
+    ADD CONSTRAINT fk_scribe_recording_chunks_recording FOREIGN KEY (practice_id, recording_id) REFERENCES public.clinic_scribe_recordings(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_recordings fk_scribe_recordings_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_recordings
+    ADD CONSTRAINT fk_scribe_recordings_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_draft_sections fk_scribe_sections_draft; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_draft_sections
+    ADD CONSTRAINT fk_scribe_sections_draft FOREIGN KEY (practice_id, draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_source_segments fk_scribe_segments_source; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_source_segments
+    ADD CONSTRAINT fk_scribe_segments_source FOREIGN KEY (practice_id, source_id) REFERENCES public.clinic_scribe_sources(practice_id, id);
+
+
+--
+-- Name: clinic_scribe_sources fk_scribe_sources_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_scribe_sources
+    ADD CONSTRAINT fk_scribe_sources_encounter FOREIGN KEY (practice_id, encounter_id) REFERENCES public.clinic_scribe_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_staff_address_versions fk_staff_addresses_staff; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_address_versions
+    ADD CONSTRAINT fk_staff_addresses_staff FOREIGN KEY (practice_id, staff_member_id) REFERENCES public.clinic_staff_members(practice_id, id);
+
+
+--
+-- Name: clinic_staff_conversation_members fk_staff_conversation_members_conversation; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversation_members
+    ADD CONSTRAINT fk_staff_conversation_members_conversation FOREIGN KEY (practice_id, conversation_id) REFERENCES public.clinic_staff_conversations(practice_id, id);
+
+
+--
+-- Name: clinic_staff_conversation_members fk_staff_conversation_members_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversation_members
+    ADD CONSTRAINT fk_staff_conversation_members_membership FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_conversation_members fk_staff_conversation_members_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversation_members
+    ADD CONSTRAINT fk_staff_conversation_members_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_conversation_members fk_staff_conversation_members_remover; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversation_members
+    ADD CONSTRAINT fk_staff_conversation_members_remover FOREIGN KEY (practice_id, removed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_conversations fk_staff_conversations_creator; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversations
+    ADD CONSTRAINT fk_staff_conversations_creator FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_conversations fk_staff_conversations_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversations
+    ADD CONSTRAINT fk_staff_conversations_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_conversations fk_staff_conversations_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_conversations
+    ADD CONSTRAINT fk_staff_conversations_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_attachments fk_staff_message_attachments_creator; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_attachments
+    ADD CONSTRAINT fk_staff_message_attachments_creator FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_attachments fk_staff_message_attachments_message; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_attachments
+    ADD CONSTRAINT fk_staff_message_attachments_message FOREIGN KEY (practice_id, message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_attachments fk_staff_message_attachments_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_attachments
+    ADD CONSTRAINT fk_staff_message_attachments_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_message_escalations fk_staff_message_escalations_message; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_escalations
+    ADD CONSTRAINT fk_staff_message_escalations_message FOREIGN KEY (practice_id, message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_escalations fk_staff_message_escalations_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_escalations
+    ADD CONSTRAINT fk_staff_message_escalations_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_message_escalations fk_staff_message_escalations_request; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_escalations
+    ADD CONSTRAINT fk_staff_message_escalations_request FOREIGN KEY (practice_id, request_id) REFERENCES public.clinic_staff_message_requests(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_escalations fk_staff_message_escalations_target; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_escalations
+    ADD CONSTRAINT fk_staff_message_escalations_target FOREIGN KEY (practice_id, target_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_outbox fk_staff_message_outbox_message; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_outbox
+    ADD CONSTRAINT fk_staff_message_outbox_message FOREIGN KEY (practice_id, message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_outbox fk_staff_message_outbox_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_outbox
+    ADD CONSTRAINT fk_staff_message_outbox_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_message_receipts fk_staff_message_receipts_message; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_receipts
+    ADD CONSTRAINT fk_staff_message_receipts_message FOREIGN KEY (practice_id, message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_receipts fk_staff_message_receipts_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_receipts
+    ADD CONSTRAINT fk_staff_message_receipts_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_message_receipts fk_staff_message_receipts_recipient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_receipts
+    ADD CONSTRAINT fk_staff_message_receipts_recipient FOREIGN KEY (practice_id, recipient_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_requests fk_staff_message_requests_assignee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_requests
+    ADD CONSTRAINT fk_staff_message_requests_assignee FOREIGN KEY (practice_id, assignee_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_requests fk_staff_message_requests_message; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_requests
+    ADD CONSTRAINT fk_staff_message_requests_message FOREIGN KEY (practice_id, message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_message_requests fk_staff_message_requests_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_message_requests
+    ADD CONSTRAINT fk_staff_message_requests_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_messages fk_staff_messages_acknowledger; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_messages
+    ADD CONSTRAINT fk_staff_messages_acknowledger FOREIGN KEY (practice_id, acknowledged_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_messages fk_staff_messages_conversation; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_messages
+    ADD CONSTRAINT fk_staff_messages_conversation FOREIGN KEY (practice_id, conversation_id) REFERENCES public.clinic_staff_conversations(practice_id, id);
+
+
+--
+-- Name: clinic_staff_messages fk_staff_messages_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_messages
+    ADD CONSTRAINT fk_staff_messages_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_messages fk_staff_messages_reply; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_messages
+    ADD CONSTRAINT fk_staff_messages_reply FOREIGN KEY (practice_id, reply_to_message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_messages fk_staff_messages_sender; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_messages
+    ADD CONSTRAINT fk_staff_messages_sender FOREIGN KEY (practice_id, sender_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_notification_preferences fk_staff_notification_preferences_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_notification_preferences
+    ADD CONSTRAINT fk_staff_notification_preferences_membership FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_notification_preferences fk_staff_notification_preferences_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_notification_preferences
+    ADD CONSTRAINT fk_staff_notification_preferences_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_notifications fk_staff_notifications_conversation; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_notifications
+    ADD CONSTRAINT fk_staff_notifications_conversation FOREIGN KEY (practice_id, conversation_id) REFERENCES public.clinic_staff_conversations(practice_id, id);
+
+
+--
+-- Name: clinic_staff_notifications fk_staff_notifications_message; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_notifications
+    ADD CONSTRAINT fk_staff_notifications_message FOREIGN KEY (practice_id, message_id) REFERENCES public.clinic_staff_messages(practice_id, id);
+
+
+--
+-- Name: clinic_staff_notifications fk_staff_notifications_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_notifications
+    ADD CONSTRAINT fk_staff_notifications_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_staff_notifications fk_staff_notifications_recipient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_notifications
+    ADD CONSTRAINT fk_staff_notifications_recipient FOREIGN KEY (practice_id, recipient_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_staff_members fk_staff_primary_address; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_staff_members
+    ADD CONSTRAINT fk_staff_primary_address FOREIGN KEY (practice_id, id, primary_address_version_id) REFERENCES public.clinic_staff_address_versions(practice_id, staff_member_id, id);
+
+
+--
+-- Name: clinic_supplier_address_versions fk_supplier_addresses_supplier; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_supplier_address_versions
+    ADD CONSTRAINT fk_supplier_addresses_supplier FOREIGN KEY (practice_id, supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_suppliers fk_suppliers_primary_address; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_suppliers
+    ADD CONSTRAINT fk_suppliers_primary_address FOREIGN KEY (practice_id, id, primary_address_version_id) REFERENCES public.clinic_supplier_address_versions(practice_id, supplier_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_telehealth_wrap_ups_follow_up_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_telehealth_wrap_ups_follow_up_appointment FOREIGN KEY (practice_id, patient_id, follow_up_appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_telehealth_wrap_ups_scribe_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_telehealth_wrap_ups_scribe_note FOREIGN KEY (practice_id, scribe_encounter_note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_telehealth_wrap_ups fk_telehealth_wrap_ups_scribe_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
+    ADD CONSTRAINT fk_telehealth_wrap_ups_scribe_revision FOREIGN KEY (practice_id, scribe_encounter_note_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_workforce_swap_requester; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_workforce_swap_requester FOREIGN KEY (practice_id, requester_employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_shift_swap_requests fk_workforce_swap_target; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
+    ADD CONSTRAINT fk_workforce_swap_target FOREIGN KEY (practice_id, target_employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
+-- Name: clinic_subscription_agreements subscription_agreement_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT subscription_agreement_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_subscription_packages subscription_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages
+    ADD CONSTRAINT subscription_current_version FOREIGN KEY (practice_id, id, published_version_id) REFERENCES public.clinic_subscription_versions(practice_id, package_id, id);
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+R TABLE ONLY public.clinic_inventory_recalls
+    ADD CONSTRAINT fk_rails_fc73ce6297 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_fc8e68da48; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_fc8e68da48 FOREIGN KEY (practice_id, requested_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_inventory_recall_lots fk_rails_fd3cd35ef9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_lots
+    ADD CONSTRAINT fk_rails_fd3cd35ef9 FOREIGN KEY (practice_id, recall_id) REFERENCES public.clinic_inventory_recalls(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_recall_dispositions fk_rails_fd5e2da0db; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_recall_dispositions
+    ADD CONSTRAINT fk_rails_fd5e2da0db FOREIGN KEY (practice_id, batch_id) REFERENCES public.clinic_pharmacy_batches(practice_id, id);
+
+
+--
+-- Name: clinic_workforce_time_off_requests fk_rails_fd9725aff5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_workforce_time_off_requests
+    ADD CONSTRAINT fk_rails_fd9725aff5 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_refund_events fk_refund_events_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events
+    ADD CONSTRAINT fk_refund_events_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_refund_events fk_refund_events_payment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refund_events
+    ADD CONSTRAINT fk_refund_events_payment FOREIGN KEY (practice_id, patient_id, payment_event_id) REFERENCES public.clinic_payment_events(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_role_grant_events fk_role_grant_events_grant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events
+    ADD CONSTRAINT fk_role_grant_events_grant FOREIGN KEY (practice_id, grant_id) REFERENCES public.clinic_role_grants(practice_id, id);
+
+
+--
+-- Name: clinic_role_grant_events fk_role_grant_events_grantor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grant_events
+    ADD CONSTRAINT fk_role_grant_events_grantor FOREIGN KEY (practice_id, grantor_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_membership FOREIGN KEY (practice_id, membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_role_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_role_version FOREIGN KEY (role_version_id) REFERENCES public.role_versions(id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_role_grants fk_role_grants_source_employment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_role_grants
+    ADD CONSTRAINT fk_role_grants_source_employment FOREIGN KEY (practice_id, source_employment_id) REFERENCES public.clinic_workforce_employments(practice_id, id);
+
+
+--
 -- Name: role_version_permissions fk_role_version_permissions_permission; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -23817,6 +24499,135 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909005100'),
+('20260909005000'),
+('20260909004100'),
+('20260909004000'),
+('20260909003000'),
+('20260909002000'),
+('20260909001000'),
+('20260908230000'),
+('20260908220000'),
+('20260908210000'),
+('20260908001000'),
+('20260908000100'),
+('20260907001000'),
+('20260907000900'),
+('20260907000800'),
+('20260907000700'),
+('20260907000600'),
+('20260907000530'),
+('20260907000520'),
+('20260907000510'),
+('20260907000500'),
+('20260907000410'),
+('20260907000400'),
+('20260907000300'),
+('20260907000200'),
+('20260907000100'),
+('20260906001900'),
+('20260906001800'),
+('20260906001720'),
+('20260906001710'),
+('20260906001700'),
+('20260906001600'),
+('20260906001500'),
+('20260906001400'),
+('20260906001300'),
+('20260906001200'),
+('20260906001100'),
+('20260906001000'),
+('20260906000500'),
+('20260906000400'),
+('20260906000300'),
+('20260906000200'),
+('20260906000100'),
+('20260905010500'),
+('20260905010400'),
+('20260905010300'),
+('20260905010200'),
+('20260905010100'),
+('20260905010000'),
+('20260905000300'),
+('20260905000200'),
+('20260905000100'),
+('20260904000600'),
+('20260904000500'),
+('20260904000400'),
+('20260904000300'),
+('20260904000200'),
+('20260904000100'),
+('20260903001400'),
+('20260903001300'),
+('20260903001230'),
+('20260903001220'),
+('20260903001210'),
+('20260903001100'),
+('20260903001000'),
+('20260903000900'),
+('20260903000800'),
+('20260903000700'),
+('20260903000600'),
+('20260903000500'),
+('20260903000400'),
+('20260903000300'),
+('20260903000200'),
+('20260903000100'),
+('20260902010000'),
+('20260902009903'),
+('20260902009902'),
+('20260902009901'),
+('20260902009900'),
+('20260902002800'),
+('20260902002700'),
+('20260902002600'),
+('20260902002500'),
+('20260902002400'),
+('20260902002300'),
+('20260902002200'),
+('20260902002100'),
+('20260902002000'),
+('20260902001800'),
+('20260902001700'),
+('20260902001600'),
+('20260902001500'),
+('20260902001400'),
+('20260902001300'),
+('20260902001200'),
+('20260902001100'),
+('20260902001000'),
+('20260902000900'),
+('20260902000800'),
+('20260902000500'),
+('20260902000400'),
+('20260902000300'),
+('20260902000200'),
+('20260902000100'),
+('20260901000200'),
+('20260901000100'),
+('20260831001100'),
+('20260831001000'),
+('20260831000900'),
+('20260831000800'),
+('20260831000700'),
+('20260831000400'),
+('20260831000300'),
+('20260831000200'),
+('20260831000100'),
+('20260830000800'),
+('20260830000700'),
+('20260830000600'),
+('20260830000500'),
+('20260830000400'),
+('20260830000300'),
+('20260830000200'),
+('20260830000100');
+
+SET search_path TO "$user", public;
+
+INSERT INTO "schema_migrations" (version) VALUES
+('20260909005100'),
+('20260909005000'),
 ('20260909004100'),
 ('20260909004000'),
 ('20260909003000'),

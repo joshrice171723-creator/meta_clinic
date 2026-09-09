@@ -9,6 +9,7 @@ module Clinic
     belongs_to :membership, class_name: "Clinic::Membership"
     belongs_to :role_version
     belongs_to :site, class_name: "Clinic::Site", optional: true
+    belongs_to :source_employment, class_name: "Clinic::Workforce::Employment", optional: true
     has_many :events, class_name: "Clinic::RoleGrantEvent", foreign_key: :grant_id, dependent: :restrict_with_error
 
     # Simulated workflow dates must not change live access rights.
@@ -43,7 +44,7 @@ module Clinic
     end
 
     def related_records_belong_to_practice
-      { membership: membership, site: site }.each do |attribute, record|
+      { membership: membership, site: site, source_employment: source_employment }.each do |attribute, record|
         errors.add(attribute, "must belong to this practice") if record && record.practice_id != practice_id
       end
     end

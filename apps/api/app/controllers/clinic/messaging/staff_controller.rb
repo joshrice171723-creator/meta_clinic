@@ -39,8 +39,19 @@ module Clinic
       end
 
       def participants
-        memberships = current_practice.memberships.active.includes(:user).order(:id).limit(100)
-        render json: { participants: memberships.map { |membership| StaffMessagingSerializer.participant(membership) } }
+        site = participant_site
+        require_capability("staff_messaging.read", site: site) unless current_ability.practice_scope_for?("staff_messaging.read")
+        memberships = ParticipantIndex.call(practice: current_practice, ability: current_ability, site: site)
+        payload = { participants: memberships.map { |membership| StaffMessagingSerializer.participant(membership) } }
+        payload[:site_id] = site.id if site
+        Clinic::AuditRecorder.record!(
+          practice: current_practice,
+          actor: current_user,
+          action_code: "staff_messaging.participants.read",
+          outcome: :released,
+          resource_version_ref: "staff_participants:site/#{site&.id || 'practice'}"
+        )
+        render json: payload
       end
 
       def create_conversation
@@ -173,6 +184,13 @@ module Clinic
         StaffPolicy.conversation_for!(practice: current_practice, actor: current_user, id: attachment.message.conversation_id)
         raise ArgumentError, "The attachment is not available until its safety scan is complete." unless attachment.scan_state == "clean"
         head :not_implemented
+      end
+
+      private
+
+      def participant_site
+        site_id = params[:site_id].presence || session[:clinic_site_id]
+        site_id.present? ? current_practice.sites.find(requested_id!(site_id, :site_id)) : nil
       end
     end
   end

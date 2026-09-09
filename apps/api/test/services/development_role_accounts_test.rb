@@ -29,15 +29,15 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
     end
   end
 
-  test "clinic administrator receives operational modules without payroll or scribe access" do
+  test "clinic administrator can delegate payroll without receiving scribe access" do
     permissions = Development::RoleAccounts::ACCOUNTS.fetch("clinic-administrator").fetch(:permissions)
 
     assert_includes permissions, "telehealth.read"
     assert_includes permissions, "workforce.schedule.manage"
     assert_includes permissions, "subscription_catalog.publish"
     assert_includes permissions, "reminders.write"
-    assert_not_includes permissions, "workforce.payroll.configure"
-    assert_not_includes permissions, "workforce.payroll.export"
+    assert_includes permissions, "workforce.payroll.configure"
+    assert_includes permissions, "workforce.payroll.export"
     assert_not_includes permissions, "scribe.read"
   end
 
@@ -45,7 +45,7 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
     local_mode do
       administrator = Development::RoleAccounts.prepare!.fetch("clinic-administrator")
       original_role = administrator.clinic_membership.role_grants.active.sole.role_version
-      assert_equal 2, original_role.version
+      assert_equal Clinic::Authorization::PilotRoleCatalog::VERSION, original_role.version
 
       original_role.role_grants.first.update!(revoked_at: Time.current)
       previous = RoleVersion.create!(role_code: "clinic-administrator", version: 1)
@@ -64,13 +64,14 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
 
   test "every normal role has an allowed action and a denied action" do
     expected_policy = {
-      "clinic-administrator" => [ "roles.manage", "workforce.payroll.configure" ],
+      "clinic-administrator" => [ "roles.manage", "scribe.read" ],
       "billing-accounting" => [ "billing.payment_record", "inventory.adjust" ],
       "front-desk-coordinator" => [ "appointments.book", "notes.write" ],
       "clinician" => [ "notes.write", "billing.invoice_post" ],
       "clinical-staff" => [ "encounters.write", "notes.sign" ],
       "inventory-coordinator" => [ "inventory.adjust", "patients.read" ],
-      "records-viewer" => [ "notes.read", "notes.write" ]
+      "records-viewer" => [ "notes.read", "notes.write" ],
+      "payroll-operator" => [ "workforce.payroll.export", "patients.read" ]
     }
 
     local_mode do

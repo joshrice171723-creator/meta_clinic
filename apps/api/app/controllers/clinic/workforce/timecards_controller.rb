@@ -33,9 +33,7 @@ module Clinic
       def submit
         card, site_id = readable_card
         mode = approval_mode_for(card)
-        if mode == "employee_submit_manager_approve" && workforce_access.own_employment&.id != card.employment_id
-          raise Clinic::Authorization::Denied
-        end
+        authorize_submission!(card, mode)
         expected = Integer(params.require(:lock_version))
         card.employment.with_lock do
           card.lock!
@@ -144,6 +142,29 @@ module Clinic
 
         site = current_practice.sites.find(site_ids.first)
         workforce_access.authorize!("workforce.timecards.approve", site: site)
+      end
+
+      def authorize_submission!(card, mode)
+        if mode == "employee_submit_manager_approve"
+          employment = workforce_access.authorize!("workforce.self")
+          raise Clinic::Authorization::Denied unless employment.id == card.employment_id
+
+          authorize_self_service!(employment, card: card)
+          return
+        end
+
+        raise ArgumentError, "Unsupported timecard approval policy" unless mode == "manager_required"
+        return workforce_access.authorize!("workforce.timecards.review") if workforce_access.allow?("workforce.timecards.review")
+
+        site_ids = card.time_segments.distinct.pluck(:site_id)
+        raise Clinic::Authorization::Denied if site_ids.empty?
+
+        sites = current_practice.sites.where(id: site_ids).index_by(&:id)
+        raise Clinic::Authorization::Denied unless sites.length == site_ids.length
+
+        site_ids.each do |site_id|
+          workforce_access.authorize!("workforce.timecards.review", site: sites.fetch(site_id))
+        end
       end
 
       def ensure_source_is_current!(card)

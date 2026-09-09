@@ -3,7 +3,7 @@ module Clinic
     class BaseController < ApplicationController
       include Clinic::Api::RequestParameters
       before_action :require_member
-      before_action :require_development_patient
+      before_action :require_patient_portal_access
       before_action :require_portal_identity
 
       rescue_from ActiveRecord::RecordInvalid do |error|
@@ -26,8 +26,10 @@ module Clinic
 
       private
 
-      def require_development_patient
-        return if Development::TestAccounts.patient?(current_user) || development_omni_preview?
+      def require_patient_portal_access
+        return if development_omni_preview?
+        return if patient_portal_identity &&
+          Clinic::DeploymentAccess.practice_enabled?(patient_portal_identity.practice_id)
 
         render json: { error: "The patient portal is available only for its assigned account." }, status: :not_found
       end

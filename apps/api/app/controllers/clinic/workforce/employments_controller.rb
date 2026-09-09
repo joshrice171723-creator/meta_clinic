@@ -13,9 +13,10 @@ module Clinic
         memberships = current_practice.memberships.active.includes(:user).reject { |membership| linked_membership_ids.include?(membership.id) }
           .select { |membership| membership.user.active? && membership.user_id != current_user.id }
           .sort_by { |membership| [ membership.user.email_address, membership.id ] }
-        ability = current_ability
+        assignment_ability = workforce_access.ability
         role_versions = latest_workforce_role_versions.select do |role_version|
-          RoleAssignment.assignable?(actor: current_user, practice: current_practice, role_version: role_version, ability: ability)
+          RoleAssignment.assignable?(actor: current_user, practice: current_practice,
+            role_version: role_version, ability: assignment_ability)
         end
 
         render json: {
@@ -29,7 +30,9 @@ module Clinic
             { id: membership.id, email_address: membership.user.email_address }
           },
           role_options: role_versions.map { |role_version|
-            Clinic::RoleVersionSerializer.call(role_version)
+            Clinic::RoleVersionSerializer.call(role_version).merge(
+              label: Clinic::Authorization::PilotRoleCatalog.definition(role_version.role_code)&.fetch(:label, nil) ||
+                role_version.role_code.sub(/^workforce-/, "").titleize)
           },
           invitations: EmployeeInvitation.where(practice_id: current_practice.id, status: "pending")
             .includes(:staff_member, :role_version).order(:expires_at, :id).map { |invitation|
@@ -68,38 +71,54 @@ module Clinic
       end
 
       def update
-        input = parameter_hash!(:employment, %i[status effective_until], arrays: %i[site_ids])
+        input = parameter_hash!(:employment, %i[status effective_until role_version_id account_action], arrays: %i[site_ids])
         employment = Employment.where(practice_id: current_practice.id).find(integer_id!(params[:id], field: :id))
+        role_version = input[:role_version_id].present? ? employee_role_version(input[:role_version_id]) : nil
+        account_action = input[:account_action].present? ?
+          enum_param!(input[:account_action], field: :account_action, allowed: %w[revoke restore]) : nil
         status = input[:status].present? ? enum_param!(input[:status], field: :status, allowed: %w[active inactive]) : nil
         effective_until = if input.key?(:effective_until)
           input[:effective_until].present? ? time_param!(input[:effective_until], field: :effective_until) : nil
         else
           :unchanged
         end
-        employment = LinkEmployment.update!(employment: employment, actor: current_user, status: status,
-          site_ids: input.key?(:site_ids) ? input[:site_ids] : nil, effective_until: effective_until)
+        if account_action == "revoke"
+          employment = EmployeeAccessLifecycle.revoke!(employment: employment, actor: current_user)
+        elsif account_action == "restore"
+          site_ids = input.key?(:site_ids) ? input[:site_ids] : employment.employment_sites.active.pluck(:site_id)
+          sites = current_practice.sites.where(id: LinkEmployment.normalize_site_ids(site_ids), status: "active").to_a
+          employment = EmployeeAccessLifecycle.restore!(employment: employment, actor: current_user,
+            role_version: role_version, sites: sites)
+        else
+          employment = LinkEmployment.update!(employment: employment, actor: current_user, status: status,
+            site_ids: input.key?(:site_ids) ? input[:site_ids] : nil, role_version: role_version,
+            effective_until: effective_until)
+        end
         render json: { schema_version: 1, employment: EmploymentSerializer.call(employment) }
       end
 
       private
 
       def latest_workforce_role_versions
-        RoleVersion.includes(:permissions).where("role_code LIKE ?", "workforce-%")
-          .order(:role_code, version: :desc, id: :desc).to_a
-          .uniq(&:role_code)
+        (Clinic::Authorization::PilotRoleCatalog.current_versions +
+          RoleVersion.includes(:permissions).where("role_code LIKE ?", "workforce-%")
+            .order(:role_code, version: :desc, id: :desc).to_a).uniq(&:role_code)
       end
 
-      def workforce_role_version(value)
+      def employee_role_version(value)
         if value.present?
           role_version = RoleVersion.includes(:permissions).find(integer_id!(value, field: :role_version_id))
-          return role_version if role_version.role_code.start_with?(RoleAssignment::WORKFORCE_ROLE_PREFIX)
+          return role_version if role_version.role_code.start_with?("workforce-") ||
+            Clinic::Authorization::PilotRoleCatalog.assignable?(role_version)
         else
           role_version = latest_workforce_role_versions.find { |role| role.role_code == "workforce-employee" }
           return role_version if role_version
         end
 
-        raise ArgumentError, "Choose a workforce access role."
+        raise ArgumentError, "Choose an employee access role."
       end
+
+      alias_method :workforce_role_version, :employee_role_version
     end
   end
 end

@@ -18,10 +18,20 @@ module Clinic
     has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error
     has_many :grant_events, class_name: "Clinic::RoleGrantEvent", foreign_key: :grantor_membership_id, dependent: :restrict_with_error
     validates :user_id, uniqueness: true
+    validates :authorization_generation, numericality: { only_integer: true, greater_than: 0 }
     scope :active, -> { where(active: true) }
+    before_update :bump_authorization_generation, if: :will_save_change_to_active?
     after_update :revoke_telehealth_access, if: -> { saved_change_to_active? && !active? }
 
+    def advance_authorization_generation!
+      increment!(:authorization_generation)
+    end
+
     private
+
+    def bump_authorization_generation
+      self.authorization_generation += 1
+    end
 
     def revoke_telehealth_access
       Clinic::Telehealth::RevokeMembershipAccess.call(membership: self, force: true)
