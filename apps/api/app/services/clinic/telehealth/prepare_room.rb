@@ -20,6 +20,10 @@ module Clinic
           appointment = visit.practice.appointments.lock.find(visit.appointment_id)
           locked = Visit.lock.find(visit.id)
           raise ActiveRecord::StaleObjectError.new(locked, "update") unless locked.lock_version == expected_version.to_i
+          unless locked.scheduled? || locked.in_progress?
+            raise Error.new("This video visit cannot prepare a room in its current state.",
+              code: "visit_not_preparable", status: :conflict)
+          end
           raise Error.new("Start the encounter before preparing the room.", code: "encounter_required") unless locked.encounter&.status == "open"
           if locked.current_room_attempt&.status.in?(%w[pending provisioning ready active ending unknown])
             raise Error.new("A room operation is already active.", code: "room_already_active", status: :conflict)

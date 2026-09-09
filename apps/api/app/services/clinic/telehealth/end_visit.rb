@@ -16,6 +16,10 @@ module Clinic
           visit.with_lock do
             raise ActiveRecord::StaleObjectError.new(visit, "update") unless visit.lock_version == expected_version.to_i
             raise Error.new("This video visit has already ended.", code: "visit_ended", status: :conflict) if visit.ended?
+            unless visit.scheduled? || visit.in_progress?
+              raise Error.new("This video visit cannot end in its current state.", code: "visit_not_endable",
+                status: :conflict)
+            end
             room = visit.current_room_attempt
             provider_end_required = room && !room.status.in?(%w[ended failed])
             visit.join_grants.where(revoked_at: nil).find_each do |grant|

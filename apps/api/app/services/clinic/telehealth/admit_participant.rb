@@ -18,6 +18,10 @@ module Clinic
             locked = Visit.lock.find(visit.id)
             target = locked.participants.lock.find(participant.id)
             raise ActiveRecord::StaleObjectError.new(locked, "update") unless locked.lock_version == expected_version.to_i
+            unless locked.scheduled? || locked.in_progress?
+              raise Error.new("This video visit cannot admit a patient in its current state.",
+                code: "visit_not_admittable", status: :conflict)
+            end
             preparation = CurrentPreparation.call(visit: locked)
             unless preparation[:complete] && preparation[:verified] && preparation[:participant]&.id == target.id
               raise Error.new("Verify the current patient preparation before admission.", code: "preparation_not_verified")

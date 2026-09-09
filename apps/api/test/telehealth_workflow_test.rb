@@ -141,6 +141,69 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "disconnected", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
   end
 
+  test "terminal visits reject host lifecycle commands without mutation" do
+    ended_visit = direct_video_visit!
+    Clinic::Telehealth::StartEncounter.call(visit: ended_visit, actor: @staff,
+      request_key: "terminal-host-start-encounter", expected_version: ended_visit.reload.lock_version)
+    ended_visit.reload.update!(status: "ended")
+    room_count = ended_visit.room_attempts.count
+    command_count = ended_visit.commands.count
+
+    error = assert_raises(Clinic::Telehealth::Error) do
+      Clinic::Telehealth::PrepareRoom.call(visit: ended_visit, actor: @staff,
+        request_key: "terminal-host-prepare", expected_version: ended_visit.reload.lock_version)
+    end
+    assert_equal "visit_not_preparable", error.code
+    assert_equal room_count, ended_visit.room_attempts.count
+    assert_equal command_count, ended_visit.commands.count
+
+    error = assert_raises(Clinic::Telehealth::Error) do
+      Clinic::Telehealth::EndVisit.call(visit: ended_visit, actor: @staff,
+        request_key: "terminal-host-end-ended", expected_version: ended_visit.reload.lock_version)
+    end
+    assert_equal "visit_ended", error.code
+    invalid_actions = %w[telehealth.prepare_room telehealth.admit telehealth.end telehealth.extend]
+    actions = Clinic::Telehealth::AccessPolicy.allowed_actions(
+      actor_context: { actor: @staff, practice: @practice }, visit: ended_visit)
+    assert_empty actions & invalid_actions
+
+    %w[ending cancelled no_show].each do |status|
+      visit = direct_video_visit!
+      visit.update!(status: status)
+      if status == "ending"
+        visit.commands.create!(practice: @practice, kind: "end_room",
+          dedupe_key: "end:#{visit.access_generation}:none", access_generation: visit.access_generation,
+          status: "succeeded", available_at: Time.current, completed_at: Time.current)
+      end
+      before_commands = visit.commands.count
+      error = assert_raises(Clinic::Telehealth::Error) do
+        Clinic::Telehealth::EndVisit.call(visit: visit, actor: @staff,
+          request_key: "terminal-host-end-#{status}", expected_version: visit.reload.lock_version)
+      end
+      assert_equal "visit_not_endable", error.code
+      assert_equal status, visit.reload.status
+      assert_equal before_commands, visit.commands.count
+    end
+
+    admit_visit = direct_video_visit!
+    patient = admit_visit.participants.create!(practice: @practice, role: "patient",
+      portal_identity: @identity, status: "waiting")
+    ready_room!(admit_visit)
+    admit_visit.update!(status: "no_show")
+    preparation = ->(visit:, **) do
+      { complete: true, verified: true, participant: patient, checkin: Struct.new(:id).new(nil) }
+    end
+    with_stubbed_singleton_method(Clinic::Telehealth::CurrentPreparation, :call, preparation) do
+      error = assert_raises(Clinic::Telehealth::Error) do
+        Clinic::Telehealth::AdmitParticipant.call(visit: admit_visit, participant: patient, actor: @staff,
+          request_key: "terminal-host-admit", expected_version: admit_visit.reload.lock_version)
+      end
+      assert_equal "visit_not_admittable", error.code
+    end
+    assert_predicate patient.reload, :waiting?
+    assert_predicate admit_visit.reload, :no_show?
+  end
+
   test "booking persists modality and creates a policy-bound video visit without reserving a physical room" do
     in_person = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @staff,
       patient: @patient, site: @site, starts_at: 3.hours.from_now, ends_at: 4.hours.from_now,
