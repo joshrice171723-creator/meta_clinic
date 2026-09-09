@@ -144,6 +144,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_equal 1, Clinic::RefundEvent.where(payment_event_id: payment_event_id).count
     assert_equal 1, Clinic::BillingReceipt.where(payment_event_id: payment_event_id, kind: "cash_refund").count
     assert_equal 1, Clinic::OperationReceipt.where(operation_code: "billing.cash_refund", request_key: "SYN-CASH-REFUND-001").count
+    assert @practice.audit_events.where(action_code: "billing.cash_refund", outcome: "committed").exists?
 
     post "/api/clinic/payment_events/#{payment_event_id}/cash_refunds",
       params: { cash_refund: { amount: "2.00", reason: "Changed fixture return", request_key: "SYN-CASH-REFUND-001" } }, headers: csrf_headers, as: :json

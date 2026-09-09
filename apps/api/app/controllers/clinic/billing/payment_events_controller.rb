@@ -94,7 +94,21 @@ module Clinic
             Clinic::RefundEvent.where(practice_id: practice.id, payment_event_id: payment.id).find_by(id: receipt.resource_id)
           }
         ) do
-          RecordCashRefund.call(practice: current_practice, actor: current_user, payment: payment, amount: amount, reason: reason)
+          refund, receipt = RecordCashRefund.call(
+            practice: current_practice,
+            actor: current_user,
+            payment: payment,
+            amount: amount,
+            reason: reason
+          )
+          Clinic::AuditRecorder.record!(
+            practice: current_practice,
+            actor: current_user,
+            action_code: "billing.cash_refund",
+            outcome: :committed,
+            resource_version_ref: "Clinic::RefundEvent/#{refund.id}"
+          )
+          [ refund, receipt ]
         end
         raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
 
