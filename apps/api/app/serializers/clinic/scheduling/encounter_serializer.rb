@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     module EncounterSerializer
-      def self.call(encounter, detail: false, actor: nil)
+      def self.call(encounter, detail: false, actor: nil, include_note_metadata: false)
         payload = {
           id: encounter.id,
           patient_id: encounter.patient_id,
@@ -15,9 +15,7 @@ module Clinic
         }
         return payload unless detail
 
-        notes = encounter.notes.order(:id).to_a
-
-        payload.merge(
+        payload = payload.merge(
           participants: encounter.participants.order(:effective_from, :id).map { |participant|
             {
               id: participant.id.to_s,
@@ -27,10 +25,16 @@ module Clinic
               effective_until: participant.effective_until&.iso8601(6)
             }
           },
-          note_ids: notes.map(&:id),
-          notes: Clinic::Care::EncounterNoteSerializer.collection(notes),
           observation_count: encounter.observations.count,
           document_count: encounter.documents.count
+        )
+        return payload.merge(note_ids: [], notes: [], note_metadata_redacted: true) unless include_note_metadata
+
+        notes = encounter.notes.order(:id).to_a
+        payload.merge(
+          note_ids: notes.map(&:id),
+          notes: Clinic::Care::EncounterNoteSerializer.collection(notes),
+          note_metadata_redacted: false
         )
       end
     end

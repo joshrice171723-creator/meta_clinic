@@ -4490,6 +4490,7 @@ CREATE TABLE public.clinic_lab_reports (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     patient_id bigint NOT NULL,
+    site_id bigint,
     source_name character varying(160) NOT NULL,
     external_report_id text,
     external_report_id_digest character varying(64),
@@ -13481,6 +13482,13 @@ CREATE UNIQUE INDEX clinic_lab_reports_practice_id ON public.clinic_lab_reports 
 
 
 --
+-- Name: clinic_lab_reports_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_lab_reports_site_id ON public.clinic_lab_reports USING btree (practice_id, site_id);
+
+
+--
 -- Name: clinic_medication_admin_movements_entry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -17474,7 +17482,7 @@ CREATE TRIGGER clinic_lab_report_versions_protect BEFORE DELETE OR UPDATE ON pub
 -- Name: clinic_lab_reports clinic_lab_reports_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clinic_lab_reports FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'source_name', 'external_report_id', 'external_report_id_digest');
+CREATE TRIGGER clinic_lab_reports_preserve_identity BEFORE UPDATE ON public.clinic_lab_reports FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'site_id', 'source_name', 'external_report_id', 'external_report_id_digest');
 
 
 --
@@ -19664,6 +19672,14 @@ ALTER TABLE ONLY public.clinic_lab_reports
 
 ALTER TABLE ONLY public.clinic_lab_reports
     ADD CONSTRAINT fk_lab_reports_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_lab_reports fk_lab_reports_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -23817,6 +23833,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909005100'),
 ('20260909004100'),
 ('20260909004000'),
 ('20260909003000'),
