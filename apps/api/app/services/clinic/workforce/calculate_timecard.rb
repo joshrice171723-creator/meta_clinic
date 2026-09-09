@@ -101,6 +101,7 @@ module Clinic
         @effective_adjustments ||= begin
           records = AdjustmentRequest.where(practice_id: employment.practice_id, employment_id: employment.id, status: "approved")
             .joins(:timecard_version).where(clinic_workforce_timecard_versions: { period_start: period_start, period_end: period_end })
+            .includes(timecard_version: :time_segments)
             .order(:reviewed_at, :id).to_a
           records << pending_adjustment if pending_adjustment
           records
@@ -288,9 +289,10 @@ module Clinic
       end
 
       def apply_adjustments!(intervals, exceptions)
+        sites = employment.practice.sites.where(id: effective_adjustments.filter_map { |adjustment| adjustment.proposed_changes["site_id"] }).index_by(&:id)
         effective_adjustments.each do |adjustment|
           changes = adjustment.proposed_changes.stringify_keys
-          source_segment = changes["source_segment_id"].present? ? adjustment.timecard_version.time_segments.find_by(id: changes["source_segment_id"]) : nil
+          source_segment = changes["source_segment_id"].present? ? adjustment.timecard_version.time_segments.find { |segment| segment.id == changes["source_segment_id"].to_i } : nil
           if %w[replace_segment remove_segment].include?(adjustment.correction_type)
             source_ids = source_segment&.source_punch_ids
             matched = false
@@ -307,7 +309,7 @@ module Clinic
           end
           next if adjustment.correction_type == "remove_segment"
 
-          site = employment.practice.sites.find(changes.fetch("site_id"))
+          site = sites.fetch(changes.fetch("site_id").to_i)
           started = Time.iso8601(changes.fetch("started_at_utc")).utc
           ended = Time.iso8601(changes.fetch("ended_at_utc")).utc
           raise ArgumentError, "Adjusted end must be after start" unless ended > started

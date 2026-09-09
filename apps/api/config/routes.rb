@@ -380,6 +380,7 @@ Rails.application.routes.draw do
       end
       get "context", to: "context#show"
       get "billing_history", to: "billing_history#index"
+      patch "account/password", to: "account_password#update"
       get "visit_instructions", to: "visit_instructions#index"
       get "visit_instructions/:encounter_id", to: "visit_instructions#show"
       get "reminders", to: "reminders#index"

@@ -36,6 +36,7 @@ import type {
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { PatientSubscriptions } from "./PatientSubscriptions";
+import { PatientPortalPassword } from "./PatientPortalPassword";
 import {
   PatientAppointmentRequests,
   type UpcomingAppointment,
@@ -1126,6 +1127,8 @@ export function PatientPortal({
                           )}
                         </Stack>
                       </Paper>
+
+                      {context.capabilities.password_change && <PatientPortalPassword />}
 
                       <Box
                         component="section"

@@ -58,6 +58,7 @@ export function Patients({ id }: { id?: string }) {
   if (data.patient)
     return (
       <PatientRecord
+        canInvitePortal={clinic.capabilities.patient_portal_invite === true}
         key={data.patient.id}
         canEditRegistration={clinic.capabilities.patients_write}
         notes={data.notes}
@@ -268,11 +269,13 @@ function PatientLookupResults({ query }: { query: string }) {
 
 function PatientRecord({
   canEditRegistration,
+  canInvitePortal,
   notes,
   onRegistrationSaved,
   patient,
 }: {
   canEditRegistration: boolean;
+  canInvitePortal: boolean;
   notes?: LegacyNote[];
   onRegistrationSaved: () => void;
   patient: Patient;
@@ -310,6 +313,7 @@ function PatientRecord({
       <h1>{patient.display_name}</h1>
       {reference && <p>Reference: {reference}</p>}
       <ActiveEncounterAction patientId={patient.id} />
+      {canInvitePortal && <PatientPortalInvitation patient={patient} />}
       {canEditRegistration && (
         <>
           <Button onClick={() => setRegistrationOpen(true)} variant="outlined">
@@ -396,6 +400,116 @@ function PatientRecord({
         {notes?.length === 0 && <p>No draft entries.</p>}
       </Card>
     </>
+  );
+}
+
+type PortalInvitation = {
+  activation_path: string;
+  email_address: string;
+  expires_at: string;
+  identity_id: number;
+  purpose: "activation" | "recovery";
+  status: string;
+};
+
+function PatientPortalInvitation({ patient }: { patient: Patient }) {
+  const currentEmail = patient.contacts?.find(
+    (contact) => contact.contact_type === "email" && !contact.effective_until,
+  )?.contact_value;
+  const [invitation, setInvitation] = useState<PortalInvitation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const activationUrl = invitation
+    ? `${window.location.origin}${invitation.activation_path}`
+    : "";
+
+  const createInvitation = async () => {
+    setBusy(true);
+    setError("");
+    setCopied(false);
+    try {
+      const result = await api<{ invitation: PortalInvitation }>(
+        "/api/clinic/patient_portal/invitations",
+        {
+          method: "POST",
+          body: {
+            patient_portal_invitation: { patient_id: patient.id },
+          },
+        },
+      );
+      setInvitation(result.invitation);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to create patient portal access.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyInvitation = async () => {
+    try {
+      await navigator.clipboard.writeText(activationUrl);
+      setCopied(true);
+      setError("");
+    } catch {
+      setError("Copy failed. Select the complete link and copy it manually.");
+    }
+  };
+
+  return (
+    <Card title="Patient portal access">
+      <Stack spacing={1.5}>
+        <Typography color="text.secondary">
+          Create a one-time link for the current patient email. It activates new
+          access or securely resets an existing password, and expires after 30
+          minutes.
+        </Typography>
+        {currentEmail ? (
+          <Typography>
+            Current email: <strong>{currentEmail}</strong>
+          </Typography>
+        ) : (
+          <Alert severity="warning">
+            Record a current patient email in registration before creating
+            portal access.
+          </Alert>
+        )}
+        {error && <Alert severity="error">{error}</Alert>}
+        {invitation && (
+          <>
+            <Alert severity="success">
+              {invitation.purpose === "recovery" ? "Recovery" : "Activation"} link
+              created for {invitation.email_address}. It expires at{" "}
+              {new Date(invitation.expires_at).toLocaleString()}.
+            </Alert>
+            <TextField
+              aria-label={`Patient portal ${invitation.purpose} link`}
+              fullWidth
+              slotProps={{ htmlInput: { readOnly: true } }}
+              value={activationUrl}
+            />
+            <Button onClick={() => void copyInvitation()} variant="outlined">
+              {copied ? "Link copied" : `Copy ${invitation.purpose} link`}
+            </Button>
+            <Typography color="text.secondary" variant="body2">
+              Share this link only through a clinic-approved secure channel.
+              APPly has not sent it automatically.
+            </Typography>
+          </>
+        )}
+        <Button
+          disabled={busy || !currentEmail}
+          onClick={() => void createInvitation()}
+          variant="contained"
+        >
+          {busy ? "Creating…" : invitation ? "Replace one-time link" : "Create one-time link"}
+        </Button>
+      </Stack>
+    </Card>
   );
 }
 

@@ -3,7 +3,7 @@ module Clinic
     class BillingHistoryController < BaseController
       def index
         kind = params[:kind].to_s
-        before = params[:before].present? ? requested_id!(params[:before], :before) : nil
+        before = params[:before].present? ? integer_id!(params[:before], field: :before) : nil
         page = Clinic::Billing::PatientLedger.history_page(
           practice: portal_practice,
           patient: portal_patient,
