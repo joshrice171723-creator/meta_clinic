@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useClinic } from "./Workspace";
+import { clinicDateValue } from "./frontDeskModel";
 import type { Appointment, PatientReminder } from "../../api/contracts";
 import { AppointmentReminderBatch } from "./AppointmentReminderBatch";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
@@ -463,13 +464,6 @@ function ConversationBackedReminderRows({
   );
 }
 
-function dateInput(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 function phoneLabel(phone: string) {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("1")) {
@@ -479,13 +473,6 @@ function phoneLabel(phone: string) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   return phone;
-}
-
-function rangeBoundary(value: string, addDay = false) {
-  const valid = /^\d{4}-\d{2}-\d{2}$/.test(value);
-  const date = valid ? new Date(`${value}T00:00:00`) : businessNow();
-  if (addDay) date.setDate(date.getDate() + 1);
-  return date.toISOString();
 }
 
 function appointmentLabel(appointment: Appointment, timeZone: string) {
@@ -658,7 +645,9 @@ function MessageHistory({
           sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
         />
         <Typography variant="h6">
-          {reminderId ? "Selected reminder was not found" : "No sent messages found"}
+          {reminderId
+            ? "Selected reminder was not found"
+            : "No sent messages found"}
         </Typography>
         <Typography color="text.secondary">
           {reminderId
@@ -767,15 +756,18 @@ export function Reminders() {
       : null;
   const attentionView =
     new URLSearchParams(window.location.search).get("view") === "attention";
-  const today = useMemo(() => businessNow(), []);
+  const today = useMemo(
+    () => clinicDateValue(businessNow(), clinic.practice.timezone),
+    [clinic.practice.timezone],
+  );
   const initialEnd = useMemo(() => {
-    const value = businessNow();
-    value.setDate(value.getDate() + 14);
-    return value;
-  }, []);
+    const value = new Date(`${today}T12:00:00Z`);
+    value.setUTCDate(value.getUTCDate() + 14);
+    return value.toISOString().slice(0, 10);
+  }, [today]);
   const [tab, setTab] = useState(reminderId ? 2 : attentionView ? 1 : 0);
-  const [from, setFrom] = useState(dateInput(today));
-  const [to, setTo] = useState(dateInput(initialEnd));
+  const [from, setFrom] = useState(today);
+  const [to, setTo] = useState(initialEnd);
   const [patientQuery, setPatientQuery] = useState("");
   const deferredQuery = useDeferredValue(patientQuery);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -797,8 +789,8 @@ export function Reminders() {
   const appointmentParams = new URLSearchParams({
     upcoming: "true",
     per_page: "100",
-    from: rangeBoundary(from),
-    to: rangeBoundary(to, true),
+    from_date: from,
+    through_date: to,
   });
   if (deferredQuery.trim()) appointmentParams.set("q", deferredQuery.trim());
   const appointmentsResource = useResource<AppointmentResponse>(

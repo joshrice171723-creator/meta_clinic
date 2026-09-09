@@ -18,6 +18,18 @@ module Clinic
         appointments = appointments.where(booked_clinician_id: requested_id!(params[:booked_clinician_id], :booked_clinician_id)) if params[:booked_clinician_id].present?
         appointments = appointments.where(status: %w[scheduled confirmed]).where("starts_at >= ?", Current.business_time) if params[:upcoming] == "true"
         appointments = appointments.where(status: enum_param!(params[:status], field: :status, allowed: Clinic::Appointment::TRANSITIONS.keys)) if params[:status].present?
+        if params.key?(:from_date) || params.key?(:through_date)
+          from_date = date_param!(params[:from_date], field: :from_date)
+          through_date = date_param!(params[:through_date], field: :through_date)
+          if through_date < from_date
+            raise Clinic::Api::RequestParameters::Invalid.new("through_date must be on or after from_date.", field: :through_date)
+          end
+          zone = ActiveSupport::TimeZone[current_practice.timezone]
+          raise ArgumentError, "The clinic timezone is unavailable." unless zone
+
+          next_date = through_date.next_day
+          appointments = appointments.where(starts_at: zone.local(from_date.year, from_date.month, from_date.day)...zone.local(next_date.year, next_date.month, next_date.day))
+        end
         appointments = appointments.where("starts_at >= ?", time_param!(params[:from], field: :from)) if params[:from].present?
         appointments = appointments.where("starts_at < ?", time_param!(params[:to], field: :to)) if params[:to].present?
         if params[:q].present?
