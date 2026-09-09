@@ -100,7 +100,7 @@ module Clinic
         raise Error.new("The video room is not ready.", code: "room_not_ready",
           status: :conflict) unless room&.status.in?(%w[ready active])
         raise Error.new("Video access is ending.", code: "visit_ending",
-          status: :conflict) if visit.ending? || visit.ended?
+          status: :conflict) unless visit.scheduled? || visit.in_progress?
         unless participant.admitted_generation == visit.access_generation
           raise Error.new("Admission is stale.", code: "stale_admission", status: :conflict)
         end

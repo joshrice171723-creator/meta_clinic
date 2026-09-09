@@ -127,6 +127,7 @@ export function PatientCheckin({
           label="Current street address"
           value={address}
           onChange={(event) => setAddress(event.target.value)}
+          disabled={busy}
           required={requireLocation}
           autoComplete="street-address"
         />
@@ -134,12 +135,14 @@ export function PatientCheckin({
           label="Unit, building, or access instructions (optional)"
           value={unit}
           onChange={(event) => setUnit(event.target.value)}
+          disabled={busy}
         />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField
             label="City"
             value={city}
             onChange={(event) => setCity(event.target.value)}
+            disabled={busy}
             required={requireLocation}
             fullWidth
           />
@@ -147,6 +150,7 @@ export function PatientCheckin({
             label="State or region"
             value={region}
             onChange={(event) => setRegion(event.target.value)}
+            disabled={busy}
             required={requireLocation}
             fullWidth
           />
@@ -157,12 +161,14 @@ export function PatientCheckin({
             required={requireLocation}
             value={postalCode}
             onChange={(event) => setPostalCode(event.target.value)}
+            disabled={busy}
             fullWidth
           />
           <TextField
             label="Country code"
             value={country}
             onChange={(event) => setCountry(event.target.value)}
+            disabled={busy}
             required={requireLocation}
             fullWidth
             slotProps={{ htmlInput: { maxLength: 2 } }}
@@ -172,6 +178,7 @@ export function PatientCheckin({
           label="Callback phone"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
+          disabled={busy}
           required={requireCallback}
           helperText={
             requireCallback
@@ -186,6 +193,7 @@ export function PatientCheckin({
             <Checkbox
               checked={attested}
               onChange={(event) => setAttested(event.target.checked)}
+              disabled={busy}
             />
           }
           label="I confirm this is my current physical location for today's visit."
@@ -198,6 +206,7 @@ export function PatientCheckin({
         >
           <Button
             color="inherit"
+            disabled={busy}
             onClick={() => {
               if (
                 !dirty ||

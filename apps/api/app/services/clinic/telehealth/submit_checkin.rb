@@ -19,6 +19,10 @@ module Clinic
               row.role = "patient"
               row.status = "eligible"
             end
+            if participant.revoked_at? || participant.removed?
+              raise Error.new("Your visit access changed. Reload this visit.", code: "participant_not_preparable",
+                status: :conflict)
+            end
             prior = visit.checkins.order(sequence: :desc).first
             checkin = visit.checkins.create!(practice_id: visit.practice_id, participant_id: participant.id,
               sequence: prior&.sequence.to_i + 1, access_generation: visit.access_generation,
