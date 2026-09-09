@@ -158,16 +158,17 @@ module Clinic
           employment.sites.merge(EmploymentSite.active.effective_at(Current.business_time)).where(status: "active").to_a
         end
         raise Clinic::Authorization::Denied if sites.empty?
-        enabled = sites.all? do |site|
-          EffectiveSettings.call(practice: current_practice, site: site).fetch(:values).fetch("employee_self_service_enabled", false)
-        end
+        settings_by_site = EffectiveSettings.for_sites(practice: current_practice, sites: sites, at: Current.business_time)
+        enabled = sites.all? { |site| settings_by_site.fetch(site.id).dig(:values, "employee_self_service_enabled") == true }
         raise Clinic::Authorization::Denied unless enabled
       end
 
       def approval_mode_for(card)
-        modes = card.time_segments.includes(:site).map do |segment|
-          EffectiveSettings.call(practice: current_practice, site: segment.site, at: segment.started_at_utc)
-            .fetch(:values).fetch("approval_mode", "unconfigured")
+        segments = card.time_segments.includes(:site).to_a
+        settings_by_segment = EffectiveSettings.for_site_times(practice: current_practice,
+          points: segments.map { |segment| [ segment.site, segment.started_at_utc ] })
+        modes = segments.map do |segment|
+          settings_by_segment.fetch([ segment.site_id, segment.started_at_utc.utc ])&.dig(:values, "approval_mode") || "unconfigured"
         end.uniq
         raise ArgumentError, "Timecard approval policy is unconfigured" if modes.empty? || modes.include?("unconfigured")
         raise ArgumentError, "Timecard locations have incompatible approval policies" unless modes.one?
