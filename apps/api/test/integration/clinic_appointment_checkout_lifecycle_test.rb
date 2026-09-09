@@ -74,7 +74,7 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     assert_equal "open", encounter.reload.status
   end
 
-  test "a site-less appointment cannot be confirmed until it is explicitly scheduled as video" do
+  test "an incomplete appointment cannot be confirmed" do
     appointment = @practice.appointments.create!(
       patient: @patient, starts_at: Time.utc(2026, 9, 7, 11), ends_at: Time.utc(2026, 9, 7, 11, 30), status: "scheduled"
     )
@@ -82,7 +82,7 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     error = assert_raises(ArgumentError) do
       Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: @actor, to: "confirmed")
     end
-    assert_match(/Choose a site/, error.message)
+    assert_match(/Choose a patient, site, clinician, and visit type/, error.message)
     assert_equal "scheduled", appointment.reload.status
   end
 

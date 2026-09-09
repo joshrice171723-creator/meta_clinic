@@ -24,9 +24,10 @@ module Clinic
 
       def self.portal_appointment(appointment, pending_change:, now: Current.business_time)
         eligible = eligible_context?(appointment, pending_change:, now:, fresh_encounter: false)
+        ready = Clinic::Scheduling::TransitionAppointment.ready_for_confirmation?(appointment)
         AppointmentRequestSerializer.appointment(appointment).merge(
-          can_confirm: eligible && appointment.status == "scheduled",
-          confirmation_version: eligible ? material_version(appointment) : nil
+          can_confirm: eligible && ready && appointment.status == "scheduled",
+          confirmation_version: eligible && ready ? material_version(appointment) : nil
         )
       end
 
@@ -45,6 +46,7 @@ module Clinic
           unless eligible_context?(appointment, pending_change:, now: confirmed_at, fresh_encounter: true)
             raise Stale, "This appointment can no longer be confirmed. Reload your appointments."
           end
+          Clinic::Scheduling::TransitionAppointment.assert_ready_for_confirmation!(appointment)
           next appointment if appointment.status == "confirmed"
 
           appointment.transition_to!("confirmed")

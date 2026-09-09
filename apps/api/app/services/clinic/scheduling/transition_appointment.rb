@@ -25,12 +25,25 @@ module Clinic
         end
       end
 
-      def self.assert_ready_for_confirmation!(appointment)
-        return if appointment.visit_modality == "video" && appointment.booked_clinician_id.present?
-
-        raise ArgumentError, "Choose a site or explicitly schedule this visit as video before confirming it." if appointment.site_id.blank?
+      def self.ready_for_confirmation?(appointment)
+        assert_ready_for_confirmation!(appointment)
+        true
+      rescue ArgumentError
+        false
       end
-      private_class_method :assert_ready_for_confirmation!
+
+      def self.assert_ready_for_confirmation!(appointment)
+        missing = {
+          patient: appointment.patient_id,
+          site: appointment.site_id,
+          clinician: appointment.booked_clinician_id,
+          visit_type: appointment.visit_type_id
+        }.filter_map { |name, value| name if value.blank? }
+        raise ArgumentError, "Choose a patient, site, clinician, and visit type before confirming this appointment." unless missing.empty?
+
+        timezone = appointment.practice.timezone.to_s
+        raise ArgumentError, "Set a valid clinic timezone before confirming this appointment." unless ActiveSupport::TimeZone[timezone]
+      end
     end
   end
 end

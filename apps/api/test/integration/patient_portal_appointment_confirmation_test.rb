@@ -121,6 +121,16 @@ class PatientPortalAppointmentConfirmationTest < ActionDispatch::IntegrationTest
     assert_empty confirmation_audits
   end
 
+  test "incomplete appointments are not confirmable through the patient portal" do
+    appointment = create_appointment(starts_at: 3.days.from_now.change(usec: 0))
+    appointment.update_columns(booked_clinician_id: nil, visit_type_id: nil)
+
+    row = upcoming_row(appointment)
+    assert_equal false, row.fetch("can_confirm")
+    assert_nil row.fetch("confirmation_version")
+    assert_empty confirmation_audits
+  end
+
   test "portal ownership and active identity scope the confirmation endpoint" do
     owned = create_appointment(starts_at: 3.days.from_now.change(usec: 0))
     owned_version = upcoming_row(owned).fetch("confirmation_version")
