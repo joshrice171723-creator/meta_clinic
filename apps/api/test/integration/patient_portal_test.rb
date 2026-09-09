@@ -118,6 +118,50 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
   end
 
+  test "staff provisions a patient account that activates and signs in normally" do
+    previous_environment, previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
+    Development::TestAccounts.prepare!
+    omni = User.find_by!(email_address: "omni@test.com")
+    practice = omni.clinic_membership.practice
+    patient = practice.patients.create!(display_name: "Portal Account Patient", reference: "PORTAL-ACCOUNT-001")
+    email = "portal-account-#{SecureRandom.hex(6)}@example.invalid"
+    patient.contacts.create!(practice: practice, contact_type: "email", contact_value: email,
+      preferred: true, effective_from: Time.current)
+
+    post "/api/development_session", params: { profile: "omni" }, headers: local_csrf, as: :json
+    assert_response :created
+    post "/api/clinic/patient_portal/invitations",
+      params: { patient_portal_invitation: { patient_id: patient.id } }, headers: local_csrf, as: :json
+    assert_response :created
+    invitation = response.parsed_body.fetch("invitation")
+    token = CGI.parse(URI.parse(invitation.fetch("activation_path")).fragment).fetch("token").first
+    account = User.find_by!(email_address: email)
+    assert_not account.active?
+
+    delete "/api/session", headers: local_csrf, as: :json
+    post "/api/session", params: { email_address: email, password: "Patient-portal-password-2026!" },
+      headers: local_csrf, as: :json
+    assert_response :unauthorized
+
+    post "/api/patient_portal/invitation/activate", params: { patient_portal_activation: {
+      token: token, password: "Patient-portal-password-2026!",
+      password_confirmation: "Patient-portal-password-2026!", accepted_terms: true,
+      terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
+    } }, headers: local_csrf, as: :json
+    assert_response :created
+    delete "/api/session", headers: local_csrf, as: :json
+
+    post "/api/session", params: { email_address: email, password: "Patient-portal-password-2026!" },
+      headers: local_csrf, as: :json
+    assert_response :success
+    get "/api/patient_portal/context", headers: @headers
+    assert_response :success
+    assert_equal patient.id, response.parsed_body.dig("patient", "id")
+  ensure
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = previous_environment, previous_flag
+  end
+
   test "production portal access follows the enabled pilot practice" do
     practice = Clinic::Practice.create!(name: "Pilot Portal Practice", timezone: "UTC")
     patient = practice.patients.create!(display_name: "Portal Patient", reference: "PILOT-001")
@@ -131,6 +175,8 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     payload = {
       patient_portal_activation: {
         token: invitation.fetch(:token), accepted_terms: true,
+        password: "Patient-portal-password-2026!",
+        password_confirmation: "Patient-portal-password-2026!",
         terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
       }
     }

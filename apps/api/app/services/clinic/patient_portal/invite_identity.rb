@@ -3,14 +3,18 @@ require "securerandom"
 module Clinic
   module PatientPortal
     class InviteIdentity
-      def self.call(practice:, patient:, user:, actor:, now: Current.business_time)
-        raise ArgumentError, "The patient account is inactive." unless user.active?
-
+      def self.call(practice:, patient:, actor:, user: nil, email_address: nil, now: Current.business_time)
+        unless patient.practice_id == practice.id
+          patient.errors.add(:practice, "does not match the invitation clinic")
+          raise ActiveRecord::RecordInvalid, patient
+        end
         token = SecureRandom.urlsafe_base64(32)
+        identity = nil
         ApplicationRecord.transaction do
+          user = resolve_user!(practice:, patient:, user:, email_address:)
           identity = Identity.lock.find_or_initialize_by(user: user)
           raise ArgumentError, "That patient already has active portal access." if identity.persisted? && identity.active?
-          if identity.persisted? && identity.patient_id != patient.id
+          if identity.persisted? && (identity.practice_id != practice.id || identity.patient_id != patient.id)
             raise ArgumentError, "That account is already assigned to another patient."
           end
 
@@ -25,8 +29,31 @@ module Clinic
             resource_version_ref: "patient_portal_identity:#{identity.id}")
           identity
         end
-        { identity: Identity.find_by!(user: user), token: token }
+        { identity: identity, token: token }
+      rescue ActiveRecord::RecordNotUnique
+        raise ArgumentError, "That email already belongs to another account."
       end
+
+      def self.resolve_user!(practice:, patient:, user:, email_address:)
+        if user
+          locked = User.lock.find(user.id)
+          raise ArgumentError, "The patient account is inactive." unless locked.active?
+          return locked
+        end
+
+        normalized_email = email_address.to_s.strip.downcase
+        candidate = User.lock.find_by(email_address: normalized_email)
+        unless candidate
+          return User.create!(email_address: normalized_email, password: SecureRandom.urlsafe_base64(48), active: false)
+        end
+
+        identity = Identity.lock.find_by(user: candidate)
+        unless identity && identity.practice_id == practice.id && identity.patient_id == patient.id
+          raise ArgumentError, "That email already belongs to another account."
+        end
+        candidate
+      end
+      private_class_method :resolve_user!
     end
   end
 end

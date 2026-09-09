@@ -34,6 +34,7 @@ module Clinic
           workforce_payroll_export: current_ability.allowed_permission?("workforce.payroll.export", any_site: true),
           patients: allowed?("patients.read"),
           patient_identity_read: allowed?("patients.identity.read"),
+          patient_portal_invite: allowed?("patient_portal.identity.invite"),
           patients_write: allowed?("patients.write"),
           staff: allowed?("staff.read"),
           staff_write: allowed?("staff.write"),
