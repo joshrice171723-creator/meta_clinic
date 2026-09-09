@@ -39,10 +39,6 @@ function lazyNamed<Module, Props>(
   return lazy(() => load().then((module) => ({ default: select(module) })));
 }
 
-const Home = lazyNamed(
-  () => import("./features/launch/Home"),
-  (m) => m.Home,
-);
 const TelehealthQueue = lazyNamed(
   () => import("./features/telehealth/TelehealthQueue"),
   (m) => m.TelehealthQueue,
@@ -819,11 +815,9 @@ export function App() {
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
     guide = /^\/(?:training|materials)\/(\d+)$/.exec(path);
   page =
-    path === "/" ? (
-      <Home />
-    ) : path === "/contact" ? (
+    path === "/contact" ? (
       <Contact />
-    ) : path === "/login" ? (
+    ) : path === "/" || path === "/login" ? (
       <Login
         developmentLogin={configuration.development_login}
         developmentAccounts={configuration.development_accounts}

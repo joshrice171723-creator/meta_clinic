@@ -2,19 +2,10 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Home } from "../src/features/launch/Home";
 import { Contact } from "../src/features/launch/Contact";
 import { Field, ErrorMessage } from "../src/shared/ui";
 
 describe("frontend responsibility", () => {
-  it("preserves selling content and six FAQs without a signup or unsupported offer", () => {
-    const html = renderToStaticMarkup(<Home />);
-    expect(html).toContain("Your own clinic.");
-    expect(html).toContain("NPs &amp; PAs");
-    expect(html.match(/<details>/g)).toHaveLength(6);
-    expect(html).not.toContain("/signup");
-    expect(html).not.toContain("opened the doors");
-  });
   it("keeps contact payload scopes and sensitive-information warning", () => {
     const html = renderToStaticMarkup(<Contact />);
     for (const field of ["name", "email", "message", "website"])
