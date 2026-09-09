@@ -16,6 +16,7 @@ type DraftResponse<T> = {
   patient_id: number | null;
   encounter_id: number | null;
   record_id: number | null;
+  scope: string;
   version: number;
   payload: T | null;
   updated_at: string | null;
@@ -28,12 +29,19 @@ export function useWorkingDraft<T>({
   patientId,
   encounterId,
   recordId,
+  scope = "main",
   enabled = true,
 }: {
   kind: WorkingDraftKind;
   patientId?: number | string;
   encounterId?: number | string;
   recordId?: number | string;
+  scope?:
+    | "main"
+    | "online_payment"
+    | "cash_payment"
+    | "invoice_edit"
+    | "invoice_post";
   enabled?: boolean;
 }) {
   const patient = patientId == null ? null : Number(patientId);
@@ -43,6 +51,7 @@ export function useWorkingDraft<T>({
   if (patient !== null) query.set("patient_id", String(patient));
   if (encounter !== null) query.set("encounter_id", String(encounter));
   if (record !== null) query.set("record_id", String(record));
+  if (scope !== "main") query.set("scope", scope);
   const endpoint = `/api/clinic/working_drafts/${kind}${query.size ? `?${query}` : ""}`;
   const [revision, refresh] = useState(0);
   const [state, setState] = useState<{
@@ -77,6 +86,7 @@ export function useWorkingDraft<T>({
         response.patient_id !== patient ||
         response.encounter_id !== encounter ||
         response.record_id !== record ||
+        response.scope !== scope ||
         !Number.isSafeInteger(response.version) ||
         response.version < 0 ||
         (response.payload !== null &&
@@ -87,7 +97,7 @@ export function useWorkingDraft<T>({
           "The recovered working copy did not match this patient and visit.",
         );
     },
-    [kind, patient, encounter, record],
+    [kind, patient, encounter, record, scope],
   );
 
   useEffect(() => {
@@ -177,18 +187,29 @@ export function useWorkingDraft<T>({
         if (!current() || !active.current.ready || active.current.conflicted)
           return false;
         setState((value) => ({ ...value, status: "saving", error: "" }));
-        if (uncertain.current && uncertain.current.encoded !== encoded) {
-          setState((value) => ({
-            ...value,
-            status: "error",
-            error:
-              "The previous working-copy save is unconfirmed. Reload the saved copy before changing it.",
-          }));
-          return false;
-        }
-        const expected = uncertain.current?.expected ?? active.current.version;
-        uncertain.current = { encoded, expected };
         try {
+          if (uncertain.current && uncertain.current.encoded !== encoded) {
+            const previous = uncertain.current;
+            const recovered = await api<DraftResponse<T>>(endpoint);
+            if (!current()) return false;
+            validate(recovered);
+            const committed =
+              recovered.version === previous.expected + 1 &&
+              JSON.stringify(recovered.payload) === previous.encoded;
+            if (!committed && recovered.version !== previous.expected)
+              throw new ApiError(
+                409,
+                "This working draft changed in another window. Review the saved copy before replacing it.",
+                "draft_conflict",
+              );
+            // Reconcile only the private working copy. A late original write
+            // still meets the same version fence; official actions never replay.
+            active.current.version = recovered.version;
+            uncertain.current = null;
+          }
+          const expected =
+            uncertain.current?.expected ?? active.current.version;
+          uncertain.current = { encoded, expected };
           const response = await api<DraftResponse<T>>(endpoint, {
             method: "PUT",
             body: { expected_version: expected, payload },

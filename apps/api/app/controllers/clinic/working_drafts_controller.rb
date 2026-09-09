@@ -54,6 +54,9 @@ module Clinic
       patient_id = optional_id(params[:patient_id], :patient_id)
       encounter_id = optional_id(params[:encounter_id], :encounter_id)
       @record_id = optional_id(params[:record_id], :record_id)
+      @scope = params[:scope].presence || "main"
+      allowed_scopes = @kind == "checkout" ? %w[main online_payment cash_payment invoice_edit invoice_post] : %w[main]
+      raise ArgumentError, "This working draft scope is unavailable." unless allowed_scopes.include?(@scope)
       if patient_id
         action = @kind == "appointment" ? :read_identity : :read
         @patient = current_practice.patients.accessible_by(current_ability, action).find(patient_id)
@@ -72,7 +75,7 @@ module Clinic
         action: capability, site: @encounter&.site, any_site: @kind == "appointment" && !@encounter)
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
         action: "notes.read", site: @encounter.site) if @kind == "soap"
-      @context_key = [ @kind, patient_id || 0, encounter_id || 0, @record_id || 0 ].join(":")
+      @context_key = [ @kind, patient_id || 0, encounter_id || 0, @record_id || 0, @scope ].join(":")
     end
 
     def draft_scope
@@ -80,7 +83,7 @@ module Clinic
     end
 
     def representation(draft)
-      { kind: @kind, patient_id: @patient&.id, encounter_id: @encounter&.id, record_id: @record_id,
+      { kind: @kind, patient_id: @patient&.id, encounter_id: @encounter&.id, record_id: @record_id, scope: @scope,
         version: draft&.version || 0, payload: draft&.encrypted_payload && JSON.parse(draft.encrypted_payload),
         updated_at: draft&.updated_at&.iso8601(6) }
     end
