@@ -5,10 +5,11 @@ module Clinic
       class InvalidPassword < StandardError; end
 
       def self.call(token:, password:, password_confirmation:, accepted_terms:, terms_version:, session:,
-        now: Current.business_time)
+        now: Current.business_time, audit_recorder: Clinic::AuditRecorder)
         raise InvalidInvitation unless accepted_terms && terms_version == Identity::TERMS_VERSION
 
         identity = nil
+        member_session = nil
         ApplicationRecord.transaction do
           identity = Identity.where(status: %i[invited active], invitation_digest: Identity.digest_token(token)).lock.first
           raise InvalidInvitation unless identity&.invitation_expires_at && identity.invitation_expires_at > now
@@ -21,12 +22,12 @@ module Clinic
             invitation_digest: nil, invitation_expires_at: nil)
           identity.user.member_sessions.delete_all
           member_session = identity.user.member_sessions.create!(expires_at: now + MemberSession::MAX_DURATION)
-          session[:member_session_id] = member_session.id
-          session[:patient_portal_identity_id] = identity.id
-          Clinic::AuditRecorder.record!(practice: identity.practice, actor: identity.user,
+          audit_recorder.record!(practice: identity.practice, actor: identity.user,
             action_code: "patient_portal.identity.activate", outcome: :committed,
             resource_version_ref: "patient_portal_identity:#{identity.id}")
         end
+        session[:member_session_id] = member_session.id
+        session[:patient_portal_identity_id] = identity.id
         identity
       rescue ActiveRecord::RecordInvalid => error
         if error.record.is_a?(User) &&

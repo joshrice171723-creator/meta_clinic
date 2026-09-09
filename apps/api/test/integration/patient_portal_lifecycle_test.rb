@@ -122,6 +122,30 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     assert_nil @session&.fetch(:member_session_id, nil)
   end
 
+  test "audit failure preserves activation state credentials and prior browser session" do
+    original_password = "Original-patient-password-2026!"
+    @patient_user.update!(password: original_password)
+    invitation = invite_identity
+    prior_session = @patient_user.member_sessions.create!(expires_at: @now + MemberSession::MAX_DURATION)
+    @session = { member_session_id: prior_session.id, patient_portal_identity_id: "prior-portal-reference" }
+
+    unavailable_audit = Class.new do
+      def self.record!(**)
+        raise Clinic::AuditRecorder::Unavailable
+      end
+    end
+    assert_raises(Clinic::AuditRecorder::Unavailable) do
+      activate(invitation.fetch(:token), audit_recorder: unavailable_audit)
+    end
+
+    assert invitation.fetch(:identity).reload.invited?
+    assert MemberSession.exists?(prior_session.id)
+    assert_equal prior_session.id, @session.fetch(:member_session_id)
+    assert_equal "prior-portal-reference", @session.fetch(:patient_portal_identity_id)
+    assert @patient_user.reload.authenticate(original_password)
+    assert_not @patient_user.authenticate(PORTAL_PASSWORD)
+  end
+
   test "active patient recovery preserves access until redemption then rotates credentials and sessions" do
     invitation = invite_identity
     identity = activate(invitation.fetch(:token))
@@ -236,14 +260,16 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
   end
 
   def activate(token, password: PORTAL_PASSWORD, password_confirmation: password, accepted_terms: true,
-    terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION, now: @now)
+    terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION, now: @now,
+    audit_recorder: Clinic::AuditRecorder)
     @session ||= {}
     Clinic::PatientPortal::ActivateIdentity.call(
       token: token, password: password, password_confirmation: password_confirmation,
       accepted_terms: accepted_terms,
       terms_version: terms_version,
       session: @session,
-      now: now
+      now: now,
+      audit_recorder: audit_recorder
     )
   end
 
