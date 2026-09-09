@@ -148,6 +148,33 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     assert_equal @patient_user.id, MemberSession.find(@session.fetch(:member_session_id)).user_id
   end
 
+  test "patient email changes preserve the bound portal identity and reject account collisions" do
+    identity = activate(invite_identity.fetch(:token))
+    original_session_id = @session.fetch(:member_session_id)
+    original_email = @patient_user.email_address
+
+    assert_raises(ArgumentError) do
+      Clinic::PatientPortal::InviteIdentity.call(
+        practice: @practice, patient: @patient, email_address: @actor.email_address,
+        actor: @actor, now: @now + 1.minute
+      )
+    end
+    assert_equal original_email, @patient_user.reload.email_address
+    assert_nil identity.reload.invitation_digest
+
+    changed_email = "changed-patient-#{SecureRandom.hex(6)}@example.invalid"
+    recovery = Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: changed_email,
+      actor: @actor, now: @now + 2.minutes
+    )
+
+    assert_equal identity.id, recovery.fetch(:identity).id
+    assert_equal "recovery", recovery.fetch(:purpose)
+    assert_equal changed_email, @patient_user.reload.email_address
+    assert_not User.exists?(email_address: original_email)
+    assert MemberSession.exists?(original_session_id)
+  end
+
   test "reserved synthetic patient activation creates access and revocation invalidates its session" do
     invitation = invite_identity
     activated = activate(invitation.fetch(:token))
