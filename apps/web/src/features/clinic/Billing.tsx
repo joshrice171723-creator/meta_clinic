@@ -932,8 +932,7 @@ function CheckoutSettlement({
             actionLabel="Collect online"
             actionsEnabled={
               !cashPending &&
-              (clinic.capabilities.billing_payment_record === true ||
-                clinic.capabilities.billing === true)
+              clinic.capabilities.billing_payment_record === true
             }
             allowPaidRefresh
             onChanged={() => onFinancialChange(invoice.id)}
@@ -946,7 +945,10 @@ function CheckoutSettlement({
           )}
         </Paper>
       )}
-      {(collectionInvoice || cashPending) && !postingPending && (
+      {(clinic.capabilities.billing_payment_record === true ||
+        clinic.capabilities.billing_cash_reconcile === true) &&
+        (collectionInvoice || cashPending) &&
+        !postingPending && (
         <CashDrawerOperations
           invoice={onlinePaymentPending ? null : collectionInvoice}
           patientId={patientId}
