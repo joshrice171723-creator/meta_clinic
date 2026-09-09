@@ -86,6 +86,30 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "queue serialization preserves its detail contract with a smaller query budget" do
+    visit = book_video!(starts_at: 1.day.from_now).telehealth_visit
+    date = visit.appointment.starts_at.in_time_zone(@practice.timezone).to_date.iso8601
+    keys = %i[public_id status appointment readiness waiting_since connection encounter_id room updated_at allowed_actions]
+    detail = nil
+    detail_visit = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: @staff,
+      filters: { date: date }).visits.sole
+    detail_queries = select_query_count do
+      detail = Clinic::Telehealth::VisitSerializer.call(detail_visit, actor: @staff,
+        include_preparation: false).slice(*keys)
+    end
+
+    queue_row = nil
+    queue_visit = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: @staff,
+      filters: { date: date }).visits.sole
+    queue_queries = select_query_count do
+      queue_row = Clinic::Telehealth::VisitSerializer.queue_row(queue_visit, actor: @staff)
+    end
+
+    assert_equal detail, queue_row
+    assert_operator queue_queries, :<=, detail_queries - 3,
+      "expected queue row serialization to avoid full-detail queries (detail=#{detail_queries}, queue=#{queue_queries})"
+  end
+
   test "booking persists modality and creates a policy-bound video visit without reserving a physical room" do
     in_person = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @staff,
       patient: @patient, site: @site, starts_at: 3.hours.from_now, ends_at: 4.hours.from_now,
@@ -873,6 +897,18 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def select_query_count
+    count = 0
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached] || payload[:name] == "SCHEMA"
+      count += 1 if payload[:sql].to_s.lstrip.start_with?("SELECT")
+    end
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") { yield }
+    end
+    count
+  end
 
   def configure_twilio_environment!
     ENV.update("APP_TELEHEALTH_PROVIDER" => "twilio", "APP_TELEHEALTH_TWILIO_ACCOUNT_SID" => twilio_account_sid,

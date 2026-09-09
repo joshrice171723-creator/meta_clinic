@@ -8,17 +8,7 @@ module Clinic
         participant = visit.participants.find { |value| value.membership_id == membership&.id }
         preparation = CurrentPreparation.call(visit: visit)
         room = visit.current_room_attempt
-        allowed = AccessPolicy.allowed_actions(actor_context: { actor: actor, practice: visit.practice }, visit: visit,
-          participant: participant)
-        allowed.delete("telehealth.save_wrap_up")
-        can_manage_wrap_up = WrapUpWorkflow.can_manage?(visit: visit, actor: actor)
-        if can_manage_wrap_up && !visit.wrap_up&.finalized?
-          allowed << "telehealth.save_wrap_up"
-          if WrapUpWorkflow.can_finalize?(visit: visit, actor: actor) &&
-              WrapUpWorkflow.blockers(visit, visit.wrap_up).empty?
-            allowed << "telehealth.finalize_wrap_up"
-          end
-        end
+        allowed, can_manage_wrap_up = staff_actions(visit, actor: actor, participant: participant)
         can_read_preparation = Ability.new(actor, practice: visit.practice)
           .allowed_permission?("telehealth.prepare.read", site: visit.appointment.site)
         payload = {
@@ -45,9 +35,44 @@ module Clinic
       end
 
       def queue_row(visit, actor:)
-        detail = call(visit, actor: actor, include_preparation: false)
-        detail.slice(:public_id, :status, :appointment, :readiness, :waiting_since, :connection, :encounter_id,
-          :room, :updated_at, :allowed_actions)
+        preparation = CurrentPreparation.call(visit: visit)
+        participant = actor_participant(visit, actor)
+        allowed, = staff_actions(visit, actor: actor, participant: participant)
+        {
+          public_id: visit.public_id,
+          status: visit.status,
+          appointment: appointment(visit.appointment),
+          readiness: readiness(visit, preparation),
+          waiting_since: visit.participants.select(&:patient?).filter_map do |value|
+            value.status == "waiting" ? value.updated_at : nil
+          end.min&.iso8601(6),
+          connection: connection(visit),
+          encounter_id: visit.encounter_id,
+          room: room_payload(visit.current_room_attempt),
+          updated_at: visit.updated_at.iso8601(6),
+          allowed_actions: allowed
+        }
+      end
+
+      def actor_participant(visit, actor)
+        visit.participants.find do |value|
+          value.membership&.active? && value.membership.user_id == actor.id
+        end
+      end
+
+      def staff_actions(visit, actor:, participant:)
+        allowed = AccessPolicy.allowed_actions(actor_context: { actor: actor, practice: visit.practice }, visit: visit,
+          participant: participant)
+        allowed.delete("telehealth.save_wrap_up")
+        can_manage_wrap_up = WrapUpWorkflow.can_manage?(visit: visit, actor: actor)
+        if can_manage_wrap_up && !visit.wrap_up&.finalized?
+          allowed << "telehealth.save_wrap_up"
+          if WrapUpWorkflow.can_finalize?(visit: visit, actor: actor) &&
+              WrapUpWorkflow.blockers(visit, visit.wrap_up).empty?
+            allowed << "telehealth.finalize_wrap_up"
+          end
+        end
+        [ allowed, can_manage_wrap_up ]
       end
 
       def appointment(value)

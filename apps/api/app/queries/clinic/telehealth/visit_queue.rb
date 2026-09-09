@@ -45,9 +45,9 @@ module Clinic
         raise Error.new("Limit must be between 1 and 100.", code: "invalid_filter", status: :bad_request) unless limit.between?(1, 100)
         after_id = decode_cursor(values[:cursor]) if values[:cursor].present?
         scope = scope.where("clinic_telehealth_visits.id > ?", after_id) if after_id
-        records = scope.includes(:practice, :patient, :encounter, :policy_version, :current_room_attempt,
-          appointment: [ :practice, :patient, { booked_clinician: :membership } ],
-          participants: [ :membership, :portal_identity ], checkins: [], consents: []).order("clinic_telehealth_visits.id ASC").limit(limit + 1).to_a
+        records = scope.includes(:practice, :patient, :encounter, :policy_version, :current_room_attempt, :wrap_up,
+          appointment: [ :practice, :patient, :site, { booked_clinician: :membership } ],
+          participants: :membership).order("clinic_telehealth_visits.id ASC").limit(limit + 1).to_a
         more = records.length > limit
         records = records.first(limit)
         Result.new(visits: records, next_cursor: more ? encode_cursor(records.last.id) : nil, as_of: Time.current)
