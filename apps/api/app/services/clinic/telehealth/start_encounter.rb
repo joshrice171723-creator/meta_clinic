@@ -22,7 +22,8 @@ module Clinic
             raise Error.new("This video visit cannot start an encounter.", code: "visit_not_startable", status: :conflict) unless visit.scheduled?
             encounter = Clinic::Scheduling::CreateEncounter.call(practice: visit.practice, actor: actor, patient: visit.patient,
               appointment: visit.appointment, started_at: Current.business_time)
-            visit.update!(encounter_id: encounter.id)
+            visit.reload
+            visit.update!(encounter_id: encounter.id) unless visit.encounter_id == encounter.id
             encounter
           end
         end

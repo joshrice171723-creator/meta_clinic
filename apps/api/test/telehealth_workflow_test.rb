@@ -186,9 +186,10 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   test "terminal visits reject host lifecycle commands without mutation" do
-    ended_visit = direct_video_visit!
-    Clinic::Telehealth::StartEncounter.call(visit: ended_visit, actor: @staff,
+    ended_visit = direct_video_visit!(starts_at: 1.day.from_now.change(hour: 8))
+    encounter = Clinic::Telehealth::StartEncounter.call(visit: ended_visit, actor: @staff,
       request_key: "terminal-host-start-encounter", expected_version: ended_visit.reload.lock_version)
+    assert_equal encounter.id, ended_visit.reload.encounter_id
     ended_visit.reload.update!(status: "ended")
     room_count = ended_visit.room_attempts.count
     command_count = ended_visit.commands.count
@@ -211,8 +212,8 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       actor_context: { actor: @staff, practice: @practice }, visit: ended_visit)
     assert_empty actions & invalid_actions
 
-    %w[ending cancelled no_show].each do |status|
-      visit = direct_video_visit!
+    %w[ending cancelled no_show].each_with_index do |status, index|
+      visit = direct_video_visit!(starts_at: ended_visit.appointment.starts_at + (index + 1).hours)
       visit.update!(status: status)
       if status == "ending"
         visit.commands.create!(practice: @practice, kind: "end_room",
@@ -229,7 +230,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       assert_equal before_commands, visit.commands.count
     end
 
-    admit_visit = direct_video_visit!
+    admit_visit = direct_video_visit!(starts_at: ended_visit.appointment.starts_at + 5.hours)
     patient = admit_visit.participants.create!(practice: @practice, role: "patient",
       portal_identity: @identity, status: "waiting")
     ready_room!(admit_visit)
