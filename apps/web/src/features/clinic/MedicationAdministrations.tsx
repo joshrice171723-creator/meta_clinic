@@ -458,6 +458,7 @@ function MedicationAdministrationPanel({
                           disabled={locked}
                           inputMode="decimal"
                           label={`Stock quantity (${batch.stock_unit})`}
+                          required
                           onChange={(event) =>
                             setQuantities((current) => ({
                               ...current,
@@ -495,12 +496,13 @@ function MedicationAdministrationPanel({
               />
               <TextField
                 disabled={locked}
-                label="Administration time"
+                label="Administration time (device local)"
                 onChange={(event) => setAdministeredAt(event.target.value)}
                 required
                 slotProps={{ inputLabel: { shrink: true } }}
                 type="datetime-local"
                 value={administeredAt}
+                helperText={`Review will show clinic time (${timezone}).`}
               />
               <TextField
                 disabled={locked}
@@ -572,7 +574,9 @@ function MedicationAdministrationPanel({
                 {patient.display_name} · Visit #{encounter.id}
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                Dose {review.dose_text} · Route {review.route_text} · {recordedDateTime(review.administered_at, timezone)}
+                Dose {review.dose_text} · Route {review.route_text} · Clinic
+                time ({timezone}):{" "}
+                {recordedDateTime(review.administered_at, timezone)}
                 {review.administration_site_text
                   ? ` · ${review.administration_site_text}`
                   : ""}

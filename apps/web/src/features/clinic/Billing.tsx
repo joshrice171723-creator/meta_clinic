@@ -1,8 +1,12 @@
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   Alert,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Chip,
@@ -143,6 +147,97 @@ function queryId(name: string) {
     : null;
 }
 
+function positiveSafeInteger(value: string | number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function PatientDirectory({
+  selectedPatientId,
+  onSelect,
+}: {
+  selectedPatientId: number | null;
+  onSelect: (patientId: number) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const patients = useResource<{ patients?: Patient[] }>(
+    `/api/clinic/patients/lookup${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+  );
+  const matches = useMemo(
+    () =>
+      (patients.data?.patients ?? []).filter((patient) =>
+        `${patient.display_name} ${patient.reference}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+      ),
+    [patients.data, query],
+  );
+
+  return (
+    <Paper component="section" variant="outlined" sx={{ alignSelf: "start" }}>
+      <Box sx={{ p: 2.5 }}>
+        <Typography component="h2" variant="h2">
+          Find a patient
+        </Typography>
+        <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+          Search by the clinic reference or recorded name.
+        </Typography>
+        <TextField
+          fullWidth
+          label="Search patients"
+          margin="normal"
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Reference or name"
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            },
+          }}
+          value={query}
+        />
+      </Box>
+      <Divider />
+      {!patients.data ? (
+        <Box sx={{ display: "grid", placeItems: "center", minHeight: 120 }}>
+          {patients.error ? (
+            <Alert severity="error">{patients.error}</Alert>
+          ) : (
+            <CircularProgress aria-label="Loading patients" size={28} />
+          )}
+        </Box>
+      ) : matches.length === 0 ? (
+        <Typography color="text.secondary" sx={{ p: 2.5 }}>
+          No matching patients were returned.
+        </Typography>
+      ) : (
+        <List aria-label="Matching patients" disablePadding>
+          {matches.map((patient) => (
+            <ListItemButton
+              key={patient.id}
+              onClick={() => onSelect(patient.id)}
+              selected={selectedPatientId === patient.id}
+              sx={{ alignItems: "flex-start", px: 2.5, py: 1.5 }}
+            >
+              <ListItemText
+                primary={patient.display_name}
+                secondary={patientReferenceLabel(patient.reference) ?? undefined}
+                slotProps={{
+                  primary: { sx: { fontWeight: 650 } },
+                  secondary: { sx: { fontVariantNumeric: "tabular-nums" } },
+                }}
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      )}
+    </Paper>
+  );
+}
+
 function invoiceState(invoice: BillingPatientLedger["invoices"][number]) {
   if (invoice.status === "void") return "Void";
   if (invoice.status === "draft") return "Draft";
@@ -161,7 +256,6 @@ function stateColor(state: ReturnType<typeof invoiceState>) {
 
 export function Billing() {
   const { capabilities } = useClinic();
-  const [query, setQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     () => queryId("patient_id"),
   );
@@ -172,9 +266,6 @@ export function Billing() {
     null,
   );
   const [reloadLedger, setReloadLedger] = useState(0);
-  const patients = useResource<{ patients?: Patient[] }>(
-    `/api/clinic/patients/lookup${query ? `?q=${encodeURIComponent(query)}` : ""}`,
-  );
   const [ledger, setLedger] = useState<{
     data?: BillingPatientLedger;
     error?: string;
@@ -272,15 +363,6 @@ export function Billing() {
     };
   }, [checkoutEncounterId, reloadLedger, selectedPatientId]);
 
-  const matches = useMemo(
-    () =>
-      (patients.data?.patients ?? []).filter((patient) =>
-        `${patient.display_name} ${patient.reference}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-      ),
-    [patients.data, query],
-  );
   const selectedInvoice = ledger.data?.invoices.find(
     (invoice) => invoice.id === selectedInvoiceId,
   );
@@ -301,82 +383,40 @@ export function Billing() {
         sx={{
           display: "grid",
           gap: 3,
-          gridTemplateColumns: { lg: "minmax(260px, 0.75fr) minmax(0, 2fr)" },
+          gridTemplateColumns: checkoutEncounterId
+            ? "minmax(0, 1fr)"
+            : { lg: "minmax(260px, 0.75fr) minmax(0, 2fr)" },
         }}
       >
-        <Paper
-          component="section"
-          variant="outlined"
-          sx={{ alignSelf: "start" }}
-        >
-          <Box sx={{ p: 2.5 }}>
-            <Typography component="h2" variant="h2">
-              Find a patient
-            </Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-              {checkoutEncounterId
-                ? "Patient selection is fixed to this completed encounter."
-                : "Search by the clinic reference or recorded name."}
-            </Typography>
-            <TextField
-              fullWidth
-              label="Search patients"
-              margin="normal"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Reference or name"
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-              value={query}
-            />
-          </Box>
-          <Divider />
-          {!patients.data ? (
-            <Box sx={{ display: "grid", placeItems: "center", minHeight: 120 }}>
-              {patients.error ? (
-                <Alert severity="error">{patients.error}</Alert>
-              ) : (
-                <CircularProgress aria-label="Loading patients" size={28} />
-              )}
-            </Box>
-          ) : matches.length === 0 ? (
-            <Typography color="text.secondary" sx={{ p: 2.5 }}>
-              No matching patients were returned.
-            </Typography>
-          ) : (
-            <List aria-label="Matching patients" disablePadding>
-              {matches.map((patient) => (
-                <ListItemButton
-                  key={patient.id}
-                  onClick={() => setSelectedPatientId(patient.id)}
-                  disabled={
-                    checkoutEncounterId !== null &&
-                    patient.id !== selectedPatientId
-                  }
-                  selected={selectedPatientId === patient.id}
-                  sx={{ alignItems: "flex-start", px: 2.5, py: 1.5 }}
-                >
-                  <ListItemText
-                    primary={patient.display_name}
-                    secondary={
-                      patientReferenceLabel(patient.reference) ?? undefined
-                    }
-                    slotProps={{
-                      primary: { sx: { fontWeight: 650 } },
-                      secondary: { sx: { fontVariantNumeric: "tabular-nums" } },
-                    }}
-                  />
-                </ListItemButton>
-              ))}
-            </List>
-          )}
-        </Paper>
+        {checkoutEncounterId ? (
+          <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={0.75}
+              sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+            >
+              <Box>
+                <Typography component="h2" variant="subtitle2">
+                  Checkout patient
+                </Typography>
+                <Typography sx={{ fontWeight: 700 }}>
+                  {ledger.data?.patient.display_name ?? "Loading patient…"}
+                </Typography>
+                {ledger.data && patientReferenceLabel(ledger.data.patient.reference) && (
+                  <Typography color="text.secondary" variant="body2">
+                    Clinic reference · {patientReferenceLabel(ledger.data.patient.reference)}
+                  </Typography>
+                )}
+              </Box>
+              <Chip label={`Encounter #${checkoutEncounterId}`} variant="outlined" />
+            </Stack>
+          </Paper>
+        ) : (
+          <PatientDirectory
+            selectedPatientId={selectedPatientId}
+            onSelect={setSelectedPatientId}
+          />
+        )}
         <Box component="section" aria-live="polite">
           {!selectedPatientId ? (
             <Paper
@@ -641,7 +681,23 @@ function LedgerDetails({
           </TableContainer>
         )}
       </Paper>
-      {selectedInvoice && <InvoiceDetail invoice={selectedInvoice} />}
+      {selectedInvoice && (
+        <Accordion disableGutters variant="outlined">
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box>
+              <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Invoice #{selectedInvoice.id} details
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {invoiceState(selectedInvoice)} · {money(selectedInvoice.balance_amount, selectedInvoice.currency)} balance
+              </Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+            <InvoiceDetail invoice={selectedInvoice} />
+          </AccordionDetails>
+        </Accordion>
+      )}
       {checkoutEncounterId && selectedInvoice && !actionableInvoice && (
         <Alert severity="info">
           Invoice #{selectedInvoice.id} is historical for this patient. Return
@@ -675,6 +731,7 @@ function LedgerDetails({
       />
       <PaymentHistory
         patientId={ledger.patient.id}
+        patientName={ledger.patient.display_name}
         payments={ledger.payments}
         invoices={ledger.invoices}
         onFinancialChange={onFinancialChange}
@@ -797,7 +854,7 @@ function CheckoutSettlement({
       if (!(await postDraft.clear())) {
         setError(
           postDraft.error ||
-            "Invoice posting succeeded, but the recovery record could not be cleared. Refresh the ledger before taking another action.",
+            "Invoice posting succeeded, but its saved recovery details could not be cleared. Refresh the ledger before taking another action.",
         );
       }
       setConfirmation(null);
@@ -831,7 +888,11 @@ function CheckoutSettlement({
     invoice.id !== postedInvoiceId &&
     !cashPending;
   const collectionInvoice =
-    invoice && (invoice.status === "posted" || invoice.id === postedInvoiceId)
+    invoice &&
+    ((invoice.status === "posted" && !isZero(invoice.balance_amount)) ||
+      (invoice.status === "draft" &&
+        invoice.id === postedInvoiceId &&
+        !isZero(invoice.total_amount)))
       ? { ...billingInvoiceSummary(invoice), status: "posted" as const }
       : null;
   const onlinePaymentPending =
@@ -879,8 +940,8 @@ function CheckoutSettlement({
                 <Stack spacing={1.25}>
                   <Typography variant="body2">
                     Posting outcome for invoice #{postAttempt.invoiceId} is
-                    pending confirmation. The same request key remains locked to
-                    this invoice.
+                    pending confirmation. The original submission remains
+                    locked to this invoice.
                   </Typography>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                     <Button
@@ -920,7 +981,7 @@ function CheckoutSettlement({
         </Paper>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
-      {invoice?.status === "posted" && !postingPending && (
+      {invoice?.status === "posted" && collectionInvoice && !postingPending && (
         <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
           <InvoiceCheckoutControls
             key={invoice.id}
@@ -1112,7 +1173,7 @@ function DraftInvoiceForm({
       if (!(await recovery.clear())) {
         setError(
           recovery.error ||
-            "The draft was created, but its recovery record could not be cleared. Refresh the ledger before another action.",
+            "The draft was created, but its saved recovery details could not be cleared. Refresh the ledger before another action.",
         );
       }
       setNotice(
@@ -1343,7 +1404,7 @@ function DraftInvoiceEditor({
       if (!(await recovery.clear())) {
         setError(
           recovery.error ||
-            "The invoice was saved, but its recovery record could not be cleared. Refresh before editing again.",
+            "The invoice was saved, but its saved recovery details could not be cleared. Refresh before editing again.",
         );
       }
       onSaved();
@@ -1800,12 +1861,14 @@ function LedgerAmount({
 
 function PaymentHistory({
   patientId,
+  patientName,
   payments,
   invoices,
   onFinancialChange,
   onSelectPatient,
 }: {
   patientId: number;
+  patientName: string;
   payments: BillingPatientLedger["payments"];
   invoices: BillingPatientLedger["invoices"];
   onFinancialChange: () => void;
@@ -1834,6 +1897,8 @@ function PaymentHistory({
   );
   const [refundError, setRefundError] = useState("");
   const [refundBusy, setRefundBusy] = useState(false);
+  const [refundConfirmationPaymentId, setRefundConfirmationPaymentId] =
+    useState<number | null>(null);
   const [allocationPaymentId, setAllocationPaymentId] = useState<number | null>(
     null,
   );
@@ -1843,6 +1908,17 @@ function PaymentHistory({
   const [allocationError, setAllocationError] = useState("");
   const [allocationBusy, setAllocationBusy] = useState(false);
   const refundRetryPending = refundAttempt !== null;
+  const refundConfirmationPayment = payments.find(
+    (payment) => payment.id === refundConfirmationPaymentId,
+  );
+  const refundConfirmationAmount =
+    refundAttempt?.paymentId === refundConfirmationPaymentId
+      ? refundAttempt.amount
+      : refundAmount.trim();
+  const refundConfirmationReason =
+    refundAttempt?.paymentId === refundConfirmationPaymentId
+      ? refundAttempt.reason
+      : refundReason.trim();
 
   useEffect(() => {
     const retained = pendingCashRefundAttempts.get(refundScope) ?? null;
@@ -1859,6 +1935,7 @@ function PaymentHistory({
       setRefundAmount("");
       setRefundReason("");
       setRefundError("");
+      setRefundConfirmationPaymentId(null);
     }
   }, [patientId, refundScope]);
 
@@ -1873,8 +1950,12 @@ function PaymentHistory({
     );
 
   const allocatePayment = async (paymentId: number) => {
+    const targetInvoiceId = positiveSafeInteger(allocationInvoiceId);
+    const payment = payments.find((candidate) => candidate.id === paymentId);
     if (
-      !allocationInvoiceId ||
+      !payment ||
+      targetInvoiceId === null ||
+      !eligibleInvoices(payment).some((invoice) => invoice.id === targetInvoiceId) ||
       !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(allocationAmount) ||
       isZero(allocationAmount)
     ) {
@@ -1892,7 +1973,7 @@ function PaymentHistory({
         method: "POST",
         body: {
           allocation: {
-            invoice_id: Number(allocationInvoiceId),
+            invoice_id: targetInvoiceId,
             amount: allocationAmount.trim(),
             request_key: requestKey,
           },
@@ -1914,16 +1995,33 @@ function PaymentHistory({
     }
   };
 
-  const refundCash = async (paymentId: number) => {
+  const reviewRefund = (
+    payment: BillingPatientLedger["payments"][number],
+  ) => {
     if (
       !refundAttempt &&
-      (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(refundAmount) ||
+      (!payment.cash_refund_available ||
+        !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(refundAmount) ||
         isZero(refundAmount) ||
         !refundReason.trim())
     ) {
       setRefundError(
-        "Enter a positive cash refund amount and a reason.",
+        payment.cash_refund_unavailable_reason === "cash_drawer_closed"
+          ? "This payment cannot be refunded because its cash drawer is closed."
+          : payment.cash_refund_unavailable_reason === "payment_fully_refunded"
+            ? "This payment has already been fully refunded."
+            : "Enter a positive cash refund amount and a reason.",
       );
+      return;
+    }
+    setRefundError("");
+    setRefundConfirmationPaymentId(payment.id);
+  };
+
+  const refundCash = async (paymentId: number) => {
+    if (positiveSafeInteger(paymentId) === null) {
+      setRefundError("Choose a valid payment before recording a refund.");
+      setRefundConfirmationPaymentId(null);
       return;
     }
     const attempt = refundAttempt ?? {
@@ -1953,6 +2051,7 @@ function PaymentHistory({
       setRefundAmount("");
       setRefundReason("");
       setRefundPaymentId(null);
+      setRefundConfirmationPaymentId(null);
       onFinancialChange();
     } catch (reason) {
       const deterministic =
@@ -1973,10 +2072,12 @@ function PaymentHistory({
       );
     } finally {
       setRefundBusy(false);
+      setRefundConfirmationPaymentId(null);
     }
   };
 
   return (
+    <>
     <Paper component="section" variant="outlined">
       <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
         <ReceiptLongOutlinedIcon color="primary" />
@@ -2006,7 +2107,7 @@ function PaymentHistory({
       )}
       {payments.length === 0 ? (
         <Typography color="text.secondary" sx={{ p: 2.5 }}>
-          No payment events were returned for this patient.
+          No payments were returned for this patient.
         </Typography>
       ) : (
         <List disablePadding>
@@ -2139,9 +2240,11 @@ function PaymentHistory({
                       Print receipt
                     </Button>
                   )}
-                  {capabilities.billing_payment_record === true && (
+                  {capabilities.billing_payment_record === true &&
+                    payment.cash_refund_available &&
+                    !refundRetryPending && (
                     <Button
-                      disabled={refundBusy || refundRetryPending}
+                      disabled={refundBusy}
                       onClick={() => {
                         setRefundError("");
                         setRefundPaymentId(payment.id);
@@ -2153,6 +2256,19 @@ function PaymentHistory({
                       Refund cash
                     </Button>
                   )}
+                  {payment.cash_refund_unavailable_reason ===
+                    "cash_drawer_closed" && (
+                    <Typography color="text.secondary" variant="body2">
+                      Refund unavailable: the cash drawer used for this payment
+                      is closed.
+                    </Typography>
+                  )}
+                  {payment.cash_refund_unavailable_reason ===
+                    "payment_fully_refunded" && (
+                    <Typography color="text.secondary" variant="body2">
+                      This payment has already been fully refunded.
+                    </Typography>
+                  )}
                 </Stack>
               )}
               {refundPaymentId === payment.id && (
@@ -2163,7 +2279,7 @@ function PaymentHistory({
                   sx={{ mt: 1.5 }}
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void refundCash(payment.id);
+                    reviewRefund(payment);
                   }}
                 >
                   <TextField
@@ -2192,8 +2308,8 @@ function PaymentHistory({
                     {refundBusy
                       ? "Recording…"
                       : refundRetryPending
-                        ? "Retry same refund"
-                        : "Record refund"}
+                        ? "Review same refund"
+                        : "Review refund"}
                   </Button>
                   <Button
                     disabled={refundBusy || refundRetryPending}
@@ -2225,8 +2341,7 @@ function PaymentHistory({
                         `${money(refund.amount, payment.currency)} on ${date(refund.created_at, true)} · ${refund.reason}`,
                     )
                     .join("; ")}
-                  . Refunds are payment-level history and do not alter invoice
-                  balances in this ledger view.
+                  . Refunds are shown separately from invoice balances.
                 </Alert>
               )}
             </Box>
@@ -2234,5 +2349,65 @@ function PaymentHistory({
         </List>
       )}
     </Paper>
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={refundConfirmationPayment !== undefined}
+        onClose={refundBusy ? undefined : () => setRefundConfirmationPaymentId(null)}
+      >
+        <DialogTitle>Confirm cash refund</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            <Typography>
+              Review the details before recording this refund.
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 1.5 }}>
+              <Stack spacing={0.75}>
+                <Typography><strong>Patient:</strong> {patientName}</Typography>
+                <Typography>
+                  <strong>Payment:</strong> #{refundConfirmationPayment?.id}
+                </Typography>
+                <Typography>
+                  <strong>Amount:</strong>{" "}
+                  {money(
+                    refundConfirmationAmount || "0",
+                    refundConfirmationPayment?.currency ?? "USD",
+                  )}
+                </Typography>
+                <Typography><strong>Reason:</strong> {refundConfirmationReason}</Typography>
+              </Stack>
+            </Paper>
+            {refundRetryPending && (
+              <Alert severity="warning">
+                This retry uses the exact retained refund details.
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            disabled={refundBusy}
+            onClick={() => setRefundConfirmationPaymentId(null)}
+          >
+            Go back
+          </Button>
+          <Button
+            disabled={refundBusy || refundConfirmationPayment === undefined}
+            onClick={() => {
+              if (refundConfirmationPayment) {
+                void refundCash(refundConfirmationPayment.id);
+              }
+            }}
+            variant="contained"
+          >
+            {refundBusy
+              ? "Recording…"
+              : refundRetryPending
+                ? "Retry same refund"
+                : "Confirm refund"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }

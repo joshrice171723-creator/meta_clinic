@@ -60,14 +60,16 @@ export const customInvoiceLine = (): InvoiceLineDraft => ({
 
 export function invoiceLineIsValid(line: InvoiceLineDraft) {
   const decimal = /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/;
+  const positiveSafeInteger = (value: number) =>
+    Number.isSafeInteger(value) && value > 0;
   if (!decimal.test(line.quantity) || Number(line.quantity) <= 0) return false;
   if (line.kind === "catalog")
     return (
-      Number.isSafeInteger(line.billing_service_id) &&
+      positiveSafeInteger(line.billing_service_id) &&
       Number.isSafeInteger(line.service_lock_version)
     );
   if (line.kind === "recorded")
-    return Number.isSafeInteger(line.invoice_line_id);
+    return positiveSafeInteger(line.invoice_line_id);
   return (
     decimal.test(line.unit_amount) &&
     Number(line.unit_amount) >= 0 &&
@@ -268,6 +270,7 @@ export function InvoiceLineEditor({
               ) : (
                 <TextField
                   label="Line description"
+                  required
                   value={
                     line.kind === "custom" ? line.description_snapshot : ""
                   }
@@ -286,6 +289,7 @@ export function InvoiceLineEditor({
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
                 <TextField
                   label="Quantity"
+                  required
                   inputMode="decimal"
                   value={line.quantity}
                   onChange={(event) =>
@@ -296,6 +300,7 @@ export function InvoiceLineEditor({
                 {line.kind === "custom" && (
                   <TextField
                     label="Unit amount"
+                    required
                     inputMode="decimal"
                     value={line.unit_amount}
                     onChange={(event) =>

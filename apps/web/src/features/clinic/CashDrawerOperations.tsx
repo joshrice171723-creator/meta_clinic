@@ -327,7 +327,7 @@ export function CashDrawerOperations({
       if (durableRecoveryEnabled && !(await recovery.clear())) {
         setError(
           recovery.error ||
-            "The cash payment was recorded, but its recovery record could not be cleared. Refresh payment activity before another action.",
+            "The cash payment was recorded, but its saved recovery details could not be cleared. Refresh payment activity before another action.",
         );
         drawers.refresh();
         onRecorded(attempt.invoiceId);
@@ -352,7 +352,7 @@ export function CashDrawerOperations({
         } else {
           setError(
             recovery.error ||
-              "The payment was rejected, but its recovery record could not be cleared. Refresh before another action.",
+              "The payment was rejected, but its saved recovery details could not be cleared. Refresh before another action.",
           );
         }
       } else {
@@ -508,8 +508,8 @@ export function CashDrawerOperations({
             <Stack spacing={1}>
               <span>
                 Cash payment outcome is pending confirmation for invoice #
-                {cashAttempt.invoiceId}. Its drawer, amounts, and request key
-                are locked. Review activity or retry the same payment.
+                {cashAttempt.invoiceId}. Its drawer and amounts are locked.
+                Review activity or retry the same payment.
               </span>
               <Button
                 color="inherit"
@@ -518,7 +518,7 @@ export function CashDrawerOperations({
                   if (durableRecoveryEnabled && !(await recovery.clear())) {
                     setError(
                       recovery.error ||
-                        "The verified payment recovery record could not be cleared. Try again before another action.",
+                        "The verified payment's saved recovery details could not be cleared. Try again before another action.",
                     );
                     return;
                   }
@@ -588,6 +588,7 @@ export function CashDrawerOperations({
                 >
                   <TextField
                     label="Manager reconciliation note"
+                    required
                     value={reconciliationNote}
                     disabled={cashAttempt !== null || busy !== null}
                     onChange={(event) => setReconciliationNote(event.target.value)}

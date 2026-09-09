@@ -586,6 +586,12 @@ export type BillingPatientLedger = {
     unapplied_amount: Decimal;
     created_at: string;
     cash_payment: boolean;
+    cash_refund_available: boolean;
+    cash_refund_unavailable_reason:
+      | "not_cash_payment"
+      | "cash_drawer_closed"
+      | "payment_fully_refunded"
+      | null;
     receipt_available: boolean;
     allocations: {
       id: number;
