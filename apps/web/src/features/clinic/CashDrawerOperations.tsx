@@ -131,25 +131,49 @@ export function CashDrawerOperations({
     recordId: exactInvoiceId,
     enabled: durableRecoveryEnabled,
   });
+  const onRecordedRef = useRef(onRecorded);
+  const onPendingChangeRef = useRef(onPendingChange);
+  const lastPendingNotification = useRef<boolean | null>(null);
+  const routedAttempt = useRef("");
+  const consumedRestoration = useRef("");
+  onRecordedRef.current = onRecorded;
+  onPendingChangeRef.current = onPendingChange;
   const allocationInvoiceSelection = useRef("");
   const drawerRefreshVersion = useRef(refreshVersion);
   useEffect(() => {
     persistCashAttempt(clinic, cashAttempt);
-    onPendingChange?.(cashAttempt !== null);
-    if (cashAttempt && exactInvoiceId !== cashAttempt.invoiceId) {
-      onRecorded(cashAttempt.invoiceId);
+    const pending = cashAttempt !== null;
+    if (lastPendingNotification.current !== pending) {
+      lastPendingNotification.current = pending;
+      onPendingChangeRef.current?.(pending);
     }
-  }, [clinic, cashAttempt, exactInvoiceId, onPendingChange, onRecorded]);
+  }, [clinic, cashAttempt]);
+  useEffect(() => {
+    if (!cashAttempt || exactInvoiceId === undefined || exactInvoiceId === cashAttempt.invoiceId) {
+      if (!cashAttempt || exactInvoiceId === cashAttempt?.invoiceId) routedAttempt.current = "";
+      return;
+    }
+    const identity = `${cashAttempt.invoiceId}:${cashAttempt.requestKey}`;
+    if (routedAttempt.current === identity) return;
+    routedAttempt.current = identity;
+    onRecordedRef.current(cashAttempt.invoiceId);
+  }, [cashAttempt, exactInvoiceId]);
   useEffect(() => {
     const restored = recovery.restored;
     if (!recovery.ready || !restored || cashAttempt) return;
+    const identity = `${restored.invoiceId}:${restored.requestKey}`;
+    if (consumedRestoration.current === identity) return;
     if (restored.invoiceId !== exactInvoiceId) {
       setError(
         "The recovered cash payment belongs to another invoice. Return to that invoice before retrying it.",
       );
-      onRecorded(restored.invoiceId);
+      if (exactInvoiceId !== undefined && routedAttempt.current !== identity) {
+        routedAttempt.current = identity;
+        onRecordedRef.current(restored.invoiceId);
+      }
       return;
     }
+    consumedRestoration.current = identity;
     setCashAttempt(restored);
     setSelectedDrawerId(String(restored.drawerId));
     setTenderedAmount(restored.tenderedAmount);
@@ -157,7 +181,7 @@ export function CashDrawerOperations({
     setError(
       "A saved cash payment attempt was restored. Refresh payment activity before retrying the same payment.",
     );
-  }, [cashAttempt, exactInvoiceId, onRecorded, recovery.ready, recovery.restored]);
+  }, [cashAttempt, exactInvoiceId, recovery.ready, recovery.restored]);
   useEffect(() => {
     if (drawerRefreshVersion.current === refreshVersion) return;
 

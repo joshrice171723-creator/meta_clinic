@@ -833,6 +833,13 @@ function CheckoutSettlement({
     ["processing", "needs_reconciliation"].includes(
       invoice.online_payment.state,
     );
+  const cashRecoveryInvoiceId = useRef<number | undefined>(undefined);
+  if (
+    collectionInvoice?.id &&
+    (!cashPending || cashRecoveryInvoiceId.current === undefined)
+  ) {
+    cashRecoveryInvoiceId.current = collectionInvoice.id;
+  }
   return (
     <>
       {(selectedDraft || postingPending) && (
@@ -938,7 +945,7 @@ function CheckoutSettlement({
           invoice={onlinePaymentPending ? null : collectionInvoice}
           patientId={patientId}
           encounterId={encounterId ?? undefined}
-          recoveryInvoiceId={collectionInvoice?.id}
+          recoveryInvoiceId={cashRecoveryInvoiceId.current}
           refreshVersion={financialRevision}
           onPendingChange={setCashPending}
           onRecorded={onFinancialChange}
