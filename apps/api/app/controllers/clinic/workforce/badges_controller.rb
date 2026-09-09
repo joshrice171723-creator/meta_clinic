@@ -7,7 +7,7 @@ module Clinic
           .includes(employment: :staff_member).order(created_at: :desc)
         render json: {
           badges: badges.map { |badge| ClockSerializer.badge(badge).merge(employee_name: badge.employment.staff_member.display_name) },
-          employees: employments.includes(:staff_member).map do |employment|
+          employees: employments.includes(:staff_member, membership: :user).map do |employment|
             { id: employment.id, employee_name: employment.staff_member.display_name,
               active_for_work: employment.active_for_work? }
           end,
