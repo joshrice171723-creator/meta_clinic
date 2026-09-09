@@ -25,6 +25,27 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: clinic_enforce_invoice_status_transition(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_enforce_invoice_status_transition() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF OLD.status = NEW.status
+    OR (OLD.status = 'draft' AND NEW.status = 'posted')
+    OR (OLD.status = 'posted' AND NEW.status = 'void') THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'invalid clinic invoice status transition from % to %', OLD.status, NEW.status
+    USING ERRCODE = 'check_violation';
+END;
+$$;
+
+
+
+--
 -- Name: clinic_invoice_line_editable_draft(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2035,7 +2056,7 @@ CREATE TABLE public.clinic_cash_tenders (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     request_key character varying NOT NULL,
-    CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (change_amount >= (0)::numeric) AND (change_amount < tendered_amount))),
+    CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (tendered_amount = round(tendered_amount, 2)) AND (change_amount >= (0)::numeric) AND (change_amount = round(change_amount, 2)) AND (change_amount < tendered_amount))),
     CONSTRAINT cash_tender_request_key_present CHECK (((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100)))
 );
 
@@ -4304,7 +4325,7 @@ CREATE TABLE public.clinic_invoices (
     void_reason text,
     voided_by_membership_id bigint,
     voided_at timestamp(6) without time zone,
-    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0))),
+    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'posted'::character varying, 'void'::character varying])::text[])) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0))),
     CONSTRAINT clinic_invoices_void_evidence_shape CHECK ((((void_reason IS NULL) AND (voided_by_membership_id IS NULL) AND (voided_at IS NULL)) OR ((void_reason IS NOT NULL) AND (voided_by_membership_id IS NOT NULL) AND (voided_at IS NOT NULL))))
 );
 
@@ -5375,7 +5396,7 @@ CREATE TABLE public.clinic_patient_portal_appointment_requests (
     source_site_id bigint,
     source_status character varying,
     requested_modality character varying(16),
-    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY (ARRAY[('new_booking'::character varying)::text, ('reschedule'::character varying)::text, ('cancel'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('declined'::character varying)::text, ('cancelled'::character varying)::text])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL))))),
+    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY ((ARRAY['new_booking'::character varying, 'reschedule'::character varying, 'cancel'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'declined'::character varying, 'cancelled'::character varying, 'expired'::character varying])::text[])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL))))),
     CONSTRAINT clinic_portal_requests_modality CHECK (((requested_modality IS NULL) OR ((requested_modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying])::text[]))))
 );
 
@@ -5749,7 +5770,7 @@ CREATE TABLE public.clinic_payment_allocations (
     amount numeric(20,6) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_payment_allocations_amount CHECK ((amount > (0)::numeric))
+    CONSTRAINT clinic_payment_allocations_amount CHECK (((amount > (0)::numeric) AND (amount = round(amount, 2))))
 );
 
 
@@ -5790,7 +5811,7 @@ CREATE TABLE public.clinic_payment_collection_intents (
     state character varying DEFAULT 'pending'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT payment_collection_intents_values CHECK ((((reference)::text ~ '^ci_[a-f0-9]{32}$'::text) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text) AND ((processor)::text ~ '^[a-z][a-z0-9_.-]{0,39}$'::text) AND ((mode)::text = ANY (ARRAY[('test'::character varying)::text, ('live'::character varying)::text])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric) AND ((state)::text = ANY (ARRAY[('pending'::character varying)::text, ('processing'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text, ('needs_reconciliation'::character varying)::text, ('canceled'::character varying)::text]))))
+    CONSTRAINT payment_collection_intents_values CHECK ((((reference)::text ~ '^ci_[a-f0-9]{32}$'::text) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text) AND ((processor)::text ~ '^[a-z][a-z0-9_.-]{0,39}$'::text) AND ((mode)::text = ANY ((ARRAY['test'::character varying, 'live'::character varying])::text[])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric) AND (amount = round(amount, 2)) AND ((state)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'succeeded'::character varying, 'failed'::character varying, 'needs_reconciliation'::character varying, 'canceled'::character varying])::text[]))))
 );
 
 
@@ -6158,7 +6179,7 @@ CREATE TABLE public.clinic_refund_events (
     updated_at timestamp(6) without time zone NOT NULL,
     reason character varying NOT NULL,
     CONSTRAINT clinic_refund_events_reason_length CHECK (((char_length((reason)::text) >= 1) AND (char_length((reason)::text) <= 200))),
-    CONSTRAINT clinic_refund_events_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric)))
+    CONSTRAINT clinic_refund_events_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric) AND (amount = round(amount, 2))))
 );
 
 
@@ -11397,6 +11418,15 @@ ALTER TABLE ONLY public.clinic_encounter_note_signatures
 
 ALTER TABLE ONLY public.clinic_encounter_notes
     ADD CONSTRAINT clinic_encounter_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_participants clinic_encounter_participants_no_overlapping_intake_owner; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_participants
+    ADD CONSTRAINT clinic_encounter_participants_no_overlapping_intake_owner EXCLUDE USING gist (practice_id WITH =, encounter_id WITH =, tstzrange(effective_from, effective_until, '[)'::text) WITH &&) WHERE (((participation_role)::text = 'intake_owner'::text));
+
 
 
 --
@@ -18039,6 +18069,14 @@ CREATE TRIGGER inventory_reconciliation_guard BEFORE INSERT ON public.clinic_inv
 
 
 --
+-- Name: clinic_invoices clinic_invoices_status_transition; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_invoices_status_transition BEFORE UPDATE OF status ON public.clinic_invoices FOR EACH ROW EXECUTE FUNCTION public.clinic_enforce_invoice_status_transition();
+
+
+
+--
 -- Name: clinic_invoice_stripe_checkouts invoice_stripe_checkout_routing; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -23540,6 +23578,9 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909003000'),
+('20260909002000'),
+('20260909001000'),
 ('20260908230000'),
 ('20260908220000'),
 ('20260908210000'),

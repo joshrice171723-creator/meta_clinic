@@ -80,6 +80,16 @@
     "/api/clinic/encounters/:id(.:format)"
   ],
   [
+    "api_clinic_encounter_intake_ownership_claim",
+    "POST",
+    "/api/clinic/encounters/:encounter_id/intake_ownership/claim(.:format)"
+  ],
+  [
+    "api_clinic_encounter_intake_ownership_release",
+    "POST",
+    "/api/clinic/encounters/:encounter_id/intake_ownership/release(.:format)"
+  ],
+  [
     "api_clinic_encounter_medication_administrations",
     "GET",
     "/api/clinic/encounters/:encounter_id/medication_administrations(.:format)"

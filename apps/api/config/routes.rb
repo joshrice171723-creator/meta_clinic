@@ -61,6 +61,8 @@ Rails.application.routes.draw do
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       post :close, on: :member
       post :provider_assignment, on: :member, to: "scheduling/provider_assignments#create"
+      post "intake_ownership/claim", to: "scheduling/intake_ownership#claim"
+      post "intake_ownership/release", to: "scheduling/intake_ownership#release"
       resources :notes, controller: "care/encounter_notes", only: %i[index create]
       resources :medication_administrations, controller: "care/medication_administrations", only: %i[index create]
     end

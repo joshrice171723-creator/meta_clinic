@@ -183,6 +183,70 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
       visits.fetch(@current.id).dig("encounter", "site_id")
   end
 
+  test "tracking board excludes rows outside the actor operational site scope" do
+    allowed_site = @practice.sites.create!(code: "BOARD-ALLOWED")
+    denied_site = @practice.sites.create!(code: "BOARD-DENIED")
+    @current.update!(site: allowed_site)
+    @other_current.update!(site: denied_site)
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read")
+    grant_permissions!(@membership, "encounters.write", scope_kind: "site", site: allowed_site)
+
+    get "/api/clinic/tracking_board", headers: @headers
+
+    assert_response :success
+    encounter_ids = response.parsed_body.fetch("visits").filter_map { |visit| visit.fetch("encounter_id") }
+    assert_includes encounter_ids, @current.id
+    assert_not_includes encounter_ids, @other_current.id
+  end
+
+  test "intake ownership enforces the lease token and owner, then exposes stale work as claimable" do
+    grant_permissions!(@membership, "intake.write")
+    claim = Clinic::Scheduling::IntakeOwnership.claim(
+      encounter: @current,
+      actor: @user,
+      request_key: "tracking-intake-claim",
+      expected_token: nil
+    )
+    other_user = User.create!(email_address: "tracking-intake-other@example.invalid", password: SecureRandom.hex(18))
+    other_membership = @practice.memberships.create!(user: other_user)
+    grant_permissions!(other_membership, "intake.write")
+
+    assert_raises(ActiveRecord::StaleObjectError) do
+      Clinic::Scheduling::IntakeOwnership.claim(
+        encounter: @current,
+        actor: other_user,
+        request_key: "tracking-intake-conflict",
+        expected_token: claim.id.to_s
+      )
+    end
+    assert_raises(ActiveRecord::StaleObjectError) do
+      Clinic::Scheduling::IntakeOwnership.release(
+        encounter: @current,
+        actor: @user,
+        request_key: "tracking-intake-stale-release",
+        expected_token: nil
+      )
+    end
+
+    Clinic::Scheduling::IntakeOwnership.release(
+      encounter: @current,
+      actor: @user,
+      request_key: "tracking-intake-release",
+      expected_token: claim.id.to_s
+    )
+    ownership = Clinic::Scheduling::IntakeOwnership.board_snapshot(
+      encounters: [ @current ],
+      at: Current.business_time + 1.second,
+      viewer_membership_id: @membership.id,
+      claim_available: true
+    ).fetch(@current.id)
+
+    assert_equal "stale", ownership.fetch(:state)
+    assert_equal true, ownership.fetch(:claim_available)
+    assert_equal false, ownership.fetch(:release_available)
+  end
+
   test "tracking board projects local birthday age and recorded sex without date of birth" do
     travel_to Time.current + 1.hour do
       login

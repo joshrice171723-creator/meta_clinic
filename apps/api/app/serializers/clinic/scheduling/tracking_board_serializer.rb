@@ -21,7 +21,7 @@ module Clinic
         ProviderBatch.new(encounters, practice: practice, as_of: as_of, eligible_site_ids: eligible_site_ids)
       end
 
-      def self.call(encounter, care_summary: nil, synthetic_scenario: nil, operational_state: "unrecorded", demographics: nil, vitals: nil, chart_status: "unavailable", membership: "not_verified", provider: nil, provider_assignment_available: false)
+      def self.call(encounter, care_summary: nil, synthetic_scenario: nil, operational_state: "unrecorded", demographics: nil, vitals: nil, chart_status: "unavailable", membership: "not_verified", provider: nil, provider_assignment_available: false, intake_ownership: nil, intake_claim_available: false, exceptions: [])
         appointment = encounter.appointment
         payload = {
           id: encounter.id,
@@ -61,7 +61,10 @@ module Clinic
             room_id: appointment.room_id,
             room_code: appointment.room&.code
           },
-          care_summary: care_summary
+          care_summary: care_summary,
+          intake_ownership: intake_ownership,
+          intake_claim_available: intake_claim_available,
+          exceptions: exceptions
         }
         payload[:synthetic_scenario] = synthetic_scenario if synthetic_scenario
         payload
@@ -96,7 +99,10 @@ module Clinic
             room_code: appointment.room&.code
           },
           care_summary: nil,
-          vitals: nil
+          vitals: nil,
+          intake_ownership: nil,
+          intake_claim_available: false,
+          exceptions: []
         }
       end
 

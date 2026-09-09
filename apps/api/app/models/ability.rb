@@ -10,7 +10,6 @@ class Ability
   # rules, grants, or browser capabilities; until a reviewed subject contract
   # exists, Authorization deliberately denies them.
   FUTURE_CLINICAL_ACTIONS = %w[
-    intake.read intake.write
     triage.read triage.write
     handoffs.read handoffs.request handoffs.accept handoffs.reject handoffs.correction_request
     exam.read exam.write
@@ -70,6 +69,7 @@ class Ability
     "appointments.status_transition" => { action: :transition, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
     "encounters.write" => { action: :create, subjects: [ Clinic::Encounter ], actions: %i[create update], scope: :site_or_practice },
     "encounters.assign_provider" => { action: :assign_provider, subjects: [ Clinic::Encounter ], scope: :site_or_practice },
+    "intake.write" => { action: :update, subjects: [ Clinic::Encounter ], scope: :site_or_practice },
     "notes.read" => { action: :read, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], scope: :site_or_practice },
     "notes.write" => { action: :create, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], actions: %i[create update], scope: :site_or_practice },
     "notes.sign" => { action: :sign, subjects: [ Clinic::EncounterNoteSignature, Clinic::EncounterNote ], scope: :site_or_practice },

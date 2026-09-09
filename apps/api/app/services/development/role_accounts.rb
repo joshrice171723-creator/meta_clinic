@@ -20,7 +20,7 @@ module Development
         label: "Clinic Administrator",
         email: "clinic-administrator@local.invalid",
         admin: true,
-        version: 2,
+        version: 3,
         permissions: CLINIC_ADMINISTRATOR_PERMISSIONS
       },
       "billing-accounting" => {
@@ -39,18 +39,20 @@ module Development
       "clinician" => {
         label: "Clinician",
         email: "clinician@local.invalid",
+        version: 2,
         permissions: %w[
           patients.read patients.write appointments.read appointments.write appointments.book
-          appointments.status_transition encounters.write encounters.assign_provider notes.read
+          appointments.status_transition encounters.write encounters.assign_provider intake.write notes.read
           notes.write notes.sign observations.write documents.read
         ]
       },
       "clinical-staff" => {
         label: "Clinical Staff",
         email: "clinical-staff@local.invalid",
+        version: 2,
         permissions: %w[
           patients.read patients.identity.read patients.write appointments.read appointments.write
-          appointments.book appointments.status_transition encounters.write encounters.assign_provider
+          appointments.book appointments.status_transition encounters.write encounters.assign_provider intake.write
           notes.read observations.write inventory.read staff.read messages.write staff_messaging.read
           staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge
           staff_messaging.transition staff_messaging.escalate staff_messaging.attach

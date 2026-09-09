@@ -2,10 +2,47 @@ import type { ClinicTrackingBoardVisit } from "../../api/contracts";
 import type { BoardVisit } from "./trackingBoardData";
 import { api } from "../../api/client";
 
+type TrackingBoardVisitWithOperations = ClinicTrackingBoardVisit & {
+  intake_ownership?: {
+    participant_id: string;
+    token: string;
+    owner: { membership_id: string; display_name: string };
+    lease_expires_at: string | null;
+    state: "claimed" | "stale";
+    claim_available: boolean;
+    release_available: boolean;
+  } | null;
+  intake_claim_available?: boolean;
+  exceptions?: { code: string; message: string }[];
+};
+
+export type BoardIntakeOwnership = {
+  participantId: string;
+  token: string;
+  ownerName: string;
+  leaseExpiresAt: string | null;
+  state: "claimed" | "stale";
+  canClaim: boolean;
+  canRelease: boolean;
+};
+
+export type BoardOperationMetadata = {
+  intakeOwnership: BoardIntakeOwnership | null;
+  canClaimIntake: boolean;
+  exceptions: readonly { code: string; message: string }[];
+};
+
 export function providerAssignmentRequestKey(): string {
   return (
     globalThis.crypto?.randomUUID?.() ??
     `provider-${Date.now()}-${Math.random()}`
+  );
+}
+
+export function intakeOwnershipRequestKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `intake-ownership-${Date.now()}-${Math.random()}`
   );
 }
 
@@ -30,6 +67,58 @@ export function assignBoardProvider(
       },
     },
   });
+}
+
+export function claimBoardIntake(
+  encounterId: number,
+  expectedToken: string | null,
+  requestKey = intakeOwnershipRequestKey(),
+) {
+  return api<{ intake_ownership: { token: string } }>(
+    `/api/clinic/encounters/${encounterId}/intake_ownership/claim`,
+    {
+      method: "POST",
+      body: { ownership: { request_key: requestKey, expected_token: expectedToken } },
+    },
+  );
+}
+
+export function releaseBoardIntake(
+  encounterId: number,
+  expectedToken: string,
+  requestKey = intakeOwnershipRequestKey(),
+) {
+  return api<{ intake_ownership: { token: string | null } }>(
+    `/api/clinic/encounters/${encounterId}/intake_ownership/release`,
+    {
+      method: "POST",
+      body: { ownership: { request_key: requestKey, expected_token: expectedToken } },
+    },
+  );
+}
+
+export function trackingBoardOperationMetadata(
+  visit: ClinicTrackingBoardVisit,
+): BoardOperationMetadata {
+  const operations = visit as TrackingBoardVisitWithOperations;
+  const ownership = operations.intake_ownership;
+  return {
+    intakeOwnership: ownership
+      ? {
+          participantId: ownership.participant_id,
+          token: ownership.token,
+          ownerName: ownership.owner.display_name,
+          leaseExpiresAt: ownership.lease_expires_at,
+          state: ownership.state,
+          canClaim: ownership.claim_available,
+          canRelease: ownership.release_available,
+        }
+      : null,
+    canClaimIntake: ownership
+      ? ownership.claim_available
+      : operations.intake_claim_available === true,
+    exceptions: operations.exceptions ?? [],
+  };
 }
 
 function appointmentType(code: string | null) {
@@ -91,6 +180,7 @@ export function trackingBoardVisitToBoardVisit(
   const hasVitals = systolic || diastolic || hr || weight;
   const membership = visit.patient.membership;
   const provider = visit.provider;
+  const operations = trackingBoardOperationMetadata(visit);
   return {
     id: `${visit.row_type}-${visit.id}`,
     patientId: visit.patient_id,
@@ -131,7 +221,7 @@ export function trackingBoardVisitToBoardVisit(
     providerAssignmentAvailable:
       visit.row_type === "encounter" &&
       visit.provider_assignment_available === true,
-    owner: null,
+    owner: operations.intakeOwnership?.ownerName ?? null,
     arrivedAt: encounter?.started_at ?? null,
     stageStartedAt: encounter?.started_at ?? null,
     triage: hasVitals

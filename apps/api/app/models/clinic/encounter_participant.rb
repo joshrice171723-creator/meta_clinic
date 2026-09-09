@@ -14,6 +14,10 @@ module Clinic
 
     scope :current, ->(at = Current.business_time) { where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at) }
     scope :queue_providers, -> { where(participation_role: "queue_provider") }
+    # A short-lived operational lease. This is deliberately separate from the
+    # historical "intake" participant role, which records care participation
+    # rather than exclusive work ownership.
+    scope :intake_owners, -> { where(participation_role: "intake_owner") }
 
     private
 

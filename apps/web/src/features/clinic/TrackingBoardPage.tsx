@@ -60,13 +60,26 @@ import {
 } from "./trackingBoardData";
 import {
   assignBoardProvider,
+  claimBoardIntake,
+  intakeOwnershipRequestKey,
   providerAssignmentRequestKey,
+  releaseBoardIntake,
+  trackingBoardOperationMetadata,
   trackingBoardVisitToBoardVisit,
+  type BoardOperationMetadata,
 } from "./trackingBoardApi";
 
 const EMPTY_CARE_SUMMARY_STATES: Record<string, CareSummaryLoadState> = {};
 
 type ChartActionTone = BoardChartStatus;
+type OperationalBoardVisit = BoardVisit & {
+  operations?: BoardOperationMetadata;
+};
+const EMPTY_OPERATION_METADATA: BoardOperationMetadata = {
+  intakeOwnership: null,
+  canClaimIntake: false,
+  exceptions: [],
+};
 
 export function chartActionPresentation(
   status: BoardChartStatus,
@@ -518,8 +531,10 @@ function TrackingBoardRow({
   clinicians,
   onAssignClinician,
   onPersistProvider,
+  onClaimIntake,
+  onReleaseIntake,
 }: {
-  visit: BoardVisit;
+  visit: OperationalBoardVisit;
   now: string;
   columns: ColumnKey[];
   striped: boolean;
@@ -537,6 +552,8 @@ function TrackingBoardRow({
     expectedToken: string | null,
     requestKey: string,
   ) => Promise<{ token: string | null }>;
+  onClaimIntake?: (visit: OperationalBoardVisit, expectedToken: string | null, requestKey: string) => Promise<void>;
+  onReleaseIntake?: (visit: OperationalBoardVisit, expectedToken: string, requestKey: string) => Promise<void>;
 }) {
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
@@ -549,6 +566,9 @@ function TrackingBoardRow({
   const [draftClinicianId, setDraftClinicianId] = useState(
     assignedClinicianId ?? "",
   );
+  const [intakeAction, setIntakeAction] = useState<"claim" | "release" | null>(null);
+  const [intakeError, setIntakeError] = useState<string | null>(null);
+  const operations = visit.operations ?? EMPTY_OPERATION_METADATA;
   const stage = VISIT_STAGES.find((s) => s.id === visit.stage)!;
   const label =
     visit.patientDisplayName || patientLabel(visit.firstName, visit.lastName);
@@ -762,6 +782,56 @@ function TrackingBoardRow({
                 >
                   Assign
                 </button>
+              )}
+              {(operations.intakeOwnership || operations.exceptions.length > 0 || operations.canClaimIntake) && (
+                <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
+                  {operations.intakeOwnership && (
+                    <Typography variant="caption" color="text.secondary">
+                      Intake: {operations.intakeOwnership.ownerName}
+                      {operations.intakeOwnership.state === "stale"
+                        ? " · lease expired"
+                        : " · claimed"}
+                    </Typography>
+                  )}
+                  {operations.exceptions.map((exception) => (
+                    <Typography key={exception.code} variant="caption" color="error">
+                      {exception.message}
+                    </Typography>
+                  ))}
+                  {operations.intakeOwnership?.canRelease && onReleaseIntake && (
+                    <Button
+                      size="small"
+                      disabled={intakeAction !== null}
+                      onClick={() => {
+                        const ownership = operations.intakeOwnership;
+                        if (!ownership) return;
+                        setIntakeAction("release");
+                        setIntakeError(null);
+                        void onReleaseIntake(visit, ownership.token, intakeOwnershipRequestKey())
+                          .catch((error: unknown) => setIntakeError(error instanceof Error ? error.message : "Unable to release intake work."))
+                          .finally(() => setIntakeAction(null));
+                      }}
+                    >
+                      {intakeAction === "release" ? "Releasing…" : "Release intake"}
+                    </Button>
+                  )}
+                  {operations.canClaimIntake && onClaimIntake && (
+                    <Button
+                      size="small"
+                      disabled={intakeAction !== null}
+                      onClick={() => {
+                        setIntakeAction("claim");
+                        setIntakeError(null);
+                        void onClaimIntake(visit, operations.intakeOwnership?.token ?? null, intakeOwnershipRequestKey())
+                          .catch((error: unknown) => setIntakeError(error instanceof Error ? error.message : "Unable to claim intake work."))
+                          .finally(() => setIntakeAction(null));
+                      }}
+                    >
+                      {intakeAction === "claim" ? "Claiming…" : "Claim intake"}
+                    </Button>
+                  )}
+                  {intakeError && <Typography variant="caption" color="error" role="alert">{intakeError}</Typography>}
+                </Box>
               )}
             </TableCell>
             {providerEditable && (
@@ -1033,9 +1103,11 @@ export function TrackingBoardView({
   reloading = false,
   careSummaryStates,
   onPersistProvider,
+  onClaimIntake,
+  onReleaseIntake,
   clinicians = [],
 }: {
-  visits: readonly BoardVisit[];
+  visits: readonly OperationalBoardVisit[];
   now: string;
   timezone: string;
   myClinicianId?: string | null;
@@ -1046,11 +1118,13 @@ export function TrackingBoardView({
   reloading?: boolean;
   careSummaryStates?: Record<string, CareSummaryLoadState>;
   onPersistProvider?: (
-    visit: BoardVisit,
+    visit: OperationalBoardVisit,
     clinicianId: string | null,
     expectedToken: string | null,
     requestKey: string,
   ) => Promise<{ token: string | null }>;
+  onClaimIntake?: (visit: OperationalBoardVisit, expectedToken: string | null, requestKey: string) => Promise<void>;
+  onReleaseIntake?: (visit: OperationalBoardVisit, expectedToken: string, requestKey: string) => Promise<void>;
   clinicians?: readonly BoardClinician[];
 }) {
   const [stage, setStage] = useState("all");
@@ -1480,12 +1554,7 @@ export function TrackingBoardView({
                 }
                 timezone={timezone}
                 clinicians={clinicians}
-                onAssignClinician={(clinicianId, token) =>
-                  setProviderAssignments((current) => ({
-                    ...current,
-                    [visit.id]: { clinicianId, token },
-                  }))
-                }
+                onAssignClinician={() => undefined}
                 onPersistProvider={
                   onPersistProvider
                     ? (clinicianId, expectedToken, requestKey) =>
@@ -1497,6 +1566,8 @@ export function TrackingBoardView({
                         )
                     : undefined
                 }
+                onClaimIntake={onClaimIntake}
+                onReleaseIntake={onReleaseIntake}
               />
             ))}
           </TableBody>
@@ -1584,6 +1655,7 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
     () =>
       data?.visits.map((visit) => ({
         ...trackingBoardVisitToBoardVisit(visit),
+        operations: trackingBoardOperationMetadata(visit),
         providerAssignmentAvailable:
           clinic.capabilities.encounters_assign_provider === true &&
           visit.provider_assignment_available === true,
@@ -1637,7 +1709,20 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
           expectedToken,
           requestKey,
         );
+        reload();
         return { token: response.assignment.token };
+      }}
+      onClaimIntake={async (visit, expectedToken, requestKey) => {
+        if (!visit.encounterId)
+          throw new Error("Intake ownership is unavailable for this row.");
+        await claimBoardIntake(visit.encounterId, expectedToken, requestKey);
+        reload();
+      }}
+      onReleaseIntake={async (visit, expectedToken, requestKey) => {
+        if (!visit.encounterId)
+          throw new Error("Intake ownership is unavailable for this row.");
+        await releaseBoardIntake(visit.encounterId, expectedToken, requestKey);
+        reload();
       }}
     />
   );

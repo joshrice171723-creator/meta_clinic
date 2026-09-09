@@ -2,23 +2,37 @@ module Clinic
   module Scheduling
     class TrackingBoardController < Clinic::BaseController
       MAX_VISITS = 200
+      BOARD_SITE_PERMISSIONS = %w[
+        appointments.read appointments.write appointments.book appointments.status_transition
+        encounters.write encounters.assign_provider
+      ].freeze
 
       before_action -> { require_capability("patients.read") }
 
       def show
         as_of = Current.business_time
-        encounters = current_practice.encounters.open.where(status: "open")
+        site_ids = board_site_ids
+        encounters = scoped_to_board_sites(current_practice.encounters.open.where(status: "open"), site_ids)
           .where(patient: current_practice.patients.accessible_by(current_ability, :read))
           .includes(:patient, :site, :room, appointment: %i[visit_type site room])
           .order(started_at: :desc, id: :desc).limit(MAX_VISITS + 1).to_a
-        appointments = current_practice.appointments
+        appointments = scoped_to_board_sites(current_practice.appointments, site_ids)
           .where(status: %w[scheduled confirmed])
           .where(starts_at: board_day(as_of))
           .where(patient: current_practice.patients.accessible_by(current_ability, :read))
           .left_outer_joins(:encounter).where(clinic_encounters: { id: nil })
           .includes(:patient, :encounter, :visit_type, :site, :room)
           .order(starts_at: :asc, id: :asc).limit(MAX_VISITS + 1).to_a
-        visits = encounters + appointments
+        active_invoice_encounter_ids = current_practice.invoices.where.not(status: "void")
+          .where.not(encounter_id: nil).select(:encounter_id)
+        checkout_exceptions = scoped_to_board_sites(
+          current_practice.encounters.where(status: "completed", ended_at: board_day(as_of))
+            .where.not(id: active_invoice_encounter_ids),
+          site_ids
+        ).where(patient: current_practice.patients.accessible_by(current_ability, :read))
+          .includes(:patient, :site, :room, appointment: %i[visit_type site room])
+          .order(ended_at: :desc, id: :desc).limit(MAX_VISITS + 1).to_a
+        visits = encounters + appointments + checkout_exceptions
         truncated = visits.length > MAX_VISITS
         visits = visits.first(MAX_VISITS)
         encounter_visits = visits.select { |visit| visit.is_a?(Clinic::Encounter) }
@@ -48,6 +62,13 @@ module Clinic
           encounter_visits, practice: current_practice, as_of: as_of,
           eligible_site_ids: assignable_site_ids
         )
+        viewer_membership = current_practice.memberships.active.find_by(user_id: current_user.id)
+        intake_ownership_batch = IntakeOwnership.board_snapshot(
+          encounters: encounter_visits,
+          at: as_of,
+          viewer_membership_id: viewer_membership&.id,
+          claim_available: ->(encounter) { intake_write_available_for?(encounter.site) }
+        )
 
         render json: {
           schema_version: "tracking-board-v2",
@@ -67,7 +88,10 @@ module Clinic
                 chart_status: chart_status_batch.call(visit),
                 membership: memberships.fetch(visit.patient_id, "not_verified"),
                 provider: provider_batch.call(visit),
-                provider_assignment_available: assignable_site_ids.include?(visit.site_id)
+                provider_assignment_available: assignable_site_ids.include?(visit.site_id),
+                intake_ownership: intake_ownership_batch[visit.id],
+                intake_claim_available: intake_write_available_for?(visit.site),
+                exceptions: board_exceptions(visit, intake_ownership_batch[visit.id])
               )
             else
               TrackingBoardSerializer.call_scheduled(
@@ -85,6 +109,47 @@ module Clinic
 
       def board_day(as_of)
         as_of.in_time_zone(current_practice.timezone).all_day
+      end
+
+      def board_site_ids
+        return nil if BOARD_SITE_PERMISSIONS.any? { |permission| current_ability.practice_scope_for?(permission) }
+
+        operational_site_ids = current_ability.accessible_site_ids.select do |site_id|
+          BOARD_SITE_PERMISSIONS.any? { |permission| current_ability.allowed_permission?(permission, site: site_id) }
+        end
+        return operational_site_ids if operational_site_ids.any?
+        return nil if current_ability.practice_scope_for?("patients.read")
+
+        current_ability.accessible_site_ids.select do |site_id|
+          current_ability.allowed_permission?("patients.read", site: site_id)
+        end
+      end
+
+      def scoped_to_board_sites(scope, site_ids)
+        return scope if site_ids.nil?
+
+        scope.where(site_id: site_ids)
+      end
+
+      def intake_write_available_for?(site)
+        current_ability.allowed_permission?("intake.write", site: site)
+      end
+
+      def board_exceptions(encounter, intake_ownership)
+        exceptions = []
+        if encounter.status == "completed"
+          exceptions << {
+            code: "missing_checkout",
+            message: "Checkout is required before this completed encounter leaves the daily operations board."
+          }
+        end
+        if intake_ownership&.fetch(:state) == "stale"
+          exceptions << {
+            code: "stale_intake_ownership",
+            message: "The intake ownership lease expired. Refresh and claim the work explicitly before continuing."
+          }
+        end
+        exceptions
       end
 
       def appointment_state(appointment, as_of)
