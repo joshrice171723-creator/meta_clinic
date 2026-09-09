@@ -2,7 +2,7 @@ require "uri"
 
 module Clinic
   module Care
-    class PatientsController < Clinic::BaseController
+    class PatientsController < Clinic::ApiController
       rescue_from ArgumentError do |error|
         render_error(error.message, :unprocessable_entity)
       end
@@ -47,25 +47,68 @@ module Clinic
 
       def create
         input = patient_input
-        patient = Clinic::Care::Patient.transaction do
-          created = current_practice.patients.create!(
-            display_name: required_string!(input[:display_name], field: :display_name, maximum: 120),
-            reference: required_string!(input[:reference], field: :reference, maximum: 32)
-          )
-          save_registration!(created, input)
-          created
+        create_patient = -> do
+          Clinic::Care::Patient.transaction do
+            created = current_practice.patients.create!(
+              display_name: required_string!(input[:display_name], field: :display_name, maximum: 120),
+              reference: required_string!(input[:reference], field: :reference, maximum: 32)
+            )
+            save_registration!(created, input)
+            created
+          end
         end
-        render json: { id: patient.id, patient: PatientSerializer.call(patient) }, status: :created
+        request_key = optional_request_key(input)
+        patient = if request_key
+          outcome = Clinic::Idempotency.execute(
+            practice: current_practice, actor: current_user, operation_code: "patients.register",
+            request_key: request_key, payload: input.except(:request_key).to_h,
+            result_resource: ->(record) { record },
+            resource_resolver: ->(practice:, receipt:) { practice.patients.find_by(id: receipt.resource_id) },
+            &create_patient
+          )
+          raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+          outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The registered patient is unavailable.")
+        else
+          create_patient.call
+        end
+        render json: { id: patient.id, patient: PatientSerializer.call(patient), request_key: request_key }, status: :created
       end
 
       def update
         patient = current_practice.patients.accessible_by(current_ability, :read).find(integer_id!(params[:id], field: :id))
         input = patient_input
-        Clinic::Care::Patient.transaction do
-          patient.update!(display_name: required_string!(input[:display_name], field: :display_name, maximum: 120), reference: required_string!(input[:reference], field: :reference, maximum: 32))
-          save_registration!(patient, input)
+        update_patient = -> do
+          Clinic::Care::Patient.transaction do
+            patient.with_lock do
+              expected_updated_at = input[:expected_updated_at].presence && time_param!(input[:expected_updated_at], field: :expected_updated_at)
+              if expected_updated_at && patient.updated_at != expected_updated_at
+                raise ActiveRecord::StaleObjectError.new(patient, "update registration")
+              end
+              patient.update!(display_name: required_string!(input[:display_name], field: :display_name, maximum: 120), reference: required_string!(input[:reference], field: :reference, maximum: 32))
+              parent_changed = patient.saved_changes?
+              registration_changed = save_registration!(patient, input)
+              patient.touch if registration_changed && !parent_changed
+              patient
+            end
+          end
         end
-        render json: { patient: PatientSerializer.call(patient, detail: true) }
+        request_key = optional_request_key(input)
+        updated = if request_key
+          outcome = Clinic::Idempotency.execute(
+            practice: current_practice, actor: current_user, operation_code: "patients.registration_update",
+            request_key: request_key, payload: input.except(:request_key).to_h, resource: patient,
+            result_resource: ->(record) { record },
+            resource_resolver: ->(practice:, receipt:) { practice.patients.find_by(id: receipt.resource_id) },
+            &update_patient
+          )
+          raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+          outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The updated patient is unavailable.")
+        else
+          update_patient.call
+        end
+        render json: { patient: PatientSerializer.call(updated.reload, detail: true), request_key: request_key }
       end
 
       def show
@@ -84,12 +127,13 @@ module Clinic
       end
 
       def patient_input
-        parameter_hash!(:clinic_patient, %i[display_name reference date_of_birth sex primary_language interpreter_required contact_type contact_value preferred emergency_name emergency_relationship emergency_phone permission_to_contact preferred_contact_method appointment_reminders_consent general_communications_consent tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors])
+        parameter_hash!(:clinic_patient, %i[display_name reference date_of_birth sex primary_language interpreter_required contact_type contact_value preferred emergency_name emergency_relationship emergency_phone permission_to_contact preferred_contact_method appointment_reminders_consent general_communications_consent tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors expected_updated_at request_key])
       end
 
       def save_registration!(patient, input)
         Clinic::Care::Patient.transaction do
           now = Current.business_time
+          changed = false
           existing_demographics = patient.demographics
           demographics = {
             date_of_birth: registration_date_of_birth(input, existing_demographics),
@@ -97,37 +141,107 @@ module Clinic
             primary_language: registration_language(input, existing_demographics),
             interpreter_required: registration_interpreter_required(input, existing_demographics)
           }
-          existing_demographics ? existing_demographics.update!(demographics) : patient.create_demographics!(demographics.merge(practice: current_practice))
-          if input[:contact_value].present?
-            contact_type = enum_param!(input[:contact_type].presence || "phone", field: :contact_type, allowed: %w[phone email])
-            contact_value = required_string!(input[:contact_value], field: :contact_value, maximum: 320)
-            validate_contact_value!(contact_type, contact_value)
-            patient.contacts.create!(practice: current_practice, contact_type: contact_type,
-              contact_value: contact_value, preferred: boolean_or_default(input[:preferred], field: :preferred), effective_from: now)
+          if existing_demographics
+            existing_demographics.update!(demographics)
+            changed ||= existing_demographics.saved_changes?
+          else
+            patient.create_demographics!(demographics.merge(practice: current_practice))
+            changed = true
           end
-          if input[:emergency_name].present?
-            emergency_phone = required_string!(input[:emergency_phone], field: :emergency_phone, maximum: 320)
-            validate_contact_value!("phone", emergency_phone)
-            patient.emergency_contacts.create!(
-              practice: current_practice,
-              name: required_string!(input[:emergency_name], field: :emergency_name, maximum: 320),
-              relationship: required_string!(input[:emergency_relationship], field: :emergency_relationship, maximum: 320),
-              phone: emergency_phone,
-              permission_to_contact: boolean_or_default(input[:permission_to_contact], field: :permission_to_contact),
-              effective_from: now
-            )
-          end
+          changed = replace_contact!(patient, input, now) || changed
+          changed = replace_emergency_contact!(patient, input, now) || changed
           existing_preference = patient.communication_preference
           preference = {
             preferred_contact_method: registration_preference(input, existing_preference, :preferred_contact_method, "portal"),
             appointment_reminders_consent: registration_boolean(input, existing_preference, :appointment_reminders_consent, false),
             general_communications_consent: registration_boolean(input, existing_preference, :general_communications_consent, false)
           }
-          existing_preference ? existing_preference.update!(preference) : patient.create_communication_preference!(preference.merge(practice: current_practice))
-          if input.values_at(:tobacco_use, :alcohol_use, :exercise_habits, :diet, :occupation, :living_situation, :relevant_social_factors).any?(&:present?)
-            patient.social_histories.create!(input.slice(:tobacco_use, :alcohol_use, :exercise_habits, :diet, :occupation, :living_situation, :relevant_social_factors).to_h.transform_values { |v| optional_string(v, field: :social_history, maximum: 2_000) }.merge(practice: current_practice, effective_from: now))
+          if existing_preference
+            existing_preference.update!(preference)
+            changed ||= existing_preference.saved_changes?
+          else
+            patient.create_communication_preference!(preference.merge(practice: current_practice))
+            changed = true
           end
+          changed = replace_social_history!(patient, input, now) || changed
+          changed
         end
+      end
+
+      def replace_contact!(patient, input, now)
+        fields = %i[contact_type contact_value preferred]
+        return false unless fields.any? { |field| input.key?(field) }
+
+        contact_type = enum_param!(input[:contact_type].presence || "phone", field: :contact_type, allowed: %w[phone email])
+        current = current_version(patient.contacts.where(contact_type: contact_type))
+        return append_closure!(patient.contacts, current, %i[contact_type contact_value preferred], now) if input[:contact_value].blank?
+
+        attributes = {
+          contact_type: contact_type,
+          contact_value: required_string!(input[:contact_value], field: :contact_value, maximum: 320),
+          preferred: input.key?(:preferred) ? boolean_or_default(input[:preferred], field: :preferred) : current&.preferred || false
+        }
+        validate_contact_value!(attributes[:contact_type], attributes[:contact_value])
+        return false if current && version_matches?(current, attributes)
+
+        patient.contacts.create!(attributes.merge(practice: current_practice, effective_from: now))
+        true
+      end
+
+      def replace_emergency_contact!(patient, input, now)
+        fields = %i[emergency_name emergency_relationship emergency_phone permission_to_contact]
+        return false unless fields.any? { |field| input.key?(field) }
+
+        current = current_version(patient.emergency_contacts)
+        return append_closure!(patient.emergency_contacts, current, %i[name relationship phone permission_to_contact], now) if fields.first(3).all? { |field| input[field].blank? }
+
+        phone = required_string!(input[:emergency_phone], field: :emergency_phone, maximum: 320)
+        validate_contact_value!("phone", phone)
+        attributes = {
+          name: required_string!(input[:emergency_name], field: :emergency_name, maximum: 320),
+          relationship: required_string!(input[:emergency_relationship], field: :emergency_relationship, maximum: 320),
+          phone: phone,
+          permission_to_contact: input.key?(:permission_to_contact) ? boolean_or_default(input[:permission_to_contact], field: :permission_to_contact) : current&.permission_to_contact || false
+        }
+        return false if current && version_matches?(current, attributes)
+
+        patient.emergency_contacts.create!(attributes.merge(practice: current_practice, effective_from: now))
+        true
+      end
+
+      def replace_social_history!(patient, input, now)
+        fields = %i[tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors]
+        return false unless fields.any? { |field| input.key?(field) }
+
+        current = current_version(patient.social_histories)
+        attributes = fields.index_with { |field| optional_string(input[field], field: :social_history, maximum: 2_000) }
+        return append_closure!(patient.social_histories, current, fields, now) if attributes.values.all?(&:nil?)
+        return false if current && version_matches?(current, attributes)
+
+        patient.social_histories.create!(attributes.merge(practice: current_practice, effective_from: now))
+        true
+      end
+
+      def current_version(relation)
+        latest = relation.order(created_at: :desc, id: :desc).first
+        latest if latest&.effective_until.nil?
+      end
+
+      def version_matches?(record, attributes)
+        attributes.all? { |field, value| record.public_send(field) == value }
+      end
+
+      def append_closure!(relation, current, fields, now)
+        return false unless current
+
+        attributes = fields.index_with { |field| current.public_send(field) }
+        relation.create!(attributes.merge(practice: current_practice,
+          effective_from: now - 1.microsecond, effective_until: now))
+        true
+      end
+
+      def optional_request_key(input)
+        input[:request_key].presence && required_string!(input[:request_key], field: :request_key, maximum: 160)
       end
 
       def registration_date_of_birth(input, existing)
