@@ -7,20 +7,8 @@ module Clinic
         latest = note.revisions.order(revision_no: :desc).first
         current_body = note.note_kind == "soap" && latest ? SoapNotePayload.load!(latest.encrypted_body) : nil
         has_signed_history = note.signatures.exists?
-        payload = {
-          id: note.id,
-          patient_id: note.patient_id,
-          encounter_id: note.encounter_id,
-          note_kind: note.note_kind,
-          version: note.lock_version,
-          latest_revision: latest&.revision_no,
-          current_revision_id: latest&.id,
-          current_revision_signed: latest&.signatures&.exists? || false,
-          current_template_id: current_body&.fetch(:template_id, nil),
-          current_template_version: current_body&.fetch(:template_version, nil),
-          signed: has_signed_history,
-          has_signed_history: has_signed_history
-        }
+        payload = summary_payload(note, latest: latest, has_signed_history: has_signed_history,
+          current_revision_signed: latest&.signatures&.exists? || false)
         return payload unless detail
 
         payload.merge(
@@ -39,6 +27,43 @@ module Clinic
             }
           }
         )
+      end
+
+      def self.collection(notes)
+        values = notes.to_a
+        return [] if values.empty?
+
+        note_ids = values.map(&:id)
+        revision_table = Clinic::EncounterNoteRevision.quoted_table_name
+        latest = Clinic::EncounterNoteRevision.where(note_id: note_ids)
+          .select("DISTINCT ON (#{revision_table}.note_id) #{revision_table}.*")
+          .order(Arel.sql("#{revision_table}.note_id, #{revision_table}.revision_no DESC, #{revision_table}.id DESC"))
+          .index_by(&:note_id)
+        signed_note_ids = Clinic::EncounterNoteSignature.where(note_id: note_ids).distinct.pluck(:note_id).index_with(true)
+        signed_revision_ids = Clinic::EncounterNoteSignature.where(revision_id: latest.values.map(&:id)).distinct
+          .pluck(:revision_id).index_with(true)
+        values.map do |note|
+          value = latest[note.id]
+          summary_payload(note, latest: value, has_signed_history: signed_note_ids.key?(note.id),
+            current_revision_signed: value ? signed_revision_ids.key?(value.id) : false)
+        end
+      end
+
+      def self.summary_payload(note, latest:, has_signed_history:, current_revision_signed:)
+        {
+          id: note.id,
+          patient_id: note.patient_id,
+          encounter_id: note.encounter_id,
+          note_kind: note.note_kind,
+          version: note.lock_version,
+          latest_revision: latest&.revision_no,
+          current_revision_id: latest&.id,
+          current_revision_signed: current_revision_signed,
+          current_template_id: current_body&.fetch(:template_id, nil),
+          current_template_version: current_body&.fetch(:template_version, nil),
+          signed: has_signed_history,
+          has_signed_history: has_signed_history
+        }
       end
 
       def self.revision(note, revision, body: nil)

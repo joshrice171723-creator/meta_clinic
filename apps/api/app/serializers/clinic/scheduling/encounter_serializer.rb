@@ -26,7 +26,7 @@ module Clinic
             }
           },
           note_ids: encounter.notes.order(:id).pluck(:id),
-          notes: encounter.notes.order(:id).map { |note| Clinic::Care::EncounterNoteSerializer.call(note) },
+          notes: Clinic::Care::EncounterNoteSerializer.collection(encounter.notes.order(:id)),
           observation_count: encounter.observations.count,
           document_count: encounter.documents.count
         )

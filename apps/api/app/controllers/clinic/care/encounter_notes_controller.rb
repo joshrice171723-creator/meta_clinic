@@ -14,7 +14,7 @@ module Clinic
         encounter = current_practice.encounters.find(requested_id!(params[:encounter_id], :encounter_id))
         authorize_note_read!(encounter)
         render json: {
-          notes: encounter.notes.order(:id).map { |note| EncounterNoteSerializer.call(note) }
+          notes: EncounterNoteSerializer.collection(encounter.notes.order(:id))
         }
       end
 
