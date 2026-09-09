@@ -449,12 +449,20 @@ module Clinic
       def self.outstanding_balance(invoice)
         return BigDecimal("0") unless invoice.status == "posted"
 
-        total = invoice.lines.sum(:posted_amount)
-        allocated = invoice.payment_allocations.sum(:amount)
-        credited = invoice.credit_notes.sum(:amount)
+        total = association_sum(invoice, :lines, :posted_amount)
+        allocated = association_sum(invoice, :payment_allocations, :amount)
+        credited = association_sum(invoice, :credit_notes, :amount)
         [ total - allocated - credited, BigDecimal("0") ].max
       end
       private_class_method :outstanding_balance
+
+      def self.association_sum(invoice, association_name, column)
+        association = invoice.association(association_name)
+        return association.target.sum { |record| record.public_send(column) || 0 } if association.loaded?
+
+        invoice.public_send(association_name).sum(column)
+      end
+      private_class_method :association_sum
 
       def self.eligibility_result(invoice, state, eligible, can_cancel, amount, reason)
         { state: state, eligible: eligible, can_cancel: can_cancel,

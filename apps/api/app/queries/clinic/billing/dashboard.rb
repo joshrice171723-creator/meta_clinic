@@ -68,7 +68,8 @@ module Clinic
       private_class_method :card_collection
 
       def self.pending_online_payments(practice)
-        practice.invoice_stripe_checkouts.active.includes(:invoice).order(:invoice_id, :id)
+        practice.invoice_stripe_checkouts.active.includes(invoice: [ :lines, :payment_allocations, :credit_notes,
+          { invoice_stripe_checkouts: :collection_intent } ]).order(:invoice_id, :id)
           .each_with_object({}) do |checkout, pending|
             pending[checkout.invoice_id] = {
               invoice_id: checkout.invoice_id,
