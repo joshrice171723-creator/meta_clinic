@@ -22,6 +22,17 @@ module Clinic
         }
       end
 
+      def reference(visit)
+        return unless visit
+
+        {
+          public_id: visit.public_id,
+          status: visit.status,
+          prepare_href: "/patient-portal/telehealth/#{visit.public_id}",
+          clinic_href: clinic_href(visit)
+        }
+      end
+
       def clinic_href(visit)
         if visit.encounter_id
           "/clinic/patients/#{visit.patient_id}/encounters/#{visit.encounter_id}/telehealth"

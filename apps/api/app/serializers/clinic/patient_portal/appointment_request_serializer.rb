@@ -39,9 +39,7 @@ module Clinic
           ends_at: record.ends_at&.iso8601(6),
           status: record.status,
           visit_modality: record.visit_modality,
-          telehealth: Clinic::Telehealth::SummarySerializer.call(record.telehealth_visit)&.slice(
-            :public_id, :status, :prepare_href, :clinic_href
-          ),
+          telehealth: Clinic::Telehealth::SummarySerializer.reference(record.telehealth_visit),
           updated_at: record.updated_at&.iso8601(6),
           site: site(record.site),
           room: record.room && { id: record.room.id, code: record.room.code },
