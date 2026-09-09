@@ -37,11 +37,38 @@ module Clinic
         product = PharmacyProduct.where(practice_id: practice.id).find(product_id)
         page = page.to_i.clamp(1, 100_000)
         batches = product.batches.includes(:product, :practice).order(:expires_on, :id).limit(10).offset((page - 1) * 10).to_a
+        batch_ids = batches.map(&:id)
+        counts = recent_by_batch(
+          Count.where(practice_id: practice.id, batch_id: batch_ids), limit: 10
+        ).includes(:approval).to_a.group_by(&:batch_id)
+        receipt_lines = recent_by_batch(
+          ReceiptLine.where(practice_id: practice.id, batch_id: batch_ids), limit: 20
+        ).includes(receipt: :supplier).to_a.group_by(&:batch_id)
+        movements = recent_by_batch(
+          PharmacyMovement.where(practice_id: practice.id, batch_id: batch_ids), limit: 30
+        ).to_a.group_by(&:batch_id)
+        events = recent_by_batch(
+          PharmacyBatchEvent.where(practice_id: practice.id, batch_id: batch_ids), limit: 30
+        ).to_a.group_by(&:batch_id)
         Result.new(product: product, batch_page: page, batch_count: product.batches.count, batches: batches,
-          counts: batches.to_h { |batch| [ batch.id, batch.counts.includes(:approval).order(id: :desc).limit(10).to_a ] },
-          receipt_lines: batches.to_h { |batch| [ batch.id, ReceiptLine.where(practice_id: practice.id, batch_id: batch.id).includes(receipt: :supplier).order(id: :desc).limit(20).to_a ] },
-          histories: batches.to_h { |batch| [ batch.id, (batch.movements.order(id: :desc).limit(30).to_a + batch.events.order(id: :desc).limit(30).to_a).sort_by(&:created_at).reverse ] })
+          counts: batch_ids.to_h { |batch_id| [ batch_id, counts.fetch(batch_id, []) ] },
+          receipt_lines: batch_ids.to_h { |batch_id| [ batch_id, receipt_lines.fetch(batch_id, []) ] },
+          histories: batch_ids.to_h { |batch_id|
+            [ batch_id, (movements.fetch(batch_id, []) + events.fetch(batch_id, [])).sort_by(&:created_at).reverse ]
+          })
       end
+
+      def self.recent_by_batch(scope, limit:)
+        table = scope.klass.table_name
+        ranked = scope.select(
+          "#{table}.*",
+          Arel.sql("ROW_NUMBER() OVER (PARTITION BY #{table}.batch_id ORDER BY #{table}.id DESC) AS detail_rank")
+        )
+        scope.klass.from("(#{ranked.to_sql}) #{table}")
+          .where("detail_rank <= ?", limit)
+          .order(:batch_id, id: :desc)
+      end
+      private_class_method :recent_by_batch
     end
   end
 end
