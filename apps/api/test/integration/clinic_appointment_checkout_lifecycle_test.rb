@@ -182,7 +182,8 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     travel 1.second do
       Clinic::Billing::UpdateDraftInvoice.call(
         practice: @practice, actor: @actor, invoice: invoice, currency: "USD",
-        lines: [ { quantity: "1", unit_amount: "95.00", description_snapshot: "Office visit" } ]
+        lines: [ { quantity: "1", unit_amount: "95.00", description_snapshot: "Office visit" } ],
+        request_key: "checkout-update-reviewed", expected_updated_at: reviewed.fetch(:updated_at)
       )
     end
     assert_raises(ArgumentError) do
@@ -203,7 +204,8 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     assert_raises(ArgumentError) do
       Clinic::Billing::UpdateDraftInvoice.call(
         practice: @practice, actor: @actor, invoice: invoice, currency: "USD",
-        lines: [ { quantity: "1", unit_amount: "5.00", description_snapshot: "Changed visit" } ]
+        lines: [ { quantity: "1", unit_amount: "5.00", description_snapshot: "Changed visit" } ],
+        request_key: "checkout-update-posted", expected_updated_at: invoice.reload.updated_at.iso8601(6)
       )
     end
     assert_equal BigDecimal("95"), invoice.lines.reload.sum(:posted_amount)
