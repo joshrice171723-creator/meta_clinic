@@ -55,6 +55,37 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     @environment.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
   end
 
+  test "queue scopes telehealth reads independently of unrelated site permissions and preserves Omni access" do
+    visible = direct_video_visit!
+    hidden = direct_video_visit!(site: @other_site)
+    reader = User.create!(email_address: "telehealth-site-reader@example.invalid", password: PASSWORD)
+    reader_membership = @practice.memberships.create!(user: reader)
+    grant_permissions!(reader_membership, "telehealth.read", scope_kind: "site", site: @site)
+    grant_permissions!(reader_membership, "facilities.read", scope_kind: "site", site: @other_site)
+    filters = { date: visible.appointment.starts_at.in_time_zone(@practice.timezone).to_date.iso8601, limit: 1 }
+
+    result = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader, filters: filters)
+    assert_equal [ visible.id ], result.visits.map(&:id)
+    assert_nil result.next_cursor
+    assert_empty Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader,
+      filters: filters.merge(site_id: @other_site.id)).visits
+
+    revoke_all_permissions!(reader_membership)
+    assert_raises(Clinic::Authorization::Denied) do
+      Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader, filters: filters)
+    end
+
+    with_stubbed_singleton_method(Development::TestAccounts, :omni?, ->(user) { user.id == reader.id }) do
+      first = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader, filters: filters)
+      assert_equal [ visible.id ], first.visits.map(&:id)
+      assert first.next_cursor
+      second = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader,
+        filters: filters.merge(cursor: first.next_cursor))
+      assert_equal [ hidden.id ], second.visits.map(&:id)
+      assert_nil second.next_cursor
+    end
+  end
+
   test "booking persists modality and creates a policy-bound video visit without reserving a physical room" do
     in_person = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @staff,
       patient: @patient, site: @site, starts_at: 3.hours.from_now, ends_at: 4.hours.from_now,

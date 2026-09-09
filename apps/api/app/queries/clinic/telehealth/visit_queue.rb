@@ -16,8 +16,11 @@ module Clinic
         end
         ability = Ability.new(actor, practice: practice)
         scope = Visit.where(practice_id: practice.id).joins(:appointment)
-        unless ability.practice_scope_for?("telehealth.read")
-          scope = scope.where(clinic_appointments: { site_id: ability.accessible_site_ids })
+        unless ability.allowed_permission?("telehealth.read")
+          site_ids = ability.accessible_site_ids.select do |site_id|
+            ability.allowed_permission?("telehealth.read", site: site_id)
+          end
+          scope = scope.where(clinic_appointments: { site_id: site_ids })
         end
         if values[:encounter_id].present?
           scope = scope.where(encounter_id: Integer(values[:encounter_id]), patient_id: Integer(values[:patient_id]))
