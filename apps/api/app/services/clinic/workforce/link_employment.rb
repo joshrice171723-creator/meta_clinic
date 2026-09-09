@@ -25,20 +25,22 @@ module Clinic
           end
           revoked_invitation = false
           EmployeeInvitation.where(practice_id: locked_practice.id, staff_member_id: locked_staff.id, status: "pending").lock.each do |invitation|
-            invitation.update!(status: :revoked, revoked_at: Current.business_time, token_digest: nil, email_digest: nil)
+            invitation.update!(status: :revoked, revoked_at: Time.current, token_digest: nil, email_digest: nil)
             revoked_invitation = true
           end
           Clinic::AuditRecorder.record!(practice: locked_practice, actor: actor,
             action_code: "workforce.onboarding.revoke", outcome: :committed) if revoked_invitation
           RoleAssignment.grant!(actor: actor, membership: locked_membership,
-            role_version: role_version, sites: sites, effective_from: effective_from)
+            role_version: role_version, sites: sites, effective_from: effective_from,
+            source_employment: employment)
           employment
         end
       rescue ActiveRecord::RecordNotUnique
         raise ArgumentError, "That directory entry or clinic account is already linked to workforce."
       end
 
-      def self.update!(employment:, actor:, status: nil, site_ids: nil, effective_until: :unchanged, now: Current.business_time)
+      def self.update!(employment:, actor:, status: nil, site_ids: nil, role_version: nil,
+        effective_until: :unchanged, now: Time.current)
         Access.new(actor: actor, practice: employment.practice, at: now).authorize!("workforce.admin")
         normalized_site_ids = site_ids.nil? ? nil : normalize_site_ids(site_ids)
 
@@ -51,6 +53,7 @@ module Clinic
           attributes[:effective_until] = effective_until unless effective_until == :unchanged
           locked.update!(attributes) if attributes.any?
           replace_sites!(locked, normalized_site_ids, now) if normalized_site_ids
+          replace_access!(locked, actor, role_version, now) if role_version || normalized_site_ids || status
           locked
         end
       end
@@ -94,6 +97,20 @@ module Clinic
         end
       end
       private_class_method :replace_sites!
+
+      def self.replace_access!(employment, actor, role_version, now)
+        membership = Clinic::Membership.lock.find(employment.membership_id)
+        current = membership.role_grants.active(now).where(source_employment_id: employment.id).lock.to_a
+        selected = role_version || current.first&.role_version || RoleAssignment.default_role_version
+        current.each { |grant| grant.update!(revoked_at: now, revision: grant.revision + 1) }
+        membership.advance_authorization_generation!
+        return unless employment.active_for_work?(at: now)
+
+        sites = employment.employment_sites.active.effective_at(now).includes(:site).map(&:site)
+        RoleAssignment.grant!(actor: actor, membership: membership, role_version: selected,
+          sites: sites, effective_from: now, source_employment: employment)
+      end
+      private_class_method :replace_access!
     end
   end
 end

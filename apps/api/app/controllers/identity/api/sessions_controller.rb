@@ -11,11 +11,11 @@ module Identity
           environment: runtime_environment,
           development_accounts: development_accounts,
           business_date: Current.business_date.iso8601,
-          clinic_available: !Rails.env.production? || Staging::DemoClinic.available_to?(current_user) }
+          clinic_available: Clinic::DeploymentAccess.available_to?(current_user) }
       end
 
       def show
-        render json: { user: session_user(current_user), session_policy: session_policy }
+        render json: { user: session_user(current_user), session_policy: session_policy, clinic_access: clinic_access }
       end
 
       def update
@@ -23,7 +23,7 @@ module Identity
           return render json: { error: "Your session expired. Please sign in again." }, status: :unauthorized
         end
 
-        render json: { user: session_user(current_user), session_policy: session_policy }
+        render json: { user: session_user(current_user), session_policy: session_policy, clinic_access: clinic_access }
       end
 
       def create
@@ -88,6 +88,14 @@ module Identity
         { idle_expires_at: record.idle_expires_at.iso8601(6),
           absolute_expires_at: [record.expires_at, record.created_at + MemberSession::MAX_DURATION].min.iso8601(6),
           idle_timeout_seconds: MemberSession::IDLE_DURATION.to_i, server_time: Time.current.iso8601(6) }
+      end
+
+      def clinic_access
+        membership = current_user.clinic_membership
+        return nil unless membership
+
+        { membership_id: membership.id, practice_id: membership.practice_id, active: membership.active?,
+          authorization_generation: membership.authorization_generation }
       end
 
       def enforce_login_rate_limit

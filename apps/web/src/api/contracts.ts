@@ -727,6 +727,7 @@ export type ClinicWorkspaceContext = {
   user_id: number;
   practice: { id: number; name: string; timezone: string };
   membership_id: number;
+  authorization_generation: number;
   current_clinician_profile_id: string | null;
   credentials: string[];
   policy_version: "clinic-authorization-v1";

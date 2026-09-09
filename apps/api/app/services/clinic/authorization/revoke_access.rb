@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class RevokeAccess
-      def self.call(grant:, grantor:, at: Current.business_time)
+      def self.call(grant:, grantor:, at: Time.current)
         raise Denied, "The grantor must belong to the grant practice." unless grant.practice_id == grantor.clinic_membership&.practice_id
 
         Authorization.authorize!(actor: grantor, practice: grant.practice, action: "roles.manage", site: grant.site)
@@ -20,6 +20,7 @@ module Clinic
             )
             AuditRecorder.record!(practice: grant.practice, actor: grantor, action_code: "roles.revoke", outcome: :committed,
               resource_version_ref: "role-grant:#{grant.id}:#{grant.revision}")
+            Clinic::Membership.lock.find(grant.membership_id).advance_authorization_generation!
           end
         end
         grant

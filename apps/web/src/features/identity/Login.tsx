@@ -95,7 +95,7 @@ export function Login({
               autoComplete="current-password"
             />
           </Form>
-          {developmentLogin && (
+          {(developmentLogin || employeePortal) && (
             <p>
               <a href="/workforce/activate">Activate employee account</a>
             </p>

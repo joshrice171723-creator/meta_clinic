@@ -14,6 +14,7 @@ module Clinic
         user_id: current_user.id,
         practice: { id: current_practice.id, name: current_practice.name, timezone: current_practice.timezone },
         membership_id: clinic_membership.id,
+        authorization_generation: clinic_membership.authorization_generation,
         current_clinician_profile_id: current_clinician_profile&.id&.to_s,
         credentials: current_credential_types,
         policy_version: "clinic-authorization-v1",

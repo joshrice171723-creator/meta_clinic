@@ -5,9 +5,7 @@ module Clinic
       class InvalidPassword < StandardError; end
 
       def self.invite!(practice:, email_address:, site_ids:, effective_from:, actor:, role_version: nil,
-        staff_member: nil, display_name: nil, job_title: nil, now: Current.business_time)
-        access = Access.new(actor: actor, practice: practice, at: now)
-        inviter_membership = access.authorize!("workforce.admin")
+        staff_member: nil, display_name: nil, job_title: nil, now: Time.current)
         normalized_email = email_address.to_s.strip.downcase
         normalized_site_ids = LinkEmployment.normalize_site_ids(site_ids)
         role_version ||= RoleAssignment.default_role_version
@@ -21,6 +19,8 @@ module Clinic
         raw_token = SecureRandom.urlsafe_base64(48)
         invitation = nil
         ApplicationRecord.transaction do
+          inviter_membership = Clinic::Membership.active.lock.find_by!(practice_id: practice.id, user_id: actor.id)
+          Access.new(actor: actor, practice: practice, at: now).authorize!("workforce.admin")
           locked_staff = if staff_member
             Clinic::Staff::Member.lock.find(staff_member.id)
           else
@@ -53,9 +53,10 @@ module Clinic
         raise ArgumentError, "That email or directory entry already has a pending employee invitation."
       end
 
-      def self.revoke!(invitation:, actor:, now: Current.business_time)
-        Access.new(actor: actor, practice: invitation.practice, at: now).authorize!("workforce.admin")
+      def self.revoke!(invitation:, actor:, now: Time.current)
         ApplicationRecord.transaction do
+          Clinic::Membership.active.lock.find_by!(practice_id: invitation.practice_id, user_id: actor.id)
+          Access.new(actor: actor, practice: invitation.practice, at: now).authorize!("workforce.admin")
           locked = EmployeeInvitation.lock.find(invitation.id)
           raise ArgumentError, "Only a pending employee invitation can be revoked." unless locked.pending?
 
@@ -67,7 +68,7 @@ module Clinic
         end
       end
 
-      def self.activate!(token:, password:, password_confirmation:, now: Current.business_time)
+      def self.activate!(token:, password:, password_confirmation:, now: Time.current)
         invitation = nil
         user = nil
         employment = nil
@@ -92,7 +93,7 @@ module Clinic
           end
           RoleAssignment.grant!(actor: invitation.invited_by_membership.user,
             membership: membership, role_version: invitation.role_version,
-            sites: sites, effective_from: invitation.effective_from)
+            sites: sites, effective_from: invitation.effective_from, source_employment: employment)
           invitation.update!(status: :activated, activated_at: now, token_digest: nil, email_digest: nil)
           Clinic::AuditRecorder.record!(practice: invitation.practice, actor: user,
             action_code: "workforce.onboarding.activate", outcome: :committed,

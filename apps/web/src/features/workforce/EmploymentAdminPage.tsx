@@ -22,7 +22,11 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
-import type { EmploymentAdminData } from "./foundationTypes";
+import type {
+  EmploymentAdminData,
+  WorkforceEmployment,
+  WorkforceSite,
+} from "./foundationTypes";
 import { businessNow } from "../../shared/businessDate";
 
 function localDateTime() {
@@ -41,6 +45,132 @@ function roleLabel(roleCode: string) {
     .join(" ");
 }
 
+type Feedback = { severity: "success" | "error"; text: string };
+
+function EmploymentAccessEditor({
+  employment,
+  roles,
+  sites,
+  refresh,
+  setFeedback,
+}: {
+  employment: WorkforceEmployment;
+  roles: EmploymentAdminData["role_options"];
+  sites: WorkforceSite[];
+  refresh: () => void;
+  setFeedback: (feedback: Feedback | null) => void;
+}) {
+  const activeRole = employment.roles[0];
+  const [roleVersionId, setRoleVersionId] = useState(
+    activeRole ? String(activeRole.role_version_id) : "",
+  );
+  const [siteIds, setSiteIds] = useState(
+    employment.sites.filter((site) => site.active).map((site) => site.id),
+  );
+  const [saving, setSaving] = useState(false);
+  const toggleSite = (siteId: number) =>
+    setSiteIds((current) =>
+      current.includes(siteId)
+        ? current.filter((id) => id !== siteId)
+        : [...current, siteId],
+    );
+  const update = async (accountAction?: "revoke" | "restore") => {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      await api(`/api/clinic/workforce/employments/${employment.id}`, {
+        method: "PATCH",
+        body: {
+          employment: {
+            role_version_id: roleVersionId,
+            site_ids: siteIds,
+            ...(accountAction ? { account_action: accountAction } : {}),
+          },
+        },
+      });
+      setFeedback({
+        severity: "success",
+        text:
+          accountAction === "revoke"
+            ? "The clinic account was revoked and its sessions were closed."
+            : accountAction === "restore"
+              ? "The clinic account was restored with the selected role and sites."
+              : "Employee role and work sites updated.",
+      });
+      refresh();
+    } catch (reason) {
+      setFeedback({
+        severity: "error",
+        text:
+          reason instanceof Error
+            ? reason.message
+            : "Unable to update employee access.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Stack spacing={1.5} sx={{ minWidth: { md: 360 } }}>
+      <FormControl size="small" fullWidth>
+        <InputLabel id={`employment-${employment.id}-role-label`}>
+          Access role
+        </InputLabel>
+        <Select
+          labelId={`employment-${employment.id}-role-label`}
+          label="Access role"
+          value={roleVersionId}
+          onChange={(event) => setRoleVersionId(event.target.value)}
+        >
+          {roles.map((role) => (
+            <MenuItem key={role.id} value={String(role.id)}>
+              {role.label || roleLabel(role.role_code)}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormGroup row>
+        {sites.map((site) => (
+          <FormControlLabel
+            key={site.id}
+            control={
+              <Checkbox
+                size="small"
+                checked={siteIds.includes(site.id)}
+                onChange={() => toggleSite(site.id)}
+              />
+            }
+            label={site.name}
+          />
+        ))}
+      </FormGroup>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <Button
+          variant="outlined"
+          disabled={saving || !roleVersionId || siteIds.length === 0}
+          onClick={() => void update()}
+        >
+          Save role and sites
+        </Button>
+        <Button
+          color={employment.membership_summary.active ? "warning" : "primary"}
+          disabled={saving || (!employment.membership_summary.active && (!roleVersionId || siteIds.length === 0))}
+          onClick={() =>
+            void update(
+              employment.membership_summary.active ? "revoke" : "restore",
+            )
+          }
+        >
+          {employment.membership_summary.active
+            ? "Revoke clinic account"
+            : "Restore clinic account"}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
 export function EmploymentAdminPage() {
   const fieldId = useId();
   const { data, error, refresh } = useResource<EmploymentAdminData>(
@@ -55,10 +185,7 @@ export function EmploymentAdminPage() {
   const [siteIds, setSiteIds] = useState<number[]>([]);
   const [effectiveFrom, setEffectiveFrom] = useState(localDateTime);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    severity: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [activationToken, setActivationToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -142,34 +269,6 @@ export function EmploymentAdminPage() {
           reason instanceof Error
             ? reason.message
             : "Unable to set up workforce access.",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-  const changeStatus = async (id: number, status: "active" | "inactive") => {
-    setSaving(true);
-    setFeedback(null);
-    try {
-      await api(`/api/clinic/workforce/employments/${id}`, {
-        method: "PATCH",
-        body: { employment: { status } },
-      });
-      setFeedback({
-        severity: "success",
-        text:
-          status === "active"
-            ? "Workforce access reactivated."
-            : "Workforce access inactivated. The clinic account was not changed.",
-      });
-      refresh();
-    } catch (reason) {
-      setFeedback({
-        severity: "error",
-        text:
-          reason instanceof Error
-            ? reason.message
-            : "Unable to update workforce access.",
       });
     } finally {
       setSaving(false);
@@ -471,20 +570,13 @@ export function EmploymentAdminPage() {
                     .join(", ") || "No eligible sites"}
                 </Typography>
               </Stack>
-              <Button
-                color={employment.status === "active" ? "warning" : "primary"}
-                disabled={saving}
-                onClick={() =>
-                  changeStatus(
-                    employment.id,
-                    employment.status === "active" ? "inactive" : "active",
-                  )
-                }
-              >
-                {employment.status === "active"
-                  ? "Inactivate workforce access"
-                  : "Reactivate workforce access"}
-              </Button>
+              <EmploymentAccessEditor
+                employment={employment}
+                roles={data.role_options}
+                sites={data.sites}
+                refresh={refresh}
+                setFeedback={setFeedback}
+              />
             </Stack>
           ))}
           {data.employments.length === 0 && (

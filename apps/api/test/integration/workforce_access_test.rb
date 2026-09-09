@@ -231,9 +231,36 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     deployed("staging") do
       post "/api/employee_activation", params: payload, headers: csrf_headers, as: :json
       assert_response :not_found
+
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = @practice.id.to_s
+      post "/api/employee_activation", params: payload, headers: csrf_headers, as: :json
+      assert_response :created
     end
-    assert invitation.fetch(:invitation).reload.pending?
-    assert_not User.exists?(email_address: invitation.fetch(:invitation).email_address)
+    assert invitation.fetch(:invitation).reload.activated?
+    assert User.exists?(email_address: invitation.fetch(:invitation).email_address)
+  end
+
+  test "account revocation closes sessions and restore requires a fresh role grant" do
+    role = Clinic::Authorization::PilotRoleCatalog.current_versions.find { |candidate| candidate.role_code == "workforce-employee" }
+    login(@employee)
+    assert MemberSession.exists?(user_id: @employee.id)
+    original_generation = @employee_membership.authorization_generation
+
+    Clinic::Workforce::EmployeeAccessLifecycle.revoke!(employment: @employment, actor: @manager)
+
+    assert_not @employee.reload.active?
+    assert_not @employee_membership.reload.active?
+    assert @employment.reload.inactive?
+    assert_not MemberSession.exists?(user_id: @employee.id)
+    assert_operator @employee_membership.authorization_generation, :>, original_generation
+
+    Clinic::Workforce::EmployeeAccessLifecycle.restore!(employment: @employment, actor: @manager,
+      role_version: role, sites: [ @assigned_site ])
+
+    assert @employee.reload.active?
+    assert @employee_membership.reload.active?
+    assert @employment.reload.active?
+    assert @employee_membership.role_grants.active.where(source_employment_id: @employment.id).exists?
   end
 
   private
@@ -255,12 +282,12 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
   end
 
   def deployed(environment)
-    previous = [ Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"] ]
+    previous = [ Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"], ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] ]
     Rails.env = "production"
     ENV["APP_DEPLOYMENT_ENV"] = environment
     ENV["APP_DEVELOPMENT_LOGIN"] = "1"
     yield
   ensure
-    Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"] = previous
+    Rails.env, ENV["APP_DEPLOYMENT_ENV"], ENV["APP_DEVELOPMENT_LOGIN"], ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = previous
   end
 end

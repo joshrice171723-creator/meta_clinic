@@ -212,4 +212,40 @@ No broad suite, cosmetic assertion expansion, repeated successful run, real mess
 
 ## Implementation record
 
-Status at baseline: **documented, implementation not started**. This section will be appended after the cohesive source build, implementation freeze, and single focused verification pass. The original findings above will remain as dated baseline evidence rather than being rewritten as if the defects never existed.
+Status after repair: **A01-A20 implemented and focused automated verification passed.** The original findings above remain the dated baseline. The following table records the source change that closes each finding.
+
+| Finding | Implemented repair | Persistence and denial behavior |
+| --- | --- | --- |
+| A01 | Added a closed-by-default production pilot-practice allowlist and made employee activation consult the invitation's practice. The ordinary activation link is present independently of development account switching. | Only active members of explicitly enabled practices enter production clinic routes. Invalid, expired, revoked, used, and disabled-practice invitations remain denied. |
+| A02 | Moved the named pilot roles into `Clinic::Authorization::PilotRoleCatalog` version 4, provisioned them through a forward migration, and made both onboarding and development fixtures consume the same catalog. | Immutable role versions are stored in PostgreSQL; employee records serialize stable role IDs plus human-readable labels. |
+| A03 | Added the minimum patient registration, appointment, and encounter-start capabilities to Front Desk Coordinator. | Direct vitals, note, provider-assignment, billing, inventory, and workforce actions still fail backend authorization. |
+| A04 | Added payroll configure/export authority to Clinic Administrator and made Payroll Operator assignable through normal onboarding. | The existing grantor ceiling still rejects permissions the administrator does not hold and rejects self-targeted elevation. |
+| A05 | Removed `encounters.assign_provider` from the new Records Viewer role version and gated the editor by the exact permission. | Historical role definitions remain immutable; current grants are upgraded to the corrected catalog version and direct mutation returns 403. |
+| A06 | Bound onboarding-created grants to the source employment. Employment status, role, and site changes revoke and replace only those owned grants while incrementing membership authorization generation. | Removed authority is not resurrected; stale sessions observe a generation mismatch and protected writes lock/recheck the same membership row. |
+| A07 | Added the transactional `EmployeeAccessLifecycle` revoke/restore command and exposed it through the employment API/UI. | Revoke inactivates employment, membership, and user, revokes grants and invitations, deletes every session, and preserves records. Restore issues fresh role authority and requires a new login; old sessions and grants stay dead. |
+| A08 | Extended employment update to atomically replace role and site assignments, with server catalog validation and current grantor-ceiling checks. | Retries converge on the requested active grant set; unrelated grants remain untouched and every authority transition advances generation. |
+| A09 | Added `authorization_generation` to membership, session, and clinic-context responses. `SessionGuard` locks on inactive access or a changed generation. | Permission changes cannot leave an accepted stale client context; refresh/focus checks require the current server generation. |
+| A10 | Wrapped every non-read clinic request in a transaction that locks the actor membership and verifies active state plus the captured authorization generation before controller work commits. | Revocation and protected mutation serialize on the membership row. If revocation wins, the mutation is denied with no committed business write. |
+| A11 | Moved inviter reauthorization into the onboarding transaction under the same membership-generation lock. | A revoked inviter cannot commit an invitation, staff row, token, or success audit after losing authority. |
+| A12 | The activation screen captures the query token and immediately replaces browser history with `/workforce/activate`. | Subsequent location/history state and application navigation do not retain the bearer token. |
+| A13 | Split employee self-submission from manager submission and require review permission at every represented site for manager actions. | Timecard read alone never mutates a card; failed authorization leaves state unchanged. |
+| A14 | Split timecard reads, adjustments, calculations, decisions, and approval controls by their exact capabilities. | Denial of an optional review slice no longer hides authorized read-only records. |
+| A15 | Removed broad billing fallbacks and gated draft, posting, payment, online collection, reconciliation, and catalog actions individually. | Hidden controls mirror backend denial; read-only roles retain readable billing data without write affordances. |
+| A16 | Gated payroll preview/create/download on export permission while keeping settings behind configure permission. | Configure-only and export-only combinations now produce distinct UI and backend behavior. |
+| A17 | Added immutable site provenance to lab reports and enforced the actual site for queues, reads, creates, reviews, and follow-ups. | Site A grants cannot enumerate or act on Site B reports. Existing unbound historical reports remain practice-scoped rather than receiving guessed site attribution. |
+| A18 | Redacted note IDs, revision/signature state, and note-derived child counts unless the actor has `notes.read` at the encounter site. | Registration/scheduling users retain operational encounter fields without clinical-note metadata. |
+| A19 | Made participant discovery site-aware and required every new conversation participant to be eligible at the selected site. | Site-scoped users cannot enumerate or add Site B/unassigned clinic accounts; cross-practice membership remains unavailable. |
+| A20 | Added fail-closed audit evidence around follow-up and staff-participant reads. | An unavailable audit sink prevents sensitive release; audit records contain server-derived actor, practice, resource, action, and site context without payload values. |
+
+## Verification evidence
+
+- Fresh isolated setup and both new migrations completed against PostgreSQL in `apply-staff-access-postgres` on port 54369.
+- Ruby syntax checks passed for all 19 changed Ruby source files.
+- The focused workforce access integration passed: **10 runs, 83 assertions, 0 failures**. It proves allowlisted production activation with an ordinary password-backed account, role/site changes, account revocation with session deletion, and restoration with fresh authority.
+- The focused role, follow-up audit, timecard, and lab boundary checks passed. The consolidated run exposed four lab failures caused by the shared capability helper dropping the site argument; that defect was repaired, and the lab rerun passed: **6 runs, 129 assertions, 0 failures**. The other 24 tests in the consolidated run had already passed.
+- The production web build passed after updating the authorization-generation contract: Vite compiled 1,347 modules successfully.
+- `git diff --check` passed.
+
+The final rendered browser pass could not run because this Codex host's Windows Computer Use service returned `Trusted RPC service is not configured: sky`. This is an environment limitation, not evidence of browser acceptance. The ordinary activation/login lifecycle is independently proved at the production-mode API boundary, and the frontend compiles, but a rendered pilot walkthrough remains release evidence to collect on a host with browser automation available. PostgreSQL RLS also remains the existing separate release gate; this change does not claim that gate is complete.
+
+No broad suite, low-value test expansion, real message delivery, deployment, production access, or real patient data was used.

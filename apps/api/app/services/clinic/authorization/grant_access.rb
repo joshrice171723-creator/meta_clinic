@@ -1,7 +1,8 @@
 module Clinic
   module Authorization
     class GrantAccess
-      def self.call(grantor:, membership:, role_version:, scope_kind:, site: nil, effective_from: Current.business_time, effective_until: nil)
+      def self.call(grantor:, membership:, role_version:, scope_kind:, site: nil, source_employment: nil,
+        effective_from: Time.current, effective_until: nil)
         raise Denied, "A grant cannot elevate its own account." if grantor.id == membership.user_id
         practice = membership.practice
         Authorization.authorize!(actor: grantor, practice: practice, action: "roles.manage", site: site)
@@ -16,6 +17,7 @@ module Clinic
             role_version: role_version,
             scope_kind: scope_kind,
             site: site,
+            source_employment: source_employment,
             effective_from: effective_from,
             effective_until: effective_until,
             revision: 1
@@ -29,6 +31,7 @@ module Clinic
           )
           AuditRecorder.record!(practice: practice, actor: grantor, action_code: "roles.grant", outcome: :committed,
             resource_version_ref: "role-grant:#{grant.id}:#{grant.revision}")
+          locked_membership.advance_authorization_generation!
           grant
         end
       end

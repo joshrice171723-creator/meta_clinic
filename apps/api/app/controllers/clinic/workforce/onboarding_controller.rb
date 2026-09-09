@@ -45,14 +45,15 @@ module Clinic
       def workforce_role_version(value)
         if value.present?
           role_version = RoleVersion.includes(:permissions).find(integer_id!(value, field: :role_version_id))
-          return role_version if role_version.role_code.start_with?(RoleAssignment::WORKFORCE_ROLE_PREFIX)
+          return role_version if role_version.role_code.start_with?("workforce-") ||
+            Clinic::Authorization::PilotRoleCatalog.assignable?(role_version)
         else
           role_version = RoleVersion.includes(:permissions)
             .where(role_code: "workforce-employee").order(version: :desc, id: :desc).first
           return role_version if role_version
         end
 
-        raise ArgumentError, "Choose a workforce access role."
+        raise ArgumentError, "Choose an employee access role."
       end
     end
   end

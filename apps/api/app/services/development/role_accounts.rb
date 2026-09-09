@@ -3,80 +3,20 @@ module Development
     PRACTICE_NAME = "Local Clinic Workspace".freeze
     ORGANIZATION_NAME = "Local Clinic Organization".freeze
     RETIRED_ACCOUNT_PATTERN = "demo-%@example.invalid".freeze
-    CLINIC_ADMINISTRATOR_PERMISSIONS = (
-      TestClinic::DEFAULT_PERMISSIONS + %w[
-        telehealth.read telehealth.prepare.read telehealth.prepare.verify
-        telehealth.configure telehealth.reconcile
-        workforce.admin workforce.settings workforce.badges
-        workforce.timecards.read workforce.timecards.review workforce.timecards.approve
-        workforce.schedule.read workforce.schedule.manage workforce.schedule.publish
-        workforce.requests.review
-        subscription_catalog.read subscription_catalog.write subscription_catalog.publish
-      ]
-    ).freeze
-
-    ACCOUNTS = {
-      "clinic-administrator" => {
-        label: "Clinic Administrator",
-        email: "clinic-administrator@local.invalid",
-        admin: true,
-        version: 3,
-        permissions: CLINIC_ADMINISTRATOR_PERMISSIONS
-      },
-      "billing-accounting" => {
-        label: "Billing & Accounting",
-        email: "billing-accounting@local.invalid",
-        permissions: %w[
-          patients.read patients.identity.read billing.read billing.write billing.invoice_draft
-          billing.invoice_post billing.payment_record billing.cash_reconcile documents.read
-        ]
-      },
-      "front-desk-coordinator" => {
-        label: "Front Desk Coordinator",
-        email: "front-desk@local.invalid",
-        permissions: %w[patients.identity.read appointments.read appointments.book appointments.status_transition]
-      },
-      "clinician" => {
-        label: "Clinician",
-        email: "clinician@local.invalid",
-        version: 2,
-        permissions: %w[
-          patients.read patients.write appointments.read appointments.write appointments.book
-          appointments.status_transition encounters.write encounters.assign_provider intake.write notes.read
-          notes.write notes.sign observations.write documents.read
-        ]
-      },
-      "clinical-staff" => {
-        label: "Clinical Staff",
-        email: "clinical-staff@local.invalid",
-        version: 2,
-        permissions: %w[
-          patients.read patients.identity.read patients.write appointments.read appointments.write
-          appointments.book appointments.status_transition encounters.write encounters.assign_provider intake.write
-          notes.read observations.write inventory.read staff.read messages.write staff_messaging.read
-          staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge
-          staff_messaging.transition staff_messaging.escalate staff_messaging.attach
-        ]
-      },
-      "inventory-coordinator" => {
-        label: "Inventory Coordinator",
-        email: "inventory-coordinator@local.invalid",
-        permissions: %w[
-          inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold
-          inventory.release inventory.count inventory.configure inventory.transfer inventory.put_away
-          procurement.read procurement.create procurement.submit procurement.approve recall.read
-          recall.lock recall.dispose controlled.read controlled.count controlled.certify
-        ]
-      },
-      "records-viewer" => {
-        label: "Records Viewer",
-        email: "records-viewer@local.invalid",
-        permissions: %w[
-          patients.read patients.identity.read appointments.read encounters.assign_provider notes.read
-          documents.read inventory.read staff.read billing.read
-        ]
-      }
-    }.transform_values(&:freeze).freeze
+    ACCOUNT_EMAILS = {
+      "clinic-administrator" => "clinic-administrator@local.invalid",
+      "billing-accounting" => "billing-accounting@local.invalid",
+      "front-desk-coordinator" => "front-desk@local.invalid",
+      "clinician" => "clinician@local.invalid",
+      "clinical-staff" => "clinical-staff@local.invalid",
+      "inventory-coordinator" => "inventory-coordinator@local.invalid",
+      "records-viewer" => "records-viewer@local.invalid",
+      "payroll-operator" => "payroll-operator@local.invalid"
+    }.freeze
+    ACCOUNTS = Clinic::Authorization::PilotRoleCatalog::DEFINITIONS.slice(*ACCOUNT_EMAILS.keys).to_h do |role_code, definition|
+      [ role_code, definition.merge(email: ACCOUNT_EMAILS.fetch(role_code),
+        admin: role_code == "clinic-administrator", version: Clinic::Authorization::PilotRoleCatalog::VERSION).freeze ]
+    end.freeze
 
     def self.prepare!
       ensure_local!
