@@ -796,7 +796,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       assert_response :bad_request
     end
     assert_difference "Clinic::Care::Patient.count" do
-      submit "/api/clinic/patients", { clinic_patient: { display_name: "Example C", reference: "DEMO-003" } }
+      submit "/api/clinic/patients", { clinic_patient: { display_name: "Example C", reference: "DEMO-003", sex: "unknown" } }
       assert_response :created
     end
     patient = @practice.patients.find_by!(reference: "DEMO-003")

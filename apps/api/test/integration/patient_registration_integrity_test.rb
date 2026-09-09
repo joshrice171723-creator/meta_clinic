@@ -47,14 +47,14 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
 
   test "registration requires a documented sex or Unknown and rejects invalid supplied contacts atomically" do
     invalid_registrations = [
-      { sex: nil },
-      { sex: "not_recorded" },
-      { sex: "female", contact_type: "email", contact_value: "not-an-email" },
-      { sex: "female", contact_type: "phone", contact_value: "no digits" },
-      { sex: "female", emergency_name: "Emergency", emergency_relationship: "Parent", emergency_phone: "no digits" }
+      [ { sex: nil }, :bad_request ],
+      [ { sex: "not_recorded" }, :unprocessable_entity ],
+      [ { sex: "female", contact_type: "email", contact_value: "not-an-email" }, :unprocessable_entity ],
+      [ { sex: "female", contact_type: "phone", contact_value: "no digits" }, :unprocessable_entity ],
+      [ { sex: "female", emergency_name: "Emergency", emergency_relationship: "Parent", emergency_phone: "no digits" }, :unprocessable_entity ]
     ]
 
-    invalid_registrations.each_with_index do |attributes, index|
+    invalid_registrations.each_with_index do |(attributes, expected_status), index|
       assert_no_difference "@practice.patients.count" do
         post "/api/clinic/patients", params: {
           clinic_patient: {
@@ -63,7 +63,7 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
           }.merge(attributes)
         }, headers: csrf_headers, as: :json
       end
-      assert_response :unprocessable_entity
+      assert_response expected_status
     end
   end
 

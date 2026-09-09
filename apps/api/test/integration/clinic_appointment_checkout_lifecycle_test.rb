@@ -79,9 +79,10 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
       patient: @patient, starts_at: Time.utc(2026, 9, 7, 11), ends_at: Time.utc(2026, 9, 7, 11, 30), status: "scheduled"
     )
 
-    assert_raises(ArgumentError, /Choose a site/) do
+    error = assert_raises(ArgumentError) do
       Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: @actor, to: "confirmed")
     end
+    assert_match(/Choose a site/, error.message)
     assert_equal "scheduled", appointment.reload.status
   end
 

@@ -317,7 +317,7 @@ module Development
               request_key: uuid("encounter-close:#{row.fetch('visit_key')}"), ended_at: ends_at)
           end
           unless current_flow_visit?(row)
-            Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: admin, to: "completed") if appointment.status == "confirmed"
+            Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: admin, to: "completed") if appointment.reload.status == "confirmed"
           end
           [row.fetch("visit_key"), { appointment: appointment.reload, encounter: encounter.reload, starts_at: starts_at }]
         end

@@ -825,7 +825,7 @@ type InventoryRun = (
   endpoint: string,
   body: Record<string, unknown>,
   successTitle: string,
-  successDetail: string,
+  successDetail: string | ((payload: InventoryMutationResult) => string),
   afterSuccess?: (payload: InventoryMutationResult) => void,
 ) => Promise<void>;
 
@@ -2831,8 +2831,8 @@ export function InventoryApp({ path }: { path: string }) {
     endpoint: string,
     body: Record<string, unknown>,
     successTitle: string,
-    successDetail: string,
-    afterSuccess?: (payload: { id?: number | string }) => void,
+    successDetail: string | ((payload: InventoryMutationResult) => string),
+    afterSuccess?: (payload: InventoryMutationResult) => void,
   ) => {
     const attempt = inventoryMutationAttempt(uncertainMutation, endpoint, body);
     if (!attempt) {
@@ -2863,7 +2863,6 @@ export function InventoryApp({ path }: { path: string }) {
         data?: InventoryData;
         acknowledged?: boolean;
       } & InventoryMutationResult>(
-      }>(
         [
           "lots",
           "purchasing",
@@ -2912,7 +2911,10 @@ export function InventoryApp({ path }: { path: string }) {
       setNotice({
         tone: "success",
         title: successTitle,
-        detail: successDetail,
+        detail:
+          typeof successDetail === "function"
+            ? successDetail(payload)
+            : successDetail,
       });
       afterSuccess?.(payload);
       if (
@@ -3577,12 +3579,7 @@ function ReplenishmentScreen({
 }: {
   data: InventoryData;
   busy: boolean;
-  run: (
-    endpoint: string,
-    body: Record<string, unknown>,
-    title: string,
-    detail: string,
-  ) => Promise<void>;
+  run: InventoryRun;
 }) {
   const requestedProductId = new URLSearchParams(window.location.search).get(
     "product_id",
@@ -6286,12 +6283,7 @@ function LotsScreen({
   error: string;
   onRead: (read: InventoryStockRead) => Promise<void>;
   busy: boolean;
-  run: (
-    endpoint: string,
-    body: Record<string, unknown>,
-    title: string,
-    detail: string,
-  ) => Promise<void>;
+  run: InventoryRun;
 }) {
   const page = data.stock_page;
   const [query, setQuery] = useState(page.query);
@@ -6378,15 +6370,10 @@ function LotsScreen({
           },
         },
         "Adjustment posted",
-        `${decimalCompare(quantity, "0") > 0 ? "+" : ""}${number(quantity)} ${selectedProduct.base_unit} for ${selectedProduct.name}, lot ${selectedLot.lot_number}, at ${selectedLocation.name}. Reason: ${reason.trim()}.`,
         (payload) => {
           const adjustment = payload.adjustment;
-          if (!adjustment) return;
-          setNotice({
-            tone: "success",
-            title: "Adjustment posted",
-            detail: `${adjustment.delta_units.startsWith("-") ? "" : "+"}${number(adjustment.delta_units)} ${adjustment.stock_unit} for ${adjustment.product_name}, lot ${adjustment.lot_number}, at ${adjustment.location_name}. Reason: ${adjustment.reason}. Resulting balance: ${number(adjustment.resulting_on_hand_units)} ${adjustment.stock_unit}.`,
-          });
+          if (!adjustment) return "Inventory adjusted.";
+          return `${adjustment.delta_units.startsWith("-") ? "" : "+"}${number(adjustment.delta_units)} ${adjustment.stock_unit} for ${adjustment.product_name}, lot ${adjustment.lot_number}, at ${adjustment.location_name}. Reason: ${adjustment.reason}. Resulting balance: ${number(adjustment.resulting_on_hand_units)} ${adjustment.stock_unit}.`;
         },
       );
     else

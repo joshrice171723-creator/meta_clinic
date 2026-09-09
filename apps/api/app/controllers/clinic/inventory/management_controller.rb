@@ -413,8 +413,8 @@ module Clinic
         input = params[:adjustment].presence || params
         validate_request_key!(input.require(:request_key).to_s)
         batch = batch_for(input)
-        delta = Quantity.parse(input.require(:delta_units), scale: batch.product.quantity_scale, zero: true)
-        reason = required_adjustment_reason!(input.require(:reason))
+        delta = Quantity.parse(input.require(:delta_units), scale: batch.product.quantity_scale, signed: true)
+        reason = required_adjustment_reason!(input[:reason])
         raise ArgumentError, "Adjustment cannot be zero." if delta.zero?
         movement = batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs, reason: reason, actor: current_user, request_key: input[:request_key].to_s)
         batch.reload

@@ -12,7 +12,7 @@ class DevelopmentBulkDevSeedTest < ActiveSupport::TestCase
     assert_equal %w[SYNTH_PROV_001 SYNTH_PROV_002], practice.clinician_profiles.order(:reference).pluck(:reference)
     assert_equal 13, practice.staff_members.count
     assert_equal 12, practice.staff_members.where(active: true).count
-    assert practice.refund_events.all? { |refund| refund.reason.present? }
+    assert Clinic::RefundEvent.where(practice: practice).all? { |refund| refund.reason.present? }
 
     starts_at = practice.appointments.pluck(:starts_at)
     assert_equal Date.new(2026, 7, 20), starts_at.min.to_date

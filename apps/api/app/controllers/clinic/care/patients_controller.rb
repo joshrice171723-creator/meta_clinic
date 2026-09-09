@@ -3,6 +3,10 @@ require "uri"
 module Clinic
   module Care
     class PatientsController < Clinic::BaseController
+      rescue_from ArgumentError do |error|
+        render_error(error.message, :unprocessable_entity)
+      end
+
       before_action -> { require_capability("patients.read") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("patients.identity.read", "patients.read") }, only: :lookup
       before_action -> { require_capability("patients.write") }, only: %i[create update]

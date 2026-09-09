@@ -9,10 +9,12 @@ import { useClinic, useClinicOverview } from "./Workspace";
 export function OperationsView({
   clinic,
   facilitiesRead = false,
+  billingRead = false,
   followUps,
 }: {
   clinic: ClinicOverview;
   facilitiesRead?: boolean;
+  billingRead?: boolean;
   followUps?: ReactNode;
 }) {
   const c = clinic.capabilities;
@@ -75,7 +77,7 @@ export function OperationsView({
                 <p>Configure storage before receiving or administering stock.</p>
               </li>
             )}
-            {c.billing_read && (
+            {billingRead && (
               <li>
                 <a className="text-link" href="/clinic/billing">
                   Services and payments →
@@ -153,6 +155,7 @@ export function Operations() {
       <OperationsView
         clinic={overview}
         facilitiesRead={context.capabilities.facilities_read === true}
+        billingRead={context.capabilities.billing_read === true}
         followUps={
           <>
             <LabReviewWorklist />

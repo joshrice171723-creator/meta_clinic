@@ -29,7 +29,7 @@ module Clinic
       validate :category_matches_source
 
       def self.record!(practice:, actor:, source_kind:, source_id:, category:, assignee_id:, state:, reason:, evidence_reference: nil, request_key:)
-        attributes = normalized_attributes(
+        attributes = normalize_review_attributes(
           source_kind: source_kind,
           source_id: source_id,
           category: category,
@@ -60,7 +60,7 @@ module Clinic
         end
       end
 
-      def self.normalized_attributes(source_kind:, source_id:, category:, assignee_id:, state:, reason:, evidence_reference:, actor_id:)
+      def self.normalize_review_attributes(source_kind:, source_id:, category:, assignee_id:, state:, reason:, evidence_reference:, actor_id:)
         {
           source_kind: source_kind.to_s.strip,
           source_id: canonical_id!(source_id, "exception source"),
@@ -72,6 +72,8 @@ module Clinic
           actor_id: actor_id
         }
       end
+      private_class_method :normalize_review_attributes
+
       def self.canonical_id!(value, label, optional: false)
         return nil if optional && value.blank?
 

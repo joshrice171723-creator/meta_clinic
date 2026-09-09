@@ -22,7 +22,9 @@ describe("clinic shell composition", () => {
     expect(frame).toContain("LaunchIcon");
     expect(frame).toContain("PublicIcon");
     expect(frame).toContain('aria-label={collapsed ? "Open clinic menu"');
-    expect(frame).toContain('if (event.key === "Escape" && !collapsed)');
+    expect(frame).toMatch(
+      /drawer &&\s*!event\.defaultPrevented &&\s*event\.key === "Escape"/,
+    );
     expect(frame).toContain("panel.current?.querySelector<HTMLAnchorElement>");
     expect(frame).toContain('window.location.replace("/login")');
     expect(frame).toContain('className="practice-location"');

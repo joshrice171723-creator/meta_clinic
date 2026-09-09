@@ -80,7 +80,7 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
     post "/api/clinic/inventory/lots/#{@batch.lot_id}/adjust", params: {
       adjustment: { lot_id: @batch.lot_id, location_id: @batch.location_id, delta_units: "-1.250",
         reason: "Damaged fixture stock", request_key: SecureRandom.uuid }
-    }, headers: @headers, as: :json
+    }, headers: csrf_headers, as: :json
     assert_response :success
 
     summary = response.parsed_body.fetch("adjustment")
@@ -93,7 +93,7 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
     post "/api/clinic/inventory/lots/#{@batch.lot_id}/adjust", params: {
       adjustment: { lot_id: @batch.lot_id, location_id: @batch.location_id, delta_units: "1",
         reason: " ", request_key: SecureRandom.uuid }
-    }, headers: @headers, as: :json
+    }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_includes response.parsed_body.fetch("error"), "reason"
     assert_equal before_movements, @batch.movements.count
@@ -120,6 +120,11 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def csrf_headers
+    get "/api/csrf", headers: @headers
+    @headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token"))
+  end
 
   def read_page(**params)
     get "/api/clinic/inventory/activity", params: params.merge(view: "ledger"), headers: @headers
