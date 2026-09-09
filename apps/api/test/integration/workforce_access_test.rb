@@ -14,6 +14,7 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
 
     @employee = create_user("workforce-employee")
     @employee_membership = @practice.memberships.create!(user: @employee)
+    RoleVersion.find_or_create_by!(role_code: "workforce-employee", version: 1)
     @employee_directory = @practice.staff_members.create!(display_name: "Taylor Morgan",
       job_title: "Clinic coordinator", active: true)
     @employment = Clinic::Workforce::Employment.create!(practice: @practice,

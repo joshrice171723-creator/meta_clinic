@@ -30,9 +30,10 @@ module Clinic
 
       def self.active_site_membership_ids(practice:, site:, now: Time.current)
         Clinic::Workforce::Employment.where(practice_id: practice.id, status: "active")
-          .where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", now, now)
+          .where("clinic_workforce_employments.effective_from <= ? AND (clinic_workforce_employments.effective_until IS NULL OR clinic_workforce_employments.effective_until > ?)", now, now)
           .joins(:employment_sites)
-          .merge(Clinic::Workforce::EmploymentSite.active.effective_at(now))
+          .merge(Clinic::Workforce::EmploymentSite.active)
+          .where("clinic_workforce_employment_sites.effective_from <= ? AND (clinic_workforce_employment_sites.effective_until IS NULL OR clinic_workforce_employment_sites.effective_until > ?)", now, now)
           .where(clinic_workforce_employment_sites: { site_id: site.id })
           .select(:membership_id)
       end

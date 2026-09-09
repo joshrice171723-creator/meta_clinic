@@ -280,3 +280,15 @@ Pop-Location
 ```
 
 The source repairs are complete for A01–A20. Browser acceptance, current-revision database verification, PostgreSQL RLS, and any pilot/release approval remain separate unproven gates.
+
+### Follow-up verification completed — 2026-09-09
+
+Docker Desktop became available and the isolated PostgreSQL verification was completed on port `54370`. The original `db/structure.sql` had a malformed duplicated tail after PostgreSQL's dump terminator: it repeated foreign-key statements, duplicated the schema-migration list, and began one statement with `R TABLE ONLY`. The repair preserves the canonical schema body, keeps one schema-migration list before the terminator, and removes the invalid trailing duplicate. A fresh `db:drop` plus `db:prepare` now succeeds.
+
+The focused `test/integration/workforce_access_test.rb` was also made order-independent by creating its required `workforce-employee` role in shared setup. The new A19 query then exposed two joined-column ambiguities; the participant filter now qualifies both employment and employment-site effective windows. The single focused run passed:
+
+```text
+11 runs, 89 assertions, 0 failures, 0 errors, 0 skips
+```
+
+This current-revision result replaces the earlier Docker-blocked verification status. It proves the A19 active-site participant rule on a fresh database alongside the existing access-lifecycle cases. The rendered browser walkthrough, PostgreSQL RLS release gate, and pilot/release approval remain unproven separate gates.
