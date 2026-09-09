@@ -11,7 +11,7 @@ module Clinic
 
     def initialize(limit:)
       @limit = Integer(limit)
-      @after_ids = { telehealth_commands: 0, reminders: 0, staff_messages: 0 }
+      @after_ids = { telehealth_commands: 0, recovery_sms: 0, reminders: 0, staff_messages: 0 }
       raise ArgumentError, "Worker limit must be between 1 and #{MAX_LIMIT}." unless @limit.between?(1, MAX_LIMIT)
     end
 
@@ -27,6 +27,7 @@ module Clinic
           Identity::LoginThrottle.prune_expired!
           process_telehealth_access
           process_telehealth_commands
+          process_recovery_sms
           process_reminders
           process_staff_messages
           result(lock_acquired: true)
@@ -161,6 +162,17 @@ module Clinic
       end
     end
 
+    def process_recovery_sms
+      recovery_sms_candidate_ids.each do |delivery_id|
+        with_item(:recovery_sms) do
+          with_system_paper_trail("patient-portal-recovery-sms") do
+            Clinic::PatientPortal::DispatchRecoverySms.call(delivery_id: delivery_id, at: @at)
+            counts(:recovery_sms)[:processed] += 1
+          end
+        end
+      end
+    end
+
     def process_staff_messages
       staff_message_candidate_ids.each do |outbox_id|
         with_item(:staff_messages) do
@@ -194,6 +206,14 @@ module Clinic
             AND clinic_patient_reminders.status = 'scheduled')
         SQL
       rotating_candidate_ids(relation, :reminders)
+    end
+
+    def recovery_sms_candidate_ids
+      relation = Clinic::PatientPortal::RecoveryDelivery.where(<<~SQL.squish, at: @at)
+        (status = 'pending' AND available_at <= :at) OR
+        (status = 'leased' AND lease_until <= :at)
+      SQL
+      rotating_candidate_ids(relation, :recovery_sms)
     end
 
     def staff_message_candidate_ids
@@ -255,6 +275,7 @@ module Clinic
         lock_acquired: lock_acquired,
         telehealth_access: counts(:telehealth_access),
         telehealth_commands: counts(:telehealth_commands),
+        recovery_sms: counts(:recovery_sms),
         reminders: counts(:reminders),
         staff_messages: counts(:staff_messages)
       }

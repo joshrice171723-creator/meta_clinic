@@ -43,10 +43,10 @@ export function PatientPortalRecovery() {
           <Typography component="h1" variant="h4">Reset your password</Typography>
           <Typography color="text.secondary">
             Enter the email address associated with your patient portal account.
-            We will prepare a secure recovery link if the account matches.
+            If the account and a mobile number on file match, we will text a secure recovery link.
           </Typography>
           {error && <Alert severity="error">{error}</Alert>}
-          {message && <Alert severity="success">{message}</Alert>}
+          {message && <Alert severity="info">{message}</Alert>}
           <TextField
             autoComplete="email"
             label="Email address"
@@ -57,11 +57,11 @@ export function PatientPortalRecovery() {
             value={contact}
           />
           <Button disabled={busy || !contact.trim()} type="submit" variant="contained">
-            {busy ? "Preparing recovery…" : "Prepare recovery link"}
+            {busy ? "Requesting recovery…" : "Text recovery link"}
           </Button>
           {recoveryPath && (
             <Button href={recoveryPath} variant="outlined">
-              Continue to secure password reset
+              Continue with secure local reset
             </Button>
           )}
           <Button href="/login?next=%2Fpatient-portal" variant="text">

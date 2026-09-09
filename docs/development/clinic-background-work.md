@@ -1,6 +1,6 @@
 # Clinic background work
 
-`apps/api/bin/clinic-worker` provides a small, independently supervised process for existing PostgreSQL-backed reminder and staff-message outboxes. It does not add a queue service, create authority, or change the outbox state machines.
+`apps/api/bin/clinic-worker` provides a small, independently supervised process for existing PostgreSQL-backed telehealth commands, patient-portal recovery SMS deliveries, reminders and staff-message outboxes. It does not add a queue service, create authority, or change the outbox state machines.
 
 Run one bounded pass from `apps/api`:
 
@@ -25,6 +25,8 @@ Each item recovers the initiating user from the outbox creation audit version, t
 Staff-message processing is limited to existing in-app notification outbox events. Automated overdue-request escalation is excluded because it requires a separately selected accountable recipient.
 
 Reminder delivery accepts only the built-in non-network provider setting. With any other provider setting, the worker can safely recover an expired lease under the existing row lock but will not claim pending work or call the provider. Existing reminder delivery gates still apply. Enabling a network provider, production clinic access, real recipient data, or outbound delivery requires separate authorization and deployment work.
+
+Patient-portal recovery SMS is a separate, narrowly scoped Twilio path. The public request always returns the same generic acknowledgement. A matching active portal identity creates a short-lived encrypted delivery row only when a current phone contact and the complete Twilio recovery configuration are present. The worker checks that the identity, clinic release gate, phone contact and one-time token are still current before claiming the row. A worker interruption or unknown provider outcome is terminal and is not automatically resent, preventing duplicate reset messages. The encrypted token is erased from delivery bookkeeping after the provider attempt.
 
 In Rails production mode, the existing clinic release gate still applies: only the guarded staging demonstration clinic can run. The worker does not make production clinic workflows available.
 

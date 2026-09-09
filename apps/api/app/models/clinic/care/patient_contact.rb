@@ -6,6 +6,8 @@ module Clinic
       include Clinic::AppendOnly
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
+      has_many :patient_portal_recovery_deliveries, class_name: "Clinic::PatientPortal::RecoveryDelivery",
+        dependent: :restrict_with_error
 
       enum :contact_type, { phone: "phone", email: "email" }, prefix: true, validate: true
       encrypts :contact_value

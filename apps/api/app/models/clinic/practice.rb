@@ -49,6 +49,8 @@ module Clinic
     has_many :model_versions, class_name: "Clinic::ModelVersion", dependent: :restrict_with_error
     has_many :patient_portal_appointment_requests, class_name: "Clinic::PatientPortal::AppointmentRequest", dependent: :restrict_with_error
     has_many :patient_portal_requests, class_name: "Clinic::PatientPortal::Request", dependent: :restrict_with_error
+    has_many :patient_portal_recovery_deliveries, class_name: "Clinic::PatientPortal::RecoveryDelivery",
+      dependent: :restrict_with_error
     has_many :scribe_encounters, class_name: "Clinic::Scribe::Encounter", dependent: :restrict_with_error
     has_many :scribe_sources, class_name: "Clinic::Scribe::Source", dependent: :restrict_with_error
     has_many :scribe_drafts, class_name: "Clinic::Scribe::Draft", dependent: :restrict_with_error

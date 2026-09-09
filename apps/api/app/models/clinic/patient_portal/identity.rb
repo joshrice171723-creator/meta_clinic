@@ -14,6 +14,8 @@ module Clinic
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :user
+      has_many :recovery_deliveries, class_name: "Clinic::PatientPortal::RecoveryDelivery",
+        dependent: :restrict_with_error
       has_many :telehealth_participants, class_name: "Clinic::Telehealth::Participant", foreign_key: :portal_identity_id,
         dependent: :restrict_with_error
 

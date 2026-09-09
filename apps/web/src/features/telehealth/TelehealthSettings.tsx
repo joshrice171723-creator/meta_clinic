@@ -332,6 +332,7 @@ export function TelehealthSettings() {
             <Typography component="h2" variant="h6">
               Provider connection
             </Typography>
+            <Chip size="small" label="Twilio Video" />
             <Chip
               size="small"
               label={healthLabels[data.health_status]}
@@ -349,11 +350,11 @@ export function TelehealthSettings() {
             />
           </Stack>
           <Typography color="text.secondary">
-            API credentials are managed by the server operator. This account
-            reference selects the configured video account.
+            Twilio API credentials and the signed callback URL are managed by
+            the server operator. Enter the matching Twilio Account SID here.
           </Typography>
           <TextField
-            label="Provider account reference"
+            label="Twilio Account SID"
             value={edit.provider_account_ref}
             disabled={!editable}
             onChange={(event) =>

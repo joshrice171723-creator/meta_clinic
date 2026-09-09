@@ -288,6 +288,23 @@ class PatientPortalRecoveryControllerTest < ActionController::TestCase
 
   setup do
     @controller.allow_forgery_protection = false
+    @recovery_env_names = %w[
+      APP_PATIENT_PORTAL_RECOVERY_SMS_ENABLED APP_PATIENT_PORTAL_TWILIO_ACCOUNT_SID
+      APP_PATIENT_PORTAL_TWILIO_API_KEY_SID APP_PATIENT_PORTAL_TWILIO_API_KEY_SECRET
+      APP_PATIENT_PORTAL_TWILIO_MESSAGING_SERVICE_SID
+    ]
+    @recovery_env = @recovery_env_names.to_h { |name| [ name, ENV[name] ] }
+    ENV.update(
+      "APP_PATIENT_PORTAL_RECOVERY_SMS_ENABLED" => "true",
+      "APP_PATIENT_PORTAL_TWILIO_ACCOUNT_SID" => "AC#{'a' * 32}",
+      "APP_PATIENT_PORTAL_TWILIO_API_KEY_SID" => "SK#{'b' * 32}",
+      "APP_PATIENT_PORTAL_TWILIO_API_KEY_SECRET" => "recovery-sms-test-secret",
+      "APP_PATIENT_PORTAL_TWILIO_MESSAGING_SERVICE_SID" => "MG#{'c' * 32}"
+    )
+  end
+
+  teardown do
+    @recovery_env.each { |name, value| value.nil? ? ENV.delete(name) : ENV[name] = value }
   end
 
   test "recovery accepts an unknown contact without exposing a reset path" do
@@ -295,9 +312,95 @@ class PatientPortalRecoveryControllerTest < ActionController::TestCase
 
     assert_response :accepted
     assert_equal true, response.parsed_body.fetch("accepted")
-    assert_equal "If a matching portal account exists, a secure recovery link is being prepared.",
+    assert_equal "If a matching portal account with a mobile number exists, a secure recovery link will be sent by text message.",
       response.parsed_body.fetch("message")
     assert_nil response.parsed_body.fetch("recovery_path")
+  end
+
+  test "matching recovery queues an encrypted SMS without changing the public response" do
+    practice = Clinic::Practice.create!(name: "Recovery Practice", timezone: "UTC")
+    patient = practice.patients.create!(display_name: "Recovery Patient", reference: "RECOVERY-001")
+    patient.contacts.create!(practice: practice, contact_type: "phone", contact_value: "+12025550125",
+      preferred: true, effective_from: 1.day.ago)
+    user = User.create!(email_address: "recovery-patient@example.invalid", password: SecureRandom.hex(20), active: true)
+    identity = Clinic::PatientPortal::Identity.create!(practice: practice, patient: patient, user: user,
+      status: :active, invited_at: 1.hour.ago, activated_at: 30.minutes.ago)
+
+    post :create, params: { patient_portal_recovery: { contact: user.email_address } }, as: :json
+    matching_response = response.parsed_body
+    assert_response :accepted
+
+    post :create, params: { patient_portal_recovery: { contact: "unknown@example.invalid" } }, as: :json
+    assert_response :accepted
+    assert_equal response.parsed_body, matching_response
+
+    delivery = identity.recovery_deliveries.sole
+    assert_predicate delivery, :pending?
+    assert_equal identity.reload.invitation_digest, Clinic::PatientPortal::Identity.digest_token(delivery.token)
+    refute_equal delivery.token, delivery.read_attribute_before_type_cast(:token)
+  end
+end
+
+class PatientPortalRecoverySmsTest < ActiveSupport::TestCase
+  setup do
+    @recovery_env_names = %w[
+      APP_PATIENT_PORTAL_RECOVERY_SMS_ENABLED APP_PATIENT_PORTAL_TWILIO_ACCOUNT_SID
+      APP_PATIENT_PORTAL_TWILIO_API_KEY_SID APP_PATIENT_PORTAL_TWILIO_API_KEY_SECRET
+      APP_PATIENT_PORTAL_TWILIO_MESSAGING_SERVICE_SID
+    ]
+    @recovery_env = @recovery_env_names.to_h { |name| [ name, ENV[name] ] }
+    ENV.update(
+      "APP_PATIENT_PORTAL_RECOVERY_SMS_ENABLED" => "true",
+      "APP_PATIENT_PORTAL_TWILIO_ACCOUNT_SID" => "AC#{'d' * 32}",
+      "APP_PATIENT_PORTAL_TWILIO_API_KEY_SID" => "SK#{'e' * 32}",
+      "APP_PATIENT_PORTAL_TWILIO_API_KEY_SECRET" => "recovery-worker-test-secret",
+      "APP_PATIENT_PORTAL_TWILIO_MESSAGING_SERVICE_SID" => "MG#{'f' * 32}"
+    )
+    @practice = Clinic::Practice.create!(name: "Recovery Worker Practice", timezone: "UTC")
+    @patient = @practice.patients.create!(display_name: "Recovery Worker Patient", reference: "RECOVERY-002")
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550126",
+      preferred: true, effective_from: 1.day.ago)
+    @user = User.create!(email_address: "recovery-worker@example.invalid", password: SecureRandom.hex(20), active: true)
+    @identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: @patient, user: @user,
+      status: :active, invited_at: 1.hour.ago, activated_at: 30.minutes.ago)
+  end
+
+  teardown do
+    @recovery_env.each { |name, value| value.nil? ? ENV.delete(name) : ENV[name] = value }
+  end
+
+  test "worker accepts one fenced Twilio delivery and erases its stored token" do
+    Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+    delivery = @identity.recovery_deliveries.sole
+    observed = nil
+    provider = Object.new
+    provider.define_singleton_method(:deliver) do |to:, body:|
+      observed = { to: to, body: body }
+      { status: :accepted, provider_message_id: "SM#{'1' * 32}" }
+    end
+
+    result = Clinic::PatientPortal::DispatchRecoverySms.call(delivery_id: delivery.id, provider: provider)
+
+    assert_predicate result, :accepted?
+    assert_nil result.token
+    assert_equal "+12025550126", observed.fetch(:to)
+    assert_includes observed.fetch(:body), "/patient-portal/activate#token="
+    assert_includes observed.fetch(:body), "purpose=recovery"
+  end
+
+  test "an interrupted provider attempt becomes unknown without a duplicate send" do
+    Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+    delivery = @identity.recovery_deliveries.sole
+    delivery.update!(status: :leased, attempt_count: 1, lease_until: 1.second.ago,
+      lease_token_digest: Digest::SHA256.hexdigest("interrupted-lease"))
+    provider = Object.new
+    provider.define_singleton_method(:deliver) { |**| raise "The interrupted SMS must not be sent again." }
+
+    result = Clinic::PatientPortal::DispatchRecoverySms.call(delivery_id: delivery.id, provider: provider)
+
+    assert_predicate result, :unknown?
+    assert_equal "worker_interrupted", result.failure_code
+    assert_nil result.token
   end
 end
 
