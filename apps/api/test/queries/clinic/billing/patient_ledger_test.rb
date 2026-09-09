@@ -25,6 +25,42 @@ class PatientLedgerTest < ActiveSupport::TestCase
     assert_equal "0.0", payments.fetch(fully_consumed.id).fetch(:unapplied_amount)
   end
 
+  test "bounds history pages without truncating all-history balances" do
+    21.times do |index|
+      invoice = @practice.invoices.create!(patient: @patient, currency: "USD", status: "draft", rounding_policy_version: "v1")
+      invoice.lines.create!(practice: @practice, patient: @patient, quantity: "1", unit_amount: "1.00",
+        posted_amount: "1.00", description_snapshot: "Older charge #{index}")
+      invoice.transition_to!("posted")
+      payment(reference: "ledger-page-#{index}", amount: "1.00")
+    end
+
+    ledger = Clinic::Billing::PatientLedger.call(
+      practice: @practice, patient: @patient, history_limit: Clinic::Billing::PatientLedger::HISTORY_LIMIT
+    )
+
+    assert_equal 20, ledger.fetch(:invoices).length
+    assert_equal 20, ledger.fetch(:payments).length
+    assert_equal "121.0", ledger.fetch(:currencies).sole.fetch(:invoiced_amount)
+    invoice_cursor = ledger.dig(:pagination, :invoices, :next_cursor)
+    payment_cursor = ledger.dig(:pagination, :payments, :next_cursor)
+    assert invoice_cursor
+    assert payment_cursor
+
+    older_invoices = Clinic::Billing::PatientLedger.history_page(
+      practice: @practice, patient: @patient, kind: "invoices", before: invoice_cursor
+    )
+    older_payments = Clinic::Billing::PatientLedger.history_page(
+      practice: @practice, patient: @patient, kind: "payments", before: payment_cursor
+    )
+
+    assert_equal 2, older_invoices.fetch(:items).length
+    assert_nil older_invoices.fetch(:next_cursor)
+    assert_equal 1, older_payments.fetch(:items).length
+    assert_nil older_payments.fetch(:next_cursor)
+    assert_empty ledger.fetch(:invoices).map { |item| item.fetch(:id) } & older_invoices.fetch(:items).map { |item| item.fetch(:id) }
+    assert_empty ledger.fetch(:payments).map { |item| item.fetch(:id) } & older_payments.fetch(:items).map { |item| item.fetch(:id) }
+  end
+
   private
 
   def payment(reference:, amount:)

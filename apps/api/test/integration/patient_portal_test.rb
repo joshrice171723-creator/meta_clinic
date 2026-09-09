@@ -27,12 +27,25 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     assert_equal true, body.fetch("development_only")
     assert_equal true, body.dig("capabilities", "billing_read")
     assert_equal false, body.dig("capabilities", "payment_collection")
+    assert body.dig("billing", "pagination", "invoices").key?("next_cursor")
+    assert body.dig("billing", "pagination", "payments").key?("next_cursor")
     assert body.fetch("notices").any?
     %w[upcoming_appointments intake visit_summaries results medications messages reminders reminder_preferences appointment_requests requests].each do |key|
       refute body.key?(key), "#{key} must not be in the billing-only projection"
     end
     patient = User.find_by!(email_address: "synthetic-patient@example.invalid")
     assert_equal 1, Clinic::PatientPortal::Identity.available.where(user_id: patient.id).count
+
+    get "/api/patient_portal/billing_history", params: { kind: "invoices" }, headers: @headers
+    assert_response :success
+    assert_equal body.dig("patient", "id"), response.parsed_body.fetch("patient_id")
+    assert_equal "invoices", response.parsed_body.fetch("kind")
+
+    get "/api/patient_portal/billing_history", params: { kind: "unknown" }, headers: @headers
+    assert_response :unprocessable_entity
+
+    get "/api/patient_portal/billing_history", params: { kind: "invoices", before: "not-an-id" }, headers: @headers
+    assert_response :bad_request
 
     get "/api/patient_portal/appointment_requests", headers: @headers
     assert_response :success

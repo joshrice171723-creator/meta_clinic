@@ -28,6 +28,7 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import type {
   DevelopmentAccount,
+  PatientPortalBillingHistoryPage,
   PatientPortalContext,
   RuntimeEnvironment,
   User,
@@ -187,11 +188,26 @@ export function PatientPortal({
   const [checkoutReturnNotice, setCheckoutReturnNotice] = useState("");
   const [checkingCheckoutReturn, setCheckingCheckoutReturn] = useState(false);
   const [checkoutReturnRetry, setCheckoutReturnRetry] = useState(0);
+  const [billingHistory, setBillingHistory] = useState<
+    PatientPortalContext["billing"] | null
+  >(null);
+  const [billingHistoryLoading, setBillingHistoryLoading] = useState<
+    "invoices" | "payments" | null
+  >(null);
+  const [billingHistoryError, setBillingHistoryError] = useState("");
   const checkoutReturnHandled = useRef(false);
+  const billingHistoryRequest = useRef(0);
   const context = resource.data;
   const patientReference = context
     ? patientPortalReferenceLabel(context.patient.reference)
     : null;
+
+  useEffect(() => {
+    billingHistoryRequest.current += 1;
+    setBillingHistory(context?.billing ?? null);
+    setBillingHistoryLoading(null);
+    setBillingHistoryError("");
+  }, [context]);
 
   useEffect(() => {
     const syncSection = () => {
@@ -255,6 +271,53 @@ export function PatientPortal({
   const retryCheckoutReturn = () => {
     checkoutReturnHandled.current = false;
     setCheckoutReturnRetry((value) => value + 1);
+  };
+
+  const loadMoreBillingHistory = async (kind: "invoices" | "payments") => {
+    if (!context || !billingHistory || billingHistoryLoading) return;
+    const before = billingHistory.pagination[kind].next_cursor;
+    if (!before) return;
+
+    const requestId = ++billingHistoryRequest.current;
+    const expectedPatientId = context.patient.id;
+    setBillingHistoryLoading(kind);
+    setBillingHistoryError("");
+    try {
+      const page = await api<PatientPortalBillingHistoryPage>(
+        `/api/patient_portal/billing_history?kind=${kind}&before=${before}`,
+      );
+      if (
+        requestId !== billingHistoryRequest.current ||
+        page.kind !== kind ||
+        page.patient_id !== expectedPatientId
+      )
+        return;
+      setBillingHistory((current) => {
+        if (!current) return current;
+        const existingIds = new Set(current[kind].map((item) => item.id));
+        const additional = page.items.filter(
+          (item) => !existingIds.has(item.id),
+        );
+        return {
+          ...current,
+          [kind]: [...current[kind], ...additional],
+          pagination: {
+            ...current.pagination,
+            [kind]: { next_cursor: page.next_cursor },
+          },
+        } as PatientPortalContext["billing"];
+      });
+    } catch (reason) {
+      if (requestId !== billingHistoryRequest.current) return;
+      setBillingHistoryError(
+        reason instanceof Error
+          ? reason.message
+          : "Older billing history could not be loaded.",
+      );
+    } finally {
+      if (requestId === billingHistoryRequest.current)
+        setBillingHistoryLoading(null);
+    }
   };
 
   const navigateTo = (
@@ -789,12 +852,17 @@ export function PatientPortal({
                               <Typography variant="h2" component="h2">
                                 Billing history
                               </Typography>
-                              {!context.billing.invoices.length && (
+                              {billingHistoryError && (
+                                <Alert severity="error">
+                                  {billingHistoryError}
+                                </Alert>
+                              )}
+                              {!billingHistory?.invoices.length && (
                                 <Typography color="text.secondary">
                                   No invoices are available yet.
                                 </Typography>
                               )}
-                              {context.billing.invoices.map((invoice) => (
+                              {billingHistory?.invoices.map((invoice) => (
                                 <Accordion
                                   key={invoice.id}
                                   variant="outlined"
@@ -887,17 +955,32 @@ export function PatientPortal({
                                   </AccordionDetails>
                                 </Accordion>
                               ))}
+                              {billingHistory?.pagination.invoices
+                                .next_cursor && (
+                                <Button
+                                  variant="outlined"
+                                  disabled={billingHistoryLoading !== null}
+                                  onClick={() =>
+                                    void loadMoreBillingHistory("invoices")
+                                  }
+                                  sx={{ alignSelf: "flex-start" }}
+                                >
+                                  {billingHistoryLoading === "invoices"
+                                    ? "Loading older invoices…"
+                                    : "Load older invoices"}
+                                </Button>
+                              )}
 
                               <Divider />
                               <Typography variant="h5" component="h2">
                                 Payments and refunds
                               </Typography>
-                              {!context.billing.payments.length && (
+                              {!billingHistory?.payments.length && (
                                 <Typography color="text.secondary">
                                   No payments are recorded.
                                 </Typography>
                               )}
-                              {context.billing.payments.map(
+                              {billingHistory?.payments.map(
                                 (payment, index) => (
                                   <Box
                                     key={payment.id}
@@ -941,6 +1024,21 @@ export function PatientPortal({
                                     ))}
                                   </Box>
                                 ),
+                              )}
+                              {billingHistory?.pagination.payments
+                                .next_cursor && (
+                                <Button
+                                  variant="outlined"
+                                  disabled={billingHistoryLoading !== null}
+                                  onClick={() =>
+                                    void loadMoreBillingHistory("payments")
+                                  }
+                                  sx={{ alignSelf: "flex-start" }}
+                                >
+                                  {billingHistoryLoading === "payments"
+                                    ? "Loading older payments…"
+                                    : "Load older payments"}
+                                </Button>
                               )}
                             </Stack>
                           </Paper>

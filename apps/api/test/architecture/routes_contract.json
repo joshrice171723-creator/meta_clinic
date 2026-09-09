@@ -715,6 +715,11 @@
     "/api/patient_portal/appointment_requests(.:format)"
   ],
   [
+    "api_patient_portal_billing_history",
+    "GET",
+    "/api/patient_portal/billing_history(.:format)"
+  ],
+  [
     "api_patient_portal_context",
     "GET",
     "/api/patient_portal/context(.:format)"
