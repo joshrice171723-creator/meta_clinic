@@ -178,6 +178,7 @@ export function VitalSignsEntry({
   const [busy, setBusy] = useState(false);
   const [outcomeUnknown, setOutcomeUnknown] = useState(false);
   const [error, setError] = useState("");
+  const [replaceWorkingCopy, setReplaceWorkingCopy] = useState(false);
   const attempt = useRef<Attempt | null>(null);
   const loadSequence = useRef(0);
   const restored = useRef(false);
@@ -233,8 +234,17 @@ export function VitalSignsEntry({
 
   const reloadWorkingDraft = () => {
     cancelPendingDraftSave();
+    setReplaceWorkingCopy(false);
     restored.current = false;
     workingDraft.reload();
+  };
+
+  const retryWorkingDraft = async () => {
+    cancelPendingDraftSave();
+    if (!(await workingDraft.save(workingSnapshot())))
+      setError(
+        "The current working entry is still only in this window. Keep it open and retry when the connection is available.",
+      );
   };
 
   useEffect(() => {
@@ -264,7 +274,7 @@ export function VitalSignsEntry({
   }, [encounterId, patientId, workingDraft.ready, workingDraft.restored]);
 
   useEffect(() => {
-    if (!workingDraft.ready || !restored.current) return;
+    if (busy || !workingDraft.ready || !restored.current) return;
     if (skipNextAutosave.current) {
       skipNextAutosave.current = false;
       return;
@@ -277,6 +287,7 @@ export function VitalSignsEntry({
     }, 650);
     return cancelPendingDraftSave;
   }, [
+    busy,
     confirmedPatient,
     hasDraft,
     observedAt,
@@ -543,13 +554,28 @@ export function VitalSignsEntry({
               <Alert
                 severity="warning"
                 action={
-                  <Button color="inherit" onClick={reloadWorkingDraft}>
-                    Reload saved entry
-                  </Button>
+                  workingDraft.status === "error" ? (
+                    <Button
+                      color="inherit"
+                      onClick={() => void retryWorkingDraft()}
+                    >
+                      Retry saving current entry
+                    </Button>
+                  ) : attempt.current ? undefined : (
+                    <Button
+                      color="inherit"
+                      onClick={() => setReplaceWorkingCopy(true)}
+                    >
+                      Load saved entry
+                    </Button>
+                  )
                 }
               >
                 {workingDraft.error ||
                   "The working entry could not be saved. Reload it before recording."}
+                {workingDraft.status === "conflict" && attempt.current
+                  ? " Reconcile the exact submitted request before replacing this copy."
+                  : ""}
               </Alert>
             )}
             {definitions && !definitions.can_write && (
@@ -772,6 +798,33 @@ export function VitalSignsEntry({
                 </Button>
               </>
             )}
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={replaceWorkingCopy}
+        onClose={() => setReplaceWorkingCopy(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Replace this working entry?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Loading the server copy replaces the measurements currently in this
+            window. Continue only after confirming those local values are no
+            longer needed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReplaceWorkingCopy(false)}>
+            Keep local entry
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={reloadWorkingDraft}
+          >
+            Replace with saved entry
+          </Button>
         </DialogActions>
       </Dialog>
     </>
