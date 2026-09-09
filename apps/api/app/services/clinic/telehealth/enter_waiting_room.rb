@@ -10,12 +10,18 @@ module Clinic
           visit.appointment.with_lock do
             visit.lock!
             raise ActiveRecord::StaleObjectError.new(visit, "update") unless visit.lock_version == expected_version.to_i
+            unless visit.scheduled? || visit.in_progress?
+              raise Error.new("This video visit is no longer accepting waiting-room entry.", code: "visit_not_waitable", status: :conflict)
+            end
+            participant = visit.participants.find_by!(portal_identity_id: identity.id)
+            if participant.revoked_at? || !participant.status.in?(%w[eligible waiting left])
+              raise Error.new("Your waiting-room access changed. Reload this visit.", code: "participant_not_waitable", status: :conflict)
+            end
             if consent.present?
               value = consent.to_h.deep_symbolize_keys
               raise Error.new("The policy version changed. Review the current policy.", code: "stale_policy", status: :conflict) unless
                 visit.policy_version.version == value[:policy_version].to_i
               raise Error.new("Acceptance is required to enter the waiting room.", code: "consent_required") unless value[:decision] == "accepted"
-              participant = visit.participants.find_by!(portal_identity_id: identity.id)
               prior = visit.consents.where(participant_id: participant.id, purpose: "telehealth").order(sequence: :desc).first
               visit.consents.create!(practice_id: visit.practice_id, participant_id: participant.id,
                 policy_version_id: visit.policy_version_id, purpose: "telehealth", decision: "accepted",

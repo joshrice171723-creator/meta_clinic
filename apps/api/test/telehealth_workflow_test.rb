@@ -55,6 +55,92 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     @environment.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
   end
 
+  test "queue scopes telehealth reads independently of unrelated site permissions and preserves Omni access" do
+    visible = direct_video_visit!(starts_at: 1.day.from_now.change(hour: 12))
+    hidden = direct_video_visit!(site: @other_site, starts_at: visible.appointment.ends_at + 1.minute)
+    reader = User.create!(email_address: "telehealth-site-reader@example.invalid", password: PASSWORD)
+    reader_membership = @practice.memberships.create!(user: reader)
+    grant_permissions!(reader_membership, "telehealth.read", scope_kind: "site", site: @site)
+    grant_permissions!(reader_membership, "facilities.read", scope_kind: "site", site: @other_site)
+    filters = { date: visible.appointment.starts_at.in_time_zone(@practice.timezone).to_date.iso8601, limit: 1 }
+
+    result = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader, filters: filters)
+    assert_equal [ visible.id ], result.visits.map(&:id)
+    assert_nil result.next_cursor
+    assert_empty Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader,
+      filters: filters.merge(site_id: @other_site.id)).visits
+
+    revoke_all_permissions!(reader_membership)
+    assert_raises(Clinic::Authorization::Denied) do
+      Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader, filters: filters)
+    end
+
+    with_stubbed_singleton_method(Development::TestAccounts, :omni?, ->(user) { user.id == reader.id }) do
+      first = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader, filters: filters)
+      assert_equal [ visible.id ], first.visits.map(&:id)
+      assert first.next_cursor
+      second = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: reader,
+        filters: filters.merge(cursor: first.next_cursor))
+      assert_equal [ hidden.id ], second.visits.map(&:id)
+      assert_nil second.next_cursor
+    end
+  end
+
+  test "queue serialization preserves its detail contract with a smaller query budget" do
+    visit = book_video!(starts_at: 1.day.from_now).telehealth_visit
+    date = visit.appointment.starts_at.in_time_zone(@practice.timezone).to_date.iso8601
+    keys = %i[public_id status appointment readiness waiting_since connection encounter_id room updated_at allowed_actions]
+    detail = nil
+    detail_visit = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: @staff,
+      filters: { date: date }).visits.sole
+    detail_queries = select_query_count do
+      detail = Clinic::Telehealth::VisitSerializer.call(detail_visit, actor: @staff,
+        include_preparation: false).slice(*keys)
+    end
+
+    queue_row = nil
+    queue_visit = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: @staff,
+      filters: { date: date }).visits.sole
+    queue_queries = select_query_count do
+      queue_row = Clinic::Telehealth::VisitSerializer.queue_row(queue_visit, actor: @staff)
+    end
+
+    assert_equal detail, queue_row
+    assert_operator queue_queries, :<=, detail_queries - 3,
+      "expected queue row serialization to avoid full-detail queries (detail=#{detail_queries}, queue=#{queue_queries})"
+  end
+
+  test "queue media status ignores old room history after a visit restarts" do
+    visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    participant = visit.participants.patient.sole
+    old_room = ready_room!(visit)
+    record_event = lambda do |room, type|
+      room.provider_events.create!(practice: @practice, participant: participant,
+        provider_code: "daily", provider_account_ref: TEST_ACCOUNT_REF,
+        provider_event_id: SecureRandom.uuid, event_type: type,
+        occurred_at: Time.current, received_at: Time.current,
+        payload_digest: Digest::SHA256.hexdigest(type), normalized_metadata: {})
+    end
+    record_event.call(old_room, "participant.joined")
+    assert Clinic::Telehealth::VisitSerializer.media_present?(participant.reload)
+
+    old_room.update!(status: "ended", ended_at: Time.current)
+    visit.update!(current_room_attempt: nil, access_generation: visit.access_generation + 1)
+    payload = Clinic::Telehealth::PatientVisitSerializer.call(visit.reload, identity: @identity)
+    assert_equal false, payload[:participants].find { |row| row[:is_current] }[:media_present]
+    assert_equal "prepare", payload[:access_state]
+    assert_includes payload[:allowed_actions], "telehealth.submit_checkin"
+    assert_equal "preparation_needed", Clinic::Telehealth::VisitSerializer.queue_row(visit, actor: @staff)[:readiness]
+
+    current_room = ready_room!(visit)
+    record_event.call(old_room, "participant.left")
+    assert_equal "preparation_needed", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
+    record_event.call(current_room, "participant.joined")
+    assert_equal "connected", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
+    record_event.call(current_room, "participant.left")
+    assert_equal "disconnected", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
+  end
+
   test "booking persists modality and creates a policy-bound video visit without reserving a physical room" do
     in_person = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @staff,
       patient: @patient, site: @site, starts_at: 3.hours.from_now, ends_at: 4.hours.from_now,
@@ -188,6 +274,30 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal checkin.id, patient.admitted_checkin_id
     assert_predicate visit.reload, :in_progress?
     assert_predicate room.reload, :ready?
+
+    enter_again = lambda do |key|
+      Clinic::Telehealth::EnterWaitingRoom.call(visit: visit, identity: @identity, request_key: key,
+        expected_version: visit.reload.lock_version,
+        consent: { policy_version: visit.policy_version.version, decision: "accepted" })
+    end
+    consent_count = visit.consents.count
+    error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-already-admitted") }
+    assert_equal "participant_not_waitable", error.code
+    assert_predicate patient.reload, :admitted?
+    assert_equal consent_count, visit.consents.count
+
+    Clinic::Telehealth::RemoveParticipant.call(visit: visit, participant: patient, actor: @staff,
+      request_key: "telehealth-remove-waiting-patient", expected_version: visit.reload.lock_version)
+    error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-after-removal") }
+    assert_equal "participant_not_waitable", error.code
+    assert_predicate patient.reload, :removed?
+    refute_includes Clinic::Telehealth::PatientVisitSerializer.allowed_actions(visit, patient), "telehealth.enter_waiting_room"
+
+    Clinic::Telehealth::EndVisit.call(visit: visit, actor: @staff,
+      request_key: "telehealth-end-before-waiting", expected_version: visit.reload.lock_version)
+    error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-after-end") }
+    assert_equal "visit_not_waitable", error.code
+    assert_equal consent_count, visit.consents.count
 
     treatment_consent = visit.consents.find_by!(purpose: "telehealth")
     assert_raises(ActiveRecord::StatementInvalid) do
@@ -679,6 +789,31 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       participant: participant, type: "participant.left", provider_session_ref: "session-old",
       occurred_at: 2.minutes.ago)
     assert_predicate participant.reload, :admitted?
+
+    record_presence = lambda do |person, type, session, at|
+      current_room.provider_events.create!(practice: @practice, participant: person,
+        provider_code: "daily", provider_account_ref: TEST_ACCOUNT_REF,
+        provider_event_id: SecureRandom.uuid, event_type: type, provider_session_ref: session,
+        occurred_at: at, received_at: Time.current, payload_digest: Digest::SHA256.hexdigest(type),
+        normalized_metadata: {})
+    end
+    at = Time.current
+    record_presence.call(participant, "participant.left", "session-old", at)
+    Clinic::Telehealth::IngestProviderEvent.apply!(visit: visit.reload, room: current_room.reload,
+      participant: participant, type: "participant.left", provider_session_ref: "session-old", occurred_at: at)
+    assert_predicate participant.reload, :admitted?
+    assert Clinic::Telehealth::VisitSerializer.media_present?(participant)
+    assert_equal "connected", Clinic::Telehealth::VisitSerializer.connection(visit)
+
+    patient = visit.participants.patient.sole
+    record_presence.call(patient, "participant.joined", "patient-session", at + 1.second)
+    record_presence.call(participant, "participant.left", "session-new", at + 2.seconds)
+    assert_not Clinic::Telehealth::VisitSerializer.media_present?(participant)
+    assert Clinic::Telehealth::VisitSerializer.media_present?(patient)
+    assert_equal "connected", Clinic::Telehealth::VisitSerializer.connection(visit)
+
+    record_presence.call(patient, "participant.left", "patient-session", at + 3.seconds)
+    assert_equal "disconnected", Clinic::Telehealth::VisitSerializer.connection(visit)
   end
 
   test "historical reconciliation and delayed create results cannot mutate the replacement visit" do
@@ -843,6 +978,18 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
 
   private
 
+  def select_query_count
+    count = 0
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached] || payload[:name] == "SCHEMA"
+      count += 1 if payload[:sql].to_s.lstrip.start_with?("SELECT")
+    end
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") { yield }
+    end
+    count
+  end
+
   def configure_twilio_environment!
     ENV.update("APP_TELEHEALTH_PROVIDER" => "twilio", "APP_TELEHEALTH_TWILIO_ACCOUNT_SID" => twilio_account_sid,
       "APP_TELEHEALTH_TWILIO_API_KEY_SID" => "SK#{'b' * 32}",
@@ -924,10 +1071,10 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       visit_modality: "video")
   end
 
-  def direct_video_visit!(site: @site)
+  def direct_video_visit!(site: @site, starts_at: 1.day.from_now)
     appointment = @practice.appointments.create!(patient: @patient, site: site,
-      booked_clinician: @clinician, visit_type: @visit_type, starts_at: 1.day.from_now,
-      ends_at: 1.day.from_now + 30.minutes, status: "scheduled", visit_modality: "video")
+      booked_clinician: @clinician, visit_type: @visit_type, starts_at: starts_at,
+      ends_at: starts_at + 30.minutes, status: "scheduled", visit_modality: "video")
     Clinic::Telehealth::Visit.create!(practice: @practice, patient: @patient, appointment: appointment,
       policy_version: @setting.active_policy_version, created_by_membership: @membership, status: "scheduled")
   end

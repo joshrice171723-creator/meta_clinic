@@ -16,8 +16,11 @@ module Clinic
         end
         ability = Ability.new(actor, practice: practice)
         scope = Visit.where(practice_id: practice.id).joins(:appointment)
-        unless ability.practice_scope_for?("telehealth.read")
-          scope = scope.where(clinic_appointments: { site_id: ability.accessible_site_ids })
+        unless ability.allowed_permission?("telehealth.read")
+          site_ids = ability.accessible_site_ids.select do |site_id|
+            ability.allowed_permission?("telehealth.read", site: site_id)
+          end
+          scope = scope.where(clinic_appointments: { site_id: site_ids })
         end
         if values[:encounter_id].present?
           scope = scope.where(encounter_id: Integer(values[:encounter_id]), patient_id: Integer(values[:patient_id]))
@@ -42,9 +45,9 @@ module Clinic
         raise Error.new("Limit must be between 1 and 100.", code: "invalid_filter", status: :bad_request) unless limit.between?(1, 100)
         after_id = decode_cursor(values[:cursor]) if values[:cursor].present?
         scope = scope.where("clinic_telehealth_visits.id > ?", after_id) if after_id
-        records = scope.includes(:practice, :patient, :encounter, :policy_version, :current_room_attempt,
-          appointment: [ :practice, :patient, { booked_clinician: :membership } ],
-          participants: [ :membership, :portal_identity ], checkins: [], consents: []).order("clinic_telehealth_visits.id ASC").limit(limit + 1).to_a
+        records = scope.includes(:practice, :patient, :encounter, :policy_version, :current_room_attempt, :wrap_up,
+          appointment: [ :practice, :patient, :site, { booked_clinician: :membership } ],
+          participants: :membership).order("clinic_telehealth_visits.id ASC").limit(limit + 1).to_a
         more = records.length > limit
         records = records.first(limit)
         Result.new(visits: records, next_cursor: more ? encode_cursor(records.last.id) : nil, as_of: Time.current)

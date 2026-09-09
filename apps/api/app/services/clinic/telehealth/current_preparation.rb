@@ -4,7 +4,11 @@ module Clinic
       module_function
 
       def call(visit:, at: Time.current)
-        participant = visit.participants.find_by(role: "patient")
+        participant = if visit.participants.loaded?
+          visit.participants.find(&:patient?)
+        else
+          visit.participants.find_by(role: "patient")
+        end
         checkin = visit.checkins.where(access_generation: visit.access_generation).order(sequence: :desc).first
         consent = participant && visit.consents.where(participant_id: participant.id, purpose: "telehealth").order(sequence: :desc).first
         verification = checkin && Clinic::AuditResourceManifest.joins(:audit_event).where(
