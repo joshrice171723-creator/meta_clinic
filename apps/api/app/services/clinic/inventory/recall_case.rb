@@ -65,7 +65,13 @@ module Clinic
             raise ArgumentError, "This recall case is closed." if recall.closure.present? || recall.status == "closed"
             lot_ids = recall.recall_lots.order(:lot_id).lock.pluck(:lot_id)
             batches = PharmacyBatch.where(practice_id: practice.id, lot_id: lot_ids).where("on_hand > 0").order(:id).lock.to_a
-            missing = batches.reject { |batch| batch.active_holds.where(kind: "recalled", recall_id: recall.id).exists? }
+            contained_batch_ids = Hold.active.where(
+              practice_id: practice.id,
+              batch_id: batches.map(&:id),
+              kind: "recalled",
+              recall_id: recall.id
+            ).pluck(:batch_id).to_h { |id| [ id, true ] }
+            missing = batches.reject { |batch| contained_batch_ids.key?(batch.id) }
             raise ArgumentError, "Every on-hand position is already contained for this recall." if missing.empty?
 
             missing.each_with_index do |batch, index|
@@ -112,9 +118,6 @@ module Clinic
       end
 
       def self.create_hold!(recall:, batch:, actor:, reason:, request_key:)
-        existing = batch.active_holds.find_by(kind: "recalled", recall_id: recall.id)
-        return existing if existing
-
         batch.holds.create!(practice_id: recall.practice_id, actor: actor, recall: recall,
           kind: "recalled", reason: reason, request_key: request_key)
       end

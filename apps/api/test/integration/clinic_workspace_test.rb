@@ -678,6 +678,38 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal before, [ batch.reload.quantity, Clinic::Inventory::PharmacyMovement.where(batch_id: batch.id).count ]
   end
 
+  test "recall containment batches hold lookups across stock positions" do
+    product = @practice.pharmacy_products.create!(
+      name: "Synthetic containment item", sku: "SYN-CONTAIN", stock_unit: "tablet",
+      quantity_scale: 0, package_size: 10, unit_reference: "Synthetic package"
+    )
+    batches = 6.times.map do |index|
+      batch = product.batches.create!(practice: @practice, lot_number: "SYN-CONTAIN-LOT",
+        location: "Containment shelf #{index}", expires_on: Date.current + 1.year)
+      batch.move!(kind: "receipt", amount: "1", reason: "Synthetic containment stock", actor: @user,
+        request_key: SecureRandom.uuid)
+      batch
+    end
+    recall = @practice.inventory_recalls.create!(product: product, actor: @user,
+      reference: "SYN-CONTAIN-RECALL", status: "inventory_locked", reason: "Synthetic containment",
+      required_disposition: "return_to_supplier", effective_on: Date.current, affected_units: 6,
+      request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(16))
+    recall.recall_lots.create!(practice: @practice, lot: batches.first.lot)
+    hold_queries = []
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s
+      hold_queries << sql if sql.match?(/\ASELECT.*FROM "clinic_inventory_holds"/mi)
+    end
+
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+      Clinic::Inventory::RecallCase.contain!(recall: recall, actor: @user,
+        reason: "Synthetic containment run", request_key: SecureRandom.uuid)
+    end
+
+    assert_equal batches.map(&:id).sort, Clinic::Inventory::Hold.active.where(recall: recall).pluck(:batch_id).sort
+    assert_operator hold_queries.length, :<=, 2, hold_queries.join("\n")
+  end
+
   test "a separately authorized receiver quarantines a first incoming recalled lot" do
     product = @practice.pharmacy_products.create!(
       name: "Synthetic recalled tablet", sku: "SYN-FIRST-RECALL", stock_unit: "tablet",
