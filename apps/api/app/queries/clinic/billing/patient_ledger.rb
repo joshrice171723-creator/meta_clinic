@@ -14,6 +14,7 @@ module Clinic
       def call
         invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents, :invoice_stripe_checkouts).order(created_at: :desc, id: :desc).to_a
         payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events, :cash_tender, :billing_receipts).order(created_at: :desc, id: :desc).to_a
+        preload_adjustment_memberships(invoices) if @include_adjustment_evidence
 
         {
           schema_version: "clinic-patient-ledger-v1",
@@ -90,11 +91,20 @@ module Clinic
       def membership_name(membership_id)
         return nil if membership_id.nil?
 
-        @membership_names ||= Clinic::Membership.where(practice: @practice)
+        @membership_names[membership_id]
+      end
+
+      def preload_adjustment_memberships(invoices)
+        membership_ids = invoices.flat_map do |invoice|
+          [ invoice.voided_by_membership_id, *invoice.credit_notes.map(&:issued_by_membership_id) ]
+        end.compact.uniq
+        @membership_names = {}
+        return if membership_ids.empty?
+
+        @membership_names = Clinic::Membership.where(practice: @practice, id: membership_ids)
           .includes(:user).index_by(&:id).transform_values do |membership|
             membership.user.email_address.split("@").first.tr("._-", " ").titleize
           end
-        @membership_names[membership_id]
       end
 
       def payment_payload(payment)
