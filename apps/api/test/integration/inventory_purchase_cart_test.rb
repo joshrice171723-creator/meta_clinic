@@ -42,6 +42,25 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     assert orders.flat_map(&:lines).all? { |line| !line.attributes.key?("supplier_id") && line.price_snapshot_digest.present? }
   end
 
+  test "add retries are side effect free and changed payloads conflict" do
+    key = SecureRandom.uuid
+    post_item(@product_one, "2", request_key: key)
+    assert_response :created
+    item = active_cart.items.sole
+    assert_equal false, response.parsed_body.fetch("replayed")
+
+    assert_no_difference "Clinic::Inventory::PurchaseCartItem.count" do
+      post_item(@product_one, "2", request_key: key)
+      assert_response :created
+    end
+    assert_equal true, response.parsed_body.fetch("replayed")
+    assert_equal BigDecimal("2"), item.reload.requested_packages
+
+    post_item(@product_one, "3", request_key: key)
+    assert_response :conflict
+    assert_equal BigDecimal("2"), item.reload.requested_packages
+  end
+
   test "rejects a foreign destination without changing the cart" do
     add_item(@product_one, "2")
     cart = active_cart
@@ -87,7 +106,7 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
   test "rejects invalid source and ignores client supplied authority and prices" do
     post_item(@product_one, "2", source: "forged")
     assert_response :unprocessable_entity
-    assert_empty active_cart.items
+    assert_empty Clinic::Inventory::PurchaseCart.where(practice: @practice)
     post_item(@product_one, "2", actor_id: -1, practice_id: -1, status: "checked_out", selected_unit_price: "0", selected_supplier_id: @supplier_two.id)
     assert_response :created
     item = active_cart.items.sole
@@ -280,8 +299,8 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     patch "/api/clinic/inventory/purchase-cart/items/#{item.id}", params: { item: { requested_packages: quantity } }, headers: csrf_headers, as: :json
   end
 
-  def post_item(product, quantity, **extra)
-    post "/api/clinic/inventory/purchase-cart/items", params: { item: { product_id: product.id, requested_packages: quantity, destination_site_id: @site.id, reason: "Synthetic replenishment", source: "manual" }.merge(extra) }, headers: csrf_headers, as: :json
+  def post_item(product, quantity, request_key: SecureRandom.uuid, **extra)
+    post "/api/clinic/inventory/purchase-cart/items", params: { item: { product_id: product.id, requested_packages: quantity, destination_site_id: @site.id, reason: "Synthetic replenishment", source: "manual", request_key: request_key }.merge(extra) }, headers: csrf_headers, as: :json
   end
 
   def csrf_headers

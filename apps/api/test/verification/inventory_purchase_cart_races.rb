@@ -125,7 +125,8 @@ begin
   csrf = JSON.parse(request.call("Get", "/api/csrf").body).fetch("csrf_token")
   supplier.supplier_products.sole.update!(package_quantity: 5)
   added = request.call("Post", "/api/clinic/inventory/purchase-cart/items",
-    { item: { product_id: product.id, requested_packages: "3", destination_site_id: site.id, reason: "HTTP fixture receipt plan", source: "manual" } }, csrf)
+    { item: { product_id: product.id, requested_packages: "3", destination_site_id: site.id,
+      reason: "HTTP fixture receipt plan", source: "manual", request_key: SecureRandom.uuid } }, csrf)
   raise "HTTP cart add failed (#{added.code})" unless added.code == "201"
   http_cart = JSON.parse(added.body).dig("data", "purchase_cart")
   payload = { checkout: { cart_id: http_cart.fetch("id"), request_key: SecureRandom.uuid } }

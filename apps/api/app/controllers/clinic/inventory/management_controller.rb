@@ -13,6 +13,9 @@ module Clinic
       rescue_from PurchaseCartCheckout::OfferChanged do |error|
         render json: { error: error.message, code: "cart_offer_changed" }, status: :conflict
       end
+      rescue_from Clinic::Idempotency::Conflict do
+        render_error("That request key was already used for different operation data.", :conflict)
+      end
 
       def bootstrap
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
@@ -242,25 +245,60 @@ module Clinic
       end
 
       def add_purchase_cart_item
-        Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
-        input = params.require(:item).permit(:product_id, :requested_packages, :source, :destination_site_id, :reason)
-        cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
-        cart.with_draft_lock do
-          product = current_practice.pharmacy_products.lock("FOR SHARE").find(input.require(:product_id))
-          quantity = Quantity.parse(input.require(:requested_packages), scale: 0, zero: false)
-          cart.update!(destination_site: input[:destination_site_id].present? ? cart_destination(input[:destination_site_id]) : cart.destination_site, reason: input[:reason].presence || cart.reason)
-          item = cart.items.find_or_initialize_by(practice_id: current_practice.id, product_id: product.id)
-          raise ArgumentError, "A purchase cart supports at most 100 products." if item.new_record? && cart.items.count >= 100
-          quantity += item.requested_packages.to_d if item.persisted?
-          quantity = Quantity.parse(quantity.to_s("F"), scale: 0, zero: false)
-          offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: quantity)
-          item.assign_attributes(requested_packages: quantity, input_unit: "package", conversion_factor: offer.supplier_product.package_quantity,
-            selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier, selected_unit_price: offer.supplier_product.wholesale_unit_cost,
-            selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
-            price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest, source: input[:source].presence || "manual", status: "draft")
-          item.save!
+        input = params.require(:item).permit(:product_id, :requested_packages, :source, :destination_site_id, :reason, :request_key)
+        request_key = input.require(:request_key).to_s.downcase
+        validate_request_key!(request_key)
+        quantity = Quantity.parse(input.require(:requested_packages), scale: 0, zero: false)
+        source = input[:source].presence || "manual"
+        reason = input[:reason].to_s.strip.presence
+        payload = {
+          product_id: input.require(:product_id).to_s,
+          requested_packages: quantity.to_s("F"),
+          source: source,
+          destination_site_id: input[:destination_site_id].presence&.to_s,
+          reason: reason
+        }
+        outcome = Clinic::Idempotency.execute(
+          practice: current_practice,
+          actor: current_user,
+          operation_code: "inventory.purchase_cart_item_add",
+          request_key: request_key,
+          payload: payload,
+          authorization: -> {
+            Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
+          },
+          authorization_action: "procurement.create",
+          result_resource: ->(item) { item },
+          resource_resolver: ->(practice:, receipt:) {
+            PurchaseCartItem.where(practice_id: practice.id).find_by(id: receipt.resource_id)
+          }
+        ) do
+          cart = PurchaseCart.active_for(practice: current_practice, actor: current_user)
+          saved_item = nil
+          cart.with_draft_lock do
+            product = current_practice.pharmacy_products.lock("FOR SHARE").find(payload.fetch(:product_id))
+            cart.update!(
+              destination_site: payload[:destination_site_id].present? ? cart_destination(payload[:destination_site_id]) : cart.destination_site,
+              reason: reason || cart.reason
+            )
+            item = cart.items.find_or_initialize_by(practice_id: current_practice.id, product_id: product.id)
+            raise ArgumentError, "A purchase cart supports at most 100 products." if item.new_record? && cart.items.count >= 100
+            next_quantity = quantity + (item.persisted? ? item.requested_packages.to_d : 0)
+            next_quantity = Quantity.parse(next_quantity.to_s("F"), scale: 0, zero: false)
+            offer = PurchaseCartCheckout.select_offer(product: product, requested_packages: next_quantity)
+            item.assign_attributes(requested_packages: next_quantity, input_unit: "package", conversion_factor: offer.supplier_product.package_quantity,
+              selected_supplier_product: offer.supplier_product, selected_supplier: offer.supplier, selected_unit_price: offer.supplier_product.wholesale_unit_cost,
+              selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
+              price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest, source: source, status: "draft")
+            item.save!
+            saved_item = item
+          end
+          saved_item
         end
-        render json: params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }, status: :created
+        raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+        response = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: response.merge(replayed: outcome.replayed), status: :created
       end
 
       def update_purchase_cart_item

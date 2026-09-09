@@ -30,6 +30,9 @@ module Clinic
             end
             # Match shipment creation's order-before-shipment locking order.
             purchase_order = practice.inventory_purchase_orders.lock.find(purchase_order.id) if purchase_order
+            if purchase_order && !%w[sent partially_received].include?(purchase_order.status)
+              raise ArgumentError, "Only sent or partially received purchase orders can receive stock."
+            end
             if shipment
               shipment = Shipment.where(practice_id: practice.id).find(shipment.id)
             end

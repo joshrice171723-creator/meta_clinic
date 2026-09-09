@@ -238,6 +238,17 @@ class Clinic::Inventory::ReceivingTest < ActiveSupport::TestCase
     assert_equal "1.0", line.fetch(:available_packages)
   end
 
+  test "a canceled purchase order cannot receive its previously delivered shipment" do
+    @order.update!(status: "cancelled")
+
+    assert_no_difference "Clinic::Inventory::Receipt.count" do
+      error = assert_raises(ArgumentError) { receive }
+      assert_match(/Only sent or partially received/, error.message)
+    end
+    assert_equal 0, @order_line.reload.received_quantity
+    assert_empty @product.batches
+  end
+
   test "delivery intake pages open orders and selects exact tenant scoped records outside the page" do
     Clinic::Inventory::ReceivingQuery::PAGE_SIZE.times { order_for(@practice) }
     other_practice = Clinic::Practice.create!(name: "Other intake clinic")
