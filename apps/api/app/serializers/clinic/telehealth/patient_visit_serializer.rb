@@ -44,7 +44,8 @@ module Clinic
         return [] unless participant && !visit.status.in?(%w[ended cancelled no_show])
         actions = %w[telehealth.submit_checkin telehealth.record_consent]
         preparation ||= CurrentPreparation.call(visit: visit)
-        actions << "telehealth.enter_waiting_room" if preparation[:complete] && (visit.scheduled? || visit.in_progress?)
+        actions << "telehealth.enter_waiting_room" if preparation[:complete] && (visit.scheduled? || visit.in_progress?) &&
+          !participant.revoked_at? && participant.status.in?(%w[eligible waiting left])
         actions << "telehealth.join" if participant.admitted? && visit.current_room_attempt&.status.in?(%w[ready active])
         actions << "telehealth.leave" unless participant.removed?
         actions << "telehealth.scribe_consent" if visit.policy_version.scribe_enabled?

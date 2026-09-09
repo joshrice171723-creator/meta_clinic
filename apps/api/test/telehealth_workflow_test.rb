@@ -275,6 +275,30 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_predicate visit.reload, :in_progress?
     assert_predicate room.reload, :ready?
 
+    enter_again = lambda do |key|
+      Clinic::Telehealth::EnterWaitingRoom.call(visit: visit, identity: @identity, request_key: key,
+        expected_version: visit.reload.lock_version,
+        consent: { policy_version: visit.policy_version.version, decision: "accepted" })
+    end
+    consent_count = visit.consents.count
+    error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-already-admitted") }
+    assert_equal "participant_not_waitable", error.code
+    assert_predicate patient.reload, :admitted?
+    assert_equal consent_count, visit.consents.count
+
+    Clinic::Telehealth::RemoveParticipant.call(visit: visit, participant: patient, actor: @staff,
+      request_key: "telehealth-remove-waiting-patient", expected_version: visit.reload.lock_version)
+    error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-after-removal") }
+    assert_equal "participant_not_waitable", error.code
+    assert_predicate patient.reload, :removed?
+    refute_includes Clinic::Telehealth::PatientVisitSerializer.allowed_actions(visit, patient), "telehealth.enter_waiting_room"
+
+    Clinic::Telehealth::EndVisit.call(visit: visit, actor: @staff,
+      request_key: "telehealth-end-before-waiting", expected_version: visit.reload.lock_version)
+    error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-after-end") }
+    assert_equal "visit_not_waitable", error.code
+    assert_equal consent_count, visit.consents.count
+
     treatment_consent = visit.consents.find_by!(purpose: "telehealth")
     assert_raises(ActiveRecord::StatementInvalid) do
       Clinic::Telehealth::Consent.transaction(requires_new: true) do
