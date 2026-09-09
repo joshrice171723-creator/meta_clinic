@@ -16,7 +16,7 @@ import type {
   VisitType,
 } from "../../api/contracts";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { api, ApiError } from "../../api/client";
+import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
   TelehealthBookingFormat,
@@ -1546,6 +1546,7 @@ export function SoapNoteForm({
     useState<CorrectionTarget | null>(null);
   const [incomingNote, setIncomingNote] = useState<EncounterNote | null>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [replaceWorkingCopy, setReplaceWorkingCopy] = useState(false);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const restoredDraft = useRef(false);
   const skipNextDraftSave = useRef(false);
@@ -1588,8 +1589,18 @@ export function SoapNoteForm({
 
   const reloadWorkingDraft = () => {
     cancelPendingDraftSave();
+    setReplaceWorkingCopy(false);
     restoredDraft.current = false;
     workingDraft.reload();
+  };
+
+  const retryWorkingDraft = async () => {
+    cancelPendingDraftSave();
+    const snapshot = workingSnapshot();
+    if (!snapshot || !(await workingDraft.save(snapshot)))
+      setError(
+        "The current working note is still only in this window. Keep it open and retry when the connection is available.",
+      );
   };
 
   useEffect(() => {
@@ -1664,7 +1675,7 @@ export function SoapNoteForm({
   }, [note?.current_revision?.id, note?.current_revision?.revision_no]);
 
   useEffect(() => {
-    if (!workingDraft.ready || !restoredDraft.current) return;
+    if (busy || !workingDraft.ready || !restoredDraft.current) return;
     if (skipNextDraftSave.current) {
       skipNextDraftSave.current = false;
       return;
@@ -1681,6 +1692,7 @@ export function SoapNoteForm({
   }, [
     appliedTemplate,
     baseline,
+    busy,
     correctionTarget,
     dirty,
     patientInstructions,
@@ -1798,7 +1810,9 @@ export function SoapNoteForm({
       await completeNoteSave(attempt, reconciled);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       if (isUnknownNoteSaveError(caught)) {
@@ -1983,7 +1997,9 @@ export function SoapNoteForm({
       await completeNoteSave(attempt, reconciled);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       if (caught instanceof ApiError && caught.status === 404) {
@@ -2030,7 +2046,9 @@ export function SoapNoteForm({
       await completeNoteSave(attempt, reconciled);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       setSaveState(
@@ -2312,13 +2330,25 @@ export function SoapNoteForm({
         <Alert
           severity="warning"
           action={
-            <Button color="inherit" onClick={reloadWorkingDraft}>
-              Reload saved copy
-            </Button>
+            workingDraft.status === "error" ? (
+              <Button color="inherit" onClick={() => void retryWorkingDraft()}>
+                Retry saving current note
+              </Button>
+            ) : saveAttemptRef.current ? undefined : (
+              <Button
+                color="inherit"
+                onClick={() => setReplaceWorkingCopy(true)}
+              >
+                Load saved copy
+              </Button>
+            )
           }
         >
           {workingDraft.error ||
             "The protected working note could not be saved."}
+          {workingDraft.status === "conflict" && saveAttemptRef.current
+            ? " Reconcile the exact submitted request before replacing this copy."
+            : null}
         </Alert>
       )}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -2411,6 +2441,31 @@ export function SoapNoteForm({
           </Button>
           <Button onClick={() => void resetSaveAttempt()} disabled={busy}>
             Reset attempt
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={replaceWorkingCopy}
+        onClose={() => setReplaceWorkingCopy(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Replace this working note?</DialogTitle>
+        <DialogContent>
+          Loading the server copy replaces newer note edits currently held in
+          this window. Continue only after confirming those local edits are no
+          longer needed.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReplaceWorkingCopy(false)}>
+            Keep local note
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={reloadWorkingDraft}
+          >
+            Replace with saved copy
           </Button>
         </DialogActions>
       </Dialog>
@@ -3190,7 +3245,9 @@ function VisitWrapUp({
 
   const redirectIfUnauthorized = (caught: unknown) => {
     if (caught instanceof ApiError && caught.status === 401) {
-      window.location.replace("/login");
+      window.location.replace(
+        `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+      );
       return true;
     }
     return false;

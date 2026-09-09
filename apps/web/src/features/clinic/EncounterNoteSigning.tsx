@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import type { EncounterNote, SoapNoteSections } from "../../api/contracts";
-import { api, ApiError } from "../../api/client";
+import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { useClinic } from "./Workspace";
 
 type Attempt = { revisionNo: number; digest: string };
@@ -130,7 +130,9 @@ export function EncounterNoteSigning({
       }
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
-        window.location.replace("/login");
+        window.location.replace(
+          `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+        );
         return;
       }
       setError(
