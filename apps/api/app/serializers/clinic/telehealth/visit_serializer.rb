@@ -153,12 +153,20 @@ module Clinic
         existing_ids = visit.participants.filter_map(&:membership_id)
         memberships = Clinic::Membership.active.includes(:user, :clinician_profile)
           .where(practice_id: visit.practice_id).where.not(id: existing_ids).order(:id).to_a
+        eligible_ids = Clinic::Membership.active.where(practice_id: visit.practice_id)
+          .joins(:role_grants)
+          .joins("INNER JOIN role_version_permissions ON role_version_permissions.role_version_id = clinic_role_grants.role_version_id")
+          .joins("INNER JOIN permissions ON permissions.id = role_version_permissions.permission_id")
+          .where(permissions: { action_code: "telehealth.participate" }, clinic_role_grants: { revoked_at: nil })
+          .where("clinic_role_grants.effective_from <= ?", Time.current)
+          .where("clinic_role_grants.effective_until IS NULL OR clinic_role_grants.effective_until > ?", Time.current)
+          .where("clinic_role_grants.scope_kind = 'practice' OR (clinic_role_grants.scope_kind = 'site' AND clinic_role_grants.site_id = ?)", visit.appointment.site_id)
+          .distinct.pluck(:id).to_set
         staff_names = Clinic::Workforce::Employment.where(practice_id: visit.practice_id,
           membership_id: memberships.map(&:id)).includes(:staff_member).index_by(&:membership_id)
         memberships.filter_map do |candidate|
           next unless candidate.user.active?
-          next unless Ability.new(candidate.user, practice: visit.practice)
-            .allowed_permission?("telehealth.participate", site: visit.appointment.site)
+          next unless eligible_ids.include?(candidate.id) || Development::TestAccounts.omni?(candidate.user)
 
           {
             membership_id: candidate.id,
