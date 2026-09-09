@@ -480,7 +480,7 @@ export type BillingInvoiceDetail = {
   };
   void_reason?: string | null;
   voided_at?: string | null;
-  voided_by_membership_id?: number | null;
+  voided_by?: string | null;
   online_payment: InvoiceOnlinePayment;
 };
 export type InvoiceOnlinePayment = {
@@ -554,7 +554,7 @@ export type BillingPatientLedger = {
       created_at: string;
       reason?: string | null;
       issued_at?: string | null;
-      issued_by_membership_id?: number | null;
+      issued_by?: string | null;
     }[];
   }[];
   payments: {

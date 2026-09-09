@@ -571,6 +571,12 @@ export function CycleCountsScreen({
               />
             </div>
             <p className="inventory-info">{session.reason}</p>
+            {session.status === "completed" && (
+              <Alert severity="success">
+                This count session is completed. Its recorded observations and
+                reconciliation evidence are retained for review.
+              </Alert>
+            )}
             {isOpen(session.status) &&
               session.assignee_id === data.current_user_id && (
                 <InventoryScanInput
@@ -887,6 +893,18 @@ export function CycleCountsScreen({
                           }
                         />
                       </div>
+                      <Alert
+                        severity={selectedLine.reconciled ? "success" : "info"}
+                      >
+                        <strong>Count confirmation</strong>
+                        {`: ${selectedLine.product_name}, lot ${selectedLine.lot_number}, at ${selectedLine.location_path}. `}
+                        {`Signed variance ${decimalCompare(selectedLine.latest_count.variance_units, "0") > 0 ? "+" : ""}${number(selectedLine.latest_count.variance_units)} ${selectedLine.stock_unit}. `}
+                        {selectedLine.reconciled
+                          ? "Result: reconciled."
+                          : selectedLine.latest_count.stale
+                            ? "Result: a recount is required."
+                            : "Result: awaiting reconciliation."}
+                      </Alert>
                       {isOpen(session.status) && (
                         <>
                           <Button

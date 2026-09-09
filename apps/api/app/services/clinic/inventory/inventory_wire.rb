@@ -505,17 +505,17 @@ module Clinic
         administration = movement.medication_administration_movement&.medication_administration
         type = movement.kind
         source = if receipt
-          { kind: "receipt", label: "Receipt ##{receipt.id}" }
+          { kind: "receipt", label: "Recorded receipt" }
         elsif administration
           encounter = administration.encounter
-          { kind: "medication_administration", label: "Medication administration ##{administration.id}",
+          { kind: "medication_administration", label: "Medication administration",
             href: "/clinic/patients/#{encounter.patient_id}/encounters/#{encounter.id}" }
         else
-          { kind: "inventory_movement", label: "Inventory movement ##{movement.id}" }
+          { kind: "inventory_movement", label: movement.kind.to_s.humanize }
         end
         { id: movement.id.to_s, type: type, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s,
           quantity_units: quantity.abs.to_s("F"), direction: quantity.negative? ? "out" : "in",
-          source_id: receipt ? "receipt_#{receipt.id}" : movement.request_key.to_s, source: source,
+          source: source,
           occurred_at: movement.occurred_at.iso8601, actor_id: movement.actor_id&.to_s,
           actor_name: movement.actor && movement.actor.email_address.split("@").first.tr("._-", " ").titleize,
           reason: movement.reason }

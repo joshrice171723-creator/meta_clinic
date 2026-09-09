@@ -69,7 +69,7 @@ module Clinic
           payload.merge!(
             void_reason: invoice.void_reason,
             voided_at: invoice.voided_at&.iso8601,
-            voided_by_membership_id: invoice.voided_by_membership_id
+            voided_by: membership_name(invoice.voided_by_membership_id)
           )
         end
         payload
@@ -83,8 +83,18 @@ module Clinic
           currency: credit.currency,
           reason: credit.reason,
           issued_at: (credit.issued_at || credit.created_at).iso8601,
-          issued_by_membership_id: credit.issued_by_membership_id
+          issued_by: membership_name(credit.issued_by_membership_id)
         )
+      end
+
+      def membership_name(membership_id)
+        return nil if membership_id.nil?
+
+        @membership_names ||= Clinic::Membership.where(practice: @practice)
+          .includes(:user).index_by(&:id).transform_values do |membership|
+            membership.user.email_address.split("@").first.tr("._-", " ").titleize
+          end
+        @membership_names[membership_id]
       end
 
       def payment_payload(payment)

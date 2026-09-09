@@ -223,7 +223,6 @@ export type InventoryMovement = {
   location_id: string;
   quantity_units: Decimal;
   direction: string;
-  source_id: string;
   source?: { kind: string; label: string; href?: string };
   occurred_at: string;
   actor_id?: string;

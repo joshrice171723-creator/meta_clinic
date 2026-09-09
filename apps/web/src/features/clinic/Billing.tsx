@@ -1467,6 +1467,7 @@ function InvoiceDetail({
           {invoice.voided_at
             ? ` Recorded ${date(invoice.voided_at, true)}.`
             : ""}
+          {invoice.voided_by ? ` Voided by ${invoice.voided_by}.` : ""}
         </Alert>
       )}
       <Divider />
@@ -1561,7 +1562,7 @@ function LedgerAmount({
     created_at: string;
     reason?: string | null;
     issued_at?: string | null;
-    issued_by_membership_id?: number | null;
+    issued_by?: string | null;
   }[];
 }) {
   return (
@@ -1586,6 +1587,11 @@ function LedgerAmount({
             {entry.reason && (
               <Typography color="text.secondary" variant="body2">
                 Reason: {entry.reason}
+              </Typography>
+            )}
+            {entry.issued_by && (
+              <Typography color="text.secondary" variant="body2">
+                Recorded by {entry.issued_by}
               </Typography>
             )}
           </Box>

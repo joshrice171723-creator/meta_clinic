@@ -147,6 +147,12 @@ export function inventoryMovementViewState(
   return "results";
 }
 
+function readableEventLabel(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 const links: {
   screen: Screen;
   href: string;
@@ -7085,8 +7091,16 @@ function InventoryExceptionsScreen({
               label="Category"
               value={selected.category.replaceAll("_", " ")}
             />
-            <DataPoint label="Source type" value={selected.source_kind} />
-            <DataPoint label="Source record" value={selected.source_id} />
+            <DataPoint
+              label="Source"
+              value={
+                selected.source_kind === "batch"
+                  ? "Inventory stock position"
+                  : selected.source_kind === "hold"
+                    ? "Inventory hold"
+                    : "Delivery reconciliation"
+              }
+            />
             <DataPoint
               label="Product / lot"
               value={
@@ -7313,7 +7327,7 @@ export function ActivityScreen({
                       <Badge
                         tone={item.direction === "out" ? "warning" : "blue"}
                       >
-                        {item.type}
+                        {readableEventLabel(item.type)}
                       </Badge>
                     </td>
                     <td>
@@ -7331,7 +7345,9 @@ export function ActivityScreen({
                           <a href={item.source.href}>{item.source.label}</a>
                         </small>
                       ) : (
-                        <small>{item.source?.label ?? item.source_id}</small>
+                        <small>
+                          {item.source?.label ?? "Recorded inventory event"}
+                        </small>
                       )}
                     </td>
                     <td>{item.actor_name ?? "System record"}</td>

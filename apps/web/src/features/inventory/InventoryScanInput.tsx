@@ -94,7 +94,7 @@ export function InventoryScanInput({
       )
         return;
       setResult(payload.data);
-      if (payload.data.status === "unmatched") onClear?.();
+      if (payload.data.status !== "matched") onClear?.();
       if (
         payload.data.status === "matched" &&
         payload.data.matches.length === 1
@@ -122,6 +122,8 @@ export function InventoryScanInput({
           ? reason.message
           : "The scan could not be checked.",
       );
+      setResult(undefined);
+      onClear?.();
     } finally {
       if (version === requestVersion.current) {
         setLoading(false);
