@@ -166,6 +166,33 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
       employment.membership.role_grants.active.includes(:role_version).map { |grant| grant.role_version.role_code }
   end
 
+  test "employment administration batches serializer role and site associations" do
+    4.times do |index|
+      user = create_user("serialized-workforce-#{index}")
+      membership = @practice.memberships.create!(user: user)
+      staff = @practice.staff_members.create!(display_name: "Serialized workforce #{index}",
+        job_title: "Coordinator", active: true)
+      employment = Clinic::Workforce::Employment.create!(practice: @practice, staff_member: staff,
+        membership: membership, status: "active", effective_from: 1.hour.ago)
+      employment.employment_sites.create!(practice: @practice, site: @assigned_site,
+        active: true, effective_from: 1.hour.ago)
+    end
+    login(@manager)
+    association_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { association_queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        get "/api/clinic/workforce/employments", headers: @headers
+      end
+    end
+
+    assert_response :success
+    assert_equal 5, response.parsed_body.fetch("employments").length
+    assert_operator association_queries.count { |sql| sql.match?(/FROM "clinic_role_grants"/i) }, :<=, 2,
+      association_queries.join("\n")
+  end
+
   test "inactive employment removes workforce self-service without changing host identity" do
     login(@employee)
     get "/api/clinic/context", headers: @headers
