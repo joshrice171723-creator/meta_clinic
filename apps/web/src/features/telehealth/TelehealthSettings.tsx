@@ -26,6 +26,7 @@ import {
   disableNewTelehealthVisits,
   loadTelehealthSettings,
   publishTelehealthSettings,
+  requestKey,
   saveTelehealthSettingsDraft,
 } from "./api";
 import type {
@@ -74,6 +75,11 @@ export function TelehealthSettings() {
     "publish" | "disable" | "discard" | null
   >(null);
   const generation = useRef(0);
+  const operationPendingRef = useRef(false);
+  const operationAttemptRef = useRef<{
+    signature: string;
+    key: string;
+  } | null>(null);
   const canConfigure = Boolean(clinic.capabilities.telehealth_configure);
   const dirty = Boolean(
     response &&
@@ -134,19 +140,29 @@ export function TelehealthSettings() {
 
   async function run(
     label: string,
-    operation: () => Promise<TelehealthEnvelope<TelehealthSettingsData>>,
+    signature: string,
+    operation: (
+      key: string,
+    ) => Promise<TelehealthEnvelope<TelehealthSettingsData>>,
     message: string,
   ) {
-    if (pending) return;
+    if (operationPendingRef.current) return;
+    operationPendingRef.current = true;
+    const attempt =
+      operationAttemptRef.current?.signature === signature
+        ? operationAttemptRef.current
+        : { signature, key: requestKey() };
+    operationAttemptRef.current = attempt;
     const current = generation.current;
     setPending(label);
     setError(null);
     setNotice(null);
     setConfirm(null);
     try {
-      const next = await operation();
+      const next = await operation(attempt.key);
       if (current !== generation.current) return;
       accept(next);
+      operationAttemptRef.current = null;
       setNotice(message);
     } catch (reason) {
       if (current === generation.current)
@@ -156,6 +172,7 @@ export function TelehealthSettings() {
             : "The settings change could not be completed.",
         );
     } finally {
+      operationPendingRef.current = false;
       if (current === generation.current) setPending(null);
     }
   }
@@ -385,7 +402,8 @@ export function TelehealthSettings() {
               onClick={() =>
                 void run(
                   "connection",
-                  () => checkTelehealthConnection(version),
+                  `connection:${version}:${data.provider_account_ref}`,
+                  (key) => checkTelehealthConnection(version, key),
                   "Connection check completed. Review the provider status above.",
                 )
               }
@@ -811,7 +829,8 @@ export function TelehealthSettings() {
               onClick={() =>
                 void run(
                   "save",
-                  () =>
+                  `save:${version}:${JSON.stringify(edit)}`,
+                  (key) =>
                     saveTelehealthSettingsDraft(
                       version,
                       {
@@ -821,6 +840,7 @@ export function TelehealthSettings() {
                       },
                       draft,
                       edit.rules,
+                      key,
                     ),
                   "Draft saved. Publish it when the wording and eligibility rules are approved.",
                 )
@@ -863,17 +883,21 @@ export function TelehealthSettings() {
           <Button onClick={() => setConfirm(null)}>Cancel</Button>
           <Button
             variant="contained"
+            disabled={Boolean(pending)}
             onClick={() => {
               if (confirm === "publish")
                 void run(
                   "publish",
-                  () => publishTelehealthSettings(version, draft.version),
+                  `publish:${version}:${draft.version}`,
+                  (key) =>
+                    publishTelehealthSettings(version, draft.version, key),
                   "Policy published. Review provider readiness and booking status above.",
                 );
               else if (confirm === "disable")
                 void run(
                   "disable",
-                  () => disableNewTelehealthVisits(version),
+                  `disable:${version}`,
+                  (key) => disableNewTelehealthVisits(version, key),
                   "New video booking is disabled.",
                 );
               else {

@@ -39,6 +39,9 @@ module Clinic
           allowed = ability.allowed_permission?(permission, site: visit.appointment.site)
           actions << action_names.fetch(action) if allowed
         end
+        unless visit.scheduled? || visit.in_progress?
+          actions -= %w[telehealth.prepare_room telehealth.admit telehealth.end telehealth.extend]
+        end
         if actions.include?("telehealth.prepare_room")
           actions << "telehealth.add_participant"
           actions << "telehealth.start_encounter" if ability.allowed_permission?("encounters.write",

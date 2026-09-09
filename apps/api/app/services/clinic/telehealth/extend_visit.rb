@@ -17,6 +17,9 @@ module Clinic
           resource_resolver: ->(practice:, receipt:) { Command.find_by(practice_id: practice.id, id: receipt.resource_id) }) do
           visit.with_lock do
             raise ActiveRecord::StaleObjectError.new(visit, "update") unless visit.lock_version == expected_version.to_i
+            unless visit.scheduled? || visit.in_progress?
+              raise Error.new("This video visit can no longer be extended.", code: "visit_not_extendable", status: :conflict)
+            end
             room = visit.current_room_attempt
             raise Error.new("There is no active room to extend.", code: "room_not_active", status: :conflict) unless room&.status.in?(%w[ready active])
             raise Error.new("The room has not started yet.", code: "room_not_started", status: :conflict) unless visit.first_started_at
@@ -25,9 +28,11 @@ module Clinic
             unless requested > room.expires_at && requested <= ceiling
               raise Error.new("The requested extension exceeds the visit policy.", code: "extension_out_of_bounds")
             end
-            visit.commands.create!(practice_id: visit.practice_id, room_attempt_id: room.id, kind: "extend_room",
-              requested_expires_at: requested, dedupe_key: "extend:#{visit.access_generation}:#{room.id}:#{requested.to_i}",
-              access_generation: visit.access_generation, status: "pending", available_at: Time.current)
+            visit.commands.find_or_create_by!(dedupe_key: "extend:#{visit.access_generation}:#{room.id}:#{requested.to_i}") do |command|
+              command.assign_attributes(practice_id: visit.practice_id, room_attempt_id: room.id, kind: "extend_room",
+                requested_expires_at: requested, access_generation: visit.access_generation,
+                status: "pending", available_at: Time.current)
+            end
           end
         end
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
