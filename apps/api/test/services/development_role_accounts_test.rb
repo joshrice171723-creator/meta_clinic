@@ -62,6 +62,51 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
     end
   end
 
+  test "every normal role has an allowed action and a denied action" do
+    expected_policy = {
+      "clinic-administrator" => [ "roles.manage", "workforce.payroll.configure" ],
+      "billing-accounting" => [ "billing.payment_record", "inventory.adjust" ],
+      "front-desk-coordinator" => [ "appointments.book", "notes.write" ],
+      "clinician" => [ "notes.write", "billing.invoice_post" ],
+      "clinical-staff" => [ "encounters.write", "notes.sign" ],
+      "inventory-coordinator" => [ "inventory.adjust", "patients.read" ],
+      "records-viewer" => [ "notes.read", "notes.write" ]
+    }
+
+    local_mode do
+      accounts = Development::RoleAccounts.prepare!
+      practice = accounts.fetch("clinic-administrator").clinic_membership.practice
+      expected_policy.each do |role_code, (allowed, denied)|
+        actor = accounts.fetch(role_code)
+        assert Clinic::Authorization.allowed?(actor: actor, practice: practice, action: allowed), role_code
+        assert_not Clinic::Authorization.allowed?(actor: actor, practice: practice, action: denied), role_code
+      end
+    end
+  end
+
+  test "a clinician role grant is limited to its assigned location" do
+    local_mode do
+      accounts = Development::RoleAccounts.prepare!
+      practice = accounts.fetch("clinic-administrator").clinic_membership.practice
+      allowed_site = practice.sites.create!(code: "ROLE-ALLOWED")
+      other_site = practice.sites.create!(code: "ROLE-OTHER")
+      clinician_role = accounts.fetch("clinician").clinic_membership.role_grants.active.sole.role_version
+      actor = User.create!(email_address: "role-site-clinician@example.invalid", password: SecureRandom.hex(20))
+      membership = practice.memberships.create!(user: actor)
+      membership.role_grants.create!(
+        practice: practice,
+        role_version: clinician_role,
+        scope_kind: "site",
+        site: allowed_site,
+        effective_from: 1.minute.ago,
+        revision: 1
+      )
+
+      assert Clinic::Authorization.allowed?(actor: actor, practice: practice, action: "notes.write", site: allowed_site)
+      assert_not Clinic::Authorization.allowed?(actor: actor, practice: practice, action: "notes.write", site: other_site)
+    end
+  end
+
   test "retires anonymous accounts that have one grant for every permission" do
     local_mode do
       user = User.create!(email_address: "demo-#{SecureRandom.uuid}@example.invalid", password: SecureRandom.hex(32))
