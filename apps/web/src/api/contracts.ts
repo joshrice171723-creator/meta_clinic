@@ -533,7 +533,7 @@ export type BillingPatientLedger = {
     };
     void_reason?: string | null;
     voided_at?: string | null;
-    voided_by_membership_id?: number | null;
+    voided_by?: string | null;
     lines: {
       id: number;
       description: string;

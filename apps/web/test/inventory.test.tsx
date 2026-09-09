@@ -147,7 +147,6 @@ describe("inventory integration", () => {
           location_id: "1",
           quantity_units: "0.125",
           direction: "in",
-          source_id: "receipt_1",
           occurred_at: "2026-09-05T12:00:00Z",
           reason: "Older receipt fixture",
           lot_number: "OLD-LOT",

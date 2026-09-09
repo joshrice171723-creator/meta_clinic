@@ -910,6 +910,7 @@ describe("viewport-height clinic menu navigation", () => {
       const html = renderToStaticMarkup(
         <ClinicFrame
           practiceName="Example clinic"
+          timezone="America/Chicago"
           navigation={<a href="/clinic">Overview</a>}
         >
           <h1>Example workload</h1>
