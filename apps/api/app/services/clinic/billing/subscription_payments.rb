@@ -117,9 +117,12 @@ module Clinic
           raise ArgumentError, "Use the existing cash refund workflow for cash payments." unless payment.external_event_reference.start_with?("subscription:ci_")
           raise ArgumentError, "This fixture workflow supports a full remaining refund." unless value == payment.amount - payment.refund_events.sum(:amount)
           raise ArgumentError, "Refund exceeds the remaining payment." if payment.refund_events.sum(:amount) + value > payment.amount
-          refund = payment.refund_events.create!(practice: agreement.practice, patient: agreement.patient, currency: agreement.currency, amount: value)
+          refund_reason = "Subscription refund recorded by clinic staff"
+          refund = payment.refund_events.create!(practice: agreement.practice, patient: agreement.patient,
+            currency: agreement.currency, amount: value, reason: refund_reason)
           BillingReceipt.create!(practice: agreement.practice, patient: agreement.patient, invoice: agreement.invoice, payment_event: payment,
-            issued_by: actor, kind: "subscription_refund", issued_at: Time.current, payload: { amount: value.to_s("F"), currency: agreement.currency, refund_id: refund.id })
+            issued_by: actor, kind: "subscription_refund", issued_at: Time.current,
+            payload: { amount: value.to_s("F"), currency: agreement.currency, refund_id: refund.id, reason: refund_reason })
           agreement.events.create!(practice: agreement.practice, kind: "refunded", request_key: key, details: { amount: value.to_s("F"), refund_id: refund.id })
           AuditRecorder.record!(practice: agreement.practice, actor: actor, action_code: "subscriptions.refund", outcome: :committed, resource_version_ref: "refund:#{refund.id}")
           agreement

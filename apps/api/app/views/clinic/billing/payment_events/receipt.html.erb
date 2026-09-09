@@ -46,10 +46,13 @@
     <% if @receipt.payload["change_amount"].present? %>
       <p>Change returned: <%= @receipt.payload.fetch("currency") %> <%= number_with_precision(@receipt.payload["change_amount"], precision: 2, delimiter: ",") %></p>
     <% end %>
+    <% if @receipt.payload["reason"].present? %>
+      <p>Refund reason: <%= @receipt.payload.fetch("reason") %></p>
+    <% end %>
     <% if @refunds.any? && !@receipt.kind.end_with?("refund") %>
       <h2>Subsequent refunds</h2>
       <% @refunds.each do |refund| %>
-        <p><%= refund.created_at.in_time_zone(@practice.timezone).strftime("%B %-d, %Y") %> · <%= refund.currency %> <%= number_with_precision(refund.amount, precision: 2, delimiter: ",") %></p>
+        <p><%= refund.created_at.in_time_zone(@practice.timezone).strftime("%B %-d, %Y") %> · <%= refund.currency %> <%= number_with_precision(refund.amount, precision: 2, delimiter: ",") %><% if refund.reason.present? %> · <%= refund.reason %><% end %></p>
       <% end %>
       <p class="muted">This receipt preserves the original payment. Refunds are shown separately.</p>
     <% end %>

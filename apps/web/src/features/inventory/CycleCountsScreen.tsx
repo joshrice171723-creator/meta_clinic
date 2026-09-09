@@ -130,8 +130,7 @@ export function CycleCountsScreen({
   const [nextAssigneeId, setNextAssigneeId] = useState("");
   const [sessionActionReason, setSessionActionReason] = useState("");
   const scanTarget = useRef<{ sessionId: string; lineId: string } | null>(null);
-  const selectedLine =
-    data.lines.find((line) => line.id === lineId) ?? data.lines[0];
+  const selectedLine = data.lines.find((line) => line.id === lineId);
   const canConfigure = data.capabilities["inventory.configure"] === true;
   const readBlocked = Boolean(pendingMutation);
   const readDisabled = loading || busy || readBlocked;
@@ -598,6 +597,13 @@ export function CycleCountsScreen({
                       line_page: match.line_page,
                     });
                   }}
+                  onClear={() => {
+                    scanTarget.current = null;
+                    setLineId("");
+                    setCountedUnits("");
+                    setObservationReason("");
+                    setLineActionReason("");
+                  }}
                 />
               )}
             {isOpen(session.status) &&
@@ -881,34 +887,38 @@ export function CycleCountsScreen({
                           }
                         />
                       </div>
-                      <Button
-                        variant="outlined"
-                        disabled={mutationDisabled(
-                          approveEndpoint,
-                          approveBody,
-                          approveInvalid,
-                          canApprove,
-                        )}
-                        onClick={() =>
-                          void run(
-                            approveEndpoint,
-                            approveBody,
-                            "Count approved",
-                            "The latest count was reconciled by an eligible independent reviewer.",
-                          )
-                        }
-                      >
-                        {isSamePending(approveEndpoint, approveBody)
-                          ? "Retry approval"
-                          : selectedLine.latest_count.approved
-                            ? "Approved"
-                            : "Approve latest count"}
-                      </Button>
-                      {!canApprove && !selectedLine.latest_count.approved && (
-                        <p className="inventory-permission">
-                          A different eligible reviewer is required. Variances
-                          also require inventory.adjust.
-                        </p>
+                      {isOpen(session.status) && (
+                        <>
+                          <Button
+                            variant="outlined"
+                            disabled={mutationDisabled(
+                              approveEndpoint,
+                              approveBody,
+                              approveInvalid,
+                              canApprove,
+                            )}
+                            onClick={() =>
+                              void run(
+                                approveEndpoint,
+                                approveBody,
+                                "Count approved",
+                                "The latest count was reconciled by an eligible independent reviewer.",
+                              )
+                            }
+                          >
+                            {isSamePending(approveEndpoint, approveBody)
+                              ? "Retry approval"
+                              : selectedLine.latest_count.approved
+                                ? "Approved"
+                                : "Approve latest count"}
+                          </Button>
+                          {!canApprove && !selectedLine.latest_count.approved && (
+                            <p className="inventory-permission">
+                              A different eligible reviewer is required. Variances
+                              also require inventory.adjust.
+                            </p>
+                          )}
+                        </>
                       )}
                     </>
                   )}

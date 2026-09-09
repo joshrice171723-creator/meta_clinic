@@ -82,7 +82,7 @@ module Clinic
       def value_shape_is_valid
         case value_kind
         when "numeric"
-          errors.add(:numeric_value, "is required") if numeric_value.nil?
+          errors.add(:numeric_value, "is required") if numeric_value.blank?
           errors.add(:unit_code, "is required") if unit_code.blank?
           errors.add(:numeric_value, "must be finite") if numeric_value.present? && !finite_numeric_value?
           errors.add(:text_value, "must be blank") if text_value.present?

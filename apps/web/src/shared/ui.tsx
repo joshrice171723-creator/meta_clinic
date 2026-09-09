@@ -111,7 +111,15 @@ export function Field({
   const props = { name, id, required, defaultValue: value, autoComplete };
   return (
     <div className="form-field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label}
+        {required && (
+          <>
+            <span aria-hidden="true"> *</span>
+            <span className="sr-only"> (required)</span>
+          </>
+        )}
+      </label>
       {options ? (
         <select {...props}>
           {options.map((o) => (

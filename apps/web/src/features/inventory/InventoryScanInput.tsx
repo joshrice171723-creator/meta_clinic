@@ -15,6 +15,7 @@ export function InventoryScanInput({
   label = "Scan product barcode",
   manualFallback,
   onMatch,
+  onClear,
 }: {
   context: InventoryScanContext;
   productId?: string;
@@ -23,6 +24,7 @@ export function InventoryScanInput({
   label?: string;
   manualFallback: string;
   onMatch: (match: InventoryScanMatch) => void;
+  onClear?: () => void;
 }) {
   const [scanCode, setScanCode] = useState("");
   const [result, setResult] = useState<InventoryScanData>();
@@ -66,7 +68,10 @@ export function InventoryScanInput({
     controller.current = nextController;
     setLoading(true);
     setError("");
-    if (page === 1) setResult(undefined);
+    if (page === 1) {
+      setResult(undefined);
+      onClear?.();
+    }
     try {
       const payload = await api<{ data: InventoryScanData }>(
         "/api/clinic/inventory/scan",
@@ -89,6 +94,7 @@ export function InventoryScanInput({
       )
         return;
       setResult(payload.data);
+      if (payload.data.status === "unmatched") onClear?.();
       if (
         payload.data.status === "matched" &&
         payload.data.matches.length === 1
@@ -104,6 +110,7 @@ export function InventoryScanInput({
             matches: [],
             message: "This scan does not match the selected product.",
           });
+          onClear?.();
         }
       }
     } catch (reason) {

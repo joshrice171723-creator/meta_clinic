@@ -83,6 +83,15 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal original_name, response.parsed_body.dig("administrations", 0, "product", "name")
     assert_equal "Medication room", response.parsed_body.dig("administrations", 0, "movements", 0, "location_name")
+
+    get "/api/clinic/inventory/activity", params: { view: "ledger" }, headers: @headers
+    assert_response :success
+    ledger_row = response.parsed_body.dig("data", "movements").find do |row|
+      row.dig("source", "kind") == "medication_administration"
+    end
+    assert_equal "Medication administration ##{administration.id}", ledger_row.dig("source", "label")
+    assert_equal "/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}", ledger_row.dig("source", "href")
+    assert_equal "Medication Administration", ledger_row.fetch("actor_name")
   end
 
   test "exact retry returns the same administration and changed payload conflicts without another deduction" do

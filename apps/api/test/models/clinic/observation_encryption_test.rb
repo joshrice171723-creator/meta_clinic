@@ -154,4 +154,18 @@ class ClinicObservationEncryptionTest < ActiveSupport::TestCase
     assert_includes observation.errors[:text_value], "must be blank"
     assert_not Clinic::Care::Observation.exists?(code: "synthetic-mixed")
   end
+
+  test "a numeric observation rejects an empty numeric value" do
+    practice = Clinic::Practice.create!(name: "Synthetic Empty Numeric Practice", timezone: "UTC")
+    patient = practice.patients.create!(display_name: "Synthetic Empty Numeric Patient", reference: "OBS-EMPTY")
+    user = User.create!(email_address: "observation-empty@example.invalid", password: SecureRandom.hex(18))
+    membership = practice.memberships.create!(user: user)
+    observation = patient.observations.new(
+      practice: practice, author_membership: membership, code: "synthetic-empty", code_system: "synthetic", code_version: "1",
+      value_kind: "numeric", numeric_value: "", unit_code: "cm", observed_at: Time.current, recorded_at: Time.current
+    )
+
+    assert_not observation.valid?
+    assert_includes observation.errors[:numeric_value], "is required"
+  end
 end

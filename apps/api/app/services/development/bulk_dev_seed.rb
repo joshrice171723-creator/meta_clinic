@@ -381,7 +381,8 @@ module Development
           refund = Clinic::RefundEvent.find_or_initialize_by(payment_event: payment, amount: row.fetch("amount"))
           next if refund.persisted?
 
-          refund.assign_attributes(practice: practice, patient: patients.fetch(row.fetch("patient_key")), currency: row.fetch("currency"))
+          refund.assign_attributes(practice: practice, patient: patients.fetch(row.fetch("patient_key")), currency: row.fetch("currency"),
+            reason: row.fetch("reason", "Historical refund record"))
           refund.created_at ||= seed_timestamp(as_of, integer(row.fetch("days_ago")), hour: 17)
           refund.save!
         end

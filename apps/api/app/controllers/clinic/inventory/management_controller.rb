@@ -414,10 +414,25 @@ module Clinic
         validate_request_key!(input.require(:request_key).to_s)
         batch = batch_for(input)
         delta = Quantity.parse(input.require(:delta_units), scale: batch.product.quantity_scale, zero: true)
-        reason = input.require(:reason).to_s
+        reason = required_adjustment_reason!(input.require(:reason))
         raise ArgumentError, "Adjustment cannot be zero." if delta.zero?
-        batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs, reason: reason, actor: current_user, request_key: input[:request_key].to_s)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        movement = batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs, reason: reason, actor: current_user, request_key: input[:request_key].to_s)
+        batch.reload
+        adjustment = {
+          id: movement.id.to_s,
+          delta_units: movement.quantity.to_d.to_s("F"),
+          reason: movement.reason,
+          product_name: batch.product.name,
+          lot_number: batch.lot.number,
+          location_name: batch.location_record.name,
+          resulting_on_hand_units: batch.quantity.to_d.to_s("F"),
+          stock_unit: batch.product.stock_unit
+        }
+        if params[:response] == "ack"
+          render json: { acknowledged: true, adjustment: adjustment }
+        else
+          render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), adjustment: adjustment }
+        end
       end
 
       def create_count
@@ -537,6 +552,14 @@ module Clinic
 
       def validate_request_key!(key)
         raise ArgumentError, "A valid idempotency key is required." unless key.match?(/\A[0-9a-f-]{36}\z/i)
+      end
+
+      def required_adjustment_reason!(value)
+        reason = value.to_s.strip
+        raise ArgumentError, "Enter a reason for this inventory adjustment." if reason.empty?
+        raise ArgumentError, "Keep the adjustment reason within 200 characters." if reason.length > 200
+
+        reason
       end
     end
   end

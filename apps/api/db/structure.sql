@@ -6156,6 +6156,8 @@ CREATE TABLE public.clinic_refund_events (
     amount numeric(20,6) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    reason character varying NOT NULL,
+    CONSTRAINT clinic_refund_events_reason_length CHECK (((char_length((reason)::text) >= 1) AND (char_length((reason)::text) <= 200))),
     CONSTRAINT clinic_refund_events_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric)))
 );
 
@@ -23538,6 +23540,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260908230000'),
 ('20260908220000'),
 ('20260908210000'),
 ('20260908001000'),

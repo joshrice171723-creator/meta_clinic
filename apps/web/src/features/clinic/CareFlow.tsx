@@ -285,9 +285,13 @@ export function clinicDateTime(value: string | null, timezone: string) {
   if (!Number.isFinite(date.valueOf())) return "Not recorded";
   try {
     return new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
       timeZone: timezone,
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
     }).format(date);
   } catch {
     return "Not recorded";
@@ -330,6 +334,17 @@ function patientAge(
       date.getUTCDate() < birth.getUTCDate());
   if (beforeBirthday) age -= 1;
   return age >= 0 ? String(age) : "Not recorded";
+}
+
+function patientSexLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    female: "Female",
+    male: "Male",
+    intersex: "Intersex",
+    unknown: "Unknown",
+    not_recorded: "Not recorded",
+  };
+  return labels[value ?? ""] ?? "Not recorded";
 }
 
 function observationByLabel(observations: Observation[], pattern: RegExp) {
@@ -2365,11 +2380,8 @@ export function ProviderEncounterWorkflow({
                   <TableCell>Not recorded</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell component="th">Last Name</TableCell>
-                  <TableCell>
-                    {patient.display_name.split(",")[0]?.trim() ||
-                      "Not recorded"}
-                  </TableCell>
+                  <TableCell component="th">Patient</TableCell>
+                  <TableCell>{patient.display_name || "Not recorded"}</TableCell>
                   <TableCell component="th">Age</TableCell>
                   <TableCell>
                     {patientAge(
@@ -2381,15 +2393,9 @@ export function ProviderEncounterWorkflow({
                   <TableCell>Not recorded</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell component="th">First Name</TableCell>
-                  <TableCell>
-                    {patient.display_name.split(",")[1]?.trim() ||
-                      patient.display_name ||
-                      "Not recorded"}
-                  </TableCell>
                   <TableCell component="th">Sex</TableCell>
                   <TableCell>
-                    {patient.demographics?.sex || "Not recorded"}
+                    {patientSexLabel(patient.demographics?.sex)}
                   </TableCell>
                   <TableCell component="th">Phone</TableCell>
                   <TableCell>
@@ -2398,24 +2404,24 @@ export function ProviderEncounterWorkflow({
                       patient.contacts?.[0]?.contact_value ||
                       "Not recorded"}
                   </TableCell>
-                </TableRow>
-                <TableRow>
                   <TableCell component="th">Birthdate</TableCell>
                   <TableCell>
                     {patient.demographics?.date_of_birth || "Not recorded"}
                   </TableCell>
+                </TableRow>
+                <TableRow>
                   <TableCell component="th">Heart Rate</TableCell>
                   <TableCell>
                     {observationByLabel(observations, /heart\s*rate/i)}
                   </TableCell>
                   <TableCell component="th">Blood Pressure</TableCell>
                   <TableCell>{bloodPressureValue(observations)}</TableCell>
-                </TableRow>
-                <TableRow>
                   <TableCell component="th">Weight</TableCell>
                   <TableCell>
                     {observationByLabel(observations, /weight/i)}
                   </TableCell>
+                </TableRow>
+                <TableRow>
                   <TableCell component="th">Encounter</TableCell>
                   <TableCell>#{encounter.id}</TableCell>
                   <TableCell component="th">Chart Status</TableCell>
