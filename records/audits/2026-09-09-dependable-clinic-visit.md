@@ -209,3 +209,11 @@ Source inspection confirms atomic registration parent/child creation, same-key b
 Initial phase: source audit and complete documentation, then cohesive implementation, implementation freeze, one consolidated high-value verification pass, and only affected reruns after repairs. Existing integrated test `apps/api/test/integration/clinic_integrated_journey_test.rb` bypasses registration, vitals, note editing and follow-up and supplies no browser-interruption proof; it is not acceptance of this contract.
 
 Isolated runtime configuration: PostgreSQL container `apply-dependable-visit`, port `54339`, development database `apply_dependable_visit_development`, test database `apply_dependable_visit_test`, frontend `3100`, API `3101`. Canonical setup completed against the isolated database. Final evidence and unresolved gates will be appended here.
+
+### Implementation checkpoint — 2026-09-09
+
+The full initial issue inventory was committed before application edits in `2fbcbf7` and `a44d66e`. Shared working-copy persistence, draft version/context checks, request deadlines, account preconditions, independent navigation blockers and return-route recovery are implemented in `edb92f3`, `2f0cbdb` and `0848940`. The new working-draft migration was applied successfully to the isolated development database. Canonical `bin/dev start --no-browser` reported the isolated frontend/API ready. These facts are implementation/setup evidence, not end-to-end verification.
+
+Independent source implementation branches are `codex/visit-registration` in `APPly-visit-registration`, `codex/visit-clinical` in `APPly-visit-clinical` and `codex/visit-checkout` in `APPly-visit-checkout`, under `C:/Users/joshr/Desktop/Worktrees/`. They are not delivered until integrated into the primary candidate. Shared API/types/routes/schema and final integration belong to the primary candidate. Checkout's follow-up migration is allocated `20260909004100`; the working-draft migration is `20260909004000`.
+
+The user narrowed verification to high-value checks and asked not to spend substantial time testing. The final pass will therefore concentrate on persisted outcomes, stale/wrong-context rejection, exact replay, draft restoration and one complete local browser journey. Cosmetic assertions, repeated full-suite runs and source-text-mirroring tests are excluded.
