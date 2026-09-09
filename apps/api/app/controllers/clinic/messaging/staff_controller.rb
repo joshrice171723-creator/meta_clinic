@@ -11,15 +11,21 @@ module Clinic
 
       def index
         member = StaffPolicy.member_for!(practice: current_practice, actor: current_user)
-        visible_ids = Clinic::StaffConversation.where(practice_id: current_practice.id).joins(:members).where(
-          clinic_staff_conversation_members: { membership_id: member.id, membership_state: "active" }
-        ).distinct.pluck(:id)
-        conversations = Clinic::StaffConversation.where(practice_id: current_practice.id, id: visible_ids)
-        conversations = conversations.where(id: conversations.select { |conversation| authorized_site?(conversation) }.map(&:id))
-        conversations = conversations.where(id: conversations.select { |conversation| filter_match?(conversation) }.map(&:id))
-        paginate(conversations.includes(members: { membership: :user }), key: :conversations,
-          serializer: ->(conversation) { StaffMessagingSerializer.conversation(conversation, actor_membership_id: member.id) },
-          order: { last_message_at: :desc, id: :desc })
+        conversations = ConversationIndex.call(
+          practice: current_practice, ability: current_ability, membership: member, filter: params[:filter]
+        )
+        records, pagination = paginated_records(
+          conversations, order: { last_message_at: :desc, id: :desc }
+        )
+        records = ConversationIndex.with_summary(
+          records, practice: current_practice, membership: member
+        ).includes(members: { membership: :user })
+        render json: {
+          conversations: records.map do |conversation|
+            StaffMessagingSerializer.conversation(conversation, actor_membership_id: member.id)
+          end,
+          pagination: pagination
+        }
       end
 
       def recover
@@ -171,21 +177,6 @@ module Clinic
 
       private
 
-      def authorized_site?(conversation)
-        Clinic::Authorization.allowed?(actor: current_user, practice: current_practice, action: "staff_messaging.read", site: conversation.site_id)
-      end
-
-      def filter_match?(conversation)
-        filter = params[:filter].to_s
-        return true if filter.blank?
-        case filter
-        when "unread" then conversation.messages.joins(:receipts).where(clinic_staff_message_receipts: { recipient_membership_id: clinic_membership.id, read_at: nil }).exists?
-        when "urgent" then conversation.messages.where(message_class: %w[urgent safety_critical], status: "active").exists?
-        when "assigned" then conversation.messages.joins(:request).where(clinic_staff_message_requests: { assignee_membership_id: clinic_membership.id }).where.not(clinic_staff_message_requests: { state: %w[resolved declined expired] }).exists?
-        when "unresolved" then conversation.messages.joins(:request).where.not(clinic_staff_message_requests: { state: %w[resolved declined expired] }).exists?
-        else false
-        end
-      end
     end
   end
 end

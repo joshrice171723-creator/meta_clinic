@@ -7,20 +7,42 @@ module Clinic
     end
 
     def conversation(conversation, actor_membership_id: nil)
-      active_members = conversation.members.active.includes(membership: :user)
-      unread = actor_membership_id && conversation.messages.joins(:receipts).where(
-        clinic_staff_message_receipts: { recipient_membership_id: actor_membership_id, read_at: nil }
-      ).exists?
-      latest = conversation.messages.order(created_at: :desc, id: :desc).first
+      active_members = if conversation.association(:members).loaded?
+        conversation.members.target.select { |member| member.membership_state == "active" }
+      else
+        conversation.members.active.includes(membership: :user).to_a
+      end
+      unread = projected_boolean(conversation, "staff_unread") do
+        actor_membership_id && conversation.messages.joins(:receipts).where(
+          clinic_staff_message_receipts: { recipient_membership_id: actor_membership_id, read_at: nil }
+        ).exists?
+      end
+      urgent = projected_boolean(conversation, "staff_urgent") do
+        conversation.messages.where(message_class: %w[urgent safety_critical], status: "active").exists?
+      end
+      unresolved = projected_boolean(conversation, "staff_unresolved") do
+        conversation.messages.joins(:request)
+          .where.not(clinic_staff_message_requests: { state: %w[resolved declined expired] }).exists?
+      end
+      latest_message_class = if conversation.has_attribute?("staff_latest_message_class")
+        conversation["staff_latest_message_class"]
+      else
+        conversation.messages.order(created_at: :desc, id: :desc).pick(:message_class)
+      end
       {
         id: conversation.id, kind: conversation.kind, title: conversation.title,
         status: conversation.status, site_id: conversation.site_id,
         last_message_at: conversation.last_message_at,
-        unread: !!unread, urgent: conversation.messages.where(message_class: %w[urgent safety_critical], status: "active").exists?,
-        unresolved: conversation.messages.joins(:request).where.not(clinic_staff_message_requests: { state: %w[resolved declined expired] }).exists?,
+        unread: !!unread, urgent: urgent, unresolved: unresolved,
         participants: active_members.map { |member| participant(member.membership) },
-        last_message_class: latest&.message_class
+        last_message_class: latest_message_class
       }
+    end
+
+    def projected_boolean(record, attribute)
+      return ActiveModel::Type::Boolean.new.cast(record[attribute]) if record.has_attribute?(attribute)
+
+      yield
     end
 
     def message(message, include_body: true)
