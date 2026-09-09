@@ -83,7 +83,7 @@ module Clinic
         allowed = AccessPolicy.allowed_actions(actor_context: { actor: actor, practice: visit.practice }, visit: visit,
           participant: participant, ability: ability)
         allowed.delete("telehealth.save_wrap_up")
-        can_manage_wrap_up = WrapUpWorkflow.can_manage?(visit: visit, actor: actor)
+        can_manage_wrap_up = WrapUpWorkflow.can_manage?(visit: visit, actor: actor, ability: ability)
         if can_manage_wrap_up && !visit.wrap_up&.finalized?
           allowed << "telehealth.save_wrap_up"
           if WrapUpWorkflow.can_finalize?(visit: visit, actor: actor) &&
