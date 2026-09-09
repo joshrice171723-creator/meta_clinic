@@ -192,14 +192,16 @@ export function Billing() {
       return;
     }
     let active = true;
+    const controller = new AbortController();
     setLedger((current) =>
       current.data?.patient.id === selectedPatientId ? current : {},
     );
     api<BillingPatientLedger>(
       `/api/clinic/patients/${selectedPatientId}/billing_ledger`,
+      { signal: controller.signal },
     )
       .then((data) => {
-        if (active) {
+        if (active && !controller.signal.aborted) {
           setLedger({ data });
           setSelectedInvoiceId((current) =>
             current && data.invoices.some((invoice) => invoice.id === current)
@@ -209,7 +211,7 @@ export function Billing() {
         }
       })
       .catch((error: unknown) => {
-        if (active)
+        if (active && !controller.signal.aborted)
           setLedger((current) => ({
             ...(current.data?.patient.id === selectedPatientId
               ? { data: current.data }
@@ -222,6 +224,7 @@ export function Billing() {
       });
     return () => {
       active = false;
+      controller.abort();
     };
   }, [reloadLedger, selectedPatientId]);
 
@@ -231,14 +234,16 @@ export function Billing() {
       return;
     }
     let active = true;
+    const controller = new AbortController();
     setCheckoutInvoice({ checking: true });
     api<{
       invoices: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">[];
     }>(
       `/api/clinic/patients/${selectedPatientId}/invoices?encounter_id=${checkoutEncounterId}`,
+      { signal: controller.signal },
     )
       .then(({ invoices }) => {
-        if (!active) return;
+        if (!active || controller.signal.aborted) return;
         const linked = invoices.filter(
           (invoice) => invoice.encounter_id === checkoutEncounterId,
         );
@@ -252,7 +257,7 @@ export function Billing() {
         if (activeInvoice) setSelectedInvoiceId(activeInvoice.id);
       })
       .catch((error: unknown) => {
-        if (active)
+        if (active && !controller.signal.aborted)
           setCheckoutInvoice({
             error:
               error instanceof Error
@@ -262,6 +267,7 @@ export function Billing() {
       });
     return () => {
       active = false;
+      controller.abort();
     };
   }, [checkoutEncounterId, reloadLedger, selectedPatientId]);
 
