@@ -1,12 +1,15 @@
 module Clinic
   module PatientPortal
     class RequestsController < BaseController
-      before_action :block_non_billing_action
-
-      ALLOWED_TYPES = %w[message refill].freeze
+      # This release exposes only billing-support messages. The shared request
+      # record also supports future clinical message/refill workflows, which
+      # remain outside the billing-only patient portal boundary.
+      ALLOWED_TYPES = %w[message].freeze
 
       def index
-        requests = Request.for_practice(portal_practice).where(patient: portal_patient).recent.limit(30)
+        requests = Request.for_practice(portal_practice).message
+          .where(patient: portal_patient).recent.limit(30)
+        record_portal_read("patient_portal.billing_support.read")
         render json: { requests: requests.map { |request| request_payload(request) } }
       end
 

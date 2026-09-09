@@ -517,7 +517,7 @@ const columnLabels: Record<ColumnKey, string> = {
   wait: "Timing",
   location: "Room",
   provider: "Provider",
-  reason: "Visit type",
+  reason: "Visit reason",
   care: "Care",
   triage: "Vitals",
   action: "Action",
@@ -1026,9 +1026,9 @@ function TrackingBoardRow({
           <TableCell key={column} data-label={columnLabels[column]}>
             <div className="tracking-reason">
               <Typography variant="body2">
-                {visit.visitType === "Visit type not recorded"
+                {visit.reason === "Visit reason not recorded"
                   ? "—"
-                  : visit.visitType}
+                  : visit.reason}
               </Typography>
               {visit.appointmentType === "Follow-up" && (
                 <Tooltip title="Open most recent signed chart">

@@ -13,6 +13,8 @@ module Clinic
     has_one :telehealth_visit, class_name: "Clinic::Telehealth::Visit", dependent: :restrict_with_error
     has_many :previsit_notes, class_name: "Clinic::Care::PrevisitNote", dependent: :restrict_with_error
 
+    encrypts :reason
+
     scope :upcoming, ->(from = Current.business_time) { where("starts_at >= ?", from).order(:starts_at) }
     scope :for_clinician, ->(clinician) { where(booked_clinician_id: clinician.respond_to?(:id) ? clinician.id : clinician) }
 
@@ -34,6 +36,7 @@ module Clinic
     end
 
     validates :starts_at, :ends_at, :status, :visit_modality, presence: true
+    validates :reason, length: { maximum: 500 }, allow_nil: true
     validates :visit_modality, inclusion: { in: %w[in_person video] }
     validate :positive_interval
     validate :room_requires_site

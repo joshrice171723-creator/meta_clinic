@@ -36,6 +36,7 @@ import type {
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { PatientSubscriptions } from "./PatientSubscriptions";
+import { PatientBillingSupport } from "./PatientBillingSupport";
 import { PatientPortalPassword } from "./PatientPortalPassword";
 import {
   PatientAppointmentRequests,
@@ -843,6 +844,8 @@ export function PatientPortal({
                               ))}
                             </Stack>
                           </Paper>
+
+                          <PatientBillingSupport />
 
                           <Paper
                             component="section"

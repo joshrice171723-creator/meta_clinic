@@ -102,6 +102,7 @@ type BookingDraft = {
   roomId: string;
   clinicianId: string;
   visitTypeId: string;
+  reason?: string;
 };
 
 type BookingAttempt = {
@@ -114,6 +115,7 @@ type BookingAttempt = {
       room_id: string;
       booked_clinician_id: string;
       visit_type_id: string;
+      reason?: string;
       request_key: string;
       visit_modality?: VisitModality;
     };
@@ -543,6 +545,7 @@ function BookingFormEditor({
       roomId: "",
       clinicianId: "",
       visitTypeId: "",
+      reason: "",
       visitModality: initialVisitModality,
     };
   }, [initialPatientId, initialVisitModality]);
@@ -563,6 +566,7 @@ function BookingFormEditor({
   const [roomId, setRoomId] = useState(restoredDraft.roomId);
   const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
   const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
+  const [reason, setReason] = useState(restoredDraft.reason ?? "");
   const [visitModality, setVisitModality] = useState<VisitModality>(
     restoredDraft.visitModality ?? initialVisitModality,
   );
@@ -607,6 +611,7 @@ function BookingFormEditor({
       roomId,
       clinicianId,
       visitTypeId,
+      reason,
       visitModality,
     }),
     [
@@ -617,6 +622,7 @@ function BookingFormEditor({
       roomId,
       clinicianId,
       visitTypeId,
+      reason,
       visitModality,
     ],
   );
@@ -800,6 +806,7 @@ function BookingFormEditor({
       roomId: "",
       clinicianId: "",
       visitTypeId: "",
+      reason: "",
       visitModality: "in_person",
     });
     setPatientId("");
@@ -810,6 +817,7 @@ function BookingFormEditor({
     setRoomId("");
     setClinicianId("");
     setVisitTypeId("");
+    setReason("");
     setVisitModality("in_person");
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
@@ -917,6 +925,7 @@ function BookingFormEditor({
                     room_id: visitModality === "video" ? "" : roomId,
                     booked_clinician_id: clinicianId,
                     visit_type_id: visitTypeId,
+                    reason,
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
                   },
@@ -1211,6 +1220,18 @@ function BookingFormEditor({
                     ))}
                 </Select>
               </FormControl>
+              <TextField
+                fullWidth
+                label="Visit reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                disabled={busy || outcomeUnconfirmed}
+                multiline
+                minRows={2}
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+                helperText="Optional scheduler-facing reason. It is saved with the appointment."
+                sx={{ gridColumn: { md: "1 / -1" } }}
+              />
               {(roomId || clinicianId) && (
                 <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                   {scheduledResources.error ? (

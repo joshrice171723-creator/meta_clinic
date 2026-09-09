@@ -39,6 +39,7 @@ import { CashDrawerOperations } from "./CashDrawerOperations";
 import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
 import { stripeSetupReturnMarker } from "./billing/StripeConnectPanel";
 import { patientReferenceLabel } from "./patientReference";
+import { BillingSupportRequestQueue } from "./BillingSupportRequestQueue";
 import {
   clearInvoicePaymentReturnMarker,
   InvoiceCheckoutControls,
@@ -743,6 +744,9 @@ export function BillingDashboard() {
           setSelectedInvoiceId(invoiceId);
           setActiveTab("invoices");
         }}
+      />
+      <BillingSupportRequestQueue
+        canManage={context.capabilities.billing_write === true}
       />
       {checkoutQueue.available && (
         <section className="clinic-card billing-ledger-card">

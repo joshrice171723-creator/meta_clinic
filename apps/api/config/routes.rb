@@ -106,6 +106,8 @@ Rails.application.routes.draw do
         post "online_payment/cancel", on: :member, to: "billing/invoice_online_payments#cancel"
       end
     get "billing", to: "billing/dashboard#show"
+    get "billing/support_requests", to: "billing/support_requests#index"
+    post "billing/support_requests/:id/transition", to: "billing/support_requests#transition"
     resources :billing_services, only: %i[index create update]
     get "stripe_connect", to: "billing/stripe_connect#show"
     post "stripe_connect/onboard", to: "billing/stripe_connect#onboard"

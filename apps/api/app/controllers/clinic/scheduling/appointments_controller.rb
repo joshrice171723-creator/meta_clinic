@@ -54,7 +54,7 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id request_key visit_modality])
+        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id reason request_key visit_modality])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = find_optional(current_practice.sites, input[:site_id], :site_id)
         room = find_optional(current_practice.rooms, input[:room_id], :room_id)
@@ -69,6 +69,7 @@ module Clinic
           room: room,
           booked_clinician: clinician,
           visit_type: visit_type,
+          reason: optional_string(input[:reason], field: :reason, maximum: 500),
           starts_at: time_param!(input[:starts_at], field: :starts_at),
           ends_at: time_param!(input[:ends_at], field: :ends_at),
           request_key: request_key,

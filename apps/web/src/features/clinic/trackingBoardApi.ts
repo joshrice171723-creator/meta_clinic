@@ -164,6 +164,7 @@ export function trackingBoardVisitToBoardVisit(
   visit: ClinicTrackingBoardVisit,
 ): BoardVisit {
   const visitType = visit.appointment?.visit_type_code?.trim() || null;
+  const reason = visit.appointment?.reason?.trim() || null;
   const encounter = visit.encounter;
   const locationRecord = encounter ?? visit.appointment;
   const room =
@@ -192,8 +193,8 @@ export function trackingBoardVisitToBoardVisit(
     age: visit.patient.demographics?.age ?? null,
     gender: displaySex(visit.patient.demographics?.sex),
     appointmentType: appointmentType(visitType),
-    chiefComplaint: visitType || "Visit reason not recorded",
-    reason: visitType || "Visit reason not recorded",
+    chiefComplaint: reason || visitType || "Visit reason not recorded",
+    reason: reason || visitType || "Visit reason not recorded",
     visitType: visitType || "Visit type not recorded",
     membership:
       membership === "member"

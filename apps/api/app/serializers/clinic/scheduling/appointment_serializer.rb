@@ -17,6 +17,7 @@ module Clinic
           room_code: appointment.room&.code,
           booked_clinician_id: appointment.booked_clinician_id,
           visit_type_id: appointment.visit_type_id,
+          reason: appointment.reason,
           starts_at: appointment.starts_at&.iso8601(6),
           ends_at: appointment.ends_at&.iso8601(6),
           status: appointment.status,

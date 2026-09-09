@@ -11,7 +11,7 @@ module Clinic
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :identity, class_name: "Clinic::PatientPortal::Identity"
 
-      encrypts :content
+      encrypts :content, :review_note
 
       scope :recent, -> { order(requested_at: :desc, id: :desc) }
 

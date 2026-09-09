@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
-        request_key: nil, visit_modality: "in_person")
+        reason: nil, request_key: nil, visit_modality: "in_person")
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
@@ -31,6 +31,7 @@ module Clinic
           room: room,
           booked_clinician: booked_clinician,
           visit_type: visit_type,
+          reason: reason.to_s.strip.presence,
           starts_at: starts_at,
           ends_at: ends_at,
           visit_modality: visit_modality,
@@ -51,6 +52,7 @@ module Clinic
             room_id: room&.id,
             booked_clinician_id: booked_clinician&.id,
             visit_type_id: visit_type&.id,
+            reason: reason.to_s.strip.presence,
             starts_at: starts_at.utc.iso8601(6),
             ends_at: ends_at.utc.iso8601(6),
             visit_modality: visit_modality
@@ -65,11 +67,11 @@ module Clinic
         raise ArgumentError, "The selected room or clinician is already reserved for that interval."
       end
 
-      def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:,
+      def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:, reason:,
         visit_modality:, actor:)
         ApplicationRecord.transaction do
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
-            booked_clinician: booked_clinician, visit_type: visit_type, starts_at: starts_at, ends_at: ends_at,
+            booked_clinician: booked_clinician, visit_type: visit_type, reason: reason, starts_at: starts_at, ends_at: ends_at,
             status: "scheduled", visit_modality: visit_modality)
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor) if visit_modality == "video"
           appointment

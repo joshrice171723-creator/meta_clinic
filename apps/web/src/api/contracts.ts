@@ -116,6 +116,17 @@ export type PatientPortalBillingHistoryPage = {
     | PatientPortalContext["billing"]["payments"];
   next_cursor: number | null;
 };
+export type PatientBillingSupportRequest = {
+  id: number;
+  status: "pending" | "in_review" | "resolved" | "declined";
+  requested_at: string;
+  reviewed_at: string | null;
+};
+export type ClinicBillingSupportRequest = PatientBillingSupportRequest & {
+  content: string;
+  review_note: string | null;
+  patient: Pick<Patient, "id" | "display_name" | "reference">;
+};
 export type PatientReminder = {
   id: number;
   patient_id: number;
@@ -408,6 +419,7 @@ export type ClinicCapabilities = {
   appointments_status_transition?: boolean;
   staff_write?: boolean;
   billing_read?: boolean;
+  billing_write?: boolean;
   billing_catalog_manage?: boolean;
   subscription_catalog_read?: boolean;
   billing_invoice_draft?: boolean;
@@ -771,6 +783,7 @@ export type Appointment = {
   room_id: number | null;
   booked_clinician_id: number | null;
   visit_type_id: number | null;
+  reason?: string | null;
   starts_at: string;
   ends_at: string;
   status: string;
@@ -951,6 +964,7 @@ export type ClinicTrackingBoardVisit = {
     starts_at: string;
     ends_at: string;
     visit_type_code: string | null;
+    reason?: string | null;
     site_id: string | null;
     site_code: string | null;
     room_id: number | null;
