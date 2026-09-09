@@ -53,6 +53,21 @@ module Clinic
         active.each { |visit| results[visit.id] = present_by_room.fetch(visit.current_room_attempt_id, []) }
         results
       end
+
+      def history_for_visits(visits)
+        room_ids = visits.filter_map(&:current_room_attempt_id).uniq
+        return { latest_events: {}, departed_participant_ids: {} } if room_ids.empty?
+
+        table = ProviderEvent.quoted_table_name
+        latest_events = ProviderEvent.where(room_attempt_id: room_ids)
+          .select("DISTINCT ON (#{table}.room_attempt_id) #{table}.*")
+          .order(Arel.sql("#{table}.room_attempt_id, #{table}.occurred_at DESC, #{table}.id DESC"))
+          .index_by(&:room_attempt_id)
+        departed_participant_ids = ProviderEvent.where(room_attempt_id: room_ids, event_type: "participant.left")
+          .where.not(participant_id: nil).pluck(:room_attempt_id, :participant_id)
+          .group_by(&:first).transform_values { |rows| rows.map(&:last) }
+        { latest_events: latest_events, departed_participant_ids: departed_participant_ids }
+      end
     end
   end
 end

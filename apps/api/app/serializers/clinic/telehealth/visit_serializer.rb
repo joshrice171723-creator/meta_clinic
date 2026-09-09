@@ -38,13 +38,17 @@ module Clinic
       def queue_rows(visits, actor:)
         preparations = CurrentPreparation.queue_for(visits)
         presence = MediaPresence.for_visits(visits)
+        history = MediaPresence.history_for_visits(visits)
         visits.map do |visit|
           queue_row(visit, actor: actor, preparation: preparations.fetch(visit.id),
-            connected_participant_ids: presence.fetch(visit.id))
+            connected_participant_ids: presence.fetch(visit.id),
+            departed_participant_ids: history[:departed_participant_ids].fetch(visit.current_room_attempt_id, []),
+            latest_event: history[:latest_events][visit.current_room_attempt_id])
         end
       end
 
-      def queue_row(visit, actor:, preparation: nil, connected_participant_ids: nil)
+      def queue_row(visit, actor:, preparation: nil, connected_participant_ids: nil, departed_participant_ids: nil,
+        latest_event: nil)
         preparation ||= CurrentPreparation.call(visit: visit)
         connected_participant_ids ||= MediaPresence.call(visit)
         participant = actor_participant(visit, actor)
@@ -53,11 +57,12 @@ module Clinic
           public_id: visit.public_id,
           status: visit.status,
           appointment: appointment(visit.appointment),
-          readiness: readiness(visit, preparation, connected_participant_ids: connected_participant_ids),
+          readiness: readiness(visit, preparation, connected_participant_ids: connected_participant_ids,
+            departed_participant_ids: departed_participant_ids),
           waiting_since: visit.participants.select(&:patient?).filter_map do |value|
             value.status == "waiting" ? value.updated_at : nil
           end.min&.iso8601(6),
-          connection: connection(visit, connected_participant_ids: connected_participant_ids),
+          connection: connection(visit, connected_participant_ids: connected_participant_ids, latest_event: latest_event),
           encounter_id: visit.encounter_id,
           room: room_payload(visit.current_room_attempt),
           updated_at: visit.updated_at.iso8601(6),
@@ -170,21 +175,24 @@ module Clinic
           room_attempt_id: participant.visit.current_room_attempt_id)
       end
 
-      def readiness(visit, preparation, connected_participant_ids: nil)
+      def readiness(visit, preparation, connected_participant_ids: nil, departed_participant_ids: nil)
         return "ended" if visit.status.in?(%w[ended cancelled no_show])
         patient = preparation[:participant]
         return "connected" if patient && media_present?(patient, connected_participant_ids: connected_participant_ids)
-        return "disconnected" if patient && participant_events(patient).where(event_type: "participant.left").exists?
+        if patient
+          departed = departed_participant_ids || participant_events(patient).where(event_type: "participant.left").pluck(:participant_id)
+          return "disconnected" if departed.include?(patient.id)
+        end
         return "admitted" if patient&.admitted?
         return "waiting" if patient&.waiting?
         return "preparation_needed" if preparation[:reasons].any? { |reason| reason != "telehealth_consent_required" }
         "consent_needed"
       end
 
-      def connection(visit, connected_participant_ids: nil)
+      def connection(visit, connected_participant_ids: nil, latest_event: nil)
         return "ended" if visit.status.in?(%w[ended cancelled no_show])
         return "connected" if (connected_participant_ids || MediaPresence.call(visit)).any?
-        latest = visit.current_room_attempt&.provider_events&.order(occurred_at: :desc, id: :desc)&.first
+        latest = latest_event || visit.current_room_attempt&.provider_events&.order(occurred_at: :desc, id: :desc)&.first
         return "disconnected" if latest&.event_type.in?(%w[participant.left meeting.ended])
         "not_connected"
       end
