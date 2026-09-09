@@ -717,6 +717,10 @@ export function App() {
             );
         });
     void check();
+    if (!publicPage)
+      return () => {
+        active = false;
+      };
     const timer = window.setInterval(check, 60_000);
     window.addEventListener("focus", check);
     return () => {
@@ -724,7 +728,7 @@ export function App() {
       window.clearInterval(timer);
       window.removeEventListener("focus", check);
     };
-  }, []);
+  }, [publicPage]);
   useEffect(() => {
     if (!publicPage && session.user === null)
       window.location.replace(
