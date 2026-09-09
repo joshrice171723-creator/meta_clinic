@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CallEndOutlinedIcon from "@mui/icons-material/CallEndOutlined";
 import DevicesOutlinedIcon from "@mui/icons-material/DevicesOutlined";
 import MicOffOutlinedIcon from "@mui/icons-material/MicOffOutlined";
@@ -70,6 +70,16 @@ export function CallControls({
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [deviceLoadError, setDeviceLoadError] = useState<string | null>(null);
+  const [deviceSwitchError, setDeviceSwitchError] = useState<string | null>(
+    null,
+  );
+  const [deviceSwitching, setDeviceSwitching] = useState<
+    "audio" | "video" | null
+  >(null);
+  const mountedRef = useRef(false);
+  const deviceSwitchingRef = useRef(false);
+  const activeVisitIdRef = useRef(session.active?.visitId);
+  activeVisitIdRef.current = session.active?.visitId;
   const [audioDevice, setAudioDevice] = useState("");
   const [videoDevice, setVideoDevice] = useState("");
   const authorizationConfirmed = session.authorizationStatus === "confirmed";
@@ -90,6 +100,13 @@ export function CallControls({
   );
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!devicesOpen) return;
     if (typeof navigator.mediaDevices?.enumerateDevices !== "function") {
       setDevices([]);
@@ -102,7 +119,27 @@ export function CallControls({
     void navigator.mediaDevices
       .enumerateDevices()
       .then((nextDevices) => {
-        if (active) setDevices(nextDevices);
+        if (active) {
+          setDevices(nextDevices);
+          setAudioDevice((current) =>
+            !current ||
+            nextDevices.some(
+              (device) =>
+                device.kind === "audioinput" && device.deviceId === current,
+            )
+              ? current
+              : "",
+          );
+          setVideoDevice((current) =>
+            !current ||
+            nextDevices.some(
+              (device) =>
+                device.kind === "videoinput" && device.deviceId === current,
+            )
+              ? current
+              : "",
+          );
+        }
       })
       .catch(() => {
         if (active) {
@@ -119,6 +156,40 @@ export function CallControls({
       active = false;
     };
   }, [devicesOpen]);
+
+  useEffect(() => {
+    setDevicesOpen(false);
+    setDeviceSwitchError(null);
+    setAudioDevice("");
+    setVideoDevice("");
+  }, [session.active?.visitId]);
+
+  const switchInputDevice = async (
+    kind: "audio" | "video",
+    deviceId: string,
+  ) => {
+    if (deviceSwitchingRef.current) return;
+    deviceSwitchingRef.current = true;
+    const visitId = activeVisitIdRef.current;
+    setDeviceSwitching(kind);
+    setDeviceSwitchError(null);
+    try {
+      await session.selectInputDevice(kind, deviceId);
+      if (!mountedRef.current || activeVisitIdRef.current !== visitId) return;
+      if (kind === "audio") setAudioDevice(deviceId);
+      else setVideoDevice(deviceId);
+    } catch (reason) {
+      if (!mountedRef.current || activeVisitIdRef.current !== visitId) return;
+      setDeviceSwitchError(
+        reason instanceof Error
+          ? reason.message
+          : `The ${kind === "audio" ? "microphone" : "camera"} could not be changed.`,
+      );
+    } finally {
+      deviceSwitchingRef.current = false;
+      if (mountedRef.current) setDeviceSwitching(null);
+    }
+  };
 
   return (
     <Box
@@ -318,6 +389,23 @@ export function CallControls({
             {deviceLoadError && (
               <Alert severity="warning">{deviceLoadError}</Alert>
             )}
+            {deviceSwitchError && (
+              <Alert severity="error">{deviceSwitchError}</Alert>
+            )}
+            {deviceSwitching && (
+              <Stack
+                direction="row"
+                spacing={1}
+                role="status"
+                sx={{ alignItems: "center" }}
+              >
+                <CircularProgress size={20} />
+                <Typography variant="body2">
+                  Changing{" "}
+                  {deviceSwitching === "audio" ? "microphone" : "camera"}…
+                </Typography>
+              </Stack>
+            )}
             {!devicesLoading &&
               !deviceLoadError &&
               audioInputs.length === 0 && (
@@ -325,7 +413,14 @@ export function CallControls({
                   No microphone is available to select.
                 </Alert>
               )}
-            <FormControl fullWidth disabled={audioInputs.length === 0}>
+            <FormControl
+              fullWidth
+              disabled={
+                audioInputs.length === 0 ||
+                deviceSwitching !== null ||
+                !mediaReady
+              }
+            >
               <InputLabel id="telehealth-call-microphone">
                 Microphone
               </InputLabel>
@@ -335,10 +430,12 @@ export function CallControls({
                 value={audioDevice}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setAudioDevice(value);
-                  void session.selectInputDevice("audio", value);
+                  void switchInputDevice("audio", value);
                 }}
               >
+                <MenuItem value="" disabled>
+                  Current microphone
+                </MenuItem>
                 {audioInputs.map((device, index) => (
                   <MenuItem key={device.deviceId} value={device.deviceId}>
                     {device.label || `Microphone ${index + 1}`}
@@ -351,7 +448,14 @@ export function CallControls({
               videoInputs.length === 0 && (
                 <Alert severity="info">No camera is available to select.</Alert>
               )}
-            <FormControl fullWidth disabled={videoInputs.length === 0}>
+            <FormControl
+              fullWidth
+              disabled={
+                videoInputs.length === 0 ||
+                deviceSwitching !== null ||
+                !mediaReady
+              }
+            >
               <InputLabel id="telehealth-call-camera">Camera</InputLabel>
               <Select
                 labelId="telehealth-call-camera"
@@ -359,10 +463,12 @@ export function CallControls({
                 value={videoDevice}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setVideoDevice(value);
-                  void session.selectInputDevice("video", value);
+                  void switchInputDevice("video", value);
                 }}
               >
+                <MenuItem value="" disabled>
+                  Current camera
+                </MenuItem>
                 {videoInputs.map((device, index) => (
                   <MenuItem key={device.deviceId} value={device.deviceId}>
                     {device.label || `Camera ${index + 1}`}
