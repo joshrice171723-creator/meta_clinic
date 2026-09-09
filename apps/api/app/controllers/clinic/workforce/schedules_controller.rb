@@ -27,8 +27,12 @@ module Clinic
 
         from = params[:from].present? ? date_param!(params[:from], field: :from) : Current.business_date.beginning_of_week
         to = params[:to].present? ? date_param!(params[:to], field: :to) : from + 42.days
+        visibility_by_site = {}
         publications = latest_publications.where(week_start_on: (from.beginning_of_week)..to).includes(:site)
-          .select { |item| employment.eligible_site?(item.site, at: Current.business_time) && schedule_visible?(item.site) }
+          .select do |item|
+            employment.eligible_site?(item.site, at: Current.business_time) &&
+              visibility_by_site.fetch(item.site_id) { visibility_by_site[item.site_id] = schedule_visible?(item.site) }
+          end
         render json: ScheduleSerializer.response(publications: publications.map { |item| ScheduleSerializer.publication(item, employee_id: employment.id) })
       end
 
