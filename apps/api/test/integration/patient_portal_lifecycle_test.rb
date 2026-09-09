@@ -122,6 +122,32 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     assert_nil @session&.fetch(:member_session_id, nil)
   end
 
+  test "active patient recovery preserves access until redemption then rotates credentials and sessions" do
+    invitation = invite_identity
+    identity = activate(invitation.fetch(:token))
+    original_session_id = @session.fetch(:member_session_id)
+    original_password = PORTAL_PASSWORD
+    recovery_password = "Recovered-patient-password-2026!"
+
+    recovery = Clinic::PatientPortal::InviteIdentity.call(
+      practice: @practice, patient: @patient, email_address: @patient_user.email_address,
+      actor: @actor, now: @now + 1.minute
+    )
+
+    assert_equal "recovery", recovery.fetch(:purpose)
+    assert identity.reload.active?
+    assert MemberSession.exists?(original_session_id)
+    assert @patient_user.reload.authenticate(original_password)
+
+    activate(recovery.fetch(:token), password: recovery_password, now: @now + 2.minutes)
+
+    assert identity.reload.active?
+    assert_not MemberSession.exists?(original_session_id)
+    assert_not @patient_user.reload.authenticate(original_password)
+    assert @patient_user.authenticate(recovery_password)
+    assert_equal @patient_user.id, MemberSession.find(@session.fetch(:member_session_id)).user_id
+  end
+
   test "reserved synthetic patient activation creates access and revocation invalidates its session" do
     invitation = invite_identity
     activated = activate(invitation.fetch(:token))

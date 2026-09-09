@@ -15,15 +15,19 @@ import { api } from "../../api/client";
 const TERMS_VERSION = "patient-portal-terms-v1";
 
 export function PatientPortalActivation() {
-  const [token] = useState(() => {
-    const value =
-      new URLSearchParams(window.location.hash.slice(1)).get("token") || "";
+  const [{ token, purpose }] = useState(() => {
+    const parameters = new URLSearchParams(window.location.hash.slice(1));
+    const value = parameters.get("token") || "";
+    const requestedPurpose = parameters.get("purpose");
     window.history.replaceState(
       {},
       "",
       window.location.pathname + window.location.search,
     );
-    return value;
+    return {
+      token: value,
+      purpose: requestedPurpose === "recovery" ? "recovery" : "activation",
+    } as const;
   });
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -98,11 +102,14 @@ export function PatientPortalActivation() {
             APPly · Patient portal
           </Typography>
           <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
-            Activate your portal access
+            {purpose === "recovery"
+              ? "Reset your portal password"
+              : "Activate your portal access"}
           </Typography>
           <Typography color="text.secondary">
-            This one-time invitation connects you to the patient record selected
-            by your care team. It expires after 30 minutes and cannot be reused.
+            This one-time {purpose} link connects you to the patient record
+            selected by your care team. It expires after 30 minutes and cannot
+            be reused.
           </Typography>
           {!token && (
             <Alert severity="error">
@@ -116,7 +123,7 @@ export function PatientPortalActivation() {
               <TextField
                 autoComplete="new-password"
                 helperText="Use 12 to 72 characters. Password-manager paste is supported."
-                label="Create password"
+                label={purpose === "recovery" ? "New password" : "Create password"}
                 onChange={(event) => setPassword(event.target.value)}
                 required
                 slotProps={{ htmlInput: { minLength: 12, maxLength: 72 } }}
@@ -153,13 +160,19 @@ export function PatientPortalActivation() {
                 type="submit"
                 variant="contained"
               >
-                {saving ? "Activating…" : "Activate portal"}
+                {saving
+                  ? purpose === "recovery"
+                    ? "Resetting…"
+                    : "Activating…"
+                  : purpose === "recovery"
+                    ? "Reset password"
+                    : "Activate portal"}
               </Button>
             </Stack>
           )}
           <Typography variant="body2" color="text.secondary">
-            Step-up authentication and self-service recovery are not enabled in
-            this patient portal. Contact the clinic support team if you lose
+            Step-up authentication and self-service recovery are not enabled.
+            The clinic support team can issue a new one-time link if you lose
             access. Do not use the portal for emergencies.
           </Typography>
         </Stack>

@@ -10,7 +10,7 @@ module Clinic
 
         identity = nil
         ApplicationRecord.transaction do
-          identity = Identity.where(status: :invited, invitation_digest: Identity.digest_token(token)).lock.first
+          identity = Identity.where(status: %i[invited active], invitation_digest: Identity.digest_token(token)).lock.first
           raise InvalidInvitation unless identity&.invitation_expires_at && identity.invitation_expires_at > now
           raise InvalidInvitation unless Clinic::DeploymentAccess.practice_enabled?(identity.practice_id)
 

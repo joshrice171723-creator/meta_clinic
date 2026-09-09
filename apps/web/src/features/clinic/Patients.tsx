@@ -408,6 +408,7 @@ type PortalInvitation = {
   email_address: string;
   expires_at: string;
   identity_id: number;
+  purpose: "activation" | "recovery";
   status: string;
 };
 
@@ -463,8 +464,9 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
     <Card title="Patient portal access">
       <Stack spacing={1.5}>
         <Typography color="text.secondary">
-          Create a one-time activation link for the current patient email. The
-          patient chooses their own password; the link expires after 30 minutes.
+          Create a one-time link for the current patient email. It activates new
+          access or securely resets an existing password, and expires after 30
+          minutes.
         </Typography>
         {currentEmail ? (
           <Typography>
@@ -480,17 +482,18 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
         {invitation && (
           <>
             <Alert severity="success">
-              Link created for {invitation.email_address}. It expires at{" "}
+              {invitation.purpose === "recovery" ? "Recovery" : "Activation"} link
+              created for {invitation.email_address}. It expires at{" "}
               {new Date(invitation.expires_at).toLocaleString()}.
             </Alert>
             <TextField
-              aria-label="Patient portal activation link"
+              aria-label={`Patient portal ${invitation.purpose} link`}
               fullWidth
               slotProps={{ htmlInput: { readOnly: true } }}
               value={activationUrl}
             />
             <Button onClick={() => void copyInvitation()} variant="outlined">
-              {copied ? "Link copied" : "Copy activation link"}
+              {copied ? "Link copied" : `Copy ${invitation.purpose} link`}
             </Button>
             <Typography color="text.secondary" variant="body2">
               Share this link only through a clinic-approved secure channel.
@@ -503,7 +506,7 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
           onClick={() => void createInvitation()}
           variant="contained"
         >
-          {busy ? "Creating…" : invitation ? "Replace activation link" : "Create activation link"}
+          {busy ? "Creating…" : invitation ? "Replace one-time link" : "Create one-time link"}
         </Button>
       </Stack>
     </Card>

@@ -13,23 +13,25 @@ module Clinic
         ApplicationRecord.transaction do
           user = resolve_user!(practice:, patient:, user:, email_address:)
           identity = Identity.lock.find_or_initialize_by(user: user)
-          raise ArgumentError, "That patient already has active portal access." if identity.persisted? && identity.active?
           if identity.persisted? && (identity.practice_id != practice.id || identity.patient_id != patient.id)
             raise ArgumentError, "That account is already assigned to another patient."
           end
 
-          identity.assign_attributes(practice: practice, patient: patient, status: :invited,
-            invited_at: now, activated_at: nil, revoked_at: nil, revoked_reason: nil,
-            accepted_terms_version: nil, accepted_terms_at: nil, last_step_up_at: nil,
-            invitation_digest: Identity.digest_token(token),
-            invitation_expires_at: now + Identity::INVITATION_TTL)
+          recovering = identity.persisted? && identity.active?
+          identity.assign_attributes(practice: practice, patient: patient,
+            invitation_digest: Identity.digest_token(token), invitation_expires_at: now + Identity::INVITATION_TTL,
+            invited_at: now)
+          unless recovering
+            identity.assign_attributes(status: :invited, activated_at: nil, revoked_at: nil, revoked_reason: nil,
+              accepted_terms_version: nil, accepted_terms_at: nil, last_step_up_at: nil)
+          end
           identity.save!
           AuditRecorder.record!(practice: practice, actor: actor,
             action_code: "patient_portal.identity.invite", outcome: :committed,
             resource_version_ref: "patient_portal_identity:#{identity.id}")
           identity
         end
-        { identity: identity, token: token }
+        { identity: identity, token: token, purpose: identity.active? ? "recovery" : "activation" }
       rescue ActiveRecord::RecordNotUnique
         raise ArgumentError, "That email already belongs to another account."
       end

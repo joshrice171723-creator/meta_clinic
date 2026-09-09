@@ -12,12 +12,14 @@ module Clinic
         result = InviteIdentity.call(practice: current_practice, patient:, email_address: contact.contact_value,
           actor: current_user)
         identity = result.fetch(:identity)
+        purpose = result.fetch(:purpose)
         render json: { invitation: {
           identity_id: identity.id,
           status: identity.status,
+          purpose: purpose,
           expires_at: identity.invitation_expires_at.iso8601(6),
           email_address: identity.user.email_address,
-          activation_path: "/patient-portal/activate#token=#{ERB::Util.url_encode(result.fetch(:token))}"
+          activation_path: "/patient-portal/activate#token=#{ERB::Util.url_encode(result.fetch(:token))}&purpose=#{purpose}"
         } }, status: :created
       end
     end
