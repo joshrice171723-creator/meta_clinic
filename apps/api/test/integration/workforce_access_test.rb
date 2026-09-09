@@ -210,6 +210,29 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal @employee.id, response.parsed_body.dig("user", "id")
   end
 
+  test "site participant eligibility requires both messaging access and an active work assignment" do
+    grant_permissions!(@manager_membership, "staff_messaging.read")
+    grant_permissions!(@employee_membership, "staff_messaging.read")
+    unassigned_user = create_user("unassigned-messaging-recipient")
+    unassigned_membership = @practice.memberships.create!(user: unassigned_user)
+    grant_permissions!(unassigned_membership, "staff_messaging.read")
+    ability = Ability.new(@manager, practice: @practice)
+
+    participant_ids = Clinic::Messaging::ParticipantIndex.call(
+      practice: @practice, ability: ability, site: @assigned_site
+    ).map(&:id)
+
+    assert_includes participant_ids, @employee_membership.id
+    assert_not_includes participant_ids, unassigned_membership.id
+
+    @employment.update!(status: "inactive", effective_until: Time.current)
+
+    participant_ids = Clinic::Messaging::ParticipantIndex.call(
+      practice: @practice, ability: ability, site: @assigned_site
+    ).map(&:id)
+    assert_not_includes participant_ids, @employee_membership.id
+  end
+
   test "employee activation requires CSRF and remains blocked by the production release gate" do
     invited_staff = @practice.staff_members.create!(display_name: "Alex Rivera",
       job_title: "Medical assistant", active: true)

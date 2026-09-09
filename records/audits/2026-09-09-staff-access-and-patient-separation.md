@@ -249,3 +249,34 @@ Status after repair: **A01-A20 implemented and focused automated verification pa
 The final rendered browser pass could not run because this Codex host's Windows Computer Use service returned `Trusted RPC service is not configured: sky`. This is an environment limitation, not evidence of browser acceptance. The ordinary activation/login lifecycle is independently proved at the production-mode API boundary, and the frontend compiles, but a rendered pilot walkthrough remains release evidence to collect on a host with browser automation available. PostgreSQL RLS also remains the existing separate release gate; this change does not claim that gate is complete.
 
 No broad suite, low-value test expansion, real message delivery, deployment, production access, or real patient data was used.
+
+## Follow-up slice repair — 2026-09-09
+
+This follow-up re-read the current `main` implementation at `8070d30` after the initial repair record. It used three bounded slices and retained this document as the sole evidence record.
+
+| Slice | Result | Changed source |
+| --- | --- | --- |
+| A01–A12 access lifecycle | Closed a remaining service-layer race: workforce linking, role grant/revoke, and account revoke/restore now lock the acting administrator's active membership before rechecking authority inside the write transaction. This makes the invariant hold for direct service callers as well as controller requests. | `9286d58` |
+| A13–A16 capability separation | No further defect found. Manager timecard submission requires review authority at every represented site; payroll preview/create/download are export-gated; configuration is configure-gated; billing writes use atomic capability flags. | No source change needed. |
+| A17–A20 patient/site/read boundaries | Closed a remaining A19 recipient-directory gap. A site-scoped participant now requires both messaging permission and an active effective workforce assignment at that exact site. The shared predicate protects listing and conversation creation. | `8070d30` |
+
+### Follow-up verification
+
+- **Source inspection:** clinic mutation requests inherit the membership-generation transaction wrapper through `Clinic::ApiController`; lab, follow-up, and staff-messaging controllers therefore recheck current membership before writes. Lab report scopes filter by report site; patient serialization contains no note metadata; follow-up and participant reads write fail-closed audit evidence.
+- **Static check:** Ruby syntax passed for the five changed services/query files and the focused workforce integration test. `git diff --check` passed.
+- **Focused automated check: unresolved environment prerequisite.** The added A19 regression case in `apps/api/test/integration/workforce_access_test.rb` proves that an unassigned recipient, and then an inactivated recipient, cannot be returned for a site even when they hold `staff_messaging.read`. It could not run on this host because Docker Desktop's Linux engine pipe was absent, so PostgreSQL on the isolated port could not start. This is not a passing result and does not change the earlier recorded passing results on the prior revision.
+
+Run this one check after Docker Desktop starts:
+
+```powershell
+$env:APPLY_POSTGRES_CONTAINER='apply-main-staff-access-audit'
+$env:PGPORT='54370'
+$env:APPLY_TEST_DATABASE='apply_staff_access_audit_test'
+ruby .\apps\api\bin\postgres start
+Push-Location .\apps\api
+ruby .\bin\postgres exec env RAILS_ENV=test APPLY_TEST_DATABASE=apply_staff_access_audit_test bin\rails db:prepare
+ruby .\bin\postgres exec env RAILS_ENV=test APPLY_TEST_DATABASE=apply_staff_access_audit_test bin\rails test test\integration\workforce_access_test.rb
+Pop-Location
+```
+
+The source repairs are complete for A01–A20. Browser acceptance, current-revision database verification, PostgreSQL RLS, and any pilot/release approval remain separate unproven gates.
