@@ -3,13 +3,25 @@ module Development
     PRACTICE_NAME = "Local Clinic Workspace".freeze
     ORGANIZATION_NAME = "Local Clinic Organization".freeze
     RETIRED_ACCOUNT_PATTERN = "demo-%@example.invalid".freeze
+    CLINIC_ADMINISTRATOR_PERMISSIONS = (
+      TestClinic::DEFAULT_PERMISSIONS + %w[
+        telehealth.read telehealth.prepare.read telehealth.prepare.verify
+        telehealth.configure telehealth.reconcile
+        workforce.admin workforce.settings workforce.badges
+        workforce.timecards.read workforce.timecards.review workforce.timecards.approve
+        workforce.schedule.read workforce.schedule.manage workforce.schedule.publish
+        workforce.requests.review
+        subscription_catalog.read subscription_catalog.write subscription_catalog.publish
+      ]
+    ).freeze
 
     ACCOUNTS = {
       "clinic-administrator" => {
         label: "Clinic Administrator",
         email: "clinic-administrator@local.invalid",
         admin: true,
-        permissions: TestClinic::DEFAULT_PERMISSIONS
+        version: 2,
+        permissions: CLINIC_ADMINISTRATOR_PERMISSIONS
       },
       "billing-accounting" => {
         label: "Billing & Accounting",
@@ -71,7 +83,7 @@ module Development
         ApplicationRecord.connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('apply:role-accounts:v1', 0))")
         practice = workspace!
         accounts = ACCOUNTS.to_h do |role_code, definition|
-          role = role_for!(role_code, definition.fetch(:permissions))
+          role = role_for!(role_code, definition.fetch(:permissions), version: definition.fetch(:version, 1))
           user = account_for!(practice, role, definition)
           [ role_code, user ]
         end
@@ -97,8 +109,8 @@ module Development
       end
     end
 
-    private_class_method def self.role_for!(role_code, permissions)
-      role = RoleVersion.find_or_create_by!(role_code: role_code, version: 1)
+    private_class_method def self.role_for!(role_code, permissions, version:)
+      role = RoleVersion.find_or_create_by!(role_code: role_code, version: version)
       permissions.each do |action_code|
         permission = Permission.find_or_create_by!(action_code: action_code)
         RoleVersionPermission.find_or_create_by!(role_version: role, permission: permission)
@@ -135,6 +147,14 @@ module Development
         inventory_transfer: permissions.include?("inventory.transfer")
       )
       membership.save!
+
+      membership.role_grants.joins(:role_version)
+        .where(role_versions: { role_code: role.role_code })
+        .where.not(role_version: role)
+        .where(scope_kind: "practice", site_id: nil, revoked_at: nil)
+        .find_each do |previous_grant|
+          previous_grant.update!(revoked_at: Time.current, revision: previous_grant.revision + 1)
+        end
 
       grant = membership.role_grants.find_or_initialize_by(role_version: role, scope_kind: "practice", site_id: nil)
       grant.assign_attributes(practice: practice, effective_from: grant.effective_from || Time.current,

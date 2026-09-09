@@ -29,6 +29,39 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
     end
   end
 
+  test "clinic administrator receives operational modules without payroll or scribe access" do
+    permissions = Development::RoleAccounts::ACCOUNTS.fetch("clinic-administrator").fetch(:permissions)
+
+    assert_includes permissions, "telehealth.read"
+    assert_includes permissions, "workforce.schedule.manage"
+    assert_includes permissions, "subscription_catalog.publish"
+    assert_includes permissions, "reminders.write"
+    assert_not_includes permissions, "workforce.payroll.configure"
+    assert_not_includes permissions, "workforce.payroll.export"
+    assert_not_includes permissions, "scribe.read"
+  end
+
+  test "clinic administrator upgrades granted access through a new role version" do
+    local_mode do
+      administrator = Development::RoleAccounts.prepare!.fetch("clinic-administrator")
+      original_role = administrator.clinic_membership.role_grants.active.sole.role_version
+      assert_equal 2, original_role.version
+
+      original_role.role_grants.first.update!(revoked_at: Time.current)
+      previous = RoleVersion.create!(role_code: "clinic-administrator", version: 1)
+      previous_permission = Permission.find_or_create_by!(action_code: "patients.read")
+      RoleVersionPermission.create!(role_version: previous, permission: previous_permission)
+      administrator.clinic_membership.role_grants.create!(practice: administrator.clinic_membership.practice,
+        role_version: previous, scope_kind: "practice", effective_from: Time.current, revision: 1)
+
+      Development::RoleAccounts.prepare!
+
+      grants = administrator.clinic_membership.role_grants.where(scope_kind: "practice")
+      assert grants.find_by!(role_version: previous).revoked_at
+      assert_nil grants.find_by!(role_version: original_role).revoked_at
+    end
+  end
+
   test "retires anonymous accounts that have one grant for every permission" do
     local_mode do
       user = User.create!(email_address: "demo-#{SecureRandom.uuid}@example.invalid", password: SecureRandom.hex(32))
