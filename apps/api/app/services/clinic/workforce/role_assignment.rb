@@ -10,9 +10,9 @@ module Clinic
           raise(ArgumentError, "The employee access role is not configured.")
       end
 
-      def self.assignable?(actor:, practice:, role_version:)
+      def self.assignable?(actor:, practice:, role_version:, ability: nil)
         validate_role!(role_version)
-        ability = Ability.new(actor, practice: practice)
+        ability ||= Ability.new(actor, practice: practice)
         return false unless ability.allowed_permission?("roles.manage")
 
         role_version.permissions.all? do |permission|

@@ -13,8 +13,9 @@ module Clinic
         memberships = current_practice.memberships.active.includes(:user).reject { |membership| linked_membership_ids.include?(membership.id) }
           .select { |membership| membership.user.active? && membership.user_id != current_user.id }
           .sort_by { |membership| [ membership.user.email_address, membership.id ] }
+        ability = current_ability
         role_versions = latest_workforce_role_versions.select do |role_version|
-          RoleAssignment.assignable?(actor: current_user, practice: current_practice, role_version: role_version)
+          RoleAssignment.assignable?(actor: current_user, practice: current_practice, role_version: role_version, ability: ability)
         end
 
         render json: {
