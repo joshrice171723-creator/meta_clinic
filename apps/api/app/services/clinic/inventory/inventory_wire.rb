@@ -129,9 +129,32 @@ module Clinic
               reason: event.reason, created_at: event.created_at.iso8601, count: event.count && count_observation_wire(event.count) }
           end,
           locations: location_directory(practice: practice).select { |location| location[:stock_destination] }.map { |location| location.slice(:id, :path) },
-          assignees: Clinic::Membership.active.where(practice_id: practice.id).joins(:user).where(users: { active: true }).includes(:user).order(:user_id).select { |member| Ability.new(member.user, practice: practice).allowed_permission?("inventory.count") }.map do |member|
+          assignees: count_session_assignees(practice: practice).map do |member|
             { id: member.user_id.to_s, name: member.user.email_address.split("@").first.tr("._-", " ").titleize }
           end)
+      end
+
+      def count_session_assignees(practice:)
+        now = Time.current
+        assignees = Clinic::Membership.active.where(practice_id: practice.id).joins(:user, :role_grants)
+          .joins("INNER JOIN role_version_permissions ON role_version_permissions.role_version_id = clinic_role_grants.role_version_id")
+          .joins("INNER JOIN permissions ON permissions.id = role_version_permissions.permission_id")
+          .where(users: { active: true }, permissions: { action_code: "inventory.count" })
+          .where(clinic_role_grants: { scope_kind: "practice", revoked_at: nil })
+          .where("clinic_role_grants.effective_from <= ?", now)
+          .where("clinic_role_grants.effective_until IS NULL OR clinic_role_grants.effective_until > ?", now)
+          .distinct.includes(:user).order(:user_id).to_a
+
+        return assignees unless development_omni_access?
+
+        omni_email = Development::TestAccounts::PROFILES.fetch("omni").fetch(:email)
+        omni = Clinic::Membership.active.joins(:user).where(practice_id: practice.id, users: { active: true, email_address: omni_email })
+          .includes(:user).to_a
+        (assignees + omni).uniq(&:id).sort_by(&:user_id)
+      end
+
+      def development_omni_access?
+        Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
       end
 
       def count_session_wire(session, paths)

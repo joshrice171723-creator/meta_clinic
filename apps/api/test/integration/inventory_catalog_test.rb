@@ -86,6 +86,25 @@ class InventoryCatalogTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "count-session assignees batch active inventory-count grants" do
+    assignee = User.create!(email_address: "count-assignee@example.invalid", password: SecureRandom.hex(24))
+    assignee_membership = @practice.memberships.create!(user: assignee)
+    grant_permissions!(assignee_membership, "inventory.count")
+    ineligible = User.create!(email_address: "count-ineligible@example.invalid", password: SecureRandom.hex(24))
+    grant_permissions!(@practice.memberships.create!(user: ineligible), "inventory.read")
+    queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { queries << payload[:sql].to_s }
+
+    assignees = ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        Clinic::Inventory::InventoryWire.count_session_assignees(practice: @practice)
+      end
+    end
+
+    assert_equal [ assignee.id ], assignees.map(&:user_id)
+    assert_operator queries.count { |sql| sql.match?(/FROM "clinic_memberships"/i) }, :<=, 2, queries.join("\n")
+  end
+
   test "stock eligibility, supplier precedence and bounded attention match existing rules" do
     preferred = @practice.inventory_suppliers.create!(name: "Preferred fixture supplier")
     @product.update_catalog!({ preferred_supplier_id: preferred.id }, actor: @actor)
