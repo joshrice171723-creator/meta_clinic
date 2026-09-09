@@ -739,7 +739,7 @@ describe("mapped read-only care flow", () => {
         pagination={{ page: 1, per_page: 25, total: 1, total_pages: 1 }}
       />,
     );
-    expect(html).toContain("Read-only scheduled visits");
+    expect(html).toContain('aria-label="Scheduled visits"');
     expect(html).toContain('href="/clinic/patients/7"');
     expect(html).toContain('href="/clinic/patients/7/encounters/9"');
     expect(html).not.toContain("Start intake");

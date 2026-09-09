@@ -96,7 +96,7 @@ function siteForm(site: ClinicSite): EditableSite {
 }
 
 export function Facilities() {
-  const { capabilities, current_site: currentSite } = useClinic();
+  const { capabilities, current_site: currentSite, practice } = useClinic();
   const { data, error, refresh } = useResource<{ sites: ClinicSite[] }>(
     "/api/clinic/facilities?type=sites&detail=true&per_page=100",
   );
@@ -327,6 +327,7 @@ export function Facilities() {
                   update({ timezone_override: e.target.value || null })
                 }
                 placeholder="America/Chicago"
+                helperText={`Leave blank to use the practice timezone (${practice.timezone}).`}
               />
             </div>
             <section>

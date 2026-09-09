@@ -149,8 +149,13 @@ export function CashDrawerOperations({
     }
   }, [clinic, cashAttempt]);
   useEffect(() => {
-    if (!cashAttempt || exactInvoiceId === undefined || exactInvoiceId === cashAttempt.invoiceId) {
-      if (!cashAttempt || exactInvoiceId === cashAttempt?.invoiceId) routedAttempt.current = "";
+    if (
+      !cashAttempt ||
+      exactInvoiceId === undefined ||
+      exactInvoiceId === cashAttempt.invoiceId
+    ) {
+      if (!cashAttempt || exactInvoiceId === cashAttempt?.invoiceId)
+        routedAttempt.current = "";
       return;
     }
     const identity = `${cashAttempt.invoiceId}:${cashAttempt.requestKey}`;
@@ -249,12 +254,15 @@ export function CashDrawerOperations({
     setBusy("open");
     setError("");
     try {
-      const result = await api<{ drawer: CashDrawer }>("/api/clinic/cash_drawers", {
-        method: "POST",
-        body: {
-          drawer: { site_id: Number(siteId), opening_float: openingFloat },
+      const result = await api<{ drawer: CashDrawer }>(
+        "/api/clinic/cash_drawers",
+        {
+          method: "POST",
+          body: {
+            drawer: { site_id: Number(siteId), opening_float: openingFloat },
+          },
         },
-      });
+      );
       setOpeningFloat("");
       setSelectedDrawerId(result.drawer.id.toString());
       setNewDrawerMode(false);
@@ -327,7 +335,7 @@ export function CashDrawerOperations({
       if (durableRecoveryEnabled && !(await recovery.clear())) {
         setError(
           recovery.error ||
-            "The cash payment was recorded, but its recovery record could not be cleared. Refresh payment activity before another action.",
+            "The cash payment was recorded, but its saved recovery details could not be cleared. Refresh payment activity before another action.",
         );
         drawers.refresh();
         onRecorded(attempt.invoiceId);
@@ -345,14 +353,14 @@ export function CashDrawerOperations({
       onRecorded(attempt.invoiceId);
     } catch (reason) {
       if (deterministicCashError(reason)) {
-        if (!durableRecoveryEnabled || await recovery.clear()) {
+        if (!durableRecoveryEnabled || (await recovery.clear())) {
           persistCashAttempt(clinic, null);
           setCashAttempt(null);
           reportError(reason, "The cash payment could not be recorded.");
         } else {
           setError(
             recovery.error ||
-              "The payment was rejected, but its recovery record could not be cleared. Refresh before another action.",
+              "The payment was rejected, but its saved recovery details could not be cleared. Refresh before another action.",
           );
         }
       } else {
@@ -508,29 +516,31 @@ export function CashDrawerOperations({
             <Stack spacing={1}>
               <span>
                 Cash payment outcome is pending confirmation for invoice #
-                {cashAttempt.invoiceId}. Its drawer, amounts, and request key
-                are locked. Review activity or retry the same payment.
+                {cashAttempt.invoiceId}. Its drawer and amounts are locked.
+                Review activity or retry the same payment.
               </span>
               <Button
                 color="inherit"
                 disabled={busy !== null}
-                onClick={() => void (async () => {
-                  if (durableRecoveryEnabled && !(await recovery.clear())) {
-                    setError(
-                      recovery.error ||
-                        "The verified payment recovery record could not be cleared. Try again before another action.",
+                onClick={() =>
+                  void (async () => {
+                    if (durableRecoveryEnabled && !(await recovery.clear())) {
+                      setError(
+                        recovery.error ||
+                          "The verified payment's saved recovery details could not be cleared. Try again before another action.",
+                      );
+                      return;
+                    }
+                    persistCashAttempt(clinic, null);
+                    setCashAttempt(null);
+                    setTenderedAmount("");
+                    setAllocationAmount("");
+                    setError("");
+                    setNotice(
+                      "Pending payment cleared after operator verification. No additional cash payment was submitted.",
                     );
-                    return;
-                  }
-                  persistCashAttempt(clinic, null);
-                  setCashAttempt(null);
-                  setTenderedAmount("");
-                  setAllocationAmount("");
-                  setError("");
-                  setNotice(
-                    "Pending payment cleared after operator verification. No additional cash payment was submitted.",
-                  );
-                })()}
+                  })()
+                }
                 size="small"
                 sx={{ alignSelf: "flex-start" }}
               >
@@ -542,7 +552,13 @@ export function CashDrawerOperations({
         {drawer?.status === "closed" && (
           <Stack spacing={1.5}>
             <Alert severity="info">
-              Closed drawer · Counted {money(drawer.counted_cash ?? "0", invoice?.currency ?? "USD")} · Discrepancy {money(drawer.discrepancy ?? "0", invoice?.currency ?? "USD")} · {drawer.reconciliation_status === "reconciled" ? "Manager reconciled" : "Awaiting manager reconciliation"}
+              Closed drawer · Counted{" "}
+              {money(drawer.counted_cash ?? "0", invoice?.currency ?? "USD")} ·
+              Discrepancy{" "}
+              {money(drawer.discrepancy ?? "0", invoice?.currency ?? "USD")} ·{" "}
+              {drawer.reconciliation_status === "reconciled"
+                ? "Manager reconciled"
+                : "Awaiting manager reconciliation"}
             </Alert>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button
@@ -588,9 +604,12 @@ export function CashDrawerOperations({
                 >
                   <TextField
                     label="Manager reconciliation note"
+                    required
                     value={reconciliationNote}
                     disabled={cashAttempt !== null || busy !== null}
-                    onChange={(event) => setReconciliationNote(event.target.value)}
+                    onChange={(event) =>
+                      setReconciliationNote(event.target.value)
+                    }
                     sx={{ flex: 1 }}
                   />
                   <Button
@@ -779,7 +798,9 @@ export function CashDrawerOperations({
                     sx={{ flex: 1 }}
                   />
                   <Button
-                    disabled={!permitted || busy !== null || cashAttempt !== null}
+                    disabled={
+                      !permitted || busy !== null || cashAttempt !== null
+                    }
                     type="submit"
                     variant="outlined"
                   >

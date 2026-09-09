@@ -92,10 +92,7 @@ type AdministrationScope = Pick<
   "practice" | "user_id" | "membership_id"
 >;
 
-const pendingAdministrationAttempts = new Map<
-  string,
-  AdministrationAttempt
->();
+const pendingAdministrationAttempts = new Map<string, AdministrationAttempt>();
 
 function administrationScopeKey(
   scope: AdministrationScope,
@@ -172,7 +169,11 @@ export function MedicationAdministrations({
       encounter={encounter}
       patient={patient}
       key={`${context.practice.id}:${patient.id}:${encounter.id}`}
-      pendingScopeKey={administrationScopeKey(context, patient.id, encounter.id)}
+      pendingScopeKey={administrationScopeKey(
+        context,
+        patient.id,
+        encounter.id,
+      )}
       scopeKey={`${context.practice.id}:${patient.id}:${encounter.id}`}
       timezone={timezone}
       onChanged={onChanged}
@@ -359,7 +360,11 @@ function MedicationAdministrationPanel({
             {resource.error}
           </Alert>
         ) : (
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 1.5 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", mt: 1.5 }}
+          >
             <CircularProgress size={18} />
             <Typography color="text.secondary" variant="body2">
               Loading eligible medication lots…
@@ -372,7 +377,9 @@ function MedicationAdministrationPanel({
   const selectedProduct = selectedBatches[0]?.product_id;
   const reviewBatches = review
     ? resource.data.eligible_batches.filter((batch) =>
-        review.allocations.some((allocation) => allocation.batch_id === batch.batch_id),
+        review.allocations.some(
+          (allocation) => allocation.batch_id === batch.batch_id,
+        ),
       )
     : [];
   return (
@@ -389,7 +396,8 @@ function MedicationAdministrationPanel({
         {resource.data.site_id === null ? (
           <Alert severity="warning">
             This visit has no assigned site. Medication administration requires
-            an encounter site. Review the visit location before recording a dose.
+            an encounter site. Review the visit location before recording a
+            dose.
           </Alert>
         ) : !resource.data.inventory_posting_available ? (
           <Alert severity="warning">
@@ -448,7 +456,9 @@ function MedicationAdministrationPanel({
                       />
                       <Typography color="text.secondary" variant="body2">
                         Available {batch.available_quantity} {batch.stock_unit}
-                        {batch.expires_on ? ` · Expires ${batch.expires_on}` : ""}
+                        {batch.expires_on
+                          ? ` · Expires ${batch.expires_on}`
+                          : ""}
                       </Typography>
                       {Object.prototype.hasOwnProperty.call(
                         quantities,
@@ -458,6 +468,7 @@ function MedicationAdministrationPanel({
                           disabled={locked}
                           inputMode="decimal"
                           label={`Stock quantity (${batch.stock_unit})`}
+                          required
                           onChange={(event) =>
                             setQuantities((current) => ({
                               ...current,
@@ -495,12 +506,13 @@ function MedicationAdministrationPanel({
               />
               <TextField
                 disabled={locked}
-                label="Administration time"
+                label="Administration time (device local)"
                 onChange={(event) => setAdministeredAt(event.target.value)}
                 required
                 slotProps={{ inputLabel: { shrink: true } }}
                 type="datetime-local"
                 value={administeredAt}
+                helperText={`Review will show clinic time (${timezone}).`}
               />
               <TextField
                 disabled={locked}
@@ -512,8 +524,8 @@ function MedicationAdministrationPanel({
             {error && <Alert severity="error">{error}</Alert>}
             {attempt && (
               <Alert severity="warning">
-                This administration has an unconfirmed outcome. The selected lots
-                and entries are locked for an exact retry.
+                This administration has an unconfirmed outcome. The selected
+                lots and entries are locked for an exact retry.
               </Alert>
             )}
             <Button
@@ -530,15 +542,22 @@ function MedicationAdministrationPanel({
           <>
             <Divider />
             <Box>
-              <Typography variant="subtitle2">Recorded administrations</Typography>
+              <Typography variant="subtitle2">
+                Recorded administrations
+              </Typography>
               <Stack spacing={1} sx={{ mt: 1 }}>
                 {resource.data.administrations.map((administration) => (
                   <Box key={administration.id} sx={{ py: 0.5 }}>
                     <Typography sx={{ fontWeight: 700 }} variant="body2">
-                      {administration.product.name} · {administration.dose_text} · {administration.route_text}
+                      {administration.product.name} · {administration.dose_text}{" "}
+                      · {administration.route_text}
                     </Typography>
                     <Typography color="text.secondary" variant="body2">
-                      {administration.quantity} {administration.stock_unit} · {recordedDateTime(administration.administered_at, timezone)}
+                      {administration.quantity} {administration.stock_unit} ·{" "}
+                      {recordedDateTime(
+                        administration.administered_at,
+                        timezone,
+                      )}
                       {administration.administration_site_text
                         ? ` · ${administration.administration_site_text}`
                         : ""}
@@ -572,7 +591,9 @@ function MedicationAdministrationPanel({
                 {patient.display_name} · Visit #{encounter.id}
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                Dose {review.dose_text} · Route {review.route_text} · {recordedDateTime(review.administered_at, timezone)}
+                Dose {review.dose_text} · Route {review.route_text} · Clinic
+                time ({timezone}):{" "}
+                {recordedDateTime(review.administered_at, timezone)}
                 {review.administration_site_text
                   ? ` · ${review.administration_site_text}`
                   : ""}
@@ -584,7 +605,9 @@ function MedicationAdministrationPanel({
                 );
                 return (
                   <Typography key={batch.batch_id} variant="body2">
-                    {batch.product_name} · Lot {batch.lot_number} · {batch.location_name} · {allocation?.quantity} {batch.stock_unit}
+                    {batch.product_name} · Lot {batch.lot_number} ·{" "}
+                    {batch.location_name} · {allocation?.quantity}{" "}
+                    {batch.stock_unit}
                   </Typography>
                 );
               })}
@@ -598,10 +621,17 @@ function MedicationAdministrationPanel({
           )}
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy || attempt !== null} onClick={() => setReview(null)}>
+          <Button
+            disabled={busy || attempt !== null}
+            onClick={() => setReview(null)}
+          >
             Go back
           </Button>
-          <Button disabled={busy} onClick={() => void recordAdministration()} variant="contained">
+          <Button
+            disabled={busy}
+            onClick={() => void recordAdministration()}
+            variant="contained"
+          >
             {busy
               ? "Recording…"
               : attempt

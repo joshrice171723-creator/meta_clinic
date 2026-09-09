@@ -15,7 +15,14 @@ import type {
   SoapNoteSections,
   VisitType,
 } from "../../api/contracts";
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
@@ -31,7 +38,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -73,7 +79,6 @@ import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
-
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -539,11 +544,8 @@ function BookingFormEditor({
   const [roomId, setRoomId] = useState(restoredDraft.roomId);
   const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
   const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
-  const [visitModality, setVisitModality] =
-    useState<VisitModality>(restoredDraft.visitModality ?? initialVisitModality);
-  const [showDetails, setShowDetails] = useState(
-    restoredDraft.visitModality === "video" ||
-      Boolean(restoredDraft.siteId || restoredDraft.clinicianId || restoredDraft.visitTypeId),
+  const [visitModality, setVisitModality] = useState<VisitModality>(
+    restoredDraft.visitModality ?? initialVisitModality,
   );
   const [busy, setBusy] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
@@ -577,7 +579,16 @@ function BookingFormEditor({
       visitTypeId,
       visitModality,
     }),
-    [patientId, startsAt, endsAt, siteId, roomId, clinicianId, visitTypeId, visitModality],
+    [
+      patientId,
+      startsAt,
+      endsAt,
+      siteId,
+      roomId,
+      clinicianId,
+      visitTypeId,
+      visitModality,
+    ],
   );
   const draftChanged = bookingDraftHasChanges(currentDraft, baseline);
   const dirty = hasWorkingDraft || draftChanged;
@@ -658,7 +669,14 @@ function BookingFormEditor({
         autosaveTimer.current = undefined;
       }
     };
-  }, [bookingAttempt, busy, currentDraft, dirty, outcomeUnconfirmed, workingDraft.save]);
+  }, [
+    bookingAttempt,
+    busy,
+    currentDraft,
+    dirty,
+    outcomeUnconfirmed,
+    workingDraft.save,
+  ]);
   useEffect(() => {
     if ((!dirty && !outcomeUnconfirmed) || typeof window === "undefined")
       return;
@@ -751,7 +769,6 @@ function BookingFormEditor({
     setClinicianId("");
     setVisitTypeId("");
     setVisitModality("in_person");
-    setShowDetails(false);
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
     setHasWorkingDraft(false);
@@ -837,13 +854,9 @@ function BookingFormEditor({
               return setSubmitError("Select a patient before scheduling.");
             if (!bookingAttempt && intervalError)
               return setSubmitError(intervalError);
-            if (
-              !bookingAttempt &&
-              visitModality === "video" &&
-              (!clinicianId || !visitTypeId)
-            )
+            if (!bookingAttempt && (!siteId || !clinicianId || !visitTypeId))
               return setSubmitError(
-                "Choose a clinician and an eligible visit type for this video appointment.",
+                "Choose a site, clinician, and visit type before scheduling.",
               );
             inFlight.current = true;
             if (autosaveTimer.current) {
@@ -1039,120 +1052,124 @@ function BookingFormEditor({
               ))}
             </Stack>
             <Alert severity="info" variant="outlined">
-              Times are entered in this device’s local timezone and shown on the
-              schedule in {timezone}.
+              Enter times using this device’s timezone (
+              {Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"}
+              ). Confirm the clinic time shown on the schedule in {timezone}
+              before finishing.
             </Alert>
             <TelehealthBookingFormat
               value={visitModality}
               disabled={busy || outcomeUnconfirmed}
               onChange={(format) => {
                 setVisitModality(format);
-                if (format === "video") {
-                  setRoomId("");
-                  setShowDetails(true);
-                }
+                if (format === "video") setRoomId("");
               }}
             />
-            <Button
-              variant="text"
-              onClick={() => setShowDetails((value) => !value)}
-              disabled={busy || outcomeUnconfirmed}
-              sx={{ alignSelf: "flex-start" }}
-              aria-expanded={showDetails}
+            <Typography variant="subtitle2">Appointment setup</Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 2,
+              }}
             >
-              {showDetails
-                ? "Hide optional details"
-                : "Add location, clinician, and visit type"}
-            </Button>
-            <Collapse in={showDetails} unmountOnExit>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                  gap: 2,
-                  pt: 0.5,
-                }}
+              <FormControl
+                fullWidth
+                required
+                disabled={busy || outcomeUnconfirmed}
               >
-                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
-                  <InputLabel id="site-label">Site</InputLabel>
+                <InputLabel id="site-label">Site</InputLabel>
+                <Select
+                  labelId="site-label"
+                  label="Site"
+                  value={siteId}
+                  onChange={(event) => {
+                    setSiteId(event.target.value);
+                    setRoomId("");
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Select a site
+                  </MenuItem>
+                  {facilities.data.sites.map((site) => (
+                    <MenuItem key={site.id} value={site.id.toString()}>
+                      {site.code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {visitModality !== "video" && (
+                <FormControl
+                  fullWidth
+                  disabled={!siteId || busy || outcomeUnconfirmed}
+                >
+                  <InputLabel id="room-label">Room</InputLabel>
                   <Select
-                    labelId="site-label"
-                    label="Site"
-                    value={siteId}
-                    onChange={(event) => {
-                      setSiteId(event.target.value);
-                      setRoomId("");
-                    }}
+                    labelId="room-label"
+                    label="Room"
+                    value={roomId}
+                    onChange={(event) => setRoomId(event.target.value)}
                   >
-                    <MenuItem value="">Not assigned</MenuItem>
-                    {facilities.data.sites.map((site) => (
-                      <MenuItem key={site.id} value={site.id.toString()}>
-                        {site.code}
+                    <MenuItem value="">No room yet</MenuItem>
+                    {availableRooms.map((room) => (
+                      <MenuItem key={room.id} value={room.id.toString()}>
+                        {room.code}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-                {visitModality !== "video" && (
-                  <FormControl
-                    fullWidth
-                    disabled={!siteId || busy || outcomeUnconfirmed}
-                  >
-                    <InputLabel id="room-label">Room</InputLabel>
-                    <Select
-                      labelId="room-label"
-                      label="Room"
-                      value={roomId}
-                      onChange={(event) => setRoomId(event.target.value)}
+              )}
+              <FormControl
+                fullWidth
+                required
+                disabled={busy || outcomeUnconfirmed}
+              >
+                <InputLabel id="clinician-label">Booked clinician</InputLabel>
+                <Select
+                  labelId="clinician-label"
+                  label="Booked clinician"
+                  value={clinicianId}
+                  onChange={(event) => setClinicianId(event.target.value)}
+                >
+                  <MenuItem value="" disabled>
+                    Select a clinician
+                  </MenuItem>
+                  {clinicians.data.clinicians.map((clinician) => (
+                    <MenuItem
+                      key={clinician.id}
+                      value={clinician.id.toString()}
                     >
-                      <MenuItem value="">Not assigned</MenuItem>
-                      {availableRooms.map((room) => (
-                        <MenuItem key={room.id} value={room.id.toString()}>
-                          {room.code}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
-                  <InputLabel id="clinician-label">Booked clinician</InputLabel>
-                  <Select
-                    labelId="clinician-label"
-                    label="Booked clinician"
-                    value={clinicianId}
-                    onChange={(event) => setClinicianId(event.target.value)}
-                  >
-                    <MenuItem value="">Not assigned</MenuItem>
-                    {clinicians.data.clinicians.map((clinician) => (
-                      <MenuItem
-                        key={clinician.id}
-                        value={clinician.id.toString()}
-                      >
-                        {clinician.reference ??
-                          `Clinician profile #${clinician.id}`}
+                      {clinician.reference ??
+                        `Clinician profile #${clinician.id}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl
+                fullWidth
+                required
+                disabled={busy || outcomeUnconfirmed}
+              >
+                <InputLabel id="visit-type-label">Visit type</InputLabel>
+                <Select
+                  labelId="visit-type-label"
+                  label="Visit type"
+                  value={visitTypeId}
+                  onChange={(event) => setVisitTypeId(event.target.value)}
+                >
+                  <MenuItem value="" disabled>
+                    Select a visit type
+                  </MenuItem>
+                  {visitTypes.data.visit_types
+                    .filter((type) => !type.retired_at)
+                    .map((type) => (
+                      <MenuItem key={type.id} value={type.id.toString()}>
+                        {type.code}
                       </MenuItem>
                     ))}
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
-                  <InputLabel id="visit-type-label">Visit type</InputLabel>
-                  <Select
-                    labelId="visit-type-label"
-                    label="Visit type"
-                    value={visitTypeId}
-                    onChange={(event) => setVisitTypeId(event.target.value)}
-                  >
-                    <MenuItem value="">Not specified</MenuItem>
-                    {visitTypes.data.visit_types
-                      .filter((type) => !type.retired_at)
-                      .map((type) => (
-                        <MenuItem key={type.id} value={type.id.toString()}>
-                          {type.code}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                </FormControl>
-              </Box>
-            </Collapse>
+                </Select>
+              </FormControl>
+            </Box>
             {submitError && (
               <Alert severity="error" role="alert">
                 {submitError}
@@ -1274,8 +1291,8 @@ export function ScheduleView({
         </Stack>
       </Box>
       <Alert severity="info">
-        Read-only scheduled visits from the clinic API. A scheduled time is not
-        an arrival or a place in the tracking-board queue.
+        Scheduled visits appear here after the clinic records them. A scheduled
+        time is not an arrival or a place in the tracking-board queue.
       </Alert>
       {bookingAvailability(context.capabilities).visible && (
         <BookingForm
@@ -2179,12 +2196,12 @@ export function SoapNoteForm({
         )
       )
         throw new NoteReconciliationError(
-          "The protected receipt did not match this note save attempt.",
+          "The saved status did not match this note. The outcome remains unconfirmed.",
         );
       if (result.receipt.outcome !== "committed") {
         setSaveState("outcome_unconfirmed");
         setError(
-          "The protected receipt says the save outcome is unconfirmed. The draft remains blocked; no automatic retry was made.",
+          "The saved status is still unconfirmed. The draft remains protected and no automatic retry was made.",
         );
         return;
       }
@@ -2200,7 +2217,7 @@ export function SoapNoteForm({
       if (caught instanceof ApiError && caught.status === 404) {
         setSaveState("not_found");
         setError(
-          "No protected save receipt was found. The outcome remains unconfirmed; choose a deliberate reset before retrying.",
+          "No saved result was found for this attempt. The outcome remains unconfirmed; reset only after checking the note.",
         );
       } else if (isUnknownNoteSaveError(caught)) {
         setSaveState("outcome_unconfirmed");
@@ -2458,27 +2475,37 @@ export function SoapNoteForm({
         />
         {SOAP_SECTION_LABELS.filter(([key]) => key !== "subjective").map(
           ([key, label]) => (
-            <TextField
+            <Box
               key={key}
-              name={key}
-              label={`${label} (${label.charAt(0)})`}
-              value={sections[key]}
-              onChange={(event) =>
-                setSections((current) => ({
-                  ...current,
-                  [key]: event.target.value,
-                }))
-              }
-              multiline
-              minRows={key === "objective" ? 10 : 4}
-              slotProps={{ htmlInput: { maxLength: 50_000 } }}
-              disabled={editorDisabled}
-              helperText={
-                key === "objective" && appliedTemplate && !signed
-                  ? "Template text is editable and remains unverified until the author reviews it."
+              id={
+                key === "assessment" || key === "plan"
+                  ? `chart-${key}`
                   : undefined
               }
-            />
+              sx={{ scrollMarginTop: 16 }}
+            >
+              <TextField
+                fullWidth
+                name={key}
+                label={`${label} (${label.charAt(0)})`}
+                value={sections[key]}
+                onChange={(event) =>
+                  setSections((current) => ({
+                    ...current,
+                    [key]: event.target.value,
+                  }))
+                }
+                multiline
+                minRows={key === "objective" ? 10 : 4}
+                slotProps={{ htmlInput: { maxLength: 50_000 } }}
+                disabled={editorDisabled}
+                helperText={
+                  key === "objective" && appliedTemplate && !signed
+                    ? "Template text is editable and remains unverified until the author reviews it."
+                    : undefined
+                }
+              />
+            </Box>
           ),
         )}
         <TextField
@@ -2507,7 +2534,7 @@ export function SoapNoteForm({
         {saveState === "saving"
           ? "Saving unsigned draft…"
           : saveState === "reconciling"
-            ? "Verifying the protected receipt, note, and encounter…"
+            ? "Checking the saved note and encounter…"
             : notice}
       </Box>
       {workingDraft.status === "saving" && (
@@ -2542,11 +2569,16 @@ export function SoapNoteForm({
           {workingDraft.error ||
             "The protected working note could not be saved."}
           {workingDraft.status === "conflict" && saveAttemptRef.current
-            ? " Reconcile the exact submitted request before replacing this copy."
+            ? " Check the submitted save before replacing this copy."
             : null}
         </Alert>
       )}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+      <Stack
+        id="chart-signing"
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ scrollMarginTop: 16 }}
+      >
         {(!signed || correctionTarget) && (
           <Button
             variant="contained"
@@ -2627,8 +2659,8 @@ export function SoapNoteForm({
       >
         <DialogTitle>Reset save attempt?</DialogTitle>
         <DialogContent>
-          Check the saved note before clearing this request key. Resetting does
-          not send another save request.
+          Check the saved note before resetting this attempt. Resetting does not
+          send another save.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setResetConfirmation(false)} disabled={busy}>
@@ -2924,6 +2956,10 @@ export function ChartQuickJump() {
     ["Patient", "#chart-patient"],
     ["HPI", "#chart-hpi"],
     ["ROS", "#chart-ros"],
+    ["Assessment", "#chart-assessment"],
+    ["Plan", "#chart-plan"],
+    ["Signing", "#chart-signing"],
+    ["Completion", "#chart-completion"],
   ] as const;
 
   return (
@@ -3501,7 +3537,7 @@ function VisitWrapUp({
       } else {
         setCloseState("outcome_unconfirmed");
         setError(
-          "The encounter close outcome is unconfirmed. No automatic retry was made. Check the retained close status explicitly.",
+          "The visit close could not be confirmed. No automatic retry was made. Check the current encounter status.",
         );
       }
     } finally {
@@ -3523,7 +3559,7 @@ function VisitWrapUp({
         result.receipt.resource_id !== encounter.id
       ) {
         throw new Error(
-          "The close receipt did not match this encounter. The outcome remains unconfirmed.",
+          "The saved close status did not match this encounter. The outcome remains unconfirmed.",
         );
       }
       if (receiptResolution(200, result.receipt.outcome) === "committed") {
@@ -3531,7 +3567,7 @@ function VisitWrapUp({
       } else {
         setCloseState("outcome_unconfirmed");
         setError(
-          "The retained receipt says the encounter close outcome is unconfirmed. No automatic retry was made.",
+          "The visit close is still unconfirmed. No automatic retry was made.",
         );
       }
     } catch (caught) {
@@ -3539,7 +3575,7 @@ function VisitWrapUp({
       if (caught instanceof ApiError && caught.status === 404) {
         setCloseState("not_found");
         setError(
-          "No close receipt was found. The encounter close outcome remains unconfirmed; no automatic retry was made.",
+          "No saved result was found for this close attempt. The outcome remains unconfirmed and no automatic retry was made.",
         );
       } else if (
         closeFailureState(
@@ -3576,7 +3612,11 @@ function VisitWrapUp({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper
+      id="chart-completion"
+      variant="outlined"
+      sx={{ p: 2, scrollMarginTop: 16 }}
+    >
       <Stack spacing={1.25}>
         <Typography variant="subtitle2">Visit wrap-up</Typography>
         {current.status === "completed" ? (
@@ -3638,7 +3678,11 @@ function VisitWrapUp({
             )}
         </Stack>
       </Stack>
-      <EncounterFollowUpPanel patient={patient} encounter={current} timezone={timezone} />
+      <EncounterFollowUpPanel
+        patient={patient}
+        encounter={current}
+        timezone={timezone}
+      />
       <Dialog
         open={confirmation !== null}
         onClose={() => !busy && setConfirmation(null)}
@@ -3657,7 +3701,7 @@ function VisitWrapUp({
           </Typography>
           <Typography color="text.secondary">
             {confirmation === "reset"
-              ? "Resetting clears this local request key. Verify the encounter status before sending another close request."
+              ? "Resetting clears this local close attempt. Verify the encounter status before trying to close it again."
               : "Save your note changes before continuing. Closing records the encounter end time; you can continue to checkout afterward."}
           </Typography>
         </DialogContent>

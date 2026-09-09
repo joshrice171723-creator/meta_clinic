@@ -14,6 +14,9 @@ module Clinic
             Authorization.authorize!(actor: actor, practice: practice, action: "encounters.write", site: appointment.site)
             existing = practice.encounters.find_by(appointment_id: appointment.id)
             next existing if existing
+            if appointment.site_id.blank? || appointment.visit_type_id.blank?
+              raise ArgumentError, "Choose a site and visit type before starting this scheduled visit."
+            end
             unless %w[scheduled confirmed].include?(appointment.status)
               raise ArgumentError, "Only scheduled or confirmed appointments can start a visit."
             end

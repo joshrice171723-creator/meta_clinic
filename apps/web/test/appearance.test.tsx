@@ -79,6 +79,16 @@ describe("account-owned appearance", () => {
     expect(loginDestination("/clinic/settings")).toBe("/clinic/settings");
     expect(loginDestination("//example.invalid")).toBe("/portal");
     expect(loginDestination("/clinic/settings?other=1")).toBe("/portal");
+    expect(loginDestination("/clinic/messages?conversation_id=17")).toBe(
+      "/clinic/messages?conversation_id=17",
+    );
+    expect(
+      loginDestination(
+        "/clinic/telehealth?telehealth_visit_id=123e4567-e89b-42d3-a456-426614174000",
+      ),
+    ).toBe(
+      "/clinic/telehealth?telehealth_visit_id=123e4567-e89b-42d3-a456-426614174000",
+    );
   });
   it("retains only a verified Omni development-view projection", () => {
     const development_access = {

@@ -93,7 +93,7 @@ module Clinic
 
       def payment_page(before: nil)
         relation = Clinic::PaymentEvent.where(practice: @practice, patient: @patient)
-          .includes(:allocations, :refund_events, :cash_tender, :billing_receipts)
+          .includes(:allocations, :refund_events, :billing_receipts, cash_tender: :cash_drawer_session)
         bounded_page(relation, before:)
       end
 
@@ -174,6 +174,13 @@ module Clinic
       def payment_payload(payment)
         allocated = payment.allocations.sum(&:amount)
         refunded = payment.refund_events.sum(&:amount)
+        cash_refund_unavailable_reason = if payment.cash_tender.nil?
+          "not_cash_payment"
+        elsif payment.cash_tender.cash_drawer_session.status != "open"
+          "cash_drawer_closed"
+        elsif refunded >= payment.amount
+          "payment_fully_refunded"
+        end
         {
           id: payment.id,
           currency: payment.currency,
@@ -182,6 +189,8 @@ module Clinic
           unapplied_amount: decimal([payment.amount - allocated - refunded, BigDecimal("0")].max),
           created_at: payment.created_at.iso8601,
           cash_payment: payment.cash_tender.present?,
+          cash_refund_available: cash_refund_unavailable_reason.nil?,
+          cash_refund_unavailable_reason: cash_refund_unavailable_reason,
           receipt_available: payment.billing_receipts.any?,
           allocations: payment.allocations.sort_by(&:created_at).map do |allocation|
             { id: allocation.id, invoice_id: allocation.invoice_id, amount: decimal(allocation.amount), created_at: allocation.created_at.iso8601 }
