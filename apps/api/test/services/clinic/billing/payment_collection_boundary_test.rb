@@ -162,4 +162,71 @@ class PaymentCollectionBoundaryTest < ActiveSupport::TestCase
     end
     assert_empty @practice.payment_processor_events
   end
+
+  test "enforces currency precision and maps the bounded collection worklist" do
+    site = @practice.sites.create!(name: "Synthetic cashier", code: "CASH")
+    drawer = @practice.cash_drawer_sessions.create!(site: site, opened_by: @actor, opening_float: "0")
+
+    assert_no_difference "Clinic::CashTender.count" do
+      assert_raises(ArgumentError, match: /two decimal places/) do
+        Clinic::Billing::RecordCashPayment.call(
+          practice: @practice, actor: @actor, patient: @patient, invoice: @invoice,
+          drawer_session: drawer, tendered_amount: "10.001", allocation_amount: "10.00",
+          request_key: "fractional-cash"
+        )
+      end
+    end
+    allocation = Clinic::Billing::RecordCashPayment.call(
+      practice: @practice, actor: @actor, patient: @patient, invoice: @invoice,
+      drawer_session: drawer, tendered_amount: "10.00", allocation_amount: "10.00",
+      request_key: "whole-cent-cash"
+    )
+    assert_no_difference "Clinic::RefundEvent.count" do
+      assert_raises(ArgumentError, match: /two decimal places/) do
+        Clinic::Billing::RecordCashRefund.call(
+          practice: @practice, actor: @actor, payment: allocation.payment_event,
+          amount: "0.001", reason: "Fractional refund rejection"
+        )
+      end
+    end
+    assert_no_difference "Clinic::PaymentCollectionIntent.count" do
+      assert_raises(ArgumentError, match: /two decimal places/) do
+        Clinic::Billing::CreateCollectionIntent.call(
+          practice: @practice, actor: @actor, patient: @patient, invoice: @invoice,
+          amount: "1.001", request_key: "fractional-collection"
+        )
+      end
+    end
+
+    intents = %w[pending processing succeeded failed needs_reconciliation canceled].to_h do |state|
+      intent = Clinic::Billing::CreateCollectionIntent.call(
+        practice: @practice, actor: @actor, patient: @patient, invoice: @invoice,
+        amount: "1.00", request_key: "worklist-#{state}"
+      )
+      intent.transition_to!("processing") if %w[processing succeeded failed].include?(state)
+      intent.transition_to!(state) unless state == "pending" || state == "processing"
+      [ state, intent ]
+    end
+    worklist = Clinic::Billing::Dashboard.call(
+      practice: @practice, patient_identity_access: true
+    ).fetch(:collection_worklist)
+    rows = worklist.fetch(:items).index_by { |row| row.fetch(:id) }
+    expected = {
+      "pending" => [ "requested", "continue_checkout" ],
+      "processing" => [ "processing", "refresh_status" ],
+      "succeeded" => [ "paid", "review_receipt" ],
+      "failed" => [ "failed", "review_failure" ],
+      "needs_reconciliation" => [ "needs_reconciliation", "reconcile" ],
+      "canceled" => [ "canceled", "review_balance" ]
+    }
+    expected.each do |state, expectation|
+      status, next_action = expectation
+      row = rows.fetch(intents.fetch(state).id)
+      assert_equal status, row.fetch(:status)
+      assert_equal next_action, row.fetch(:next_action)
+      assert_equal @patient.id, row.dig(:patient, :id)
+    end
+    assert_equal 50, worklist.fetch(:limit)
+    assert_equal 6, worklist.fetch(:total_count)
+  end
 end

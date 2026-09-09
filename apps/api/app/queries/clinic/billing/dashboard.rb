@@ -1,6 +1,16 @@
 module Clinic
   module Billing
     class Dashboard
+      COLLECTION_WORKLIST_LIMIT = 50
+      COLLECTION_STATES = {
+        "pending" => [ "requested", "continue_checkout" ],
+        "processing" => [ "processing", "refresh_status" ],
+        "succeeded" => [ "paid", "review_receipt" ],
+        "failed" => [ "failed", "review_failure" ],
+        "needs_reconciliation" => [ "needs_reconciliation", "reconcile" ],
+        "canceled" => [ "canceled", "review_balance" ]
+      }.freeze
+
       def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil, patient_identity_access: false)
         local_now = now.in_time_zone(practice.timezone)
         period_start = local_now.beginning_of_month
@@ -40,6 +50,7 @@ module Clinic
           payment_count: Clinic::PaymentEvent.where(practice: practice).count,
           card_collection: card_collection(practice),
           pending_online_payments: pending_online_payments(practice),
+          collection_worklist: collection_worklist(practice, patient_identity_access: patient_identity_access),
           income_outlook: IncomeOutlook.call(practice: practice, now: now, months: outlook_months, start_month: outlook_start),
           unbilled_encounters: unbilled_encounters(practice, available: patient_identity_access)
         }
@@ -66,6 +77,37 @@ module Clinic
           end.values
       end
       private_class_method :pending_online_payments
+
+      def self.collection_worklist(practice, patient_identity_access:)
+        scope = Clinic::PaymentCollectionIntent.where(practice: practice).includes(:invoice, :patient)
+          .order(updated_at: :desc, id: :desc)
+        {
+          limit: COLLECTION_WORKLIST_LIMIT,
+          total_count: scope.count,
+          items: scope.limit(COLLECTION_WORKLIST_LIMIT).map do |intent|
+            state, next_action = COLLECTION_STATES.fetch(intent.state)
+            {
+              id: intent.id,
+              invoice_id: intent.invoice_id,
+              status: state,
+              next_action: next_action,
+              processor: intent.processor,
+              mode: intent.mode,
+              amount: intent.amount.to_d.to_s("F"),
+              currency: intent.currency,
+              requested_at: intent.created_at.iso8601,
+              updated_at: intent.updated_at.iso8601,
+              invoice_status: intent.invoice.status,
+              patient: patient_identity_access ? {
+                id: intent.patient.id,
+                display_name: intent.patient.display_name,
+                reference: intent.patient.reference
+              } : nil
+            }
+          end
+        }
+      end
+      private_class_method :collection_worklist
 
       def self.unbilled_encounters(practice, available:)
         return { available: false, total: nil, items: [] } unless available

@@ -10,7 +10,7 @@ module Clinic
           action: "billing.payment_record", legacy_action: "billing.write")
         patient = practice.patients.find(patient.id)
         invoice = practice.invoices.find(invoice.id)
-        amount = Money.decimal(amount, name: "collection amount", positive: true)
+        amount = Money.currency_amount(amount, name: "collection amount", positive: true)
         currency = invoice.currency
         raise ArgumentError, "An invoice must be posted before card collection." unless invoice.status == "posted"
         raise ArgumentError, "The invoice must belong to the selected patient." unless invoice.patient_id == patient.id

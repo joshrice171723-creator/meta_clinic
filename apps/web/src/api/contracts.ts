@@ -575,6 +575,38 @@ export type BillingPatientLedger = {
     refunds: { id: number; amount: Decimal; reason: string; created_at: string }[];
   }[];
 };
+export type BillingCollectionStatus =
+  | "requested"
+  | "processing"
+  | "paid"
+  | "failed"
+  | "needs_reconciliation"
+  | "canceled";
+export type BillingCollectionNextAction =
+  | "continue_checkout"
+  | "refresh_status"
+  | "review_receipt"
+  | "review_failure"
+  | "reconcile"
+  | "review_balance";
+export type BillingCollectionWorklistItem = {
+  id: number;
+  invoice_id: number;
+  status: BillingCollectionStatus;
+  next_action: BillingCollectionNextAction;
+  processor: string;
+  mode: "test" | "live";
+  amount: Decimal;
+  currency: string;
+  requested_at: string;
+  updated_at: string;
+  invoice_status: string;
+  patient: {
+    id: number;
+    display_name: string;
+    reference: string | null;
+  } | null;
+};
 export type BillingDashboard = {
   schema_version: "clinic-billing-v1";
   practice: { id: number; name: string; timezone: string };
@@ -609,6 +641,11 @@ export type BillingDashboard = {
     invoice_id: number;
     state: "processing" | "needs_reconciliation";
   }[];
+  collection_worklist: {
+    limit: number;
+    total_count: number;
+    items: BillingCollectionWorklistItem[];
+  };
 };
 export type CashDrawer = {
   id: number;
@@ -830,6 +867,20 @@ export type ClinicTrackingBoardVisit = {
   encounter_id: number | null;
   chart_status: "unopened" | "draft" | "signed" | "unavailable";
   provider_assignment_available: boolean;
+  intake_ownership?: {
+    participant_id: string;
+    token: string;
+    owner: { membership_id: string; display_name: string };
+    lease_expires_at: string | null;
+    state: "claimed" | "stale";
+    claim_available: boolean;
+    release_available: boolean;
+  } | null;
+  intake_claim_available?: boolean;
+  exceptions?: {
+    code: "missing_checkout" | "stale_intake_ownership";
+    message: string;
+  }[];
   patient: Pick<Patient, "id" | "display_name" | "reference"> & {
     demographics?: { age: number | null; sex: string };
     membership?: "member" | "nonmember" | "not_verified";

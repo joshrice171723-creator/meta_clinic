@@ -23,6 +23,7 @@ import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
+  BillingCollectionWorklist,
   BillingIncomeOutlook,
   BillingPayments,
   type BillingWorkspaceData,
@@ -727,6 +728,19 @@ export function BillingDashboard() {
           </Button>
         </div>
       </section>
+      <BillingCollectionWorklist
+        data={data}
+        onOpenInvoice={(invoiceId) => {
+          const invoiceQuery = String(invoiceId);
+          setSearchText(invoiceQuery);
+          setQuery(invoiceQuery);
+          setFilter("all");
+          setSort("recent");
+          setInvoicePage(1);
+          setSelectedInvoiceId(invoiceId);
+          setActiveTab("invoices");
+        }}
+      />
       {checkoutQueue.available && (
         <section className="clinic-card billing-ledger-card">
           <div className="billing-section-heading billing-ledger-heading">

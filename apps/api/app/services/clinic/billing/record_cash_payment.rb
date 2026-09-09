@@ -3,8 +3,8 @@ module Clinic
     class RecordCashPayment
       def self.call(practice:, actor:, patient:, invoice:, drawer_session:, tendered_amount:, allocation_amount:, request_key:)
         Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "billing.payment_record", legacy_action: "billing.write")
-        tendered = Money.decimal(tendered_amount, name: "cash tender", positive: true)
-        allocated = Money.decimal(allocation_amount, name: "allocation", positive: true)
+        tendered = Money.currency_amount(tendered_amount, name: "cash tender", positive: true)
+        allocated = Money.currency_amount(allocation_amount, name: "allocation", positive: true)
         raise ArgumentError, "Cash tender must cover the allocation amount." if tendered < allocated
 
         ApplicationRecord.transaction do

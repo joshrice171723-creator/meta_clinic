@@ -25,6 +25,8 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import type {
+  BillingCollectionNextAction,
+  BillingCollectionStatus,
   BillingDashboard,
   BillingCurrencyMetrics,
   BillingInvoiceSummary,
@@ -97,6 +99,111 @@ export type BillingWorkspaceData = Omit<
 export function billingMoney(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
+}
+
+const collectionStatusLabels: Record<BillingCollectionStatus, string> = {
+  requested: "Requested",
+  processing: "Processing",
+  paid: "Paid",
+  failed: "Failed",
+  needs_reconciliation: "Needs reconciliation",
+  canceled: "Canceled",
+};
+
+const collectionActionLabels: Record<BillingCollectionNextAction, string> = {
+  continue_checkout: "Continue the hosted checkout or confirm its processor status.",
+  refresh_status: "Refresh processor status before recording another payment.",
+  review_receipt: "Review the posted allocation and receipt.",
+  review_failure: "Review the failure before starting a new collection request.",
+  reconcile: "Review processor evidence and reconcile before taking another payment.",
+  review_balance: "Confirm the remaining invoice balance before starting again.",
+};
+
+export function BillingCollectionWorklist({
+  data,
+  onOpenInvoice,
+}: {
+  data: BillingWorkspaceData;
+  onOpenInvoice: (invoiceId: number) => void;
+}) {
+  const worklist = data.collection_worklist;
+  return (
+    <section className="clinic-card billing-ledger-card">
+      <div className="billing-section-heading billing-ledger-heading">
+        <div>
+          <h2>Collections & reconciliation</h2>
+          <p className="billing-subtitle">
+            Review recent payment requests and resolve uncertain processor
+            outcomes before taking another payment.
+          </p>
+        </div>
+        <strong>{worklist.total_count} collection records</strong>
+      </div>
+      {!worklist.items.length ? (
+        <p className="billing-clear-state">No collection activity yet.</p>
+      ) : (
+        <>
+          <TableContainer className="billing-table-wrap">
+            <Table size="small" aria-label="Collections and reconciliation worklist">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Invoice</TableCell>
+                  <TableCell>Patient</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Last updated</TableCell>
+                  <TableCell align="right">Amount</TableCell>
+                  <TableCell>Next action</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {worklist.items.map((item) => (
+                  <TableRow key={item.id} hover>
+                    <TableCell component="th" scope="row">
+                      Invoice #{item.invoice_id}
+                    </TableCell>
+                    <TableCell>
+                      {item.patient?.display_name ?? "Identity unavailable"}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        variant={item.status === "needs_reconciliation" ? "filled" : "outlined"}
+                        color={
+                          item.status === "paid"
+                            ? "success"
+                            : item.status === "failed"
+                              ? "error"
+                              : item.status === "needs_reconciliation"
+                                ? "warning"
+                                : "default"
+                        }
+                        label={collectionStatusLabels[item.status]}
+                      />
+                    </TableCell>
+                    <TableCell>{paymentDate(item.updated_at, data.practice.timezone)}</TableCell>
+                    <TableCell align="right">
+                      {billingMoney(item.amount, item.currency)}
+                    </TableCell>
+                    <TableCell>{collectionActionLabels[item.next_action]}</TableCell>
+                    <TableCell align="right">
+                      <Button size="small" onClick={() => onOpenInvoice(item.invoice_id)}>
+                        Open invoice
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <p className="billing-subtitle">
+            Showing the latest {worklist.items.length} of {worklist.total_count},
+            limited to {worklist.limit} records.
+          </p>
+        </>
+      )}
+    </section>
+  );
 }
 
 function monthLabel(value: string) {

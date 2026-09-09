@@ -32,7 +32,8 @@ module Clinic
     end
 
     validates :currency, presence: true, format: { with: /\A[A-Z]{3}\z/ }
-    validates :rounding_policy_version, :status, presence: true
+    validates :rounding_policy_version, presence: true
+    validates :status, inclusion: { in: STATES.keys }
     validates :void_reason, length: { maximum: 500 }, allow_nil: true
     validate :checkout_encounter_is_completed_and_scoped
     validate :voider_belongs_to_practice
