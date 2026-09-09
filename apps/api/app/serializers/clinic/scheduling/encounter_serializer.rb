@@ -15,6 +15,8 @@ module Clinic
         }
         return payload unless detail
 
+        notes = encounter.notes.order(:id).to_a
+
         payload.merge(
           participants: encounter.participants.order(:effective_from, :id).map { |participant|
             {
@@ -25,8 +27,8 @@ module Clinic
               effective_until: participant.effective_until&.iso8601(6)
             }
           },
-          note_ids: encounter.notes.order(:id).pluck(:id),
-          notes: Clinic::Care::EncounterNoteSerializer.collection(encounter.notes.order(:id)),
+          note_ids: notes.map(&:id),
+          notes: Clinic::Care::EncounterNoteSerializer.collection(notes),
           observation_count: encounter.observations.count,
           document_count: encounter.documents.count
         )
