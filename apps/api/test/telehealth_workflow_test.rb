@@ -394,10 +394,19 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_predicate patient.reload, :admitted?
     assert_equal consent_count, visit.consents.count
 
-    Clinic::Telehealth::RemoveParticipant.call(visit: visit, participant: patient, actor: @staff,
+    removal = Clinic::Telehealth::RemoveParticipant.call(visit: visit, participant: patient, actor: @staff,
       request_key: "telehealth-remove-waiting-patient", expected_version: visit.reload.lock_version)
+    repeated_removal = Clinic::Telehealth::RemoveParticipant.call(visit: visit, participant: patient, actor: @staff,
+      request_key: "telehealth-repeat-remove-waiting-patient", expected_version: visit.reload.lock_version)
+    assert_equal removal.id, repeated_removal.id
     error = assert_raises(Clinic::Telehealth::Error) { enter_again.call("telehealth-waiting-after-removal") }
     assert_equal "participant_not_waitable", error.code
+    error = assert_raises(Clinic::Telehealth::Error) do
+      Clinic::Telehealth::SubmitCheckin.call(visit: visit, identity: @identity,
+        request_key: "telehealth-checkin-after-removal", expected_version: visit.reload.lock_version,
+        checkin: complete_checkin)
+    end
+    assert_equal "participant_not_preparable", error.code
     assert_predicate patient.reload, :removed?
     refute_includes Clinic::Telehealth::PatientVisitSerializer.allowed_actions(visit, patient), "telehealth.enter_waiting_room"
 
@@ -413,6 +422,51 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
         treatment_consent.update_column(:decision, "withdrawn")
       end
     end
+  end
+
+  test "treatment consent withdrawal revokes active media and blocks re-admission until removal finishes" do
+    visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    room = ready_room!(visit)
+    patient = visit.participants.patient.sole
+    checkin = Clinic::Telehealth::SubmitCheckin.call(visit: visit, identity: @identity,
+      request_key: "withdrawal-checkin", expected_version: visit.reload.lock_version, checkin: complete_checkin)
+    Clinic::Telehealth::RecordConsent.call(visit: visit, identity: @identity,
+      request_key: "withdrawal-accepted", expected_version: visit.reload.lock_version,
+      policy_version: visit.policy_version.version, decision: "accepted", purpose: "telehealth")
+    Clinic::Telehealth::EnterWaitingRoom.call(visit: visit, identity: @identity,
+      request_key: "withdrawal-waiting", expected_version: visit.reload.lock_version)
+    Clinic::Telehealth::VerifyPreparation.call(visit: visit, actor: @staff,
+      request_key: "withdrawal-verified", checkin_id: checkin.id, expected_version: visit.reload.lock_version)
+    Clinic::Telehealth::AdmitParticipant.call(visit: visit, participant: patient, actor: @staff,
+      request_key: "withdrawal-admitted", expected_version: visit.reload.lock_version)
+    grant = create_join_grant!(visit: visit, participant: patient, room: room, token: "withdrawal-grant")
+    visit.reload.update!(scribe_capture_owner_participant: patient,
+      scribe_capture_owner_token_digest: Digest::SHA256.hexdigest("withdrawal-capture"),
+      scribe_capture_lease_expires_at: 1.minute.from_now, scribe_capture_epoch: 9)
+
+    Clinic::Telehealth::RecordConsent.call(visit: visit, identity: @identity,
+      request_key: "withdrawal-revoked", expected_version: visit.reload.lock_version,
+      policy_version: visit.policy_version.version, decision: "withdrawn", purpose: "telehealth")
+
+    assert_predicate patient.reload, :waiting?
+    assert_nil patient.admitted_at
+    assert_nil patient.admitted_generation
+    assert_nil patient.admitted_checkin_id
+    assert_equal "treatment_consent_withdrawn", grant.reload.revocation_reason
+    assert_nil visit.reload.scribe_capture_owner_participant_id
+    assert_equal 10, visit.scribe_capture_epoch
+    assert visit.commands.exists?(kind: "eject_participant", participant_id: patient.id,
+      room_attempt_id: room.id, status: "pending")
+    refute_includes Clinic::Telehealth::PatientVisitSerializer.allowed_actions(visit.reload, patient), "telehealth.join"
+
+    Clinic::Telehealth::RecordConsent.call(visit: visit, identity: @identity,
+      request_key: "withdrawal-restored", expected_version: visit.reload.lock_version,
+      policy_version: visit.policy_version.version, decision: "accepted", purpose: "telehealth")
+    error = assert_raises(Clinic::Telehealth::Error) do
+      Clinic::Telehealth::AdmitParticipant.call(visit: visit, participant: patient, actor: @staff,
+        request_key: "withdrawal-readmit", expected_version: visit.reload.lock_version)
+    end
+    assert_equal "participant_ejection_pending", error.code
   end
 
   test "patient HTTP preparation contract resumes through device consent and explicit waiting entry" do
