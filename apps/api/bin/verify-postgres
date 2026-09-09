@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""Destructive only to uniquely named scratch databases created by this process.
+
+Requires local PostgreSQL 18 client/server, CREATE DATABASE permission and Python.
+Exercises old SQLite -> PostgreSQL 004 -> current, concurrency, and dump/restore.
+Never reads an existing application's database or emits rows/credentials.
+"""
+import os
+import pathlib
+import sqlite3
+import subprocess
+import tempfile
+import uuid
+
+root = pathlib.Path(__file__).resolve().parents[1]
+prefix = "apply_verify_" + uuid.uuid4().hex[:12]
+databases = [prefix + suffix for suffix in ("_upgrade", "_restore", "_fresh")]
+environment = os.environ.copy()
+environment.update(PGHOST=os.environ.get("PGHOST", "127.0.0.1"), PGPORT=os.environ.get("PGPORT", "54329"), PGUSER=os.environ.get("PGUSER", "postgres"), RAILS_ENV="development")
+environment.pop("DATABASE_URL", None)
+postgres_clients = {"createdb", "dropdb", "psql", "pg_dump", "pg_restore", "pg_isready"}
+
+def platform_command(command):
+    if os.name != "nt":
+        return command
+    if command[0] in postgres_clients:
+        return ["ruby", str(root / "bin" / "pg-client.rb"), command[0], *command[1:]]
+    if command[0] == "bundle":
+        return ["ruby", "-S", "bundle", *command[1:]]
+    script = root / command[0]
+    shebang = script.open().readline() if script.is_file() else ""
+    if "ruby" in shebang:
+        return ["ruby", str(script), *command[1:]]
+    if "python" in shebang:
+        return ["python", str(script), *command[1:]]
+    return command
+
+def run(command, env=environment, data=None):
+    result = subprocess.run(platform_command(command), cwd=root, env=env, input=data, capture_output=True, text=True)
+    if result.returncode:
+        # All fixture data is synthetic, but do not echo connection diagnostics.
+        raise RuntimeError("Verification step failed: " + command[0] + " " + command[1])
+    return result.stdout
+
+def assert_receipt_digest_schema():
+    schema = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT is_nullable, COALESCE(column_default, '') FROM information_schema.columns "
+        "WHERE table_name='clinic_operation_receipts' AND column_name='digest_algorithm'"
+    ]).strip()
+    if schema != "NO|":
+        raise RuntimeError("Receipt digest schema is not non-null and default-free")
+    key_schema = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT is_nullable, COALESCE(column_default, '') FROM information_schema.columns "
+        "WHERE table_name='clinic_operation_receipts' AND column_name='digest_key_id'"
+    ]).strip()
+    if key_schema != "YES|":
+        raise RuntimeError("Receipt digest key identity schema is not nullable and default-free")
+
+def assert_patient_membership_schema():
+    columns = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT string_agg(column_name || ':' || data_type || ':' || is_nullable, ',' ORDER BY ordinal_position) "
+        "FROM information_schema.columns WHERE table_name='clinic_patient_memberships'"
+    ]).strip()
+    expected = (
+        "id:bigint:NO,practice_id:bigint:NO,patient_id:bigint:NO,"
+        "recorded_by_membership_id:bigint:NO,status:character varying:NO,version:integer:NO,"
+        "effective_from:timestamp without time zone:NO,effective_until:timestamp without time zone:YES,"
+        "created_at:timestamp without time zone:NO,updated_at:timestamp without time zone:NO"
+    )
+    if columns != expected:
+        raise RuntimeError("Patient membership columns are incomplete or incompatible")
+    invariants = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT count(*) FILTER (WHERE conname IN "
+        "('clinic_patient_memberships_status','clinic_patient_memberships_window')) "
+        ", count(*) FILTER (WHERE conname IN "
+        "('fk_clinic_patient_memberships_practice','fk_patient_memberships_patient','fk_patient_memberships_recorded_by')) "
+        "FROM pg_constraint WHERE conrelid='clinic_patient_memberships'::regclass"
+    ]).strip()
+    if invariants != "2|3":
+        raise RuntimeError("Patient membership constraints are incomplete")
+    trigger = run([
+        "psql", "--tuples-only", "--no-align", "--command",
+        "SELECT count(*) FROM pg_trigger WHERE tgname='clinic_patient_memberships_immutable' "
+        "AND tgrelid='clinic_patient_memberships'::regclass AND NOT tgisinternal"
+    ]).strip()
+    if trigger != "1":
+        raise RuntimeError("Patient membership immutability trigger is missing or misbound")
+
+with tempfile.TemporaryDirectory(prefix="apply-pg-verify-") as temporary:
+    environment["SCHEMA"] = str(pathlib.Path(temporary) / "structure.sql")
+    created = []
+    try:
+        for name in databases:
+            run(["createdb", "--template=template0", name])
+            created.append(name)
+        environment.update(PGDATABASE=databases[0], APPLY_DEVELOPMENT_DATABASE=databases[0])
+        run(["bin/rails", "db:migrate", "VERSION=20260830000400"])
+        source = pathlib.Path(temporary) / "legacy.sqlite3"
+        db = sqlite3.connect(source)
+        db.executescript((root / "test/legacy/sqlite_structure.sql").read_text())
+        stamp = "2026-08-30 12:00:00.123456"
+        def insert(table, **values):
+            values.update(created_at=stamp, updated_at=stamp)
+            db.execute("INSERT INTO " + table + " (" + ",".join(values) + ") VALUES (" + ",".join("?" for _ in values) + ")", list(values.values()))
+        insert("users", id=41, email_address="upgrade@example.invalid", password_digest="synthetic-unusable-digest")
+        insert("clinic_practices", id=51, name="Fictional upgrade clinic")
+        insert("clinic_memberships", id=61, practice_id=51, user_id=41, inventory_access=True)
+        insert("clinic_items", id=71, practice_id=51, name="Fictional stock", sku="UPGRADE", quantity=9)
+        insert("clinic_stock_movements", id=81, item_id=71, actor_id=41, delta=-2, reason="Legacy synthetic loss", request_key=str(uuid.uuid4()))
+        insert("clinic_pharmacy_products", id=91, practice_id=51, name="Fictional package", sku="UPGRADE-P")
+        insert("clinic_pharmacy_batches", id=101, practice_id=51, product_id=91, lot_number="LEGACY", location="Shelf", expires_on="2027-08-30", status="recalled")
+        insert("clinic_pharmacy_movements", id=111, practice_id=51, batch_id=101, actor_id=41, quantity=5, kind="receipt", reason="Legacy synthetic receipt", request_key=str(uuid.uuid4()))
+        # Ciphertext-like bytes must round trip without models interpreting them.
+        insert("contact_messages", id=121, name='{"p":"synthetic","h":{"iv":"synthetic"}}', email="synthetic-encrypted-marker", message="synthetic-encrypted-marker")
+        db.commit()
+        db.close()
+        run(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)])
+        # Re-import is refused without changing the destination.
+        retry = subprocess.run(platform_command(["bundle", "exec", "ruby", "bin/import-legacy-sqlite", "--synthetic", str(source)]), cwd=root, env=environment, capture_output=True)
+        assert retry.returncode != 0
+        run(["bin/rails", "db:migrate"])
+        assert_receipt_digest_schema()
+        assert_patient_membership_schema()
+        run(["bin/rails", "runner", "Identity::Preference.save_for!(User.find(41), palette: 'plum', mode: 'dark', version: 0)"])
+        run(["bin/rails", "runner", "Clinic::Idempotency.execute(practice: Clinic::Practice.find(51), actor: User.find(41), operation_code: 'synthetic.restore', request_key: 'restore-receipt', payload: {status: 'yes'}) { :committed }"])
+        checks = """
+          raise unless Clinic::Inventory::Item.find(71).quantity == 9
+          raise unless Clinic::Inventory::StockMovement.where(item_id: 71).sum(:quantity) == 9
+          opening = Clinic::Inventory::StockMovement.find_by!(item_id: 71, origin: 'legacy_opening_balance')
+          raise unless opening.actor_id.nil? && opening.quantity == 11
+          batch = Clinic::Inventory::PharmacyBatch.find(101)
+          raise unless batch.quantity == 5 && batch.status == 'recalled'
+          raise unless batch.movements.find(111).origin == 'legacy_movement'
+          raise unless Clinic::Membership.find(61).inventory_receive?
+          raise unless ApplicationRecord.connection.select_value('SELECT message FROM contact_messages WHERE id=121') == 'synthetic-encrypted-marker'
+          raise unless Identity::Preference.for_user(User.find(41)).appearance == {palette: 'plum', mode: 'dark', version: 1}
+          receipt = Clinic::OperationReceipt.find_by!(practice_id: 51, request_key: 'restore-receipt')
+          raise unless receipt.digest_algorithm == Clinic::Idempotency::DIGEST_ALGORITHM
+          raise unless receipt.digest_key_id == Clinic::Idempotency::DEFAULT_DIGEST_KEY_ID
+          raise if receipt.payload_digest == Digest::SHA256.hexdigest(JSON.generate({status: 'yes'}))
+          replay = Clinic::Idempotency.execute(practice: Clinic::Practice.find(51), actor: User.find(41), operation_code: 'synthetic.restore', request_key: 'restore-receipt', payload: {status: 'yes'}) { raise 'restored receipt replayed the mutation' }
+          raise unless replay.replayed && replay.receipt.id == receipt.id
+        """
+        run(["bin/rails", "runner", checks])
+        print("PASS: legacy IDs, values, encrypted bytes, history, opening balances and holds survive upgrade", flush=True)
+        concurrency = """
+          user = User.create!(email_address: 'concurrent@example.invalid', password: SecureRandom.hex(20))
+          practice = Development::TestClinic.create!(user).practice
+          product = Clinic::Inventory::PharmacyProduct.create!(practice: practice, name: 'Synthetic concurrency', sku: 'RACE')
+          batch = product.batches.create!(practice_id: practice.id, lot_number: 'RACE', location: 'Shelf', expires_on: Date.current+30)
+          batch.move!(kind: 'receipt', amount: 5, reason: 'Synthetic opening', actor: user, request_key: SecureRandom.uuid)
+          gate = Queue.new
+          threads = 2.times.map do
+            Thread.new do
+              ApplicationRecord.connection_pool.with_connection do
+                gate.pop
+                begin
+                  Clinic::Inventory::PharmacyBatch.find(batch.id).move!(kind: 'adjustment_out', amount: 4, reason: 'Concurrent loss', actor: user, request_key: SecureRandom.uuid)
+                  :posted
+                rescue ArgumentError
+                  :rejected
+                end
+              end
+            end
+          end
+          2.times { gate << true }
+          raise unless threads.map(&:value).sort == [:posted, :rejected] && batch.reload.quantity == 1
+          key = SecureRandom.uuid
+          gate = Queue.new
+          threads = 2.times.map do
+            Thread.new do
+              ApplicationRecord.connection_pool.with_connection do
+                gate.pop
+                Clinic::Inventory::PharmacyBatch.find(batch.id).move!(kind: 'receipt', amount: 2, reason: 'Concurrent retry', actor: user, request_key: key).id
+              end
+            end
+          end
+          2.times { gate << true }
+          raise unless threads.map(&:value).uniq.size == 1 && batch.reload.quantity == 3
+          gate = Queue.new
+          threads = 2.times.map do
+            Thread.new do
+              ApplicationRecord.connection_pool.with_connection do
+                gate.pop
+                begin
+                  Identity::Preference.save_for!(User.find(user.id), palette: 'cobalt', mode: 'light', version: 0)
+                  :saved
+                rescue Identity::Preference::Conflict
+                  :conflict
+                end
+              end
+            end
+          end
+          2.times { gate << true }
+          raise unless threads.map(&:value).sort == [:conflict, :saved]
+          raise unless Identity::Preference.where(user_id: user.id).count == 1
+        """
+        run(["bin/rails", "runner", concurrency])
+        print("PASS: simultaneous stock deductions cannot overdraw; duplicate deliveries post once; concurrent first settings saves conflict safely", flush=True)
+        dump = str(pathlib.Path(temporary) / "backup.dump")
+        run(["pg_dump", "--format=custom", "--no-owner", "--no-acl", "--file", dump, databases[0]])
+        run(["pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl", "--dbname", databases[1], dump])
+        environment.update(PGDATABASE=databases[1], APPLY_DEVELOPMENT_DATABASE=databases[1])
+        assert_receipt_digest_schema()
+        assert_patient_membership_schema()
+        run(["bin/rails", "runner", checks])
+        print("PASS: PostgreSQL backup restores into a separate database with history and constraints", flush=True)
+        environment.update(PGDATABASE=databases[2], APPLY_DEVELOPMENT_DATABASE=databases[2])
+        run(["bin/rails", "db:migrate"])
+        assert_receipt_digest_schema()
+        assert_patient_membership_schema()
+        run(["bin/rails", "runner", "raise unless ApplicationRecord.connection.adapter_name=='PostgreSQL' && Clinic::Inventory::Entry.count.zero?; Clinic::Practice.create!(name:'Fresh synthetic clinic')"])
+        print("PASS: all migrations initialize a fresh PostgreSQL database", flush=True)
+    finally:
+        for name in reversed(created):
+            subprocess.run(platform_command(["dropdb", "--if-exists", name]), env=environment, capture_output=True)

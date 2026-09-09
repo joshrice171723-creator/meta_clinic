@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Rails compatibility entry point. Repository setup is owned by root bin/dev.
+require "rbconfig"
+
+root = File.expand_path("../../..", __dir__)
+skip_server = ARGV.delete("--skip-server")
+reset = ARGV.delete("--reset")
+abort "Unknown option: #{ARGV.first}" unless ARGV.empty?
+
+warn "apps/api/bin/setup delegates to the canonical repository bin/dev lifecycle."
+exit 1 unless system(RbConfig.ruby, File.join(root, "bin/dev"), "setup", chdir: root)
+exit 1 unless !reset || system(RbConfig.ruby, File.join(root, "bin/dev"), "reset-data", "--yes", chdir: root)
+exec(RbConfig.ruby, File.join(root, "bin/dev"), "start", chdir: root) unless skip_server

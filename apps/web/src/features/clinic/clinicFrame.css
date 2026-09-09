@@ -1,0 +1,362 @@
+.clinic-theme .clinic-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100dvh;
+}
+.clinic-theme .clinic-shell[data-collapsed="true"] {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+.clinic-theme .clinic-sidebar-frame {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  align-self: start;
+  z-index: 20;
+}
+.clinic-theme .clinic-sidebar {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 22px 16px;
+  gap: 6px;
+}
+.clinic-theme .clinic-sidebar[hidden] {
+  display: none;
+}
+.clinic-theme .clinic-sidebar .practice-label {
+  margin: 0 0 12px;
+  padding: 12px 0;
+  line-height: 1.5;
+}
+.clinic-theme .clinic-sidebar .practice-location {
+  display: grid;
+  gap: 1px;
+  margin-top: 4px;
+}
+.clinic-theme .clinic-sidebar .practice-location small {
+  color: inherit;
+  opacity: 0.78;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.clinic-theme .clinic-sidebar .practice-location-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clinic-theme .clinic-sidebar .practice-location-picker {
+  position: relative;
+  display: block;
+}
+.clinic-theme .clinic-sidebar .practice-location-trigger {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--clinic-accent);
+  border-radius: 6px;
+  background: var(--clinic-surface);
+  color: #000;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 8px 9px 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+.clinic-theme .clinic-sidebar .practice-location-trigger:hover,
+.clinic-theme .clinic-sidebar .practice-location-trigger[aria-expanded="true"] {
+  border-color: var(--clinic-accent);
+  background: var(--clinic-surface);
+}
+.clinic-theme .clinic-sidebar .practice-location-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.clinic-theme .clinic-sidebar .practice-location-trigger-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #000;
+}
+.clinic-theme .clinic-sidebar .practice-location-chevron {
+  flex: 0 0 auto;
+  opacity: 0.82;
+  transition: transform 120ms ease;
+}
+/* prettier-ignore */
+.clinic-theme .clinic-sidebar .practice-location-trigger[aria-expanded="true"] .practice-location-chevron {
+  transform: rotate(180deg);
+}
+.clinic-theme .clinic-sidebar .practice-location-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 0;
+  padding: 6px 0;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  background: var(--clinic-surface);
+  color: #000;
+}
+.clinic-theme .clinic-sidebar .practice-location-menu:focus {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.clinic-theme .clinic-sidebar .practice-location-option {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 7px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.clinic-theme .clinic-sidebar .practice-location-option > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #000;
+}
+.clinic-theme .clinic-sidebar .practice-location-option:hover,
+.clinic-theme
+  .clinic-sidebar
+  .practice-location-option[data-highlighted="true"],
+.clinic-theme .clinic-sidebar .practice-location-option[aria-selected="true"] {
+  background: var(--clinic-soft);
+  color: #000;
+}
+.clinic-theme .clinic-sidebar .practice-location-option:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+.clinic-theme .clinic-sidebar nav {
+  display: grid;
+  gap: 4px;
+}
+.clinic-theme .clinic-sidebar nav :is(a, button) {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.clinic-theme .clinic-sidebar nav .MuiSvgIcon-root,
+.clinic-theme .clinic-sidebar-bottom .MuiSvgIcon-root {
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+.clinic-theme .clinic-sidebar nav button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.clinic-theme .clinic-sidebar-bottom {
+  display: grid;
+  align-items: stretch;
+  margin: auto 0 0;
+  padding-top: 22px;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.clinic-theme .clinic-sidebar-bottom > a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px;
+  line-height: 1.5;
+}
+.clinic-theme .clinic-sidebar .clinic-sign-out {
+  width: 100%;
+  margin: 0;
+}
+.clinic-theme .clinic-menu-toggle {
+  display: none;
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--clinic-control);
+  border-radius: 6px;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  padding: 6px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: inherit;
+  z-index: 21;
+}
+.clinic-theme .clinic-shell[data-collapsed="true"] .clinic-menu-toggle {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  right: auto;
+  z-index: 25;
+}
+.clinic-theme .clinic-menu-toggle .MuiSvgIcon-root {
+  font-size: 18px;
+}
+.clinic-theme .clinic-menu-toggle-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.clinic-theme .clinic-menu-toggle:hover {
+  border-color: var(--clinic-accent);
+  color: var(--clinic-accent);
+}
+.clinic-theme .clinic-main {
+  margin-left: 12px;
+}
+.clinic-theme .clinic-shell[data-collapsed="true"] .clinic-main {
+  margin-left: 56px;
+}
+.clinic-theme .clinic-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: #0008;
+  z-index: 29;
+  cursor: default;
+}
+.clinic-theme .clinic-topbar {
+  min-height: 52px;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.clinic-theme .clinic-topbar-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 520px;
+  min-width: 0;
+}
+.clinic-theme .clinic-topbar-development {
+  justify-content: flex-end;
+}
+.clinic-theme .clinic-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  flex: 0 0 auto;
+}
+.clinic-theme .clinic-topbar-location {
+  color: var(--clinic-muted);
+  font-size: 13px;
+}
+.clinic-theme .clinic-content.tracking-board-page {
+  max-width: none;
+  margin: 0;
+  padding: 20px 12px 24px;
+}
+.clinic-theme .clinic-route-panel:focus {
+  outline: none;
+}
+.clinic-theme .clinic-content.inventory-page {
+  padding-bottom: 16px;
+}
+.clinic-theme .clinic-content.scribe-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 900px) {
+  .clinic-theme .clinic-menu-toggle {
+    display: flex;
+  }
+  .clinic-theme .clinic-shell {
+    display: block;
+  }
+  .clinic-theme .clinic-sidebar-frame {
+    position: fixed;
+    left: 0;
+    width: min(256px, calc(100vw - 48px));
+    z-index: 30;
+  }
+  .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-sidebar-frame {
+    width: 0;
+  }
+  .clinic-theme .clinic-main {
+    margin-left: 48px;
+  }
+  .clinic-theme .clinic-shell[data-collapsed="false"] .clinic-menu-toggle {
+    display: flex;
+    right: 12px;
+    left: auto;
+  }
+  .clinic-theme .clinic-topbar {
+    min-height: 52px;
+    padding: 8px 12px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .clinic-theme .clinic-topbar-context {
+    width: 100%;
+    max-width: 100%;
+  }
+  .clinic-theme .clinic-topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .clinic-theme .clinic-content {
+    padding: 18px 16px 40px;
+  }
+  .clinic-theme .clinic-content.tracking-board-page {
+    padding: 8px 8px 20px;
+  }
+  .clinic-theme .clinic-sidebar {
+    border-right: 1px solid var(--clinic-border);
+    border-bottom: 0;
+  }
+}
+@media (forced-colors: active) {
+  .clinic-theme .clinic-menu-toggle {
+    border: 1px solid ButtonText;
+  }
+}

@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""List or run verification commands selected from changed repository paths."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+@dataclass(frozen=True)
+class Check:
+    name: str
+    command: tuple[str, ...]
+    cwd: Path = ROOT
+
+
+def git_lines(*args: str) -> set[str]:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return {line for line in result.stdout.splitlines() if line}
+
+
+def changed_paths(base: str, staged: bool = False) -> set[str]:
+    diff_args = ["diff", "--cached", "--name-only"] if staged else ["diff", "--name-only", base]
+    tracked = git_lines(*diff_args, "--")
+    untracked = git_lines("ls-files", "--others", "--exclude-standard")
+    return tracked | untracked
+
+
+def matches_scope(path: str, scopes: list[str]) -> bool:
+    normalized = [scope.rstrip("/") for scope in scopes]
+    return any(
+        scope in {"", "."} or path == scope or path.startswith(f"{scope}/")
+        for scope in normalized
+    )
+
+
+def select_paths(all_paths: set[str], scopes: list[str]) -> tuple[set[str], set[str]]:
+    if not scopes:
+        return all_paths, set()
+    selected = {path for path in all_paths if matches_scope(path, scopes)}
+    return selected, all_paths - selected
+
+
+def implementation_change(paths: set[str], prefix: str) -> bool:
+    return any(
+        path.startswith(f"{prefix}/")
+        and not path.endswith("/AGENTS.md")
+        and not path.endswith("/README.md")
+        for path in paths
+    )
+
+
+def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD", staged: bool = False) -> list[Check]:
+    checks: list[Check] = []
+    diff_command = ("git", "diff", "--cached" if staged else base, "--check", "--", *sorted(paths))
+    checks.append(Check("git diff --check", diff_command))
+    vault_changed = any(path.startswith("APPlyVault/") for path in paths)
+    harness_changed = any(
+        path == "AGENTS.md"
+        or path.endswith("/AGENTS.md")
+        or path == "README.md"
+        or path.startswith("agent-harness/")
+        or path.startswith(".agents/")
+        or path.startswith("docs/")
+        or path.startswith("records/")
+        or path == ".github/workflows/ci.yml"
+        or path
+        in {
+            "bin/agent-check",
+            "bin/agent-preflight",
+            "bin/create-agent-skill",
+            "bin/dev",
+            "bin/task-trace",
+            "bin/verify-agent-harness",
+            "bin/verify-vault",
+            "bin/vault-audit",
+        }
+        for path in paths
+    )
+    if level != "focused" and vault_changed:
+        checks.append(Check("vault knowledge base", ("python3", "-B", "bin/verify-vault")))
+        checks.append(Check("vault hygiene report", ("python3", "-B", "bin/vault-audit")))
+    if level != "focused" and harness_changed:
+        checks.append(Check("agent harness", ("python3", "-B", "bin/verify-agent-harness")))
+
+    if level == "focused":
+        if implementation_change(paths, "apps/api"):
+            ruby_paths = tuple(path for path in sorted(paths) if path.endswith(".rb"))
+            if ruby_paths:
+                checks.append(Check("focused Ruby syntax", ("ruby", "-e", "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }", *ruby_paths)))
+        if implementation_change(paths, "apps/web"):
+            checks.append(Check("focused frontend typecheck", ("npm", "run", "typecheck"), ROOT / "apps/web"))
+        return checks
+
+    lifecycle_paths = {
+        "dev_server_startup",
+        "bin/apply",
+        "bin/dev",
+        "bin/lib/development_lifecycle.rb",
+        "bin/lib/task_trace.rb",
+        "bin/install-apply",
+        "bin/start-dev",
+        "bin/start-dev.ps1",
+        "bin/startdev-refresh",
+        "bin/task-trace",
+        "bin/doctor",
+        "bin/doctor.ps1",
+        "apps/api/bin/setup",
+    }
+    if paths & lifecycle_paths:
+        checks.append(
+            Check(
+                "local lifecycle Ruby syntax",
+                (
+                    "ruby",
+                    "-e",
+                    "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }",
+                    "dev_server_startup",
+                    "bin/apply",
+                    "bin/dev",
+                    "bin/lib/development_lifecycle.rb",
+                    "bin/lib/task_trace.rb",
+                    "bin/install-apply",
+                    "bin/start-dev",
+                    "bin/startdev-refresh",
+                    "bin/task-trace",
+                    "bin/doctor",
+                    "apps/api/bin/setup",
+                ),
+            )
+        )
+        checks.append(Check("local lifecycle help", ("ruby", "bin/dev", "help")))
+        checks.append(Check("development lifecycle tests", ("ruby", "test/development/development_lifecycle_test.rb")))
+        checks.append(Check("task trace tests", ("ruby", "test/development/task_trace_test.rb")))
+
+    api_changed = implementation_change(paths, "apps/api")
+    web_changed = implementation_change(paths, "apps/web")
+    ops_changed = implementation_change(paths, "ops/aws")
+
+    if api_changed:
+        checks.extend(
+            [
+                Check(
+                    "prepare Rails test database",
+                    ("bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "db:prepare"),
+                    ROOT / "apps/api",
+                ),
+                Check(
+                    "Rails tests",
+                    ("bin/postgres", "exec", "bin/rails", "test"),
+                    ROOT / "apps/api",
+                ),
+                Check(
+                    "Rails eager loading",
+                    ("bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "zeitwerk:check"),
+                    ROOT / "apps/api",
+                ),
+                Check("RuboCop", ("bin/rubocop",), ROOT / "apps/api"),
+                Check(
+                    "Brakeman",
+                    ("bin/brakeman", "--quiet", "--no-pager", "--exit-on-warn", "--exit-on-error"),
+                    ROOT / "apps/api",
+                ),
+                Check(
+                    "Bundler Audit",
+                    ("bin/bundler-audit", "check", "--update"),
+                    ROOT / "apps/api",
+                ),
+            ]
+        )
+        migration_change = any(
+            path.startswith("apps/api/db/") or path.startswith("apps/api/app/models/")
+            for path in paths
+        )
+        if migration_change:
+            checks.extend(
+                [
+                    Check("backend invariants", ("bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"),
+                    Check("PostgreSQL transition/restore", ("bin/postgres", "exec", "bin/verify-postgres"), ROOT / "apps/api"),
+                ]
+            )
+
+    if web_changed:
+        checks.extend(
+            [
+                Check("frontend tests", ("npm", "test"), ROOT / "apps/web"),
+                Check("frontend formatting", ("npm", "run", "format:check"), ROOT / "apps/web"),
+                Check("frontend build", ("npm", "run", "build"), ROOT / "apps/web"),
+                Check("frontend dependency audit", ("npm", "audit", "--audit-level=high"), ROOT / "apps/web"),
+            ]
+        )
+
+    cross_boundary = (
+        api_changed and web_changed
+    ) or any(
+        path in {
+            "apps/web/src/api/contracts.ts",
+            "apps/api/test/architecture/routes_contract.json",
+            "apps/api/config/routes.rb",
+        }
+        for path in paths
+    )
+    if cross_boundary:
+        checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
+
+    if level == "integration":
+        if api_changed and not cross_boundary:
+            checks.append(Check("backend contracts", ("bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"))
+        if web_changed and not cross_boundary:
+            checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
+
+    if ops_changed:
+        checks.append(
+            Check(
+                "offline AWS contracts",
+                ("python3", "-B", "-m", "unittest", "discover", "-s", "ops/aws/ec2", "-p", "test_*.py"),
+            )
+        )
+        checks.append(
+            Check(
+                "AWS shell syntax",
+                (
+                    "bash",
+                    "-c",
+                    'for script in ops/aws/ec2/*.sh; do bash -n "$script" || exit; done',
+                ),
+            )
+        )
+
+    return checks
+
+
+def display(check: Check) -> str:
+    command = shlex.join(check.command)
+    if check.cwd == ROOT:
+        return command
+    return f"(cd {shlex.quote(str(check.cwd.relative_to(ROOT)))} && {command})"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base", default="HEAD", help="Git base for tracked changes; default: HEAD")
+    parser.add_argument("--run", action="store_true", help="Run selected checks instead of only listing them.")
+    parser.add_argument("--path", action="append", default=[], help="Limit check selection to this file or directory; repeatable.")
+    parser.add_argument("--staged", action="store_true", help="Use staged tracked changes instead of the worktree diff.")
+    parser.add_argument("--level", choices=("focused", "component", "integration"), default="component")
+    parser.add_argument("--json", action="store_true", help="Print a machine-readable report to stdout.")
+    args = parser.parse_args()
+
+    try:
+        all_paths = changed_paths(args.base, args.staged)
+    except subprocess.CalledProcessError as error:
+        print(error.stderr, file=sys.stderr)
+        return error.returncode or 2
+
+    # Staged mode selects only index changes; still disclose untracked files as unrelated.
+    candidate_paths = all_paths - (git_lines("ls-files", "--others", "--exclude-standard") if args.staged else set())
+    paths, unrelated = select_paths(candidate_paths, args.path)
+    if args.staged:
+        unrelated |= all_paths - candidate_paths
+    if not paths:
+        if args.json:
+            print(json.dumps({"base": args.base, "scope": args.path, "level": args.level, "staged": args.staged, "selected_files": [], "unrelated_files": sorted(unrelated), "selected_commands": [], "outcomes": []}, sort_keys=True))
+        else:
+            print("No changes detected in the requested scope.")
+            if unrelated:
+                print("\nUnrelated dirty paths (disclosed, not used for check selection):")
+                for path in sorted(unrelated):
+                    print(f"  - {path}")
+        return 0
+
+    checks = checks_for(paths, args.level, base=args.base, staged=args.staged)
+    if args.json:
+        outcomes = []
+        for check in checks:
+            outcomes.append({"name": check.name, "command": display(check), "status": "pending" if args.run else "skipped"})
+        report = {"base": args.base, "scope": args.path, "level": args.level, "staged": args.staged, "selected_files": sorted(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
+        if args.run:
+            for outcome, check in zip(outcomes, checks):
+                result = subprocess.run(check.command, cwd=check.cwd, capture_output=True, text=True)
+                outcome["status"] = "passed" if result.returncode == 0 else "failed"
+                outcome["returncode"] = result.returncode
+                if result.returncode:
+                    if result.stdout:
+                        outcome["stdout"] = result.stdout
+                    if result.stderr:
+                        outcome["stderr"] = result.stderr
+                    print(json.dumps(report, sort_keys=True))
+                    return result.returncode
+        print(json.dumps(report, sort_keys=True))
+        return 0
+
+    print("Changed paths in scope:")
+    for path in sorted(paths):
+        print(f"  - {path}")
+    if unrelated:
+        print("\nUnrelated dirty paths (disclosed, not used for check selection):")
+        for path in sorted(unrelated):
+            print(f"  - {path}")
+
+    if not checks:
+        print("\nNo automated check mapping exists for these paths; inspect the diff manually.")
+        return 0
+
+    print("\nSelected checks:")
+    for check in checks:
+        print(f"  - {check.name}: {display(check)}")
+
+    if not args.run:
+        print("\nRun with --run to execute this set.")
+        return 0
+
+    for check in checks:
+        print(f"\n==> {check.name}", flush=True)
+        result = subprocess.run(check.command, cwd=check.cwd)
+        if result.returncode:
+            print(f"check failed: {check.name}", file=sys.stderr)
+            return result.returncode
+    print("\nAll selected checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

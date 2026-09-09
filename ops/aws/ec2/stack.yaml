@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: APPly isolated environment; no inbound ports, one Rails host and retained PostgreSQL storage.
+
+Parameters:
+  DeploymentEnvironment:
+    Type: String
+    Default: staging
+    AllowedValues: [staging, production]
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Resources:
+  Network:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.84.0.0/24
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{Key: Project, Value: APPly}]
+  Gateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Network
+      InternetGatewayId: !Ref Gateway
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Network
+      CidrBlock: 10.84.0.0/26
+      AvailabilityZone: !Select [0, !GetAZs '']
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Network
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Gateway
+  RouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref RouteTable
+  HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: No inbound access; administration and HTTPS tunnel through SSM only
+      VpcId: !Ref Network
+      SecurityGroupIngress: []
+      SecurityGroupEgress:
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: AWS APIs and package/image downloads}
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: OS package repositories}
+  Images:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration: {ScanOnPush: true}
+      EncryptionConfiguration: {EncryptionType: AES256}
+      Tags: [{Key: Project, Value: APPly}]
+  SessionKey:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub APPly ${DeploymentEnvironment} session key
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+      Tags: [{Key: Project, Value: APPly}]
+  EncryptionKey:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub APPly ${DeploymentEnvironment} data encryption key; preserve with backups
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+      Tags: [{Key: Project, Value: APPly}]
+  DeterministicKey:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub APPly ${DeploymentEnvironment} deterministic encryption key; preserve with backups
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+      Tags: [{Key: Project, Value: APPly}]
+  DerivationSalt:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub APPly ${DeploymentEnvironment} encryption salt; preserve with backups
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+      Tags: [{Key: Project, Value: APPly}]
+  DatabaseOwnerKey:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub APPly ${DeploymentEnvironment} PostgreSQL maintenance credential
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+      Tags: [{Key: Project, Value: APPly}]
+  DatabaseRuntimeKey:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub APPly ${DeploymentEnvironment} PostgreSQL application credential
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true}
+      Tags: [{Key: Project, Value: APPly}]
+  HostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ReadOnlyThisApplication
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ecr:GetAuthorizationToken]
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchCheckLayerAvailability, ecr:GetDownloadUrlForLayer, ecr:BatchGetImage]
+                Resource: !GetAtt Images.Arn
+              - Effect: Allow
+                Action: [secretsmanager:GetSecretValue]
+                Resource: [!Ref SessionKey, !Ref EncryptionKey, !Ref DeterministicKey, !Ref DerivationSalt, !Ref DatabaseOwnerKey, !Ref DatabaseRuntimeKey]
+  HostProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref HostRole]
+  DataVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AvailabilityZone: !GetAtt Subnet.AvailabilityZone
+      Size: 2
+      VolumeType: gp3
+      Encrypted: true
+      Tags: [{Key: Project, Value: APPly}, {Key: Environment, Value: !Ref DeploymentEnvironment}]
+  Host:
+    Type: AWS::EC2::Instance
+    DependsOn: [InternetRoute, RouteAssociation]
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref HostProfile
+      CreditSpecification: {CPUCredits: standard}
+      DisableApiTermination: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+        HttpPutResponseHopLimit: 1
+      NetworkInterfaces:
+        - DeviceIndex: '0'
+          SubnetId: !Ref Subnet
+          AssociatePublicIpAddress: true
+          GroupSet: [!Ref HostSecurityGroup]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs: {VolumeSize: 8, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true}
+      Tags: [{Key: Project, Value: APPly}, {Key: Environment, Value: !Ref DeploymentEnvironment}]
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            set -euo pipefail
+            umask 077
+            dnf upgrade -y
+            dnf install -y docker nginx python3 openssl
+            systemctl enable --now docker amazon-ssm-agent
+            systemctl disable --now nginx
+            install -d -m 700 /etc/apply
+            cat > /etc/apply/config <<'CONFIG'
+            export AWS_REGION='${AWS::Region}'
+            export AWS_DEFAULT_REGION='${AWS::Region}'
+            export AWS_PAGER=''
+            export APPLY_ENVIRONMENT='${DeploymentEnvironment}'
+            export APPLY_REPOSITORY='${Images.RepositoryUri}'
+            export APPLY_DATA_VOLUME='${DataVolume}'
+            export APPLY_SESSION_SECRET='${SessionKey}'
+            export APPLY_ENCRYPTION_SECRET='${EncryptionKey}'
+            export APPLY_DETERMINISTIC_SECRET='${DeterministicKey}'
+            export APPLY_SALT_SECRET='${DerivationSalt}'
+            export APPLY_DATABASE_OWNER_SECRET='${DatabaseOwnerKey}'
+            export APPLY_DATABASE_RUNTIME_SECRET='${DatabaseRuntimeKey}'
+            CONFIG
+            source /etc/apply/config
+            serial=$(printf '%s' "$APPLY_DATA_VOLUME" | tr -d -)
+            device=''
+            for attempt in $(seq 1 120); do
+              device=$(lsblk -dn -o PATH,SERIAL | awk -v serial="$serial" '$2 == serial {print $1}')
+              [ -n "$device" ] && break
+              sleep 2
+            done
+            [ -b "$device" ] || { echo 'Expected data volume did not attach'; exit 1; }
+            filesystem=$(blkid -s TYPE -o value "$device" || true)
+            if [ -z "$filesystem" ]; then
+              [ -z "$(wipefs --no-act --noheadings "$device")" ] || exit 1
+              mkfs.ext4 -L apply-data "$device"
+            else
+              [ "$filesystem" = ext4 ] || exit 1
+            fi
+            uuid=$(blkid -s UUID -o value "$device")
+            mkdir -p /srv/apply
+            printf 'UUID=%s /srv/apply ext4 defaults,nodev,nosuid 0 2\n' "$uuid" >> /etc/fstab
+            mount /srv/apply
+            install -d -o 1000 -g 1000 -m 700 /srv/apply/storage
+            install -d -m 700 /srv/apply/backups
+            touch /etc/apply/bootstrap-ready
+  DataAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf
+      InstanceId: !Ref Host
+      VolumeId: !Ref DataVolume
+
+Outputs:
+  Environment:
+    Value: !Ref DeploymentEnvironment
+  InstanceId:
+    Value: !Ref Host
+  RepositoryUri:
+    Value: !GetAtt Images.RepositoryUri
+  DataVolumeId:
+    Value: !Ref DataVolume
+  PrivatePreview:
+    Value: 'https://localhost:8443 (requires SSM tunnel and verified local TLS certificate)'

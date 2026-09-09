@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""Validate APPly's agent harness, instructions, workflows and skills."""
+
+from __future__ import annotations
+
+import os
+import json
+import re
+import sys
+import urllib.parse
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+FRONTMATTER_KEY = re.compile(r"^([A-Za-z0-9_-]+):\s*(.*?)\s*$")
+SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+UNFINISHED = re.compile(r"\b(?:TODO|TBD|PLACEHOLDER)\b", re.IGNORECASE)
+
+REQUIRED_INSTRUCTION_FILES = [
+    "README.md",
+    "AGENTS.md",
+    "APPlyVault/AGENTS.md",
+    "apps/api/AGENTS.md",
+    "apps/web/AGENTS.md",
+    "ops/aws/AGENTS.md",
+    "site/AGENTS.md",
+    "agent-harness/AGENTS.md",
+    "agent-harness/README.md",
+    "agent-harness/THIRD_PARTY_NOTICES.md",
+    "agent-harness/workflows/README.md",
+    "agent-harness/workflows/code-change.md",
+    "agent-harness/workflows/failure-first.md",
+    "agent-harness/workflows/knowledge-maintenance.md",
+    "agent-harness/workflows/vault-change.md",
+    "agent-harness/workflows/database-change.md",
+    "agent-harness/workflows/research.md",
+    "agent-harness/workflows/release.md",
+    "agent-harness/workflows/incident.md",
+    "agent-harness/workflows/handoff.md",
+    "docs/AGENTS.md",
+    "docs/README.md",
+    "docs/development/README.md",
+    "docs/architecture/README.md",
+    "records/AGENTS.md",
+    "records/README.md",
+    "records/progress/INDEX.md",
+    "records/tasks/INDEX.md",
+]
+REQUIRED_SKILLS = {
+    "plan",
+    "act",
+    "vault-context",
+    "create-skill",
+    "frontend-ui",
+    "startdev",
+    "task-trace",
+}
+REQUIRED_COMMANDS = (
+    "bin/agent-preflight",
+    "bin/agent-check",
+    "bin/create-agent-skill",
+    "bin/dev",
+    "bin/startdev-refresh",
+    "bin/task-trace",
+    "bin/verify-agent-harness",
+    "bin/verify-vault",
+    "bin/vault-audit",
+)
+REQUIRED_ROUTES = {
+    "agent-harness",
+    "vault",
+    "historical-records",
+    "developer-documentation",
+    "rails-api",
+    "react-frontend",
+    "aws-operations",
+    "historical-site",
+}
+
+
+def frontmatter(path: Path, text: str, errors: list[str]) -> dict[str, str]:
+    lines = text.splitlines()
+    label = path.relative_to(ROOT)
+    if not lines or lines[0] != "---":
+        errors.append(f"{label}: missing opening frontmatter fence")
+        return {}
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        errors.append(f"{label}: missing closing frontmatter fence")
+        return {}
+    values: dict[str, str] = {}
+    for line in lines[1:end]:
+        if match := FRONTMATTER_KEY.match(line):
+            values[match.group(1)] = match.group(2).strip('"\'')
+    return values
+
+
+def check_fences(path: Path, text: str, errors: list[str]) -> None:
+    active: str | None = None
+    for line in text.splitlines():
+        marker = line.lstrip()[:3]
+        if marker not in {"```", "~~~"}:
+            continue
+        if active is None:
+            active = marker
+        elif marker == active:
+            active = None
+    if active:
+        errors.append(f"{path.relative_to(ROOT)}: unclosed {active} fence")
+
+
+def clean_link_target(raw: str) -> str:
+    target = raw.strip()
+    if target.startswith("<") and ">" in target:
+        target = target[1 : target.index(">")]
+    else:
+        target = target.split(" ", 1)[0]
+    return urllib.parse.unquote(target)
+
+
+def check_links(path: Path, text: str, errors: list[str]) -> None:
+    for match in MARKDOWN_LINK.finditer(text):
+        target = clean_link_target(match.group(1))
+        if not target or target.startswith(("http://", "https://", "mailto:", "app://")):
+            continue
+        file_part = target.partition("#")[0]
+        destination = path if not file_part else (path.parent / file_part).resolve(strict=False)
+        if not destination.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing relative link target {target!r}")
+
+
+def check_skill(path: Path, errors: list[str]) -> tuple[str, str] | None:
+    text = path.read_text(encoding="utf-8")
+    values = frontmatter(path, text, errors)
+    name = values.get("name", "")
+    description = values.get("description", "")
+    expected = path.parent.name
+    if not SKILL_NAME.fullmatch(name) or len(name) > 63:
+        errors.append(f"{path.relative_to(ROOT)}: invalid kebab-case skill name {name!r}")
+    if name != expected:
+        errors.append(f"{path.relative_to(ROOT)}: skill name must match directory {expected!r}")
+    if not description or len(description) > 1024:
+        errors.append(f"{path.relative_to(ROOT)}: description must contain 1-1024 characters")
+    if UNFINISHED.search(text):
+        errors.append(f"{path.relative_to(ROOT)}: unfinished TODO/TBD/PLACEHOLDER marker")
+    check_fences(path, text, errors)
+    check_links(path, text, errors)
+    return (name, description) if name and description else None
+
+
+def main() -> int:
+    errors: list[str] = []
+    documents: list[Path] = []
+    for relative in REQUIRED_INSTRUCTION_FILES:
+        path = ROOT / relative
+        if not path.is_file():
+            errors.append(f"missing required harness file: {relative}")
+            continue
+        documents.append(path)
+
+    if (ROOT / "agent-workflows").exists():
+        errors.append("legacy agent-workflows/ remains; workflows belong under agent-harness/workflows/")
+
+    for path in documents:
+        text = path.read_text(encoding="utf-8")
+        check_fences(path, text, errors)
+        check_links(path, text, errors)
+
+    for relative in (".cline", ".clinerules"):
+        if (ROOT / relative).exists():
+            errors.append(f"unused Cline host integration remains: {relative}")
+
+    canonical_root = ROOT / ".agents" / "skills"
+    canonical_names = {path.parent.name for path in canonical_root.glob("*/SKILL.md")}
+    for required in sorted(REQUIRED_SKILLS - canonical_names):
+        errors.append(f"missing required canonical skill: {required}")
+
+    canonical: dict[str, tuple[str, str]] = {}
+    for path in sorted(canonical_root.glob("*/SKILL.md")):
+        if result := check_skill(path, errors):
+            canonical[result[0]] = result
+        metadata = path.parent / "agents" / "openai.yaml"
+        if not metadata.is_file():
+            errors.append(f"{path.parent.relative_to(ROOT)}: missing agents/openai.yaml")
+
+    for name in ("plan", "act", "startdev", "task-trace"):
+        metadata = canonical_root / name / "agents" / "openai.yaml"
+        if metadata.is_file() and "allow_implicit_invocation: false" not in metadata.read_text(encoding="utf-8"):
+            errors.append(f"{metadata.relative_to(ROOT)}: command-like skill must be explicit-only")
+
+    root_agents = ROOT / "AGENTS.md"
+    if root_agents.is_file() and root_agents.stat().st_size > 12_000:
+        errors.append(f"AGENTS.md is {root_agents.stat().st_size} bytes; keep it at or below 12000")
+
+    web_agents = ROOT / "apps" / "web" / "AGENTS.md"
+    if web_agents.is_file():
+        guidance = web_agents.read_text(encoding="utf-8")
+        for phrase in (
+            "Material UI is the default",
+            "only when Material UI has no suitable option",
+            "must be a narrow, reviewable and reproducible dependency patch",
+        ):
+            if phrase not in guidance:
+                errors.append(f"apps/web/AGENTS.md: missing required UI hierarchy phrase {phrase!r}")
+
+    route_path = ROOT / "agent-harness" / "routes.json"
+    try:
+        route_manifest = json.loads(route_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        errors.append(f"agent-harness/routes.json: cannot parse route manifest: {error}")
+        route_manifest = {}
+    if route_manifest.get("version") != 1:
+        errors.append("agent-harness/routes.json: version must be 1")
+    routes = route_manifest.get("routes", [])
+    route_names = {
+        route.get("name")
+        for route in routes
+        if isinstance(route, dict) and isinstance(route.get("name"), str)
+    } if isinstance(routes, list) else set()
+    for name in sorted(REQUIRED_ROUTES - route_names):
+        errors.append(f"agent-harness/routes.json: missing required route {name!r}")
+    for route in routes if isinstance(routes, list) else []:
+        if not isinstance(route, dict):
+            errors.append("agent-harness/routes.json: every route must be an object")
+            continue
+        if not route.get("patterns"):
+            errors.append(f"agent-harness/routes.json: route {route.get('name')!r} has no patterns")
+        for key in ("workflows", "developer_docs", "checks"):
+            values = route.get(key, [])
+            if not isinstance(values, list):
+                errors.append(f"agent-harness/routes.json: route {route.get('name')!r} field {key!r} must be a list")
+                continue
+            for value in values:
+                if not isinstance(value, str):
+                    errors.append(f"agent-harness/routes.json: route {route.get('name')!r} has a non-string {key!r} entry")
+                    continue
+                relative = value.split(" (", 1)[0]
+                if not (ROOT / relative).exists():
+                    errors.append(f"agent-harness/routes.json: route {route.get('name')!r} references missing {relative!r}")
+    rendered_routes = json.dumps(route_manifest)
+    if ".agents/skills/frontend-ui/SKILL.md (for UI work)" not in rendered_routes:
+        errors.append("agent-harness/routes.json: frontend route must surface the frontend-ui skill")
+
+    preflight_path = ROOT / "bin" / "agent-preflight"
+    if preflight_path.is_file():
+        preflight_source = preflight_path.read_text(encoding="utf-8")
+        for forbidden in ("--task", "TASK_BRIEFS", "TASK_REGISTER"):
+            if forbidden in preflight_source:
+                errors.append(f"bin/agent-preflight: retired Vault task-tracking marker remains: {forbidden!r}")
+
+    for retired in (
+        "APPlyVault/03 Execution/Roadmap and Tasks.md",
+        "APPlyVault/03 Execution/Task Briefs.md",
+        "APPlyVault/03 Execution/Task Briefs",
+    ):
+        if (ROOT / retired).exists():
+            errors.append(f"retired Vault task-tracking path remains: {retired}")
+    for pattern in ("*Roadmap*.md", "*Task Brief*.md"):
+        for path in (ROOT / "APPlyVault").rglob(pattern):
+            errors.append(
+                f"Vault roadmap/task-tracking note remains: {path.relative_to(ROOT)}"
+            )
+
+    for path in sorted((ROOT / "docs").rglob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        if "[[" in text or "]]" in text:
+            errors.append(f"{path.relative_to(ROOT)}: developer docs must use Markdown links, not vault wiki links")
+        check_fences(path, text, errors)
+        check_links(path, text, errors)
+
+    startdev = canonical_root / "startdev" / "SKILL.md"
+    if startdev.is_file():
+        lifecycle = startdev.read_text(encoding="utf-8")
+        for command in (
+            "bin/dev start",
+            "bin/dev refresh",
+            "bin/dev stop",
+            "bin/dev status",
+            "bin/dev setup",
+            "bin/dev reset-data --yes",
+            "DATABASE_URL",
+            "pending migrations",
+            "tmp/task-traces/",
+        ):
+            if command not in lifecycle:
+                errors.append(f"{startdev.relative_to(ROOT)}: missing canonical lifecycle marker {command!r}")
+
+    lifecycle_path = ROOT / "bin" / "lib" / "development_lifecycle.rb"
+    if lifecycle_path.is_file():
+        implementation = lifecycle_path.read_text(encoding="utf-8")
+        for marker in (
+            '"status", "--porcelain=v1", "--untracked-files=all"',
+            '"fetch", remote',
+            '"merge", "--ff-only", "@{upstream}"',
+            'diverged from',
+            '@environment.fetch("DATABASE_URL", "").empty?',
+            'apply[a-z0-9_]*_development',
+            '"db:create"',
+            '"db:migrate"',
+            '"SCHEMA" => sentinel',
+            '"SKIP_TEST_DATABASE" => "1"',
+            '"db:seed:replant"',
+            '"APP_SYNTHETIC_SEEDS" => "1"',
+            'reset-data is destructive',
+            'db:abort_if_pending_migrations',
+            'select_value("SELECT 1")',
+            'TaskTrace.start',
+        ):
+            if marker not in implementation:
+                errors.append(f"bin/lib/development_lifecycle.rb: missing safety marker {marker!r}")
+        for forbidden in ('"db:drop"', '"db:reset"', '"git", "reset"', '"git", "merge", "--no-edit"', "docker volume rm"):
+            if forbidden in implementation:
+                errors.append(f"bin/lib/development_lifecycle.rb: forbidden lifecycle fallback {forbidden!r}")
+    else:
+        errors.append("missing canonical lifecycle implementation: bin/lib/development_lifecycle.rb")
+
+    task_trace = canonical_root / "task-trace" / "SKILL.md"
+    if task_trace.is_file():
+        guidance = task_trace.read_text(encoding="utf-8")
+        for marker in (
+            "observable agent and tool activity",
+            "cannot recover time before activation",
+            "bin/task-trace start",
+            "bin/task-trace span",
+            "bin/task-trace finish",
+            "unattributed time",
+            "not a CPU flame graph",
+        ):
+            if marker not in guidance:
+                errors.append(f"{task_trace.relative_to(ROOT)}: missing task-trace boundary {marker!r}")
+
+    for relative in REQUIRED_COMMANDS:
+        path = ROOT / relative
+        if not path.is_file():
+            errors.append(f"missing agent harness command: {relative}")
+        elif not os.access(path, os.X_OK):
+            errors.append(f"agent harness command is not executable: {relative}")
+
+    if errors:
+        print("Agent harness verification failed:", file=sys.stderr)
+        for error in sorted(set(errors)):
+            print(f"  - {error}", file=sys.stderr)
+        return 1
+
+    print(
+        f"Verified {len(documents)} harness documents, {len(canonical_names)} canonical skills "
+        f"and {len(REQUIRED_COMMANDS)} commands."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
