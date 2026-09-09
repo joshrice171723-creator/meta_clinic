@@ -5,7 +5,7 @@ module Clinic
         result = Clinic::Telehealth::VisitQueue.call(practice: current_practice, actor: current_user, filters: params.permit(
           :date, :site_id, :clinician_membership_id, :status, :cursor, :limit, :encounter_id, :patient_id
         ))
-        rows = result.visits.map { |visit| VisitSerializer.queue_row(visit, actor: current_user) }
+        rows = VisitSerializer.queue_rows(result.visits, actor: current_user)
         render json: envelope({ visits: rows, next_cursor: result.next_cursor }, version: rows.map { |row| row[:updated_at] }.hash,
           allowed_actions: [], as_of: result.as_of)
       end

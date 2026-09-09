@@ -35,9 +35,18 @@ module Clinic
         payload
       end
 
-      def queue_row(visit, actor:)
-        preparation = CurrentPreparation.call(visit: visit)
-        connected_participant_ids = MediaPresence.call(visit)
+      def queue_rows(visits, actor:)
+        preparations = CurrentPreparation.queue_for(visits)
+        presence = MediaPresence.for_visits(visits)
+        visits.map do |visit|
+          queue_row(visit, actor: actor, preparation: preparations.fetch(visit.id),
+            connected_participant_ids: presence.fetch(visit.id))
+        end
+      end
+
+      def queue_row(visit, actor:, preparation: nil, connected_participant_ids: nil)
+        preparation ||= CurrentPreparation.call(visit: visit)
+        connected_participant_ids ||= MediaPresence.call(visit)
         participant = actor_participant(visit, actor)
         allowed, = staff_actions(visit, actor: actor, participant: participant)
         {
