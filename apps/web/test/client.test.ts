@@ -6,6 +6,7 @@ import {
   csrf,
   formBody,
   loginDestination,
+  setApiActor,
 } from "../src/api/client";
 
 const json = (data: unknown, status = 200) =>
@@ -13,8 +14,14 @@ const json = (data: unknown, status = 200) =>
     status,
     headers: { "Content-Type": "application/json" },
   });
-beforeEach(() => clearCsrf());
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => {
+  setApiActor(undefined);
+  clearCsrf();
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("same-origin API boundary", () => {
   it("shares bootstrap and holds parallel reads until the CSRF cookie is initialized", async () => {
@@ -96,6 +103,108 @@ describe("same-origin API boundary", () => {
     ).rejects.toThrow();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+  it("aborts a hung CSRF bootstrap at the request deadline", async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    const fetch = vi.fn().mockImplementation(
+      (_path: string, options: RequestInit) =>
+        new Promise<Response>(() => {
+          requestSignal = options.signal as AbortSignal;
+        }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const pending = csrf();
+    const rejected = expect(pending).rejects.toMatchObject({
+      status: 504,
+      code: "request_timeout",
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await rejected;
+    expect(requestSignal?.aborted).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("deadlines a hung mutation response body as an uncertain outcome", async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ csrf_token: "synthetic-csrf" }))
+      .mockImplementationOnce((_path: string, options: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => new Promise<never>(() => {}),
+          get bodyUsed() {
+            return false;
+          },
+          signal: (requestSignal = options.signal as AbortSignal),
+        } as unknown as Response),
+      );
+    vi.stubGlobal("fetch", fetch);
+
+    const pending = api("/api/clinic/observations", {
+      method: "POST",
+      body: { request_key: "synthetic" },
+    });
+    const rejected = expect(pending).rejects.toMatchObject({
+      status: 504,
+      code: "outcome_unconfirmed",
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await rejected;
+    expect(requestSignal?.aborted).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it("treats a malformed successful mutation response as uncertain without replay", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ csrf_token: "synthetic-csrf" }))
+      .mockResolvedValueOnce(
+        new Response("{not-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      api("/api/clinic/observations", {
+        method: "POST",
+        body: { request_key: "synthetic" },
+      }),
+    ).rejects.toMatchObject({ status: 502, code: "outcome_unconfirmed" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it("rejects an old actor response before reading its body", async () => {
+    setApiActor(41);
+    let release!: (response: Response) => void;
+    const readBody = vi.fn().mockResolvedValue({ id: 7 });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ csrf_token: "synthetic-csrf" }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      );
+    vi.stubGlobal("fetch", fetch);
+
+    const pending = api("/api/clinic/patients/7");
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    setApiActor(84);
+    release({ ok: true, status: 200, json: readBody } as unknown as Response);
+
+    await expect(pending).rejects.toMatchObject({
+      status: 409,
+      code: "session_changed",
+    });
+    expect(readBody).not.toHaveBeenCalled();
+    expect(fetch.mock.calls[1][1].headers["X-Clinic-Actor"]).toBe("41");
+  });
   it("uses a new CSRF token after account/session rotation or logout", async () => {
     const fetch = vi
       .fn()
@@ -155,5 +264,24 @@ describe("form contracts", () => {
       null,
     ])
       expect(loginDestination(path)).toBe("/portal");
+  });
+  it("keeps only supported values in a login return query", () => {
+    expect(
+      loginDestination(
+        "/clinic/patients/7/encounters/9?patient_id=7&encounter_id=9&page=2&visit_modality=video&mode=current&next=https%3A%2F%2Fexample.invalid&patient_id_override=8",
+      ),
+    ).toBe(
+      "/clinic/patients/7/encounters/9?patient_id=7&encounter_id=9&page=2&visit_modality=video&mode=current",
+    );
+    expect(
+      loginDestination(
+        "/clinic?patient_id=0&encounter_id=9007199254740992&invoice_payment=other&mode=future&next=%2F%2Fexample.invalid",
+      ),
+    ).toBe("/clinic");
+    expect(
+      loginDestination(
+        "//example.invalid/clinic?patient_id=7&visit_modality=video",
+      ),
+    ).toBe("/portal");
   });
 });
