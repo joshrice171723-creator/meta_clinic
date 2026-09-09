@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import PublishIcon from "@mui/icons-material/Publish";
 import {
@@ -36,6 +36,7 @@ import {
 } from "./scheduleTypes";
 
 export function ScheduleBuilderPage() {
+  const fieldId = useId();
   const { current_site: currentSite } = useClinic();
   const currentSiteId = String(currentSite?.id ?? "");
   const currentSiteIdRef = useRef(currentSiteId);
@@ -304,8 +305,9 @@ export function ScheduleBuilderPage() {
         sx={{ alignItems: { sm: "center" } }}
       >
         <FormControl sx={{ minWidth: 260 }}>
-          <InputLabel>Draft week</InputLabel>
+          <InputLabel id={`${fieldId}-1-label`}>Draft week</InputLabel>
           <Select
+            labelId={`${fieldId}-1-label`}
             label="Draft week"
             value={draft?.id ?? ""}
             disabled={busy || loading}
@@ -333,8 +335,9 @@ export function ScheduleBuilderPage() {
           </Select>
         </FormControl>
         <FormControl sx={{ minWidth: 220 }}>
-          <InputLabel>Starting template</InputLabel>
+          <InputLabel id={`${fieldId}-2-label`}>Starting template</InputLabel>
           <Select
+            labelId={`${fieldId}-2-label`}
             label="Starting template"
             value={templateId}
             onChange={(event) => setTemplateId(event.target.value)}
@@ -396,8 +399,9 @@ export function ScheduleBuilderPage() {
               }}
             >
               <FormControl required>
-                <InputLabel>Employee</InputLabel>
+                <InputLabel id={`${fieldId}-3-label`}>Employee</InputLabel>
                 <Select
+                  labelId={`${fieldId}-3-label`}
                   label="Employee"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}

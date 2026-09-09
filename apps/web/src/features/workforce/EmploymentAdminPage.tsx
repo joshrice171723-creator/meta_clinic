@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useId, useEffect, useState, type FormEvent } from "react";
 import {
   Alert,
   Button,
@@ -42,6 +42,7 @@ function roleLabel(roleCode: string) {
 }
 
 export function EmploymentAdminPage() {
+  const fieldId = useId();
   const { data, error, refresh } = useResource<EmploymentAdminData>(
     "/api/clinic/workforce/employments",
   );
@@ -278,8 +279,9 @@ export function EmploymentAdminPage() {
           </FormControl>
           {accountMode === "existing" ? (
             <FormControl fullWidth required>
-              <InputLabel>Clinic account</InputLabel>
+              <InputLabel id={`${fieldId}-1-label`}>Clinic account</InputLabel>
               <Select
+                labelId={`${fieldId}-1-label`}
                 label="Clinic account"
                 value={membershipId}
                 onChange={(event) => setMembershipId(event.target.value)}
@@ -302,8 +304,9 @@ export function EmploymentAdminPage() {
             />
           )}
           <FormControl fullWidth required>
-            <InputLabel>Access role</InputLabel>
+            <InputLabel id={`${fieldId}-2-label`}>Access role</InputLabel>
             <Select
+              labelId={`${fieldId}-2-label`}
               label="Access role"
               value={roleVersionId}
               onChange={(event) => setRoleVersionId(event.target.value)}

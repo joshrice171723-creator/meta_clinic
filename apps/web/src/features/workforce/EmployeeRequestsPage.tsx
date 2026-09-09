@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useId, useEffect, useMemo, useState, type FormEvent } from "react";
 import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
@@ -42,6 +42,7 @@ const dayNames = [
 ];
 
 export function EmployeeRequestsPage() {
+  const fieldId = useId();
   const [data, setData] = useState<RequestData>();
   const [tab, setTab] = useState<"time_off" | "availability" | "swap">(
     "time_off",
@@ -229,8 +230,9 @@ export function EmployeeRequestsPage() {
         >
           <Stack spacing={2}>
             <FormControl>
-              <InputLabel>Location</InputLabel>
+              <InputLabel id={`${fieldId}-1-label`}>Location</InputLabel>
               <Select
+                labelId={`${fieldId}-1-label`}
                 label="Location"
                 value={siteId}
                 onChange={(e) => changeSite(e.target.value)}
@@ -365,8 +367,11 @@ export function EmployeeRequestsPage() {
                 }}
               >
                 <FormControl required>
-                  <InputLabel>Published shift</InputLabel>
+                  <InputLabel id={`${fieldId}-2-label`}>
+                    Published shift
+                  </InputLabel>
                   <Select
+                    labelId={`${fieldId}-2-label`}
                     label="Published shift"
                     value={
                       publicationId && shiftId
@@ -394,8 +399,11 @@ export function EmployeeRequestsPage() {
                   </Select>
                 </FormControl>
                 <FormControl required>
-                  <InputLabel>Target employee</InputLabel>
+                  <InputLabel id={`${fieldId}-3-label`}>
+                    Target employee
+                  </InputLabel>
                   <Select
+                    labelId={`${fieldId}-3-label`}
                     label="Target employee"
                     value={targetEmploymentId}
                     onChange={(e) => setTargetEmploymentId(e.target.value)}

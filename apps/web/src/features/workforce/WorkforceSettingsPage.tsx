@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useId, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Alert,
   Button,
@@ -85,7 +85,9 @@ const scheduleBooleanKeys = [
 
 function localDateTime() {
   const current = businessNow();
-  const now = new Date(current.getTime() - current.getTimezoneOffset() * 60_000);
+  const now = new Date(
+    current.getTime() - current.getTimezoneOffset() * 60_000,
+  );
   return now.toISOString().slice(0, 16);
 }
 
@@ -112,6 +114,7 @@ function emptyValues(data: WorkforceSettingsData): WorkforceSettingValues {
 }
 
 export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
+  const fieldId = useId();
   const [selectedSiteId, setSelectedSiteId] = useState(siteId ?? "");
   const resourcePath = selectedSiteId
     ? `/api/clinic/workforce/settings?site_id=${encodeURIComponent(selectedSiteId)}`
@@ -185,8 +188,9 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
 
   const booleanField = (key: string) => (
     <FormControl fullWidth key={key}>
-      <InputLabel>{labels[key]}</InputLabel>
+      <InputLabel id={`${fieldId}-${key}-label`}>{labels[key]}</InputLabel>
       <Select
+        labelId={`${fieldId}-${key}-label`}
         required={!siteScope}
         label={labels[key]}
         value={
@@ -221,8 +225,9 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
 
   const enumField = (key: string, choices: string[]) => (
     <FormControl fullWidth key={key}>
-      <InputLabel>{labels[key]}</InputLabel>
+      <InputLabel id={`${fieldId}-${key}-label`}>{labels[key]}</InputLabel>
       <Select
+        labelId={`${fieldId}-${key}-label`}
         label={labels[key]}
         value={values[key] ?? "inherit"}
         onChange={(event) =>
@@ -267,8 +272,9 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
         <Stack component="form" spacing={3} onSubmit={submit}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <FormControl fullWidth>
-              <InputLabel>Settings scope</InputLabel>
+              <InputLabel id={`${fieldId}-3-label`}>Settings scope</InputLabel>
               <Select
+                labelId={`${fieldId}-3-label`}
                 label="Settings scope"
                 value={selectedSiteId}
                 onChange={(event) => setSelectedSiteId(event.target.value)}
@@ -306,8 +312,11 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
                   required
                 />
                 <FormControl fullWidth required>
-                  <InputLabel>{labels.workweek_start_day}</InputLabel>
+                  <InputLabel id={`${fieldId}-4-label`}>
+                    {labels.workweek_start_day}
+                  </InputLabel>
                   <Select
+                    labelId={`${fieldId}-4-label`}
                     label={labels.workweek_start_day}
                     value={values.workweek_start_day ?? ""}
                     onChange={(event) =>
