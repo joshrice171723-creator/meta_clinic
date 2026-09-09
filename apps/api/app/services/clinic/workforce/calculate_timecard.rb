@@ -128,12 +128,15 @@ module Clinic
         intervals, exceptions = punch_intervals
         apply_adjustments!(intervals, exceptions)
         intervals = intervals.flat_map { |interval| split_interval(interval) }
+        settings_by_interval = EffectiveSettings.for_site_times(practice: employment.practice,
+          points: intervals.map { |interval| [ interval.fetch(:site), interval.fetch(:started_at_utc) ] })
         rows = []
         provenance = {}
         overtime_state = { daily: Hash.new(0), weekly: 0 }
 
         intervals.sort_by { |row| [ row.fetch(:started_at_utc), row.fetch(:site).id ] }.each do |interval|
-          settings = EffectiveSettings.call(practice: employment.practice, site: interval.fetch(:site), at: interval.fetch(:started_at_utc))
+          settings = settings_by_interval.fetch([ interval.fetch(:site).id, interval.fetch(:started_at_utc).utc ]) ||
+            raise(EffectiveSettings::Unconfigured, "Workforce settings have not been configured for this practice.")
           values = settings.fetch(:values)
           raw_seconds = (interval.fetch(:ended_at_utc) - interval.fetch(:started_at_utc)).to_i
           raw_minutes = (raw_seconds / 60.0).round
