@@ -330,7 +330,7 @@
   }
   .clinic-theme .clinic-topbar {
     min-height: 52px;
-    padding: 8px 12px 8px 64px;
+    padding: 8px 12px;
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
@@ -338,9 +338,6 @@
   .clinic-theme .clinic-topbar-context {
     width: 100%;
     max-width: 100%;
-  }
-  .clinic-theme .clinic-development-toolbar {
-    padding-left: 64px;
   }
   .clinic-theme .clinic-topbar-actions {
     width: 100%;
