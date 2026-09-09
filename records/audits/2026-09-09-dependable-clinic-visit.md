@@ -174,6 +174,22 @@ This is a bounded clinic-journey audit and implementation record, not a claim th
 
 **Solution:** preserve the historical finalized plan while projecting the linked appointment's current status/time. Reopen needed work for cancelled/no-show arrangements, reconcile valid reschedules, and expose truthful disposition. **Proof:** subsequent appointment changes update the worklist/patient projection without rewriting signed/finalized history or duplicating the item.
 
+### J20 — Encounter checkout exposes actions for other visits' invoices
+
+**Evidence: source inspection.** `Billing.tsx:188-253,566-657,684-879` initially selects the encounter invoice but lets the operator select any invoice in the patient's full ledger. Checkout context disables patient changes, not invoice mutation targets.
+
+**Trigger/harm:** enter checkout for visit A, select an older invoice B, then post or collect while the page still identifies visit A. Backend invoice authorization correctly permits B but does not know the route's intended encounter.
+
+**Solution:** pin actionable checkout selection to the active invoice belonging to the selected encounter; other invoices remain read-only history or require an explicit exit from encounter checkout. Assert patient/encounter/invoice identity before each mutation. **Proof:** a second invoice for the same patient cannot receive checkout-A actions; ordinary ledger selection still works.
+
+### J21 — Switching invoices can submit the previous invoice's editor values
+
+**Evidence: source inspection.** `DraftInvoiceEditor` initializes state from props only once (`Billing.tsx:1085-1113`), is rendered without an invoice key (`640-645`), and saves to the current prop's invoice ID (`1131-1156`).
+
+**Trigger/harm:** edit invoice A, select invoice B, then save. React can retain A's currency/lines while PATCH targets B, overwriting the wrong invoice.
+
+**Solution:** key the editor by invoice ID, bind working drafts to that invoice as well as patient/encounter, and validate snapshot identity before save. Use backend expected revision and preserve A's unsaved copy separately. **Proof:** switching A→B shows and submits only B's values while A's working draft remains recoverable.
+
 ### Existing safeguards to preserve
 
 Source inspection confirms atomic registration parent/child creation, same-key booking replay, appointment-locked check-in reuse, patient/site/appointment mismatch rejection, append-only encrypted SOAP revisions, revision conflict checks, signature identity checks, exact-decimal atomic vital collection saves, idempotent encounter closure, encounter-linked invoice lookup and one-active-invoice constraints. These reduce risk but do not establish the missing browser/recovery behavior. Existing narrow tests will be reused rather than duplicated.
