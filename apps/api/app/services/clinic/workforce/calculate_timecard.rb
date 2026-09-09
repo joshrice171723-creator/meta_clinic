@@ -253,8 +253,8 @@ module Clinic
 
         site = interval.fetch(:site)
         site_zone = ActiveSupport::TimeZone[site.timezone_override.presence || employment.practice.timezone] || workweek_zone
-        fixed_boundaries = SettingsVersion.where(practice_id: employment.practice_id, site_id: [ nil, site.id ])
-          .where(effective_from: (start_at + Rational(1, 1_000_000))...end_at).pluck(:effective_from).map(&:utc)
+        fixed_boundaries = [ nil, site.id ].flat_map { |site_id| setting_boundaries_by_site.fetch(site_id, []) }
+          .select { |boundary| boundary > start_at && boundary < end_at }
         slices = []
         cursor = start_at
         while cursor < end_at
@@ -274,6 +274,14 @@ module Clinic
       def next_midnight(zone, instant)
         date = instant.in_time_zone(zone).to_date + 1.day
         zone.local(date.year, date.month, date.day).utc
+      end
+
+      def setting_boundaries_by_site
+        @setting_boundaries_by_site ||= SettingsVersion.where(practice_id: employment.practice_id)
+          .where(effective_from: period_bounds.first...period_bounds.last).pluck(:site_id, :effective_from)
+          .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(site_id, effective_from), boundaries|
+            boundaries[site_id] << effective_from.utc
+          end
       end
 
       def apply_adjustments!(intervals, exceptions)

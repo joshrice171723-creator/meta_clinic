@@ -40,6 +40,24 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
       employment: @employment, period_start: card.period_start)
   end
 
+  test "timecard interval splitting loads setting boundaries once" do
+    create_punch("clock_in", "2026-09-01T13:00:00Z")
+    create_punch("break_start", "2026-09-01T16:00:00Z")
+    create_punch("break_end", "2026-09-01T16:30:00Z")
+    create_punch("clock_out", "2026-09-01T21:00:00Z")
+    boundary_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { boundary_queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        calculate_card
+      end
+    end
+
+    assert_equal 1, boundary_queries.count { |sql| sql.match?(/FROM "clinic_workforce_settings_versions".*effective_from.*>=.*effective_from.*</mi) },
+      boundary_queries.join("\n")
+  end
+
   test "open shift remains unresolved and cannot be approved" do
     create_punch("clock_in", "2026-09-01T13:00:00Z")
     card = Clinic::Workforce::CalculateTimecard.call(employment: @employment,
