@@ -10,7 +10,12 @@ module Clinic
     end
 
     def index
-      reminders = current_practice.patient_reminders.includes(:patient, :communication_endpoint, :outbox, :actions, :delivery_attempts)
+      reminders = current_practice.patient_reminders.includes(
+        :patient,
+        :communication_endpoint,
+        :actions,
+        :delivery_attempts
+      )
       reminders = reminders.where(id: requested_id!(params[:reminder_id], :reminder_id)) if params[:reminder_id].present?
       reminders = reminders.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
       reminders = reminders.where(status: required_string!(params[:status], field: :status, maximum: 40)) if params[:status].present?

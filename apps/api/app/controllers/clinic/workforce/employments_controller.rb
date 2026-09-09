@@ -7,10 +7,10 @@ module Clinic
         employments = Employment.where(practice_id: current_practice.id)
           .includes(:staff_member, { membership: [ :user, { role_grants: :role_version } ] }, employment_sites: :site)
           .order(:id)
-        linked_staff_ids = employments.map(&:staff_member_id)
-        linked_membership_ids = employments.map(&:membership_id)
+        linked_staff_ids = employments.index_by(&:staff_member_id)
+        linked_membership_ids = employments.index_by(&:membership_id)
         staff_members = current_practice.staff_members.where(active: true).to_a.sort_by { |member| [ member.display_name.downcase, member.id ] }
-        memberships = current_practice.memberships.active.includes(:user).reject { |membership| linked_membership_ids.include?(membership.id) }
+        memberships = current_practice.memberships.active.includes(:user).reject { |membership| linked_membership_ids.key?(membership.id) }
           .select { |membership| membership.user.active? && membership.user_id != current_user.id }
           .sort_by { |membership| [ membership.user.email_address, membership.id ] }
         assignment_ability = workforce_access.ability
@@ -24,7 +24,7 @@ module Clinic
           employments: employments.map { |employment| EmploymentSerializer.call(employment) },
           staff_members: staff_members.map { |member|
             { id: member.id, display_name: member.display_name, job_title: member.job_title,
-              linked: linked_staff_ids.include?(member.id) }
+              linked: linked_staff_ids.key?(member.id) }
           },
           membership_options: memberships.map { |membership|
             { id: membership.id, email_address: membership.user.email_address }
