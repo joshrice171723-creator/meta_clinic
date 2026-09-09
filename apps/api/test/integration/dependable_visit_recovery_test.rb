@@ -135,6 +135,49 @@ class DependableVisitRecoveryTest < ActionDispatch::IntegrationTest
     assert_equal payload.deep_stringify_keys, response.parsed_body.fetch("payload")
   end
 
+  test "follow-up working copies isolate the encounter editor from Operations" do
+    encounter = @practice.encounters.create!(
+      patient: @patient,
+      status: "completed",
+      started_at: 2.hours.ago,
+      ended_at: 1.hour.ago
+    )
+    main_path = "/api/clinic/working_drafts/follow_up?patient_id=#{@patient.id}&encounter_id=#{encounter.id}"
+    operations_path = "#{main_path}&scope=operations"
+    operations_payload = {
+      action: "complete",
+      followUpId: 42,
+      requestKey: "operations-follow-up-recovery",
+      expectedVersion: 3,
+      outcome: "A retained Operations completion attempt."
+    }
+    editor_payload = {
+      status: "needed",
+      plan: "Call the patient tomorrow.",
+      dueAt: "2026-09-10T09:00",
+      appointmentId: "",
+      requestKey: nil,
+      expectedVersion: 0,
+      pendingRequest: nil
+    }
+
+    put operations_path, params: { expected_version: 0, payload: operations_payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "operations", response.parsed_body.fetch("scope")
+
+    get main_path, headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.fetch("payload")
+
+    put main_path, params: { expected_version: 0, payload: editor_payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "main", response.parsed_body.fetch("scope")
+
+    get operations_path, headers: @headers
+    assert_response :success
+    assert_equal operations_payload.deep_stringify_keys, response.parsed_body.fetch("payload")
+  end
+
   test "cancelled arranged appointments project as needed and completion is replayable and versioned" do
     encounter = @practice.encounters.create!(
       patient: @patient,

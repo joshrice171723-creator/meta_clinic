@@ -41,7 +41,8 @@ export function useWorkingDraft<T>({
     | "online_payment"
     | "cash_payment"
     | "invoice_edit"
-    | "invoice_post";
+    | "invoice_post"
+    | "operations";
   enabled?: boolean;
 }) {
   const patient = patientId == null ? null : Number(patientId);

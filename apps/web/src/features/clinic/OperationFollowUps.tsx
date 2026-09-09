@@ -100,6 +100,7 @@ function EncounterFollowUpItem({
     kind: "follow_up",
     patientId: followUp.patient_id,
     encounterId: followUp.encounter_id,
+    scope: "operations",
   });
 
   useEffect(() => {

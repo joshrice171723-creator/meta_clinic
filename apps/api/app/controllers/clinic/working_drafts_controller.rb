@@ -57,7 +57,11 @@ module Clinic
       encounter_id = optional_id(params[:encounter_id], :encounter_id)
       @record_id = optional_id(params[:record_id], :record_id)
       @scope = params[:scope].presence || "main"
-      allowed_scopes = @kind == "checkout" ? %w[main online_payment cash_payment invoice_edit invoice_post] : %w[main]
+      allowed_scopes = case @kind
+      when "checkout" then %w[main online_payment cash_payment invoice_edit invoice_post]
+      when "follow_up" then %w[main operations]
+      else %w[main]
+      end
       raise ArgumentError, "This working draft scope is unavailable." unless allowed_scopes.include?(@scope)
       if patient_id
         action = @kind == "appointment" ? :read_identity : :read
