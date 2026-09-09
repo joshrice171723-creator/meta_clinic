@@ -110,6 +110,36 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       "expected queue row serialization to avoid full-detail queries (detail=#{detail_queries}, queue=#{queue_queries})"
   end
 
+  test "queue media status ignores old room history after a visit restarts" do
+    visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    participant = visit.participants.patient.sole
+    old_room = ready_room!(visit)
+    record_event = lambda do |room, type|
+      room.provider_events.create!(practice: @practice, participant: participant,
+        provider_code: "daily", provider_account_ref: TEST_ACCOUNT_REF,
+        provider_event_id: SecureRandom.uuid, event_type: type,
+        occurred_at: Time.current, received_at: Time.current,
+        payload_digest: Digest::SHA256.hexdigest(type), normalized_metadata: {})
+    end
+    record_event.call(old_room, "participant.joined")
+    assert Clinic::Telehealth::VisitSerializer.media_present?(participant.reload)
+
+    visit.update!(current_room_attempt: nil, access_generation: visit.access_generation + 1)
+    payload = Clinic::Telehealth::PatientVisitSerializer.call(visit.reload, identity: @identity)
+    assert_equal false, payload[:participants].find { |row| row[:is_current] }[:media_present]
+    assert_equal "prepare", payload[:access_state]
+    assert_includes payload[:allowed_actions], "telehealth.submit_checkin"
+    assert_equal "preparation_needed", Clinic::Telehealth::VisitSerializer.queue_row(visit, actor: @staff)[:readiness]
+
+    current_room = ready_room!(visit)
+    record_event.call(old_room, "participant.left")
+    assert_equal "preparation_needed", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
+    record_event.call(current_room, "participant.joined")
+    assert_equal "connected", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
+    record_event.call(current_room, "participant.left")
+    assert_equal "disconnected", Clinic::Telehealth::VisitSerializer.queue_row(visit.reload, actor: @staff)[:readiness]
+  end
+
   test "booking persists modality and creates a policy-bound video visit without reserving a physical room" do
     in_person = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @staff,
       patient: @patient, site: @site, starts_at: 3.hours.from_now, ends_at: 4.hours.from_now,

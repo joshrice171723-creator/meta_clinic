@@ -151,15 +151,20 @@ module Clinic
       end
 
       def media_present?(participant)
-        event = ProviderEvent.where(practice_id: participant.practice_id, participant_id: participant.id).order(occurred_at: :desc).first
+        event = participant_events(participant).order(occurred_at: :desc, id: :desc).first
         event&.event_type == "participant.joined"
+      end
+
+      def participant_events(participant)
+        ProviderEvent.where(practice_id: participant.practice_id, participant_id: participant.id,
+          room_attempt_id: participant.visit.current_room_attempt_id)
       end
 
       def readiness(visit, preparation)
         return "ended" if visit.status.in?(%w[ended cancelled no_show])
         patient = preparation[:participant]
         return "connected" if patient && media_present?(patient)
-        return "disconnected" if patient && ProviderEvent.where(participant_id: patient.id, event_type: "participant.left").exists?
+        return "disconnected" if patient && participant_events(patient).where(event_type: "participant.left").exists?
         return "admitted" if patient&.admitted?
         return "waiting" if patient&.waiting?
         return "preparation_needed" if preparation[:reasons].any? { |reason| reason != "telehealth_consent_required" }
