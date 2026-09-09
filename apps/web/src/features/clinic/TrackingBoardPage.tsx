@@ -552,8 +552,16 @@ function TrackingBoardRow({
     expectedToken: string | null,
     requestKey: string,
   ) => Promise<{ token: string | null }>;
-  onClaimIntake?: (visit: OperationalBoardVisit, expectedToken: string | null, requestKey: string) => Promise<void>;
-  onReleaseIntake?: (visit: OperationalBoardVisit, expectedToken: string, requestKey: string) => Promise<void>;
+  onClaimIntake?: (
+    visit: OperationalBoardVisit,
+    expectedToken: string | null,
+    requestKey: string,
+  ) => Promise<void>;
+  onReleaseIntake?: (
+    visit: OperationalBoardVisit,
+    expectedToken: string,
+    requestKey: string,
+  ) => Promise<void>;
 }) {
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
@@ -566,7 +574,9 @@ function TrackingBoardRow({
   const [draftClinicianId, setDraftClinicianId] = useState(
     assignedClinicianId ?? "",
   );
-  const [intakeAction, setIntakeAction] = useState<"claim" | "release" | null>(null);
+  const [intakeAction, setIntakeAction] = useState<"claim" | "release" | null>(
+    null,
+  );
   const [intakeError, setIntakeError] = useState<string | null>(null);
   const operations = visit.operations ?? EMPTY_OPERATION_METADATA;
   const stage = VISIT_STAGES.find((s) => s.id === visit.stage)!;
@@ -782,7 +792,9 @@ function TrackingBoardRow({
                   Assign
                 </button>
               )}
-              {(operations.intakeOwnership || operations.exceptions.length > 0 || operations.canClaimIntake) && (
+              {(operations.intakeOwnership ||
+                operations.exceptions.length > 0 ||
+                operations.canClaimIntake) && (
                 <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
                   {operations.intakeOwnership && (
                     <Typography variant="caption" color="text.secondary">
@@ -793,27 +805,44 @@ function TrackingBoardRow({
                     </Typography>
                   )}
                   {operations.exceptions.map((exception) => (
-                    <Typography key={exception.code} variant="caption" color="error">
+                    <Typography
+                      key={exception.code}
+                      variant="caption"
+                      color="error"
+                    >
                       {exception.message}
                     </Typography>
                   ))}
-                  {operations.intakeOwnership?.canRelease && onReleaseIntake && (
-                    <Button
-                      size="small"
-                      disabled={intakeAction !== null}
-                      onClick={() => {
-                        const ownership = operations.intakeOwnership;
-                        if (!ownership) return;
-                        setIntakeAction("release");
-                        setIntakeError(null);
-                        void onReleaseIntake(visit, ownership.token, intakeOwnershipRequestKey())
-                          .catch((error: unknown) => setIntakeError(error instanceof Error ? error.message : "Unable to release intake work."))
-                          .finally(() => setIntakeAction(null));
-                      }}
-                    >
-                      {intakeAction === "release" ? "Releasing…" : "Release intake"}
-                    </Button>
-                  )}
+                  {operations.intakeOwnership?.canRelease &&
+                    onReleaseIntake && (
+                      <Button
+                        size="small"
+                        disabled={intakeAction !== null}
+                        onClick={() => {
+                          const ownership = operations.intakeOwnership;
+                          if (!ownership) return;
+                          setIntakeAction("release");
+                          setIntakeError(null);
+                          void onReleaseIntake(
+                            visit,
+                            ownership.token,
+                            intakeOwnershipRequestKey(),
+                          )
+                            .catch((error: unknown) =>
+                              setIntakeError(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Unable to release intake work.",
+                              ),
+                            )
+                            .finally(() => setIntakeAction(null));
+                        }}
+                      >
+                        {intakeAction === "release"
+                          ? "Releasing…"
+                          : "Release intake"}
+                      </Button>
+                    )}
                   {operations.canClaimIntake && onClaimIntake && (
                     <Button
                       size="small"
@@ -821,15 +850,29 @@ function TrackingBoardRow({
                       onClick={() => {
                         setIntakeAction("claim");
                         setIntakeError(null);
-                        void onClaimIntake(visit, operations.intakeOwnership?.token ?? null, intakeOwnershipRequestKey())
-                          .catch((error: unknown) => setIntakeError(error instanceof Error ? error.message : "Unable to claim intake work."))
+                        void onClaimIntake(
+                          visit,
+                          operations.intakeOwnership?.token ?? null,
+                          intakeOwnershipRequestKey(),
+                        )
+                          .catch((error: unknown) =>
+                            setIntakeError(
+                              error instanceof Error
+                                ? error.message
+                                : "Unable to claim intake work.",
+                            ),
+                          )
                           .finally(() => setIntakeAction(null));
                       }}
                     >
                       {intakeAction === "claim" ? "Claiming…" : "Claim intake"}
                     </Button>
                   )}
-                  {intakeError && <Typography variant="caption" color="error" role="alert">{intakeError}</Typography>}
+                  {intakeError && (
+                    <Typography variant="caption" color="error" role="alert">
+                      {intakeError}
+                    </Typography>
+                  )}
                 </Box>
               )}
             </TableCell>
@@ -1122,8 +1165,16 @@ export function TrackingBoardView({
     expectedToken: string | null,
     requestKey: string,
   ) => Promise<{ token: string | null }>;
-  onClaimIntake?: (visit: OperationalBoardVisit, expectedToken: string | null, requestKey: string) => Promise<void>;
-  onReleaseIntake?: (visit: OperationalBoardVisit, expectedToken: string, requestKey: string) => Promise<void>;
+  onClaimIntake?: (
+    visit: OperationalBoardVisit,
+    expectedToken: string | null,
+    requestKey: string,
+  ) => Promise<void>;
+  onReleaseIntake?: (
+    visit: OperationalBoardVisit,
+    expectedToken: string,
+    requestKey: string,
+  ) => Promise<void>;
   clinicians?: readonly BoardClinician[];
 }) {
   const [stage, setStage] = useState("all");
