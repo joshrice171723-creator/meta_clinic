@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -25,6 +25,7 @@ import {
   leavePatientVisit,
   recordConsent,
   recordPatientScribeConsent,
+  requestKey,
   submitCheckin,
   type PatientCheckinInput,
 } from "./api";
@@ -78,11 +79,13 @@ function PatientCall({
   version,
   allowedActions,
   onRefresh,
+  onWithdrawConsent,
 }: {
   visit: TelehealthVisit;
   version: number;
   allowedActions: TelehealthAllowedAction[];
   onRefresh: () => Promise<void> | void;
+  onWithdrawConsent: () => Promise<void>;
 }) {
   const session = useTelehealthSession();
   const [details, setDetails] = useState(false);
@@ -121,14 +124,7 @@ function PatientCall({
     setBusy(true);
     setError(null);
     try {
-      await session.leave(false);
-      await recordConsent(
-        visit.public_id,
-        version,
-        visit.policy.version,
-        "withdrawn",
-      );
-      await onRefresh();
+      await onWithdrawConsent();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -334,6 +330,14 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
+  const actionPendingRef = useRef(false);
+  const withdrawalAttemptRef = useRef<{
+    visitId: string;
+    expectedVersion: number;
+    policyVersion: number;
+    key: string;
+  } | null>(null);
   const visit = resource.response?.data;
   const serverStep = useMemo(() => (visit ? stepForVisit(visit) : 0), [visit]);
 
@@ -363,6 +367,8 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
     action: () => Promise<TelehealthEnvelope<TelehealthMutationData>>,
     nextStep?: number,
   ) => {
+    if (actionPendingRef.current) return;
+    actionPendingRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -381,6 +387,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
       );
       throw reason;
     } finally {
+      actionPendingRef.current = false;
       setBusy(false);
     }
   };
@@ -406,6 +413,55 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
 
   const inCall = session.active?.visitId === visit.public_id;
   const completion = visit.completion;
+  const withdrawConsent = async () => {
+    if (actionPendingRef.current) return;
+    actionPendingRef.current = true;
+    const currentAttempt = withdrawalAttemptRef.current;
+    const attempt =
+      currentAttempt?.visitId === visit.public_id
+        ? currentAttempt
+        : {
+            visitId: visit.public_id,
+            expectedVersion: resource.response!.version,
+            policyVersion: visit.policy.version,
+            key: requestKey(),
+          };
+    withdrawalAttemptRef.current = attempt;
+    setBusy(true);
+    setError(null);
+    setWithdrawalError(null);
+    let mediaStopped = session.active?.visitId !== attempt.visitId;
+    try {
+      if (!mediaStopped) {
+        await session.leave(false);
+        mediaStopped = true;
+      }
+      const response = await recordConsent(
+        attempt.visitId,
+        attempt.expectedVersion,
+        attempt.policyVersion,
+        "withdrawn",
+        attempt.key,
+      );
+      resource.setResponse(visitEnvelope(response));
+      withdrawalAttemptRef.current = null;
+    } catch (reason) {
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : "Consent withdrawal could not be confirmed.";
+      setError(message);
+      setWithdrawalError(
+        mediaStopped
+          ? `APPly stopped this browser's camera and microphone, but could not confirm consent withdrawal: ${message}`
+          : `APPly could not stop this browser's media or confirm consent withdrawal: ${message}`,
+      );
+      throw reason;
+    } finally {
+      actionPendingRef.current = false;
+      setBusy(false);
+    }
+  };
   const saveInitial = async (checkin: PatientCheckinInput) => {
     await mutate(
       () => submitCheckin(visit.public_id, resource.response!.version, checkin),
@@ -436,6 +492,8 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
     );
   };
   const join = async () => {
+    if (actionPendingRef.current) return;
+    actionPendingRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -455,6 +513,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
         reason instanceof Error ? reason.message : "Unable to join the visit.",
       );
     } finally {
+      actionPendingRef.current = false;
       setBusy(false);
     }
   };
@@ -507,12 +566,29 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
           visit state.
         </Alert>
       )}
+      {withdrawalError && (
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              disabled={busy}
+              onClick={() => void withdrawConsent().catch(() => undefined)}
+            >
+              Retry withdrawal
+            </Button>
+          }
+        >
+          {withdrawalError}
+        </Alert>
+      )}
       {inCall ? (
         <PatientCall
           visit={visit}
           version={resource.response.version}
           allowedActions={resource.response.allowed_actions}
           onRefresh={resource.refresh}
+          onWithdrawConsent={withdrawConsent}
         />
       ) : (
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -574,7 +650,7 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
                 );
               }}
               onDecline={async () => {
-                await mutate(() =>
+                const response = await mutate(() =>
                   recordConsent(
                     visit.public_id,
                     resource.response!.version,
@@ -582,7 +658,8 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
                     "declined",
                   ),
                 );
-                window.location.assign("/patient-portal#appointments");
+                if (response)
+                  window.location.assign("/patient-portal#appointments");
               }}
             />
           )}
@@ -594,13 +671,14 @@ export function PatientTelehealthVisit({ visitId }: { visitId: string }) {
               error={error}
               onUpdatePreparation={() => setStep(0)}
               onLeave={async () => {
-                await mutate(() =>
+                const response = await mutate(() =>
                   leavePatientVisit(
                     visit.public_id,
                     resource.response!.version,
                   ),
                 );
-                window.location.assign("/patient-portal#appointments");
+                if (response)
+                  window.location.assign("/patient-portal#appointments");
               }}
               onJoin={join}
             />
