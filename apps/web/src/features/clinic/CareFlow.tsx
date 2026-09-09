@@ -72,6 +72,7 @@ import { PatientLabReports } from "./PatientLabReports";
 import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
+import { EncounterFollowUpPanel } from "./EncounterFollowUp";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -3386,6 +3387,7 @@ function VisitWrapUp({
             )}
         </Stack>
       </Stack>
+      <EncounterFollowUpPanel patient={patient} encounter={current} timezone={timezone} />
       <Dialog
         open={confirmation !== null}
         onClose={() => !busy && setConfirmation(null)}
