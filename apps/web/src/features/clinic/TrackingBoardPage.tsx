@@ -1,5 +1,6 @@
 import {
   Fragment,
+  memo,
   useEffect,
   useMemo,
   useRef,
@@ -1680,11 +1681,11 @@ export function OverviewView() {
     </section>
   );
 }
-export function Overview({ active = true }: { active?: boolean }) {
+export const Overview = memo(function Overview({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
   if (!clinic.capabilities.patients) return <OverviewView />;
   return <TrackingBoardPage active={active} />;
-}
+});
 
 export function TrackingBoardPage({ active = true }: { active?: boolean }) {
   const clinic = useClinic();
