@@ -166,7 +166,8 @@ export function scribeReturnTarget(search: string) {
   const encounterId = Number(rawId);
   if (!Number.isSafeInteger(encounterId) || encounterId <= 0) return null;
   const rawDocumentId = params.get("document_id");
-  const documentId = rawDocumentId && /^\d+$/.test(rawDocumentId) ? Number(rawDocumentId) : null;
+  const documentId =
+    rawDocumentId && /^\d+$/.test(rawDocumentId) ? Number(rawDocumentId) : null;
   return {
     encounterId,
     review: params.get("review") === "1",
@@ -347,8 +348,12 @@ export function LiveScribeReviewWorkspace() {
           const currentDocument =
             result.encounter.documents?.find(
               (document) =>
-                document.id === requestedDocumentId && document.current_revision,
-            ) ?? result.encounter.documents?.find((document) => document.current_revision);
+                document.id === requestedDocumentId &&
+                document.current_revision,
+            ) ??
+            result.encounter.documents?.find(
+              (document) => document.current_revision,
+            );
           setActiveTab(
             currentDocument ? `document:${currentDocument.id}` : "transcript",
           );
@@ -458,10 +463,7 @@ export function LiveScribeReviewWorkspace() {
         const result = await api<EncounterIndex>(
           `/api/clinic/scribe/encounters?page=1&per_page=${PAGE_SIZE}&patient_id=${target.patientId}&clinical_encounter_id=${target.clinicalEncounterId}`,
         );
-        if (
-          !isCurrent(requestScope) ||
-          requestVersion !== listVersion.current
-        )
+        if (!isCurrent(requestScope) || requestVersion !== listVersion.current)
           return;
         const existing = result.encounters.find(
           (item) =>
@@ -502,13 +504,11 @@ export function LiveScribeReviewWorkspace() {
         setActionError(null);
         setReviewState({
           kind: "empty",
-          message: "Confirm the linked patient and visit, then start the session.",
+          message:
+            "Confirm the linked patient and visit, then start the session.",
         });
       } catch (reason) {
-        if (
-          isCurrent(requestScope) &&
-          requestVersion === listVersion.current
-        ) {
+        if (isCurrent(requestScope) && requestVersion === listVersion.current) {
           const message = errorMessage(
             reason,
             "Unable to verify the intended patient and visit.",
@@ -566,13 +566,7 @@ export function LiveScribeReviewWorkspace() {
             errorMessage(reason, "Unable to load note templates."),
           );
       });
-  }, [
-    isCurrent,
-    loadIndex,
-    locationSearch,
-    prepareContextualLaunch,
-    scopeKey,
-  ]);
+  }, [isCurrent, loadIndex, locationSearch, prepareContextualLaunch, scopeKey]);
 
   useEffect(() => {
     if (skipNextSearchRef.current) {
@@ -969,7 +963,11 @@ export function LiveScribeReviewWorkspace() {
   const exportDraft = (
     draftId: number,
     version: number,
-    correctionTarget?: { noteId: number; revisionId: number; revisionNo: number },
+    correctionTarget?: {
+      noteId: number;
+      revisionId: number;
+      revisionNo: number;
+    },
   ) => {
     const identity = `${draftId}:${version}`;
     const idempotencyKey =
@@ -1071,12 +1069,12 @@ export function LiveScribeReviewWorkspace() {
         draftOutputDigest: targetDraft.output_digest,
         encounterId: encounter.id,
         scopeKey,
-        ...(correctionTarget
-          ? { correctionTarget }
-          : {}),
+        ...(correctionTarget ? { correctionTarget } : {}),
       });
     } catch (reason) {
-      setActionError(errorMessage(reason, "Unable to check the current chart note."));
+      setActionError(
+        errorMessage(reason, "Unable to check the current chart note."),
+      );
     } finally {
       if (isCurrent(scopeKey)) setPendingAction(null);
     }
@@ -1418,9 +1416,7 @@ export function LiveScribeReviewWorkspace() {
           {newSession ? (
             <Button
               variant="contained"
-              disabled={
-                !canWrite || !selectedPatient || pendingAction !== null
-              }
+              disabled={!canWrite || !selectedPatient || pendingAction !== null}
               onClick={() => void createEncounter().catch(() => undefined)}
               sx={{ height: 36 }}
             >
@@ -1826,6 +1822,7 @@ export function LiveScribeReviewWorkspace() {
                 )}
                 {encounter && patient && (
                   <ScribeChartAndLabs
+                    key={encounter.id}
                     scribeEncounterId={encounter.id}
                     patientId={patient.id}
                     clinicalEncounterId={encounter.clinical_encounter_id}

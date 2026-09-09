@@ -59,7 +59,9 @@ export function ScribeChartAndLabs({
 }: Props) {
   const [encounters, setEncounters] = useState<ClinicalEncounter[]>([]);
   const [reports, setReports] = useState<LabReport[]>([]);
-  const [selectedEncounter, setSelectedEncounter] = useState("");
+  const [selectedEncounter, setSelectedEncounter] = useState<string | null>(
+    null,
+  );
   const [selectedLabs, setSelectedLabs] = useState<number[]>(
     labSelections.map((item) => item.lab_report_version_id),
   );
@@ -121,13 +123,12 @@ export function ScribeChartAndLabs({
           },
         },
       );
+      setSelectedEncounter(null);
       setRefresh((current) => current + 1);
       onChanged();
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to link the visit.",
+        reason instanceof Error ? reason.message : "Unable to link the visit.",
       );
     } finally {
       setBusy(false);
@@ -173,6 +174,11 @@ export function ScribeChartAndLabs({
   const staleSelections = labSelections.filter(
     (selection) => !eligibleIds.has(selection.lab_report_version_id),
   );
+  const selectedEncounterValue =
+    selectedEncounter ?? String(clinicalEncounterId ?? "");
+  const linkedEncounterOutsideRecentList =
+    clinicalEncounterId != null &&
+    !encounters.some((item) => item.id === clinicalEncounterId);
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
@@ -195,13 +201,18 @@ export function ScribeChartAndLabs({
         <TextField
           select
           label="Visit"
-          value={selectedEncounter || String(clinicalEncounterId ?? "")}
+          value={selectedEncounterValue}
           onChange={(event) => setSelectedEncounter(event.target.value)}
           disabled={!canBind || busy || hasUnsavedReview}
         >
           <MenuItem value="">Choose visit</MenuItem>
+          {linkedEncounterOutsideRecentList && (
+            <MenuItem disabled value={String(clinicalEncounterId)}>
+              Linked visit #{clinicalEncounterId} · outside recent list
+            </MenuItem>
+          )}
           {encounters.map((item) => (
-            <MenuItem key={item.id} value={item.id}>
+            <MenuItem key={item.id} value={String(item.id)}>
               Visit #{item.id} · {item.status} ·{" "}
               {visitTime(item.occurred_at || item.started_at)}
             </MenuItem>

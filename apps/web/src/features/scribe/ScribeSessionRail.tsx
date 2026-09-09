@@ -15,7 +15,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ScribeDocumentationWorkItem,
   ScribeDocumentationWorklist,
@@ -122,7 +122,9 @@ function workDetail(item: ScribeDocumentationWorkItem) {
       ? ` · ${item.unresolved_section_count} section${item.unresolved_section_count === 1 ? "" : "s"}`
       : "";
   const reference = patientReferenceLabel(item.patient.reference);
-  return [ `${workLabel(item.state)}${unresolved}`, reference ].filter(Boolean).join(" · ");
+  return [`${workLabel(item.state)}${unresolved}`, reference]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function workCountSummary(worklist: ScribeDocumentationWorklist) {
@@ -154,6 +156,18 @@ export function ScribeSessionRail({
   onLoadMore,
 }: ScribeSessionRailProps) {
   const [period, setPeriod] = useState<"worklist" | "today" | "past">("today");
+  const alignedSelectedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (selectedId === null) {
+      alignedSelectedId.current = null;
+      return;
+    }
+    if (alignedSelectedId.current === selectedId) return;
+    const selected = summaries.find((summary) => summary.id === selectedId);
+    if (!selected) return;
+    alignedSelectedId.current = selectedId;
+    setPeriod(isToday(selected.created_at) ? "today" : "past");
+  }, [selectedId, summaries]);
   const visible = useMemo(
     () =>
       summaries.filter((summary) =>
@@ -179,9 +193,7 @@ export function ScribeSessionRail({
     >
       <Tabs
         value={period}
-        onChange={(_, value: "worklist" | "today" | "past") =>
-          setPeriod(value)
-        }
+        onChange={(_, value: "worklist" | "today" | "past") => setPeriod(value)}
         variant="fullWidth"
         aria-label="Session period"
         sx={{
@@ -232,9 +244,16 @@ export function ScribeSessionRail({
             <Typography
               color="text.secondary"
               variant="caption"
-              sx={{ display: "block", px: 0.5, pt: 1.25, pb: 0.75, fontSize: 10 }}
+              sx={{
+                display: "block",
+                px: 0.5,
+                pt: 1.25,
+                pb: 0.75,
+                fontSize: 10,
+              }}
             >
-              Recent completed visits · up to {worklist.candidate_limit_per_source} Scribe drafts and{" "}
+              Recent completed visits · up to{" "}
+              {worklist.candidate_limit_per_source} Scribe drafts and{" "}
               {worklist.candidate_limit_per_source} unsigned notes
             </Typography>
             {worklist.returned_count > 0 && (
@@ -265,7 +284,11 @@ export function ScribeSessionRail({
               </Typography>
             )}
             {worklist.items.length === 0 ? (
-              <Typography color="text.secondary" variant="body2" sx={{ px: 0.5, py: 2, fontSize: 12 }}>
+              <Typography
+                color="text.secondary"
+                variant="body2"
+                sx={{ px: 0.5, py: 2, fontSize: 12 }}
+              >
                 No unfinished documentation in the recent worklist.
               </Typography>
             ) : (
@@ -275,13 +298,22 @@ export function ScribeSessionRail({
                     key={item.key}
                     disabled={disabled}
                     onClick={() => onOpenWorkItem(workHref(item))}
-                    sx={{ minHeight: 54, borderRadius: 1, mb: 0.5, px: 0.75, py: 0.625 }}
+                    sx={{
+                      minHeight: 54,
+                      borderRadius: 1,
+                      mb: 0.5,
+                      px: 0.75,
+                      py: 0.625,
+                    }}
                   >
                     <ListItemText
                       primary={item.patient.display_name}
                       secondary={workDetail(item)}
                       slotProps={{
-                        primary: { noWrap: true, sx: { fontSize: 11, fontWeight: 700 } },
+                        primary: {
+                          noWrap: true,
+                          sx: { fontSize: 11, fontWeight: 700 },
+                        },
                         secondary: { sx: { fontSize: 9.5, lineHeight: 1.35 } },
                       }}
                     />
