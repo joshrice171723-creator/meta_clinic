@@ -1858,7 +1858,7 @@ export function SoapNoteForm({
       workingDraft.status === "saving" ||
       workingDraft.status === "conflict"
     ) {
-      setIncomingNote(note);
+      setIncomingNote(note ?? null);
       return;
     }
     const next = initialBaseline();
