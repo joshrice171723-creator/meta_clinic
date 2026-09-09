@@ -20,9 +20,9 @@ module Clinic
       return payload unless detail
 
       payload.merge(
-        operating_hours: site.operating_hours.order(:day_of_week, :id).map { |hour| operating_hour(hour) },
-        hour_exceptions: site.hour_exceptions.order(:date, :id).map { |exception| hour_exception(exception) },
-        rooms: site.rooms.order(:code, :id).map { |room| room(room) }
+        operating_hours: ordered_operating_hours(site).map { |hour| operating_hour(hour) },
+        hour_exceptions: ordered_hour_exceptions(site).map { |exception| hour_exception(exception) },
+        rooms: ordered_rooms(site).map { |room| room(room) }
       )
     end
 
@@ -36,6 +36,24 @@ module Clinic
 
     def self.room(room)
       { id: room.id, site_id: room.site_id, code: room.code }
+    end
+
+    def self.ordered_operating_hours(site)
+      return site.operating_hours.sort_by { |hour| [ hour.day_of_week, hour.id ] } if site.association(:operating_hours).loaded?
+
+      site.operating_hours.order(:day_of_week, :id).to_a
+    end
+
+    def self.ordered_hour_exceptions(site)
+      return site.hour_exceptions.sort_by { |exception| [ exception.date, exception.id ] } if site.association(:hour_exceptions).loaded?
+
+      site.hour_exceptions.order(:date, :id).to_a
+    end
+
+    def self.ordered_rooms(site)
+      return site.rooms.sort_by { |room| [ room.code, room.id ] } if site.association(:rooms).loaded?
+
+      site.rooms.order(:code, :id).to_a
     end
 
     def self.department(department)
