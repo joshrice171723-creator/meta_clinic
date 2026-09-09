@@ -1234,16 +1234,40 @@ export function TrackingBoardView({
     startX: number;
     startWidth: number;
   } | null>(null);
-  const myPatients = filterVisitsForClinician(visits, myClinicianId);
-  const patientFilteredVisits = patientFilter === "mine" ? myPatients : visits;
-  const filtered = filterVisits(
-    patientFilteredVisits,
-    stage,
-    "",
-    "arrival",
-    now,
+  const myPatients = useMemo(
+    () => filterVisitsForClinician(visits, myClinicianId),
+    [visits, myClinicianId],
   );
-  const sorted = [...filtered].sort((left, right) => {
+  const patientFilteredVisits = useMemo(
+    () => (patientFilter === "mine" ? myPatients : visits),
+    [patientFilter, myPatients, visits],
+  );
+  const stageCounts = useMemo(
+    () =>
+      patientFilteredVisits.reduce<Record<string, number>>(
+        (counts, visit) => {
+          counts[visit.stage] = (counts[visit.stage] ?? 0) + 1;
+          return counts;
+        },
+        { all: patientFilteredVisits.length },
+      ),
+    [patientFilteredVisits],
+  );
+  const filtered = useMemo(
+    () => filterVisits(patientFilteredVisits, stage, "", "arrival", now),
+    [patientFilteredVisits, stage, now],
+  );
+  const clinicianLabels = useMemo(
+    () =>
+      new Map(
+        clinicians.map((clinician) => [
+          clinician.id,
+          clinicianLabel(clinician),
+        ]),
+      ),
+    [clinicians],
+  );
+  const sorted = useMemo(() => {
     const value = (visit: BoardVisit) => {
       if (sortBy === "patient")
         return patientLabel(visit.firstName, visit.lastName);
@@ -1254,14 +1278,14 @@ export function TrackingBoardView({
         ).length;
       if (sortBy === "stage") return visit.stage;
       if (sortBy === "location") return visit.room ?? "Room not recorded";
-      if (sortBy === "provider") {
-        const clinician = clinicians.find(
-          (item) => item.id === providerAssignments[visit.id]?.clinicianId,
+      if (sortBy === "provider")
+        return (
+          clinicianLabels.get(
+            providerAssignments[visit.id]?.clinicianId ?? "",
+          ) ??
+          visit.assignedProviderName ??
+          "Unassigned"
         );
-        return clinician
-          ? clinicianLabel(clinician)
-          : visit.assignedProviderName || "Unassigned";
-      }
       if (sortBy === "reason") return visit.chiefComplaint;
       if (sortBy === "triage") return visit.triage?.summary ?? "Not recorded";
       if (sortBy === "action")
@@ -1269,25 +1293,48 @@ export function TrackingBoardView({
       if (sortBy === "wait") return operationalSortMinutes(visit, now);
       return "";
     };
-    const comparison =
-      typeof value(left) === "number" && typeof value(right) === "number"
-        ? (value(left) as number) - (value(right) as number)
-        : String(value(left)).localeCompare(String(value(right)));
-    return (
-      (sortDirection === "asc" ? comparison : -comparison) ||
-      left.id.localeCompare(right.id)
-    );
-  });
-  const hasVitalReadings = sorted.some(
-    (visit) => vitalReadings(visit) !== null,
+    return [...filtered].sort((left, right) => {
+      const leftValue = value(left);
+      const rightValue = value(right);
+      const comparison =
+        typeof leftValue === "number" && typeof rightValue === "number"
+          ? leftValue - rightValue
+          : String(leftValue).localeCompare(String(rightValue));
+      return (
+        (sortDirection === "asc" ? comparison : -comparison) ||
+        left.id.localeCompare(right.id)
+      );
+    });
+  }, [
+    clinicianLabels,
+    filtered,
+    now,
+    providerAssignments,
+    resolvedCareSummaryStates,
+    sortBy,
+    sortDirection,
+  ]);
+  const vitalReadingPresence = useMemo(
+    () =>
+      sorted.reduce(
+        (presence, visit) => {
+          const readings = vitalReadings(visit);
+          if (!readings) return presence;
+
+          presence.hasReadings = true;
+          presence.hasClassifiedReadings ||= Object.values(readings).some(
+            (reading) => reading.status !== "unassessed",
+          );
+          return presence;
+        },
+        { hasReadings: false, hasClassifiedReadings: false },
+      ),
+    [sorted],
   );
-  const hasClassifiedVitalReadings = sorted.some((visit) => {
-    const readings = vitalReadings(visit);
-    return (
-      readings !== null &&
-      Object.values(readings).some((reading) => reading.status !== "unassessed")
-    );
-  });
+  const {
+    hasReadings: hasVitalReadings,
+    hasClassifiedReadings: hasClassifiedVitalReadings,
+  } = vitalReadingPresence;
   const sortColumn = (column: ColumnKey) => {
     if (sortBy === column)
       setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
@@ -1410,9 +1457,7 @@ export function TrackingBoardView({
           >
             <span>{s.label}</span>
             <strong>
-              {s.id === "all"
-                ? patientFilteredVisits.length
-                : patientFilteredVisits.filter((v) => v.stage === s.id).length}
+              {s.id === "all" ? stageCounts.all : (stageCounts[s.id] ?? 0)}
             </strong>
           </button>
         ))}
@@ -1428,11 +1473,7 @@ export function TrackingBoardView({
             {stageOptions.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label} (
-                {s.id === "all"
-                  ? patientFilteredVisits.length
-                  : patientFilteredVisits.filter((v) => v.stage === s.id)
-                      .length}
-                )
+                {s.id === "all" ? stageCounts.all : (stageCounts[s.id] ?? 0)})
               </option>
             ))}
           </select>
@@ -1681,7 +1722,11 @@ export function OverviewView() {
     </section>
   );
 }
-export const Overview = memo(function Overview({ active = true }: { active?: boolean }) {
+export const Overview = memo(function Overview({
+  active = true,
+}: {
+  active?: boolean;
+}) {
   const clinic = useClinic();
   if (!clinic.capabilities.patients) return <OverviewView />;
   return <TrackingBoardPage active={active} />;

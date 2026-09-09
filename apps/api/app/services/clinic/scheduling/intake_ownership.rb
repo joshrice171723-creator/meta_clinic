@@ -25,10 +25,17 @@ module Clinic
           .where(practice_id: encounters.first.practice_id, encounter_id: encounter_ids)
           .includes(membership: :clinician_profile)
           .order(:encounter_id, :effective_from, :id).to_a
-        employment_by_membership = Clinic::Workforce::Employment.where(
-          practice_id: encounters.first.practice_id,
-          membership_id: participants.map(&:membership_id).uniq
-        ).includes(:staff_member).index_by(&:membership_id)
+        memberships_without_clinician_names = participants.filter_map do |participant|
+          participant.membership_id unless participant.membership.clinician_profile&.display_name.present?
+        end.uniq
+        employment_by_membership = if memberships_without_clinician_names.empty?
+          {}
+        else
+          Clinic::Workforce::Employment.where(
+            practice_id: encounters.first.practice_id,
+            membership_id: memberships_without_clinician_names
+          ).includes(:staff_member).index_by(&:membership_id)
+        end
 
         participants.group_by(&:encounter_id).transform_values do |rows|
           participant = rows.max_by { |row| [ row.effective_from, row.id ] }

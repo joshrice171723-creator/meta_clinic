@@ -214,9 +214,13 @@ module Clinic
             practice_id: practice.id, encounter_id: encounters.map(&:id), participation_role: "queue_provider"
           ).current(as_of).includes(membership: :clinician_profile).index_by(&:encounter_id)
           @eligible_site_ids = eligible_site_ids || encounters.map(&:site_id).compact.uniq
-          @eligible = practice.clinician_profiles.includes(:membership, :assignments).to_a.select do |profile|
-            profile.membership.active? && profile.membership.practice_id == practice.id &&
-              profile.assignments.any? { |assignment| @eligible_site_ids.include?(assignment.site_id) && effective?(assignment) }
+          @eligible = if @eligible_site_ids.empty?
+            []
+          else
+            practice.clinician_profiles.includes(:membership, :assignments).to_a.select do |profile|
+              profile.membership.active? && profile.membership.practice_id == practice.id &&
+                profile.assignments.any? { |assignment| @eligible_site_ids.include?(assignment.site_id) && effective?(assignment) }
+            end
           end
         end
 

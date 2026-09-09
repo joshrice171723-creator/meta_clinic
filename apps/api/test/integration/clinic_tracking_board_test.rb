@@ -362,7 +362,8 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
       "clinic_conditions" => 1,
       "clinic_patient_history_reviews" => 1,
       "clinic_patient_demographics" => 1,
-      "clinic_encounter_precautions" => 1
+      "clinic_encounter_precautions" => 1,
+      "clinic_clinician_profiles" => 0
     }.each do |table, expected_count|
       assert_equal expected_count, sql.count { |statement| statement.match?(/(?:FROM|JOIN) "?#{table}"?/i) },
         "expected one batched query for #{table}"
