@@ -8,7 +8,7 @@ module Clinic
         current_body = note.note_kind == "soap" && latest ? SoapNotePayload.load!(latest.encrypted_body) : nil
         has_signed_history = note.signatures.exists?
         payload = summary_payload(note, latest: latest, has_signed_history: has_signed_history,
-          current_revision_signed: latest&.signatures&.exists? || false)
+          current_revision_signed: latest&.signatures&.exists? || false, current_body: current_body)
         return payload unless detail
 
         payload.merge(
@@ -49,7 +49,8 @@ module Clinic
         end
       end
 
-      def self.summary_payload(note, latest:, has_signed_history:, current_revision_signed:)
+      def self.summary_payload(note, latest:, has_signed_history:, current_revision_signed:, current_body: nil)
+        current_body ||= note.note_kind == "soap" && latest ? SoapNotePayload.load!(latest.encrypted_body) : nil
         {
           id: note.id,
           patient_id: note.patient_id,

@@ -44,6 +44,32 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     assert_equal 1, @practice.audit_events.where(action_code: "notes.create", outcome: "committed").count
   end
 
+  test "note list summaries batch revision and signature reads" do
+    notes = 3.times.map do |index|
+      note = @practice.encounter_notes.create!(patient: @patient, encounter: @encounter,
+        note_kind: "summary_#{index}")
+      revision = note.revisions.create!(practice: @practice, author_membership: @membership,
+        revision_no: 1, payload_version: 1, encrypted_body: "summary revision #{index}")
+      note.signatures.create!(practice: @practice, revision: revision, signer_membership: @membership,
+        content_digest: Digest::SHA256.hexdigest(revision.encrypted_body), attestation_version: "summary-v1",
+        signed_at: Time.current)
+      note
+    end
+
+    individual_rows = nil
+    individual_queries = select_query_count do
+      individual_rows = notes.map { |note| Clinic::Care::EncounterNoteSerializer.call(note) }
+    end
+    batch_rows = nil
+    batch_queries = select_query_count do
+      batch_rows = Clinic::Care::EncounterNoteSerializer.collection(@encounter.notes.order(:id))
+    end
+
+    assert_equal individual_rows, batch_rows
+    assert_operator batch_queries, :<=, individual_queries - 4,
+      "expected batched note summaries to avoid per-note reads (individual=#{individual_queries}, batch=#{batch_queries})"
+  end
+
   test "create receipt records the created note resource for replay" do
     first_params = create_params(request_key: "note-create-specific")
     post "/api/clinic/encounters/#{@encounter.id}/notes", params: first_params, headers: csrf_headers, as: :json
@@ -549,6 +575,19 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
   def csrf_headers
     get "/api/csrf", headers: @headers
     @headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token"))
+  end
+
+  def select_query_count
+    count = 0
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached] || payload[:name] == "SCHEMA"
+
+      count += 1 if payload[:sql].to_s.lstrip.start_with?("SELECT")
+    end
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") { yield }
+    end
+    count
   end
 
   def login
