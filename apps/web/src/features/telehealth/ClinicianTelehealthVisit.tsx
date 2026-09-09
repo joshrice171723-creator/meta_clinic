@@ -88,8 +88,21 @@ export function ClinicianTelehealthVisit({
   patientId?: string;
   encounterId?: string;
 }) {
-  const [resolvedVisitId, setResolvedVisitId] = useState(visitId || null);
-  const [lookupError, setLookupError] = useState<string | null>(null);
+  const encounterScope = `${patientId ?? ""}:${encounterId ?? ""}`;
+  const [encounterLookup, setEncounterLookup] = useState<{
+    scope: string;
+    visitId: string | null;
+    error: string | null;
+  }>(() => ({ scope: encounterScope, visitId: null, error: null }));
+  const resolvedVisitId =
+    visitId ||
+    (encounterLookup.scope === encounterScope
+      ? encounterLookup.visitId
+      : null);
+  const lookupError =
+    !visitId && encounterLookup.scope === encounterScope
+      ? encounterLookup.error
+      : null;
   const [tab, setTab] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,15 +120,17 @@ export function ClinicianTelehealthVisit({
   const resource = useTelehealthVisit("staff", resolvedVisitId, { poll: true });
 
   useEffect(() => {
-    setResolvedVisitId(visitId || null);
-    setLookupError(null);
     if (visitId) return;
     if (!patientId || !encounterId) {
-      setLookupError(
-        "This video visit needs a visit ID or an exact patient and encounter.",
-      );
+      setEncounterLookup({
+        scope: encounterScope,
+        visitId: null,
+        error:
+          "This video visit needs a visit ID or an exact patient and encounter.",
+      });
       return;
     }
+    setEncounterLookup({ scope: encounterScope, visitId: null, error: null });
     const abort = new AbortController();
     const query = new URLSearchParams({
       patient_id: patientId,
@@ -126,20 +141,27 @@ export function ClinicianTelehealthVisit({
       .then((response) => {
         if (abort.signal.aborted) return;
         const match = response.data.visits[0];
-        if (!match)
-          setLookupError("No video visit is bound to this patient encounter.");
-        else setResolvedVisitId(match.public_id);
+        setEncounterLookup({
+          scope: encounterScope,
+          visitId: match?.public_id ?? null,
+          error: match
+            ? null
+            : "No video visit is bound to this patient encounter.",
+        });
       })
       .catch((reason) => {
         if (!abort.signal.aborted)
-          setLookupError(
-            reason instanceof Error
-              ? reason.message
-              : "The video visit could not be located.",
-          );
+          setEncounterLookup({
+            scope: encounterScope,
+            visitId: null,
+            error:
+              reason instanceof Error
+                ? reason.message
+                : "The video visit could not be located.",
+          });
       });
     return () => abort.abort();
-  }, [encounterId, patientId, visitId]);
+  }, [encounterId, encounterScope, patientId, visitId]);
 
   const visit = resource.response?.data;
   const allowed = resource.response?.allowed_actions || [];
