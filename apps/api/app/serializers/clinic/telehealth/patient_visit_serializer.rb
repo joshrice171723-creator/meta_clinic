@@ -6,6 +6,7 @@ module Clinic
       def call(visit, identity:)
         participant = visit.participants.find { |value| value.portal_identity_id == identity.id }
         preparation = CurrentPreparation.call(visit: visit)
+        connected_participant_ids = MediaPresence.call(visit)
         appointment = visit.appointment
         policy = visit.policy_version
         opens_at = appointment.starts_at - policy.join_early_minutes.minutes
@@ -23,7 +24,7 @@ module Clinic
             can_prepare: visit.scheduled? || visit.in_progress?, can_enter: Time.current.between?(opens_at, closes_at) },
           preparation: VisitSerializer.preparation_payload(preparation, include_sensitive: true),
           room: VisitSerializer.room_payload(visit.current_room_attempt),
-          participants: visit.participants.map { |value| patient_participant(value, identity) },
+          participants: visit.participants.map { |value| patient_participant(value, identity, connected_participant_ids: connected_participant_ids) },
           eligible_staff: [],
           scribe: VisitSerializer.scribe_payload(visit),
           completion: WrapUpSerializer.patient(visit),
@@ -33,8 +34,8 @@ module Clinic
         }
       end
 
-      def patient_participant(value, identity)
-        payload = VisitSerializer.participant_payload(value, nil)
+      def patient_participant(value, identity, connected_participant_ids: nil)
+        payload = VisitSerializer.participant_payload(value, nil, connected_participant_ids: connected_participant_ids)
         payload[:is_current] = value.portal_identity_id == identity.id
         payload
       end

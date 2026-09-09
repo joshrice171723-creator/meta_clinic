@@ -7,6 +7,7 @@ module Clinic
         membership = Clinic::Membership.active.find_by(practice_id: visit.practice_id, user_id: actor.id)
         participant = visit.participants.find { |value| value.membership_id == membership&.id }
         preparation = CurrentPreparation.call(visit: visit)
+        connected_participant_ids = MediaPresence.call(visit)
         room = visit.current_room_attempt
         allowed, can_manage_wrap_up = staff_actions(visit, actor: actor, participant: participant)
         can_read_preparation = Ability.new(actor, practice: visit.practice)
@@ -20,14 +21,14 @@ module Clinic
           policy: policy(visit.policy_version),
           preparation: preparation_payload(preparation, include_sensitive: include_preparation && can_read_preparation),
           room: room_payload(room),
-          participants: visit.participants.map { |value| participant_payload(value, membership) },
+          participants: visit.participants.map { |value| participant_payload(value, membership, connected_participant_ids: connected_participant_ids) },
           eligible_staff: eligible_staff(visit, actor: actor, allowed_actions: allowed),
           scribe: scribe_payload(visit),
           wrap_up: WrapUpWorkflow.can_read?(visit: visit, actor: actor) ? WrapUpSerializer.staff(visit.wrap_up) : nil,
           wrap_up_options: can_manage_wrap_up ? WrapUpWorkflow.options(visit) : nil,
-          readiness: readiness(visit, preparation),
+          readiness: readiness(visit, preparation, connected_participant_ids: connected_participant_ids),
           waiting_since: visit.participants.select(&:patient?).filter_map { |value| value.status == "waiting" ? value.updated_at : nil }.min&.iso8601(6),
-          connection: connection(visit),
+          connection: connection(visit, connected_participant_ids: connected_participant_ids),
           updated_at: visit.updated_at.iso8601(6),
           allowed_actions: allowed
         }
@@ -36,17 +37,18 @@ module Clinic
 
       def queue_row(visit, actor:)
         preparation = CurrentPreparation.call(visit: visit)
+        connected_participant_ids = MediaPresence.call(visit)
         participant = actor_participant(visit, actor)
         allowed, = staff_actions(visit, actor: actor, participant: participant)
         {
           public_id: visit.public_id,
           status: visit.status,
           appointment: appointment(visit.appointment),
-          readiness: readiness(visit, preparation),
+          readiness: readiness(visit, preparation, connected_participant_ids: connected_participant_ids),
           waiting_since: visit.participants.select(&:patient?).filter_map do |value|
             value.status == "waiting" ? value.updated_at : nil
           end.min&.iso8601(6),
-          connection: connection(visit),
+          connection: connection(visit, connected_participant_ids: connected_participant_ids),
           encounter_id: visit.encounter_id,
           room: room_payload(visit.current_room_attempt),
           updated_at: visit.updated_at.iso8601(6),
@@ -116,7 +118,7 @@ module Clinic
           ended_at: room.ended_at&.iso8601(6) }
       end
 
-      def participant_payload(value, current_membership)
+      def participant_payload(value, current_membership, connected_participant_ids: nil)
         display_name = if value.patient?
           value.visit.patient.display_name
         else
@@ -125,7 +127,7 @@ module Clinic
         { id: value.id.to_s, role: value.role, status: value.status, is_current: value.membership_id == current_membership&.id,
           display_name: display_name, provider_subject_id: value.provider_subject_id,
           admitted_at: value.admitted_at&.iso8601(6),
-          media_present: media_present?(value) }
+          media_present: media_present?(value, connected_participant_ids: connected_participant_ids) }
       end
 
       def eligible_staff(visit, actor:, allowed_actions:)
@@ -150,9 +152,8 @@ module Clinic
         end
       end
 
-      def media_present?(participant)
-        event = participant_events(participant).order(occurred_at: :desc, id: :desc).first
-        event&.event_type == "participant.joined"
+      def media_present?(participant, connected_participant_ids: nil)
+        (connected_participant_ids || MediaPresence.call(participant.visit)).include?(participant.id)
       end
 
       def participant_events(participant)
@@ -160,10 +161,10 @@ module Clinic
           room_attempt_id: participant.visit.current_room_attempt_id)
       end
 
-      def readiness(visit, preparation)
+      def readiness(visit, preparation, connected_participant_ids: nil)
         return "ended" if visit.status.in?(%w[ended cancelled no_show])
         patient = preparation[:participant]
-        return "connected" if patient && media_present?(patient)
+        return "connected" if patient && media_present?(patient, connected_participant_ids: connected_participant_ids)
         return "disconnected" if patient && participant_events(patient).where(event_type: "participant.left").exists?
         return "admitted" if patient&.admitted?
         return "waiting" if patient&.waiting?
@@ -171,10 +172,10 @@ module Clinic
         "consent_needed"
       end
 
-      def connection(visit)
+      def connection(visit, connected_participant_ids: nil)
         return "ended" if visit.status.in?(%w[ended cancelled no_show])
-        latest = visit.current_room_attempt&.provider_events&.order(occurred_at: :desc)&.first
-        return "connected" if latest&.event_type == "participant.joined"
+        return "connected" if (connected_participant_ids || MediaPresence.call(visit)).any?
+        latest = visit.current_room_attempt&.provider_events&.order(occurred_at: :desc, id: :desc)&.first
         return "disconnected" if latest&.event_type.in?(%w[participant.left meeting.ended])
         "not_connected"
       end

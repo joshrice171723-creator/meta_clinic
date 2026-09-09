@@ -765,6 +765,31 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       participant: participant, type: "participant.left", provider_session_ref: "session-old",
       occurred_at: 2.minutes.ago)
     assert_predicate participant.reload, :admitted?
+
+    record_presence = lambda do |person, type, session, at|
+      current_room.provider_events.create!(practice: @practice, participant: person,
+        provider_code: "daily", provider_account_ref: TEST_ACCOUNT_REF,
+        provider_event_id: SecureRandom.uuid, event_type: type, provider_session_ref: session,
+        occurred_at: at, received_at: Time.current, payload_digest: Digest::SHA256.hexdigest(type),
+        normalized_metadata: {})
+    end
+    at = Time.current
+    record_presence.call(participant, "participant.left", "session-old", at)
+    Clinic::Telehealth::IngestProviderEvent.apply!(visit: visit.reload, room: current_room.reload,
+      participant: participant, type: "participant.left", provider_session_ref: "session-old", occurred_at: at)
+    assert_predicate participant.reload, :admitted?
+    assert Clinic::Telehealth::VisitSerializer.media_present?(participant)
+    assert_equal "connected", Clinic::Telehealth::VisitSerializer.connection(visit)
+
+    patient = visit.participants.patient.sole
+    record_presence.call(patient, "participant.joined", "patient-session", at + 1.second)
+    record_presence.call(participant, "participant.left", "session-new", at + 2.seconds)
+    assert_not Clinic::Telehealth::VisitSerializer.media_present?(participant)
+    assert Clinic::Telehealth::VisitSerializer.media_present?(patient)
+    assert_equal "connected", Clinic::Telehealth::VisitSerializer.connection(visit)
+
+    record_presence.call(patient, "participant.left", "patient-session", at + 3.seconds)
+    assert_equal "disconnected", Clinic::Telehealth::VisitSerializer.connection(visit)
   end
 
   test "historical reconciliation and delayed create results cannot mutate the replacement visit" do
