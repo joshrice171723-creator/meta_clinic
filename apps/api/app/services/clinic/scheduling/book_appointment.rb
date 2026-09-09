@@ -9,6 +9,15 @@ module Clinic
         }
         authorize.call
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
+        raise ArgumentError, "Choose a site before scheduling this appointment." unless site
+        raise ArgumentError, "Choose a clinician before scheduling this appointment." unless booked_clinician
+        raise ArgumentError, "Choose a visit type before scheduling this appointment." unless visit_type
+        raise ArgumentError, "The site must belong to the selected practice." unless site.practice_id == practice.id
+        raise ArgumentError, "The clinician must belong to the selected practice." unless booked_clinician.practice_id == practice.id
+        raise ArgumentError, "The visit type must belong to the selected practice." unless visit_type.practice_id == practice.id
+        if room && (room.practice_id != practice.id || room.site_id != site.id)
+          raise ArgumentError, "The selected room must belong to the appointment site."
+        end
 
         visit_modality = visit_modality.to_s.presence || "in_person"
         raise ArgumentError, "Visit format must be in person or video." unless %w[in_person video].include?(visit_modality)

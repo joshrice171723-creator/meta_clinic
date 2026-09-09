@@ -2,6 +2,7 @@ module Clinic
   module Scheduling
     module AppointmentSerializer
       def self.call(appointment, actor: nil)
+        setup_missing = Clinic::Scheduling::TransitionAppointment.setup_missing(appointment)
         {
           id: appointment.id,
           patient_id: appointment.patient_id,
@@ -25,7 +26,10 @@ module Clinic
           encounter_id: appointment.encounter&.id,
           encounter_status: appointment.encounter&.status,
           encounter_started_at: appointment.encounter&.started_at&.iso8601(6),
-          encounter_ended_at: appointment.encounter&.ended_at&.iso8601(6)
+          encounter_ended_at: appointment.encounter&.ended_at&.iso8601(6),
+          needs_setup: setup_missing.any?,
+          readiness: setup_missing.any? ? "needs_setup" : "ready",
+          setup_missing: setup_missing.map(&:to_s)
         }
       end
 

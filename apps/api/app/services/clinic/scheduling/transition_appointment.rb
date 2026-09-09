@@ -32,13 +32,16 @@ module Clinic
         false
       end
 
-      def self.assert_ready_for_confirmation!(appointment)
-        missing = {
-          patient: appointment.patient_id,
+      def self.setup_missing(appointment)
+        {
           site: appointment.site_id,
           clinician: appointment.booked_clinician_id,
           visit_type: appointment.visit_type_id
         }.filter_map { |name, value| name if value.blank? }
+      end
+
+      def self.assert_ready_for_confirmation!(appointment)
+        missing = [ (:patient if appointment.patient_id.blank?), *setup_missing(appointment) ].compact
         raise ArgumentError, "Choose a patient, site, clinician, and visit type before confirming this appointment." unless missing.empty?
 
         timezone = appointment.practice.timezone.to_s

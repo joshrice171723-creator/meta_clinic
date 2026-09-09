@@ -90,7 +90,7 @@ module Clinic
       end
 
       def update
-        input = parameter_hash!(:appointment, %i[starts_at ends_at expected_updated_at request_key visit_modality])
+        input = parameter_hash!(:appointment, %i[starts_at ends_at site_id booked_clinician_id visit_type_id expected_updated_at request_key visit_modality])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         updated = Clinic::Scheduling::RescheduleAppointment.call(
@@ -99,7 +99,10 @@ module Clinic
           ends_at: time_param!(input[:ends_at], field: :ends_at),
           expected_updated_at: time_param!(input[:expected_updated_at], field: :expected_updated_at),
           request_key: request_key,
-          visit_modality: input[:visit_modality]
+          visit_modality: input[:visit_modality],
+          site: input.key?(:site_id) ? find_optional(current_practice.sites, input[:site_id], :site_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
+          booked_clinician: input.key?(:booked_clinician_id) ? find_optional(current_practice.clinician_profiles, input[:booked_clinician_id], :booked_clinician_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
+          visit_type: input.key?(:visit_type_id) ? find_optional(current_practice.visit_types, input[:visit_type_id], :visit_type_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED
         )
         render json: { appointment: AppointmentSerializer.call(updated, actor: current_user), request_key: request_key }
       end

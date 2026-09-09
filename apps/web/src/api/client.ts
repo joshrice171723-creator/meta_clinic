@@ -233,12 +233,21 @@ export function loginDestination(value: string | null): string {
       "encounter_id",
       "invoice_id",
       "reminder_id",
+      "conversation_id",
       "page",
     ]) {
       const item = query.get(name);
       if (item && /^[1-9]\d*$/.test(item) && Number.isSafeInteger(Number(item)))
         safe.set(name, item);
     }
+    const telehealthVisitId = query.get("telehealth_visit_id");
+    if (
+      telehealthVisitId &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        telehealthVisitId,
+      )
+    )
+      safe.set("telehealth_visit_id", telehealthVisitId);
     if (query.get("visit_modality") === "video")
       safe.set("visit_modality", "video");
     for (const [name, values] of [
