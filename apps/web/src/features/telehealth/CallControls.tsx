@@ -78,6 +78,7 @@ export function CallControls({
   >(null);
   const mountedRef = useRef(false);
   const deviceSwitchingRef = useRef(false);
+  const deviceSwitchGenerationRef = useRef(0);
   const activeVisitIdRef = useRef(session.active?.visitId);
   activeVisitIdRef.current = session.active?.visitId;
   const [audioDevice, setAudioDevice] = useState("");
@@ -158,6 +159,9 @@ export function CallControls({
   }, [devicesOpen]);
 
   useEffect(() => {
+    deviceSwitchGenerationRef.current += 1;
+    deviceSwitchingRef.current = false;
+    setDeviceSwitching(null);
     setDevicesOpen(false);
     setDeviceSwitchError(null);
     setAudioDevice("");
@@ -170,24 +174,37 @@ export function CallControls({
   ) => {
     if (deviceSwitchingRef.current) return;
     deviceSwitchingRef.current = true;
+    const generation = deviceSwitchGenerationRef.current;
     const visitId = activeVisitIdRef.current;
     setDeviceSwitching(kind);
     setDeviceSwitchError(null);
     try {
       await session.selectInputDevice(kind, deviceId);
-      if (!mountedRef.current || activeVisitIdRef.current !== visitId) return;
+      if (
+        !mountedRef.current ||
+        activeVisitIdRef.current !== visitId ||
+        generation !== deviceSwitchGenerationRef.current
+      )
+        return;
       if (kind === "audio") setAudioDevice(deviceId);
       else setVideoDevice(deviceId);
     } catch (reason) {
-      if (!mountedRef.current || activeVisitIdRef.current !== visitId) return;
+      if (
+        !mountedRef.current ||
+        activeVisitIdRef.current !== visitId ||
+        generation !== deviceSwitchGenerationRef.current
+      )
+        return;
       setDeviceSwitchError(
         reason instanceof Error
           ? reason.message
           : `The ${kind === "audio" ? "microphone" : "camera"} could not be changed.`,
       );
     } finally {
-      deviceSwitchingRef.current = false;
-      if (mountedRef.current) setDeviceSwitching(null);
+      if (generation === deviceSwitchGenerationRef.current) {
+        deviceSwitchingRef.current = false;
+        if (mountedRef.current) setDeviceSwitching(null);
+      }
     }
   };
 
