@@ -233,6 +233,30 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     assert_equal "delivered", intent.outbox.reload.dispatch_state
   end
 
+  test "message creation batches attached document lookup" do
+    category = Clinic::DocumentCategory.create!(practice: @practice, code: "message-documents", name: "Message documents")
+    documents = 3.times.map do |index|
+      Clinic::Document.create!(practice: @practice, patient: @patient, category: category,
+        object_key: "private/message-document-#{index}", object_version: "1", checksum: "message-document-#{index}",
+        byte_size: 1, media_type: "text/plain", scan_state: "pending")
+    end
+    document_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { document_queries << payload[:sql].to_s }
+
+    intent = nil
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        intent = Clinic::Messaging::CreateIntent.call(practice: @practice, actor: @actor, patient: @patient,
+          request_key: "message-document-batch", purpose_code: "synthetic-test", encrypted_recipient_snapshot: "recipient",
+          encrypted_content: "content", document_ids: documents.map(&:id))
+      end
+    end
+
+    assert_equal documents.map(&:id).sort, intent.attachments.pluck(:document_id).sort
+    assert_operator document_queries.count { |sql| sql.match?(/FROM "clinic_documents"/i) }, :<=, 1,
+      document_queries.join("\n")
+  end
+
   test "document access reauthorizes the actual version and blocks unscanned content" do
     category = Clinic::DocumentCategory.create!(practice: @practice, code: "lab", name: "Synthetic document")
     pending = Clinic::Document.create!(practice: @practice, patient: @patient, category: category,

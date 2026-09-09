@@ -22,8 +22,9 @@ module Clinic
             encrypted_recipient_snapshot: encrypted_recipient_snapshot,
             encrypted_content: encrypted_content
           )
+          documents_by_id = practice.documents.where(id: document_ids).index_by(&:id)
           document_ids.each do |document_id|
-            document = practice.documents.find(document_id)
+            document = documents_by_id.fetch(document_id.to_i) { raise ActiveRecord::RecordNotFound }
             intent.attachments.create!(practice: practice, patient: patient, document: document)
           end
           intent.create_outbox!(practice: practice, dispatch_state: "pending")
