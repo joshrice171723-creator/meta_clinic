@@ -12,7 +12,12 @@ module Clinic
       end
 
       def call
-        invoices = @patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents, :invoice_stripe_checkouts).order(created_at: :desc, id: :desc).to_a
+        invoices = @patient.invoices.includes(
+          :lines,
+          :payment_allocations,
+          :credit_notes,
+          invoice_stripe_checkouts: :collection_intent
+        ).order(created_at: :desc, id: :desc).to_a
         payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events, :cash_tender, :billing_receipts).order(created_at: :desc, id: :desc).to_a
         preload_adjustment_memberships(invoices) if @include_adjustment_evidence
 

@@ -242,7 +242,7 @@ module Clinic
         return eligibility_result(invoice, "paid", false, false, amount, "no_balance") unless amount.positive?
         return eligibility_result(invoice, "unavailable", false, false, amount, "unsupported_currency") unless invoice.currency == "USD"
 
-        checkout = InvoiceStripeCheckout.active.where(practice: invoice.practice, invoice: invoice).order(id: :desc).first
+        checkout = active_checkout(invoice)
         if checkout
           state = checkout.collection_intent.state == "needs_reconciliation" ? "needs_reconciliation" : "processing"
           reason = state == "needs_reconciliation" ? "provider_reconciliation_required" : "checkout_active"
@@ -461,6 +461,20 @@ module Clinic
           amount: amount.to_s("F"), currency: invoice.currency, reason: reason }
       end
       private_class_method :eligibility_result
+
+      def self.active_checkout(invoice)
+        association = invoice.association(:invoice_stripe_checkouts)
+        if association.loaded?
+          checkouts = association.target
+          return checkouts.select { |checkout|
+            checkout.collection_intent.state.in?(%w[pending processing needs_reconciliation])
+          }.max_by(&:id) if
+            checkouts.all? { |checkout| checkout.association(:collection_intent).loaded? }
+        end
+
+        InvoiceStripeCheckout.active.where(practice: invoice.practice, invoice: invoice).order(id: :desc).first
+      end
+      private_class_method :active_checkout
     end
   end
 end
