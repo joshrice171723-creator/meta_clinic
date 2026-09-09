@@ -28,8 +28,8 @@ module Clinic
           scribe: VisitSerializer.scribe_payload(visit),
           completion: WrapUpSerializer.patient(visit),
           current_step: current_step(visit, participant, preparation),
-          access_state: VisitSerializer.access_state(visit, participant: participant),
-          updated_at: visit.updated_at.iso8601(6), allowed_actions: allowed_actions(visit, participant)
+          access_state: VisitSerializer.access_state(visit, participant: participant, preparation: preparation),
+          updated_at: visit.updated_at.iso8601(6), allowed_actions: allowed_actions(visit, participant, preparation: preparation)
         }
       end
 
@@ -39,10 +39,10 @@ module Clinic
         payload
       end
 
-      def allowed_actions(visit, participant)
+      def allowed_actions(visit, participant, preparation: nil)
         return [] unless participant && !visit.status.in?(%w[ended cancelled no_show])
         actions = %w[telehealth.submit_checkin telehealth.record_consent]
-        preparation = CurrentPreparation.call(visit: visit)
+        preparation ||= CurrentPreparation.call(visit: visit)
         actions << "telehealth.enter_waiting_room" if preparation[:complete] && (visit.scheduled? || visit.in_progress?)
         actions << "telehealth.join" if participant.admitted? && visit.current_room_attempt&.status.in?(%w[ready active])
         actions << "telehealth.leave" unless participant.removed?

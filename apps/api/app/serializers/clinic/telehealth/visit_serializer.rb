@@ -174,13 +174,13 @@ module Clinic
         "not_connected"
       end
 
-      def access_state(visit, participant:)
+      def access_state(visit, participant:, preparation: nil)
         return "ended" if visit.status.in?(%w[ended cancelled no_show])
         return "unavailable" unless participant
         return "rejoin" if participant.left? && visit.in_progress?
         return "join" if participant.admitted?
         return "waiting" if participant.waiting?
-        prep = CurrentPreparation.call(visit: visit)
+        prep = preparation || CurrentPreparation.call(visit: visit)
         prep[:checkin] ? "continue_preparation" : "prepare"
       end
 
