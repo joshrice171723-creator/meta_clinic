@@ -8,6 +8,8 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "appointments.book", "appointments.status_transition", "encounters.write", "billing.invoice_draft", "billing.invoice_post")
     @site = @practice.sites.create!(code: "CHECKOUT")
+    @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Checkout Clinician")
+    @visit_type = @practice.visit_types.create!(code: "CHECKOUT-VISIT")
     @patient = @practice.patients.create!(display_name: "SYN_Checkout, Avery", reference: "SYN-CHECKOUT-001")
     @other_patient = @practice.patients.create!(display_name: "SYN_Checkout, Briar", reference: "SYN-CHECKOUT-002")
   end
@@ -84,6 +86,21 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     end
     assert_match(/Choose a patient, site, clinician, and visit type/, error.message)
     assert_equal "scheduled", appointment.reload.status
+  end
+
+  test "an incomplete saved appointment can be corrected before the visit starts" do
+    appointment = @practice.appointments.create!(
+      patient: @patient, starts_at: Time.utc(2026, 9, 7, 11), ends_at: Time.utc(2026, 9, 7, 11, 30), status: "scheduled"
+    )
+
+    corrected = Clinic::Scheduling::RescheduleAppointment.call(
+      appointment: appointment, actor: @actor, starts_at: appointment.starts_at, ends_at: appointment.ends_at,
+      expected_updated_at: appointment.updated_at, request_key: "appointment-setup-correction",
+      site: @site, booked_clinician: @clinician, visit_type: @visit_type
+    )
+
+    assert_equal [], Clinic::Scheduling::TransitionAppointment.setup_missing(corrected)
+    assert_equal "ready", Clinic::Scheduling::AppointmentSerializer.call(corrected).fetch(:readiness)
   end
 
   test "reschedule replays the same key and rejects a stale version" do
@@ -215,7 +232,8 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
 
   def appointment_for(patient, status: "scheduled", starts_at: Time.utc(2026, 9, 7, 9))
     @practice.appointments.create!(
-      patient: patient, site: @site, starts_at: starts_at, ends_at: starts_at + 30.minutes, status: status
+      patient: patient, site: @site, booked_clinician: @clinician, visit_type: @visit_type,
+      starts_at: starts_at, ends_at: starts_at + 30.minutes, status: status
     )
   end
 

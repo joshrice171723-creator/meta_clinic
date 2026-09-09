@@ -97,7 +97,8 @@ class ClinicBillingServicesTest < ActionDispatch::IntegrationTest
     service.update!(active: false)
     revised = Clinic::Billing::UpdateDraftInvoice.call(
       practice: @practice, actor: @actor, invoice: invoice, currency: "USD",
-      lines: [ { invoice_line_id: line.id, quantity: "3" } ]
+      lines: [ { invoice_line_id: line.id, quantity: "3" } ],
+      request_key: "catalog-invoice-retained-line", expected_updated_at: invoice.updated_at.iso8601(6)
     )
     retained = revised.lines.sole
     assert_equal service.id, retained.billing_service_id

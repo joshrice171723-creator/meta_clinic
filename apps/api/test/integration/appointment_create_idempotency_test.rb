@@ -55,6 +55,16 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "appointment creation rejects missing operational setup" do
+    assert_no_difference -> { @own.fetch(:practice).appointments.count } do
+      submit "/api/clinic/appointments", appointment_payload(@own).deep_merge(
+        appointment: { booked_clinician_id: nil }
+      )
+      assert_response :unprocessable_entity
+      assert_includes response.parsed_body.fetch("error"), "clinician"
+    end
+  end
+
   test "calendar ranges include the complete clinic day across both DST transitions without leaking tenants" do
     practice = @own.fetch(:practice)
     practice.update!(timezone: "America/Chicago")
@@ -133,13 +143,17 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     grant_permissions!(membership, "appointments.book")
     patient = practice.patients.create!(display_name: "Appointment create #{label} patient", reference: "CREATE-#{label.upcase}")
     site = practice.sites.create!(code: "CREATE-#{label.upcase}")
-    { practice:, user:, patient:, site: }
+    clinician = practice.clinician_profiles.create!(membership:, display_name: "Appointment create #{label} clinician")
+    visit_type = practice.visit_types.create!(code: "CREATE-#{label.upcase}-VISIT")
+    { practice:, user:, patient:, site:, clinician:, visit_type: }
   end
 
   def appointment_payload(tenant, request_key: nil)
     appointment = {
       patient_id: tenant.fetch(:patient).id,
       site_id: tenant.fetch(:site).id,
+      booked_clinician_id: tenant.fetch(:clinician).id,
+      visit_type_id: tenant.fetch(:visit_type).id,
       starts_at: "2026-10-01T09:00:00Z",
       ends_at: "2026-10-01T09:30:00Z"
     }

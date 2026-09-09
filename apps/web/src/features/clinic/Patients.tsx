@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -7,10 +10,18 @@ import {
   DialogContent,
   DialogTitle,
   InputAdornment,
+  Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -69,7 +80,18 @@ export function Patients({ id }: { id?: string }) {
   return (
     <>
       <p className="eyebrow">PATIENTS</p>
-      <h1>Patient directory</h1>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+      >
+        <h1>Patient directory</h1>
+        {clinic.capabilities.patients_write && (
+          <Button component="a" href="#register-patient" variant="contained">
+            Register patient
+          </Button>
+        )}
+      </Stack>
       <a className="text-link" href="/clinic">
         Return to tracking board →
       </a>
@@ -118,11 +140,13 @@ export function Patients({ id }: { id?: string }) {
         )}
       </Card>
       {clinic.capabilities.patients_write && (
-        <Card title="Register a patient">
-          <PatientRegistrationForm
-            onSuccess={createdPath("/clinic/patients")}
-          />
-        </Card>
+        <Box id="register-patient" sx={{ scrollMarginTop: 16 }}>
+          <Card title="Register a patient">
+            <PatientRegistrationForm
+              onSuccess={createdPath("/clinic/patients")}
+            />
+          </Card>
+        </Box>
       )}
     </>
   );
@@ -482,8 +506,8 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
         {invitation && (
           <>
             <Alert severity="success">
-              {invitation.purpose === "recovery" ? "Recovery" : "Activation"} link
-              created for {invitation.email_address}. It expires at{" "}
+              {invitation.purpose === "recovery" ? "Recovery" : "Activation"}{" "}
+              link created for {invitation.email_address}. It expires at{" "}
               {new Date(invitation.expires_at).toLocaleString()}.
             </Alert>
             <TextField
@@ -506,7 +530,11 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
           onClick={() => void createInvitation()}
           variant="contained"
         >
-          {busy ? "Creating…" : invitation ? "Replace one-time link" : "Create one-time link"}
+          {busy
+            ? "Creating…"
+            : invitation
+              ? "Replace one-time link"
+              : "Create one-time link"}
         </Button>
       </Stack>
     </Card>
@@ -603,150 +631,300 @@ function registrationValues(patient?: RegistrationPatient): RegistrationValues {
   };
 }
 
+const registrationFieldLabels: Array<[string, string]> = [
+  ["display_name", "Patient display name"],
+  ["reference", "Clinic reference"],
+  ["date_of_birth", "Date of birth"],
+  ["sex", "Sex"],
+  ["primary_language", "Primary language"],
+  ["interpreter_required", "Interpreter required"],
+  ["contact_type", "Contact type"],
+  ["contact_value", "Phone or email"],
+  ["preferred", "Preferred contact"],
+  ["preferred_contact_method", "Preferred contact method"],
+  ["appointment_reminders_consent", "Appointment reminders consent"],
+  ["general_communications_consent", "General communications consent"],
+  ["emergency_name", "Emergency contact name"],
+  ["emergency_relationship", "Emergency contact relationship"],
+  ["emergency_phone", "Emergency contact phone"],
+  ["permission_to_contact", "Permission to contact"],
+  ["tobacco_use", "Tobacco use"],
+  ["alcohol_use", "Alcohol use"],
+  ["exercise_habits", "Exercise habits"],
+  ["diet", "Diet"],
+  ["occupation", "Occupation"],
+  ["living_situation", "Living situation"],
+  ["relevant_social_factors", "Relevant social factors"],
+];
+
+function registrationDisplayValue(value: string | undefined) {
+  if (!value) return "Not recorded";
+  if (value === "true") return "Yes";
+  if (value === "false") return "No";
+  return value;
+}
+
+function RegistrationConflictReview({
+  local,
+  latest,
+}: {
+  local: RegistrationValues;
+  latest: RegistrationPatient;
+}) {
+  const saved = registrationValues(latest);
+  const differences = registrationFieldLabels.filter(
+    ([field]) => (local[field] ?? "") !== (saved[field] ?? ""),
+  );
+  return (
+    <Alert severity="warning">
+      <Stack spacing={1.5}>
+        <Typography sx={{ fontWeight: 700 }}>
+          This patient changed while you were editing. Your entries are still in
+          the form.
+        </Typography>
+        <Typography variant="body2">
+          The latest saved values are shown beside your edits. Review them
+          before saving again.
+        </Typography>
+        {differences.length ? (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small" aria-label="Registration conflict comparison">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Field</TableCell>
+                  <TableCell>Your retained edit</TableCell>
+                  <TableCell>Latest saved value</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {differences.map(([field, label]) => (
+                  <TableRow key={field}>
+                    <TableCell component="th" scope="row">
+                      {label}
+                    </TableCell>
+                    <TableCell>
+                      {registrationDisplayValue(local[field])}
+                    </TableCell>
+                    <TableCell>
+                      {registrationDisplayValue(saved[field])}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Typography variant="body2">
+            The saved version changed without changing the displayed fields.
+          </Typography>
+        )}
+      </Stack>
+    </Alert>
+  );
+}
+
 function PatientFields({ values }: { values: RegistrationValues }) {
   return (
-    <>
-      <Field
-        name="clinic_patient[date_of_birth]"
-        label="Date of birth"
-        type="date"
-        required={false}
-        value={values.date_of_birth}
-      />
-      <Field
-        name="clinic_patient[sex]"
-        label="Sex"
-        required
-        value={values.sex}
-        options={[
-          ["", "Select sex"],
-          ["female", "Female"],
-          ["male", "Male"],
-          ["intersex", "Intersex"],
-          ["unknown", "Unknown"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[primary_language]"
-        label="Primary language"
-        required={false}
-        value={values.primary_language}
-        maxLength={80}
-      />
-      <Field
-        name="clinic_patient[interpreter_required]"
-        label="Interpreter required"
-        required={false}
-        value={values.interpreter_required}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[contact_type]"
-        label="Contact type"
-        required={false}
-        value={values.contact_type}
-        options={["phone", "email"]}
-      />
-      <Field
-        name="clinic_patient[contact_value]"
-        label="Phone or email"
-        required={false}
-        value={values.contact_value}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[preferred]"
-        label="Preferred contact"
-        required={false}
-        value={values.preferred}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[preferred_contact_method]"
-        label="Preferred contact method"
-        required={false}
-        value={values.preferred_contact_method}
-        options={["portal", "text", "phone", "email"]}
-      />
-      <Field
-        name="clinic_patient[appointment_reminders_consent]"
-        label="Appointment reminders consent"
-        required={false}
-        value={values.appointment_reminders_consent}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[general_communications_consent]"
-        label="General communications consent"
-        required={false}
-        value={values.general_communications_consent}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      <Field
-        name="clinic_patient[emergency_name]"
-        label="Emergency contact name"
-        required={false}
-        value={values.emergency_name}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[emergency_relationship]"
-        label="Emergency contact relationship"
-        required={false}
-        value={values.emergency_relationship}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[emergency_phone]"
-        label="Emergency contact phone"
-        required={false}
-        value={values.emergency_phone}
-        maxLength={320}
-      />
-      <Field
-        name="clinic_patient[permission_to_contact]"
-        label="Permission to contact"
-        required={false}
-        value={values.permission_to_contact}
-        options={[
-          ["false", "No"],
-          ["true", "Yes"],
-        ]}
-      />
-      {(
-        [
-          "tobacco_use",
-          "alcohol_use",
-          "exercise_habits",
-          "diet",
-          "occupation",
-          "living_situation",
-          "relevant_social_factors",
-        ] as const
-      ).map((name) => (
-        <Field
-          key={name}
-          name={`clinic_patient[${name}]`}
-          label={name.replaceAll("_", " ")}
-          type="textarea"
-          required={false}
-          value={values[name]}
-          maxLength={2000}
-        />
-      ))}
-    </>
+    <Stack spacing={1}>
+      <Accordion defaultExpanded disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box>
+            <Typography sx={{ fontWeight: 700 }}>Demographics</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Identity details and language needs
+            </Typography>
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box className="pharmacy-form-grid">
+            <Field
+              name="clinic_patient[date_of_birth]"
+              label="Date of birth"
+              type="date"
+              required={false}
+              value={values.date_of_birth}
+            />
+            <Field
+              name="clinic_patient[sex]"
+              label="Sex"
+              required
+              value={values.sex}
+              options={[
+                ["", "Select sex"],
+                ["female", "Female"],
+                ["male", "Male"],
+                ["intersex", "Intersex"],
+                ["unknown", "Unknown"],
+              ]}
+            />
+            <Field
+              name="clinic_patient[primary_language]"
+              label="Primary language"
+              required={false}
+              value={values.primary_language}
+              maxLength={80}
+            />
+            <Field
+              name="clinic_patient[interpreter_required]"
+              label="Interpreter required"
+              required={false}
+              value={values.interpreter_required}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+      <Accordion disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box>
+            <Typography sx={{ fontWeight: 700 }}>
+              Contact preferences
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Contact destination, preferred method, and consent
+            </Typography>
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box className="pharmacy-form-grid">
+            <Field
+              name="clinic_patient[contact_type]"
+              label="Contact type"
+              required={false}
+              value={values.contact_type}
+              options={["phone", "email"]}
+            />
+            <Field
+              name="clinic_patient[contact_value]"
+              label="Phone or email"
+              required={false}
+              value={values.contact_value}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[preferred]"
+              label="Preferred contact"
+              required={false}
+              value={values.preferred}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+            <Field
+              name="clinic_patient[preferred_contact_method]"
+              label="Preferred contact method"
+              required={false}
+              value={values.preferred_contact_method}
+              options={["portal", "text", "phone", "email"]}
+            />
+            <Field
+              name="clinic_patient[appointment_reminders_consent]"
+              label="Appointment reminders consent"
+              required={false}
+              value={values.appointment_reminders_consent}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+            <Field
+              name="clinic_patient[general_communications_consent]"
+              label="General communications consent"
+              required={false}
+              value={values.general_communications_consent}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+      <Accordion disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box>
+            <Typography sx={{ fontWeight: 700 }}>Emergency contact</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Optional contact and permission details
+            </Typography>
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box className="pharmacy-form-grid">
+            <Field
+              name="clinic_patient[emergency_name]"
+              label="Emergency contact name"
+              required={false}
+              value={values.emergency_name}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[emergency_relationship]"
+              label="Emergency contact relationship"
+              required={false}
+              value={values.emergency_relationship}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[emergency_phone]"
+              label="Emergency contact phone"
+              required={false}
+              value={values.emergency_phone}
+              maxLength={320}
+            />
+            <Field
+              name="clinic_patient[permission_to_contact]"
+              label="Permission to contact"
+              required={false}
+              value={values.permission_to_contact}
+              options={[
+                ["false", "No"],
+                ["true", "Yes"],
+              ]}
+            />
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+      <Accordion disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box>
+            <Typography sx={{ fontWeight: 700 }}>Social history</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Optional context that can be completed later
+            </Typography>
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box className="pharmacy-form-grid">
+            {(
+              [
+                "tobacco_use",
+                "alcohol_use",
+                "exercise_habits",
+                "diet",
+                "occupation",
+                "living_situation",
+                "relevant_social_factors",
+              ] as const
+            ).map((name) => (
+              <Field
+                key={name}
+                name={`clinic_patient[${name}]`}
+                label={name.replaceAll("_", " ")}
+                type="textarea"
+                required={false}
+                value={values[name]}
+                maxLength={2000}
+              />
+            ))}
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+    </Stack>
   );
 }
 
@@ -807,6 +985,7 @@ function PatientRegistrationEditor({
     [initialDraft, patient],
   );
   const requestKey = useRef(initialDraft?.requestKey || crypto.randomUUID());
+  const expectedUpdatedAt = useRef(patient?.updated_at);
   const attempt = useRef<RegistrationDraft | null>(
     initialDraft?.pending ? initialDraft : null,
   );
@@ -826,6 +1005,10 @@ function PatientRegistrationEditor({
     Boolean(initialDraft?.pending),
   );
   const [error, setError] = useState("");
+  const [registrationConflict, setRegistrationConflict] = useState<{
+    latest: RegistrationPatient;
+    local: RegistrationValues;
+  } | null>(null);
 
   useEffect(() => {
     if (!dirty && !attempt.current) return;
@@ -849,11 +1032,14 @@ function PatientRegistrationEditor({
   );
 
   const snapshotFrom = (form: HTMLFormElement): RegistrationDraft => {
-    const values = formBody(new FormData(form)).clinic_patient as RegistrationValues;
+    const values = formBody(new FormData(form))
+      .clinic_patient as RegistrationValues;
     const officialValues = {
       ...values,
       request_key: requestKey.current,
-      ...(patient?.updated_at ? { expected_updated_at: patient.updated_at } : {}),
+      ...(expectedUpdatedAt.current
+        ? { expected_updated_at: expectedUpdatedAt.current }
+        : {}),
     };
     return {
       body: { clinic_patient: officialValues },
@@ -876,7 +1062,6 @@ function PatientRegistrationEditor({
   return (
     <Box
       component="form"
-      className="pharmacy-form-grid"
       onInput={(event) => queueAutosave(event.currentTarget)}
       onSubmit={async (event) => {
         event.preventDefault();
@@ -900,6 +1085,7 @@ function PatientRegistrationEditor({
         attempt.current = pending;
         setBusy(true);
         setError("");
+        setRegistrationConflict(null);
         try {
           const result = await api<Record<string, unknown>>(
             patient
@@ -951,81 +1137,151 @@ function PatientRegistrationEditor({
             };
             lastSnapshot.current = editable;
             await workingDraft.save(editable);
+            if (
+              patient &&
+              reason instanceof ApiError &&
+              reason.code === "stale_record"
+            ) {
+              try {
+                const refreshed = await api<{ patient: RegistrationPatient }>(
+                  `/api/clinic/patients/${patient.id}`,
+                );
+                if (refreshed.patient.id !== patient.id)
+                  throw new Error(
+                    "The latest patient record did not match this registration.",
+                  );
+                if (!refreshed.patient.updated_at)
+                  throw new Error(
+                    "The latest patient version could not be confirmed.",
+                  );
+                expectedUpdatedAt.current = refreshed.patient.updated_at;
+                const rebased = {
+                  ...editable,
+                  body: {
+                    clinic_patient: {
+                      ...editable.body.clinic_patient,
+                      expected_updated_at: refreshed.patient.updated_at,
+                    },
+                  },
+                };
+                lastSnapshot.current = rebased;
+                await workingDraft.save(rebased);
+                setRegistrationConflict({
+                  latest: refreshed.patient,
+                  local: pending.body.clinic_patient,
+                });
+              } catch (refreshError) {
+                setError(
+                  refreshError instanceof Error
+                    ? `The record changed, and the latest version could not be loaded: ${refreshError.message}`
+                    : "The record changed, and the latest version could not be loaded.",
+                );
+              }
+            }
           }
           setOutcomeUnconfirmed(unknown);
-          setError(
-            unknown
-              ? "The registration outcome is unknown. Retry this exact request to reconcile it."
-              : reason instanceof Error
-                ? reason.message
-                : "The patient record could not be saved.",
-          );
+          if (!(reason instanceof ApiError && reason.code === "stale_record"))
+            setError(
+              unknown
+                ? "The registration outcome is unknown. Retry this exact request to reconcile it."
+                : reason instanceof Error
+                  ? reason.message
+                  : "The patient record could not be saved.",
+            );
         } finally {
           inFlight.current = false;
           setBusy(false);
         }
       }}
     >
-      <fieldset disabled={busy || outcomeUnconfirmed}>
-        <Field
-          name="clinic_patient[display_name]"
-          label="Patient display name"
-          value={initialValues.display_name}
-          maxLength={120}
-        />
-        {(!patient?.reference || patientReferenceLabel(patient.reference)) && (
-          <Field
-            name="clinic_patient[reference]"
-            label="Clinic reference"
-            value={initialValues.reference}
-            maxLength={32}
-          />
-        )}
-        {patient?.reference && !patientReferenceLabel(patient.reference) && (
-          <input
-            type="hidden"
-            name="clinic_patient[reference]"
-            value={initialValues.reference}
-          />
-        )}
-        <PatientFields values={initialValues} />
-      </fieldset>
-      {workingDraft.status === "saving" && (
-        <Typography role="status">Saving working copy…</Typography>
-      )}
-      {workingDraft.status === "saved" && dirty && (
-        <Typography color="text.secondary" role="status">
-          Working copy saved.
-        </Typography>
-      )}
-      {(workingDraft.status === "error" || workingDraft.status === "conflict") && (
-        <Alert
-          severity="error"
-          action={
-            workingDraft.status === "error" ? (
-              <Button onClick={() => void workingDraft.save(lastSnapshot.current)}>
-                Retry working-copy save
-              </Button>
-            ) : (
-              <Button onClick={() => onReloadDraft(lastSnapshot.current)}>
-                Reload version and keep my edits
-              </Button>
-            )
-          }
+      <Stack spacing={1.5}>
+        <Box
+          component="fieldset"
+          disabled={busy || outcomeUnconfirmed}
+          sx={{ border: 0, m: 0, p: 0 }}
         >
-          {workingDraft.error}
-        </Alert>
-      )}
-      {error && <Alert severity="error">{error}</Alert>}
-      <Button type="submit" variant="contained" disabled={busy}>
-        {busy
-          ? "Saving…"
-          : outcomeUnconfirmed
-            ? "Retry same request"
-            : patient
-              ? "Save registration details"
-              : "Register patient"}
-      </Button>
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography sx={{ fontWeight: 700 }}>Patient identity</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Start with the name and clinic reference used to find this
+                record.
+              </Typography>
+            </Box>
+            <Box className="pharmacy-form-grid">
+              <Field
+                name="clinic_patient[display_name]"
+                label="Patient display name"
+                value={initialValues.display_name}
+                maxLength={120}
+              />
+              {(!patient?.reference ||
+                patientReferenceLabel(patient.reference)) && (
+                <Field
+                  name="clinic_patient[reference]"
+                  label="Clinic reference"
+                  value={initialValues.reference}
+                  maxLength={32}
+                />
+              )}
+              {patient?.reference &&
+                !patientReferenceLabel(patient.reference) && (
+                  <input
+                    type="hidden"
+                    name="clinic_patient[reference]"
+                    value={initialValues.reference}
+                  />
+                )}
+            </Box>
+            <PatientFields values={initialValues} />
+          </Stack>
+        </Box>
+        {registrationConflict && (
+          <RegistrationConflictReview
+            latest={registrationConflict.latest}
+            local={registrationConflict.local}
+          />
+        )}
+        {workingDraft.status === "saving" && (
+          <Typography role="status">Saving working copy…</Typography>
+        )}
+        {workingDraft.status === "saved" && dirty && (
+          <Typography color="text.secondary" role="status">
+            Working copy saved.
+          </Typography>
+        )}
+        {(workingDraft.status === "error" ||
+          workingDraft.status === "conflict") && (
+          <Alert
+            severity="error"
+            action={
+              workingDraft.status === "error" ? (
+                <Button
+                  onClick={() => void workingDraft.save(lastSnapshot.current)}
+                >
+                  Retry working-copy save
+                </Button>
+              ) : (
+                <Button onClick={() => onReloadDraft(lastSnapshot.current)}>
+                  Reload version and keep my edits
+                </Button>
+              )
+            }
+          >
+            {workingDraft.error}
+          </Alert>
+        )}
+        {error && <Alert severity="error">{error}</Alert>}
+        <Button type="submit" variant="contained" disabled={busy}>
+          {busy
+            ? "Saving…"
+            : outcomeUnconfirmed
+              ? "Retry same request"
+              : patient
+                ? "Save registration details"
+                : "Register patient"}
+        </Button>
+      </Stack>
     </Box>
   );
 }

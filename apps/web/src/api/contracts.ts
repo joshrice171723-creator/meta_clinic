@@ -586,6 +586,12 @@ export type BillingPatientLedger = {
     unapplied_amount: Decimal;
     created_at: string;
     cash_payment: boolean;
+    cash_refund_available: boolean;
+    cash_refund_unavailable_reason:
+      | "not_cash_payment"
+      | "cash_drawer_closed"
+      | "payment_fully_refunded"
+      | null;
     receipt_available: boolean;
     allocations: {
       id: number;
@@ -769,6 +775,9 @@ export type Appointment = {
   ends_at: string;
   status: string;
   encounter_id: number | null;
+  needs_setup?: boolean;
+  readiness?: "ready" | "needs_setup";
+  setup_missing?: ("site" | "clinician" | "visit_type")[];
   visit_modality?: "in_person" | "video";
   telehealth?: TelehealthSummary | null;
   patient?: Pick<Patient, "id" | "display_name" | "reference"> & {

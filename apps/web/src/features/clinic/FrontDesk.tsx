@@ -23,7 +23,13 @@ import {
 } from "@mui/material";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
-import type { ClinicSite, EncounterDetail, Patient } from "../../api/contracts";
+import type {
+  ClinicSite,
+  Clinician,
+  EncounterDetail,
+  Patient,
+  VisitType,
+} from "../../api/contracts";
 import { useResource } from "../../shared/ui";
 import { bookingAvailability } from "./CareFlow";
 import { patientReferenceLabel } from "./patientReference";
@@ -47,6 +53,28 @@ import "./frontDesk.css";
 
 function allowed(capability: boolean | undefined) {
   return capability === true;
+}
+
+type AppointmentSetupField = "site" | "clinician" | "visit_type";
+type AppointmentWithReadiness = FrontDeskAppointment & {
+  needs_setup?: boolean;
+  readiness?: "ready" | "needs_setup";
+  setup_missing?: AppointmentSetupField[];
+};
+
+function appointmentSetupMissing(appointment: FrontDeskAppointment) {
+  const projected = appointment as AppointmentWithReadiness;
+  if (projected.readiness && projected.setup_missing)
+    return projected.setup_missing;
+  return [
+    !appointment.site_id ? "site" : null,
+    !appointment.booked_clinician_id ? "clinician" : null,
+    !appointment.visit_type_id ? "visit_type" : null,
+  ].filter((field): field is AppointmentSetupField => field !== null);
+}
+
+function setupFieldLabel(field: AppointmentSetupField) {
+  return field === "visit_type" ? "visit type" : field;
 }
 
 export function FrontDesk() {
@@ -195,6 +223,12 @@ function AppointmentDayQueue({
     page,
   });
   const appointments = useResource<FrontDeskAppointmentResponse>(path);
+  const clinicians = useResource<{ clinicians: Clinician[] }>(
+    "/api/clinic/clinicians?per_page=100",
+  );
+  const visitTypes = useResource<{ visit_types: VisitType[] }>(
+    "/api/clinic/facilities?type=visit_types&per_page=100",
+  );
 
   const unknownMutationFailure = (error: unknown) =>
     !(error instanceof ApiError) ||
@@ -321,7 +355,9 @@ function AppointmentDayQueue({
         result.encounter.patient_id !== appointment.patient_id ||
         result.encounter.appointment_id !== appointment.id
       )
-        throw new Error("The created encounter did not match this appointment.");
+        throw new Error(
+          "The created encounter did not match this appointment.",
+        );
       setNotice(`${patientName} is checked in and the visit is in progress.`);
       appointments.refresh();
     } catch (error) {
@@ -358,6 +394,13 @@ function AppointmentDayQueue({
       appointment,
       startsAt: localDateTimeInput(appointment.starts_at),
       endsAt: localDateTimeInput(appointment.ends_at),
+      siteId: appointment.site_id ? String(appointment.site_id) : "",
+      clinicianId: appointment.booked_clinician_id
+        ? String(appointment.booked_clinician_id)
+        : "",
+      visitTypeId: appointment.visit_type_id
+        ? String(appointment.visit_type_id)
+        : "",
       requestKey: crypto.randomUUID(),
       error: "",
       busy: false,
@@ -384,6 +427,21 @@ function AppointmentDayQueue({
       );
       return;
     }
+    if (
+      !reschedule.siteId ||
+      !reschedule.clinicianId ||
+      !reschedule.visitTypeId
+    ) {
+      setReschedule((current) =>
+        current
+          ? {
+              ...current,
+              error: "Choose a site, clinician, and visit type before saving.",
+            }
+          : current,
+      );
+      return;
+    }
 
     setReschedule((current) =>
       current ? { ...current, busy: true, error: "" } : current,
@@ -395,6 +453,9 @@ function AppointmentDayQueue({
           appointment: {
             starts_at: startsAt.toISOString(),
             ends_at: endsAt.toISOString(),
+            site_id: reschedule.siteId,
+            booked_clinician_id: reschedule.clinicianId,
+            visit_type_id: reschedule.visitTypeId,
             expected_updated_at: reschedule.appointment.updated_at,
             request_key: reschedule.requestKey,
           },
@@ -724,6 +785,10 @@ function AppointmentDayQueue({
       <RescheduleDialog
         draft={reschedule}
         clinicTimezone={timezone}
+        sites={sites}
+        clinicians={clinicians.data?.clinicians ?? []}
+        visitTypes={visitTypes.data?.visit_types ?? []}
+        setupOptionsError={clinicians.error || visitTypes.error}
         onChange={setReschedule}
         onClose={() => {
           if (!reschedule?.busy) setReschedule(undefined);
@@ -768,6 +833,8 @@ function AppointmentRow({
   onReschedule: (appointment: FrontDeskAppointment) => void;
 }) {
   const actions = appointmentActions(appointment);
+  const setupMissing = appointmentSetupMissing(appointment);
+  const needsSetup = setupMissing.length > 0;
   const status = appointmentStatus(appointment);
   const patientName = appointment.patient?.display_name || "Patient record";
   const patientReference = patientReferenceLabel(
@@ -781,8 +848,10 @@ function AppointmentRow({
   const billingPath = `/clinic/billing/patients?patient_id=${appointment.patient_id}`;
   const hasVisibleAction =
     (canTransition &&
-      (actions.canConfirm || actions.canCancel || actions.canMarkNoShow)) ||
-    (canStartVisit && actions.canStartVisit) ||
+      ((!needsSetup && actions.canConfirm) ||
+        actions.canCancel ||
+        actions.canMarkNoShow)) ||
+    (!needsSetup && canStartVisit && actions.canStartVisit) ||
     (canReschedule && actions.canReschedule) ||
     (canScheduleReplacement && actions.canScheduleReplacement) ||
     Boolean(chartPath && canPatients) ||
@@ -807,12 +876,17 @@ function AppointmentRow({
       </div>
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />
+        {needsSetup && (
+          <span>
+            Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}
+          </span>
+        )}
         {appointment.encounter_status === "open" && (
           <span>Clinical encounter open</span>
         )}
       </div>
       <div className="front-desk-actions" data-label="Next action">
-        {canTransition && actions.canConfirm && (
+        {canTransition && actions.canConfirm && !needsSetup && (
           <Button
             size="small"
             variant="outlined"
@@ -825,7 +899,7 @@ function AppointmentRow({
               : "Confirm"}
           </Button>
         )}
-        {canStartVisit && actions.canStartVisit && (
+        {canStartVisit && actions.canStartVisit && !needsSetup && (
           <Button
             size="small"
             variant="contained"
@@ -864,7 +938,7 @@ function AppointmentRow({
             disabled={anyActionBusy}
             onClick={() => onReschedule(appointment)}
           >
-            Reschedule
+            {needsSetup ? "Complete setup" : "Reschedule"}
           </Button>
         )}
         {canScheduleReplacement && actions.canScheduleReplacement && (
@@ -919,6 +993,9 @@ type RescheduleDraft = {
   appointment: FrontDeskAppointment;
   startsAt: string;
   endsAt: string;
+  siteId: string;
+  clinicianId: string;
+  visitTypeId: string;
   requestKey: string;
   error: string;
   busy: boolean;
@@ -928,6 +1005,10 @@ type RescheduleDraft = {
 function RescheduleDialog({
   draft,
   clinicTimezone,
+  sites,
+  clinicians,
+  visitTypes,
+  setupOptionsError,
   onChange,
   onClose,
   onSave,
@@ -935,6 +1016,10 @@ function RescheduleDialog({
 }: {
   draft: RescheduleDraft | undefined;
   clinicTimezone: string;
+  sites: ClinicSite[];
+  clinicians: Clinician[];
+  visitTypes: VisitType[];
+  setupOptionsError?: string;
   onChange: (draft: RescheduleDraft | undefined) => void;
   onClose: () => void;
   onSave: () => Promise<void>;
@@ -943,6 +1028,9 @@ function RescheduleDialog({
   const browserTimezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "your device time zone";
   const patientName = draft?.appointment.patient?.display_name || "Patient";
+  const needsSetup = draft
+    ? appointmentSetupMissing(draft.appointment).length > 0
+    : false;
 
   return (
     <Dialog
@@ -952,13 +1040,15 @@ function RescheduleDialog({
       maxWidth="sm"
       aria-labelledby="reschedule-title"
     >
-      <DialogTitle id="reschedule-title">Reschedule appointment</DialogTitle>
+      <DialogTitle id="reschedule-title">
+        {needsSetup ? "Complete appointment setup" : "Edit appointment"}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <div>
             <Typography sx={{ fontWeight: 700 }}>{patientName}</Typography>
             <Typography color="text.secondary" variant="body2">
-              Site, room, clinician, and visit type stay the same.
+              Review the time and required setup before saving.
             </Typography>
           </div>
           <Alert severity="info">
@@ -1005,6 +1095,92 @@ function RescheduleDialog({
             }}
             slotProps={{ inputLabel: { shrink: true } }}
           />
+          {setupOptionsError && (
+            <Alert severity="warning">{setupOptionsError}</Alert>
+          )}
+          <TextField
+            select
+            required
+            label="Site"
+            value={draft?.siteId || ""}
+            disabled={draft?.busy || draft?.outcomeUnconfirmed}
+            onChange={(event) =>
+              draft &&
+              onChange({
+                ...draft,
+                siteId: event.target.value,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
+                error: "",
+              })
+            }
+          >
+            <MenuItem value="" disabled>
+              Select a site
+            </MenuItem>
+            {sites.map((site) => (
+              <MenuItem key={site.id} value={String(site.id)}>
+                {site.name || site.code}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            required
+            label="Booked clinician"
+            value={draft?.clinicianId || ""}
+            disabled={draft?.busy || draft?.outcomeUnconfirmed}
+            onChange={(event) =>
+              draft &&
+              onChange({
+                ...draft,
+                clinicianId: event.target.value,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
+                error: "",
+              })
+            }
+          >
+            <MenuItem value="" disabled>
+              Select a clinician
+            </MenuItem>
+            {clinicians.map((clinician) => (
+              <MenuItem key={clinician.id} value={String(clinician.id)}>
+                {clinician.reference || `Clinician profile #${clinician.id}`}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            required
+            label="Visit type"
+            value={draft?.visitTypeId || ""}
+            disabled={draft?.busy || draft?.outcomeUnconfirmed}
+            onChange={(event) =>
+              draft &&
+              onChange({
+                ...draft,
+                visitTypeId: event.target.value,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
+                error: "",
+              })
+            }
+          >
+            <MenuItem value="" disabled>
+              Select a visit type
+            </MenuItem>
+            {visitTypes
+              .filter((type) => !type.retired_at)
+              .map((type) => (
+                <MenuItem key={type.id} value={String(type.id)}>
+                  {type.code}
+                </MenuItem>
+              ))}
+          </TextField>
           {draft?.error && (
             <Alert
               severity="error"
@@ -1023,14 +1199,14 @@ function RescheduleDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={draft?.busy} color="inherit">
-          Keep current time
+          Cancel
         </Button>
         <Button
           variant="contained"
           disabled={!draft || draft.busy}
           onClick={() => void onSave()}
         >
-          {draft?.busy ? "Saving…" : "Save new time"}
+          {draft?.busy ? "Saving…" : "Save appointment"}
         </Button>
       </DialogActions>
     </Dialog>

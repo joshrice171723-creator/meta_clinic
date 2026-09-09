@@ -228,28 +228,38 @@ export function loginDestination(value: string | null): string {
     if (loginDestination(path) !== path) return "/portal";
     const query = new URLSearchParams(raw);
     const safe = new URLSearchParams();
-    for (const name of [
+    const integerNames = new Set([
       "patient_id",
       "encounter_id",
       "invoice_id",
       "reminder_id",
+      "conversation_id",
       "page",
-    ]) {
-      const item = query.get(name);
-      if (item && /^[1-9]\d*$/.test(item) && Number.isSafeInteger(Number(item)))
-        safe.set(name, item);
+    ]);
+    for (const [name, item] of query.entries()) {
+      if (safe.has(name)) return "/portal";
+      if (integerNames.has(name)) {
+        if (!/^[1-9]\d*$/.test(item) || !Number.isSafeInteger(Number(item)))
+          return "/portal";
+      } else if (name === "telehealth_visit_id") {
+        if (
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            item,
+          )
+        )
+          return "/portal";
+      } else if (name === "visit_modality") {
+        if (item !== "video") return "/portal";
+      } else if (name === "invoice_payment") {
+        if (!["return", "cancel"].includes(item)) return "/portal";
+      } else if (name === "mode") {
+        if (!["current", "previous"].includes(item)) return "/portal";
+      } else {
+        return "/portal";
+      }
+      safe.set(name, item);
     }
-    if (query.get("visit_modality") === "video")
-      safe.set("visit_modality", "video");
-    for (const [name, values] of [
-      ["invoice_payment", ["return", "cancel"]],
-      ["mode", ["current", "previous"]],
-    ] as const) {
-      const item = query.get(name);
-      if (item && (values as readonly string[]).includes(item))
-        safe.set(name, item);
-    }
-    return path + (safe.size ? `?${safe}` : "");
+    return safe.size ? `${path}?${safe}` : "/portal";
   }
   if (value === "/patient-portal") return value;
   if (/^\/patient-portal\/telehealth\/[0-9a-f-]{36}$/i.test(value))

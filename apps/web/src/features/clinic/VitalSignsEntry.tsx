@@ -21,6 +21,7 @@ import { api, ApiError } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { useClinicNavigation } from "./clinicNavigation";
 import { useWorkingDraft } from "./useWorkingDraft";
+import { useClinic } from "./Workspace";
 
 type VitalField = {
   code: string;
@@ -92,9 +93,15 @@ function isDecimal(value: string) {
   return /^[+-]?\d+(?:\.\d+)?$/.test(value);
 }
 
-function dateLabel(value: string) {
+function dateLabel(value: string, timezone: string) {
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+  return Number.isNaN(date.valueOf())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: timezone,
+      }).format(date);
 }
 
 export function isLatestVitalLoad(
@@ -161,6 +168,7 @@ export function VitalSignsEntry({
   encounterId: number;
   onRecorded: (observations: Observation[]) => void;
 }) {
+  const { practice } = useClinic();
   const { registerBlocker } = useClinicNavigation();
   const workingDraft = useWorkingDraft<VitalWorkingDraft>({
     kind: "vitals",
@@ -656,7 +664,7 @@ export function VitalSignsEntry({
                   </Paper>
                 ))}
                 <TextField
-                  label="Observed time"
+                  label="Observed time (device local)"
                   type="datetime-local"
                   value={observedAt}
                   onChange={(event) => setObservedAt(event.target.value)}
@@ -667,7 +675,7 @@ export function VitalSignsEntry({
                     outcomeUnknown ||
                     !draftReady
                   }
-                  helperText="Use this device's local time."
+                  helperText={`Enter device-local time; review shows clinic time (${practice.timezone}).`}
                   fullWidth
                 />
                 <Button
@@ -700,8 +708,13 @@ export function VitalSignsEntry({
                       <strong>Encounter:</strong> #{encounterId}
                     </Typography>
                     <Typography>
-                      <strong>Observed:</strong>{" "}
-                      {dateLabel(new Date(observedAt).toISOString())}
+                      <strong>
+                        Observed (clinic time · {practice.timezone}):
+                      </strong>{" "}
+                      {dateLabel(
+                        new Date(observedAt).toISOString(),
+                        practice.timezone,
+                      )}
                     </Typography>
                     <Divider />
                     {readings.map((reading) => {
