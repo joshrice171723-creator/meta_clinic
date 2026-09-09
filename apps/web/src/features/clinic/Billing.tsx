@@ -50,6 +50,7 @@ import {
 } from "./InvoiceLineEditor";
 import { patientReferenceLabel } from "./patientReference";
 import { InvoiceCheckoutControls } from "./InvoiceCheckoutControls";
+import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
 
 function money(value: string, currency: string) {
@@ -462,6 +463,11 @@ function LedgerDetails({
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
+  const actionableInvoice =
+    checkoutEncounterId &&
+    checkoutInvoice.active?.id !== selectedInvoice?.id
+      ? undefined
+      : selectedInvoice;
   return (
     <Stack spacing={3}>
       <Box>
@@ -630,21 +636,33 @@ function LedgerDetails({
         )}
       </Paper>
       {selectedInvoice && <InvoiceDetail invoice={selectedInvoice} />}
-      {selectedInvoice && (
+      {checkoutEncounterId && selectedInvoice && !actionableInvoice && (
+        <Alert severity="info">
+          Invoice #{selectedInvoice.id} is historical for this patient. Return
+          to invoice #{checkoutInvoice.active?.id} to continue this encounter's
+          checkout.
+        </Alert>
+      )}
+      {actionableInvoice && (
         <ChargeAdjustmentDialog
           canAdjust={canAdjust}
-          invoice={selectedInvoice}
+          invoice={actionableInvoice}
           onFinancialChange={onFinancialChange}
         />
       )}
-      {selectedInvoice?.status === "draft" && canDraft && (
+      {actionableInvoice?.status === "draft" && canDraft && (
         <DraftInvoiceEditor
-          invoice={selectedInvoice}
+          key={actionableInvoice.id}
+          invoice={actionableInvoice}
+          patientId={ledger.patient.id}
+          encounterId={checkoutEncounterId}
           onSaved={onFinancialChange}
         />
       )}
       <CheckoutSettlement
-        invoice={selectedInvoice}
+        invoice={actionableInvoice}
+        patientId={ledger.patient.id}
+        encounterId={checkoutEncounterId}
         canPost={canPost}
         financialRevision={financialRevision}
         onFinancialChange={onFinancialChange}
@@ -683,11 +701,15 @@ function deterministicPostError(reason: unknown) {
 
 function CheckoutSettlement({
   invoice,
+  patientId,
+  encounterId,
   canPost,
   financialRevision,
   onFinancialChange,
 }: {
   invoice?: BillingPatientLedger["invoices"][number];
+  patientId: number;
+  encounterId: number | null;
   canPost: boolean;
   financialRevision: number;
   onFinancialChange: (invoiceId?: number) => void;
@@ -711,6 +733,31 @@ function CheckoutSettlement({
     requestKey: string;
     updatedAt: string;
   } | null>(null);
+  const postDraft = useWorkingDraft<{
+    action: "post";
+    invoiceId: number;
+    requestKey: string;
+    updatedAt: string;
+  }>({
+    kind: "checkout",
+    scope: "invoice_post",
+    patientId,
+    encounterId: encounterId ?? undefined,
+    recordId: invoice?.id,
+  });
+
+  useEffect(() => {
+    if (!postDraft.ready || postAttempt || !postDraft.restored) return;
+    if (
+      postDraft.restored.action === "post" &&
+      postDraft.restored.invoiceId === invoice?.id
+    ) {
+      setPostAttempt(postDraft.restored);
+      setError(
+        "This invoice has an unconfirmed posting attempt. Refresh the ledger, then retry the same posting only if it is still a draft.",
+      );
+    }
+  }, [invoice?.id, postAttempt, postDraft.ready, postDraft.restored]);
 
   const postInvoice = async () => {
     if (!canPost || busy || (!confirmation && !postAttempt)) return;
@@ -719,6 +766,13 @@ function CheckoutSettlement({
       requestKey: crypto.randomUUID(),
       updatedAt: confirmation!.updatedAt,
     };
+    if (!(await postDraft.save({ action: "post", ...attempt }))) {
+      setError(
+        postDraft.error ||
+          "The posting attempt could not be saved for recovery. Try again before posting.",
+      );
+      return;
+    }
     setPostAttempt(attempt);
     setBusy(true);
     setError("");
@@ -734,6 +788,12 @@ function CheckoutSettlement({
         },
       });
       setPostAttempt(null);
+      if (!(await postDraft.clear())) {
+        setError(
+          postDraft.error ||
+            "Invoice posting succeeded, but the recovery record could not be cleared. Refresh the ledger before taking another action.",
+        );
+      }
       setConfirmation(null);
       setPostedInvoiceId(attempt.invoiceId);
       setNotice(
@@ -744,6 +804,7 @@ function CheckoutSettlement({
       if (deterministicPostError(reason)) {
         setPostAttempt(null);
         setConfirmation(null);
+        await postDraft.clear();
       }
       setError(
         deterministicPostError(reason)
@@ -852,6 +913,9 @@ function CheckoutSettlement({
             key={invoice.id}
             onlinePayment={invoice.online_payment}
             endpoint={`/api/clinic/invoices/${invoice.id}/online_payment`}
+            patientId={patientId}
+            encounterId={encounterId ?? undefined}
+            invoiceId={invoice.id}
             actionLabel="Collect online"
             actionsEnabled={
               !cashPending &&
@@ -933,6 +997,35 @@ function DraftInvoiceForm({
   const [notice, setNotice] = useState("");
   const requestKeyRef = useRef<string | null>(null);
   const [retryPending, setRetryPending] = useState(false);
+  const recovery = useWorkingDraft<{
+    action: "create";
+    patientId: number;
+    encounterId: number | null;
+    requestKey: string;
+    currency: string;
+    lines: InvoiceLineDraft[];
+  }>({
+    kind: "checkout",
+    patientId,
+    encounterId: encounterId ?? undefined,
+  });
+
+  useEffect(() => {
+    if (!recovery.ready || !recovery.restored || requestKeyRef.current) return;
+    const restored = recovery.restored;
+    if (
+      restored.action !== "create" ||
+      restored.patientId !== patientId ||
+      restored.encounterId !== encounterId
+    ) return;
+    setCurrency(restored.currency);
+    setLines(restored.lines);
+    requestKeyRef.current = restored.requestKey;
+    setRetryPending(true);
+    setError(
+      "A saved checkout draft attempt was restored. Retry the same draft to reconcile its outcome.",
+    );
+  }, [encounterId, patientId, recovery.ready, recovery.restored]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -951,6 +1044,18 @@ function DraftInvoiceForm({
     setNotice("");
     const retryKey = requestKeyRef.current || crypto.randomUUID();
     requestKeyRef.current = retryKey;
+    if (!(await recovery.save({
+      action: "create",
+      patientId,
+      encounterId,
+      requestKey: retryKey,
+      currency,
+      lines,
+    }))) {
+      setBusy(false);
+      setError(recovery.error || "The checkout draft could not be saved for recovery.");
+      return;
+    }
     try {
       const result = await api<{
         invoice: Pick<BillingInvoiceDetail, "id" | "encounter_id">;
@@ -986,6 +1091,12 @@ function DraftInvoiceForm({
       setLines([customInvoiceLine()]);
       requestKeyRef.current = null;
       setRetryPending(false);
+      if (!(await recovery.clear())) {
+        setError(
+          recovery.error ||
+            "The draft was created, but its recovery record could not be cleared. Refresh the ledger before another action.",
+        );
+      }
       setNotice(
         result.replayed
           ? `Checkout invoice #${result.invoice.id} was already recorded and has been reopened.`
@@ -1004,6 +1115,7 @@ function DraftInvoiceForm({
       ) {
         requestKeyRef.current = null;
         setRetryPending(false);
+        await recovery.clear();
       } else {
         setRetryPending(true);
       }
@@ -1084,9 +1196,13 @@ function DraftInvoiceForm({
 
 function DraftInvoiceEditor({
   invoice,
+  patientId,
+  encounterId,
   onSaved,
 }: {
   invoice: BillingPatientLedger["invoices"][number];
+  patientId: number;
+  encounterId: number | null;
   onSaved: () => void;
 }) {
   const [currency, setCurrency] = useState(invoice.currency);
@@ -1113,6 +1229,35 @@ function DraftInvoiceEditor({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const requestKeyRef = useRef<string | null>(null);
+  const [retryPending, setRetryPending] = useState(false);
+  const recovery = useWorkingDraft<{
+    action: "update";
+    invoiceId: number;
+    requestKey: string;
+    expectedUpdatedAt: string;
+    currency: string;
+    lines: InvoiceLineDraft[];
+  }>({
+    kind: "checkout",
+    scope: "invoice_edit",
+    patientId,
+    encounterId: encounterId ?? undefined,
+    recordId: invoice.id,
+  });
+
+  useEffect(() => {
+    if (!recovery.ready || !recovery.restored || requestKeyRef.current) return;
+    const restored = recovery.restored;
+    if (restored.action !== "update" || restored.invoiceId !== invoice.id) return;
+    setCurrency(restored.currency);
+    setLines(restored.lines);
+    requestKeyRef.current = restored.requestKey;
+    setRetryPending(true);
+    setError(
+      "A saved edit attempt was restored for this invoice. Retry the same edit or refresh the ledger to reconcile it.",
+    );
+  }, [invoice.id, recovery.ready, recovery.restored]);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (
@@ -1127,12 +1272,30 @@ function DraftInvoiceEditor({
     }
     setBusy(true);
     setError("");
+    const requestKey = requestKeyRef.current ?? crypto.randomUUID();
+    const attempt = {
+      action: "update" as const,
+      invoiceId: invoice.id,
+      requestKey,
+      expectedUpdatedAt: invoice.updated_at,
+      currency,
+      lines,
+    };
+    if (!(await recovery.save(attempt))) {
+      setBusy(false);
+      setError(recovery.error || "The invoice edit could not be saved for recovery.");
+      return;
+    }
+    requestKeyRef.current = requestKey;
+    setRetryPending(true);
     try {
-      await api(`/api/clinic/invoices/${invoice.id}/draft`, {
+      const result = await api<{ invoice: BillingInvoiceDetail }>(`/api/clinic/invoices/${invoice.id}/draft`, {
         method: "PATCH",
         body: {
           invoice: {
             currency,
+            request_key: requestKey,
+            expected_updated_at: invoice.updated_at,
             lines: lines.map((line) =>
               line.kind === "recorded"
                 ? {
@@ -1154,8 +1317,24 @@ function DraftInvoiceEditor({
           },
         },
       });
+      if (result.invoice.id !== invoice.id || result.invoice.patient_id !== patientId) {
+        throw new Error("The saved invoice did not match this checkout context.");
+      }
+      requestKeyRef.current = null;
+      setRetryPending(false);
+      if (!(await recovery.clear())) {
+        setError(
+          recovery.error ||
+            "The invoice was saved, but its recovery record could not be cleared. Refresh before editing again.",
+        );
+      }
       onSaved();
     } catch (reason) {
+      if (deterministicPostError(reason) || (reason instanceof ApiError && reason.status === 409)) {
+        requestKeyRef.current = null;
+        setRetryPending(false);
+        await recovery.clear();
+      }
       setError(
         reason instanceof Error
           ? reason.message
@@ -1192,7 +1371,7 @@ function DraftInvoiceEditor({
           variant="contained"
           sx={{ mt: 2 }}
         >
-          {busy ? "Saving…" : "Save draft"}
+          {busy ? "Saving…" : retryPending ? "Retry same edit" : "Save draft"}
         </Button>
       </Box>
       {error && (

@@ -127,14 +127,16 @@ module Clinic
       end
 
       def update_draft
-        input = parameter_hash!(:invoice, %i[currency], nested_arrays: { lines: %i[quantity unit_amount description_snapshot billing_service_id service_lock_version invoice_line_id] })
+        input = parameter_hash!(:invoice, %i[currency request_key expected_updated_at], nested_arrays: { lines: %i[quantity unit_amount description_snapshot billing_service_id service_lock_version invoice_line_id] })
         lines = Array(input[:lines])
         raise Clinic::Api::RequestParameters::Invalid.new("lines must contain 1–100 entries.", field: :lines) unless lines.size.between?(1, 100)
         attributes = invoice_line_attributes(lines)
         invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
         updated = Clinic::Billing::UpdateDraftInvoice.call(practice: current_practice, actor: current_user, invoice: invoice,
-          currency: required_string!(input[:currency], field: :currency, maximum: 3), lines: attributes)
-        render json: { invoice: InvoiceSerializer.call(updated, detail: true) }
+          currency: required_string!(input[:currency], field: :currency, maximum: 3), lines: attributes,
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
+          expected_updated_at: required_string!(input[:expected_updated_at], field: :expected_updated_at, maximum: 40))
+        render json: { invoice: InvoiceSerializer.call(updated, detail: true), request_key: input[:request_key] }
       end
 
       def record_cash_payment

@@ -1,8 +1,6 @@
 module Clinic
   module Operations
     class FollowUpsController < Clinic::ApiController
-      before_action -> { require_capability("staff_messaging.read", any_site: true) }
-
       def index
         filter = enum_param!(
           params[:filter].presence || "all",
