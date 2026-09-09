@@ -1781,6 +1781,7 @@ CREATE TABLE public.clinic_appointments (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     visit_modality character varying(16) DEFAULT 'in_person'::character varying NOT NULL,
+    reason text,
     CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
     CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
     CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at)),
@@ -2054,7 +2055,7 @@ CREATE TABLE public.clinic_cash_tenders (
     recorded_by_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    request_key character varying NOT NULL,
+    request_key character varying DEFAULT ''::character varying NOT NULL,
     CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (tendered_amount = round(tendered_amount, 2)) AND (change_amount >= (0)::numeric) AND (change_amount = round(change_amount, 2)) AND (change_amount < tendered_amount))),
     CONSTRAINT cash_tender_request_key_present CHECK (((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100)))
 );
@@ -3077,7 +3078,7 @@ CREATE TABLE public.clinic_inventory_counts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     count_session_line_id bigint,
-    CONSTRAINT inventory_count_values CHECK ((((expected_quantity >= (0)::numeric) AND (expected_quantity <= (1000000)::numeric)) AND ((observed_quantity >= (0)::numeric) AND (observed_quantity <= (1000000)::numeric)) AND (observed_quantity = round(observed_quantity, 6))))
+    CONSTRAINT inventory_count_values CHECK (((expected_quantity >= (0)::numeric) AND (expected_quantity <= (1000000)::numeric) AND ((observed_quantity >= (0)::numeric) AND (observed_quantity <= (1000000)::numeric)) AND (observed_quantity = round(observed_quantity, 6))))
 );
 
 
@@ -3127,8 +3128,8 @@ CREATE TABLE public.clinic_inventory_entries (
     transfer_id bigint,
     recall_disposition_id bigint,
     CONSTRAINT inventory_count_entry CHECK ((((kind)::text = 'count_correction'::text) = (count_id IS NOT NULL))),
-    CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY ((ARRAY['receipt'::character varying, 'adjustment_in'::character varying])::text[])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY ((ARRAY['adjustment_out'::character varying, 'damaged'::character varying, 'expired'::character varying, 'return_to_supplier'::character varying])::text[])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY ((ARRAY['office_adjustment'::character varying, 'count_correction'::character varying, 'opening_balance'::character varying])::text[])))),
-    CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY ((ARRAY['posted'::character varying, 'legacy_movement'::character varying, 'legacy_opening_balance'::character varying])::text[])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
+    CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY (ARRAY[('office_adjustment'::character varying)::text, ('count_correction'::character varying)::text, ('opening_balance'::character varying)::text])))),
+    CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY (ARRAY[('posted'::character varying)::text, ('legacy_movement'::character varying)::text, ('legacy_opening_balance'::character varying)::text])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
     CONSTRAINT inventory_entry_target CHECK (((((stock_type)::text = 'pharmacy'::text) AND (batch_id IS NOT NULL) AND (item_id IS NULL)) OR (((stock_type)::text = 'office'::text) AND (item_id IS NOT NULL) AND (batch_id IS NULL)))),
     CONSTRAINT inventory_entry_values CHECK (((quantity <> (0)::numeric) AND ((quantity >= ('-1000000'::integer)::numeric) AND (quantity <= (1000000)::numeric)) AND (quantity = round(quantity, 6)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 100))))
 );
@@ -3252,7 +3253,7 @@ CREATE TABLE public.clinic_inventory_holds (
     profile_id bigint,
     transfer_id bigint,
     recall_id bigint,
-    CONSTRAINT inventory_hold_reason CHECK ((((kind)::text = ANY ((ARRAY['quarantined'::character varying, 'recalled'::character varying, 'temperature'::character varying, 'damaged'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
+    CONSTRAINT inventory_hold_reason CHECK ((((kind)::text = ANY (ARRAY[('quarantined'::character varying)::text, ('recalled'::character varying)::text, ('temperature'::character varying)::text, ('damaged'::character varying)::text])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
 );
 
 
@@ -3333,7 +3334,7 @@ CREATE TABLE public.clinic_inventory_lots (
     expiry_precision character varying DEFAULT 'day'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_expiry_precision CHECK (((expiry_precision)::text = ANY ((ARRAY['day'::character varying, 'month'::character varying])::text[])))
+    CONSTRAINT inventory_expiry_precision CHECK (((expiry_precision)::text = ANY (ARRAY[('day'::character varying)::text, ('month'::character varying)::text])))
 );
 
 
@@ -4565,6 +4566,211 @@ ALTER SEQUENCE public.clinic_lab_result_follow_ups_id_seq OWNED BY public.clinic
 
 
 --
+-- Name: clinic_learning_export_batches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_learning_export_batches (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    clinician_membership_id bigint NOT NULL,
+    clinician_profile_id bigint NOT NULL,
+    supersedes_learning_export_id bigint,
+    starts_on date,
+    ends_on date,
+    record_count integer NOT NULL,
+    documented_seconds integer NOT NULL,
+    source_version_digest character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    csv_content text NOT NULL,
+    state character varying DEFAULT 'created'::character varying NOT NULL,
+    request_key character varying NOT NULL,
+    correction_reason text,
+    generated_at timestamp(6) without time zone NOT NULL,
+    downloaded_at timestamp(6) without time zone,
+    schema_version character varying DEFAULT 'clinic-learning-export-v1'::character varying NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT learning_exports_values CHECK ((((state)::text = 'created'::text) AND ((schema_version)::text = 'clinic-learning-export-v1'::text) AND ((record_count >= 1) AND (record_count <= 1000)) AND ((documented_seconds >= 60) AND (documented_seconds <= 28800000)) AND (length(TRIM(BOTH FROM source_version_digest)) = 64) AND (length(TRIM(BOTH FROM payload_digest)) = 64) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND ((starts_on IS NULL) OR (ends_on IS NULL) OR (starts_on <= ends_on))))
+);
+
+
+--
+-- Name: clinic_learning_export_batches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_learning_export_batches_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_learning_export_batches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_learning_export_batches_id_seq OWNED BY public.clinic_learning_export_batches.id;
+
+
+--
+-- Name: clinic_learning_inquiries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_learning_inquiries (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    clinician_profile_id bigint NOT NULL,
+    question text NOT NULL,
+    general_only boolean DEFAULT true NOT NULL,
+    status character varying DEFAULT 'gathering'::character varying NOT NULL,
+    bottom_line text,
+    evidence_summary text,
+    limitations text,
+    uncertainty text,
+    summary_unavailable_reason text,
+    evidence_provider character varying DEFAULT 'pubmed'::character varying NOT NULL,
+    summary_provider character varying,
+    summary_model character varying,
+    prompt_version character varying,
+    prompt_digest character varying,
+    provider_request_id character varying,
+    source_snapshot_digest character varying,
+    schema_version character varying DEFAULT 'clinic-learning-v1'::character varying NOT NULL,
+    completed_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT learning_inquiries_values CHECK (((general_only = true) AND ((status)::text = ANY ((ARRAY['gathering'::character varying, 'sources_ready'::character varying, 'summarized'::character varying, 'failed'::character varying])::text[])) AND ((evidence_provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'clinic-learning-v1'::text) AND ((prompt_digest IS NULL) OR (length(TRIM(BOTH FROM prompt_digest)) = 64)) AND ((source_snapshot_digest IS NULL) OR (length(TRIM(BOTH FROM source_snapshot_digest)) = 64))))
+);
+
+
+--
+-- Name: clinic_learning_inquiries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_learning_inquiries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_learning_inquiries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_learning_inquiries_id_seq OWNED BY public.clinic_learning_inquiries.id;
+
+
+--
+-- Name: clinic_learning_moments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_learning_moments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    clinician_membership_id bigint NOT NULL,
+    clinician_profile_id bigint NOT NULL,
+    inquiry_id bigint NOT NULL,
+    supersedes_learning_moment_id bigint,
+    activity_date date NOT NULL,
+    deidentified_topic text NOT NULL,
+    specialty character varying,
+    learning_objective text NOT NULL,
+    learning_summary text NOT NULL,
+    reflection text,
+    practice_impact character varying,
+    documented_seconds integer DEFAULT 0 NOT NULL,
+    measured_active_seconds integer DEFAULT 0 NOT NULL,
+    learning_status character varying DEFAULT 'awaiting_reflection'::character varying NOT NULL,
+    record_classification character varying DEFAULT 'non_accredited_professional_learning'::character varying NOT NULL,
+    source_set_digest character varying NOT NULL,
+    attestation_version character varying,
+    attested_at timestamp(6) without time zone,
+    privacy_review_state character varying DEFAULT 'pending'::character varying NOT NULL,
+    contains_patient_identifiers boolean DEFAULT false NOT NULL,
+    confirmed_at timestamp(6) without time zone,
+    voided_at timestamp(6) without time zone,
+    void_reason text,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT learning_moments_documented_shape CHECK ((((learning_status)::text <> 'documented'::text) OR ((attestation_version IS NOT NULL) AND (attested_at IS NOT NULL) AND (confirmed_at IS NOT NULL) AND ((privacy_review_state)::text = 'clear'::text) AND (contains_patient_identifiers = false) AND (practice_impact IS NOT NULL) AND ((documented_seconds >= 60) AND (documented_seconds <= 28800))))),
+    CONSTRAINT learning_moments_values CHECK ((((learning_status)::text = ANY ((ARRAY['awaiting_reflection'::character varying, 'documented'::character varying, 'voided'::character varying])::text[])) AND ((record_classification)::text = 'non_accredited_professional_learning'::text) AND ((privacy_review_state)::text = ANY ((ARRAY['pending'::character varying, 'clear'::character varying, 'needs_edit'::character varying])::text[])) AND ((practice_impact IS NULL) OR ((practice_impact)::text = ANY ((ARRAY['confirmed_approach'::character varying, 'changed_approach'::character varying, 'follow_up_needed'::character varying, 'not_useful'::character varying, 'other'::character varying])::text[]))) AND ((documented_seconds >= 0) AND (documented_seconds <= 28800)) AND (mod(documented_seconds, 60) = 0) AND ((measured_active_seconds >= 0) AND (measured_active_seconds <= 28800)) AND (length(TRIM(BOTH FROM source_set_digest)) = 64))),
+    CONSTRAINT learning_moments_voided_shape CHECK ((((learning_status)::text <> 'voided'::text) OR ((voided_at IS NOT NULL) AND (length(TRIM(BOTH FROM void_reason)) > 0))))
+);
+
+
+--
+-- Name: clinic_learning_moments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_learning_moments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_learning_moments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_learning_moments_id_seq OWNED BY public.clinic_learning_moments.id;
+
+
+--
+-- Name: clinic_learning_sources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_learning_sources (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    inquiry_id bigint NOT NULL,
+    ordinal integer NOT NULL,
+    provider character varying DEFAULT 'pubmed'::character varying NOT NULL,
+    pmid character varying NOT NULL,
+    title text NOT NULL,
+    authors jsonb DEFAULT '[]'::jsonb NOT NULL,
+    citation text NOT NULL,
+    journal character varying,
+    publisher character varying,
+    publication_date character varying,
+    publication_types jsonb DEFAULT '[]'::jsonb NOT NULL,
+    canonical_url text NOT NULL,
+    accessed_at timestamp(6) without time zone NOT NULL,
+    abstract_digest character varying NOT NULL,
+    schema_version character varying DEFAULT 'pubmed-eutils-v1'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT learning_sources_values CHECK ((((ordinal >= 1) AND (ordinal <= 5)) AND ((provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'pubmed-eutils-v1'::text) AND (length(TRIM(BOTH FROM pmid)) > 0) AND (length(TRIM(BOTH FROM abstract_digest)) = 64) AND (length(TRIM(BOTH FROM canonical_url)) > 0)))
+);
+
+
+--
+-- Name: clinic_learning_sources_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_learning_sources_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_learning_sources_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_learning_sources_id_seq OWNED BY public.clinic_learning_sources.id;
+
+
+--
 -- Name: clinic_medication_administration_movements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5517,6 +5723,54 @@ ALTER SEQUENCE public.clinic_patient_portal_identities_id_seq OWNED BY public.cl
 
 
 --
+-- Name: clinic_patient_portal_recovery_deliveries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_portal_recovery_deliveries (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    identity_id bigint NOT NULL,
+    patient_contact_id bigint CONSTRAINT clinic_patient_portal_recovery_deli_patient_contact_id_not_null NOT NULL,
+    token text,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    provider character varying DEFAULT 'twilio'::character varying NOT NULL,
+    requested_at timestamp(6) without time zone NOT NULL,
+    available_at timestamp(6) without time zone NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    lease_until timestamp(6) without time zone,
+    lease_token_digest character varying,
+    attempt_count integer DEFAULT 0 CONSTRAINT clinic_patient_portal_recovery_deliverie_attempt_count_not_null NOT NULL,
+    provider_message_id character varying,
+    failure_code character varying,
+    accepted_at timestamp(6) without time zone,
+    completed_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_portal_recovery_deliveries_values CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'accepted'::character varying, 'failed'::character varying, 'unknown'::character varying, 'gated'::character varying, 'expired'::character varying, 'cancelled'::character varying])::text[])) AND ((provider)::text = 'twilio'::text) AND ((attempt_count >= 0) AND (attempt_count <= 1)) AND (expires_at > requested_at) AND (((status)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[])) = (token IS NOT NULL)) AND (((status)::text = 'leased'::text) = ((lease_until IS NOT NULL) AND (lease_token_digest IS NOT NULL))) AND ((lease_token_digest IS NULL) OR (length((lease_token_digest)::text) = 64)) AND ((provider_message_id IS NULL) OR ((provider_message_id)::text ~ '^SM[0-9A-Fa-f]{32}$'::text))))
+);
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_portal_recovery_deliveries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_portal_recovery_deliveries_id_seq OWNED BY public.clinic_patient_portal_recovery_deliveries.id;
+
+
+--
 -- Name: clinic_patient_portal_requests; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5785,7 +6039,14 @@ CREATE TABLE public.clinic_patients (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     primary_address_version_id bigint,
-    name_search_tokens text[] DEFAULT '{}'::text[] NOT NULL
+    date_of_birth date,
+    sex character varying(40),
+    height_cm numeric(5,2),
+    weight_kg numeric(6,2),
+    name_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
+    CONSTRAINT clinic_patients_birth_date_not_future CHECK (((date_of_birth IS NULL) OR (date_of_birth <= CURRENT_DATE))),
+    CONSTRAINT clinic_patients_height_range CHECK (((height_cm IS NULL) OR ((height_cm >= (30)::numeric) AND (height_cm <= (300)::numeric)))),
+    CONSTRAINT clinic_patients_weight_range CHECK (((weight_kg IS NULL) OR ((weight_kg >= 0.1) AND (weight_kg <= (500)::numeric))))
 );
 
 
@@ -6021,7 +6282,7 @@ CREATE TABLE public.clinic_pharmacy_batches (
     location_id bigint NOT NULL,
     on_hand numeric DEFAULT 0.0 NOT NULL,
     CONSTRAINT inventory_position_balance CHECK (((on_hand >= (0)::numeric) AND (on_hand <= (1000000)::numeric))),
-    CONSTRAINT pharmacy_batch_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'quarantined'::character varying, 'recalled'::character varying])::text[])))
+    CONSTRAINT pharmacy_batch_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('quarantined'::character varying)::text, ('recalled'::character varying)::text])))
 );
 
 
@@ -6059,7 +6320,7 @@ CREATE TABLE public.clinic_pharmacy_movements (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT pharmacy_movement_direction CHECK (((((kind)::text = ANY ((ARRAY['receipt'::character varying, 'adjustment_in'::character varying])::text[])) AND (quantity > 0)) OR (((kind)::text = ANY ((ARRAY['adjustment_out'::character varying, 'damaged'::character varying, 'expired'::character varying, 'return_to_supplier'::character varying])::text[])) AND (quantity < 0)))),
+    CONSTRAINT pharmacy_movement_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > 0)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < 0)))),
     CONSTRAINT pharmacy_movement_range CHECK (((quantity <> 0) AND ((quantity >= '-1000000'::integer) AND (quantity <= 1000000))))
 );
 
@@ -6115,7 +6376,7 @@ CREATE TABLE public.clinic_pharmacy_products (
     device_identifier character varying,
     preferred_supplier_id bigint,
     CONSTRAINT inventory_package_unit CHECK ((((stock_unit)::text <> 'package'::text) OR (package_size = (1)::numeric))),
-    CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY ((ARRAY['package'::character varying, 'each'::character varying, 'tablet'::character varying, 'capsule'::character varying, 'vial'::character varying, 'mL'::character varying, 'g'::character varying])::text[])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY ((ARRAY['mL'::character varying, 'g'::character varying])::text[])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
+    CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY (ARRAY[('mL'::character varying)::text, ('g'::character varying)::text])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT inventory_unit_evidence CHECK (((package_size = (1)::numeric) OR ((unit_reference IS NOT NULL) AND (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT pharmacy_product_category CHECK (((category)::text = ANY ((ARRAY['medication'::character varying, 'clinical_supply'::character varying, 'lab_supply'::character varying, 'office_supply'::character varying, 'cleaning_supply'::character varying, 'equipment'::character varying, 'other'::character varying])::text[]))),
     CONSTRAINT pharmacy_product_dea_schedule CHECK (((dea_schedule IS NULL) OR ((dea_schedule)::text = ANY ((ARRAY['II'::character varying, 'III'::character varying, 'IV'::character varying, 'V'::character varying])::text[])))),
@@ -10408,6 +10669,34 @@ ALTER TABLE ONLY public.clinic_lab_result_follow_ups ALTER COLUMN id SET DEFAULT
 
 
 --
+-- Name: clinic_learning_export_batches id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_export_batches ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_export_batches_id_seq'::regclass);
+
+
+--
+-- Name: clinic_learning_inquiries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_inquiries ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_inquiries_id_seq'::regclass);
+
+
+--
+-- Name: clinic_learning_moments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_moments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_learning_sources id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_sources ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_sources_id_seq'::regclass);
+
+
+--
 -- Name: clinic_medication_administration_movements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -10566,6 +10855,13 @@ ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests ALTER COLUMN 
 --
 
 ALTER TABLE ONLY public.clinic_patient_portal_identities ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_portal_identities_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_recovery_deliveries ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_portal_recovery_deliveries_id_seq'::regclass);
 
 
 --
@@ -11910,6 +12206,38 @@ ALTER TABLE ONLY public.clinic_lab_result_follow_ups
 
 
 --
+-- Name: clinic_learning_export_batches clinic_learning_export_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_export_batches
+    ADD CONSTRAINT clinic_learning_export_batches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_learning_inquiries clinic_learning_inquiries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_inquiries
+    ADD CONSTRAINT clinic_learning_inquiries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_learning_moments clinic_learning_moments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments
+    ADD CONSTRAINT clinic_learning_moments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_learning_sources clinic_learning_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_sources
+    ADD CONSTRAINT clinic_learning_sources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_medication_administration_movements clinic_medication_administration_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12091,6 +12419,14 @@ ALTER TABLE ONLY public.clinic_patient_portal_appointment_requests
 
 ALTER TABLE ONLY public.clinic_patient_portal_identities
     ADD CONSTRAINT clinic_patient_portal_identities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries clinic_patient_portal_recovery_deliveries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_recovery_deliveries
+    ADD CONSTRAINT clinic_patient_portal_recovery_deliveries_pkey PRIMARY KEY (id);
 
 
 --
@@ -14122,6 +14458,27 @@ CREATE UNIQUE INDEX clinic_payment_processor_events_practice_id ON public.clinic
 
 
 --
+-- Name: clinic_portal_recovery_deliveries_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_portal_recovery_deliveries_practice_id ON public.clinic_patient_portal_recovery_deliveries USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_portal_recovery_deliveries_provider_message; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_portal_recovery_deliveries_provider_message ON public.clinic_patient_portal_recovery_deliveries USING btree (provider, provider_message_id) WHERE (provider_message_id IS NOT NULL);
+
+
+--
+-- Name: clinic_portal_recovery_deliveries_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_portal_recovery_deliveries_queue ON public.clinic_patient_portal_recovery_deliveries USING btree (status, available_at, id);
+
+
+--
 -- Name: clinic_precautions_encounter_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -14532,6 +14889,13 @@ CREATE UNIQUE INDEX idx_on_account_id_subscription_id_ff19119ce5 ON public.clini
 --
 
 CREATE INDEX idx_on_actor_session_reference_occurred_at_fc6d32a259 ON public.platform_audit_events USING btree (actor_session_reference, occurred_at);
+
+
+--
+-- Name: idx_on_patient_contact_id_5a22d5fee7; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_patient_contact_id_5a22d5fee7 ON public.clinic_patient_portal_recovery_deliveries USING btree (patient_contact_id);
 
 
 --
@@ -15655,6 +16019,20 @@ CREATE INDEX index_clinic_notes_on_practice_id_and_patient_id ON public.clinic_n
 
 
 --
+-- Name: index_clinic_patient_portal_recovery_deliveries_on_identity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_patient_portal_recovery_deliveries_on_identity_id ON public.clinic_patient_portal_recovery_deliveries USING btree (identity_id);
+
+
+--
+-- Name: index_clinic_patient_portal_recovery_deliveries_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_patient_portal_recovery_deliveries_on_practice_id ON public.clinic_patient_portal_recovery_deliveries USING btree (practice_id);
+
+
+--
 -- Name: index_clinic_patient_reminder_actions_on_actor_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -16730,6 +17108,83 @@ CREATE UNIQUE INDEX inventory_supplier_product_identity ON public.clinic_invento
 --
 
 CREATE UNIQUE INDEX inventory_transfer_retry ON public.clinic_inventory_transfers USING btree (practice_id, request_key);
+
+
+--
+-- Name: learning_exports_owner_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX learning_exports_owner_created ON public.clinic_learning_export_batches USING btree (practice_id, clinician_profile_id, created_at);
+
+
+--
+-- Name: learning_exports_owner_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_exports_owner_request ON public.clinic_learning_export_batches USING btree (practice_id, clinician_profile_id, request_key);
+
+
+--
+-- Name: learning_exports_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_exports_practice_id ON public.clinic_learning_export_batches USING btree (practice_id, id);
+
+
+--
+-- Name: learning_inquiries_owner_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX learning_inquiries_owner_created ON public.clinic_learning_inquiries USING btree (practice_id, clinician_profile_id, created_at);
+
+
+--
+-- Name: learning_inquiries_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_inquiries_practice_id ON public.clinic_learning_inquiries USING btree (practice_id, id);
+
+
+--
+-- Name: learning_moments_inquiry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX learning_moments_inquiry ON public.clinic_learning_moments USING btree (practice_id, inquiry_id);
+
+
+--
+-- Name: learning_moments_owner_activity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX learning_moments_owner_activity ON public.clinic_learning_moments USING btree (practice_id, clinician_membership_id, activity_date);
+
+
+--
+-- Name: learning_moments_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_moments_practice_id ON public.clinic_learning_moments USING btree (practice_id, id);
+
+
+--
+-- Name: learning_sources_inquiry_ordinal; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_sources_inquiry_ordinal ON public.clinic_learning_sources USING btree (practice_id, inquiry_id, ordinal);
+
+
+--
+-- Name: learning_sources_inquiry_pmid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_sources_inquiry_pmid ON public.clinic_learning_sources USING btree (practice_id, inquiry_id, pmid);
+
+
+--
+-- Name: learning_sources_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX learning_sources_practice_id ON public.clinic_learning_sources USING btree (practice_id, id);
 
 
 --
@@ -19733,6 +20188,78 @@ ALTER TABLE ONLY public.clinic_lab_report_versions
 
 
 --
+-- Name: clinic_learning_export_batches fk_learning_exports_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_export_batches
+    ADD CONSTRAINT fk_learning_exports_membership FOREIGN KEY (practice_id, clinician_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_learning_export_batches fk_learning_exports_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_export_batches
+    ADD CONSTRAINT fk_learning_exports_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_learning_export_batches fk_learning_exports_supersedes; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_export_batches
+    ADD CONSTRAINT fk_learning_exports_supersedes FOREIGN KEY (practice_id, supersedes_learning_export_id) REFERENCES public.clinic_learning_export_batches(practice_id, id);
+
+
+--
+-- Name: clinic_learning_inquiries fk_learning_inquiries_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_inquiries
+    ADD CONSTRAINT fk_learning_inquiries_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_learning_moments fk_learning_moments_inquiry; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments
+    ADD CONSTRAINT fk_learning_moments_inquiry FOREIGN KEY (practice_id, inquiry_id) REFERENCES public.clinic_learning_inquiries(practice_id, id);
+
+
+--
+-- Name: clinic_learning_moments fk_learning_moments_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments
+    ADD CONSTRAINT fk_learning_moments_membership FOREIGN KEY (practice_id, clinician_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_learning_moments fk_learning_moments_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments
+    ADD CONSTRAINT fk_learning_moments_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_learning_moments fk_learning_moments_supersedes; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments
+    ADD CONSTRAINT fk_learning_moments_supersedes FOREIGN KEY (practice_id, supersedes_learning_moment_id) REFERENCES public.clinic_learning_moments(practice_id, id);
+
+
+--
+-- Name: clinic_learning_sources fk_learning_sources_inquiry; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_sources
+    ADD CONSTRAINT fk_learning_sources_inquiry FOREIGN KEY (practice_id, inquiry_id) REFERENCES public.clinic_learning_inquiries(practice_id, id);
+
+
+--
 -- Name: clinic_medication_administration_movements fk_medication_admin_movements_administration; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20274,6 +20801,22 @@ ALTER TABLE ONLY public.clinic_payment_processor_events
 
 ALTER TABLE ONLY public.clinic_pharmacy_products
     ADD CONSTRAINT fk_pharmacy_products_preferred_supplier FOREIGN KEY (practice_id, preferred_supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries fk_portal_recovery_deliveries_contact; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_recovery_deliveries
+    ADD CONSTRAINT fk_portal_recovery_deliveries_contact FOREIGN KEY (practice_id, patient_contact_id) REFERENCES public.clinic_patient_contacts(practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries fk_portal_recovery_deliveries_identity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_recovery_deliveries
+    ADD CONSTRAINT fk_portal_recovery_deliveries_identity FOREIGN KEY (practice_id, identity_id) REFERENCES public.clinic_patient_portal_identities(practice_id, id);
 
 
 --
@@ -21253,6 +21796,14 @@ ALTER TABLE ONLY public.clinic_inventory_profiles
 
 
 --
+-- Name: clinic_learning_sources fk_rails_4b5e71e17d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_sources
+    ADD CONSTRAINT fk_rails_4b5e71e17d FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_telehealth_room_attempts fk_rails_4bdb009ae7; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21290,6 +21841,14 @@ ALTER TABLE ONLY public.clinic_workforce_schedule_publications
 
 ALTER TABLE ONLY public.clinic_communication_preferences
     ADD CONSTRAINT fk_rails_5034e8ba41 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_portal_recovery_deliveries fk_rails_52fb600254; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_recovery_deliveries
+    ADD CONSTRAINT fk_rails_52fb600254 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -21965,6 +22524,14 @@ ALTER TABLE ONLY public.clinic_workforce_punches
 
 
 --
+-- Name: clinic_learning_export_batches fk_rails_8e5357e9f5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_export_batches
+    ADD CONSTRAINT fk_rails_8e5357e9f5 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_workforce_schedule_publications fk_rails_8e60744ac0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -22530,6 +23097,14 @@ ALTER TABLE ONLY public.clinic_telehealth_participants
 
 ALTER TABLE ONLY public.clinic_scribe_recordings
     ADD CONSTRAINT fk_rails_bbf15a4b44 FOREIGN KEY (practice_id, capture_owner_participant_id) REFERENCES public.clinic_telehealth_participants(practice_id, id);
+
+
+--
+-- Name: clinic_learning_moments fk_rails_bcbea02648; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_moments
+    ADD CONSTRAINT fk_rails_bcbea02648 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -23221,6 +23796,14 @@ ALTER TABLE ONLY public.clinic_inventory_recall_lots
 
 
 --
+-- Name: clinic_learning_inquiries fk_rails_fd3f74c424; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_learning_inquiries
+    ADD CONSTRAINT fk_rails_fd3f74c424 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_recall_dispositions fk_rails_fd5e2da0db; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -23845,9 +24428,14 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 
 --
+-- PostgreSQL database dump complete
+--
+
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909007000'),
+('20260909006000'),
 ('20260909005100'),
 ('20260909005000'),
 ('20260909004100'),
@@ -23874,6 +24462,9 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260907000300'),
 ('20260907000200'),
 ('20260907000100'),
+('20260906002020'),
+('20260906002010'),
+('20260906002000'),
 ('20260906001900'),
 ('20260906001800'),
 ('20260906001720'),
@@ -23972,6 +24563,3 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260830000200'),
 ('20260830000100');
 
---
--- PostgreSQL database dump complete
---
