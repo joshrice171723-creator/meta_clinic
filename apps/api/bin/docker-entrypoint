@@ -1,6 +1,0 @@
-#!/bin/bash -e
-
-# Migrations run explicitly with a separate database owner before server start.
-# A runtime process never receives schema-management credentials.
-
-exec "${@}"

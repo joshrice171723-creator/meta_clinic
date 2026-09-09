@@ -1,3 +1,0 @@
-#!/usr/bin/env ruby
-Dir.chdir(File.expand_path("..", __dir__))
-exec "./bin/rails", "server", "-b", "127.0.0.1", "-p", "3001", *ARGV
