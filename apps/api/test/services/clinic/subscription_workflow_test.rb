@@ -97,6 +97,30 @@ class SubscriptionWorkflowTest < ActiveSupport::TestCase
       "expected collection projection to avoid per-agreement queries (individual=#{individual_queries}, collection=#{collection_queries})"
   end
 
+  test "subscription package definition batches service option lookups" do
+    options = @options + 8.times.map do |index|
+      Clinic::Care::ServiceOption.create!(practice: @practice, name: "Package batch service #{index}")
+    end
+    @package.reload.update!(draft: @package.draft.merge("components" => options.map do |option|
+      { "service_id" => option.id, "mode" => "included" }
+    end))
+    option_queries = []
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s
+      option_queries << sql if sql.match?(/\ASELECT.*FROM "clinic_service_options"/mi)
+    end
+    snapshot = nil
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        snapshot = Clinic::Care::SubscriptionDefinition.build(@package)
+      end
+    end
+
+    assert_equal options.map(&:id), snapshot.fetch("components").map { |component| component.fetch("service_id") }
+    assert_equal 1, option_queries.length, option_queries.join("\n")
+  end
+
   test "selection cardinality and foreign options fail closed" do
     assert_raises(ArgumentError) { checkout(selections: []) }
     assert_raises(ArgumentError) { checkout(selections: [@options[1].id, @options[2].id]) }

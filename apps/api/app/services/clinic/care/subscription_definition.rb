@@ -40,9 +40,15 @@ module Clinic
         if snapshot["available_from"] && snapshot["available_until"] && snapshot["available_from"] >= snapshot["available_until"]
           raise ArgumentError, "Availability must end after it starts."
         end
+        service_ids = components.map do |component|
+          raise ArgumentError, "Each service must be an object." unless component.is_a?(Hash)
+
+          component.fetch("service_id")
+        end
+        options_by_id = ServiceOption.where(practice_id: package.practice_id, retired: false, id: service_ids).index_by(&:id)
         snapshot["components"] = components.map do |component|
           raise ArgumentError, "Each service must be an object." unless component.is_a?(Hash)
-          option = ServiceOption.where(practice_id: package.practice_id, retired: false).find(component.fetch("service_id"))
+          option = options_by_id.fetch(component.fetch("service_id").to_i) { raise ActiveRecord::RecordNotFound }
           mode = choice(component.fetch("mode"), MODES, "Inclusion mode")
           {
             "service_id" => option.id, "name" => option.name, "description" => option.description,
