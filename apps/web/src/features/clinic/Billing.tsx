@@ -936,6 +936,9 @@ function CheckoutSettlement({
       {(collectionInvoice || cashPending) && !postingPending && (
         <CashDrawerOperations
           invoice={onlinePaymentPending ? null : collectionInvoice}
+          patientId={patientId}
+          encounterId={encounterId ?? undefined}
+          recoveryInvoiceId={collectionInvoice?.id}
           refreshVersion={financialRevision}
           onPendingChange={setCashPending}
           onRecorded={onFinancialChange}
