@@ -13,6 +13,18 @@ module Clinic
       validates :contact_value, length: { maximum: 320 }
       validates :preferred, inclusion: { in: [ true, false ] }
       validates :effective_until, comparison: { greater_than: :effective_from }, allow_nil: true
+      validate :contact_value_matches_type
+
+      private
+
+      def contact_value_matches_type
+        case contact_type
+        when "email"
+          errors.add(:contact_value, "must be a valid email address") unless URI::MailTo::EMAIL_REGEXP.match?(contact_value.to_s)
+        when "phone"
+          errors.add(:contact_value, "must be a valid phone number") unless contact_value.to_s.scan(/\d/).length.between?(7, 15)
+        end
+      end
     end
   end
 end

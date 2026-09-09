@@ -57,7 +57,7 @@ module Clinic
         end
 
         template = NoteTemplateCatalog.fetch!(payload[:template_id].to_s, payload[:template_version])
-        sections = SECTION_KEYS.to_h { |key| [ key, payload[:sections].fetch(key, "").to_s ] }
+        sections = normalize_sections!(payload[:sections])
         result = {
           schema: payload[:schema],
           note_kind: payload[:note_kind],
