@@ -22,7 +22,7 @@ module Clinic
       if detail
         payload[:source] = { type: reminder.source_type, id: reminder.source_id, version: reminder.source_version }
         payload[:policy] = { code: reminder.policy_decision_code, version: reminder.policy_version }
-        payload[:delivery_attempts] = reminder.delivery_attempts.order(attempt_number: :asc).map do |attempt|
+        payload[:delivery_attempts] = delivery_attempts(reminder).map do |attempt|
           { attempt_number: attempt.attempt_number, status: attempt.status, failure_class: attempt.failure_class,
             retryable: attempt.retryable, provider: attempt.provider, masked_destination: attempt.masked_destination,
             queued_at: attempt.queued_at&.iso8601(6), accepted_at: attempt.accepted_at&.iso8601(6), completed_at: attempt.completed_at&.iso8601(6) }
@@ -30,5 +30,14 @@ module Clinic
       end
       payload
     end
+
+    def self.delivery_attempts(reminder)
+      if reminder.association(:delivery_attempts).loaded?
+        reminder.delivery_attempts.sort_by(&:attempt_number)
+      else
+        reminder.delivery_attempts.order(attempt_number: :asc).to_a
+      end
+    end
+    private_class_method :delivery_attempts
   end
 end
