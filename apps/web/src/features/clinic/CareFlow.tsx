@@ -535,6 +535,7 @@ function BookingFormEditor({
   onReloadDraft: (snapshot: AppointmentWorkingDraft) => void;
 }) {
   const { registerBlocker } = useClinicNavigation();
+  const clinic = useClinic();
   const defaultDraft = useMemo<BookingDraft>(() => {
     const defaults = appointmentDefaults();
     return {
@@ -1111,6 +1112,7 @@ function BookingFormEditor({
             <TelehealthBookingFormat
               value={visitModality}
               disabled={busy || outcomeUnconfirmed}
+              canConfigure={clinic.capabilities.telehealth_configure === true}
               onChange={(format) => {
                 setVisitModality(format);
                 if (format === "video") setRoomId("");

@@ -82,7 +82,7 @@ export function telehealthDate(timeZone: string, now = new Date()) {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function QueueBookingAction() {
+function QueueBookingAction({ canConfigure }: { canConfigure: boolean }) {
   const options = useResource<BookingOptions>(
     "/api/clinic/telehealth/booking_options",
   );
@@ -100,13 +100,20 @@ function QueueBookingAction() {
         Book video visit
       </Button>
       {!available && (
-        <Typography variant="caption" color="text.secondary">
-          {options.error
-            ? "Booking availability could not be checked."
-            : options.data
-              ? "Video booking needs clinic configuration."
-              : "Checking booking availability…"}
-        </Typography>
+        <Stack spacing={0.5}>
+          <Typography variant="caption" color="text.secondary">
+            {options.error
+              ? "Booking availability could not be checked."
+              : options.data
+                ? "Video booking needs a connected provider, published policy, successful health check, and eligible visit type."
+                : "Checking booking availability…"}
+          </Typography>
+          {canConfigure && options.data && (
+            <Button href="/clinic/settings/telehealth" size="small" sx={{ alignSelf: "flex-start" }}>
+              Open video setup
+            </Button>
+          )}
+        </Stack>
       )}
     </Stack>
   );
@@ -241,7 +248,11 @@ export function TelehealthQueue() {
           useFlexGap
           sx={{ flexWrap: "wrap", alignItems: "flex-start" }}
         >
-          {clinic.capabilities.appointments_book && <QueueBookingAction />}
+          {clinic.capabilities.appointments_book && (
+            <QueueBookingAction
+              canConfigure={clinic.capabilities.telehealth_configure === true}
+            />
+          )}
           {clinic.capabilities.telehealth_configure && (
             <Button
               startIcon={<SettingsOutlinedIcon />}
