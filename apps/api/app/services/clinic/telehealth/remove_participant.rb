@@ -16,13 +16,18 @@ module Clinic
           visit.with_lock do
             raise ActiveRecord::StaleObjectError.new(visit, "update") unless visit.lock_version == expected_version.to_i
             participant.lock!
+            existing_command = visit.commands.find_by(
+              dedupe_key: "eject:#{visit.access_generation}:#{participant.id}",
+            )
+            next existing_command if participant.removed? && existing_command
+
             participant.join_grants.where(revoked_at: nil).find_each do |grant|
               grant.update!(revoked_at: Time.current, revocation_reason: "participant_removed")
             end
             participant.update!(status: "removed", revoked_at: Time.current, revocation_reason: "removed_by_host")
             room = visit.current_room_attempt
             provider_eject_required = room && !room.status.in?(%w[ended failed])
-            visit.commands.create!(practice_id: visit.practice_id, room_attempt_id: room&.id, participant_id: participant.id,
+            existing_command || visit.commands.create!(practice_id: visit.practice_id, room_attempt_id: room&.id, participant_id: participant.id,
               kind: "eject_participant", dedupe_key: "eject:#{visit.access_generation}:#{participant.id}",
               access_generation: visit.access_generation, status: provider_eject_required ? "pending" : "succeeded",
               available_at: Time.current, completed_at: (Time.current unless provider_eject_required))
