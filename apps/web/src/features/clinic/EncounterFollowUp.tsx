@@ -97,7 +97,6 @@ export function EncounterFollowUpPanel({
     kind: "follow_up",
     patientId: patient.id,
     encounterId: encounter.id,
-    recordId: encounter.id,
     enabled: canWrite,
   });
 

@@ -2508,6 +2508,55 @@ ALTER SEQUENCE public.clinic_documents_id_seq OWNED BY public.clinic_documents.i
 
 
 --
+-- Name: clinic_encounter_follow_ups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_follow_ups (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    follow_up_appointment_id bigint,
+    assigned_to_membership_id bigint,
+    recorded_by_membership_id bigint NOT NULL,
+    updated_by_membership_id bigint NOT NULL,
+    completed_by_membership_id bigint,
+    source_kind character varying NOT NULL,
+    state character varying NOT NULL,
+    plan text NOT NULL,
+    outcome text NOT NULL,
+    due_at timestamp(6) without time zone,
+    completed_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT encounter_follow_ups_arranged_appointment CHECK ((((state)::text <> 'arranged'::text) OR (follow_up_appointment_id IS NOT NULL))),
+    CONSTRAINT encounter_follow_ups_completion_evidence CHECK ((((state)::text <> 'completed'::text) OR ((completed_at IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (outcome <> ''::text)))),
+    CONSTRAINT encounter_follow_ups_source_kind CHECK (((source_kind)::text = ANY ((ARRAY['in_person'::character varying, 'telehealth'::character varying])::text[]))),
+    CONSTRAINT encounter_follow_ups_state CHECK (((state)::text = ANY ((ARRAY['not_required'::character varying, 'needed'::character varying, 'arranged'::character varying, 'completed'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_encounter_follow_ups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_follow_ups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_follow_ups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_follow_ups_id_seq OWNED BY public.clinic_encounter_follow_ups.id;
+
+
+--
 -- Name: clinic_encounter_note_revisions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -10005,6 +10054,13 @@ ALTER TABLE ONLY public.clinic_documents ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: clinic_encounter_follow_ups id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_follow_ups_id_seq'::regclass);
+
+
+--
 -- Name: clinic_encounter_note_revisions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -11439,6 +11495,14 @@ ALTER TABLE ONLY public.clinic_document_categories
 
 ALTER TABLE ONLY public.clinic_documents
     ADD CONSTRAINT clinic_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_follow_ups clinic_encounter_follow_ups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT clinic_encounter_follow_ups_pkey PRIMARY KEY (id);
 
 
 --
@@ -14425,6 +14489,20 @@ CREATE UNIQUE INDEX clinic_working_drafts_identity ON public.clinic_working_draf
 
 
 --
+-- Name: idx_encounter_follow_ups_canonical; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_encounter_follow_ups_canonical ON public.clinic_encounter_follow_ups USING btree (practice_id, encounter_id);
+
+
+--
+-- Name: idx_encounter_follow_ups_worklist; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_encounter_follow_ups_worklist ON public.clinic_encounter_follow_ups USING btree (practice_id, state, due_at, id);
+
+
+--
 -- Name: idx_on_account_id_session_id_15ca542b56; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -15192,6 +15270,13 @@ CREATE INDEX index_clinic_communication_preferences_on_patient_id ON public.clin
 --
 
 CREATE INDEX index_clinic_communication_preferences_on_practice_id ON public.clinic_communication_preferences USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_encounter_follow_ups_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_encounter_follow_ups_on_practice_id ON public.clinic_encounter_follow_ups USING btree (practice_id);
 
 
 --
@@ -19110,6 +19195,62 @@ ALTER TABLE ONLY public.clinic_documents
 
 
 --
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_appointment FOREIGN KEY (practice_id, patient_id, follow_up_appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_assigned_to; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_assigned_to FOREIGN KEY (practice_id, assigned_to_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_completed_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_completed_by FOREIGN KEY (practice_id, completed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_recorded_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_recorded_by FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups fk_encounter_follow_ups_updated_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_encounter_follow_ups_updated_by FOREIGN KEY (practice_id, updated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_encounter_notes fk_encounter_notes_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -22606,6 +22747,14 @@ ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
 
 
 --
+-- Name: clinic_encounter_follow_ups fk_rails_d8d4d99e52; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_follow_ups
+    ADD CONSTRAINT fk_rails_d8d4d99e52 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_purchase_orders fk_rails_d9e8cb8ec2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -23668,6 +23817,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909004100'),
 ('20260909004000'),
 ('20260909003000'),
 ('20260909002000'),
