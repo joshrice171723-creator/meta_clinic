@@ -89,6 +89,7 @@ type TelehealthSessionValue = {
     visitId: string,
     status: number,
   ) => Promise<void>;
+  registerVisitPolling: (visitId: string) => () => void;
   dismissTerminationNotice: () => void;
   canNavigate: (href: string) => boolean;
 };
@@ -151,6 +152,10 @@ export function TelehealthSessionProvider({
   const intentionalTeardownRef = useRef(false);
   const retryingRef = useRef(false);
   const lastAuthorizationAtRef = useRef(0);
+  const visibleVisitPollerRef = useRef<{
+    visitId: string;
+    count: number;
+  } | null>(null);
   const authorizationStopRef = useRef<(reason: string) => void>(
     () => undefined,
   );
@@ -192,17 +197,26 @@ export function TelehealthSessionProvider({
   }, [active]);
 
   const adapterForProvider = useCallback(
-    async (provider: TelehealthJoinGrant["provider"]) => {
+    async (
+      provider: TelehealthJoinGrant["provider"],
+      expectedGeneration: number,
+    ) => {
+      if (generationRef.current !== expectedGeneration) return null;
       if (adapterRef.current && adapterProviderRef.current === provider)
         return adapterRef.current;
       const previous = adapterRef.current;
       adapterRef.current = null;
       adapterProviderRef.current = null;
       if (previous) await previous.destroy();
-      const adapter = createTelehealthMediaAdapter(
+      if (generationRef.current !== expectedGeneration) return null;
+      const adapter = await createTelehealthMediaAdapter(
         provider,
         adapterCallbacksRef.current!,
       );
+      if (generationRef.current !== expectedGeneration) {
+        await adapter.destroy();
+        return null;
+      }
       adapterRef.current = adapter;
       adapterProviderRef.current = provider;
       return adapter;
@@ -213,6 +227,8 @@ export function TelehealthSessionProvider({
   const clearTelehealthContext = useCallback(async () => {
     generationRef.current += 1;
     const adapter = adapterRef.current;
+    adapterRef.current = null;
+    adapterProviderRef.current = null;
     const session = activeRef.current;
     if (session)
       scribeRef.current?.terminateTelehealthCapture(
@@ -249,6 +265,9 @@ export function TelehealthSessionProvider({
   const leave = useCallback(async (notifyServer = true) => {
     const session = activeRef.current;
     const generation = ++generationRef.current;
+    const adapter = adapterRef.current;
+    adapterRef.current = null;
+    adapterProviderRef.current = null;
     setCallState("leaving");
     setError(null);
     setAuthorizationStatus("idle");
@@ -263,11 +282,11 @@ export function TelehealthSessionProvider({
     intentionalTeardownRef.current = true;
     try {
       try {
-        await adapterRef.current?.leave();
+        await adapter?.leave();
       } catch {
         // Local tracks are still disposed by destroy below.
       }
-      await adapterRef.current?.destroy();
+      await adapter?.destroy();
     } finally {
       intentionalTeardownRef.current = false;
     }
@@ -297,6 +316,9 @@ export function TelehealthSessionProvider({
       const session = activeRef.current;
       if (!session) return;
       generationRef.current += 1;
+      const adapter = adapterRef.current;
+      adapterRef.current = null;
+      adapterProviderRef.current = null;
       scribeRef.current?.terminateTelehealthCapture(
         session.visitId,
         "Video visit authorization ended. Scribe is saving the permitted audio segment.",
@@ -310,10 +332,15 @@ export function TelehealthSessionProvider({
       setError(null);
       try {
         intentionalTeardownRef.current = true;
-        await adapterRef.current?.leave();
+        await adapter?.leave();
       } catch {
-        await adapterRef.current?.destroy();
+        // Leave failures still release local tracks below.
       } finally {
+        try {
+          await adapter?.destroy();
+        } catch {
+          // The local media object may already have been detached.
+        }
         intentionalTeardownRef.current = false;
       }
       setParticipants([]);
@@ -362,10 +389,16 @@ export function TelehealthSessionProvider({
       setAuthorizationError(null);
       setActive((current) => {
         if (!current || current.visitId !== session.visitId) return current;
+        const roomExpiresAt = visit.room.expires_at ?? null;
+        if (
+          current.version === version &&
+          current.roomExpiresAt === roomExpiresAt
+        )
+          return current;
         const next = {
           ...current,
           version,
-          roomExpiresAt: visit.room.expires_at ?? null,
+          roomExpiresAt,
         };
         activeRef.current = next;
         return next;
@@ -391,6 +424,18 @@ export function TelehealthSessionProvider({
     [stopForAuthorization],
   );
 
+  const registerVisitPolling = useCallback((visitId: string) => {
+    const current = visibleVisitPollerRef.current;
+    if (current?.visitId === visitId) current.count += 1;
+    else visibleVisitPollerRef.current = { visitId, count: 1 };
+    return () => {
+      const registered = visibleVisitPollerRef.current;
+      if (!registered || registered.visitId !== visitId) return;
+      registered.count -= 1;
+      if (registered.count <= 0) visibleVisitPollerRef.current = null;
+    };
+  }, []);
+
   const join = useCallback(
     async (input: TelehealthJoinInput) => {
       if (activeRef.current && activeRef.current.visitId !== input.visitId)
@@ -413,8 +458,9 @@ export function TelehealthSessionProvider({
             "The server did not issue media access for this visit.",
           );
         if (generation !== generationRef.current) return;
-        const adapter = await adapterForProvider(grant.provider);
+        const adapter = await adapterForProvider(grant.provider, generation);
         if (generation !== generationRef.current) return;
+        if (!adapter) return;
         const session: TelehealthActiveSession = {
           ...input,
           version: response.version,
@@ -434,7 +480,10 @@ export function TelehealthSessionProvider({
       } catch (reason) {
         grant = undefined;
         if (generation !== generationRef.current) return;
-        await adapterRef.current?.destroy();
+        const adapter = adapterRef.current;
+        adapterRef.current = null;
+        adapterProviderRef.current = null;
+        await adapter?.destroy();
         setActive(null);
         activeRef.current = null;
         setCallState("error");
@@ -471,9 +520,12 @@ export function TelehealthSessionProvider({
     );
     setParticipants([]);
     try {
+      const previousAdapter = adapterRef.current;
+      adapterRef.current = null;
+      adapterProviderRef.current = null;
       intentionalTeardownRef.current = true;
       try {
-        await adapterRef.current?.destroy();
+        await previousAdapter?.destroy();
       } finally {
         intentionalTeardownRef.current = false;
       }
@@ -498,7 +550,8 @@ export function TelehealthSessionProvider({
       setActive(refreshed);
       lastAuthorizationAtRef.current = Date.now();
       setAuthorizationStatus("confirmed");
-      const adapter = await adapterForProvider(grant.provider);
+      const adapter = await adapterForProvider(grant.provider, generation);
+      if (generation !== generationRef.current || !adapter) return;
       await adapter.join({
         roomName: grant.room_name,
         token: grant.token,
@@ -517,7 +570,10 @@ export function TelehealthSessionProvider({
       intentionalTeardownRef.current = true;
       try {
         try {
-          await adapterRef.current?.destroy();
+          const adapter = adapterRef.current;
+          adapterRef.current = null;
+          adapterProviderRef.current = null;
+          await adapter?.destroy();
         } catch {
           // The previous call object was already detached from rendered media.
         }
@@ -641,6 +697,35 @@ export function TelehealthSessionProvider({
         session.visitId !== active.visitId
       )
         return;
+      const visiblePagePoller = visibleVisitPollerRef.current;
+      const visiblePageOwnsPolling =
+        document.visibilityState === "visible" &&
+        visiblePagePoller?.visitId === session.visitId &&
+        visiblePagePoller.count > 0;
+      if (visiblePageOwnsPolling) {
+        const staleFor = Date.now() - lastAuthorizationAtRef.current;
+        if (staleFor >= AUTHORIZATION_MAX_STALE_MS) {
+          await stopForAuthorization(
+            "Video visit access could not be rechecked in time, so protected media was disconnected.",
+          );
+          return;
+        }
+        if (
+          staleFor >=
+          AUTHORIZATION_POLL_MS + AUTHORIZATION_REQUEST_TIMEOUT_MS
+        ) {
+          const secondsRemaining = Math.max(
+            1,
+            Math.ceil((AUTHORIZATION_MAX_STALE_MS - staleFor) / 1_000),
+          );
+          setAuthorizationStatus("stale");
+          setAuthorizationError(
+            `Visit access could not be rechecked. Reconnection and media changes are blocked; the call will disconnect unless access is confirmed within ${secondsRemaining} seconds.`,
+          );
+        }
+        schedule();
+        return;
+      }
       request = new AbortController();
       const requestTimeout = window.setTimeout(
         () => request?.abort(),
@@ -796,6 +881,7 @@ export function TelehealthSessionProvider({
       ejectAllRemoteParticipants,
       reconcileAuthorization,
       handleAuthorizationFailure,
+      registerVisitPolling,
       dismissTerminationNotice: () => setTerminationNotice(null),
       canNavigate,
     }),
@@ -822,6 +908,7 @@ export function TelehealthSessionProvider({
       ejectAllRemoteParticipants,
       reconcileAuthorization,
       handleAuthorizationFailure,
+      registerVisitPolling,
       canNavigate,
     ],
   );

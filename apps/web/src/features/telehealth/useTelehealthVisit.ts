@@ -17,6 +17,8 @@ export function useTelehealthVisit(
   const session = useOptionalTelehealthSession();
   const reconcileAuthorization = session?.reconcileAuthorization;
   const handleAuthorizationFailure = session?.handleAuthorizationFailure;
+  const registerVisitPolling = session?.registerVisitPolling;
+  const activeVisitId = session?.active?.visitId;
   const [result, setResult] = useState<{
     response?: TelehealthEnvelope<TelehealthVisit>;
     error?: string;
@@ -88,6 +90,12 @@ export function useTelehealthVisit(
       requestRef.current?.abort();
     };
   }, [refresh, scope, visitId]);
+
+  useEffect(() => {
+    if (!poll || !visitId || activeVisitId !== visitId || !registerVisitPolling)
+      return;
+    return registerVisitPolling(visitId);
+  }, [activeVisitId, poll, registerVisitPolling, visitId]);
 
   useVisiblePolling(
     refresh,

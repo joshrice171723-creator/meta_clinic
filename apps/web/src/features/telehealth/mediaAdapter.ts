@@ -1,4 +1,3 @@
-import { TwilioMediaAdapter } from "./twilioAdapter";
 import type { TelehealthJoinGrant, TelehealthMediaParticipant } from "./types";
 
 export type TelehealthMediaState =
@@ -28,11 +27,14 @@ export interface TelehealthMediaAdapter {
   ejectAllRemoteParticipants(): number;
 }
 
-export function createTelehealthMediaAdapter(
+export async function createTelehealthMediaAdapter(
   provider: TelehealthJoinGrant["provider"],
   callbacks: TelehealthMediaAdapterCallbacks,
-): TelehealthMediaAdapter {
-  if (provider === "twilio") return new TwilioMediaAdapter(callbacks);
+): Promise<TelehealthMediaAdapter> {
+  if (provider === "twilio") {
+    const { TwilioMediaAdapter } = await import("./twilioAdapter");
+    return new TwilioMediaAdapter(callbacks);
+  }
   throw new Error(
     "This visit uses a retired video connection. Refresh the visit or contact support for help.",
   );
