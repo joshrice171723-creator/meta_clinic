@@ -1,7 +1,6 @@
 module Clinic
   module PatientPortal
     class InvitationsController < Clinic::ApiController
-      before_action :require_synthetic_portal
       before_action -> { require_capability_with_legacy("patient_portal.identity.invite", "roles.manage") }
 
       def create
@@ -16,12 +15,6 @@ module Clinic
           expires_at: identity.invitation_expires_at.iso8601(6),
           activation_path: "/patient-portal/activate#token=#{ERB::Util.url_encode(result.fetch(:token))}"
         } }, status: :created
-      end
-
-      private
-
-      def require_synthetic_portal
-        render_error("Patient portal lifecycle is unavailable.", :not_found) unless Rails.env.test? || DevelopmentAccess.allowed?(request)
       end
     end
   end
