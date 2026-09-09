@@ -23,6 +23,8 @@ module Clinic
       def employee
         employment = workforce_access.own_employment
         raise Clinic::Authorization::Denied unless employment
+        employment.employment_sites.load
+
         from = params[:from].present? ? date_param!(params[:from], field: :from) : Current.business_date.beginning_of_week
         to = params[:to].present? ? date_param!(params[:to], field: :to) : from + 42.days
         publications = latest_publications.where(week_start_on: (from.beginning_of_week)..to).includes(:site)
