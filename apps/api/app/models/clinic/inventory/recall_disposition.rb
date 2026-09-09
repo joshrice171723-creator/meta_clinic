@@ -11,7 +11,7 @@ module Clinic
 
       def self.execute!(recall:, actor:, batch_id:, quantity:, method:, evidence_reference:, reason:, request_key:)
         batch_id = positive_id!(batch_id, "stock position")
-        amount = Clinic::Inventory::Quantity.parse(quantity, scale: 6)
+        amount = Clinic::Inventory::Quantity.parse(quantity, scale: 6, zero: false)
         transaction do
           practice = Clinic::Practice.lock("FOR SHARE").find(recall.practice_id)
           user = User.lock("FOR SHARE").find(actor.id)

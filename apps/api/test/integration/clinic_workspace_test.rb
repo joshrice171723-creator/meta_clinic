@@ -668,6 +668,11 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal "0.0", wire.fetch(:recalls).find { |row| row[:id] == recall_b.id.to_s }.fetch(:held_units)
     before = [ batch.reload.quantity, Clinic::Inventory::PharmacyMovement.where(batch_id: batch.id).count ]
     assert_raises(ArgumentError) do
+      Clinic::Inventory::RecallDisposition.execute!(recall: recall_a, actor: @user, batch_id: batch.id,
+        quantity: "0", method: "return_to_supplier", evidence_reference: "SYN-ZERO", reason: "Synthetic zero", request_key: SecureRandom.uuid)
+    end
+    assert_equal before, [ batch.reload.quantity, Clinic::Inventory::PharmacyMovement.where(batch_id: batch.id).count ]
+    assert_raises(ArgumentError) do
       Clinic::Inventory::RecallDisposition.execute!(recall: recall_b, actor: @user, batch_id: batch.id, quantity: "1", method: "return_to_supplier", evidence_reference: "SYN-B", reason: "Synthetic B", request_key: SecureRandom.uuid)
     end
     assert_equal before, [ batch.reload.quantity, Clinic::Inventory::PharmacyMovement.where(batch_id: batch.id).count ]
