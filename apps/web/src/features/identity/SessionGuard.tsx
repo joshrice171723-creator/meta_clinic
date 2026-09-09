@@ -18,7 +18,7 @@ import {
 import {
   api,
   ApiError,
-  loginDestination,
+  currentLoginDestination,
   SESSION_CHANGED_EVENT,
   setApiActor,
 } from "../../api/client";
@@ -145,7 +145,7 @@ export function SessionGuard({
 
   const signIn = () =>
     window.location.replace(
-      `/login?next=${encodeURIComponent(loginDestination(window.location.pathname + window.location.search))}`,
+      `/login?next=${encodeURIComponent(currentLoginDestination())}`,
     );
   if (expired)
     return (

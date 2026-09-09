@@ -47,6 +47,10 @@ module Clinic
         "soap" => "notes.write", "checkout" => "billing.invoice_draft", "follow_up" => "encounters.write"
       }[@kind]
       raise ArgumentError, "This working draft type is unavailable." unless capability
+      if @kind == "checkout"
+        capability = %w[billing.invoice_draft billing.invoice_post billing.payment_record]
+          .find { |action| current_ability.allowed_permission?(action) } || capability
+      end
       patient_id = optional_id(params[:patient_id], :patient_id)
       encounter_id = optional_id(params[:encounter_id], :encounter_id)
       @record_id = optional_id(params[:record_id], :record_id)

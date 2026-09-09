@@ -32,6 +32,8 @@ export function setApiActor(actorId: number | undefined) {
 }
 
 function reportSessionChanged() {
+  actorGeneration += 1;
+  clearCsrf();
   if (typeof window !== "undefined")
     window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 }
@@ -226,13 +228,27 @@ export function loginDestination(value: string | null): string {
     if (loginDestination(path) !== path) return "/portal";
     const query = new URLSearchParams(raw);
     const safe = new URLSearchParams();
-    for (const name of ["patient_id", "encounter_id", "invoice_id", "page"]) {
+    for (const name of [
+      "patient_id",
+      "encounter_id",
+      "invoice_id",
+      "reminder_id",
+      "page",
+    ]) {
       const item = query.get(name);
       if (item && /^[1-9]\d*$/.test(item) && Number.isSafeInteger(Number(item)))
         safe.set(name, item);
     }
     if (query.get("visit_modality") === "video")
       safe.set("visit_modality", "video");
+    for (const [name, values] of [
+      ["invoice_payment", ["return", "cancel"]],
+      ["mode", ["current", "previous"]],
+    ] as const) {
+      const item = query.get(name);
+      if (item && (values as readonly string[]).includes(item))
+        safe.set(name, item);
+    }
     return path + (safe.size ? `?${safe}` : "");
   }
   if (value === "/patient-portal") return value;
@@ -268,6 +284,15 @@ export function loginDestination(value: string | null): string {
     /^\/clinic\/patients\/\d+\/encounters\/\d+$/.test(value)
     ? value
     : "/portal";
+}
+
+export function currentLoginDestination(): string {
+  const pathname = window.location.pathname;
+  const path =
+    pathname === "/clinic" && window.history.state?.clinicView === "schedule"
+      ? "/clinic/schedule"
+      : pathname;
+  return loginDestination(path + window.location.search);
 }
 
 export function formBody(form: FormData): Record<string, unknown> {

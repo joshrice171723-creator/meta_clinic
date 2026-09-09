@@ -16,7 +16,7 @@ import type {
   RuntimeEnvironment,
   User,
 } from "./api/contracts";
-import { api, ApiError, csrf, loginDestination } from "./api/client";
+import { api, ApiError, csrf, currentLoginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
@@ -735,8 +735,7 @@ export function App() {
   useEffect(() => {
     if (!publicPage && session.user === null)
       window.location.replace(
-        "/login?next=" +
-          encodeURIComponent(loginDestination(path + window.location.search)),
+        "/login?next=" + encodeURIComponent(currentLoginDestination()),
       );
   }, [session.user, path, publicPage]);
   if (!publicPage && (!session.user || session.error))

@@ -1,5 +1,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { api, ApiError, formBody, loginDestination } from "../api/client";
+import {
+  api,
+  ApiError,
+  formBody,
+  currentLoginDestination,
+} from "../api/client";
 
 export function ErrorMessage({ message }: { message: string }) {
   return (
@@ -44,7 +49,7 @@ export function useResource<T>(
         if (abort.signal.aborted) return;
         if (error instanceof ApiError && error.status === 401) {
           window.location.replace(
-            `/login?next=${encodeURIComponent(loginDestination(window.location.pathname + window.location.search))}`,
+            `/login?next=${encodeURIComponent(currentLoginDestination())}`,
           );
           return;
         }

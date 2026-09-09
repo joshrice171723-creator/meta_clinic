@@ -28,11 +28,13 @@ export function useWorkingDraft<T>({
   patientId,
   encounterId,
   recordId,
+  enabled = true,
 }: {
   kind: WorkingDraftKind;
   patientId?: number | string;
   encounterId?: number | string;
   recordId?: number | string;
+  enabled?: boolean;
 }) {
   const patient = patientId == null ? null : Number(patientId);
   const encounter = encounterId == null ? null : Number(encounterId);
@@ -100,6 +102,19 @@ export function useWorkingDraft<T>({
     };
     uncertain.current = null;
     queue.current = Promise.resolve();
+    if (!enabled) {
+      setState({
+        endpoint,
+        ready: true,
+        restored: null,
+        version: 0,
+        status: "idle",
+        error: "",
+      });
+      return () => {
+        active.current.generation += 1;
+      };
+    }
     setState({
       endpoint,
       ready: false,
@@ -144,7 +159,7 @@ export function useWorkingDraft<T>({
       active.current.ready = false;
       active.current.generation += 1;
     };
-  }, [endpoint, revision, validate]);
+  }, [endpoint, revision, validate, enabled]);
 
   const save = useCallback(
     (snapshot: T | null): Promise<boolean> => {
