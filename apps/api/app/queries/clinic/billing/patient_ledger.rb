@@ -1,51 +1,110 @@
 module Clinic
   module Billing
     class PatientLedger
-      def self.call(practice:, patient:, include_adjustment_evidence: false)
-        new(practice:, patient:, include_adjustment_evidence:).call
+      HISTORY_LIMIT = 20
+
+      def self.call(practice:, patient:, include_adjustment_evidence: false, history_limit: nil)
+        new(practice:, patient:, include_adjustment_evidence:, history_limit:).call
       end
 
-      def initialize(practice:, patient:, include_adjustment_evidence:)
+      def self.history_page(practice:, patient:, kind:, before: nil)
+        new(practice:, patient:, include_adjustment_evidence: false, history_limit: HISTORY_LIMIT)
+          .history_page(kind:, before:)
+      end
+
+      def initialize(practice:, patient:, include_adjustment_evidence:, history_limit:)
         @practice = practice
         @patient = patient
         @include_adjustment_evidence = include_adjustment_evidence
+        @history_limit = history_limit
       end
 
       def call
-        invoices = @patient.invoices.includes(
-          :lines,
-          :payment_allocations,
-          :credit_notes,
-          invoice_stripe_checkouts: :collection_intent
-        ).order(created_at: :desc, id: :desc).to_a
-        payments = Clinic::PaymentEvent.where(practice: @practice, patient: @patient).includes(:allocations, :refund_events, :cash_tender, :billing_receipts).order(created_at: :desc, id: :desc).to_a
+        invoices, invoice_cursor = invoice_page
+        payments, payment_cursor = payment_page
         preload_adjustment_memberships(invoices) if @include_adjustment_evidence
 
         {
           schema_version: "clinic-patient-ledger-v1",
           patient: { id: @patient.id, display_name: @patient.display_name, reference: @patient.reference },
-          currencies: currency_summaries(invoices, payments),
+          currencies: currency_summaries,
           invoices: invoices.map { |invoice| invoice_payload(invoice) },
-          payments: payments.map { |payment| payment_payload(payment) }
+          payments: payments.map { |payment| payment_payload(payment) },
+          pagination: {
+            invoices: { next_cursor: invoice_cursor },
+            payments: { next_cursor: payment_cursor }
+          }
+        }
+      end
+
+      def history_page(kind:, before: nil)
+        records, next_cursor = case kind
+        when "invoices" then invoice_page(before:)
+        when "payments" then payment_page(before:)
+        else raise ArgumentError, "History kind must be invoices or payments."
+        end
+        items = kind == "invoices" ? records.map { |invoice| invoice_payload(invoice) } : records.map { |payment| payment_payload(payment) }
+        {
+          schema_version: "patient-portal-billing-history-v1",
+          patient_id: @patient.id,
+          kind: kind,
+          items: items,
+          next_cursor: next_cursor
         }
       end
 
       private
 
-      def currency_summaries(invoices, payments)
-        currencies = (invoices.map(&:currency) + payments.map(&:currency)).uniq.sort
+      def currency_summaries
+        posted_invoices = @patient.invoices.where(practice: @practice, status: "posted")
+        invoice_totals = Clinic::InvoiceLine.joins(:invoice).merge(posted_invoices)
+          .group("clinic_invoices.currency").sum(:posted_amount)
+        allocated_totals = Clinic::PaymentAllocation.joins(:invoice).merge(posted_invoices)
+          .group("clinic_invoices.currency").sum(:amount)
+        credit_totals = Clinic::CreditNote.joins(:invoice).merge(posted_invoices)
+          .group("clinic_invoices.currency").sum(:amount)
+        refund_totals = Clinic::RefundEvent.joins(:payment_event)
+          .merge(Clinic::PaymentEvent.where(practice: @practice, patient: @patient))
+          .group("clinic_payment_events.currency").sum(:amount)
+        currencies = (
+          @patient.invoices.where(practice: @practice).distinct.pluck(:currency) +
+          Clinic::PaymentEvent.where(practice: @practice, patient: @patient).distinct.pluck(:currency)
+        ).uniq.sort
         currencies.map do |currency|
-          currency_invoices = invoices.select { |invoice| invoice.currency == currency }
-          currency_payments = payments.select { |payment| payment.currency == currency }
+          invoiced = invoice_totals.fetch(currency, BigDecimal("0"))
+          allocated = allocated_totals.fetch(currency, BigDecimal("0"))
+          credited = credit_totals.fetch(currency, BigDecimal("0"))
           {
             currency: currency,
-            invoiced_amount: decimal(currency_invoices.sum { |invoice| invoice_total(invoice) }),
-            allocated_amount: decimal(currency_invoices.sum { |invoice| invoice_allocated(invoice) }),
-            credited_amount: decimal(currency_invoices.sum { |invoice| invoice_credit(invoice) }),
-            balance_amount: decimal(currency_invoices.sum { |invoice| invoice_balance(invoice) }),
-            refunded_amount: decimal(currency_payments.sum { |payment| payment.refund_events.sum(&:amount) })
+            invoiced_amount: decimal(invoiced),
+            allocated_amount: decimal(allocated),
+            credited_amount: decimal(credited),
+            balance_amount: decimal([invoiced - allocated - credited, BigDecimal("0")].max),
+            refunded_amount: decimal(refund_totals.fetch(currency, BigDecimal("0")))
           }
         end
+      end
+
+      def invoice_page(before: nil)
+        relation = @patient.invoices.where(practice: @practice)
+          .includes(:lines, :payment_allocations, :credit_notes, invoice_stripe_checkouts: :collection_intent)
+        bounded_page(relation, before:)
+      end
+
+      def payment_page(before: nil)
+        relation = Clinic::PaymentEvent.where(practice: @practice, patient: @patient)
+          .includes(:allocations, :refund_events, :cash_tender, :billing_receipts)
+        bounded_page(relation, before:)
+      end
+
+      def bounded_page(relation, before:)
+        relation = relation.where("#{relation.klass.table_name}.id < ?", before) if before
+        return [ relation.order(id: :desc).to_a, nil ] unless @history_limit
+
+        rows = relation.order(id: :desc).limit(@history_limit + 1).to_a
+        more = rows.length > @history_limit
+        records = rows.first(@history_limit)
+        [ records, more ? records.last.id : nil ]
       end
 
       def invoice_payload(invoice)

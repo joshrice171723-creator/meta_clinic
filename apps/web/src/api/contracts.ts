@@ -91,6 +91,10 @@ export type PatientPortalContext = {
         created_at: string;
       }[];
     }[];
+    pagination: {
+      invoices: { next_cursor: number | null };
+      payments: { next_cursor: number | null };
+    };
   };
   capabilities: {
     billing_read: boolean;
@@ -102,6 +106,15 @@ export type PatientPortalContext = {
     selected_patient_id: number;
     patients: { id: number; display_name: string; reference: string }[];
   };
+};
+export type PatientPortalBillingHistoryPage = {
+  schema_version: "patient-portal-billing-history-v1";
+  patient_id: number;
+  kind: "invoices" | "payments";
+  items:
+    | PatientPortalContext["billing"]["invoices"]
+    | PatientPortalContext["billing"]["payments"];
+  next_cursor: number | null;
 };
 export type PatientReminder = {
   id: number;

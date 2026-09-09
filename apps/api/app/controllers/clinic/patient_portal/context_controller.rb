@@ -2,7 +2,11 @@ module Clinic
   module PatientPortal
     class ContextController < BaseController
       def show
-        ledger = Clinic::Billing::PatientLedger.call(practice: portal_practice, patient: portal_patient)
+        ledger = Clinic::Billing::PatientLedger.call(
+          practice: portal_practice,
+          patient: portal_patient,
+          history_limit: Clinic::Billing::PatientLedger::HISTORY_LIMIT
+        )
         invoice_payments = ledger.fetch(:invoices).filter_map { |invoice| invoice[:online_payment] }
         payment_collection = patient_portal_identity.present? && !development_omni_preview? &&
           invoice_payments.any? { |payment| payment[:eligible] || %w[processing needs_reconciliation].include?(payment[:state]) }
@@ -13,7 +17,11 @@ module Clinic
           practice: { id: portal_practice.id, name: portal_practice.name, timezone: portal_practice.timezone },
           patient: { id: portal_patient.id, display_name: portal_patient.display_name, reference: portal_patient.reference },
           balances: ledger.fetch(:currencies).map { |currency| currency.slice(:currency, :invoiced_amount, :balance_amount, :allocated_amount, :credited_amount, :refunded_amount) },
-          billing: { invoices: ledger.fetch(:invoices), payments: ledger.fetch(:payments) },
+          billing: {
+            invoices: ledger.fetch(:invoices),
+            payments: ledger.fetch(:payments),
+            pagination: ledger.fetch(:pagination)
+          },
           capabilities: {
             billing_read: true, payment_collection: payment_collection,
             password_change: patient_portal_identity.present?
