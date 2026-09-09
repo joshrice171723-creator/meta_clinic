@@ -16,6 +16,7 @@ import {
   Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
@@ -202,7 +203,7 @@ function EncounterFollowUpItem({
             <Typography>{followUp.patient_display_name} · Encounter #{followUp.encounter_id}</Typography>
             {error && <Alert severity="error">{error}</Alert>}
             <TextField label="Outcome" multiline minRows={4} value={outcome} disabled={busy}
-              onChange={(event) => setOutcome(event.target.value)} inputProps={{ maxLength: 4000 }} />
+              onChange={(event) => setOutcome(event.target.value)} slotProps={{ htmlInput: { maxLength: 4000 } }} />
           </Stack>
         </DialogContent>
         <DialogActions>

@@ -287,7 +287,7 @@ export function EncounterFollowUpPanel({
             </TextField>
             {status !== "not_required" && (
               <TextField label="Follow-up plan" multiline minRows={3} value={plan} disabled={!canWrite || busy}
-                onChange={(event) => setPlan(event.target.value)} inputProps={{ maxLength: 4000 }} />
+                onChange={(event) => setPlan(event.target.value)} slotProps={{ htmlInput: { maxLength: 4000 } }} />
             )}
             {status === "needed" && (
               <TextField label="Due by" type="datetime-local" value={dueAt} disabled={!canWrite || busy}

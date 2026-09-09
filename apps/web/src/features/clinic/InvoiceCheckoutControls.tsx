@@ -147,10 +147,13 @@ export function InvoiceCheckoutControls({
           : action === "cancel"
             ? (cancelKey.current ??= crypto.randomUUID())
             : undefined;
+      const durableAction =
+        action === "start" || action === "cancel" ? action : null;
       if (
         requestKey &&
+        durableAction &&
         invoiceId !== undefined &&
-        !(await recovery.save({ action, invoiceId, requestKey }))
+        !(await recovery.save({ action: durableAction, invoiceId, requestKey }))
       ) {
         setError(
           recovery.error ||
