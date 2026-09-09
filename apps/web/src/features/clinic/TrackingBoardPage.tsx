@@ -1323,7 +1323,16 @@ export function TrackingBoardView({
             <option value="mine">My patients ({myPatients.length})</option>
           </select>
         </div>
-        <details className="tracking-column-selector">
+        <details
+          className="tracking-column-selector"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !event.currentTarget.open) return;
+
+            event.preventDefault();
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector("summary")?.focus();
+          }}
+        >
           <summary>Columns</summary>
           <div role="group" aria-label="Choose tracking board columns">
             {allColumns.map((column) => (
