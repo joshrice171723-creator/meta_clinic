@@ -130,8 +130,7 @@ export function CycleCountsScreen({
   const [nextAssigneeId, setNextAssigneeId] = useState("");
   const [sessionActionReason, setSessionActionReason] = useState("");
   const scanTarget = useRef<{ sessionId: string; lineId: string } | null>(null);
-  const selectedLine =
-    data.lines.find((line) => line.id === lineId) ?? data.lines[0];
+  const selectedLine = data.lines.find((line) => line.id === lineId);
   const canConfigure = data.capabilities["inventory.configure"] === true;
   const readBlocked = Boolean(pendingMutation);
   const readDisabled = loading || busy || readBlocked;
@@ -597,6 +596,13 @@ export function CycleCountsScreen({
                       ...applied,
                       line_page: match.line_page,
                     });
+                  }}
+                  onClear={() => {
+                    scanTarget.current = null;
+                    setLineId("");
+                    setCountedUnits("");
+                    setObservationReason("");
+                    setLineActionReason("");
                   }}
                 />
               )}

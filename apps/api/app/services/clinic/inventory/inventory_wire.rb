@@ -507,7 +507,9 @@ module Clinic
         source = if receipt
           { kind: "receipt", label: "Receipt ##{receipt.id}" }
         elsif administration
-          { kind: "medication_administration", label: "Medication administration ##{administration.id}" }
+          encounter = administration.encounter
+          { kind: "medication_administration", label: "Medication administration ##{administration.id}",
+            href: "/clinic/patients/#{encounter.patient_id}/encounters/#{encounter.id}" }
         else
           { kind: "inventory_movement", label: "Inventory movement ##{movement.id}" }
         end

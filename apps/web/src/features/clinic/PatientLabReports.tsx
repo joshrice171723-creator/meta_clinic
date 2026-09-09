@@ -1541,12 +1541,20 @@ function LabForm({
             />
           </Stack>
           {form.results.map((row, index) => (
-            <Stack
+            <Box
               key={index}
-              direction={{ xs: "column", md: "row" }}
-              spacing={1}
+              sx={{
+                display: "grid",
+                gap: 1,
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  xl: "repeat(5, minmax(0, 1fr))",
+                },
+              }}
             >
               <TextField
+                fullWidth
                 label="Test"
                 value={row.name}
                 onChange={(event) =>
@@ -1554,6 +1562,7 @@ function LabForm({
                 }
               />
               <TextField
+                fullWidth
                 label="Value"
                 value={row.value}
                 onChange={(event) =>
@@ -1561,6 +1570,7 @@ function LabForm({
                 }
               />
               <TextField
+                fullWidth
                 label="Unit"
                 value={row.unit ?? ""}
                 onChange={(event) =>
@@ -1568,6 +1578,7 @@ function LabForm({
                 }
               />
               <TextField
+                fullWidth
                 label="Reference range"
                 value={row.reference_range ?? ""}
                 onChange={(event) =>
@@ -1575,13 +1586,14 @@ function LabForm({
                 }
               />
               <TextField
+                fullWidth
                 label="Reported flag"
                 value={row.flag ?? ""}
                 onChange={(event) =>
                   result(index, { flag: event.target.value || null })
                 }
               />
-            </Stack>
+            </Box>
           ))}
           <Button
             size="small"

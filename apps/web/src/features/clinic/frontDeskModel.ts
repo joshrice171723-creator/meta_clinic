@@ -118,6 +118,7 @@ export function appointmentTimeRange(
       timeZone: timezone,
       hour: "numeric",
       minute: "2-digit",
+      timeZoneName: "short",
     });
     return `${format.format(new Date(appointment.starts_at))}–${format.format(
       new Date(appointment.ends_at),

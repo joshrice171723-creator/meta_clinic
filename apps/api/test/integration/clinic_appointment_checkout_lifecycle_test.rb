@@ -74,6 +74,17 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     assert_equal "open", encounter.reload.status
   end
 
+  test "a site-less appointment cannot be confirmed until it is explicitly scheduled as video" do
+    appointment = @practice.appointments.create!(
+      patient: @patient, starts_at: Time.utc(2026, 9, 7, 11), ends_at: Time.utc(2026, 9, 7, 11, 30), status: "scheduled"
+    )
+
+    assert_raises(ArgumentError, /Choose a site/) do
+      Clinic::Scheduling::TransitionAppointment.call(appointment: appointment, actor: @actor, to: "confirmed")
+    end
+    assert_equal "scheduled", appointment.reload.status
+  end
+
   test "reschedule replays the same key and rejects a stale version" do
     appointment = appointment_for(@patient)
     expected_updated_at = appointment.updated_at

@@ -1327,8 +1327,10 @@ export function TrackingBoardView({
           <summary>Columns</summary>
           <div role="group" aria-label="Choose tracking board columns">
             {allColumns.map((column) => (
-              <label key={column}>
+              <label key={column} htmlFor={`tracking-column-${column}`}>
                 <input
+                  id={`tracking-column-${column}`}
+                  aria-label={`Show ${columnLabels[column]} column`}
                   type="checkbox"
                   checked={columns.includes(column)}
                   disabled={columns.length === 1 && columns[0] === column}

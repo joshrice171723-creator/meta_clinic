@@ -90,6 +90,7 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
       row.dig("source", "kind") == "medication_administration"
     end
     assert_equal "Medication administration ##{administration.id}", ledger_row.dig("source", "label")
+    assert_equal "/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}", ledger_row.dig("source", "href")
     assert_equal "Medication Administration", ledger_row.fetch("actor_name")
   end
 

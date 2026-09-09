@@ -49,6 +49,42 @@ export function OperationsView({
         )}
       </div>
       <div className="clinic-grid">
+        <Card title="Clinic setup">
+          <ul className="clinic-feature-list">
+            {facilitiesRead && (
+              <li>
+                <a className="text-link" href="/clinic/facilities">
+                  Facilities and visit types →
+                </a>
+                <p>Set up sites, operating hours, and appointment choices.</p>
+              </li>
+            )}
+            {c.staff_access && (
+              <li>
+                <a className="text-link" href="/clinic/staff">
+                  Workforce access →
+                </a>
+                <p>Set up employees, work sites, and effective access dates.</p>
+              </li>
+            )}
+            {c.inventory_access && (
+              <li>
+                <a className="text-link" href="/clinic/inventory">
+                  Inventory locations →
+                </a>
+                <p>Configure storage before receiving or administering stock.</p>
+              </li>
+            )}
+            {c.billing_read && (
+              <li>
+                <a className="text-link" href="/clinic/billing">
+                  Services and payments →
+                </a>
+                <p>Review billable services, invoices, and collection workflows.</p>
+              </li>
+            )}
+          </ul>
+        </Card>
         <Card title="Office stock to review">
           {!c.inventory_access || clinic.low_stock === null ? (
             <p>Inventory details are restricted to assigned inventory users.</p>

@@ -29,7 +29,7 @@ module Clinic
           :actor,
           { batch: %i[lot location_record] },
           { receipt_line: :receipt },
-          { medication_administration_movement: :medication_administration }
+          { medication_administration_movement: { medication_administration: :encounter } }
         ).order(id: :desc).limit(PAGE_SIZE + 1).to_a
         more = rows.length > PAGE_SIZE
         rows = rows.first(PAGE_SIZE)
