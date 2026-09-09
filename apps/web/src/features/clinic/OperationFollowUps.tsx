@@ -163,12 +163,28 @@ function EncounterFollowUpItem({
       setOutcome("");
       onChanged();
     } catch (reason) {
+      const outcomeUnknown =
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
+      if (!outcomeUnknown) {
+        requestKeyRef.current = null;
+        if (!(await recovery.clear())) {
+          setError(
+            recovery.error ||
+              "The completion was rejected, but its recovery copy could not be cleared. Reload this worklist before trying again.",
+          );
+          onChanged();
+          return;
+        }
+      }
       setError(
-        reason instanceof ApiError
-          ? reason.message
+        outcomeUnknown
+          ? `${reason instanceof Error ? reason.message : "The completion outcome could not be confirmed."} Check the work item or retry this exact completion.`
           : reason instanceof Error
             ? reason.message
-            : "The completion outcome could not be confirmed.",
+            : "The completion could not be recorded.",
       );
       onChanged();
     } finally {
