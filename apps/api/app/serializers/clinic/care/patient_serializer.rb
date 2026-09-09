@@ -12,12 +12,12 @@ module Clinic
         payload.merge(
           primary_address_version_id: patient.primary_address_version_id,
           created_at: patient.created_at,
-          updated_at: patient.updated_at,
+          updated_at: patient.updated_at.iso8601(6),
           demographics: patient.demographics&.as_json(only: %i[date_of_birth sex primary_language interpreter_required]),
-          contacts: patient.contacts.order(created_at: :desc).map { |c| c.as_json(only: %i[id contact_type contact_value preferred effective_from effective_until]) },
-          emergency_contacts: patient.emergency_contacts.order(created_at: :desc).map { |c| c.as_json(only: %i[id name relationship phone permission_to_contact effective_from effective_until]) },
+          contacts: current_versions(patient.contacts, partition_by: :contact_type).map { |c| c.as_json(only: %i[id contact_type contact_value preferred effective_from effective_until]) },
+          emergency_contacts: current_versions(patient.emergency_contacts).map { |c| c.as_json(only: %i[id name relationship phone permission_to_contact effective_from effective_until]) },
           communication_preference: patient.communication_preference&.as_json(only: %i[preferred_contact_method appointment_reminders_consent general_communications_consent]),
-          social_histories: patient.social_histories.order(created_at: :desc).map { |s| s.as_json(only: %i[id tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors effective_from effective_until]) },
+          social_histories: current_versions(patient.social_histories).map { |s| s.as_json(only: %i[id tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors effective_from effective_until]) },
           vital_signs: patient.observations.where(value_kind: :numeric).order(observed_at: :desc, id: :desc).limit(50).map do |o|
             {
               id: o.id,
@@ -29,6 +29,13 @@ module Clinic
           end
         )
       end
+
+      def self.current_versions(relation, partition_by: nil)
+        ordered = relation.order(created_at: :desc, id: :desc).to_a
+        latest = partition_by ? ordered.uniq { |record| record.public_send(partition_by) } : ordered.first(1)
+        latest.select { |record| record.effective_until.nil? }
+      end
+      private_class_method :current_versions
     end
   end
 end

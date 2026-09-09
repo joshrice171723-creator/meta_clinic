@@ -15,7 +15,7 @@ import type {
   SoapNoteSections,
   VisitType,
 } from "../../api/contracts";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
@@ -74,6 +74,7 @@ import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
 
+
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
 ) {
@@ -114,6 +115,12 @@ type BookingAttempt = {
       visit_modality?: VisitModality;
     };
   };
+};
+
+type AppointmentWorkingDraft = {
+  draft: BookingDraft;
+  attempt: BookingAttempt | null;
+  outcomeUnconfirmed: boolean;
 };
 
 export function bookingDraftHasChanges(
@@ -441,7 +448,6 @@ export function bookingAvailability(
 function BookingForm({
   timezone,
   onCreated,
-  identityLookup = false,
   initialPatientId,
   initialVisitModality = "in_person",
 }: {
@@ -451,8 +457,59 @@ function BookingForm({
   initialPatientId?: number;
   initialVisitModality?: VisitModality;
 }) {
+  const workingDraft = useWorkingDraft<AppointmentWorkingDraft>({
+    kind: "appointment",
+  });
+  const preserved = useRef<AppointmentWorkingDraft | null | undefined>(
+    undefined,
+  );
+  if (!workingDraft.ready)
+    return workingDraft.error ? (
+      <Alert
+        severity="error"
+        action={<Button onClick={workingDraft.reload}>Retry recovery</Button>}
+      >
+        {workingDraft.error}
+      </Alert>
+    ) : (
+      <LoadState />
+    );
+
+  return (
+    <BookingFormEditor
+      timezone={timezone}
+      onCreated={onCreated}
+      initialPatientId={initialPatientId}
+      initialVisitModality={initialVisitModality}
+      initialDraft={preserved.current ?? workingDraft.restored}
+      workingDraft={workingDraft}
+      onReloadDraft={(snapshot) => {
+        preserved.current = snapshot;
+        workingDraft.reload();
+      }}
+    />
+  );
+}
+
+function BookingFormEditor({
+  timezone,
+  onCreated,
+  initialPatientId,
+  initialVisitModality = "in_person",
+  initialDraft,
+  workingDraft,
+  onReloadDraft,
+}: {
+  timezone: string;
+  onCreated?: (appointment: Appointment) => void;
+  initialPatientId?: number;
+  initialVisitModality?: VisitModality;
+  initialDraft: AppointmentWorkingDraft | null;
+  workingDraft: ReturnType<typeof useWorkingDraft<AppointmentWorkingDraft>>;
+  onReloadDraft: (snapshot: AppointmentWorkingDraft) => void;
+}) {
   const { registerBlocker } = useClinicNavigation();
-  const [baseline, setBaseline] = useState<BookingDraft>(() => {
+  const defaultDraft = useMemo<BookingDraft>(() => {
     const defaults = appointmentDefaults();
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
@@ -464,36 +521,53 @@ function BookingForm({
       visitTypeId: "",
       visitModality: initialVisitModality,
     };
-  });
-  const [patientId, setPatientId] = useState(baseline.patientId);
+  }, [initialPatientId, initialVisitModality]);
+  const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
+  const [patientId, setPatientId] = useState(restoredDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
     number | undefined
-  >(initialPatientId);
+  >(restoredDraft.patientId ? Number(restoredDraft.patientId) : undefined);
   const [replacementPatient, setReplacementPatient] = useState<Patient>();
   const [replacementPatientError, setReplacementPatientError] = useState("");
   const [replacementPatientLoading, setReplacementPatientLoading] = useState(
-    Boolean(initialPatientId),
+    Boolean(restoredDraft.patientId),
   );
-  const [startsAt, setStartsAt] = useState(baseline.startsAt);
-  const [endsAt, setEndsAt] = useState(baseline.endsAt);
-  const [siteId, setSiteId] = useState("");
-  const [roomId, setRoomId] = useState("");
-  const [clinicianId, setClinicianId] = useState("");
-  const [visitTypeId, setVisitTypeId] = useState("");
+  const [startsAt, setStartsAt] = useState(restoredDraft.startsAt);
+  const [endsAt, setEndsAt] = useState(restoredDraft.endsAt);
+  const [siteId, setSiteId] = useState(restoredDraft.siteId);
+  const [roomId, setRoomId] = useState(restoredDraft.roomId);
+  const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
+  const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
   const [visitModality, setVisitModality] =
-    useState<VisitModality>(initialVisitModality);
+    useState<VisitModality>(restoredDraft.visitModality ?? initialVisitModality);
   const [showDetails, setShowDetails] = useState(
-    initialVisitModality === "video",
+    restoredDraft.visitModality === "video" ||
+      Boolean(restoredDraft.siteId || restoredDraft.clinicianId || restoredDraft.visitTypeId),
   );
   const [busy, setBusy] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
-    null,
+    initialDraft?.attempt ?? null,
   );
-  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
+    Boolean(initialDraft?.attempt),
+  );
+  const [hasWorkingDraft, setHasWorkingDraft] = useState(Boolean(initialDraft));
+  const autosaveTimer = useRef<number | undefined>(undefined);
+  const inFlight = useRef(false);
+  const lastWorkingDraft = useRef<AppointmentWorkingDraft>(
+    initialDraft ?? {
+      draft: restoredDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+    },
+  );
+  const [patientQuery, setPatientQuery] = useState("");
+  const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
-  const dirty = bookingDraftHasChanges(
-    {
+  const currentDraft = useMemo<BookingDraft>(
+    () => ({
       patientId,
       startsAt,
       endsAt,
@@ -502,13 +576,13 @@ function BookingForm({
       clinicianId,
       visitTypeId,
       visitModality,
-    },
-    baseline,
+    }),
+    [patientId, startsAt, endsAt, siteId, roomId, clinicianId, visitTypeId, visitModality],
   );
+  const draftChanged = bookingDraftHasChanges(currentDraft, baseline);
+  const dirty = hasWorkingDraft || draftChanged;
   const patients = useResource<{ patients: Patient[] }>(
-    identityLookup
-      ? "/api/clinic/patients/lookup?per_page=100"
-      : "/api/clinic/patients?per_page=100",
+    `/api/clinic/patients/lookup?q=${encodeURIComponent(deferredPatientQuery.trim())}&per_page=25`,
   );
   const facilities = useResource<{ sites: FacilitySite[] }>(
     "/api/clinic/facilities?type=sites",
@@ -523,8 +597,10 @@ function BookingForm({
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
   useEffect(() => {
+    if (draftChanged) setHasWorkingDraft(true);
+  }, [draftChanged]);
+  useEffect(() => {
     if (!replacementPatientId) {
-      setReplacementPatient(undefined);
       setReplacementPatientError("");
       setReplacementPatientLoading(false);
       return;
@@ -544,7 +620,7 @@ function BookingForm({
         );
         if (!patient) {
           setReplacementPatientError(
-            "The replacement patient could not be verified. Choose a patient before scheduling.",
+            "The selected patient could not be verified. Choose a patient before scheduling.",
           );
           return;
         }
@@ -555,7 +631,7 @@ function BookingForm({
         setReplacementPatientError(
           reason instanceof Error
             ? reason.message
-            : "The replacement patient could not be loaded.",
+            : "The selected patient could not be loaded.",
         );
       })
       .finally(() => {
@@ -563,6 +639,26 @@ function BookingForm({
       });
     return () => controller.abort();
   }, [replacementPatientId]);
+  useEffect(() => {
+    if (!dirty || bookingAttempt || outcomeUnconfirmed || busy) return;
+    const snapshot: AppointmentWorkingDraft = {
+      draft: currentDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+    };
+    lastWorkingDraft.current = snapshot;
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = window.setTimeout(() => {
+      autosaveTimer.current = undefined;
+      void workingDraft.save(snapshot);
+    }, 500);
+    return () => {
+      if (autosaveTimer.current) {
+        window.clearTimeout(autosaveTimer.current);
+        autosaveTimer.current = undefined;
+      }
+    };
+  }, [bookingAttempt, busy, currentDraft, dirty, outcomeUnconfirmed, workingDraft.save]);
   useEffect(() => {
     if ((!dirty && !outcomeUnconfirmed) || typeof window === "undefined")
       return;
@@ -600,6 +696,7 @@ function BookingForm({
   const clearReplacementPatient = () => {
     setPatientId("");
     setReplacementPatientId(undefined);
+    setReplacementPatient(undefined);
   };
   if (replacementPatientId && replacementPatientLoading) return <LoadState />;
   if (replacementPatientId && replacementPatientError)
@@ -610,7 +707,7 @@ function BookingForm({
           onClick={clearReplacementPatient}
           sx={{ alignSelf: "flex-start" }}
         >
-          Clear replacement patient
+          Clear selected patient
         </Button>
       </Stack>
     );
@@ -657,6 +754,21 @@ function BookingForm({
     setShowDetails(false);
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
+    setHasWorkingDraft(false);
+    setPatientQuery("");
+  };
+  const discard = async () => {
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    if (!(await workingDraft.clear())) {
+      setSubmitError(
+        "The saved working copy could not be cleared. Retry before starting another appointment.",
+      );
+      return;
+    }
+    reset();
   };
   return (
     <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
@@ -711,9 +823,7 @@ function BookingForm({
               </Button>
             }
           >
-            Scheduling a new appointment for{" "}
-            {patientDisplayLabel(replacementPatient)}. This does not reopen the
-            cancelled or no-show appointment.
+            Scheduling for {patientDisplayLabel(replacementPatient)}.
           </Alert>
         )}
         <Box
@@ -721,6 +831,7 @@ function BookingForm({
           noValidate
           onSubmit={async (event) => {
             event.preventDefault();
+            if (inFlight.current) return;
             setSubmitError("");
             if (!bookingAttempt && !patientId)
               return setSubmitError("Select a patient before scheduling.");
@@ -734,6 +845,11 @@ function BookingForm({
               return setSubmitError(
                 "Choose a clinician and an eligible visit type for this video appointment.",
               );
+            inFlight.current = true;
+            if (autosaveTimer.current) {
+              window.clearTimeout(autosaveTimer.current);
+              autosaveTimer.current = undefined;
+            }
             const attempt =
               bookingAttempt ??
               ({
@@ -751,6 +867,19 @@ function BookingForm({
                   },
                 },
               } satisfies BookingAttempt);
+            const pendingDraft: AppointmentWorkingDraft = {
+              draft: currentDraft,
+              attempt,
+              outcomeUnconfirmed: false,
+            };
+            lastWorkingDraft.current = pendingDraft;
+            if (!(await workingDraft.save(pendingDraft))) {
+              inFlight.current = false;
+              setSubmitError(
+                "The working copy could not be saved. Keep this page open and retry before scheduling.",
+              );
+              return;
+            }
             setBookingAttempt(attempt);
             setBusy(true);
             try {
@@ -761,9 +890,14 @@ function BookingForm({
                   body: attempt.body,
                 },
               );
+              if (!(await workingDraft.clear())) {
+                setOutcomeUnconfirmed(true);
+                setSubmitError(
+                  "The appointment was scheduled, but its working copy could not be cleared. Retry the same request to finish recovery.",
+                );
+                return;
+              }
               setCreated(result.appointment);
-              setBookingAttempt(null);
-              setOutcomeUnconfirmed(false);
               reset();
               onCreated?.(result.appointment);
             } catch (reason) {
@@ -773,7 +907,23 @@ function BookingForm({
                 reason.status >= 500 ||
                 reason.code === "outcome_unconfirmed";
               setOutcomeUnconfirmed(unknown);
-              if (!unknown) setBookingAttempt(null);
+              if (unknown) {
+                const unresolved = {
+                  ...pendingDraft,
+                  outcomeUnconfirmed: true,
+                };
+                lastWorkingDraft.current = unresolved;
+                await workingDraft.save(unresolved);
+              } else {
+                setBookingAttempt(null);
+                const editable = {
+                  draft: currentDraft,
+                  attempt: null,
+                  outcomeUnconfirmed: false,
+                };
+                lastWorkingDraft.current = editable;
+                await workingDraft.save(editable);
+              }
               setSubmitError(
                 unknown
                   ? "The scheduling outcome is unknown. Retry this exact request before editing or leaving scheduling."
@@ -782,11 +932,21 @@ function BookingForm({
                     : "The appointment could not be scheduled.",
               );
             } finally {
+              inFlight.current = false;
               setBusy(false);
             }
           }}
         >
           <Stack spacing={2.5}>
+            <TextField
+              label="Find patient"
+              value={patientQuery}
+              disabled={busy || outcomeUnconfirmed}
+              onChange={(event) => setPatientQuery(event.target.value)}
+              placeholder="Name or clinic reference"
+              helperText="Searches the complete patient directory."
+              fullWidth
+            />
             <TextField
               label="Patient"
               select
@@ -796,12 +956,11 @@ function BookingForm({
               onChange={(event) => {
                 const nextPatientId = event.target.value;
                 setPatientId(nextPatientId);
-                if (
-                  replacementPatientId &&
-                  nextPatientId !== String(replacementPatientId)
-                ) {
-                  setReplacementPatientId(undefined);
-                }
+                const selected = selectablePatients.find(
+                  (patient) => String(patient.id) === nextPatientId,
+                );
+                setReplacementPatient(selected);
+                setReplacementPatientId(undefined);
               }}
               fullWidth
               helperText={
@@ -999,6 +1158,41 @@ function BookingForm({
                 {submitError}
               </Alert>
             )}
+            {workingDraft.status === "saving" && (
+              <Typography role="status">Saving working copy…</Typography>
+            )}
+            {workingDraft.status === "saved" && dirty && (
+              <Typography color="text.secondary" role="status">
+                Working copy saved.
+              </Typography>
+            )}
+            {(workingDraft.status === "error" ||
+              workingDraft.status === "conflict") && (
+              <Alert
+                severity="error"
+                action={
+                  workingDraft.status === "error" ? (
+                    <Button
+                      color="inherit"
+                      onClick={() =>
+                        void workingDraft.save(lastWorkingDraft.current)
+                      }
+                    >
+                      Retry working-copy save
+                    </Button>
+                  ) : (
+                    <Button
+                      color="inherit"
+                      onClick={() => onReloadDraft(lastWorkingDraft.current)}
+                    >
+                      Reload version and keep my edits
+                    </Button>
+                  )
+                }
+              >
+                {workingDraft.error}
+              </Alert>
+            )}
             <Divider />
             <Stack
               direction={{ xs: "column-reverse", sm: "row" }}
@@ -1008,7 +1202,7 @@ function BookingForm({
               <Button
                 type="button"
                 color="inherit"
-                onClick={reset}
+                onClick={() => void discard()}
                 disabled={busy || outcomeUnconfirmed}
               >
                 Clear
