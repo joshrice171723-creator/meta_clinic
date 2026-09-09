@@ -48,8 +48,10 @@ module Clinic
     def update
       site = current_practice.sites.find(requested_id!(params[:id], :id))
       input = facility_input
-      site.update!(site_attributes(input, existing: site))
-      save_hours(site, input) if input.key?(:operating_hours) || input.key?(:hour_exceptions)
+      site.transaction do
+        site.update!(site_attributes(input, existing: site))
+        save_hours(site, input) if input.key?(:operating_hours) || input.key?(:hour_exceptions)
+      end
       render json: { site: FacilitySerializer.site(site, detail: true) }
     end
 

@@ -64,6 +64,21 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_equal "temporarily_closed", response.parsed_body.fetch("site").fetch("status")
   end
 
+  test "a rejected hours update leaves the facility identity unchanged" do
+    site = @practice.sites.create!(code: "ATOMIC", name: "Atomic facility", status: "draft")
+
+    patch "/api/clinic/facilities/#{site.id}", params: {
+      site: {
+        name: "Partially saved name",
+        operating_hours: [ { day_of_week: 9, closed: true } ]
+      }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "Atomic facility", site.reload.name
+    assert_empty site.operating_hours
+  end
+
   test "facility reads and writes stay scoped to the signed-in practice" do
     other_user = User.create!(email_address: "facility-other@example.invalid", password: @password)
     other_membership = Development::TestClinic.create!(other_user)

@@ -75,6 +75,30 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
     assert_equal 1, @batch.movements.count
   end
 
+  test "records signed corrections with a reason and returns an exact summary" do
+    before_quantity = @batch.quantity
+    post "/api/clinic/inventory/lots/#{@batch.lot_id}/adjust", params: {
+      adjustment: { lot_id: @batch.lot_id, location_id: @batch.location_id, delta_units: "-1.250",
+        reason: "Damaged fixture stock", request_key: SecureRandom.uuid }
+    }, headers: @headers, as: :json
+    assert_response :success
+
+    summary = response.parsed_body.fetch("adjustment")
+    assert_equal "-1.25", summary.fetch("delta_units")
+    assert_equal "Damaged fixture stock", summary.fetch("reason")
+    assert_equal "1.25", summary.fetch("resulting_on_hand_units")
+    assert_equal before_quantity - BigDecimal("1.25"), @batch.reload.quantity
+
+    before_movements = @batch.movements.count
+    post "/api/clinic/inventory/lots/#{@batch.lot_id}/adjust", params: {
+      adjustment: { lot_id: @batch.lot_id, location_id: @batch.location_id, delta_units: "1",
+        reason: " ", request_key: SecureRandom.uuid }
+    }, headers: @headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "reason"
+    assert_equal before_movements, @batch.movements.count
+  end
+
   test "read scope ignores a supplied practice and rechecks permission" do
     other = Clinic::Practice.create!(name: "Other activity fixture")
     read_page(practice_id: other.id)

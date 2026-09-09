@@ -96,6 +96,20 @@ type Notice = {
   title: string;
   detail: string;
 } | null;
+type InventoryAdjustmentReceipt = {
+  id: string;
+  delta_units: Decimal;
+  reason: string;
+  product_name: string;
+  lot_number: string;
+  location_name: string;
+  resulting_on_hand_units: Decimal;
+  stock_unit: string;
+};
+type InventoryMutationResult = {
+  id?: number | string;
+  adjustment?: InventoryAdjustmentReceipt;
+};
 export type PendingInventoryMutation = {
   key: string;
   endpoint: string;
@@ -812,7 +826,7 @@ type InventoryRun = (
   body: Record<string, unknown>,
   successTitle: string,
   successDetail: string,
-  afterSuccess?: (payload: { id?: number | string }) => void,
+  afterSuccess?: (payload: InventoryMutationResult) => void,
 ) => Promise<void>;
 
 function CatalogCreateScreen({
@@ -2848,7 +2862,7 @@ export function InventoryApp({ path }: { path: string }) {
       const payload = await api<{
         data?: InventoryData;
         acknowledged?: boolean;
-        id?: number | string;
+      } & InventoryMutationResult>(
       }>(
         [
           "lots",
@@ -6364,7 +6378,16 @@ function LotsScreen({
           },
         },
         "Adjustment posted",
-        "Inventory adjusted.",
+        `${decimalCompare(quantity, "0") > 0 ? "+" : ""}${number(quantity)} ${selectedProduct.base_unit} for ${selectedProduct.name}, lot ${selectedLot.lot_number}, at ${selectedLocation.name}. Reason: ${reason.trim()}.`,
+        (payload) => {
+          const adjustment = payload.adjustment;
+          if (!adjustment) return;
+          setNotice({
+            tone: "success",
+            title: "Adjustment posted",
+            detail: `${adjustment.delta_units.startsWith("-") ? "" : "+"}${number(adjustment.delta_units)} ${adjustment.stock_unit} for ${adjustment.product_name}, lot ${adjustment.lot_number}, at ${adjustment.location_name}. Reason: ${adjustment.reason}. Resulting balance: ${number(adjustment.resulting_on_hand_units)} ${adjustment.stock_unit}.`,
+          });
+        },
       );
     else
       void run(
@@ -6394,6 +6417,11 @@ function LotsScreen({
               `/clinic/inventory/lots?product_id=${encodeURIComponent(match.product_id)}&scan=1`,
             )
           }
+          onClear={() => {
+            setSelectedId("");
+            setQuantity("");
+            setReason("");
+          }}
         />
         {page.product_name && (
           <p>
@@ -6630,21 +6658,31 @@ function LotsScreen({
               </button>
             </div>
             <form className="inventory-form-grid" onSubmit={submit}>
-              <Field
+              <TextField
+                size="small"
+                type="number"
+                required
                 label={
                   action === "count"
                     ? "Counted units"
-                    : `Quantity / delta (${selectedProduct.base_unit})`
+                    : action === "adjust"
+                      ? `Signed adjustment (${selectedProduct.base_unit})`
+                      : `Quantity (${selectedProduct.base_unit})`
                 }
-              >
-                <input
-                  type="number"
-                  min={action === "count" ? 0 : 1}
-                  value={quantity}
-                  step="any"
-                  onChange={(event) => setQuantity(event.target.value)}
-                />
-              </Field>
+                helperText={
+                  action === "adjust"
+                    ? "Use a positive value to add stock or a negative value to remove stock."
+                    : undefined
+                }
+                slotProps={{
+                  htmlInput: {
+                    min: action === "count" ? 0 : action === "adjust" ? undefined : 1,
+                    step: "any",
+                  },
+                }}
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+              />
               {action === "transfer" && (
                 <Field label="Destination">
                   <select
@@ -6664,12 +6702,16 @@ function LotsScreen({
                   Create another active leaf location before transferring stock.
                 </Alert>
               )}
-              <Field label="Reason">
-                <input
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                />
-              </Field>
+              <TextField
+                size="small"
+                required
+                multiline
+                minRows={2}
+                label={action === "adjust" ? "Adjustment reason" : "Reason"}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
               <div className="inventory-form-actions">
                 <PermissionNote
                   allowed={capability(
@@ -6693,8 +6735,13 @@ function LotsScreen({
                     busy ||
                     (action === "transfer" &&
                       (blocked || !effectiveDestination)) ||
-                    (action !== "count" &&
+                    ((action === "transfer" &&
                       decimalCompare(quantity || "0", "0") <= 0) ||
+                      (action === "adjust" &&
+                        decimalCompare(quantity || "0", "0") === 0) ||
+                      (action === "count" &&
+                        decimalCompare(quantity || "0", "0") < 0)) ||
+                    !reason.trim() ||
                     !capability(
                       data,
                       action === "transfer"
@@ -6708,6 +6755,21 @@ function LotsScreen({
                     const fake = new Event("submit") as unknown as FormEvent;
                     submit(fake);
                   }}
+                  confirmationTitle={
+                    action === "adjust"
+                      ? "Confirm signed inventory adjustment"
+                      : undefined
+                  }
+                  confirmationContent={
+                    action === "adjust" ? (
+                      <p>
+                        {selectedProduct.name}, lot {selectedLot.lot_number}, at {selectedLocation.name}: {decimalCompare(quantity || "0", "0") > 0 ? "+" : ""}{number(quantity || "0")} {selectedProduct.base_unit}. Reason: {reason.trim()}.
+                      </p>
+                    ) : undefined
+                  }
+                  confirmLabel={
+                    action === "adjust" ? "Post adjustment" : undefined
+                  }
                 >
                   Post {action}
                 </ConfirmButton>
@@ -7251,6 +7313,7 @@ export function ActivityScreen({
                   <th>Lot / location</th>
                   <th>Quantity</th>
                   <th>Reason / source</th>
+                  <th>Recorded by</th>
                 </tr>
               </thead>
               <tbody>
@@ -7276,8 +7339,15 @@ export function ActivityScreen({
                     </td>
                     <td>
                       <span>{item.reason}</span>
-                      <small className="mono">{item.source_id}</small>
+                      {item.source?.href ? (
+                        <small>
+                          <a href={item.source.href}>{item.source.label}</a>
+                        </small>
+                      ) : (
+                        <small>{item.source?.label ?? item.source_id}</small>
+                      )}
                     </td>
+                    <td>{item.actor_name ?? "System record"}</td>
                   </tr>
                 ))}
               </tbody>

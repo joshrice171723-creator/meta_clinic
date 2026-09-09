@@ -16,6 +16,7 @@ module Clinic
           if to.to_s == "completed" && appointment.encounter && appointment.encounter.ended_at.nil?
             raise ArgumentError, "Complete the encounter before completing its appointment."
           end
+          assert_ready_for_confirmation!(appointment) if to.to_s == "confirmed"
 
           appointment.transition_to!(to)
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor)
@@ -23,6 +24,13 @@ module Clinic
           appointment
         end
       end
+
+      def self.assert_ready_for_confirmation!(appointment)
+        return if appointment.visit_modality == "video" && appointment.booked_clinician_id.present?
+
+        raise ArgumentError, "Choose a site or explicitly schedule this visit as video before confirming it." if appointment.site_id.blank?
+      end
+      private_class_method :assert_ready_for_confirmation!
     end
   end
 end

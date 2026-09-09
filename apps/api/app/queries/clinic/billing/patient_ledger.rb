@@ -103,7 +103,7 @@ module Clinic
             { id: allocation.id, invoice_id: allocation.invoice_id, amount: decimal(allocation.amount), created_at: allocation.created_at.iso8601 }
           end,
           refunds: payment.refund_events.sort_by(&:created_at).map do |refund|
-            { id: refund.id, amount: decimal(refund.amount), created_at: refund.created_at.iso8601 }
+            { id: refund.id, amount: decimal(refund.amount), reason: refund.reason, created_at: refund.created_at.iso8601 }
           end
         }
       end

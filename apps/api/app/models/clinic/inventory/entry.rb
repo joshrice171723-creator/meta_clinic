@@ -12,6 +12,10 @@ module Clinic
       belongs_to :count, class_name: "Clinic::Inventory::Count", optional: true
       belongs_to :transfer, class_name: "Clinic::Inventory::Transfer", optional: true
       belongs_to :recall_disposition, class_name: "Clinic::Inventory::RecallDisposition", optional: true
+      has_one :medication_administration_movement,
+        class_name: "Clinic::Care::MedicationAdministrationMovement",
+        foreign_key: :inventory_entry_id,
+        dependent: :restrict_with_error
       validates :reason, presence: true, length: { maximum: 200 }
       validates :request_key, presence: true, length: { maximum: 100 }
       validates :quantity, numericality: { other_than: 0 }

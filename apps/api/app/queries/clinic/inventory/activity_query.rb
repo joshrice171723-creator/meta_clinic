@@ -25,7 +25,12 @@ module Clinic
         total_count = scope.count
         filtered_count = filtered.count
         page = before ? filtered.where("#{table}.id < ?", before.to_i) : filtered
-        rows = page.includes({ batch: %i[lot location_record] }, { receipt_line: :receipt }).order(id: :desc).limit(PAGE_SIZE + 1).to_a
+        rows = page.includes(
+          :actor,
+          { batch: %i[lot location_record] },
+          { receipt_line: :receipt },
+          { medication_administration_movement: { medication_administration: :encounter } }
+        ).order(id: :desc).limit(PAGE_SIZE + 1).to_a
         more = rows.length > PAGE_SIZE
         rows = rows.first(PAGE_SIZE)
         Result.new(movements: rows, total_count: total_count, filtered_count: filtered_count, query: query,

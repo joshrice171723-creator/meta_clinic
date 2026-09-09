@@ -454,10 +454,10 @@ function PatientFields({ patient }: { patient?: Patient }) {
       <Field
         name="clinic_patient[sex]"
         label="Sex"
-        required={false}
-        value={d?.sex}
+        required
+        value={d?.sex ?? ""}
         options={[
-          ["not_recorded", "Not recorded"],
+          ["", "Select sex"],
           ["female", "Female"],
           ["male", "Male"],
           ["intersex", "Intersex"],
@@ -626,7 +626,7 @@ function PatientDetails({ patient }: { patient: Patient }) {
           </div>
           <div>
             <dt>Sex</dt>
-            <dd>{d?.sex || "Not recorded"}</dd>
+            <dd>{sexLabel(d?.sex)}</dd>
           </div>
           <div>
             <dt>Language</dt>
@@ -688,4 +688,15 @@ function PatientDetails({ patient }: { patient: Patient }) {
       />
     </div>
   );
+}
+
+function sexLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    female: "Female",
+    male: "Male",
+    intersex: "Intersex",
+    unknown: "Unknown",
+    not_recorded: "Not recorded",
+  };
+  return labels[value ?? ""] ?? "Not recorded";
 }

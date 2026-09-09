@@ -80,6 +80,7 @@ type CashRefundAttempt = {
   patientId: number;
   paymentId: number;
   amount: string;
+  reason: string;
   requestKey: string;
 };
 
@@ -1623,6 +1624,11 @@ function PaymentHistory({
       ? initialRefundAttempt.amount
       : "",
   );
+  const [refundReason, setRefundReason] = useState(
+    initialRefundAttempt?.patientId === patientId
+      ? initialRefundAttempt.reason
+      : "",
+  );
   const [refundError, setRefundError] = useState("");
   const [refundBusy, setRefundBusy] = useState(false);
   const [allocationPaymentId, setAllocationPaymentId] = useState<number | null>(
@@ -1641,12 +1647,14 @@ function PaymentHistory({
     if (retained?.patientId === patientId) {
       setRefundPaymentId(retained.paymentId);
       setRefundAmount(retained.amount);
+      setRefundReason(retained.reason);
       setRefundError(
         "This refund has an unconfirmed outcome. Review the refund history, then retry the exact retained request if it is still missing.",
       );
     } else {
       setRefundPaymentId(null);
       setRefundAmount("");
+      setRefundReason("");
       setRefundError("");
     }
   }, [patientId, refundScope]);
@@ -1707,10 +1715,11 @@ function PaymentHistory({
     if (
       !refundAttempt &&
       (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(refundAmount) ||
-        isZero(refundAmount))
+        isZero(refundAmount) ||
+        !refundReason.trim())
     ) {
       setRefundError(
-        "Enter a positive cash refund amount with up to six decimal places.",
+        "Enter a positive cash refund amount and a reason.",
       );
       return;
     }
@@ -1718,6 +1727,7 @@ function PaymentHistory({
       patientId,
       paymentId,
       amount: refundAmount.trim(),
+      reason: refundReason.trim(),
       requestKey: crypto.randomUUID(),
     };
     persistCashRefundAttempt(clinic, attempt);
@@ -1730,6 +1740,7 @@ function PaymentHistory({
         body: {
           cash_refund: {
             amount: attempt.amount,
+            reason: attempt.reason,
             request_key: attempt.requestKey,
           },
         },
@@ -1737,6 +1748,7 @@ function PaymentHistory({
       persistCashRefundAttempt(clinic, null);
       setRefundAttempt(null);
       setRefundAmount("");
+      setRefundReason("");
       setRefundPaymentId(null);
       onFinancialChange();
     } catch (reason) {
@@ -1931,6 +1943,7 @@ function PaymentHistory({
                         setRefundError("");
                         setRefundPaymentId(payment.id);
                         setRefundAmount("");
+                        setRefundReason("");
                       }}
                       variant="outlined"
                     >
@@ -1958,6 +1971,16 @@ function PaymentHistory({
                     value={refundAmount}
                     disabled={refundBusy || refundRetryPending}
                   />
+                  <TextField
+                    label="Refund reason"
+                    value={refundReason}
+                    required
+                    multiline
+                    minRows={2}
+                    slotProps={{ htmlInput: { maxLength: 200 } }}
+                    onChange={(event) => setRefundReason(event.target.value)}
+                    disabled={refundBusy || refundRetryPending}
+                  />
                   <Button
                     disabled={refundBusy}
                     type="submit"
@@ -1974,6 +1997,7 @@ function PaymentHistory({
                     onClick={() => {
                       setRefundPaymentId(null);
                       setRefundAmount("");
+                      setRefundReason("");
                       setRefundError("");
                     }}
                     type="button"
@@ -1995,7 +2019,7 @@ function PaymentHistory({
                   {payment.refunds
                     .map(
                       (refund) =>
-                        `${money(refund.amount, payment.currency)} on ${date(refund.created_at, true)}`,
+                        `${money(refund.amount, payment.currency)} on ${date(refund.created_at, true)} · ${refund.reason}`,
                     )
                     .join("; ")}
                   . Refunds are payment-level history and do not alter invoice

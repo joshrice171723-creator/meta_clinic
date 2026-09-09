@@ -9,6 +9,7 @@ module Clinic
 
     validates :currency, presence: true, format: { with: /\A[A-Z]{3}\z/ }
     validates :amount, numericality: { greater_than: 0 }
+    validates :reason, presence: true, length: { maximum: 200 }
     validate :payment_belongs_to_patient
 
     private
