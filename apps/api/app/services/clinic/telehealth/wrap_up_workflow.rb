@@ -23,8 +23,8 @@ module Clinic
           (!visit.scribe_encounter_id || ability.allowed_permission?("scribe.read", site: visit.appointment.site))
       end
 
-      def can_manage?(visit:, actor:)
-        ability = Ability.new(actor, practice: visit.practice)
+      def can_manage?(visit:, actor:, ability: nil)
+        ability ||= Ability.new(actor, practice: visit.practice)
         ability.allowed_permission?("telehealth.host", site: visit.appointment.site) &&
           ability.allowed_permission?("encounters.write", site: visit.appointment.site) &&
           ability.allowed_permission?("notes.write", site: visit.appointment.site) &&

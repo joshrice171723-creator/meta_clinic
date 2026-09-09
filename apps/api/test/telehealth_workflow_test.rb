@@ -154,6 +154,32 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       "expected queue row serialization to avoid full-detail queries (detail=#{detail_queries}, queue=#{queue_queries})"
   end
 
+  test "queue page batches preparation media history and authorization projections" do
+    starts_at = 2.days.from_now.change(hour: 8, min: 0)
+    visit = book_video!(starts_at: starts_at).telehealth_visit
+    book_video!(starts_at: starts_at + 2.hours)
+    book_video!(starts_at: starts_at + 4.hours)
+    date = visit.appointment.starts_at.in_time_zone(@practice.timezone).to_date.iso8601
+
+    individual_visits = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: @staff,
+      filters: { date: date, limit: 3 }).visits
+    individual_rows = nil
+    individual_queries = select_query_count do
+      individual_rows = individual_visits.map { |value| Clinic::Telehealth::VisitSerializer.queue_row(value, actor: @staff) }
+    end
+
+    batch_visits = Clinic::Telehealth::VisitQueue.call(practice: @practice, actor: @staff,
+      filters: { date: date, limit: 3 }).visits
+    batch_rows = nil
+    batch_queries = select_query_count do
+      batch_rows = Clinic::Telehealth::VisitSerializer.queue_rows(batch_visits, actor: @staff)
+    end
+
+    assert_equal individual_rows, batch_rows
+    assert_operator batch_queries, :<=, individual_queries - 8,
+      "expected queue page batching to remove per-visit projection queries (individual=#{individual_queries}, batch=#{batch_queries})"
+  end
+
   test "queue media status ignores old room history after a visit restarts" do
     visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
     participant = visit.participants.patient.sole
