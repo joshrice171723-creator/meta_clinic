@@ -23,13 +23,15 @@ module Clinic
         record = draft_scope.first_or_initialize(kind: @kind, patient: @patient, encounter: @encounter)
         # A lost response may be retried verbatim. Only the immediately preceding
         # version can replay; old saves cannot resurrect a cleared working copy.
-        replay = record.persisted? && record.version == expected + 1 && record.encrypted_payload == encoded
+        replay = record.persisted? && record[:version] == expected + 1 && record.encrypted_payload == encoded
         unless replay
-          if record.version != expected
+          if record[:version] != expected
             render json: { error: "This working draft changed in another window. Reload and review before saving.", code: "draft_conflict" }, status: :conflict
             next nil
           end
-          record.update!(encrypted_payload: encoded, version: expected + 1)
+          record[:version] = expected + 1
+          record.encrypted_payload = encoded
+          record.save!
           audit!(record, "committed")
         end
         record
@@ -84,14 +86,14 @@ module Clinic
 
     def representation(draft)
       { kind: @kind, patient_id: @patient&.id, encounter_id: @encounter&.id, record_id: @record_id, scope: @scope,
-        version: draft&.version || 0, payload: draft&.encrypted_payload && JSON.parse(draft.encrypted_payload),
+        version: draft ? draft[:version] : 0, payload: draft&.encrypted_payload && JSON.parse(draft.encrypted_payload),
         updated_at: draft&.updated_at&.iso8601(6) }
     end
 
     def audit!(draft, outcome)
       Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
         action_code: "working_draft.#{action_name}", outcome: outcome,
-        resource_version_ref: draft && "Clinic::WorkingDraft/#{draft.id}/#{draft.version}")
+        resource_version_ref: draft && "Clinic::WorkingDraft/#{draft.id}/#{draft[:version]}")
     end
   end
 end
