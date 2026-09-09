@@ -40,13 +40,26 @@ const dayNames = [
   "Friday",
   "Saturday",
 ];
+const requestTabs = [
+  ["time_off", "time_off_enabled"],
+  ["availability", "availability_editing_enabled"],
+  ["swap", "shift_swaps_enabled"],
+] as const;
+type RequestTab = (typeof requestTabs)[number][0];
+
+function enabledRequestTab(
+  options: Record<string, boolean> | undefined,
+  current: RequestTab,
+) {
+  return requestTabs.find(
+    ([tab, option]) => tab === current && options?.[option],
+  )?.[0] ?? requestTabs.find(([, option]) => options?.[option])?.[0];
+}
 
 export function EmployeeRequestsPage() {
   const fieldId = useId();
   const [data, setData] = useState<RequestData>();
-  const [tab, setTab] = useState<"time_off" | "availability" | "swap">(
-    "time_off",
-  );
+  const [tab, setTab] = useState<RequestTab>("time_off");
   const [siteId, setSiteId] = useState("");
   const [reason, setReason] = useState("");
   const [start, setStart] = useState("");
@@ -85,6 +98,11 @@ export function EmployeeRequestsPage() {
     () => data?.swap_options.find((item) => item.site_id === siteId),
     [data, siteId],
   );
+  const activeTab = enabledRequestTab(site?.request_options, tab);
+  const canSubmitRequest = activeTab === tab;
+  useEffect(() => {
+    if (activeTab && activeTab !== tab) setTab(activeTab);
+  }, [activeTab, tab]);
   const changeSite = (nextSiteId: string) => {
     setSiteId(nextSiteId);
     setPublicationId("");
@@ -96,7 +114,7 @@ export function EmployeeRequestsPage() {
   const option = site?.request_options ?? {};
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!site) return;
+    if (!site || !canSubmitRequest) return;
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
@@ -265,6 +283,11 @@ export function EmployeeRequestsPage() {
                 disabled={!option.shift_swaps_enabled}
               />
             </Tabs>
+            {!canSubmitRequest && (
+              <Alert severity="info">
+                Requests are not enabled for this location.
+              </Alert>
+            )}
             {tab === "time_off" && (
               <Box
                 sx={{
@@ -433,6 +456,7 @@ export function EmployeeRequestsPage() {
               startIcon={<SendIcon />}
               disabled={
                 busy ||
+                !canSubmitRequest ||
                 !reason.trim() ||
                 (tab === "time_off" && (!start || !end)) ||
                 (tab === "availability" &&
