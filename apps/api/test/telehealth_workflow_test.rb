@@ -56,8 +56,8 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   test "queue scopes telehealth reads independently of unrelated site permissions and preserves Omni access" do
-    visible = direct_video_visit!
-    hidden = direct_video_visit!(site: @other_site)
+    visible = direct_video_visit!(starts_at: 1.day.from_now.change(hour: 12))
+    hidden = direct_video_visit!(site: @other_site, starts_at: visible.appointment.ends_at + 1.minute)
     reader = User.create!(email_address: "telehealth-site-reader@example.invalid", password: PASSWORD)
     reader_membership = @practice.memberships.create!(user: reader)
     grant_permissions!(reader_membership, "telehealth.read", scope_kind: "site", site: @site)
@@ -124,6 +124,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     record_event.call(old_room, "participant.joined")
     assert Clinic::Telehealth::VisitSerializer.media_present?(participant.reload)
 
+    old_room.update!(status: "ended", ended_at: Time.current)
     visit.update!(current_room_attempt: nil, access_generation: visit.access_generation + 1)
     payload = Clinic::Telehealth::PatientVisitSerializer.call(visit.reload, identity: @identity)
     assert_equal false, payload[:participants].find { |row| row[:is_current] }[:media_present]
@@ -1021,10 +1022,10 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       visit_modality: "video")
   end
 
-  def direct_video_visit!(site: @site)
+  def direct_video_visit!(site: @site, starts_at: 1.day.from_now)
     appointment = @practice.appointments.create!(patient: @patient, site: site,
-      booked_clinician: @clinician, visit_type: @visit_type, starts_at: 1.day.from_now,
-      ends_at: 1.day.from_now + 30.minutes, status: "scheduled", visit_modality: "video")
+      booked_clinician: @clinician, visit_type: @visit_type, starts_at: starts_at,
+      ends_at: starts_at + 30.minutes, status: "scheduled", visit_modality: "video")
     Clinic::Telehealth::Visit.create!(practice: @practice, patient: @patient, appointment: appointment,
       policy_version: @setting.active_policy_version, created_by_membership: @membership, status: "scheduled")
   end
