@@ -24,7 +24,7 @@ module Clinic
           raise Clinic::Authorization::Denied unless locked_identity
           receipt = PatientReceipt.find_by(practice_id: visit.practice_id, portal_identity_id: identity.id, request_key: key)
           if receipt
-            same = receipt.operation_code == operation_code && receipt.payload_digest == digest
+            same = receipt.visit_id == visit.id && receipt.operation_code == operation_code && receipt.payload_digest == digest
             raise Clinic::Idempotency::Conflict unless same
             return Outcome.new(receipt: receipt, value: resolve_result(receipt, visit), replayed: true)
           end
