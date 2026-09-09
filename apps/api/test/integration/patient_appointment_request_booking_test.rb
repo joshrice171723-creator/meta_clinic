@@ -93,6 +93,24 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
       @patient_session.response.parsed_body.fetch("appointment_requests").map { |request| request.fetch("id") }
   end
 
+  test "appointment request options read the telehealth setting once across visit types" do
+    8.times { |index| @practice.visit_types.create!(code: "REQUEST-OPTION-#{index}") }
+    setting_queries = []
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s
+      setting_queries << sql if sql.match?(/\ASELECT.*FROM "clinic_telehealth_settings"/mi)
+    end
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        get_patient_requests
+      end
+    end
+
+    assert_equal 1, setting_queries.length, setting_queries.join("\n")
+    assert_equal 9, @patient_session.response.parsed_body.dig("options", "visit_types").length
+  end
+
   test "patient reschedule request updates the same appointment and is idempotent" do
     source = create_appointment(starts_at: 3.days.from_now.change(usec: 0))
     original_count = @practice.appointments.where(patient: @patient).count

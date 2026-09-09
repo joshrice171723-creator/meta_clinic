@@ -207,18 +207,22 @@ module Clinic
       end
 
       def request_options
+        setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
+        video_ready = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
+          setting.active_policy_version&.published? && setting.health_status == "ready"
+        video_visit_type_ids = if video_ready
+          Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id, enabled: true)
+            .distinct.pluck(:visit_type_id).index_with(true)
+        else
+          {}
+        end
         {
           sites: portal_practice.sites.where(status: "active").order(:code, :id).map do |site|
             AppointmentRequestSerializer.site(site)
           end,
           visit_types: portal_practice.visit_types.active.order(:code, :id).map do |visit_type|
-            setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
-            video_enabled = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
-              setting.active_policy_version&.published? && setting.health_status == "ready" &&
-              Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id,
-                visit_type_id: visit_type.id, enabled: true).exists?
             AppointmentRequestSerializer.visit_type(visit_type,
-              allowed_modalities: video_enabled ? %w[in_person video] : %w[in_person])
+              allowed_modalities: video_visit_type_ids.key?(visit_type.id) ? %w[in_person video] : %w[in_person])
           end
         }
       end
