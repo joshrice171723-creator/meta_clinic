@@ -18,7 +18,7 @@ Keep direction, evidence, decisions and next actions understandable to the found
 - [[00 Home]] is a short orientation and current-priority summary, not a task register.
 - [[01 Table of Contents]] is the vault navigation and context index.
 - Foundation and product notes own the latest coherent business and product state.
-- The [Shortcut Roadmap and Agent Workspace](../../docs/development/shortcut.md) own Epics, Stories, task scope/acceptance, claims, owners and status. The vault contains no task register or task briefs.
+- The active task context owns task scope, acceptance, claims, owners and status. The vault contains no task register or task briefs.
 - [[Decisions]] is the only explicit decision and authority register.
 - [[Risks and Assumptions]] owns uncertainties, hypotheses and evidence needed to resolve them.
 - Research notes and [[Source Register]] own source applicability, review dates and limitations.

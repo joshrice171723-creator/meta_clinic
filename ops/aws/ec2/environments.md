@@ -17,7 +17,7 @@ Production skips sample seeds, assigns no demo paperwork when provisioning membe
 
 ## Verified staging release and recovery
 
-Staging [deployment run 33366238124](https://github.com/Fibrodysplasia/APPly/actions/runs/33366238124), attempt 5, completed successfully on 2026-08-31 for main commit `a710f635f4f0ca653cb6213200a6b4b3845a6914`. Format-2 receipt `/apply/releases/staging` records API `sha256:8d632c3197247c3560f391ac24136e9483516a37ebc22ce2cea1f11fb44eb093`, web `sha256:e2511898a1f45afe4e7341aa687ed60c7b506aac859727c242e4b5eeb5dc1306`, SSM `703529ae-5142-43fd-9520-95760ef4dd75` and generation `3336623812405`.
+An archived staging deployment run, attempt 5, completed successfully on 2026-08-31 for main commit `a710f635f4f0ca653cb6213200a6b4b3845a6914`. Format-2 receipt `/apply/releases/staging` records API `sha256:8d632c3197247c3560f391ac24136e9483516a37ebc22ce2cea1f11fb44eb093`, web `sha256:e2511898a1f45afe4e7341aa687ed60c7b506aac859727c242e4b5eeb5dc1306`, SSM `703529ae-5142-43fd-9520-95760ef4dd75` and generation `3336623812405`.
 
 Five synthetic rows survived conversion; original keys/SQLite/image were retained. Encrypted snapshot `snap-0e3e7a87bdfe0988b` completed before cutover. Root-only recovery metadata/offline SQLite are under `/srv/apply/backups/cutover-20260831/`; the PostgreSQL dump is `/srv/apply/backups/cutover-20260831.dump`. Separate-cluster restore, decryption, runtime permission denials, reconciliation, private HTTPS and app restart passed. The failed never-imported destination and stopped restore cluster are retained as evidence; no destructive reset was used. See the vault Progress Log for scope and unresolved operational acceptance.
 

@@ -7,11 +7,11 @@ canonical_for: vault-context-routing
 ---
 # Table of Contents
 
-Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[Design]] · **Developers: [start with the handbook](../docs/README.md)** · Code ownership: [architecture](../docs/architecture/software-architecture.md) · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[Design]] · **Developers: [start with the handbook](../docs/README.md)** · Code ownership: [architecture](../docs/architecture/software-architecture.md)
 
 Use this index to select the relevant notes and sections for a Story; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, risks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and the [agent harness](../agent-harness/README.md) provide scoped procedure. The harness owns agent behavior; this vault owns software knowledge and evidence.
 
-This is navigation, not a backlog. The [Shortcut Roadmap and Agent Workspace](../docs/development/shortcut.md) own Epics, Stories, task scope/acceptance, claims and status; explicit choices live in [[Decisions]], risks in [[Risks and Assumptions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
+This is navigation, not a backlog. Active task context owns scope, acceptance, claims and status; explicit choices live in [[Decisions]], risks in [[Risks and Assumptions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
 
 ## Choose a reading route
 
@@ -20,7 +20,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | Task | Start here | Supporting context when needed |
 | --- | --- | --- |
 | Product or visual-system design | [PRODUCT.md](../PRODUCT.md), [[Design]] | [[Clinic Workspace Design]] for implementation history and workflow boundaries; D-036/D-039/D-041/D-049/D-051/D-052 |
-| Implementation planning or failure review | [Shortcut Roadmap and Agent Workspace](../docs/development/shortcut.md), [failure-first workflow](../agent-harness/workflows/failure-first.md) | Human agreement in [[Working Agreement]]; relevant requirements, [[Risks and Assumptions]], evidence and existing gates remain |
+| Implementation planning or failure review | [failure-first workflow](../agent-harness/workflows/failure-first.md) | Active task context; human agreement in [[Working Agreement]]; relevant requirements, [[Risks and Assumptions]], evidence and existing gates remain |
 | Developer onboarding, Git, local setup or CI | [Developer handbook](../docs/README.md), [software architecture](../docs/architecture/software-architecture.md) | [[CICD]] and [[Software Architecture]] preserve vault context/links; D-033 owns the architecture direction |
 | Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | [staging owner-review access](../ops/aws/ec2/review-access.md); linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates and current Shortcut Stories |
 | Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant criteria and Stories; D-021/D-022/D-033 |

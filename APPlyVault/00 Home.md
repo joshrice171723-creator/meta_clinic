@@ -13,7 +13,7 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 
 ## Developers — start with the handbook
 
-Use the [developer handbook](../docs/README.md) for setup, local commands, branches, checks and current architecture. The [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) and Agent Workspace own Epics, task scope/acceptance, claims and status; then select only the relevant product context, decisions, risks and evidence from this vault. `AGENTS.md`, `agent-harness/` and `.agents/skills/` govern agents; `records/` retains detailed dated evidence outside the default context.
+Use the [developer handbook](../docs/README.md) for setup, local commands, branches, checks and current architecture. The active task context owns scope, acceptance, claims and status; then select only the relevant product context, decisions, risks and evidence from this vault. `AGENTS.md`, `agent-harness/` and `.agents/skills/` govern agents; `records/` retains detailed dated evidence outside the default context.
 
 | Current source — reviewed 2026-08-31 | Hosted state — staging verified 2026-08-31 |
 | --- | --- |
@@ -43,9 +43,9 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Start here
 
-1. For development, start with [development](../docs/development/README.md), the [Shortcut Roadmap and Agent Workspace](../docs/development/shortcut.md), and [architecture](../docs/architecture/README.md). The selected Story owns the task outcome, scope, dependencies and acceptance. Agents use the [failure-first workflow](../agent-harness/workflows/failure-first.md); the human agreement remains [[Working Agreement]]. Existing professional and release gates remain in force.
+1. For development, start with [development](../docs/development/README.md) and [architecture](../docs/architecture/README.md). Keep task scope, dependencies and acceptance in the active task context. Agents use the [failure-first workflow](../agent-harness/workflows/failure-first.md); the human agreement remains [[Working Agreement]]. Existing professional and release gates remain in force.
 2. Use [[MD Pilot]] and [[Texas Diligence]] to turn the existing materials into the [[Clinic Launch Packet]].
-3. Use the [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) for workstreams and Stories, [[Decisions]] for agreed choices, and [[Progress Log]] for material dated outcomes.
+3. Use the active task context for workstreams, [[Decisions]] for agreed choices, and [[Progress Log]] for material dated outcomes.
 
 ## Workspace map
 
@@ -55,16 +55,16 @@ The retired `reference/` folder was removed by the founder after its useful beha
 | Delivery | [[Clinic Launch Packet]], [[Knowledge Bank and Mentorship]] |
 | Learning | [[MD Pilot]], [[Customer Discovery]], [[Texas Diligence]], [[SharePoint and EMR]], [[Source Register]] |
 | Developer handoff | [Developer handbook](../docs/README.md), [[CICD]], [[Software Architecture]], [[PostgreSQL and Inventory Foundation]] |
-| Execution | [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap), [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[Design]], [[Data Modeling]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
+| Execution | Active task context, [[Website MVP]], [[Client Portal]], [[Clinic Workspace]], [[Design]], [[Data Modeling]], [[Decisions]], [[Risks and Assumptions]], [[Working Agreement]], [[Progress Log]] |
 | Reusable notes | [[Evidence Note Template]], [[Weekly Review Template]] |
 
 ## Next three moves
 
-- On the [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap), finish remaining engineering/release acceptance: browser/account journeys, image advisories and operations/recovery. Preserve completed CI/staging evidence; production cutover needs separate authorization, not a repeat of staging setup.
+- Finish remaining engineering/release acceptance: browser/account journeys, image advisories and operations/recovery. Preserve completed CI/staging evidence; production cutover needs separate authorization, not a repeat of staging setup.
 - Build toward operator onboarding and versioned synthetic packet/training management. The founder will gather Kevin's materials; actual content/reuse review is a separate dependency, and real applicant documents/signing remain gated.
 - Finish inventory configuration/permission acceptance and prepare the synthetic clinic workflow walkthrough alongside it; field/layout/clinical acceptance and real-data gates remain open.
 
-Active task status lives in [Shortcut Agent Workspace](../docs/development/shortcut.md); this page is a direction summary, not a second task list.
+Active task status lives in the current task context; this page is a direction summary, not a second task list.
 
 ## Reading the notes
 

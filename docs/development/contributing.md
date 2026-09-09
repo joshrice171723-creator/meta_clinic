@@ -1,6 +1,6 @@
 # Contributing
 
-Keep `main` integrated and reviewable. Before a repository change, inspect Shortcut Agent Workspace for the same objective and overlapping active claims, then reuse or create and claim one bounded Story as described in [Shortcut execution](shortcut.md). Start from a clean, current branch, make the smallest independently reviewable change, and use synthetic fixtures or mocks.
+Keep `main` integrated and reviewable. Before a repository change, inspect the active task context for the same objective and overlapping claims. Start from a clean, current branch, make the smallest independently reviewable change, and use synthetic fixtures or mocks.
 
 ```sh
 git status --short --branch

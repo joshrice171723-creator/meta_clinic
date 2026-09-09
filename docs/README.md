@@ -5,4 +5,4 @@ This is the current, source-adjacent handbook for building and operating APPly. 
 - [Development](development/README.md): setup, local lifecycle, contribution workflow and CI.
 - [Architecture](architecture/README.md): code ownership, system boundaries and implementation contracts.
 
-Product direction, current decisions and risks belong in [APPlyVault](../APPlyVault/00%20Home.md). The [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) owns Epics and Stories, including task scope, acceptance and status. Dated evidence that no longer belongs in the default working context is retained under [records](../records/README.md). Agent policy and reusable procedures belong in [the agent harness](../agent-harness/README.md).
+Product direction, current decisions and risks belong in [APPlyVault](../APPlyVault/00%20Home.md). The active task context owns task scope, acceptance and status. Dated evidence that no longer belongs in the default working context is retained under [records](../records/README.md). Agent policy and reusable procedures belong in [the agent harness](../agent-harness/README.md).
