@@ -38,12 +38,12 @@ module Clinic
           Clinic::StaffMessageRequest.none
         end
 
-        summary = {
-          open: base_scope.count,
-          overdue: base_scope.where("clinic_staff_message_requests.due_at < ?", at).count,
-          mine: base_scope.where(assignee_membership_id: member.id).count,
-          unassigned: base_scope.where(assignee_membership_id: nil).count
-        }
+        summary = summary_for(
+          base_scope,
+          table: "clinic_staff_message_requests",
+          assignee_column: "assignee_membership_id",
+          member: member
+        )
 
         requests = filtered(base_scope, member)
           .includes(:assignee_membership, message: { conversation: { members: { membership: :user } } })
@@ -51,12 +51,12 @@ module Clinic
           .limit(LIMIT)
 
         encounter_scope = can_manage_encounters ? accessible_encounter_follow_ups(ability) : Clinic::EncounterFollowUp.none
-        encounter_summary = {
-          open: encounter_scope.count,
-          overdue: encounter_scope.where("clinic_encounter_follow_ups.due_at < ?", at).count,
-          mine: encounter_scope.where(assigned_to_membership_id: member.id).count,
-          unassigned: encounter_scope.where(assigned_to_membership_id: nil).count
-        }
+        encounter_summary = summary_for(
+          encounter_scope,
+          table: "clinic_encounter_follow_ups",
+          assignee_column: "assigned_to_membership_id",
+          member: member
+        )
         encounter_follow_ups = filtered_encounter_follow_ups(encounter_scope, member)
           .includes(:patient, :encounter, :follow_up_appointment, assigned_to_membership: :user)
           .order(:due_at, :id).limit(LIMIT)
@@ -112,6 +112,26 @@ module Clinic
         when "unassigned" then scope.where(assignee_membership_id: nil)
         else scope
         end
+      end
+
+      def summary_for(scope, table:, assignee_column:, member:)
+        connection = ApplicationRecord.connection
+        due_at = connection.quote(at)
+        member_id = connection.quote(member.id)
+        row = connection.select_one(
+          scope.reselect(Arel.sql(<<~SQL.squish)).to_sql
+            COUNT(*) AS open_count,
+            COUNT(*) FILTER (WHERE #{table}.due_at < #{due_at}) AS overdue_count,
+            COUNT(*) FILTER (WHERE #{table}.#{assignee_column} = #{member_id}) AS mine_count,
+            COUNT(*) FILTER (WHERE #{table}.#{assignee_column} IS NULL) AS unassigned_count
+          SQL
+        )
+        {
+          open: row.fetch("open_count").to_i,
+          overdue: row.fetch("overdue_count").to_i,
+          mine: row.fetch("mine_count").to_i,
+          unassigned: row.fetch("unassigned_count").to_i
+        }
       end
 
       def accessible_encounter_follow_ups(ability)
