@@ -1,9 +1,10 @@
 module Clinic
   class DashboardController < BaseController
     def show
-      patients_read = Authorization.allowed?(actor: current_user, practice: current_practice, action: "patients.read")
-      inventory_read = Authorization.allowed?(actor: current_user, practice: current_practice, action: "inventory.read")
-      staff_read = Authorization.allowed?(actor: current_user, practice: current_practice, action: "staff.read")
+      ability = current_ability
+      patients_read = ability.allowed_permission?("patients.read")
+      inventory_read = ability.allowed_permission?("inventory.read")
+      staff_read = ability.allowed_permission?("staff.read")
       render json: {
         practice: current_practice.as_json(only: %i[id name timezone]),
         capabilities: {
@@ -11,7 +12,7 @@ module Clinic
           inventory_access: inventory_read,
           staff_access: staff_read
         },
-        inventory_actions: Inventory::Access::ACTIONS.to_h { |action| [ action, Authorization.allowed?(actor: current_user, practice: current_practice, action: "inventory.#{action}") ] },
+        inventory_actions: Inventory::Access::ACTIONS.to_h { |action| [ action, ability.allowed_permission?("inventory.#{action}") ] },
         development_demo: !!development_demo?,
         patient_count: patients_read ? current_practice.patients.accessible_by(current_ability, :read).count : nil,
         active_staff_count: staff_read ? current_practice.staff_members.accessible_by(current_ability, :read).where(active: true).count : nil,
