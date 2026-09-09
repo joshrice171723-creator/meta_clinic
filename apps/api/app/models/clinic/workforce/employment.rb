@@ -31,6 +31,13 @@ module Clinic
         return false unless active_for_work?(at: at)
         return false unless site.is_a?(Clinic::Site) && site.practice_id == practice_id && site.status == "active"
 
+        if association(:employment_sites).loaded?
+          return employment_sites.any? do |assignment|
+            assignment.site_id == site.id && assignment.active? && assignment.effective_from <= at &&
+              (assignment.effective_until.nil? || assignment.effective_until > at)
+          end
+        end
+
         employment_sites.active.effective_at(at).exists?(site_id: site.id)
       end
 

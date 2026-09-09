@@ -155,7 +155,9 @@ module Clinic
       end
 
       def eligible_employments(site)
-        Employment.where(practice_id: current_practice.id).includes(:staff_member).select { |item| item.active_for_work?(at: Current.business_time) && item.eligible_site?(site, at: Current.business_time) }.map do |item|
+        Employment.where(practice_id: current_practice.id).includes(:staff_member, :employment_sites, membership: :user).select do |item|
+          item.active_for_work?(at: Current.business_time) && item.eligible_site?(site, at: Current.business_time)
+        end.map do |item|
           { id: item.id.to_s, name: item.staff_member.display_name, job_title: item.staff_member.job_title }
         end
       end

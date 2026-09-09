@@ -143,6 +143,8 @@ module Clinic
 
       def eligible_sites(employment)
         return [] unless employment
+        employment.employment_sites.load
+
         current_practice.sites.includes(:operating_hours).select { |site| employment.eligible_site?(site, at: Current.business_time) }.map do |site|
           values = effective_settings(site)
           { id: site.id.to_s, name: site.name, timezone: site.timezone_override || current_practice.timezone,
@@ -182,16 +184,22 @@ module Clinic
       end
 
       def swap_options(employment, sites)
+        site_ids = sites.map { |site| site.fetch(:id).to_i }
+        records_by_id = current_practice.sites.where(id: site_ids).index_by(&:id)
+        latest_by_site = SchedulePublication.where(practice_id: current_practice.id, site_id: site_ids).latest_first.to_a
+          .group_by { |publication| [ publication.site_id, publication.week_start_on ] }
+          .transform_values(&:first).values.group_by(&:site_id)
+        candidates = Employment.where(practice_id: current_practice.id).includes(:staff_member, :employment_sites, membership: :user).to_a
+
         sites.map do |site_payload|
-          site = current_practice.sites.find(site_payload.fetch(:id))
-          latest = SchedulePublication.where(practice_id: current_practice.id, site_id: site.id).latest_first
-            .group_by(&:week_start_on).values.map(&:first)
+          site = records_by_id.fetch(site_payload.fetch(:id).to_i)
+          latest = latest_by_site.fetch(site.id, [])
           own_shifts = latest.flat_map do |publication|
             publication.shift_snapshot.select { |row| row["employment_id"].to_i == employment.id }.map do |row|
               { publication_id: publication.id.to_s, shift_id: row["id"], starts_at: row["starts_at"], ends_at: row["ends_at"], timezone: row["timezone"] }
             end
           end
-          employees = Employment.where(practice_id: current_practice.id).includes(:staff_member).select do |candidate|
+          employees = candidates.select do |candidate|
             candidate.id != employment.id && candidate.active_for_work?(at: Current.business_time) && candidate.eligible_site?(site, at: Current.business_time)
           end.map { |candidate| { id: candidate.id.to_s, name: candidate.staff_member.display_name } }
           { site_id: site.id.to_s, shifts: own_shifts, employees: employees }

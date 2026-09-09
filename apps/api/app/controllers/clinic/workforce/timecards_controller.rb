@@ -132,7 +132,7 @@ module Clinic
           workforce_access.allow?("workforce.timecards.review", site: site)
         return [] unless can_review
 
-        Employment.where(practice_id: current_practice.id).includes(:staff_member).order(:id).select do |employment|
+        Employment.where(practice_id: current_practice.id).includes(:staff_member, :employment_sites, membership: :user).order(:id).select do |employment|
           employment.active_for_work? && employment.eligible_site?(site)
         end
       end

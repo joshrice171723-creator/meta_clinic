@@ -85,6 +85,21 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "preloaded employment sites preserve eligibility without per-site queries" do
+    @employment.employment_sites.load
+    queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        assert @employment.eligible_site?(@assigned_site)
+        refute @employment.eligible_site?(@other_site)
+      end
+    end
+
+    refute queries.any? { |sql| sql.match?(/FROM "clinic_workforce_employment_sites"/i) }, queries.join("\n")
+  end
+
   test "tenant ID tampering cannot cross employment settings or payroll boundaries" do
     login(@manager)
 
