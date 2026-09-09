@@ -19,10 +19,10 @@ module Clinic
 
         payload.merge(
           context_content: encounter.deleted_at ? nil : encounter.context_content,
-          sources: encounter.sources.order(:id).map { |source| source(source) },
+          sources: encounter.sources.includes(:segments).order(:id).map { |source| source(source) },
           lab_selections: encounter.lab_selections.includes(lab_report_version: :lab_report)
             .order(:lab_report_version_id).map { |selection| lab_selection(selection) },
-          documents: encounter.documents.includes(drafts: [:sections, :exports]).order(:id).map { |document| document(document) },
+          documents: encounter.documents.includes(current_draft: [:sections, :exports]).order(:id).map { |document| document(document) },
           drafts: ordered_drafts(encounter).map { |draft| draft(draft) },
           events: encounter.events.order(:created_at, :id).map { |event| event(event) }
         )
@@ -35,7 +35,7 @@ module Clinic
           capture_epoch: source.capture_epoch, recording_segment_index: source.recording_segment_index,
           source_order: source.source_order, source_set_digest: source.source_set_digest,
           metadata: source.source_metadata, content: source.status == "deleted" ? nil : source.content,
-          segments: source.segments.order(:sequence).map { |segment| segment(segment) }
+          segments: ordered_segments(source).map { |segment| segment(segment) }
         }
       end
 
@@ -50,14 +50,14 @@ module Clinic
       def draft(draft)
         {
           id: draft.id, parent_id: draft.parent_id, source_id: draft.source_id, document_id: draft.document_id,
-          revision_number: draft.revision_number, current: draft.current?, stale: !Workflow.fresh?(draft), status: draft.status,
+          revision_number: draft.revision_number, current: draft.document.current_draft_id == draft.id, stale: !Workflow.fresh?(draft), status: draft.status,
           template_id: draft.template_id, template_version: draft.template_version,
           provider: draft.provider, model: draft.model, model_version: draft.model_version,
           prompt_digest: draft.prompt_digest, input_digest: draft.input_digest, output_digest: draft.output_digest,
           warnings: draft.warnings, input_sources: draft.input_sources, export_state: draft.export_state,
           approved_at: draft.approved_at&.iso8601(6), created_at: draft.created_at&.iso8601(6), version: draft.lock_version,
-          sections: draft.sections.order(:id).map { |section| section(section, redacted: draft.status == "deleted") },
-          exports: draft.exports.order(:id).map { |export| export(export) }
+          sections: ordered_sections(draft).map { |section| section(section, redacted: draft.status == "deleted") },
+          exports: ordered_exports(draft).map { |export| export(export) }
         }
       end
 
@@ -130,7 +130,25 @@ module Clinic
 
       def ordered_drafts(encounter)
         values = encounter.drafts.includes(:document, :sections, :exports).to_a
-        values.sort_by { |revision| [revision.current? ? 0 : 1, -revision.revision_number, -revision.id] }
+        values.sort_by { |revision| [revision.document.current_draft_id == revision.id ? 0 : 1, -revision.revision_number, -revision.id] }
+      end
+
+      def ordered_segments(source)
+        return source.segments.sort_by(&:sequence) if source.association(:segments).loaded?
+
+        source.segments.order(:sequence).to_a
+      end
+
+      def ordered_sections(draft)
+        return draft.sections.sort_by(&:id) if draft.association(:sections).loaded?
+
+        draft.sections.order(:id).to_a
+      end
+
+      def ordered_exports(draft)
+        return draft.exports.sort_by(&:id) if draft.association(:exports).loaded?
+
+        draft.exports.order(:id).to_a
       end
     end
   end
