@@ -61,6 +61,20 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     assert_not @other_practice.audit_events.exists?(action_code: "patient_portal.identity.invite")
   end
 
+  test "production activation requires the identity practice to be explicitly enabled" do
+    invitation = invite_identity
+
+    deployed do
+      assert_raises(Clinic::PatientPortal::ActivateIdentity::InvalidInvitation) do
+        activate(invitation.fetch(:token))
+      end
+      assert invitation.fetch(:identity).reload.invited?
+
+      ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = @practice.id.to_s
+      assert activate(invitation.fetch(:token)).active?
+    end
+  end
+
   test "reserved synthetic patient activation creates access and revocation invalidates its session" do
     invitation = invite_identity
     activated = activate(invitation.fetch(:token))
@@ -105,6 +119,15 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
       session: @session,
       now: now
     )
+  end
+
+  def deployed
+    previous = [ Rails.env, ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] ]
+    Rails.env = "production"
+    ENV.delete("APP_CLINIC_PILOT_PRACTICE_IDS")
+    yield
+  ensure
+    Rails.env, ENV["APP_CLINIC_PILOT_PRACTICE_IDS"] = previous
   end
 end
 

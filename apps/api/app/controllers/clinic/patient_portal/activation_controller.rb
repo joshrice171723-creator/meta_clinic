@@ -2,7 +2,8 @@ module Clinic
   module PatientPortal
     class ActivationController < ApplicationController
       include Clinic::Api::RequestParameters
-      before_action :require_synthetic_portal
+      rate_limit to: 10, within: 15.minutes, only: :create, name: "patient_portal_activation_ip",
+        with: -> { render json: { error: "Too many activation attempts. Please try again later." }, status: :too_many_requests }
 
       def create
         input = parameter_hash!(:patient_portal_activation, %i[token accepted_terms terms_version])
@@ -13,12 +14,6 @@ module Clinic
         render json: { activated: true, redirect_to: "/patient-portal" }, status: :created
       rescue ActivateIdentity::InvalidInvitation
         render json: { error: "That invitation is invalid or has expired.", code: "invalid_invitation" }, status: :unprocessable_entity
-      end
-
-      private
-
-      def require_synthetic_portal
-        head :not_found unless Rails.env.test? || DevelopmentAccess.allowed?(request)
       end
     end
   end
