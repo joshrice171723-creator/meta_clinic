@@ -95,6 +95,7 @@ export type PatientPortalContext = {
   capabilities: {
     billing_read: boolean;
     payment_collection: boolean;
+    password_change: boolean;
   };
   notices: string[];
   development_preview?: {

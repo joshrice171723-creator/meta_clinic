@@ -9,13 +9,14 @@ module Clinic
         record_portal_read("patient_portal.context.read")
         payload = {
           schema_version: "patient-portal-context-v1",
-          development_only: true,
+          development_only: DevelopmentAccess.allowed?(request),
           practice: { id: portal_practice.id, name: portal_practice.name, timezone: portal_practice.timezone },
           patient: { id: portal_patient.id, display_name: portal_patient.display_name, reference: portal_patient.reference },
           balances: ledger.fetch(:currencies).map { |currency| currency.slice(:currency, :invoiced_amount, :balance_amount, :allocated_amount, :credited_amount, :refunded_amount) },
           billing: { invoices: ledger.fetch(:invoices), payments: ledger.fetch(:payments) },
           capabilities: {
-            billing_read: true, payment_collection: payment_collection
+            billing_read: true, payment_collection: payment_collection,
+            password_change: patient_portal_identity.present?
           },
           notices: payment_notices(payment_collection)
         }

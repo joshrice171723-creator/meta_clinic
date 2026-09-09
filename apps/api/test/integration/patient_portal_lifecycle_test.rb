@@ -148,6 +148,30 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
     assert_equal @patient_user.id, MemberSession.find(@session.fetch(:member_session_id)).user_id
   end
 
+  test "authenticated patient password change verifies current credentials and rotates sessions" do
+    identity = activate(invite_identity.fetch(:token))
+    original_session_id = @session.fetch(:member_session_id)
+    replacement_password = "Patient-portal-replacement-2026!"
+
+    assert_raises(Clinic::PatientPortal::ChangePassword::InvalidCurrentPassword) do
+      Clinic::PatientPortal::ChangePassword.call(identity: identity, current_password: "incorrect-password",
+        password: replacement_password, password_confirmation: replacement_password, session: @session, now: @now)
+    end
+    assert MemberSession.exists?(original_session_id)
+    assert @patient_user.reload.authenticate(PORTAL_PASSWORD)
+
+    replacement_session = Clinic::PatientPortal::ChangePassword.call(identity: identity,
+      current_password: PORTAL_PASSWORD, password: replacement_password,
+      password_confirmation: replacement_password, session: @session, now: @now + 1.minute)
+
+    assert_not MemberSession.exists?(original_session_id)
+    assert_equal replacement_session.id, @session.fetch(:member_session_id)
+    assert_equal identity.id, @session.fetch(:patient_portal_identity_id)
+    assert_not @patient_user.reload.authenticate(PORTAL_PASSWORD)
+    assert @patient_user.authenticate(replacement_password)
+    assert @practice.audit_events.exists?(action_code: "patient_portal.identity.password_change", outcome: "committed")
+  end
+
   test "patient email changes preserve the bound portal identity and reject account collisions" do
     identity = activate(invite_identity.fetch(:token))
     original_session_id = @session.fetch(:member_session_id)

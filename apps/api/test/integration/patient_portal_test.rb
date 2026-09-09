@@ -192,6 +192,27 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
       get "/api/patient_portal/context", headers: @headers
       assert_response :success
       assert_equal patient.id, response.parsed_body.dig("patient", "id")
+      assert_equal false, response.parsed_body.fetch("development_only")
+      assert_equal true, response.parsed_body.dig("capabilities", "password_change")
+
+      patch "/api/patient_portal/account/password", params: { patient_portal_password: {
+        current_password: "incorrect-password", password: "Changed-patient-password-2026!",
+        password_confirmation: "Changed-patient-password-2026!"
+      } }, headers: local_csrf, as: :json
+      assert_response :unprocessable_entity
+
+      patch "/api/patient_portal/account/password", params: { patient_portal_password: {
+        current_password: "Patient-portal-password-2026!", password: "Changed-patient-password-2026!",
+        password_confirmation: "Changed-patient-password-2026!"
+      } }, headers: local_csrf, as: :json
+      assert_response :success
+      delete "/api/session", headers: local_csrf, as: :json
+      post "/api/session", params: { email_address: user.email_address,
+        password: "Patient-portal-password-2026!" }, headers: local_csrf, as: :json
+      assert_response :unauthorized
+      post "/api/session", params: { email_address: user.email_address,
+        password: "Changed-patient-password-2026!" }, headers: local_csrf, as: :json
+      assert_response :success
 
       ENV.delete("APP_CLINIC_PILOT_PRACTICE_IDS")
       get "/api/patient_portal/context", headers: @headers
