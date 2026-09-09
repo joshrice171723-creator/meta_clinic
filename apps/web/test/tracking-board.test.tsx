@@ -595,7 +595,7 @@ describe("board and Operations presentation boundaries", () => {
             ...EXAMPLE_VISITS[0],
             age: null,
             gender: null,
-            reason: "Same-day concern",
+            reason: "<script>example</script>",
             chiefComplaint: "<script>example</script>",
           },
         ]}

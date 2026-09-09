@@ -417,7 +417,7 @@ describe("provider encounter workflow", () => {
       patientReference: "SYN-007",
       age: 42,
       gender: "F",
-      stage: "unrecorded",
+      stage: "clinician",
       membership: "member",
       arrivedAt: "2026-09-01T14:00:00Z",
       triage: {
@@ -487,6 +487,7 @@ describe("provider encounter workflow", () => {
         starts_at: "2030-02-04T14:00:00Z",
         ends_at: "2030-02-04T14:30:00Z",
         visit_type_code: "SYN-BOARD-ANNUAL",
+        reason: "Annual wellness",
         site_id: "2",
         site_code: "MAIN",
         room_id: 3,
@@ -496,10 +497,6 @@ describe("provider encounter workflow", () => {
         ...EXAMPLE_CARE_SUMMARIES["EX-001"],
         patient_id: 8,
         encounter_id: 15,
-      },
-      synthetic_scenario: {
-        stage: "waiting",
-        reason: "Annual wellness",
       },
     });
 
@@ -568,7 +565,6 @@ describe("provider encounter workflow", () => {
     expect(html).toContain("Confirm and begin charting");
     expect(html).not.toContain("SOAP editor");
     expect(html).not.toContain("Open Scribe");
-
   });
 
   it("offers chart quick links to patient, HPI, and ROS anchors", () => {
@@ -691,9 +687,7 @@ describe("provider encounter workflow", () => {
     );
     expect(html).toContain("Draft revision 2");
     expect(html).toContain("Save new revision");
-    expect(html).toContain(
-      "Template text is editable and remains unverified",
-    );
+    expect(html).toContain("Template text is editable and remains unverified");
     expect(html).not.toContain("Start correction");
   });
 

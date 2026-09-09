@@ -236,30 +236,36 @@ export function loginDestination(value: string | null): string {
       "conversation_id",
       "page",
     ]);
+    let recognized = false;
     for (const [name, item] of query.entries()) {
       if (safe.has(name)) return "/portal";
       if (integerNames.has(name)) {
+        recognized = true;
         if (!/^[1-9]\d*$/.test(item) || !Number.isSafeInteger(Number(item)))
-          return "/portal";
+          continue;
       } else if (name === "telehealth_visit_id") {
+        recognized = true;
         if (
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
             item,
           )
         )
-          return "/portal";
+          continue;
       } else if (name === "visit_modality") {
-        if (item !== "video") return "/portal";
+        recognized = true;
+        if (item !== "video") continue;
       } else if (name === "invoice_payment") {
-        if (!["return", "cancel"].includes(item)) return "/portal";
+        recognized = true;
+        if (!["return", "cancel"].includes(item)) continue;
       } else if (name === "mode") {
-        if (!["current", "previous"].includes(item)) return "/portal";
+        recognized = true;
+        if (!["current", "previous"].includes(item)) continue;
       } else {
-        return "/portal";
+        continue;
       }
       safe.set(name, item);
     }
-    return safe.size ? `${path}?${safe}` : "/portal";
+    return safe.size ? `${path}?${safe}` : recognized ? path : "/portal";
   }
   if (value === "/patient-portal") return value;
   if (/^\/patient-portal\/telehealth\/[0-9a-f-]{36}$/i.test(value))

@@ -3,7 +3,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LaunchIcon from "@mui/icons-material/Launch";
 import MenuIcon from "@mui/icons-material/Menu";
-import PublicIcon from "@mui/icons-material/Public";
 import IconButton from "@mui/material/IconButton";
 import type { ClinicSite } from "../../api/contracts";
 import { Form } from "../../shared/ui";
@@ -132,11 +131,7 @@ export function ClinicFrame({
             close();
         }}
         onKeyDown={(event) => {
-          if (
-            drawer &&
-            !event.defaultPrevented &&
-            event.key === "Escape"
-          ) {
+          if (drawer && !event.defaultPrevented && event.key === "Escape") {
             event.preventDefault();
             close();
           }
@@ -300,10 +295,6 @@ export function ClinicFrame({
             <a href="/portal">
               <LaunchIcon aria-hidden="true" fontSize="small" />
               <span>Launch &amp; onboarding</span>
-            </a>
-            <a href="/">
-              <PublicIcon aria-hidden="true" fontSize="small" />
-              <span>APPly selling site</span>
             </a>
             {!developmentPreview && (
               <Form

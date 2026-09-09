@@ -20,7 +20,7 @@ describe("clinic shell composition", () => {
     expect(frame).toContain("MenuIcon");
     expect(frame).toContain("CloseIcon");
     expect(frame).toContain("LaunchIcon");
-    expect(frame).toContain("PublicIcon");
+    expect(frame).not.toContain("PublicIcon");
     expect(frame).toContain('aria-label={collapsed ? "Open clinic menu"');
     expect(frame).toMatch(
       /drawer &&\s*!event\.defaultPrevented &&\s*event\.key === "Escape"/,
@@ -47,7 +47,7 @@ describe("clinic shell composition", () => {
     expect(frameCss).not.toContain("clinic-chart-tab");
   });
 
-  it("keeps current clinic context and cross-product exits in the shell", () => {
+  it("keeps current clinic context and the launch workspace exit in the shell", () => {
     for (const icon of [
       "DashboardIcon",
       "PersonSearchIcon",
@@ -66,7 +66,7 @@ describe("clinic shell composition", () => {
     expect(workspace).toContain("data?.current_site?.name");
     expect(workspace).toContain('method: "PATCH"');
     expect(frame).toContain('href="/portal"');
-    expect(frame).toContain('href="/"');
+    expect(frame).not.toContain('href="/"');
   });
 
   it("keeps 1024px rail use while moving portrait tablet widths into the drawer fallback", () => {

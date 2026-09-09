@@ -284,8 +284,6 @@ function LaunchLayout({
           <span className="brand-dot" />
         </a>
         <nav aria-label="Main navigation">
-          <a href="/#approach">The approach</a>
-          <a href="/#process">How it works</a>
           <a className="login-link" href={user ? "/portal" : "/login"}>
             {user ? "My launch" : "Member login"}
           </a>
