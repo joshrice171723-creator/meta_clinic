@@ -55,6 +55,50 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     @environment.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
   end
 
+  test "patient preparation retries cannot resolve a receipt from another visit" do
+    first = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    second = book_video!(starts_at: 2.hours.from_now).telehealth_visit
+    input = complete_checkin
+    version = first.lock_version
+    checkin = Clinic::Telehealth::SubmitCheckin.call(visit: first, identity: @identity,
+      request_key: "patient-visit-bound-checkin", expected_version: version, checkin: input)
+    replay = Clinic::Telehealth::SubmitCheckin.call(visit: first, identity: @identity,
+      request_key: "patient-visit-bound-checkin", expected_version: version, checkin: input)
+    assert_equal checkin.id, replay.id
+    assert_equal 1, first.checkins.count
+    assert_equal version, second.lock_version
+    assert_raises(Clinic::Idempotency::Conflict) do
+      Clinic::Telehealth::SubmitCheckin.call(visit: second, identity: @identity,
+        request_key: "patient-visit-bound-checkin", expected_version: second.lock_version, checkin: input)
+    end
+    assert_empty second.checkins
+    assert_equal version, second.reload.lock_version
+  end
+
+  test "repeated pending extensions reuse the provider command and terminal visits cannot extend" do
+    visit = book_video!(starts_at: 10.minutes.from_now).telehealth_visit
+    room = ready_room!(visit)
+    room.update!(expires_at: 20.minutes.from_now)
+    visit.update!(status: "in_progress", first_started_at: Time.current)
+    first = Clinic::Telehealth::ExtendVisit.call(visit: visit, actor: @staff,
+      request_key: "extend-pending-first", expected_version: visit.lock_version, requested_expires_at: nil)
+    second = Clinic::Telehealth::ExtendVisit.call(visit: visit, actor: @staff,
+      request_key: "extend-pending-again", expected_version: visit.lock_version, requested_expires_at: nil)
+    assert_equal first.id, second.id
+    assert_equal 1, visit.commands.where(kind: "extend_room").count
+    assert_predicate second, :pending?
+    assert_equal (room.expires_at + 15.minutes).to_i, second.requested_expires_at.to_i
+
+    visit.update!(status: "cancelled")
+    error = assert_raises(Clinic::Telehealth::Error) do
+      Clinic::Telehealth::ExtendVisit.call(visit: visit, actor: @staff,
+        request_key: "extend-after-cancellation", expected_version: visit.lock_version, requested_expires_at: nil)
+    end
+    assert_equal "visit_not_extendable", error.code
+    assert_predicate visit.reload, :cancelled?
+    assert_equal 1, visit.commands.where(kind: "extend_room").count
+  end
+
   test "queue scopes telehealth reads independently of unrelated site permissions and preserves Omni access" do
     visible = direct_video_visit!(starts_at: 1.day.from_now.change(hour: 12))
     hidden = direct_video_visit!(site: @other_site, starts_at: visible.appointment.ends_at + 1.minute)
