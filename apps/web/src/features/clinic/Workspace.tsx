@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useEffect } from "react";
+import { Button } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
@@ -235,7 +236,11 @@ export function Workspace({
   businessDate?: string;
 }) {
   const { navigate } = useClinicNavigation();
-  const { data, error } = useResource<ClinicWorkspaceContext>(
+  const {
+    data,
+    error,
+    refresh: refreshWorkspace,
+  } = useResource<ClinicWorkspaceContext>(
     "/api/clinic/context",
   );
   const overview = useResource<ClinicOverview>("/api/clinic");
@@ -260,6 +265,17 @@ export function Workspace({
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
           <LoadState error={error || overview.error} />
+          {(error || overview.error) && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                refreshWorkspace();
+                overview.refresh();
+              }}
+            >
+              Try again
+            </Button>
+          )}
           <a href="/portal">Return to My launch</a>
         </main>
       </ClinicAppearanceScope>

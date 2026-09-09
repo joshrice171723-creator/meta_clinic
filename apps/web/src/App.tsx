@@ -181,8 +181,20 @@ const ScribeReviewPage = lazyNamed(
   (m) => m.ScribeReviewPage,
 );
 
-function RoutePending({ root = false }: { root?: boolean }) {
-  const status = <LoadState />;
+export function RoutePending({ root = false }: { root?: boolean }) {
+  const status = (
+    <section aria-labelledby="route-loading-title">
+      <p id="route-loading-title" role="status">
+        Loading this page…
+      </p>
+      <p className="page-fine-print">
+        If it does not open shortly, reload the page to reconnect.
+      </p>
+      <Button size="small" onClick={() => window.location.reload()}>
+        Reload page
+      </Button>
+    </section>
+  );
   return root ? (
     <main id="main" className="wrap inner-page">
       {status}
