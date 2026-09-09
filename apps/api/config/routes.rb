@@ -8,6 +8,8 @@ Rails.application.routes.draw do
     root "dashboard#show"
     get "context", to: "context#show"
     patch "context", to: "context#update"
+    get "working_drafts/:kind", to: "working_drafts#show"
+    put "working_drafts/:kind", to: "working_drafts#update"
     namespace :telehealth do
       get "booking_options", to: "booking_options#show"
       get "visits", to: "visits#index"

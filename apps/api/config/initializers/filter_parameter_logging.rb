@@ -4,6 +4,7 @@
 # Use this to limit dissemination of sensitive information.
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
+  :payload, # Encrypted working-copy values and pending operation bodies.
   :pin, :badge, :challenge, :enrollment_code, :activation_code,
   :employee_identifiers, :proposed_values, :interval, # Workforce credentials and private payroll/correction details.
   :data, # Stripe webhook objects can contain customer/payment details.
