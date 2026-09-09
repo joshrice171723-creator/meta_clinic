@@ -11,6 +11,7 @@ module Clinic
     has_many :payment_allocations, class_name: "Clinic::PaymentAllocation", dependent: :restrict_with_error
     has_many :payment_collection_intents, class_name: "Clinic::PaymentCollectionIntent", dependent: :restrict_with_error
     has_many :invoice_stripe_checkouts, class_name: "Clinic::Billing::InvoiceStripeCheckout", dependent: :restrict_with_error
+    has_one :subscription_agreement, class_name: "Clinic::Care::SubscriptionAgreement", dependent: :restrict_with_error
     has_many :credit_notes, class_name: "Clinic::CreditNote", dependent: :restrict_with_error
     has_many :insurance_claims, class_name: "Clinic::InsuranceClaim", dependent: :restrict_with_error
 

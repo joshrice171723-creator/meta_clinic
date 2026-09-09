@@ -50,6 +50,7 @@ export function ClinicFrame({
   const selectedLocation = locations.find(
     (site) => site.id === selectedLocationId,
   );
+  const highlightedLocationId = locations[highlightedLocation]?.id;
   const visibleLocationName =
     locationName || selectedLocation?.name || selectedLocation?.code;
   const selectLocation = (siteId: number) => {
@@ -233,6 +234,11 @@ export function ClinicFrame({
                       className="practice-location-menu"
                       role="listbox"
                       aria-label="Current clinic location"
+                      aria-activedescendant={
+                        highlightedLocationId
+                          ? `clinic-location-option-${highlightedLocationId}`
+                          : undefined
+                      }
                       tabIndex={-1}
                       onKeyDown={(event) => {
                         if (event.key === "Escape") {
@@ -266,6 +272,7 @@ export function ClinicFrame({
                       {locations.map((site, index) => (
                         <button
                           key={site.id}
+                          id={`clinic-location-option-${site.id}`}
                           type="button"
                           role="option"
                           aria-selected={site.id === selectedLocationId}

@@ -64,6 +64,28 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_equal "temporarily_closed", response.parsed_body.fetch("site").fetch("status")
   end
 
+  test "detailed facility list batches profile associations" do
+    2.times do |index|
+      site = @practice.sites.create!(code: "BATCH-#{index}", name: "Batch facility #{index}", status: "draft")
+      site.operating_hours.create!(practice: @practice, day_of_week: index, closed: true)
+      site.hour_exceptions.create!(practice: @practice, date: Date.new(2026, 12, index + 1), closed: true)
+      site.rooms.create!(practice: @practice, code: "ROOM-#{index}")
+    end
+    queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        get "/api/clinic/facilities", params: { type: "sites", detail: "true" }, headers: @headers
+      end
+    end
+
+    assert_response :success
+    %w[clinic_site_operating_hours clinic_site_hour_exceptions clinic_rooms].each do |table|
+      assert_equal 1, queries.count { |sql| sql.match?(/FROM "#{table}"/i) }, queries.join("\n")
+    end
+  end
+
   test "a rejected hours update leaves the facility identity unchanged" do
     site = @practice.sites.create!(code: "ATOMIC", name: "Atomic facility", status: "draft")
 

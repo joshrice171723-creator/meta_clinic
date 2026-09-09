@@ -437,6 +437,8 @@ module Clinic
       private_class_method :validated_request_key
 
       def self.membership_invoice?(invoice)
+        return invoice.subscription_agreement.present? if invoice.association(:subscription_agreement).loaded?
+
         Care::SubscriptionAgreement.where(practice: invoice.practice, invoice: invoice).exists?
       end
       private_class_method :membership_invoice?

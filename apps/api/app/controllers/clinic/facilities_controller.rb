@@ -14,6 +14,7 @@ module Clinic
       end
       records = records.where(id: current_clinic_site&.id || -1) if type == "sites" && params[:selected_only].to_s == "true"
       records = records.where("code ILIKE ?", "%#{records.model.sanitize_sql_like(query)}%") if query.present?
+      records = records.includes(:operating_hours, :hour_exceptions, :rooms) if type == "sites" && params[:detail].to_s == "true"
 
       serializer = case type
       when "sites" then ->(record) { FacilitySerializer.site(record, detail: params[:detail].to_s == "true") }

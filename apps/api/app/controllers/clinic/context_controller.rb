@@ -116,7 +116,7 @@ module Clinic
     end
 
     def allowed?(action)
-      Clinic::Authorization.allowed?(actor: current_user, practice: current_practice, action: action, any_site: true)
+      current_ability.allowed_permission?(action, any_site: true)
     end
 
     def current_credential_types

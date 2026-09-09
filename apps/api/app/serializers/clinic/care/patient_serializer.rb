@@ -31,7 +31,11 @@ module Clinic
       end
 
       def self.current_versions(relation, partition_by: nil)
-        ordered = relation.order(created_at: :desc, id: :desc).to_a
+        ordered = if relation.loaded?
+          relation.sort_by { |record| [ record.created_at, record.id ] }.reverse
+        else
+          relation.order(created_at: :desc, id: :desc).to_a
+        end
         latest = partition_by ? ordered.uniq { |record| record.public_send(partition_by) } : ordered.first(1)
         latest.select { |record| record.effective_until.nil? }
       end

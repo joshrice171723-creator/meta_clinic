@@ -9,7 +9,7 @@ module Clinic
             id: appointment.patient.id,
             display_name: appointment.patient.display_name,
             reference: appointment.patient.reference,
-            phone: appointment.patient.communication_endpoints.verified.phone.first&.value
+            phone: patient_phone(appointment.patient)
           },
           site_id: appointment.site_id,
           room_id: appointment.room_id,
@@ -30,10 +30,17 @@ module Clinic
       end
 
       def self.telehealth(visit, actor:)
-        Clinic::Telehealth::SummarySerializer.call(visit, actor: actor)&.slice(
-          :public_id, :status, :prepare_href, :clinic_href
-        )
+        Clinic::Telehealth::SummarySerializer.reference(visit)
       end
+
+      def self.patient_phone(patient)
+        if patient.association(:communication_endpoints).loaded?
+          patient.communication_endpoints.find { |endpoint| endpoint.verified_at.present? && endpoint.invalidated_at.nil? && endpoint.phone? }&.value
+        else
+          patient.communication_endpoints.verified.phone.first&.value
+        end
+      end
+      private_class_method :patient_phone
     end
   end
 end

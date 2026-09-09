@@ -8,7 +8,8 @@ module Clinic
 
       def index
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
-        invoices = patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents)
+        invoices = patient.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents, :subscription_agreement,
+          invoice_stripe_checkouts: :collection_intent)
         if params[:encounter_id].present?
           encounter = current_practice.encounters.where(patient_id: patient.id).find(requested_id!(params[:encounter_id], :encounter_id))
           invoices = invoices.where(encounter_id: encounter.id)
@@ -18,7 +19,8 @@ module Clinic
       end
 
       def show
-        invoice = current_practice.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents).find(requested_id!(params[:id], :id))
+        invoice = current_practice.invoices.includes(:lines, :payment_allocations, :credit_notes, :payment_collection_intents, :subscription_agreement,
+          invoice_stripe_checkouts: :collection_intent).find(requested_id!(params[:id], :id))
         verify_patient_scope!(invoice) if params[:patient_id].present?
         render json: { invoice: InvoiceSerializer.call(invoice, detail: true) }
       end

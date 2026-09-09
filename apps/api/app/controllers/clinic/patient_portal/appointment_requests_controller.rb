@@ -1,7 +1,7 @@
 module Clinic
   module PatientPortal
     class AppointmentRequestsController < BaseController
-      REQUEST_INCLUDES = [ :site, :visit_type, :source_site, :patient,
+      REQUEST_INCLUDES = [ :site, :visit_type, :source_site, :source_appointment, :patient,
         { appointment: [ :site, :room, :booked_clinician, :visit_type,
           { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] } ] } ].freeze
       APPOINTMENT_INCLUDES = [ :site, :room, :booked_clinician, :visit_type, :encounter,

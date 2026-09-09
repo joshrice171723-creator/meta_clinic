@@ -84,6 +84,31 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "appointment lists reuse preloaded patient phone endpoints" do
+    practice = @own.fetch(:practice)
+    patient = @own.fetch(:patient)
+    grant_permissions!(practice.memberships.find_by!(user: @own.fetch(:user)), "appointments.read")
+    practice.communication_endpoints.create!(patient: patient, endpoint_type: "phone", label: "Mobile",
+      value: "+15005550123", value_digest: Digest::SHA256.hexdigest("+15005550123"), verified_at: Time.current)
+    2.times do |index|
+      starts_at = Time.utc(2026, 10, 2, 9 + index)
+      practice.appointments.create!(patient: patient, site: @own.fetch(:site), starts_at: starts_at,
+        ends_at: starts_at + 30.minutes, status: "scheduled")
+    end
+    queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        get "/api/clinic/appointments", headers: @headers
+      end
+    end
+
+    assert_response :success
+    assert_equal [ "+15005550123", "+15005550123" ], response.parsed_body.fetch("appointments").pluck("patient").pluck("phone")
+    assert_equal 1, queries.count { |sql| sql.match?(/FROM "clinic_communication_endpoints"/i) }, queries.join("\n")
+  end
+
   test "incomplete and reversed calendar ranges fail instead of widening the appointment search" do
     grant_permissions!(@own.fetch(:practice).memberships.find_by!(user: @own.fetch(:user)), "appointments.read")
     [

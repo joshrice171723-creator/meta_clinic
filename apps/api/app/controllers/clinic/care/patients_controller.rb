@@ -108,11 +108,11 @@ module Clinic
         else
           update_patient.call
         end
-        render json: { patient: PatientSerializer.call(updated.reload, detail: true), request_key: request_key }
+        render json: { patient: PatientSerializer.call(patient_detail_scope.find(updated.id), detail: true), request_key: request_key }
       end
 
       def show
-        patient = current_practice.patients.accessible_by(current_ability, :read).find(integer_id!(params[:id], field: :id))
+        patient = patient_detail_scope.find(integer_id!(params[:id], field: :id))
         render json: { patient: PatientSerializer.call(patient, detail: true),
           notes: patient.notes.order(created_at: :desc, id: :desc).map { |note| {
             id: note.id, body: note.body, author_id: note.author_id, created_at: note.created_at
@@ -128,6 +128,11 @@ module Clinic
 
       def patient_input
         parameter_hash!(:clinic_patient, %i[display_name reference date_of_birth sex primary_language interpreter_required contact_type contact_value preferred emergency_name emergency_relationship emergency_phone permission_to_contact preferred_contact_method appointment_reminders_consent general_communications_consent tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors expected_updated_at request_key])
+      end
+
+      def patient_detail_scope
+        current_practice.patients.accessible_by(current_ability, :read)
+          .includes(:demographics, :contacts, :emergency_contacts, :communication_preference, :social_histories)
       end
 
       def save_registration!(patient, input)

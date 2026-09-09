@@ -40,22 +40,31 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
       employment: @employment, period_start: card.period_start)
   end
 
-  test "timecard interval splitting loads setting boundaries once" do
+  test "timecard interval settings are resolved in one query" do
     create_punch("clock_in", "2026-09-01T13:00:00Z")
     create_punch("break_start", "2026-09-01T16:00:00Z")
     create_punch("break_end", "2026-09-01T16:30:00Z")
     create_punch("clock_out", "2026-09-01T21:00:00Z")
-    boundary_queries = []
-    subscriber = ->(_name, _started, _finished, _unique_id, payload) { boundary_queries << payload[:sql].to_s }
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 2,
+      effective_from: Time.utc(2026, 9, 1, 16), created_by_membership: @manager_membership,
+      values: settings.merge("rounding_mode" => "none"))
+    setting_queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { setting_queries << payload[:sql].to_s }
+    card = nil
 
     ActiveRecord::Base.uncached do
       ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
-        calculate_card
+        card = calculate_card
       end
     end
 
-    assert_equal 1, boundary_queries.count { |sql| sql.match?(/FROM "clinic_workforce_settings_versions".*effective_from.*>=.*effective_from.*</mi) },
-      boundary_queries.join("\n")
+    resolved_setting_queries = setting_queries.select do |sql|
+      sql.match?(/FROM "clinic_workforce_settings_versions"/i) &&
+        sql.match?(/ORDER BY "clinic_workforce_settings_versions"\."effective_from" DESC/i) &&
+        !sql.match?(/"scope_kind"/i)
+    end
+    assert_equal 1, resolved_setting_queries.count, resolved_setting_queries.join("\n")
+    assert_equal [ 1, 2, 2 ], card.time_segments.order(:started_at_utc).map { |segment| segment.settings_provenance.dig("practice", "revision") }
   end
 
   test "open shift remains unresolved and cannot be approved" do

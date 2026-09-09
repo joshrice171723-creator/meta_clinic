@@ -69,7 +69,7 @@ module Clinic
 
       def show
         conversation = StaffPolicy.conversation_for!(practice: current_practice, actor: current_user, id: requested_id!(params[:id], :id))
-        messages, pagination = paginated_records(conversation.messages.includes(:sender_membership, :request, :attachments), order: { created_at: :asc, id: :asc }, default_per_page: 50)
+        messages, pagination = paginated_records(conversation.messages.includes({ sender_membership: :user }, :request, :attachments), order: { created_at: :asc, id: :asc }, default_per_page: 50)
         render json: {
           conversation: StaffMessagingSerializer.conversation(conversation, actor_membership_id: clinic_membership.id),
           messages: messages.map { |message| StaffMessagingSerializer.message(message) }, pagination: pagination

@@ -58,10 +58,16 @@ module Clinic
         linked_object: message.linked_object_type && { type: message.linked_object_type, id: message.linked_object_id },
         request: request && { id: request.id, state: request.state, assignee_membership_id: request.assignee_membership_id,
           due_at: request.due_at, resolved_at: request.resolved_at, resolution_code: request.resolution_code },
-        attachments: message.attachments.order(:id).map { |attachment|
+        attachments: ordered_attachments(message).map { |attachment|
           { id: attachment.id, content_type: attachment.content_type, byte_size: attachment.byte_size, scan_state: attachment.scan_state }
         }
       }
+    end
+
+    def ordered_attachments(message)
+      return message.attachments.sort_by(&:id) if message.association(:attachments).loaded?
+
+      message.attachments.order(:id).to_a
     end
 
     def notification(notification)

@@ -2,7 +2,7 @@ module Clinic
   module Operations
     class AppointmentRequestsController < Clinic::ApiController
       STATUSES = Clinic::PatientPortal::AppointmentRequest.statuses.keys.freeze
-      INCLUDES = [ :patient, :site, :visit_type, :source_site,
+      INCLUDES = [ :patient, :site, :visit_type, :source_site, :source_appointment,
         { appointment: [ :site, :room, :booked_clinician, :visit_type ] } ].freeze
 
       before_action -> { require_capability("appointments.read", any_site: true) }, only: :index

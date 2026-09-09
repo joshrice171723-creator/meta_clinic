@@ -53,6 +53,20 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "FOREIGN"
   end
 
+  test "clinic context builds its authorization graph once" do
+    queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        get "/api/clinic/context", headers: @headers
+      end
+    end
+
+    assert_response :success
+    assert_operator queries.count { |sql| sql.match?(/FROM "clinic_role_grants"/i) }, :<=, 1, queries.join("\n")
+  end
+
   test "clinic context switches assigned locations and filters the selected facility" do
     first = @practice.sites.create!(code: "MAIN", name: "Main synthetic location")
     second = @practice.sites.create!(code: "ANNEX", name: "Annex synthetic location")
