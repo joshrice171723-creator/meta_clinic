@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Alert, Button, MenuItem, TextField } from "@mui/material";
+import { Alert, Button, Collapse, MenuItem, TextField } from "@mui/material";
 import type {
   Decimal,
   InventoryCountData,
@@ -123,6 +123,7 @@ export function CycleCountsScreen({
   const [dueOn, setDueOn] = useState("");
   const [blind, setBlind] = useState(true);
   const [createReason, setCreateReason] = useState("");
+  const [createFormExpanded, setCreateFormExpanded] = useState(!session);
   const [lineId, setLineId] = useState("");
   const [countedUnits, setCountedUnits] = useState("");
   const [observationReason, setObservationReason] = useState("");
@@ -137,6 +138,7 @@ export function CycleCountsScreen({
   const formLocked = loading || busy || Boolean(error) || readBlocked;
 
   useEffect(() => setQuery(queue.query), [queue.query]);
+  useEffect(() => setCreateFormExpanded(!session), [session?.id]);
   useEffect(() => {
     const pendingScan = scanTarget.current;
     const target =
@@ -436,113 +438,6 @@ export function CycleCountsScreen({
             </Button>
           </nav>
         )}
-      </Card>
-
-      <Card title="Create count session">
-        <p className="inventory-info">
-          Creation freezes the current stock positions in one active leaf bin.
-          Sessions are opened immediately and are not scheduled automatically.
-        </p>
-        <form
-          className="inventory-form-grid"
-          onSubmit={(event) => event.preventDefault()}
-        >
-          <TextField
-            select
-            size="small"
-            label="Leaf bin"
-            value={locationId}
-            disabled={formLocked}
-            required
-            onChange={(event) => setLocationId(event.target.value)}
-          >
-            {data.locations.map((record) => (
-              <MenuItem key={record.id} value={record.id}>
-                {record.path}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Assigned counter"
-            value={assigneeId}
-            disabled={formLocked}
-            required
-            onChange={(event) => setAssigneeId(event.target.value)}
-          >
-            {data.assignees.map((record) => (
-              <MenuItem key={record.id} value={record.id}>
-                {record.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            size="small"
-            type="date"
-            label="Due date"
-            value={dueOn}
-            disabled={formLocked}
-            required
-            slotProps={{ inputLabel: { shrink: true } }}
-            onChange={(event) => setDueOn(event.target.value)}
-          />
-          <TextField
-            select
-            size="small"
-            label="Counting mode"
-            value={blind ? "blind" : "visible"}
-            disabled={formLocked}
-            onChange={(event) => setBlind(event.target.value === "blind")}
-          >
-            <MenuItem value="blind">Blind count</MenuItem>
-            <MenuItem value="visible">Show expected quantity</MenuItem>
-          </TextField>
-          <TextField
-            size="small"
-            label="Session reason"
-            value={createReason}
-            disabled={formLocked}
-            required
-            multiline
-            minRows={2}
-            slotProps={{ htmlInput: { maxLength: 200 } }}
-            onChange={(event) => setCreateReason(event.target.value)}
-          />
-          {!canConfigure && (
-            <span className="inventory-permission">
-              View only · inventory.configure is required for this action.
-            </span>
-          )}
-          <Button
-            variant="contained"
-            disabled={mutationDisabled(
-              createEndpoint,
-              createBody,
-              createInvalid,
-              canConfigure,
-            )}
-            onClick={() =>
-              void run(
-                createEndpoint,
-                createBody,
-                "Count session created",
-                "The frozen bin positions are ready for the assigned counter.",
-                () => {
-                  setLocationId("");
-                  setAssigneeId("");
-                  setDueOn("");
-                  setCreateReason("");
-                  setBlind(true);
-                },
-              )
-            }
-          >
-            {isSamePending(createEndpoint, createBody)
-              ? "Retry creation"
-              : "Create count session"}
-          </Button>
-        </form>
       </Card>
 
       {session && (
@@ -1147,6 +1042,123 @@ export function CycleCountsScreen({
           </Card>
         </>
       )}
+
+      <Card title={session ? "Start another count" : "Create count session"}>
+        {session && !createFormExpanded && (
+          <Button
+            variant="outlined"
+            onClick={() => setCreateFormExpanded(true)}
+          >
+            Start another count
+          </Button>
+        )}
+        <Collapse in={createFormExpanded}>
+          <p className="inventory-info">
+            Creation freezes the current stock positions in one active leaf bin.
+            Sessions are opened immediately and are not scheduled automatically.
+          </p>
+          <form
+            className="inventory-form-grid"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <TextField
+              select
+              size="small"
+              label="Leaf bin"
+              value={locationId}
+              disabled={formLocked}
+              required
+              onChange={(event) => setLocationId(event.target.value)}
+            >
+              {data.locations.map((record) => (
+                <MenuItem key={record.id} value={record.id}>
+                  {record.path}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              size="small"
+              label="Assigned counter"
+              value={assigneeId}
+              disabled={formLocked}
+              required
+              onChange={(event) => setAssigneeId(event.target.value)}
+            >
+              {data.assignees.map((record) => (
+                <MenuItem key={record.id} value={record.id}>
+                  {record.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              size="small"
+              type="date"
+              label="Due date"
+              value={dueOn}
+              disabled={formLocked}
+              required
+              slotProps={{ inputLabel: { shrink: true } }}
+              onChange={(event) => setDueOn(event.target.value)}
+            />
+            <TextField
+              select
+              size="small"
+              label="Counting mode"
+              value={blind ? "blind" : "visible"}
+              disabled={formLocked}
+              onChange={(event) => setBlind(event.target.value === "blind")}
+            >
+              <MenuItem value="blind">Blind count</MenuItem>
+              <MenuItem value="visible">Show expected quantity</MenuItem>
+            </TextField>
+            <TextField
+              size="small"
+              label="Session reason"
+              value={createReason}
+              disabled={formLocked}
+              required
+              multiline
+              minRows={2}
+              slotProps={{ htmlInput: { maxLength: 200 } }}
+              onChange={(event) => setCreateReason(event.target.value)}
+            />
+            {!canConfigure && (
+              <span className="inventory-permission">
+                View only · inventory.configure is required for this action.
+              </span>
+            )}
+            <Button
+              variant="contained"
+              disabled={mutationDisabled(
+                createEndpoint,
+                createBody,
+                createInvalid,
+                canConfigure,
+              )}
+              onClick={() =>
+                void run(
+                  createEndpoint,
+                  createBody,
+                  "Count session created",
+                  "The frozen bin positions are ready for the assigned counter.",
+                  () => {
+                    setLocationId("");
+                    setAssigneeId("");
+                    setDueOn("");
+                    setCreateReason("");
+                    setBlind(true);
+                  },
+                )
+              }
+            >
+              {isSamePending(createEndpoint, createBody)
+                ? "Retry creation"
+                : "Create count session"}
+            </Button>
+          </form>
+        </Collapse>
+      </Card>
     </div>
   );
 }
