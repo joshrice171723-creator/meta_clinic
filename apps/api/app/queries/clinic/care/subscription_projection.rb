@@ -16,26 +16,71 @@ module Clinic
       end
 
       def self.agreement(agreement)
+        project(
+          agreement,
+          events: agreement.events.order(:id).to_a,
+          stripe_checkout: Clinic::Billing::StripeCheckout.find_by(practice: agreement.practice, agreement: agreement)
+        )
+      end
+
+      def self.collection(agreements)
+        values = agreements.to_a
+        return [] if values.empty?
+
+        ActiveRecord::Associations::Preloader.new(
+          records: values,
+          associations: [ :events, { invoice: %i[lines payment_allocations credit_notes] } ]
+        ).call
+        checkouts = Clinic::Billing::StripeCheckout.where(
+          practice_id: values.first.practice_id,
+          agreement_id: values.map(&:id)
+        ).index_by(&:agreement_id)
+        values.map do |agreement|
+          project(
+            agreement,
+            events: agreement.events.to_a.sort_by(&:id),
+            stripe_checkout: checkouts[agreement.id]
+          )
+        end
+      end
+
+      def self.project(agreement, events:, stripe_checkout:)
         invoice = agreement.invoice
-        active = agreement.events.where(kind: "active").order(id: :desc).first
-        stripe_checkout = Clinic::Billing::StripeCheckout.find_by(practice: agreement.practice, agreement: agreement)
-        canceled = agreement.events.find_by(kind: "canceled")
+        active = events.reverse.find { |event| event.kind == "active" }
+        canceled = events.find { |event| event.kind == "canceled" }
         {
           id: agreement.id, invoice_id: invoice.id, patient_id: agreement.patient_id,
-          version_id: agreement.version_id, state: agreement.current_state,
+          version_id: agreement.version_id, state: state_for(events),
           terms: agreement.snapshot, amount: agreement.amount.to_s("F"), currency: agreement.currency,
           processor: stripe_checkout ? "stripe" : "development_fixture",
           renewal_status: stripe_checkout&.subscription_status,
           renewal_canceled: stripe_checkout&.cancel_at_period_end || %w[canceled incomplete_expired].include?(stripe_checkout&.subscription_status),
           checkout_status: stripe_checkout&.session_status, last_synced_at: stripe_checkout&.last_synced_at&.iso8601,
           renewal_amount_due: stripe_checkout&.renewal_amount_due&.to_s("F"), renewal_invoice_status: stripe_checkout&.renewal_invoice_status,
-          balance: invoice.status == "posted" ? [invoice.lines.sum(:posted_amount) - invoice.payment_allocations.sum(:amount) - invoice.credit_notes.sum(:amount), BigDecimal("0")].max.to_s("F") : "0.0",
+          balance: invoice.status == "posted" ? [
+            invoice.lines.sum { |line| line.posted_amount || 0 } -
+              invoice.payment_allocations.sum { |allocation| allocation.amount || 0 } -
+              invoice.credit_notes.sum { |credit| credit.amount || 0 },
+            BigDecimal("0")
+          ].max.to_s("F") : "0.0",
           invoice_status: invoice.status, starts_at: active&.details&.fetch("starts_at", nil),
           ends_at: active&.details&.fetch("ends_at", nil), cancellation_effective_at:
             stripe_checkout&.cancel_at_period_end || stripe_checkout&.subscription_status == "canceled" ? active&.details&.fetch("ends_at", nil) : canceled&.details&.fetch("effective_at", nil),
-          events: agreement.events.order(:id).map { |event| { kind: event.kind, occurred_at: event.created_at.iso8601 } }
+          events: events.map { |event| { kind: event.kind, occurred_at: event.created_at.iso8601 } }
         }
       end
+
+      def self.state_for(events)
+        latest = events.last
+        return "pending_payment" unless latest
+        return "expired" if latest.kind == "active" && Time.iso8601(latest.details.fetch("ends_at")) <= Current.business_time
+        return "active" if latest.kind == "canceled" && Time.iso8601(latest.details.fetch("effective_at")) > Current.business_time
+
+        latest.kind
+      end
+
+      private_class_method :project
+      private_class_method :state_for
     end
   end
 end

@@ -41,7 +41,7 @@ module Clinic
             END = :state
           SQL
         end
-        items = records.limit(201).map { |r| Care::SubscriptionProjection.agreement(r) }
+        items = Care::SubscriptionProjection.collection(records.limit(201))
         ability = Ability.new(current_user, practice: current_practice)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "subscriptions.billing.read", outcome: :released)
         render json: { subscriptions: items.first(200), truncated: items.length > 200,

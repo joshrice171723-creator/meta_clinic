@@ -19,7 +19,7 @@ module Clinic
         record_portal_read("patient_portal.subscriptions.read")
         checkout_available = Billing::StripeConnect.patient_checkout_available?(portal_practice)
         render json: { catalog: Care::SubscriptionProjection.catalog(practice: portal_practice),
-          subscriptions: agreements.order(id: :desc).map { |r| Care::SubscriptionProjection.agreement(r).except(:patient_id) },
+          subscriptions: Care::SubscriptionProjection.collection(agreements.order(id: :desc)).map { |r| r.except(:patient_id) },
           can_purchase: patient_portal_identity.present? && !development_omni_preview?,
           processor: Billing::StripeConnect.connection(portal_practice)&.account_id ? "stripe" : "development_fixture",
           payment: {

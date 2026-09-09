@@ -68,6 +68,35 @@ class SubscriptionWorkflowTest < ActiveSupport::TestCase
     end
   end
 
+  test "subscription collection batches list projections without changing each agreement" do
+    agreements = [checkout]
+    3.times do |index|
+      patient = @practice.patients.create!(display_name: "Subscription list patient #{index}", reference: "SUB-LIST-#{index}")
+      user = User.create!(email_address: "subscription-list-#{index}@example.invalid", password: SecureRandom.hex(20))
+      identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: patient, user: user,
+        status: "active", invited_at: Time.current, activated_at: Time.current)
+      agreements << Clinic::Care::SubscriptionPurchase.checkout(identity: identity, actor: user,
+        version_id: @version.id, selections: [@options[1].id, @options[3].id], request_key: "subscription-list-#{index}")
+    end
+
+    individual = nil
+    individual_queries = select_query_count do
+      individual = Clinic::Care::SubscriptionAgreement.where(id: agreements.map(&:id)).order(:id).map do |agreement|
+        Clinic::Care::SubscriptionProjection.agreement(agreement)
+      end
+    end
+    collection = nil
+    collection_queries = select_query_count do
+      collection = Clinic::Care::SubscriptionProjection.collection(
+        Clinic::Care::SubscriptionAgreement.where(id: agreements.map(&:id)).order(:id)
+      )
+    end
+
+    assert_equal individual, collection
+    assert_operator collection_queries, :<=, individual_queries - 8,
+      "expected collection projection to avoid per-agreement queries (individual=#{individual_queries}, collection=#{collection_queries})"
+  end
+
   test "selection cardinality and foreign options fail closed" do
     assert_raises(ArgumentError) { checkout(selections: []) }
     assert_raises(ArgumentError) { checkout(selections: [@options[1].id, @options[2].id]) }
@@ -185,6 +214,19 @@ class SubscriptionWorkflowTest < ActiveSupport::TestCase
     signature = OpenSSL::HMAC.hexdigest("SHA256", secret, "#{timestamp}.#{body}")
     Clinic::Billing::SubscriptionPayments.reconcile(agreement: agreement, actor: @actor, raw_body: body,
       signature_header: "t=#{timestamp},v1=#{signature}", secret: secret, expected_account: "development:#{@practice.id}")
+  end
+
+  def select_query_count
+    count = 0
+    subscriber = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached] || payload[:name] == "SCHEMA"
+
+      count += 1 if payload[:sql].to_s.lstrip.start_with?("SELECT")
+    end
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") { yield }
+    end
+    count
   end
 
   test "program publication requires publisher permission and detects stale saves" do
