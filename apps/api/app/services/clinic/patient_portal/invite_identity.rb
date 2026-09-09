@@ -11,6 +11,7 @@ module Clinic
         token = SecureRandom.urlsafe_base64(32)
         identity = nil
         ApplicationRecord.transaction do
+          patient.lock!
           user = resolve_user!(practice:, patient:, user:, email_address:)
           identity = Identity.lock.find_or_initialize_by(user: user)
           if identity.persisted? && (identity.practice_id != practice.id || identity.patient_id != patient.id)
@@ -37,6 +38,16 @@ module Clinic
       end
 
       def self.resolve_user!(practice:, patient:, user:, email_address:)
+        bound_identity = Identity.lock.find_by(practice_id: practice.id, patient_id: patient.id)
+        if bound_identity
+          bound_user = User.lock.find(bound_identity.user_id)
+          if user && user.id != bound_user.id
+            raise ArgumentError, "That patient is already assigned to another account."
+          end
+          update_bound_email!(bound_user, email_address) if email_address
+          return bound_user
+        end
+
         if user
           locked = User.lock.find(user.id)
           raise ArgumentError, "The patient account is inactive." unless locked.active?
@@ -55,7 +66,16 @@ module Clinic
         end
         candidate
       end
-      private_class_method :resolve_user!
+
+      def self.update_bound_email!(user, email_address)
+        normalized_email = email_address.to_s.strip.downcase
+        owner = User.find_by(email_address: normalized_email)
+        if owner && owner.id != user.id
+          raise ArgumentError, "That email already belongs to another account."
+        end
+        user.update!(email_address: normalized_email) unless user.email_address == normalized_email
+      end
+      private_class_method :resolve_user!, :update_bound_email!
     end
   end
 end
