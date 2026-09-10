@@ -59,7 +59,7 @@ export function ConnectionRecovery({
       <Typography variant="body2">
         {message ||
           (reconnecting
-            ? "APPly is trying to restore the connection. You can request a new secure connection if it does not return."
+            ? "Meta Clinic is trying to restore the connection. You can request a new secure connection if it does not return."
             : "Request a new secure connection to rejoin this same visit. The encounter and notes stay in place.")}
       </Typography>
       <Stack

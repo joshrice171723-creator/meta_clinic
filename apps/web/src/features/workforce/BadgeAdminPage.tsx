@@ -268,7 +268,7 @@ export function BadgeAdminPage() {
               type="password"
               value={pin}
               onChange={(event) => setPin(event.target.value)}
-              helperText="4–12 digits. APPly stores only a slow hash."
+              helperText="4–12 digits. Meta Clinic stores only a slow hash."
               slotProps={{
                 htmlInput: {
                   inputMode: "numeric",

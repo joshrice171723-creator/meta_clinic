@@ -175,7 +175,7 @@ export function ClinicFrame({
           hidden={collapsed}
         >
           <a className="wordmark" href="/clinic">
-            APPly
+            Meta Clinic
             <span className="brand-dot" />
           </a>
           <div className="practice-label">

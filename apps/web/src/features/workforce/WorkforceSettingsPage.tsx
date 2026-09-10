@@ -417,7 +417,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
             </Stack>
             <Alert severity="info">
               No statutory overtime, premium, break, or wage rate is supplied by
-              APPly. Unconfigured thresholds remain explicit.
+              Meta Clinic. Unconfigured thresholds remain explicit.
             </Alert>
           </Stack>
 

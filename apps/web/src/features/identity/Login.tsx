@@ -33,10 +33,10 @@ export function Login({
   const employeePortal = returnTo?.startsWith("/clinic");
   const patientPortal = returnTo?.startsWith("/patient-portal");
   const portalName = employeePortal
-    ? "Employee portal"
+    ? "Clinic team workspace"
     : patientPortal
       ? "Patient portal"
-      : "Customer portal";
+      : "Launch & onboarding";
   const done = () =>
     window.location.assign(
       loginDestination(new URLSearchParams(window.location.search).get("next")),
@@ -61,29 +61,31 @@ export function Login({
         </h1>
         <p>
           {employeePortal
-            ? "Sign in to work in your clinic and access the employee tools assigned to your account."
+            ? "Sign in to work in your clinic and access the tools assigned to your team account."
             : patientPortal
               ? "Sign in to view the patient portal access assigned by your clinic."
-            : "Sign in to review your paperwork and work through onboarding and training."}
+              : "Sign in to review your paperwork and work through onboarding and training."}
         </p>
         {!developmentLogin && (
           <p className="page-fine-print">
-            APPly provides your account after payment. There is no public
-            signup. Need access help? <a href="/contact">Contact us.</a>
+            Meta Clinic issues accounts directly. There is no public signup.
           </p>
         )}
       </div>
       <section className="form-card login-card">
         <EnvironmentLabel environment={environment} />
         <>
-          <div className="portal-type-links" aria-label="Choose account type">
+          <div
+            className="portal-type-links"
+            aria-label="Choose your sign-in space"
+          >
             <a
               aria-current={
                 !employeePortal && !patientPortal ? "page" : undefined
               }
               href="/login"
             >
-              Customer portal
+              Launch &amp; onboarding
             </a>
             <a
               aria-current={patientPortal ? "page" : undefined}
@@ -95,7 +97,7 @@ export function Login({
               aria-current={employeePortal ? "page" : undefined}
               href="/login?next=%2Fclinic"
             >
-              Employee portal
+              Clinic team
             </a>
           </div>
           <h2>{portalName}</h2>
@@ -104,7 +106,7 @@ export function Login({
               ? "Clinic employees use the account provided by their organization."
               : patientPortal
                 ? "Patients use the account activated from their clinic invitation."
-              : "Customers use the account provided by APPly."}
+                : "Use this account for launch paperwork, onboarding, and training. Clinic team access is separate."}
           </p>
           <Form endpoint="/api/session" submit="Sign in" onSuccess={done}>
             <Field
@@ -123,7 +125,9 @@ export function Login({
           </Form>
           {patientPortal && (
             <p>
-              <a href="/patient-portal/recovery">Forgot patient portal password?</a>
+              <a href="/patient-portal/recovery">
+                Forgot patient portal password?
+              </a>
             </p>
           )}
           {(employeePortal || (developmentLogin && !patientPortal)) && (

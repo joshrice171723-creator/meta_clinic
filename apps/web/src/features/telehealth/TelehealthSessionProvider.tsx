@@ -305,8 +305,8 @@ export function TelehealthSessionProvider({
       if (generation !== generationRef.current) return;
       setError(
         reason instanceof Error
-          ? `You left the media call. APPly could not confirm the server leave: ${reason.message}`
-          : "You left the media call. APPly could not confirm the server leave.",
+          ? `You left the media call. Meta Clinic could not confirm the server leave: ${reason.message}`
+          : "You left the media call. Meta Clinic could not confirm the server leave.",
       );
     }
   }, []);
@@ -535,7 +535,7 @@ export function TelehealthSessionProvider({
       grant = response.data.join_grant;
       if (!grant)
         throw new Error(
-          "APPly could not issue a new secure connection for this visit.",
+          "Meta Clinic could not issue a new secure connection for this visit.",
         );
       if (generation !== generationRef.current) return;
       const refreshed: TelehealthActiveSession = {

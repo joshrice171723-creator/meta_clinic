@@ -99,7 +99,7 @@ export function PatientPortalActivation() {
             variant="overline"
             sx={{ letterSpacing: "0.12em", color: "#58756e" }}
           >
-            APPly · Patient portal
+            Meta Clinic · Patient portal
           </Typography>
           <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
             {purpose === "recovery"
@@ -123,7 +123,9 @@ export function PatientPortalActivation() {
               <TextField
                 autoComplete="new-password"
                 helperText="Use 12 to 72 characters. Password-manager paste is supported."
-                label={purpose === "recovery" ? "New password" : "Create password"}
+                label={
+                  purpose === "recovery" ? "New password" : "Create password"
+                }
                 onChange={(event) => setPassword(event.target.value)}
                 required
                 slotProps={{ htmlInput: { minLength: 12, maxLength: 72 } }}

@@ -318,9 +318,9 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
             <Divider />
             <Typography variant="body2" color="text.secondary">
               Refunds for Stripe payments are handled in the clinic’s full
-              Stripe Dashboard. APPly reflects a refund only after receiving and
-              verifying Stripe’s webhook; this screen does not issue Stripe
-              refunds.
+              Stripe Dashboard. Meta Clinic reflects a refund only after
+              receiving and verifying Stripe’s webhook; this screen does not
+              issue Stripe refunds.
             </Typography>
           </Stack>
         </Paper>

@@ -665,7 +665,7 @@ export function BillingDashboard() {
                   )
                 : "—"
             }
-            detail="Payments less verified refunds; excludes Stripe and APPly fees"
+            detail="Payments less verified refunds; excludes Stripe and Meta Clinic fees"
             tone="positive"
           />
           <Metric
@@ -1438,31 +1438,33 @@ export function BillingDashboard() {
           />
         )}
       </div>
-      {canUseCashDrawer && <div
-        className="billing-panel"
-        role="tabpanel"
-        id="billing-panel-cash"
-        aria-labelledby="billing-tab-cash"
-        hidden={activeTab !== "cash"}
-      >
-        <div className="billing-cash-context">
-          <Typography>
-            {selectedInvoice
-              ? `Selected invoice #${selectedInvoice.id} · balance ${money(selectedInvoice.balance, selectedInvoice.currency)}`
-              : "Choose a posted invoice from the invoice ledger to record cash."}
-          </Typography>
-          <Button onClick={() => setActiveTab("invoices")}>
-            Choose invoice
-          </Button>
+      {canUseCashDrawer && (
+        <div
+          className="billing-panel"
+          role="tabpanel"
+          id="billing-panel-cash"
+          aria-labelledby="billing-tab-cash"
+          hidden={activeTab !== "cash"}
+        >
+          <div className="billing-cash-context">
+            <Typography>
+              {selectedInvoice
+                ? `Selected invoice #${selectedInvoice.id} · balance ${money(selectedInvoice.balance, selectedInvoice.currency)}`
+                : "Choose a posted invoice from the invoice ledger to record cash."}
+            </Typography>
+            <Button onClick={() => setActiveTab("invoices")}>
+              Choose invoice
+            </Button>
+          </div>
+          <CashDrawerOperations
+            invoice={selectedInvoice ?? null}
+            onRecorded={() => {
+              refresh();
+              detailResource.refresh();
+            }}
+          />
         </div>
-        <CashDrawerOperations
-          invoice={selectedInvoice ?? null}
-          onRecorded={() => {
-            refresh();
-            detailResource.refresh();
-          }}
-        />
-      </div>}
+      )}
     </div>
   );
 }

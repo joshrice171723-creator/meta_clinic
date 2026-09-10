@@ -28,7 +28,8 @@ describe("development account preview", () => {
     );
     expect(html).toContain("Omni");
     expect(html).toContain("Patient portal");
-    expect(html).toContain("Employee portal");
+    expect(html).toContain("Clinic team");
+    expect(html).toContain("Launch &amp; onboarding");
     expect(html).toContain("Omni");
     expect(html).toContain("Select patient account");
     expect(html).toContain("Log in");

@@ -151,7 +151,7 @@ export function StripeConnectPanel() {
           <strong>{data.payouts_enabled ? "Enabled" : "Not enabled"}</strong>
         </div>
         <div>
-          <span>APPly application fee</span>
+          <span>Meta Clinic application fee</span>
           <strong>{data.application_fee_percent}% per payment</strong>
         </div>
       </Box>
@@ -162,8 +162,8 @@ export function StripeConnectPanel() {
           processing fees and payouts belong to the clinic.
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Stripe collects bank and business details on its own website. APPly
-          never collects card details here, and live collection remains
+          Stripe collects bank and business details on its own website. Meta
+          Clinic never collects card details here, and live collection remains
           disabled.
         </Typography>
         {data.last_synced_at && (
@@ -175,9 +175,9 @@ export function StripeConnectPanel() {
       </Stack>
       {!data.configured && (
         <Typography variant="body2">
-          An APPly administrator must securely configure the Stripe sandbox API
-          key and Connect webhook outside the browser before clinic onboarding
-          can begin.
+          A Meta Clinic administrator must securely configure the Stripe sandbox
+          API key and Connect webhook outside the browser before clinic
+          onboarding can begin.
         </Typography>
       )}
       {data.can_manage ? (

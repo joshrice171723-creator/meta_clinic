@@ -160,7 +160,7 @@ export function PatientSubscriptions({
         {stripeReturn === "cancel" && (
           <Alert severity="warning">
             Stripe Checkout was closed before payment was confirmed. Your card
-            was not recorded by APPly. You can safely resume the existing
+            was not recorded by Meta Clinic. You can safely resume the existing
             Checkout session below.
           </Alert>
         )}

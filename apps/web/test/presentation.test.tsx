@@ -2,17 +2,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Contact } from "../src/features/launch/Contact";
 import { Field, ErrorMessage } from "../src/shared/ui";
 
 describe("frontend responsibility", () => {
-  it("keeps contact payload scopes and sensitive-information warning", () => {
-    const html = renderToStaticMarkup(<Contact />);
-    for (const field of ["name", "email", "message", "website"])
-      expect(html).toContain('name="contact_message[' + field + ']"');
-    expect(html).toContain("Do not send patient information");
-    expect(html).toContain("no email notification is sent yet");
-  });
   it("escapes dynamic content and labels controls without inline event handlers", () => {
     const html = renderToStaticMarkup(
       <>

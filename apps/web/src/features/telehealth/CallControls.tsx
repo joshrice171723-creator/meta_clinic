@@ -146,7 +146,7 @@ export function CallControls({
         if (active) {
           setDevices([]);
           setDeviceLoadError(
-            "APPly could not read the available call devices. Check browser permissions and try again.",
+            "Meta Clinic could not read the available call devices. Check browser permissions and try again.",
           );
         }
       })

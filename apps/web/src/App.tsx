@@ -63,10 +63,6 @@ const Portal = lazyNamed(
   () => import("./features/launch/Portal"),
   (m) => m.Portal,
 );
-const Contact = lazyNamed(
-  () => import("./features/launch/Contact"),
-  (m) => m.Contact,
-);
 const Inquiries = lazyNamed(
   () => import("./features/launch/Inquiries"),
   (m) => m.Inquiries,
@@ -266,11 +262,9 @@ function ClinicLegacyRedirect({ to }: { to: string }) {
 function LaunchLayout({
   user,
   children,
-  clinicAvailable,
 }: {
   user: User | null;
   children: ReactNode;
-  clinicAvailable: boolean;
   environment: RuntimeEnvironment;
 }) {
   return (
@@ -280,15 +274,12 @@ function LaunchLayout({
       </a>
       <header className="site-header wrap">
         <a className="wordmark" href="/">
-          APPly
+          Meta Clinic
           <span className="brand-dot" />
         </a>
         <nav aria-label="Main navigation">
           <a className="login-link" href={user ? "/portal" : "/login"}>
-            {user ? "My launch" : "Member login"}
-          </a>
-          <a className="nav-cta" href="/contact">
-            Contact us ↗
+            {user ? "My account" : "Sign in"}
           </a>
         </nav>
       </header>
@@ -296,15 +287,12 @@ function LaunchLayout({
       <footer className="wrap footer-wrap">
         <div className="site-footer">
           <a className="wordmark" href="/">
-            APPly
+            Meta Clinic
             <span className="brand-dot" />
           </a>
           <span>Independent practices. A supported start.</span>
           <div className="footer-links">
-            <a href="/contact">Contact</a>
-            <a href="/login">Member login</a>
-            {clinicAvailable && <a href="/clinic">Clinic workspace</a>}
-            <span>Sherman &amp; North Texas</span>
+            <a href="/login">Sign in</a>
           </div>
         </div>
         <div className="footer-bottom">
@@ -312,7 +300,7 @@ function LaunchLayout({
             Clinic-launch consulting. Not legal or clinical advice. No guarantee
             of approval or opening date.
           </p>
-          <span>© {new Date().getFullYear()} APPly</span>
+          <span>© {new Date().getFullYear()} Meta Clinic</span>
         </div>
       </footer>
     </>
@@ -322,7 +310,7 @@ function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
   return (
     <main id="main" className="wrap inner-page portal-page">
       <nav className="member-navigation" aria-label="Member navigation">
-        <a href="/portal">My launch</a>
+        <a href="/portal">Launch &amp; onboarding</a>
         <a href="/paperwork">Paperwork</a>
         <a href="/training">Training</a>
         {user.admin && <a href="/inquiries">Inquiries</a>}
@@ -687,7 +675,6 @@ export function App() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   const publicPage = [
     "/",
-    "/contact",
     "/login",
     "/patient-portal/activate",
     "/patient-portal/recovery",
@@ -813,9 +800,7 @@ export function App() {
   const doc = /^\/paperwork\/(\d+)$/.exec(path),
     guide = /^\/(?:training|materials)\/(\d+)$/.exec(path);
   page =
-    path === "/contact" ? (
-      <Contact />
-    ) : path === "/" || path === "/login" ? (
+    path === "/" || path === "/login" ? (
       <Login
         developmentLogin={configuration.development_login}
         developmentAccounts={configuration.development_accounts}
@@ -846,11 +831,7 @@ export function App() {
       <h1>Page not found.</h1>
     );
   return (
-    <LaunchLayout
-      user={user}
-      clinicAvailable={configuration.clinic_available}
-      environment={configuration.environment}
-    >
+    <LaunchLayout user={user} environment={configuration.environment}>
       {publicPage ? (
         <RouteBoundary root>{page}</RouteBoundary>
       ) : (

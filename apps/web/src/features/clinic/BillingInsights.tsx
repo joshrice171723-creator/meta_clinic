@@ -111,12 +111,16 @@ const collectionStatusLabels: Record<BillingCollectionStatus, string> = {
 };
 
 const collectionActionLabels: Record<BillingCollectionNextAction, string> = {
-  continue_checkout: "Continue the hosted checkout or confirm its processor status.",
+  continue_checkout:
+    "Continue the hosted checkout or confirm its processor status.",
   refresh_status: "Refresh processor status before recording another payment.",
   review_receipt: "Review the posted allocation and receipt.",
-  review_failure: "Review the failure before starting a new collection request.",
-  reconcile: "Review processor evidence and reconcile before taking another payment.",
-  review_balance: "Confirm the remaining invoice balance before starting again.",
+  review_failure:
+    "Review the failure before starting a new collection request.",
+  reconcile:
+    "Review processor evidence and reconcile before taking another payment.",
+  review_balance:
+    "Confirm the remaining invoice balance before starting again.",
 };
 
 export function BillingCollectionWorklist({
@@ -144,7 +148,10 @@ export function BillingCollectionWorklist({
       ) : (
         <>
           <TableContainer className="billing-table-wrap">
-            <Table size="small" aria-label="Collections and reconciliation worklist">
+            <Table
+              size="small"
+              aria-label="Collections and reconciliation worklist"
+            >
               <TableHead>
                 <TableRow>
                   <TableCell>Invoice</TableCell>
@@ -168,7 +175,11 @@ export function BillingCollectionWorklist({
                     <TableCell>
                       <Chip
                         size="small"
-                        variant={item.status === "needs_reconciliation" ? "filled" : "outlined"}
+                        variant={
+                          item.status === "needs_reconciliation"
+                            ? "filled"
+                            : "outlined"
+                        }
                         color={
                           item.status === "paid"
                             ? "success"
@@ -181,13 +192,20 @@ export function BillingCollectionWorklist({
                         label={collectionStatusLabels[item.status]}
                       />
                     </TableCell>
-                    <TableCell>{paymentDate(item.updated_at, data.practice.timezone)}</TableCell>
+                    <TableCell>
+                      {paymentDate(item.updated_at, data.practice.timezone)}
+                    </TableCell>
                     <TableCell align="right">
                       {billingMoney(item.amount, item.currency)}
                     </TableCell>
-                    <TableCell>{collectionActionLabels[item.next_action]}</TableCell>
+                    <TableCell>
+                      {collectionActionLabels[item.next_action]}
+                    </TableCell>
                     <TableCell align="right">
-                      <Button size="small" onClick={() => onOpenInvoice(item.invoice_id)}>
+                      <Button
+                        size="small"
+                        onClick={() => onOpenInvoice(item.invoice_id)}
+                      >
                         Open invoice
                       </Button>
                     </TableCell>
@@ -197,8 +215,8 @@ export function BillingCollectionWorklist({
             </Table>
           </TableContainer>
           <p className="billing-subtitle">
-            Showing the latest {worklist.items.length} of {worklist.total_count},
-            limited to {worklist.limit} records.
+            Showing the latest {worklist.items.length} of {worklist.total_count}
+            , limited to {worklist.limit} records.
           </p>
         </>
       )}
@@ -241,7 +259,7 @@ export function BillingPayments({
           <p className="billing-subtitle">
             Open a payment to review its invoices, refunds and printable
             receipts. Amounts after refunds do not subtract Stripe processing or
-            APPly application fees.
+            Meta Clinic application fees.
           </p>
         </div>
         {canOpenPatient && (
@@ -654,7 +672,7 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
                 excluded. Existing subscription invoices are already in the
                 ledger and are not added again. Estimates are not profit or
                 guaranteed collections. Collected amounts are before Stripe
-                processing and APPly application fees.
+                processing and Meta Clinic application fees.
               </Typography>
               <TableContainer>
                 <Table size="small" aria-label="Recorded baseline history">

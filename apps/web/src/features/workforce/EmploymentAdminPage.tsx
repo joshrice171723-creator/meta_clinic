@@ -155,7 +155,11 @@ function EmploymentAccessEditor({
         </Button>
         <Button
           color={employment.membership_summary.active ? "warning" : "primary"}
-          disabled={saving || (!employment.membership_summary.active && (!roleVersionId || siteIds.length === 0))}
+          disabled={
+            saving ||
+            (!employment.membership_summary.active &&
+              (!roleVersionId || siteIds.length === 0))
+          }
           onClick={() =>
             void update(
               employment.membership_summary.active ? "revoke" : "restore",
@@ -320,7 +324,8 @@ export function EmploymentAdminPage() {
             Share this activation token securely now.
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            It is shown only in this response. APPly does not send it by email.
+            It is shown only in this response. Meta Clinic does not send it by
+            email.
           </Typography>
           <TextField
             fullWidth

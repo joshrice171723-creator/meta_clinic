@@ -471,7 +471,7 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
           "The visit changed before consent withdrawal was recorded. Review the latest status, then retry withdrawal.",
         );
         setWithdrawalError(
-          "APPly stopped this browser's camera and microphone, but the visit changed before consent withdrawal was recorded. APPly requested the latest visit status; review it, then retry withdrawal.",
+          "Meta Clinic stopped this browser's camera and microphone, but the visit changed before consent withdrawal was recorded. Meta Clinic requested the latest visit status; review it, then retry withdrawal.",
         );
         await resource.refresh();
         return;
@@ -483,8 +483,8 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
       setError(message);
       setWithdrawalError(
         mediaStopped
-          ? `APPly stopped this browser's camera and microphone, but could not confirm consent withdrawal: ${message}`
-          : `APPly could not stop this browser's media or confirm consent withdrawal: ${message}`,
+          ? `Meta Clinic stopped this browser's camera and microphone, but could not confirm consent withdrawal: ${message}`
+          : `Meta Clinic could not stop this browser's media or confirm consent withdrawal: ${message}`,
       );
       throw reason;
     } finally {

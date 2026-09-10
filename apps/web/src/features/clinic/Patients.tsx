@@ -521,7 +521,7 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
             </Button>
             <Typography color="text.secondary" variant="body2">
               Share this link only through a clinic-approved secure channel.
-              APPly has not sent it automatically.
+              Meta Clinic has not sent it automatically.
             </Typography>
           </>
         )}

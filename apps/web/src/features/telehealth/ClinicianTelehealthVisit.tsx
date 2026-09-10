@@ -96,9 +96,7 @@ export function ClinicianTelehealthVisit({
   }>(() => ({ scope: encounterScope, visitId: null, error: null }));
   const resolvedVisitId =
     visitId ||
-    (encounterLookup.scope === encounterScope
-      ? encounterLookup.visitId
-      : null);
+    (encounterLookup.scope === encounterScope ? encounterLookup.visitId : null);
   const lookupError =
     !visitId && encounterLookup.scope === encounterScope
       ? encounterLookup.error
@@ -226,18 +224,18 @@ export function ClinicianTelehealthVisit({
       const operation = response.data.operation;
       if (operation?.status === "failed") {
         throw new Error(
-          "APPly saved the visit change, but the video service could not complete this step. Check the current status before trying again.",
+          "Meta Clinic saved the visit change, but the video service could not complete this step. Check the current status before trying again.",
         );
       } else if (operation?.status === "unknown") {
         setNotice(
-          "APPly accepted the request, but the video service has not confirmed the result. Check status before repeating it.",
+          "Meta Clinic accepted the request, but the video service has not confirmed the result. Check status before repeating it.",
         );
       } else if (
         operation?.status === "pending" ||
         operation?.status === "leased"
       ) {
         setNotice(
-          `${success} This may take a moment; APPly will keep checking.`,
+          `${success} This may take a moment; Meta Clinic will keep checking.`,
         );
       } else {
         setNotice(success);
@@ -376,7 +374,7 @@ export function ClinicianTelehealthVisit({
           participantId,
           resource.response!.version,
         ),
-      "Participant access was revoked. APPly is requesting that their call disconnect.",
+      "Participant access was revoked. Meta Clinic is requesting that their call disconnect.",
     );
     const removed = response.data.visit.participants.find(
       (participant) => participant.id === participantId,
@@ -384,7 +382,7 @@ export function ClinicianTelehealthVisit({
     const providerSubjectId = removed?.provider_subject_id;
     if (!providerSubjectId) {
       setNotice(
-        "Participant access was revoked. No active video connection was found; APPly will keep checking the visit.",
+        "Participant access was revoked. No active video connection was found; Meta Clinic will keep checking the visit.",
       );
       return;
     }
@@ -393,7 +391,7 @@ export function ClinicianTelehealthVisit({
       setRemovalPending({ participantId, providerSubjectId });
       if (!requested) {
         setNotice(
-          "Participant access was revoked. APPly is waiting for the video provider to confirm their disconnection.",
+          "Participant access was revoked. Meta Clinic is waiting for the video provider to confirm their disconnection.",
         );
         return;
       }
@@ -402,7 +400,7 @@ export function ClinicianTelehealthVisit({
       );
     } catch {
       setNotice(
-        "Participant access was revoked, but this browser could not complete the disconnect request. APPly will keep checking the visit.",
+        "Participant access was revoked, but this browser could not complete the disconnect request. Meta Clinic will keep checking the visit.",
       );
     }
   };
@@ -436,7 +434,7 @@ export function ClinicianTelehealthVisit({
       return {
         title: "Ending the video visit",
         description:
-          "New admissions are blocked while APPly confirms that the call has ended for everyone.",
+          "New admissions are blocked while Meta Clinic confirms that the call has ended for everyone.",
       };
     if (visit.status === "ended")
       return {
@@ -453,7 +451,7 @@ export function ClinicianTelehealthVisit({
       return {
         title: "Connection needs attention",
         description:
-          "APPly is checking your access. Media controls will return after authorization is confirmed.",
+          "Meta Clinic is checking your access. Media controls will return after authorization is confirmed.",
         action: (
           <Button
             variant="outlined"
@@ -472,7 +470,7 @@ export function ClinicianTelehealthVisit({
             : "Visit in progress",
         description:
           session.callState === "reconnecting"
-            ? "Keep this page open while APPly restores the connection."
+            ? "Keep this page open while Meta Clinic restores the connection."
             : "Use the call controls below. Patient context and participants remain available beside the video.",
       };
     if (!visit.encounter_id && allowed.includes("telehealth.start_encounter"))
@@ -552,7 +550,7 @@ export function ClinicianTelehealthVisit({
       return {
         title: "Video room is getting ready",
         description:
-          "APPly will update this page when the room is ready. No action is needed yet.",
+          "Meta Clinic will update this page when the room is ready. No action is needed yet.",
       };
     if (
       patientParticipant?.status === "waiting" &&
@@ -605,7 +603,7 @@ export function ClinicianTelehealthVisit({
     return {
       title: "Waiting for the next visit step",
       description:
-        "APPly will show the next available action when preparation and room status allow it.",
+        "Meta Clinic will show the next available action when preparation and room status allow it.",
     };
   })();
 
@@ -849,7 +847,7 @@ export function ClinicianTelehealthVisit({
             }
             emptyDescription={
               session.callState === "reconnecting"
-                ? "Keep this page open while APPly restores the connection."
+                ? "Keep this page open while Meta Clinic restores the connection."
                 : callActive
                   ? "Video appears here when an admitted participant connects or turns on their camera."
                   : "The secure video room appears here after you join."
@@ -871,8 +869,8 @@ export function ClinicianTelehealthVisit({
             />
           ) : (
             <Alert severity="info" sx={{ borderRadius: 0 }}>
-              Video access becomes available after APPly confirms the room is
-              ready and you are authorized for this visit.
+              Video access becomes available after Meta Clinic confirms the room
+              is ready and you are authorized for this visit.
             </Alert>
           )}
         </Paper>
@@ -1069,8 +1067,9 @@ export function ClinicianTelehealthVisit({
       >
         <DialogTitle>Remove this participant?</DialogTitle>
         <DialogContent>
-          Their access will be revoked and APPly will request that their call
-          disconnect. The participant list updates after removal is confirmed.
+          Their access will be revoked and Meta Clinic will request that their
+          call disconnect. The participant list updates after removal is
+          confirmed.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRemoveTarget(null)}>Cancel</Button>
@@ -1090,8 +1089,8 @@ export function ClinicianTelehealthVisit({
       <Dialog open={resumeConfirm} onClose={() => setResumeConfirm(false)}>
         <DialogTitle>Resume this video visit?</DialogTitle>
         <DialogContent>
-          This opens a new video room for the existing encounter. APPly will
-          recheck preparation and consent, and the patient must be admitted
+          This opens a new video room for the existing encounter. Meta Clinic
+          will recheck preparation and consent, and the patient must be admitted
           again. The encounter and its documentation status stay unchanged.
         </DialogContent>
         <DialogActions>
