@@ -11,6 +11,14 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — U.S. healthcare standards product audit completed
+
+**Outcome:** checked all 64 external URLs in the 60-entry U.S. healthcare reference map and compared the current app, focused tests, healthy local runtime and rendered clinic workflows with the applicable HL7/FHIR, NLM, UCUM, FDA, CDC and CMS guidance. The [product gap audit](../../records/audits/2026-09-10-us-healthcare-standards-product-gap-audit.md) preserves the capability matrix and recommends medication-test repair, administration-grade vaccination records, coded/typed lab results, a real cash-pay estimate workflow and Schedule/Slot-like availability as the highest-value next slices. It also records the current strengths that should not be weakened.
+
+**Observed corrections:** the focused backend selection completed 37 runs / 535 assertions with two medication-administration happy paths failing at authorization; five frontend files passed 15 tests and TypeScript typecheck passed. The rendered signed-encounter path emitted a React `patientLabel` DOM-prop warning. These are audit findings, not completed fixes.
+
+**Limits:** U.S.-only software guidance and synthetic local evidence; no full suite, feature implementation, production use, real patient data, external integration, conformance certification, or professional/legal/clinical approval is claimed.
+
 ## 2026-09-10 — Standards-guided healthcare development adopted
 
 **Reference-map follow-up:** added a [U.S. healthcare reference map](../../docs/development/us-healthcare-reference-map.md) with 60 source entries, direct URLs, reading targets and current app route/component pointers. At the founder's clarification, supplied links were treated as starting points for broader exploration of HL7, NLM, UCUM, FDA, CDC and CMS, including labeling, terminology services, recalls, barcodes, outpatient precautions and self-pay estimates. Review depth, R4/R5 differences, global-standard applicability, foreign-country exclusions and unreviewed downloads are explicit. This is developer research/navigation, not an implemented-feature or conformance audit.
