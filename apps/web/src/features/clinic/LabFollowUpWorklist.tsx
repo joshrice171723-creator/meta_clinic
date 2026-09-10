@@ -24,6 +24,7 @@ type LabFollowUpItem = {
     version_number: number;
     title: string;
     issued_at: string | null;
+    result_priority: "routine" | "urgent" | "critical";
   };
   follow_up: LabFollowUp;
 };
@@ -51,6 +52,17 @@ function ageLabel(value: string) {
   if (hours < 24) return hours === 1 ? "1 hour open" : `${hours} hours open`;
   const days = Math.floor(hours / 24);
   return days === 1 ? "1 day open" : `${days} days open`;
+}
+
+function dueLabel(value: string | null) {
+  if (!value) return null;
+  const dueAt = new Date(value);
+  if (Number.isNaN(dueAt.valueOf())) return null;
+  const overdue = dueAt.getTime() < Date.now();
+  return `${overdue ? "Overdue" : "Due"} ${new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(dueAt)}`;
 }
 
 export function LabFollowUpWorklist() {
@@ -197,6 +209,31 @@ function LabFollowUpInbox() {
                           color="warning"
                           label={ageLabel(item.follow_up.recorded_at)}
                         />
+                        {item.version.result_priority !== "routine" && (
+                          <Chip
+                            size="small"
+                            color={
+                              item.version.result_priority === "critical"
+                                ? "error"
+                                : "warning"
+                            }
+                            label={item.version.result_priority}
+                          />
+                        )}
+                        {dueLabel(item.follow_up.due_at) && (
+                          <Chip
+                            size="small"
+                            color={
+                              new Date(
+                                item.follow_up.due_at as string,
+                              ).getTime() < Date.now()
+                                ? "error"
+                                : "default"
+                            }
+                            variant="outlined"
+                            label={dueLabel(item.follow_up.due_at)}
+                          />
+                        )}
                       </Stack>
                       <Typography
                         variant="body2"

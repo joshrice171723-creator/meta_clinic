@@ -603,6 +603,9 @@ function registrationValues(patient?: RegistrationPatient): RegistrationValues {
   return {
     display_name: patient?.display_name ?? "",
     reference: patient?.reference ?? "",
+    legal_name: d?.legal_name ?? patient?.display_name ?? "",
+    preferred_name: d?.preferred_name ?? "",
+    primary_address: patient?.primary_address?.formatted ?? "",
     date_of_birth: d?.date_of_birth ?? "",
     sex: d?.sex ?? "",
     primary_language: d?.primary_language ?? "",
@@ -634,6 +637,9 @@ function registrationValues(patient?: RegistrationPatient): RegistrationValues {
 const registrationFieldLabels: Array<[string, string]> = [
   ["display_name", "Patient display name"],
   ["reference", "Clinic reference"],
+  ["legal_name", "Legal name"],
+  ["preferred_name", "Name to use"],
+  ["primary_address", "Current address"],
   ["date_of_birth", "Date of birth"],
   ["sex", "Sex"],
   ["primary_language", "Primary language"],
@@ -1211,9 +1217,22 @@ function PatientRegistrationEditor({
             <Box className="pharmacy-form-grid">
               <Field
                 name="clinic_patient[display_name]"
-                label="Patient display name"
+                label="Chart display name"
                 value={initialValues.display_name}
                 maxLength={120}
+              />
+              <Field
+                name="clinic_patient[legal_name]"
+                label="Legal name"
+                value={initialValues.legal_name}
+                maxLength={160}
+              />
+              <Field
+                name="clinic_patient[preferred_name]"
+                label="Name to use"
+                required={false}
+                value={initialValues.preferred_name}
+                maxLength={160}
               />
               {(!patient?.reference ||
                 patientReferenceLabel(patient.reference)) && (
@@ -1233,6 +1252,14 @@ function PatientRegistrationEditor({
                   />
                 )}
             </Box>
+            <Field
+              name="clinic_patient[primary_address]"
+              label="Current address"
+              type="textarea"
+              required={false}
+              value={initialValues.primary_address}
+              maxLength={20000}
+            />
             <PatientFields values={initialValues} />
           </Stack>
         </Box>
@@ -1297,6 +1324,9 @@ function PatientDetails({ patient }: { patient: Patient }) {
       "vital-oxygen-saturation": "Oxygen saturation",
       "vital-temperature": "Temperature",
       "vital-weight": "Weight",
+      "vital-height": "Height",
+      "vital-bmi": "Body mass index",
+      "vital-pain-score": "Pain score",
     })[code] ?? "Vital sign";
   const vitalUnit = (unit: string) =>
     ({
@@ -1307,11 +1337,23 @@ function PatientDetails({ patient }: { patient: Patient }) {
       "[degF]": "°F",
       kg: "kg",
       "[lb_av]": "lb",
+      cm: "cm",
+      "[in_i]": "in",
+      "kg/m2": "kg/m²",
+      "{score}": "0–10",
     })[unit] ?? unit;
   return (
     <div className="care-grid">
       <Card title="Demographics">
         <dl className="care-observations">
+          <div>
+            <dt>Legal name</dt>
+            <dd>{d?.legal_name || patient.display_name}</dd>
+          </div>
+          <div>
+            <dt>Name to use</dt>
+            <dd>{d?.preferred_name || "Not recorded"}</dd>
+          </div>
           <div>
             <dt>Date of birth</dt>
             <dd>{d?.date_of_birth || "Not recorded"}</dd>
@@ -1328,6 +1370,10 @@ function PatientDetails({ patient }: { patient: Patient }) {
             </dd>
           </div>
         </dl>
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          Current address:{" "}
+          {patient.primary_address?.formatted || "Not recorded"}
+        </Typography>
       </Card>
       <Card title="Registration contacts">
         <p>

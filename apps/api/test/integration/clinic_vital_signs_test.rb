@@ -33,9 +33,9 @@ class ClinicVitalSignsTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     dictionary = response.parsed_body
-    assert_equal [ @encounter.id, "1", "urn:apply:vital-signs", true ],
+    assert_equal [ @encounter.id, "2", "urn:apply:vital-signs", true ],
       dictionary.values_at("encounter_id", "dictionary_version", "code_system", "can_write")
-    assert_equal 7, dictionary.fetch("fields").length
+    assert_equal 9, dictionary.fetch("fields").length
     assert_equal %w[vital-systolic-bp vital-diastolic-bp],
       dictionary.fetch("fields").select { |field| field["group"] == "blood_pressure" }.map { |field| field.fetch("code") }
     assert @practice.audit_events.where(action_code: "patients.read", outcome: "released").exists?
@@ -64,7 +64,7 @@ class ClinicVitalSignsTest < ActionDispatch::IntegrationTest
     assert_not pressure.key?("display_label")
     assert_equal 1, observations.map { |observation| observation.fetch("recorded_at") }.uniq.length
     assert observations.all? { |observation| observation.fetch("code_system") == "urn:apply:vital-signs" }
-    assert observations.all? { |observation| observation.fetch("code_version") == "1" }
+    assert observations.all? { |observation| observation.fetch("code_version") == "2" }
     assert_equal 7, @patient.observations.where(encounter: @encounter).count
     receipt = Clinic::OperationReceipt.find_by!(practice: @practice, request_key: "vitals-atomic")
     assert_equal [ "Clinic::Care::Observation", root.fetch("id") ], [ receipt.resource_type, receipt.resource_id ]
@@ -85,7 +85,7 @@ class ClinicVitalSignsTest < ActionDispatch::IntegrationTest
     end
 
     post vital_signs_path,
-      params: batch_params(request_key: "vitals-version", dictionary_version: "2"),
+      params: batch_params(request_key: "vitals-version", dictionary_version: "1"),
       headers: csrf_headers, as: :json
     assert_response :conflict
     assert_equal "stale_dictionary", response.parsed_body.fetch("code")
@@ -162,13 +162,42 @@ class ClinicVitalSignsTest < ActionDispatch::IntegrationTest
     assert_equal original.length, @patient.observations.where(encounter: @encounter).count
   end
 
+  test "height and weight derive BMI while invalid height and pain leave no partial collection" do
+    readings = [
+      reading("vital-weight", "70", "kg"),
+      reading("vital-height", "175", "cm"),
+      reading("vital-pain-score", "4", "{score}")
+    ]
+    post vital_signs_path, params: batch_params(request_key: "vitals-bmi", readings:),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    values = response.parsed_body.fetch("observations").index_by { |observation| observation.fetch("code") }
+    assert_equal [ "70.0", "175.0", "4.0", "22.9" ],
+      %w[vital-weight vital-height vital-pain-score vital-bmi].map { |code| values.fetch(code).fetch("numeric_value") }
+    assert_equal "kg/m2", values.fetch("vital-bmi").fetch("unit_code")
+    assert_equal values.fetch("vital-signs").fetch("id"), values.fetch("vital-bmi").fetch("parent_observation_id")
+
+    other_encounter = @practice.encounters.create!(
+      patient: @patient, site: @site, started_at: Time.utc(2026, 9, 7, 17), status: "open"
+    )
+    invalid = [
+      batch_params(request_key: "vitals-zero-height", readings: [ reading("vital-height", "0", "cm") ]),
+      batch_params(request_key: "vitals-pain-out-of-range", readings: [ reading("vital-pain-score", "11", "{score}") ])
+    ]
+    invalid.each do |parameters|
+      post vital_signs_path(encounter: other_encounter), params: parameters, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_empty @patient.observations.where(encounter: other_encounter)
+  end
+
   private
 
   def vital_signs_path(patient: @patient, encounter: @encounter)
     "/api/clinic/patients/#{patient.id}/encounters/#{encounter.id}/vital_signs"
   end
 
-  def batch_params(request_key:, readings: default_readings, dictionary_version: "1")
+  def batch_params(request_key:, readings: default_readings, dictionary_version: "2")
     {
       vital_signs: {
         request_key:, dictionary_version:, observed_at: "2026-09-07T14:10:00Z",

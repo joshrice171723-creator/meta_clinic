@@ -78,6 +78,7 @@ import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
 import { NurseEncounterWorkspace } from "./NurseEncounterWorkspace";
+import { PatientEducationPanel } from "./PatientEducationPanel";
 import { ClinicalPlanWorkspace } from "./ClinicalPlanWorkspace";
 
 function patientDisplayLabel(
@@ -1260,9 +1261,17 @@ function BookingFormEditor({
                         The selected resource is already scheduled on{" "}
                         {resourceDate}:
                       </Typography>
-                      <Stack component="ul" spacing={0.25} sx={{ m: 0, pl: 2.5 }}>
+                      <Stack
+                        component="ul"
+                        spacing={0.25}
+                        sx={{ m: 0, pl: 2.5 }}
+                      >
                         {scheduledResourceAppointments.map((appointment) => (
-                          <Typography component="li" key={appointment.id} variant="body2">
+                          <Typography
+                            component="li"
+                            key={appointment.id}
+                            variant="body2"
+                          >
                             {clinicDateTime(appointment.starts_at, timezone)}
                             {appointment.room_id === Number(roomId)
                               ? " · selected room"
@@ -1270,7 +1279,11 @@ function BookingFormEditor({
                           </Typography>
                         ))}
                       </Stack>
-                      <Typography component="div" variant="body2" sx={{ mt: 0.5 }}>
+                      <Typography
+                        component="div"
+                        variant="body2"
+                        sx={{ mt: 0.5 }}
+                      >
                         Choose another time or resource before scheduling.
                       </Typography>
                     </Alert>
@@ -3520,6 +3533,7 @@ export function ProviderEncounterWorkflow({
                   : null
               }
             />
+            <PatientEducationPanel patient={patient} encounter={encounter} />
             <PatientClinicalHistory
               patientId={patient.id}
               encounterId={encounter.id}
@@ -3529,6 +3543,7 @@ export function ProviderEncounterWorkflow({
               <PatientLabReports
                 patientId={patient.id}
                 patientName={patient.display_name}
+                encounterId={encounter.id}
               />
             </Box>
             <MedicationAdministrations

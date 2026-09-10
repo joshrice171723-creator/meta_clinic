@@ -25,6 +25,10 @@ import { api, ApiError } from "../../api/client";
 import { useClinic } from "./Workspace";
 import { localDateTimeInput } from "./frontDeskModel";
 import { LabResultHistory } from "./LabResultHistory";
+import type {
+  ClinicalPlanWorkspace,
+  ServiceRequestRevision,
+} from "../../api/contracts";
 
 export type LabResult = {
   name: string;
@@ -41,6 +45,7 @@ export type LabReportVersion = {
   version_number: number;
   title: string;
   status: "preliminary" | "final" | "amended" | "corrected" | "cancelled";
+  result_priority: "routine" | "urgent" | "critical";
   collected_at: string | null;
   issued_at: string | null;
   results: LabResult[];
@@ -62,10 +67,30 @@ export type LabFollowUp = {
   completed_at: string | null;
   completed_by: number | null;
   superseded_at: string | null;
+  priority: "routine" | "urgent" | "critical";
+  due_at: string | null;
+  escalated_at: string | null;
+  escalated_by: number | null;
+  patient_contact_status: "informed" | "not_reached" | "not_required" | null;
+  patient_contact_method:
+    "portal" | "phone" | "in_person" | "letter" | "other" | null;
+  patient_contact_at: string | null;
+};
+type LabSpecimen = {
+  id: number;
+  service_request_revision_id: number;
+  specimen_identifier: string | null;
+  specimen_type_code: string;
+  specimen_type_display: string;
+  condition_code: "satisfactory" | "compromised" | "unknown";
+  collected_at: string;
+  collected_by: number;
 };
 export type LabReport = {
   id: number;
   patient_id: number;
+  service_request_revision_id: number | null;
+  specimen: LabSpecimen | null;
   source_name: string;
   external_report_id: string | null;
   current_version_id: number;
@@ -85,6 +110,12 @@ type Form = {
   external_report_id: string;
   title: string;
   status: LabReportVersion["status"];
+  result_priority: LabReportVersion["result_priority"];
+  service_request_revision_id: string;
+  specimen_identifier: string;
+  specimen_type_code: string;
+  specimen_type_display: string;
+  specimen_condition: LabSpecimen["condition_code"];
   collected_at: string;
   issued_at: string;
   results: LabResult[];
@@ -123,6 +154,12 @@ const blankForm = (): Form => ({
   external_report_id: "",
   title: "",
   status: "final",
+  result_priority: "routine",
+  service_request_revision_id: "",
+  specimen_identifier: "",
+  specimen_type_code: "119297000",
+  specimen_type_display: "Blood specimen",
+  specimen_condition: "satisfactory",
   collected_at: "",
   issued_at: "",
   results: [blankResult()],
@@ -133,6 +170,13 @@ const versionForm = (report: LabReport): Form => ({
   external_report_id: report.external_report_id ?? "",
   title: report.current_version.title,
   status: report.current_version.status,
+  result_priority: report.current_version.result_priority,
+  service_request_revision_id:
+    report.service_request_revision_id?.toString() ?? "",
+  specimen_identifier: report.specimen?.specimen_identifier ?? "",
+  specimen_type_code: report.specimen?.specimen_type_code ?? "",
+  specimen_type_display: report.specimen?.specimen_type_display ?? "",
+  specimen_condition: report.specimen?.condition_code ?? "unknown",
   collected_at: report.current_version.collected_at ?? "",
   issued_at: report.current_version.issued_at ?? "",
   results: report.current_version.results.map((row) => ({ ...row })),
@@ -169,16 +213,21 @@ const followUpLabel = (followUp: LabFollowUp | null) => {
     superseded: "Follow-up superseded by a corrected version",
   }[followUp.state];
 };
+const optionLabel = (value: string) =>
+  value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 
 export function PatientLabReports({
   patientId,
   patientName,
+  encounterId,
 }: {
   patientId: number;
   patientName?: string;
+  encounterId?: number;
 }) {
   const { capabilities, practice } = useClinic();
   const [data, setData] = useState<Index>();
+  const [labOrders, setLabOrders] = useState<ServiceRequestRevision[]>([]);
   const [error, setError] = useState("");
   const [reportsStale, setReportsStale] = useState(false);
   const [form, setForm] = useState<Form>(blankForm);
@@ -209,6 +258,7 @@ export function PatientLabReports({
     "required" | "not_required" | null
   >(null);
   const [reviewFollowUpNote, setReviewFollowUpNote] = useState("");
+  const [reviewFollowUpDueAt, setReviewFollowUpDueAt] = useState("");
   const [reviewRetryPending, setReviewRetryPending] = useState(false);
   const [followUpTarget, setFollowUpTarget] = useState<{
     report: LabReport;
@@ -219,7 +269,11 @@ export function PatientLabReports({
     "required" | "not_required" | null
   >(null);
   const [followUpNote, setFollowUpNote] = useState("");
+  const [followUpDueAt, setFollowUpDueAt] = useState("");
   const [followUpOutcome, setFollowUpOutcome] = useState("");
+  const [patientContactStatus, setPatientContactStatus] = useState("");
+  const [patientContactMethod, setPatientContactMethod] = useState("");
+  const [patientContactAt, setPatientContactAt] = useState("");
   const [followUpRetryPending, setFollowUpRetryPending] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [directReviewError, setDirectReviewError] = useState("");
@@ -258,6 +312,8 @@ export function PatientLabReports({
     patientContextReady &&
     capabilities.observations_write === true &&
     data?.can_write === true;
+  const canCreate =
+    canWrite && encounterId !== undefined && labOrders.length > 0;
   const canReview =
     patientContextReady &&
     capabilities.notes_write === true &&
@@ -270,6 +326,7 @@ export function PatientLabReports({
     followUpAttempt.current = null;
     directReview.current = initialDirectReview();
     setData(undefined);
+    setLabOrders([]);
     setError("");
     setReportsStale(false);
     setForm(blankForm());
@@ -286,11 +343,16 @@ export function PatientLabReports({
     setReviewConfirmed(false);
     setReviewDisposition(null);
     setReviewFollowUpNote("");
+    setReviewFollowUpDueAt("");
     setReviewRetryPending(false);
     setFollowUpTarget(null);
     setFollowUpDisposition(null);
     setFollowUpNote("");
+    setFollowUpDueAt("");
     setFollowUpOutcome("");
+    setPatientContactStatus("");
+    setPatientContactMethod("");
+    setPatientContactAt("");
     setFollowUpRetryPending(false);
     setDiscardOpen(false);
     setDirectReviewError("");
@@ -321,6 +383,73 @@ export function PatientLabReports({
       );
     return () => controller.abort();
   }, [canRead, page, patientId, reload]);
+  useEffect(() => {
+    if (!canRead || encounterId === undefined) {
+      setLabOrders([]);
+      return;
+    }
+    const controller = new AbortController();
+    api<ClinicalPlanWorkspace>(
+      `/api/clinic/patients/${patientId}/encounters/${encounterId}/clinical_plan_workspace`,
+      { signal: controller.signal },
+    )
+      .then((workspace) => {
+        if (controller.signal.aborted) return;
+        if (
+          workspace.patient_id !== patientId ||
+          workspace.encounter_id !== encounterId
+        )
+          throw new Error("The lab order list did not match this encounter.");
+        setLabOrders(
+          workspace.records.service_requests.filter(
+            (order) =>
+              order.request_kind === "lab" &&
+              order.intent === "order" &&
+              order.status === "active",
+          ),
+        );
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted)
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Unable to load active lab orders.",
+          );
+      });
+    return () => controller.abort();
+  }, [canRead, encounterId, patientId, reload]);
+  useEffect(() => {
+    if (
+      !reviewTarget ||
+      !reviewTarget.version.result_priority.match(/^(urgent|critical)$/)
+    )
+      return;
+    setReviewDisposition("required");
+    if (!reviewFollowUpDueAt)
+      setReviewFollowUpDueAt(
+        localDateTimeInput(new Date(Date.now() + 60 * 60 * 1000).toISOString()),
+      );
+  }, [reviewFollowUpDueAt, reviewTarget]);
+  useEffect(() => {
+    if (
+      !followUpTarget ||
+      followUpTarget.action !== "set" ||
+      followUpTarget.version.result_priority === "routine"
+    )
+      return;
+    setFollowUpDisposition("required");
+    if (!followUpDueAt)
+      setFollowUpDueAt(
+        localDateTimeInput(new Date(Date.now() + 60 * 60 * 1000).toISOString()),
+      );
+  }, [followUpDueAt, followUpTarget]);
+  useEffect(() => {
+    if (followUpTarget?.action !== "complete") return;
+    setPatientContactStatus("");
+    setPatientContactMethod("");
+    setPatientContactAt("");
+  }, [followUpTarget]);
   useEffect(() => {
     const target = directReview.current;
     if (!canRead || !data || !target) return;
@@ -390,13 +519,17 @@ export function PatientLabReports({
       !form.confirmed ||
       !form.source_name.trim() ||
       !form.title.trim() ||
+      (!editing &&
+        (!form.service_request_revision_id ||
+          !form.specimen_type_code.trim() ||
+          !form.specimen_type_display.trim())) ||
       !Number.isFinite(new Date(form.collected_at).getTime()) ||
       !Number.isFinite(new Date(form.issued_at).getTime()) ||
       !form.results.length ||
       form.results.some((row) => !row.name.trim() || !row.value.trim())
     ) {
       setError(
-        "Enter the report source, title, collection and report times, each result name and value, then confirm the patient match.",
+        "Choose the exact lab order and specimen, enter the source, title, times, and results, then confirm the patient match.",
       );
       return;
     }
@@ -417,9 +550,17 @@ export function PatientLabReports({
               : {
                   source_name: form.source_name.trim(),
                   external_report_id: form.external_report_id.trim() || null,
+                  service_request_revision_id: Number(
+                    form.service_request_revision_id,
+                  ),
+                  specimen_identifier: form.specimen_identifier.trim() || null,
+                  specimen_type_code: form.specimen_type_code.trim(),
+                  specimen_type_display: form.specimen_type_display.trim(),
+                  specimen_condition: form.specimen_condition,
                 }),
             title: form.title.trim(),
             status: form.status,
+            result_priority: form.result_priority,
             collected_at: new Date(form.collected_at).toISOString(),
             issued_at: new Date(form.issued_at).toISOString(),
             results: form.results.map((row) => ({
@@ -497,7 +638,8 @@ export function PatientLabReports({
       !target ||
       !reviewConfirmed ||
       !reviewDisposition ||
-      (reviewDisposition === "required" && !reviewFollowUpNote.trim())
+      (reviewDisposition === "required" && !reviewFollowUpNote.trim()) ||
+      (target.version.result_priority !== "routine" && !reviewFollowUpDueAt)
     )
       return;
     const requestPatientId = patientId;
@@ -515,6 +657,11 @@ export function PatientLabReports({
           follow_up_disposition: reviewDisposition,
           ...(reviewFollowUpNote.trim()
             ? { follow_up_note: reviewFollowUpNote.trim() }
+            : {}),
+          ...(reviewFollowUpDueAt
+            ? {
+                follow_up_due_at: new Date(reviewFollowUpDueAt).toISOString(),
+              }
             : {}),
         },
       },
@@ -566,7 +713,8 @@ export function PatientLabReports({
       !target ||
       target.action !== "set" ||
       !followUpDisposition ||
-      (followUpDisposition === "required" && !followUpNote.trim())
+      (followUpDisposition === "required" && !followUpNote.trim()) ||
+      (target.version.result_priority !== "routine" && !followUpDueAt)
     )
       return;
     const requestPatientId = patientId;
@@ -582,6 +730,9 @@ export function PatientLabReports({
           request_key: crypto.randomUUID(),
           disposition: followUpDisposition,
           ...(followUpNote.trim() ? { note: followUpNote.trim() } : {}),
+          ...(followUpDueAt
+            ? { due_at: new Date(followUpDueAt).toISOString() }
+            : {}),
         },
       },
     };
@@ -626,7 +777,11 @@ export function PatientLabReports({
       !canReview ||
       !target ||
       target.action !== "complete" ||
-      !followUpOutcome.trim()
+      !followUpOutcome.trim() ||
+      (target.version.result_priority === "critical" &&
+        (!patientContactStatus ||
+          (patientContactStatus !== "not_required" && !patientContactAt) ||
+          (patientContactStatus === "informed" && !patientContactMethod)))
     )
       return;
     const requestPatientId = patientId;
@@ -641,6 +796,11 @@ export function PatientLabReports({
         follow_up: {
           request_key: crypto.randomUUID(),
           outcome: followUpOutcome.trim(),
+          patient_contact_status: patientContactStatus || null,
+          patient_contact_method: patientContactMethod || null,
+          patient_contact_at: patientContactAt
+            ? new Date(patientContactAt).toISOString()
+            : null,
         },
       },
     };
@@ -733,7 +893,8 @@ export function PatientLabReports({
           Lab reports
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Record reported results manually. Review is a separate action.
+          Record external results against the exact active order and collected
+          specimen. Acknowledgment and follow-up remain separate actions.
         </Typography>
       </Box>
       {error && (
@@ -756,6 +917,12 @@ export function PatientLabReports({
         <Alert severity="warning">{directReviewError}</Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {canWrite && encounterId !== undefined && labOrders.length === 0 && (
+        <Alert severity="info">
+          Create and activate a laboratory order in the clinical plan before
+          recording an external result.
+        </Alert>
+      )}
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1.5}>
           <Stack
@@ -773,7 +940,7 @@ export function PatientLabReports({
                 />
               )}
             </Stack>
-            {canWrite && (
+            {canCreate && (
               <Button
                 startIcon={<AddIcon />}
                 disabled={formOpen || busy || retryPending}
@@ -825,12 +992,34 @@ export function PatientLabReports({
                           {report.source_name} · {report.current_version.status}{" "}
                           · {formatDateTime(report.current_version.issued_at)}
                         </Typography>
+                        {report.specimen && (
+                          <Typography variant="body2" color="text.secondary">
+                            Order #{report.service_request_revision_id} ·{" "}
+                            {report.specimen.specimen_type_display} ·{" "}
+                            {optionLabel(report.specimen.condition_code)}
+                          </Typography>
+                        )}
                       </Box>
                       <Stack
                         direction="row"
                         spacing={0.75}
                         sx={{ flexWrap: "wrap", gap: 0.75 }}
                       >
+                        <Chip
+                          color={
+                            report.current_version.result_priority ===
+                            "critical"
+                              ? "error"
+                              : report.current_version.result_priority ===
+                                  "urgent"
+                                ? "warning"
+                                : "default"
+                          }
+                          label={optionLabel(
+                            report.current_version.result_priority,
+                          )}
+                          size="small"
+                        />
                         <Chip
                           color={
                             report.current_version.reviewed_at
@@ -1028,6 +1217,7 @@ export function PatientLabReports({
           busy={busy}
           disabled={busy || retryPending}
           timezone={practice.timezone}
+          labOrders={labOrders}
           onCancel={requestCloseForm}
           onSave={() => void save()}
         />
@@ -1250,6 +1440,19 @@ export function PatientLabReports({
                     {row.flag ? ` · ${row.flag}` : ""}
                   </Typography>
                 ))}
+                {reviewTarget.version.result_priority !== "routine" && (
+                  <Alert
+                    severity={
+                      reviewTarget.version.result_priority === "critical"
+                        ? "error"
+                        : "warning"
+                    }
+                  >
+                    This source-marked {reviewTarget.version.result_priority}{" "}
+                    result requires acknowledgment, escalation instructions, and
+                    a due time.
+                  </Alert>
+                )}
               </>
             )}
             <FormControlLabel
@@ -1275,7 +1478,11 @@ export function PatientLabReports({
               >
                 <FormControlLabel
                   value="not_required"
-                  disabled={busy || reviewRetryPending}
+                  disabled={
+                    busy ||
+                    reviewRetryPending ||
+                    reviewTarget?.version.result_priority !== "routine"
+                  }
                   control={<Radio />}
                   label="No follow-up needed"
                 />
@@ -1306,6 +1513,18 @@ export function PatientLabReports({
                   : "Optional note for the recorded decision."
               }
             />
+            {reviewTarget?.version.result_priority !== "routine" && (
+              <TextField
+                label="Escalation due"
+                type="datetime-local"
+                required
+                value={reviewFollowUpDueAt}
+                onChange={(event) => setReviewFollowUpDueAt(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                disabled={busy || reviewRetryPending}
+                helperText={`Your local time · Clinic zone: ${practice.timezone}`}
+              />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -1322,6 +1541,8 @@ export function PatientLabReports({
               !reviewDisposition ||
               (reviewDisposition === "required" &&
                 !reviewFollowUpNote.trim()) ||
+              (reviewTarget?.version.result_priority !== "routine" &&
+                !reviewFollowUpDueAt) ||
               busy
             }
             onClick={() => void review()}
@@ -1368,7 +1589,11 @@ export function PatientLabReports({
                   >
                     <FormControlLabel
                       value="not_required"
-                      disabled={busy || followUpRetryPending}
+                      disabled={
+                        busy ||
+                        followUpRetryPending ||
+                        followUpTarget.version.result_priority !== "routine"
+                      }
                       control={<Radio />}
                       label="No follow-up needed"
                     />
@@ -1401,6 +1626,17 @@ export function PatientLabReports({
                       : "Optional note for the recorded decision."
                   }
                 />
+                {followUpTarget.version.result_priority !== "routine" && (
+                  <TextField
+                    label="Escalation due"
+                    type="datetime-local"
+                    required
+                    value={followUpDueAt}
+                    onChange={(event) => setFollowUpDueAt(event.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    disabled={busy || followUpRetryPending}
+                  />
+                )}
               </>
             ) : (
               <>
@@ -1421,6 +1657,57 @@ export function PatientLabReports({
                   onChange={(event) => setFollowUpOutcome(event.target.value)}
                   helperText="Record the outcome before completing this follow-up."
                 />
+                <TextField
+                  select
+                  label="Patient contact outcome"
+                  required={
+                    followUpTarget?.version.result_priority === "critical"
+                  }
+                  value={patientContactStatus}
+                  onChange={(event) =>
+                    setPatientContactStatus(event.target.value)
+                  }
+                  disabled={busy || followUpRetryPending}
+                >
+                  <MenuItem value="">Not recorded</MenuItem>
+                  <MenuItem value="informed">Patient informed</MenuItem>
+                  <MenuItem value="not_reached">Not reached</MenuItem>
+                  <MenuItem value="not_required">Contact not required</MenuItem>
+                </TextField>
+                {patientContactStatus === "informed" && (
+                  <TextField
+                    select
+                    label="Contact method"
+                    required
+                    value={patientContactMethod}
+                    onChange={(event) =>
+                      setPatientContactMethod(event.target.value)
+                    }
+                    disabled={busy || followUpRetryPending}
+                  >
+                    {["portal", "phone", "in_person", "letter", "other"].map(
+                      (method) => (
+                        <MenuItem key={method} value={method}>
+                          {optionLabel(method)}
+                        </MenuItem>
+                      ),
+                    )}
+                  </TextField>
+                )}
+                {patientContactStatus &&
+                  patientContactStatus !== "not_required" && (
+                    <TextField
+                      label="Contact attempted at"
+                      type="datetime-local"
+                      required
+                      value={patientContactAt}
+                      onChange={(event) =>
+                        setPatientContactAt(event.target.value)
+                      }
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      disabled={busy || followUpRetryPending}
+                    />
+                  )}
               </>
             )}
           </Stack>
@@ -1438,8 +1725,17 @@ export function PatientLabReports({
               busy ||
               (followUpTarget?.action === "set"
                 ? !followUpDisposition ||
-                  (followUpDisposition === "required" && !followUpNote.trim())
-                : !followUpOutcome.trim())
+                  (followUpDisposition === "required" &&
+                    !followUpNote.trim()) ||
+                  (followUpTarget?.version.result_priority !== "routine" &&
+                    !followUpDueAt)
+                : !followUpOutcome.trim() ||
+                  (followUpTarget?.version.result_priority === "critical" &&
+                    (!patientContactStatus ||
+                      (patientContactStatus !== "not_required" &&
+                        !patientContactAt) ||
+                      (patientContactStatus === "informed" &&
+                        !patientContactMethod))))
             }
             onClick={() =>
               void (followUpTarget?.action === "complete"
@@ -1466,6 +1762,7 @@ function LabForm({
   busy,
   disabled,
   timezone,
+  labOrders,
   onCancel,
   onSave,
 }: {
@@ -1475,6 +1772,7 @@ function LabForm({
   busy: boolean;
   disabled: boolean;
   timezone: string;
+  labOrders: ServiceRequestRevision[];
   onCancel: () => void;
   onSave: () => void;
 }) {
@@ -1512,6 +1810,85 @@ function LabForm({
             "& .MuiTextField-root": { minWidth: 0 },
           }}
         >
+          {!editing && (
+            <>
+              <TextField
+                select
+                label="Authorized laboratory order"
+                required
+                value={form.service_request_revision_id}
+                onChange={(event) => {
+                  const order = labOrders.find(
+                    (candidate) => candidate.id === Number(event.target.value),
+                  );
+                  update({
+                    service_request_revision_id: event.target.value,
+                    title: form.title || order?.requested_display || "",
+                    source_name: form.source_name || order?.destination || "",
+                  });
+                }}
+              >
+                {labOrders.map((order) => (
+                  <MenuItem key={order.id} value={order.id.toString()}>
+                    {order.requested_display} · {optionLabel(order.priority)}
+                    {order.destination ? ` · ${order.destination}` : ""}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 1.5,
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                }}
+              >
+                <TextField
+                  label="Specimen type"
+                  required
+                  value={form.specimen_type_display}
+                  onChange={(event) =>
+                    update({ specimen_type_display: event.target.value })
+                  }
+                />
+                <TextField
+                  select
+                  label="Specimen condition"
+                  required
+                  value={form.specimen_condition}
+                  onChange={(event) =>
+                    update({
+                      specimen_condition: event.target
+                        .value as Form["specimen_condition"],
+                    })
+                  }
+                >
+                  {["satisfactory", "compromised", "unknown"].map(
+                    (condition) => (
+                      <MenuItem key={condition} value={condition}>
+                        {optionLabel(condition)}
+                      </MenuItem>
+                    ),
+                  )}
+                </TextField>
+                <TextField
+                  label="Specimen type code"
+                  required
+                  value={form.specimen_type_code}
+                  onChange={(event) =>
+                    update({ specimen_type_code: event.target.value })
+                  }
+                  helperText="Use the code supplied by the laboratory or configured catalog."
+                />
+                <TextField
+                  label="Specimen identifier"
+                  value={form.specimen_identifier}
+                  onChange={(event) =>
+                    update({ specimen_identifier: event.target.value })
+                  }
+                />
+              </Box>
+            </>
+          )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
               label="Source"
@@ -1558,6 +1935,25 @@ function LabForm({
               ].map((status) => (
                 <MenuItem key={status} value={status}>
                   {status}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Source priority"
+              required
+              value={form.result_priority}
+              onChange={(event) =>
+                update({
+                  result_priority: event.target
+                    .value as Form["result_priority"],
+                })
+              }
+              sx={{ minWidth: 160 }}
+            >
+              {["routine", "urgent", "critical"].map((priority) => (
+                <MenuItem key={priority} value={priority}>
+                  {optionLabel(priority)}
                 </MenuItem>
               ))}
             </TextField>

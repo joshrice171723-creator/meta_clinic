@@ -6,6 +6,8 @@ module Clinic
           id: report.id,
           patient_id: report.patient_id,
           site_id: report.site_id,
+          service_request_revision_id: report.service_request_revision_id,
+          specimen: specimen(report.lab_specimen),
           source_name: report.source_name,
           external_report_id: report.external_report_id,
           current_version_id: report.current_version_id,
@@ -25,6 +27,7 @@ module Clinic
           version_number: value.version_number,
           title: value.title,
           status: value.status,
+          result_priority: value.result_priority,
           collected_at: iso(value.collected_at),
           issued_at: iso(value.issued_at),
           results: value.results,
@@ -51,6 +54,29 @@ module Clinic
           completed_at: iso(value.completed_at),
           completed_by: value.completed_by_membership_id,
           superseded_at: iso(value.superseded_at)
+        }.merge(
+          priority: value.priority,
+          due_at: iso(value.due_at),
+          escalated_at: iso(value.escalated_at),
+          escalated_by: value.escalated_by_membership_id,
+          patient_contact_status: value.patient_contact_status,
+          patient_contact_method: value.patient_contact_method,
+          patient_contact_at: iso(value.patient_contact_at)
+        )
+      end
+
+      def self.specimen(value)
+        return unless value
+
+        {
+          id: value.id,
+          service_request_revision_id: value.service_request_revision_id,
+          specimen_identifier: value.specimen_identifier,
+          specimen_type_code: value.specimen_type_code,
+          specimen_type_display: value.specimen_type_display,
+          condition_code: value.condition_code,
+          collected_at: iso(value.collected_at),
+          collected_by: value.collected_by_membership_id
         }
       end
 
@@ -68,7 +94,8 @@ module Clinic
             id: version.id,
             version_number: version.version_number,
             title: version.title,
-            issued_at: iso(version.issued_at)
+            issued_at: iso(version.issued_at),
+            result_priority: version.result_priority
           },
           follow_up: follow_up(value)
         }
@@ -88,6 +115,7 @@ module Clinic
             id: version.id,
             title: version.title,
             status: version.status,
+            result_priority: version.result_priority,
             issued_at: iso(version.issued_at),
             result_count: version.results.size
           }

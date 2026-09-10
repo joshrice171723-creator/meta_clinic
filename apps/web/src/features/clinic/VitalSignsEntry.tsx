@@ -602,8 +602,9 @@ export function VitalSignsEntry({
             {definitions && !reviewing && (
               <>
                 <Typography color="text.secondary">
-                  Enter only measurements taken for this encounter. Values are
-                  recorded as entered; this form does not interpret them.
+                  Enter only measurements taken for this encounter. BMI is
+                  calculated by the server when height and weight are recorded
+                  together; pain remains the patient-reported 0–10 score.
                 </Typography>
                 {definitions.fields.map((field) => (
                   <Paper key={field.code} variant="outlined" sx={{ p: 1.5 }}>

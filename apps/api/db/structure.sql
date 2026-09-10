@@ -116,6 +116,7 @@ BEGIN
     OR OLD.version_number IS DISTINCT FROM NEW.version_number
     OR OLD.title IS DISTINCT FROM NEW.title
     OR OLD.status IS DISTINCT FROM NEW.status
+    OR OLD.result_priority IS DISTINCT FROM NEW.result_priority
     OR OLD.collected_at IS DISTINCT FROM NEW.collected_at
     OR OLD.issued_at IS DISTINCT FROM NEW.issued_at
     OR OLD.results_payload IS DISTINCT FROM NEW.results_payload
@@ -147,13 +148,16 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Lab result follow-ups cannot be deleted';
   END IF;
-
   IF OLD.id IS DISTINCT FROM NEW.id
     OR OLD.practice_id IS DISTINCT FROM NEW.practice_id
     OR OLD.patient_id IS DISTINCT FROM NEW.patient_id
     OR OLD.lab_report_id IS DISTINCT FROM NEW.lab_report_id
     OR OLD.lab_report_version_id IS DISTINCT FROM NEW.lab_report_version_id
     OR OLD.instructions IS DISTINCT FROM NEW.instructions
+    OR OLD.priority IS DISTINCT FROM NEW.priority
+    OR OLD.due_at IS DISTINCT FROM NEW.due_at
+    OR OLD.escalated_at IS DISTINCT FROM NEW.escalated_at
+    OR OLD.escalated_by_membership_id IS DISTINCT FROM NEW.escalated_by_membership_id
     OR OLD.recorded_by_membership_id IS DISTINCT FROM NEW.recorded_by_membership_id
     OR OLD.recorded_at IS DISTINCT FROM NEW.recorded_at
     OR OLD.created_at IS DISTINCT FROM NEW.created_at
@@ -161,25 +165,6 @@ BEGIN
     OR NEW.state NOT IN ('completed', 'superseded') THEN
     RAISE EXCEPTION 'Lab result follow-up evidence is immutable';
   END IF;
-
-  IF NEW.state = 'completed' AND (
-    NEW.outcome IS NULL
-    OR NEW.completed_at IS NULL
-    OR NEW.completed_by_membership_id IS NULL
-    OR NEW.superseded_at IS NOT NULL
-  ) THEN
-    RAISE EXCEPTION 'Completed lab result follow-up evidence is incomplete';
-  END IF;
-
-  IF NEW.state = 'superseded' AND (
-    NEW.outcome IS NOT NULL
-    OR NEW.completed_at IS NOT NULL
-    OR NEW.completed_by_membership_id IS NOT NULL
-    OR NEW.superseded_at IS NULL
-  ) THEN
-    RAISE EXCEPTION 'Superseded lab result follow-up evidence is incomplete';
-  END IF;
-
   RETURN NEW;
 END;
 $$;
@@ -4997,9 +4982,11 @@ CREATE TABLE public.clinic_lab_report_versions (
     reviewed_at timestamp(6) with time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    result_priority character varying(16) DEFAULT 'routine'::character varying NOT NULL,
     CONSTRAINT clinic_lab_report_versions_review_pair CHECK ((((reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
     CONSTRAINT clinic_lab_report_versions_timeline CHECK ((issued_at >= collected_at)),
-    CONSTRAINT clinic_lab_report_versions_values CHECK (((version_number > 0) AND ((status)::text = ANY (ARRAY[('preliminary'::character varying)::text, ('final'::character varying)::text, ('amended'::character varying)::text, ('corrected'::character varying)::text, ('cancelled'::character varying)::text])) AND ((entry_kind)::text = 'manual'::text) AND (length((content_digest)::text) = 64)))
+    CONSTRAINT clinic_lab_report_versions_values CHECK (((version_number > 0) AND ((status)::text = ANY (ARRAY[('preliminary'::character varying)::text, ('final'::character varying)::text, ('amended'::character varying)::text, ('corrected'::character varying)::text, ('cancelled'::character varying)::text])) AND ((entry_kind)::text = 'manual'::text) AND (length((content_digest)::text) = 64))),
+    CONSTRAINT lab_report_versions_priority CHECK (((result_priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'critical'::character varying])::text[])))
 );
 
 
@@ -5037,7 +5024,10 @@ CREATE TABLE public.clinic_lab_reports (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     site_id bigint,
-    CONSTRAINT clinic_lab_reports_values CHECK (((length(TRIM(BOTH FROM source_name)) > 0) AND ((external_report_id_digest IS NULL) OR (length((external_report_id_digest)::text) = 64))))
+    service_request_revision_id bigint,
+    lab_specimen_id bigint,
+    CONSTRAINT clinic_lab_reports_values CHECK (((length(TRIM(BOTH FROM source_name)) > 0) AND ((external_report_id_digest IS NULL) OR (length((external_report_id_digest)::text) = 64)))),
+    CONSTRAINT lab_reports_order_specimen_pair CHECK (((service_request_revision_id IS NULL) = (lab_specimen_id IS NULL)))
 );
 
 
@@ -5080,8 +5070,16 @@ CREATE TABLE public.clinic_lab_result_follow_ups (
     superseded_at timestamp(6) with time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_lab_follow_ups_state_evidence CHECK (((((state)::text = 'open'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL)) OR (((state)::text = 'completed'::text) AND (instructions IS NOT NULL) AND (outcome IS NOT NULL) AND (completed_at IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (superseded_at IS NULL)) OR (((state)::text = 'not_required'::text) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL)) OR (((state)::text = 'superseded'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NOT NULL)))),
-    CONSTRAINT clinic_lab_follow_ups_values CHECK ((((state)::text = ANY (ARRAY[('open'::character varying)::text, ('completed'::character varying)::text, ('not_required'::character varying)::text, ('superseded'::character varying)::text])) AND ((instructions IS NULL) OR ((char_length(TRIM(BOTH FROM instructions)) >= 1) AND (char_length(TRIM(BOTH FROM instructions)) <= 1000))) AND ((outcome IS NULL) OR ((char_length(TRIM(BOTH FROM outcome)) >= 1) AND (char_length(TRIM(BOTH FROM outcome)) <= 1000)))))
+    priority character varying(16) DEFAULT 'routine'::character varying NOT NULL,
+    due_at timestamp(6) with time zone,
+    escalated_at timestamp(6) with time zone,
+    escalated_by_membership_id bigint,
+    patient_contact_status character varying(24),
+    patient_contact_method character varying(24),
+    patient_contact_at timestamp(6) with time zone,
+    CONSTRAINT clinic_lab_follow_ups_escalation_evidence CHECK (((((priority)::text = 'routine'::text) AND (escalated_at IS NULL) AND (escalated_by_membership_id IS NULL)) OR (((priority)::text = ANY ((ARRAY['urgent'::character varying, 'critical'::character varying])::text[])) AND (due_at IS NOT NULL) AND (escalated_at IS NOT NULL) AND (escalated_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_lab_follow_ups_state_evidence CHECK (((((state)::text = 'open'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL) AND (patient_contact_status IS NULL) AND (patient_contact_method IS NULL) AND (patient_contact_at IS NULL)) OR (((state)::text = 'completed'::text) AND (instructions IS NOT NULL) AND (outcome IS NOT NULL) AND (completed_at IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (superseded_at IS NULL) AND (((priority)::text <> 'critical'::text) OR (patient_contact_status IS NOT NULL)) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text = 'not_required'::text) OR (patient_contact_at IS NOT NULL)) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text <> 'informed'::text) OR (patient_contact_method IS NOT NULL))) OR (((state)::text = 'not_required'::text) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL) AND ((priority)::text = 'routine'::text) AND (patient_contact_status IS NULL)) OR (((state)::text = 'superseded'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NOT NULL) AND (patient_contact_status IS NULL)))),
+    CONSTRAINT clinic_lab_follow_ups_values CHECK ((((state)::text = ANY ((ARRAY['open'::character varying, 'completed'::character varying, 'not_required'::character varying, 'superseded'::character varying])::text[])) AND ((priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'critical'::character varying])::text[])) AND ((instructions IS NULL) OR ((char_length(TRIM(BOTH FROM instructions)) >= 1) AND (char_length(TRIM(BOTH FROM instructions)) <= 1000))) AND ((outcome IS NULL) OR ((char_length(TRIM(BOTH FROM outcome)) >= 1) AND (char_length(TRIM(BOTH FROM outcome)) <= 1000))) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text = ANY ((ARRAY['informed'::character varying, 'not_reached'::character varying, 'not_required'::character varying])::text[]))) AND ((patient_contact_method IS NULL) OR ((patient_contact_method)::text = ANY ((ARRAY['portal'::character varying, 'phone'::character varying, 'in_person'::character varying, 'letter'::character varying, 'other'::character varying])::text[])))))
 );
 
 
@@ -5102,6 +5100,49 @@ CREATE SEQUENCE public.clinic_lab_result_follow_ups_id_seq
 --
 
 ALTER SEQUENCE public.clinic_lab_result_follow_ups_id_seq OWNED BY public.clinic_lab_result_follow_ups.id;
+
+
+--
+-- Name: clinic_lab_specimens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_lab_specimens (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    service_request_revision_id bigint NOT NULL,
+    specimen_identifier text,
+    specimen_type_code character varying(80) NOT NULL,
+    specimen_type_display text NOT NULL,
+    condition_code character varying(32) NOT NULL,
+    collected_at timestamp(6) with time zone NOT NULL,
+    collected_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT lab_specimens_values CHECK ((((condition_code)::text = ANY ((ARRAY['satisfactory'::character varying, 'compromised'::character varying, 'unknown'::character varying])::text[])) AND ((char_length(TRIM(BOTH FROM specimen_type_code)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_code)) <= 80)) AND ((char_length(TRIM(BOTH FROM specimen_type_display)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_display)) <= 160))))
+);
+
+
+--
+-- Name: clinic_lab_specimens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_lab_specimens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_lab_specimens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_lab_specimens_id_seq OWNED BY public.clinic_lab_specimens.id;
 
 
 --
@@ -6093,6 +6134,8 @@ CREATE TABLE public.clinic_patient_demographics (
     interpreter_required boolean DEFAULT false NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    legal_name text,
+    preferred_name text,
     CONSTRAINT clinic_patient_demographics_language_present CHECK ((length(TRIM(BOTH FROM primary_language)) > 0))
 );
 
@@ -6114,6 +6157,58 @@ CREATE SEQUENCE public.clinic_patient_demographics_id_seq
 --
 
 ALTER SEQUENCE public.clinic_patient_demographics_id_seq OWNED BY public.clinic_patient_demographics.id;
+
+
+--
+-- Name: clinic_patient_education_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_education_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    topic_code character varying(32) NOT NULL,
+    topic_title text NOT NULL,
+    delivery_method character varying(24) NOT NULL,
+    recipient character varying(16) NOT NULL,
+    material_title text,
+    material_url text,
+    language character varying(80) NOT NULL,
+    interpreter_used boolean DEFAULT false NOT NULL,
+    teach_back_status character varying(32) NOT NULL,
+    patient_response text,
+    reteaching_summary text,
+    follow_up_needed boolean DEFAULT false NOT NULL,
+    follow_up_plan text,
+    recorded_by_membership_id bigint CONSTRAINT clinic_patient_education_eve_recorded_by_membership_id_not_null NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT patient_education_codes CHECK ((((topic_code)::text = ANY ((ARRAY['medication'::character varying, 'diagnosis'::character varying, 'self_care'::character varying, 'warning_signs'::character varying, 'procedure'::character varying, 'device'::character varying, 'follow_up'::character varying, 'prevention'::character varying, 'other'::character varying])::text[])) AND ((delivery_method)::text = ANY ((ARRAY['discussion'::character varying, 'handout'::character varying, 'portal'::character varying, 'demonstration'::character varying])::text[])) AND ((recipient)::text = ANY ((ARRAY['patient'::character varying, 'caregiver'::character varying, 'both'::character varying])::text[])) AND ((teach_back_status)::text = ANY ((ARRAY['demonstrated'::character varying, 'needs_reteaching'::character varying, 'declined'::character varying, 'unable'::character varying, 'not_applicable'::character varying])::text[])))),
+    CONSTRAINT patient_education_evidence CHECK ((((char_length(TRIM(BOTH FROM topic_title)) >= 1) AND (char_length(TRIM(BOTH FROM topic_title)) <= 240)) AND ((char_length(TRIM(BOTH FROM language)) >= 1) AND (char_length(TRIM(BOTH FROM language)) <= 80)) AND (((delivery_method)::text <> ALL ((ARRAY['handout'::character varying, 'portal'::character varying])::text[])) OR (material_title IS NOT NULL)) AND (((teach_back_status)::text <> 'demonstrated'::text) OR (patient_response IS NOT NULL)) AND (((teach_back_status)::text <> 'needs_reteaching'::text) OR ((reteaching_summary IS NOT NULL) AND follow_up_needed)) AND ((NOT follow_up_needed) OR (follow_up_plan IS NOT NULL))))
+);
+
+
+--
+-- Name: clinic_patient_education_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_education_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_education_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_education_events_id_seq OWNED BY public.clinic_patient_education_events.id;
 
 
 --
@@ -11548,6 +11643,13 @@ ALTER TABLE ONLY public.clinic_lab_result_follow_ups ALTER COLUMN id SET DEFAULT
 
 
 --
+-- Name: clinic_lab_specimens id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens ALTER COLUMN id SET DEFAULT nextval('public.clinic_lab_specimens_id_seq'::regclass);
+
+
+--
 -- Name: clinic_learning_export_batches id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -11706,6 +11808,13 @@ ALTER TABLE ONLY public.clinic_patient_contacts ALTER COLUMN id SET DEFAULT next
 --
 
 ALTER TABLE ONLY public.clinic_patient_demographics ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_demographics_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_education_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_education_events_id_seq'::regclass);
 
 
 --
@@ -13208,6 +13317,14 @@ ALTER TABLE ONLY public.clinic_lab_result_follow_ups
 
 
 --
+-- Name: clinic_lab_specimens clinic_lab_specimens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT clinic_lab_specimens_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_learning_export_batches clinic_learning_export_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13389,6 +13506,14 @@ ALTER TABLE ONLY public.clinic_patient_contacts
 
 ALTER TABLE ONLY public.clinic_patient_demographics
     ADD CONSTRAINT clinic_patient_demographics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_education_events clinic_patient_education_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events
+    ADD CONSTRAINT clinic_patient_education_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -14958,6 +15083,13 @@ CREATE INDEX clinic_lab_follow_ups_open_queue ON public.clinic_lab_result_follow
 --
 
 CREATE UNIQUE INDEX clinic_lab_follow_ups_practice_id ON public.clinic_lab_result_follow_ups USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_lab_follow_ups_priority_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_lab_follow_ups_priority_queue ON public.clinic_lab_result_follow_ups USING btree (practice_id, state, priority, due_at, id) WHERE ((state)::text = 'open'::text);
 
 
 --
@@ -18468,6 +18600,27 @@ CREATE UNIQUE INDEX inventory_transfer_retry ON public.clinic_inventory_transfer
 
 
 --
+-- Name: lab_specimens_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX lab_specimens_context_id ON public.clinic_lab_specimens USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: lab_specimens_order_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX lab_specimens_order_timeline ON public.clinic_lab_specimens USING btree (practice_id, service_request_revision_id, collected_at, id);
+
+
+--
+-- Name: lab_specimens_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX lab_specimens_practice_id ON public.clinic_lab_specimens USING btree (practice_id, id);
+
+
+--
 -- Name: learning_exports_owner_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -18577,6 +18730,27 @@ CREATE UNIQUE INDEX med_request_request_key ON public.clinic_medication_request_
 --
 
 CREATE UNIQUE INDEX med_request_series_version ON public.clinic_medication_request_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
+-- Name: patient_education_encounter_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX patient_education_encounter_timeline ON public.clinic_patient_education_events USING btree (practice_id, patient_id, encounter_id, recorded_at, id);
+
+
+--
+-- Name: patient_education_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_education_practice_id ON public.clinic_patient_education_events USING btree (practice_id, id);
+
+
+--
+-- Name: patient_education_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_education_request_key ON public.clinic_patient_education_events USING btree (practice_id, recorded_by_membership_id, request_key);
 
 
 --
@@ -19490,6 +19664,13 @@ CREATE TRIGGER clinic_lab_result_follow_ups_protect BEFORE DELETE OR UPDATE ON p
 
 
 --
+-- Name: clinic_lab_specimens clinic_lab_specimens_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_lab_specimens_immutable BEFORE DELETE OR UPDATE ON public.clinic_lab_specimens FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_medication_administration_movements clinic_medication_administration_movements_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -19599,6 +19780,13 @@ CREATE TRIGGER clinic_patient_care_needs_preserve_identity BEFORE UPDATE ON publ
 --
 
 CREATE TRIGGER clinic_patient_contacts_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_contacts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_education_events clinic_patient_education_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_education_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_education_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -21988,6 +22176,14 @@ ALTER TABLE ONLY public.clinic_lab_result_follow_ups
 
 
 --
+-- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_escalator; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_result_follow_ups
+    ADD CONSTRAINT fk_lab_follow_ups_escalator FOREIGN KEY (practice_id, escalated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_lab_result_follow_ups fk_lab_follow_ups_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -22052,11 +22248,75 @@ ALTER TABLE ONLY public.clinic_lab_reports
 
 
 --
+-- Name: clinic_lab_reports fk_lab_reports_service_request; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_service_request FOREIGN KEY (practice_id, service_request_revision_id) REFERENCES public.clinic_service_request_revisions(practice_id, id);
+
+
+--
 -- Name: clinic_lab_reports fk_lab_reports_site; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_lab_reports
     ADD CONSTRAINT fk_lab_reports_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_lab_reports fk_lab_reports_specimen; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_reports
+    ADD CONSTRAINT fk_lab_reports_specimen FOREIGN KEY (practice_id, lab_specimen_id) REFERENCES public.clinic_lab_specimens(practice_id, id);
+
+
+--
+-- Name: clinic_lab_specimens fk_lab_specimens_collector; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT fk_lab_specimens_collector FOREIGN KEY (practice_id, collected_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_lab_specimens fk_lab_specimens_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT fk_lab_specimens_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_lab_specimens fk_lab_specimens_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT fk_lab_specimens_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_lab_specimens fk_lab_specimens_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT fk_lab_specimens_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_lab_specimens fk_lab_specimens_service_request; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT fk_lab_specimens_service_request FOREIGN KEY (practice_id, patient_id, encounter_id, service_request_revision_id) REFERENCES public.clinic_service_request_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_lab_specimens fk_lab_specimens_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_lab_specimens
+    ADD CONSTRAINT fk_lab_specimens_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -22513,6 +22773,46 @@ ALTER TABLE ONLY public.clinic_encounter_participants
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT fk_patient_addresses_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_education_events fk_patient_education_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events
+    ADD CONSTRAINT fk_patient_education_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_education_events fk_patient_education_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events
+    ADD CONSTRAINT fk_patient_education_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_education_events fk_patient_education_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events
+    ADD CONSTRAINT fk_patient_education_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_education_events fk_patient_education_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events
+    ADD CONSTRAINT fk_patient_education_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_patient_education_events fk_patient_education_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_events
+    ADD CONSTRAINT fk_patient_education_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -26690,6 +26990,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260910001900'),
 ('20260910001800'),
 ('20260910001700'),
 ('20260910001600'),

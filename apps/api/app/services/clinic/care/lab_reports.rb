@@ -7,9 +7,15 @@ module Clinic
       MAX_PAYLOAD_BYTES = 65_536
       Result = Data.define(:value, :replayed)
 
-      def self.create(practice:, actor:, patient:, request_key:, confirmed_patient:, source_name:, external_report_id:, version:, site: nil)
+      def self.create(practice:, actor:, patient:, request_key:, confirmed_patient:, source_name:, external_report_id:,
+        service_request_revision_id:, specimen:, version:, site: nil)
         patient = practice.patients.find(patient.id)
-        site = practice.sites.find(site.id) if site
+        order = ServiceRequestRevision.where(practice:, patient:).find(service_request_revision_id)
+        validate_lab_order!(practice, patient, order)
+        if site && site.id != order.site_id
+          raise ArgumentError, "The selected facility does not match the lab order."
+        end
+        site = order.site
         authorize_write!(practice:, actor:, patient:, site:)
         confirm_patient!(confirmed_patient)
         report_identity = {
@@ -17,7 +23,11 @@ module Clinic
           external_report_id: optional_text(external_report_id, "external_report_id", 255)
         }
         version_payload = normalize_version(version)
-        payload = { patient_id: patient.id, site_id: site&.id, confirmed_patient: true, report: report_identity, version: version_payload }
+        specimen_payload = normalize_specimen(specimen)
+        payload = {
+          patient_id: patient.id, site_id: site.id, service_request_revision_id: order.id,
+          confirmed_patient: true, report: report_identity, specimen: specimen_payload, version: version_payload
+        }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.create", request_key:, payload:,
           authorization: -> { authorize_write!(practice:, actor:, patient:, site:) }, authorization_action: "observations.write",
@@ -25,9 +35,19 @@ module Clinic
           resource_resolver: ->(practice:, receipt:) { practice.lab_reports.where(patient:).find_by(id: receipt.resource_id) }
         ) do
           member = authorize_write!(practice:, actor:, patient:, site:)
-          report = practice.lab_reports.create!(report_identity.merge(patient:, site:))
+          order = ServiceRequestRevision.where(practice:, patient:).lock.find(order.id)
+          validate_lab_order!(practice, patient, order)
+          specimen_record = LabSpecimen.create!(
+            specimen_payload.merge(practice:, patient:, encounter: order.encounter, site:, service_request_revision: order,
+              collected_at: version_payload.fetch(:collected_at), collected_by_membership: member,
+              recorded_at: Current.business_time)
+          )
+          report = practice.lab_reports.create!(
+            report_identity.merge(patient:, site:, service_request_revision: order, lab_specimen: specimen_record)
+          )
           lab_version = create_version!(report:, member:, number: 1, attributes: version_payload)
           report.update!(current_version: lab_version)
+          create_order_link!(report, order, member, request_key)
           audit!(practice:, actor:, action: "lab_report.create", report:, version: lab_version)
           report
         end
@@ -76,7 +96,10 @@ module Clinic
         version = report.report_versions.find(version.id)
         authorize_review!(practice:, actor:, patient:, site: report.site)
         confirm_patient!(confirmed_patient)
-        follow_up_payload = LabResultFollowUps.normalize_optional_decision(follow_up)
+        follow_up_payload = LabResultFollowUps.normalize_optional_decision(follow_up, priority: version.result_priority)
+        if version.result_priority_critical? && follow_up_payload.nil?
+          raise ArgumentError, "Critical results require escalation instructions and a due time before acknowledgment."
+        end
         payload = { patient_id: patient.id, report_id: report.id, version_id: version.id, confirmed_patient: true }
         if follow_up_payload
           payload[:follow_up_disposition] = follow_up_payload.fetch(:disposition)
@@ -114,6 +137,7 @@ module Clinic
         payload = {
           title: required_text(attributes[:title], "title", 200),
           status: status(attributes[:status]),
+          result_priority: result_priority(attributes[:result_priority]),
           collected_at: timestamp(attributes[:collected_at], "collected_at"),
           issued_at: timestamp(attributes[:issued_at], "issued_at"),
           results: results,
@@ -128,6 +152,23 @@ module Clinic
         raise ArgumentError, "results are required."
       end
       private_class_method :normalize_version
+
+      def self.normalize_specimen(attributes)
+        values = attributes.to_h.symbolize_keys
+        {
+          specimen_identifier: optional_text(values[:specimen_identifier], "specimen_identifier", 255),
+          specimen_type_code: required_text(values[:specimen_type_code], "specimen_type_code", 80),
+          specimen_type_display: required_text(values[:specimen_type_display], "specimen_type_display", 160),
+          condition_code: values[:condition_code].to_s
+        }.tap do |payload|
+          unless payload[:condition_code].in?(LabSpecimen::CONDITIONS)
+            raise ArgumentError, "condition_code must be one of: #{LabSpecimen::CONDITIONS.join(', ')}."
+          end
+        end
+      rescue NoMethodError
+        raise ArgumentError, "specimen is required."
+      end
+      private_class_method :normalize_specimen
 
       def self.normalize_results(results)
         unless results.is_a?(Array) && results.size.between?(1, MAX_RESULTS)
@@ -154,6 +195,7 @@ module Clinic
         report.report_versions.create!(
           practice: report.practice, patient: report.patient, version_number: number,
           title: attributes.fetch(:title), status: attributes.fetch(:status),
+          result_priority: attributes.fetch(:result_priority),
           collected_at: attributes.fetch(:collected_at), issued_at: attributes.fetch(:issued_at),
           results_payload: JSON.generate(attributes.fetch(:results)), entry_kind: attributes.fetch(:entry_kind),
           content_digest: attributes.fetch(:content_digest), recorded_by_membership: member,
@@ -161,6 +203,29 @@ module Clinic
         )
       end
       private_class_method :create_version!
+
+      def self.create_order_link!(report, order, member, request_key)
+        ClinicalPlanLink.create!(
+          practice: report.practice, patient: report.patient, encounter: order.encounter, site: order.site,
+          source_kind: "service_request", service_request_revision: order,
+          target_kind: "lab_report", lab_report: report,
+          outcome_summary: "External lab report received",
+          recorded_by_membership: member, recorded_at: Current.business_time,
+          request_key: Digest::SHA256.hexdigest("lab-order-link:#{request_key}")
+        )
+      end
+      private_class_method :create_order_link!
+
+      def self.validate_lab_order!(practice, patient, order)
+        unless order.practice_id == practice.id && order.patient_id == patient.id && order.request_kind == "lab" &&
+          order.intent == "order" && order.status == "active" && order.site_id.present?
+          raise ArgumentError, "Choose an active laboratory order for this patient and facility."
+        end
+        latest = ServiceRequestRevision.where(practice:, series_id: order.series_id)
+          .order(version_number: :desc, id: :desc).first
+        raise ActiveRecord::StaleObjectError.new(order, "link lab report") unless latest&.id == order.id
+      end
+      private_class_method :validate_lab_order!
 
       def self.authorize_write!(practice:, actor:, patient:, site:)
         Authorization.authorize!(practice:, actor:, action: "patients.read", subject: patient)
@@ -186,6 +251,14 @@ module Clinic
         raise ArgumentError, "status must be one of: #{LabReportVersion::STATUSES.join(', ')}."
       end
       private_class_method :status
+
+      def self.result_priority(value)
+        priority = value.to_s.presence || "routine"
+        return priority if priority.in?(%w[routine urgent critical])
+
+        raise ArgumentError, "result_priority must be routine, urgent, or critical."
+      end
+      private_class_method :result_priority
 
       def self.timestamp(value, field)
         return value if value.respond_to?(:iso8601)

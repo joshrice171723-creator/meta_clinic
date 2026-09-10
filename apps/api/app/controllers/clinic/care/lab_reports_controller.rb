@@ -5,12 +5,12 @@ module Clinic
       before_action -> { require_capability("notes.read", any_site: true) },
         only: %i[index show review_queue follow_up_queue result_history]
 
-      VERSION_FIELDS = %i[title status collected_at issued_at].freeze
+      VERSION_FIELDS = %i[title status result_priority collected_at issued_at].freeze
       RESULT_FIELDS = %i[name code value unit reference_range flag].freeze
 
       def index
         patient = readable_patient!
-        relation = visible_reports("notes.read").where(patient:).includes(current_version: :follow_up)
+        relation = visible_reports("notes.read").where(patient:).includes(:lab_specimen, current_version: :follow_up)
         page = page_param
         per_page = per_page_param
         total = relation.count
@@ -33,6 +33,8 @@ module Clinic
           .where(clinic_lab_report_versions: { reviewed_at: nil })
         total = relation.count
         reports = relation.includes(:patient, :current_version)
+          .order(Arel.sql("CASE clinic_lab_report_versions.result_priority " \
+            "WHEN 'critical' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END ASC"))
           .order("clinic_lab_report_versions.issued_at ASC", "clinic_lab_report_versions.id ASC", "clinic_lab_reports.id ASC")
           .offset((page - 1) * per_page).limit(per_page)
         Clinic::AuditRecorder.record!(
@@ -60,7 +62,9 @@ module Clinic
         )
         total = relation.count
         follow_ups = relation.includes(:patient, :lab_report, :lab_report_version)
-          .order(recorded_at: :asc, id: :asc)
+          .order(Arel.sql("CASE clinic_lab_result_follow_ups.priority " \
+            "WHEN 'critical' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END ASC"))
+          .order(Arel.sql("clinic_lab_result_follow_ups.due_at ASC NULLS LAST"), recorded_at: :asc, id: :asc)
           .offset((page - 1) * per_page).limit(per_page)
         Clinic::AuditRecorder.record!(
           practice: current_practice,
@@ -79,7 +83,7 @@ module Clinic
       def show
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient:)
-          .includes(current_version: :follow_up, report_versions: :follow_up)
+          .includes(:lab_specimen, current_version: :follow_up, report_versions: :follow_up)
           .find(requested_id!(params[:id], :id))
         authorize_report!(report, "notes.read")
         audit_read!(patient, "report/#{report.id}")
@@ -124,7 +128,8 @@ module Clinic
       def create
         patient = readable_patient!
         input = parameter_hash!(:lab_report,
-          [ :request_key, :confirmed_patient, :source_name, :external_report_id, *VERSION_FIELDS ],
+          [ :request_key, :confirmed_patient, :source_name, :external_report_id, :service_request_revision_id,
+            :specimen_identifier, :specimen_type_code, :specimen_type_display, :specimen_condition, *VERSION_FIELDS ],
           nested_arrays: { results: RESULT_FIELDS })
         result = LabReports.create(
           practice: current_practice, actor: current_user, patient:,
@@ -133,6 +138,13 @@ module Clinic
           confirmed_patient: boolean_param(input[:confirmed_patient], field: :confirmed_patient),
           source_name: required_string!(input[:source_name], field: :source_name, maximum: 160),
           external_report_id: optional_string(input[:external_report_id], field: :external_report_id, maximum: 255),
+          service_request_revision_id: requested_id!(input[:service_request_revision_id], :service_request_revision_id),
+          specimen: {
+            specimen_identifier: optional_string(input[:specimen_identifier], field: :specimen_identifier, maximum: 255),
+            specimen_type_code: required_string!(input[:specimen_type_code], field: :specimen_type_code, maximum: 80),
+            specimen_type_display: required_string!(input[:specimen_type_display], field: :specimen_type_display, maximum: 160),
+            condition_code: enum_param!(input[:specimen_condition], field: :specimen_condition, allowed: LabSpecimen::CONDITIONS)
+          },
           version: version_attributes(input)
         )
         render json: { report: LabReportSerializer.report(result.value) }, status: result.replayed ? :ok : :created
@@ -162,11 +174,12 @@ module Clinic
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
         authorize_report!(report, "notes.write")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
-        input = parameter_hash!(:review, %i[request_key confirmed_patient follow_up_disposition follow_up_note])
-        follow_up = if input.key?(:follow_up_disposition) || input.key?(:follow_up_note)
+        input = parameter_hash!(:review, %i[request_key confirmed_patient follow_up_disposition follow_up_note follow_up_due_at])
+        follow_up = if input.key?(:follow_up_disposition) || input.key?(:follow_up_note) || input.key?(:follow_up_due_at)
           {
             disposition: input[:follow_up_disposition],
-            note: optional_string(input[:follow_up_note], field: :follow_up_note, maximum: 1000)
+            note: optional_string(input[:follow_up_note], field: :follow_up_note, maximum: 1000),
+            due_at: input[:follow_up_due_at].present? ? time_param!(input[:follow_up_due_at], field: :follow_up_due_at) : nil
           }
         end
         result = LabReports.review(
@@ -185,12 +198,13 @@ module Clinic
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
         authorize_report!(report, "notes.write")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
-        input = parameter_hash!(:follow_up, %i[request_key disposition note])
+        input = parameter_hash!(:follow_up, %i[request_key disposition note due_at])
         result = LabResultFollowUps.record(
           practice: current_practice, actor: current_user, patient:, report:, version:,
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
           disposition: enum_param!(input[:disposition], field: :disposition, allowed: LabResultFollowUps::DISPOSITIONS),
-          note: optional_string(input[:note], field: :note, maximum: 1000)
+          note: optional_string(input[:note], field: :note, maximum: 1000),
+          due_at: input[:due_at].present? ? time_param!(input[:due_at], field: :due_at) : nil
         )
         render json: {
           version: LabReportSerializer.version(result.value.lab_report_version.reload),
@@ -204,11 +218,21 @@ module Clinic
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
         authorize_report!(report, "notes.write")
         version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
-        input = parameter_hash!(:follow_up, %i[request_key outcome])
+        input = parameter_hash!(:follow_up,
+          %i[request_key outcome patient_contact_status patient_contact_method patient_contact_at])
         result = LabResultFollowUps.complete(
           practice: current_practice, actor: current_user, patient:, report:, version:,
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
-          outcome: required_string!(input[:outcome], field: :outcome, maximum: 1000)
+          outcome: required_string!(input[:outcome], field: :outcome, maximum: 1000),
+          patient_contact_status: input[:patient_contact_status].presence && enum_param!(
+            input[:patient_contact_status], field: :patient_contact_status,
+            allowed: LabResultFollowUps::PATIENT_CONTACT_STATUSES
+          ),
+          patient_contact_method: input[:patient_contact_method].presence && enum_param!(
+            input[:patient_contact_method], field: :patient_contact_method,
+            allowed: LabResultFollowUps::PATIENT_CONTACT_METHODS
+          ),
+          patient_contact_at: input[:patient_contact_at].present? ? time_param!(input[:patient_contact_at], field: :patient_contact_at) : nil
         )
         render json: {
           version: LabReportSerializer.version(result.value.lab_report_version.reload),
@@ -248,6 +272,8 @@ module Clinic
         {
           title: required_string!(input[:title], field: :title, maximum: 200),
           status: enum_param!(input[:status], field: :status, allowed: LabReportVersion::STATUSES),
+          result_priority: enum_param!(input[:result_priority], field: :result_priority,
+            allowed: %w[routine urgent critical]),
           collected_at: time_param!(input[:collected_at], field: :collected_at),
           issued_at: time_param!(input[:issued_at], field: :issued_at),
           results:

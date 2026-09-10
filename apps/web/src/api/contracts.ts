@@ -220,7 +220,10 @@ export type Patient = {
   display_name: string;
   reference: string;
   primary_address_version_id?: number | null;
+  primary_address?: { id: number; version: number; formatted: string } | null;
   demographics?: {
+    legal_name: string | null;
+    preferred_name: string | null;
     date_of_birth: string | null;
     sex: string;
     primary_language: string;

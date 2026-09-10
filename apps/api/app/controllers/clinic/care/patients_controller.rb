@@ -127,12 +127,12 @@ module Clinic
       end
 
       def patient_input
-        parameter_hash!(:clinic_patient, %i[display_name reference date_of_birth sex primary_language interpreter_required contact_type contact_value preferred emergency_name emergency_relationship emergency_phone permission_to_contact preferred_contact_method appointment_reminders_consent general_communications_consent tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors expected_updated_at request_key])
+        parameter_hash!(:clinic_patient, %i[display_name reference legal_name preferred_name primary_address date_of_birth sex primary_language interpreter_required contact_type contact_value preferred emergency_name emergency_relationship emergency_phone permission_to_contact preferred_contact_method appointment_reminders_consent general_communications_consent tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors expected_updated_at request_key])
       end
 
       def patient_detail_scope
         current_practice.patients.accessible_by(current_ability, :read)
-          .includes(:demographics, :contacts, :emergency_contacts, :communication_preference, :social_histories)
+          .includes(:demographics, :primary_address_version, :contacts, :emergency_contacts, :communication_preference, :social_histories)
       end
 
       def save_registration!(patient, input)
@@ -141,6 +141,8 @@ module Clinic
           changed = false
           existing_demographics = patient.demographics
           demographics = {
+            legal_name: registration_legal_name(input, existing_demographics, patient),
+            preferred_name: registration_preferred_name(input, existing_demographics),
             date_of_birth: registration_date_of_birth(input, existing_demographics),
             sex: registration_sex(input, existing_demographics),
             primary_language: registration_language(input, existing_demographics),
@@ -153,6 +155,7 @@ module Clinic
             patient.create_demographics!(demographics.merge(practice: current_practice))
             changed = true
           end
+          changed = replace_primary_address!(patient, input) || changed
           changed = replace_contact!(patient, input, now) || changed
           changed = replace_emergency_contact!(patient, input, now) || changed
           existing_preference = patient.communication_preference
@@ -190,6 +193,19 @@ module Clinic
         return false if current && version_matches?(current, attributes)
 
         patient.contacts.create!(attributes.merge(practice: current_practice, effective_from: now))
+        true
+      end
+
+      def replace_primary_address!(patient, input)
+        return false unless input.key?(:primary_address)
+
+        address = optional_string(input[:primary_address], field: :primary_address, maximum: 20_000)
+        current = patient.primary_address_version
+        return false if address.blank? || current&.encrypted_address == address
+
+        Clinic::Care::AddPatientAddress.call(
+          practice: current_practice, actor: current_user, patient:, encrypted_address: address, make_primary: true
+        )
         true
       end
 
@@ -253,6 +269,18 @@ module Clinic
         return existing.date_of_birth if existing && !input.key?(:date_of_birth)
 
         input[:date_of_birth].presence && date_param!(input[:date_of_birth], field: :date_of_birth)
+      end
+
+      def registration_legal_name(input, existing, patient)
+        return existing.legal_name if existing && !input.key?(:legal_name)
+
+        required_string!(input[:legal_name].presence || patient.display_name, field: :legal_name, maximum: 160)
+      end
+
+      def registration_preferred_name(input, existing)
+        return existing.preferred_name if existing && !input.key?(:preferred_name)
+
+        optional_string(input[:preferred_name], field: :preferred_name, maximum: 160)
       end
 
       def registration_sex(input, existing)

@@ -22,6 +22,7 @@ type LabReviewItem = {
     id: number;
     title: string;
     status: string;
+    result_priority: "routine" | "urgent" | "critical";
     issued_at: string | null;
     result_count: number;
   };
@@ -188,6 +189,18 @@ function LabReviewInbox() {
                           variant="outlined"
                           label={item.current_version.status}
                         />
+                        {item.current_version.result_priority !== "routine" && (
+                          <Chip
+                            size="small"
+                            color={
+                              item.current_version.result_priority ===
+                              "critical"
+                                ? "error"
+                                : "warning"
+                            }
+                            label={item.current_version.result_priority}
+                          />
+                        )}
                       </Stack>
                       <Typography
                         variant="body2"

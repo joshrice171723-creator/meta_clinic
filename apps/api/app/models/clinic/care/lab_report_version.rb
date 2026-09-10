@@ -6,7 +6,7 @@ module Clinic
 
       STATUSES = %w[preliminary final amended corrected cancelled].freeze
       IMMUTABLE_ATTRIBUTES = %w[
-        practice_id patient_id lab_report_id version_number title status collected_at issued_at results_payload
+        practice_id patient_id lab_report_id version_number title status result_priority collected_at issued_at results_payload
         entry_kind content_digest recorded_by_membership_id recorded_at
       ].freeze
 
@@ -18,6 +18,7 @@ module Clinic
 
       encrypts :title, :results_payload
       enum :status, STATUSES.index_with(&:itself), prefix: true, validate: true
+      enum :result_priority, { routine: "routine", urgent: "urgent", critical: "critical" }, prefix: true, validate: true
       enum :entry_kind, { manual: "manual" }, prefix: true, validate: true
       attr_readonly(*IMMUTABLE_ATTRIBUTES)
       has_paper_trail(

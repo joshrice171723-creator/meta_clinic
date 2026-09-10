@@ -4,9 +4,10 @@ module Clinic
       class DictionaryMismatch < StandardError; end
 
       CODE_SYSTEM = "urn:apply:vital-signs"
-      DICTIONARY_VERSION = "1"
+      DICTIONARY_VERSION = "2"
       ROOT_CODE = "vital-signs"
       BLOOD_PRESSURE_CODE = "vital-blood-pressure"
+      BMI_CODE = "vital-bmi"
       OPERATION_CODE = "vital_signs.create"
 
       FIELDS = [
@@ -23,10 +24,18 @@ module Clinic
         { code: "vital-temperature", label: "Temperature", group: nil,
           units: [ { code: "Cel", label: "°C" }, { code: "[degF]", label: "°F" } ] },
         { code: "vital-weight", label: "Weight", group: nil,
-          units: [ { code: "kg", label: "kg" }, { code: "[lb_av]", label: "lb" } ] }
+          units: [ { code: "kg", label: "kg" }, { code: "[lb_av]", label: "lb" } ] },
+        { code: "vital-height", label: "Height", group: nil,
+          units: [ { code: "cm", label: "cm" }, { code: "[in_i]", label: "in" } ] },
+        { code: "vital-pain-score", label: "Pain score", group: nil,
+          units: [ { code: "{score}", label: "0–10" } ] }
       ].freeze
 
-      FIELD_BY_CODE = FIELDS.index_by { |field| field.fetch(:code) }.freeze
+      DERIVED_FIELDS = [
+        { code: BMI_CODE, label: "Body mass index", group: nil,
+          units: [ { code: "kg/m2", label: "kg/m²" } ] }
+      ].freeze
+      FIELD_BY_CODE = (FIELDS + DERIVED_FIELDS).index_by { |field| field.fetch(:code) }.freeze
       BLOOD_PRESSURE_COMPONENTS = %w[vital-systolic-bp vital-diastolic-bp].freeze
 
       def self.fields
@@ -100,6 +109,10 @@ module Clinic
               observed_at:, recorded_at:
             )
           end
+          create_bmi!(
+            practice:, patient:, encounter: locked_encounter, membership:, parent: root,
+            readings: normalized, observed_at:, recorded_at:
+          )
           Clinic::AuditRecorder.record!(
             practice:, actor:, action_code: OPERATION_CODE, outcome: :committed,
             resource_version_ref: "Clinic::Care::Observation/#{root.id}:patient/#{patient.id}:encounter/#{locked_encounter.id}"
@@ -134,10 +147,29 @@ module Clinic
       end
       private_class_method :create_group!
 
+      def self.create_bmi!(practice:, patient:, encounter:, membership:, parent:, readings:, observed_at:, recorded_at:)
+        weight = readings.find { |reading| reading.fetch(:code) == "vital-weight" }
+        height = readings.find { |reading| reading.fetch(:code) == "vital-height" }
+        return unless weight && height
+
+        kilograms = BigDecimal(weight.fetch(:value))
+        kilograms *= BigDecimal("0.45359237") if weight.fetch(:unit_code) == "[lb_av]"
+        meters = BigDecimal(height.fetch(:value))
+        meters *= BigDecimal("0.0254") if height.fetch(:unit_code) == "[in_i]"
+        meters /= 100 if height.fetch(:unit_code) == "cm"
+        bmi = (kilograms / (meters * meters)).round(1).to_s("F")
+        patient.observations.create!(
+          practice:, encounter:, author_membership: membership, parent_observation: parent,
+          code: BMI_CODE, code_system: CODE_SYSTEM, code_version: DICTIONARY_VERSION,
+          value_kind: :numeric, numeric_value: bmi, unit_code: "kg/m2", observed_at:, recorded_at:
+        )
+      end
+      private_class_method :create_bmi!
+
       def self.normalize_readings!(readings)
         readings = Array(readings)
         raise ArgumentError, "Record at least one vital-sign reading." if readings.empty?
-        raise ArgumentError, "A vital-sign collection can contain at most seven readings." if readings.length > FIELDS.length
+        raise ArgumentError, "A vital-sign collection has too many readings." if readings.length > FIELDS.length
 
         normalized = readings.map do |reading|
           values = reading.to_h.symbolize_keys
@@ -149,7 +181,9 @@ module Clinic
           accepted_units = definition.fetch(:units).map { |unit| unit.fetch(:code) }
           raise ArgumentError, "Choose a supported unit for #{code}." unless accepted_units.include?(unit_code)
 
-          { code:, value: normalize_value!(values.fetch(:value)), unit_code: }
+          value = normalize_value!(values.fetch(:value))
+          validate_clinical_range!(code, value)
+          { code:, value:, unit_code: }
         end
         raise ArgumentError, "Each vital-sign code can appear only once." unless normalized.map { |item| item.fetch(:code) }.uniq.length == normalized.length
 
@@ -172,6 +206,17 @@ module Clinic
         raise ArgumentError, "Each vital-sign value must be a finite exact decimal string."
       end
       private_class_method :normalize_value!
+
+      def self.validate_clinical_range!(code, value)
+        decimal = BigDecimal(value)
+        if code.in?(%w[vital-height vital-weight]) && decimal <= 0
+          raise ArgumentError, "Height and weight must be greater than zero."
+        end
+        if code == "vital-pain-score" && (decimal < 0 || decimal > 10)
+          raise ArgumentError, "Pain score must be between 0 and 10."
+        end
+      end
+      private_class_method :validate_clinical_range!
 
       def self.validate_request!(dictionary_version:, confirmed_patient:, readings:)
         unless dictionary_version.to_s == DICTIONARY_VERSION
@@ -201,7 +246,7 @@ module Clinic
           []
         end
         values = (direct_children + components).select(&:value_kind_numeric?).index_by(&:code)
-        ordered_values = FIELDS.filter_map { |field| values[field.fetch(:code)] }
+        ordered_values = (FIELDS + DERIVED_FIELDS).filter_map { |field| values[field.fetch(:code)] }
         [ root, blood_pressure, *ordered_values ].compact
       end
       private_class_method :collection

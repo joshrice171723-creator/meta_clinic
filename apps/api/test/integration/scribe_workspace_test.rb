@@ -200,9 +200,16 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   test "a corrected current lab version makes a reviewed Scribe draft stale" do
+    lab_encounter = create_clinical_encounter
+    lab_order = create_lab_order(lab_encounter)
     report = Clinic::Care::LabReports.create(
       practice: @practice, actor: @user, patient: @patient, request_key: "lab-create-#{SecureRandom.hex(8)}",
       confirmed_patient: true, source_name: "Clinic laboratory", external_report_id: nil,
+      service_request_revision_id: lab_order.id,
+      specimen: {
+        specimen_identifier: nil, specimen_type_code: "venous-blood",
+        specimen_type_display: "Venous blood", condition_code: "satisfactory"
+      },
       version: lab_version_attributes(status: "final", value: "4.2")
     ).value
     first_version = report.current_version
@@ -520,6 +527,16 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
 
   def create_clinical_encounter
     @practice.encounters.create!(patient: @patient, site: @site, started_at: Time.current, status: "in_progress")
+  end
+
+  def create_lab_order(encounter)
+    key = "scribe-lab-order-#{SecureRandom.hex(8)}"
+    Clinic::Care::ServiceRequestRevision.create!(
+      practice: @practice, patient: @patient, encounter:, site: @site, series_id: SecureRandom.uuid,
+      version_number: 1, status: "active", recorded_by_membership: @membership, recorded_at: Time.current,
+      request_key: key, content_digest: Digest::SHA256.hexdigest(key), request_kind: "lab", intent: "order",
+      priority: "routine", requested_display: "Basic metabolic panel", destination: "External laboratory"
+    )
   end
 
   def approved_bound_draft(clinical_encounter, subjective:)

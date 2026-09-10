@@ -9,7 +9,15 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     @actor = User.create!(email_address: "lab-reports@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "patients.read", "notes.read", "notes.write", "observations.write")
+    @site = @practice.sites.create!(code: "LAB")
     @patient = @practice.patients.create!(display_name: "Lab Report Patient", reference: "LAB-001")
+    @encounter = @practice.encounters.create!(
+      patient: @patient, site: @site, started_at: Time.utc(2026, 9, 6, 12), status: "open"
+    )
+    @lab_order = create_lab_order(
+      practice: @practice, patient: @patient, encounter: @encounter, membership: @membership,
+      key: "default-lab-order"
+    )
     @other_patient = @other_practice.patients.create!(display_name: "Other Lab Patient", reference: "LAB-OTHER")
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
@@ -26,6 +34,14 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     version = report.current_version
 
     assert_equal "ACCN-1042", report_payload.fetch("external_report_id")
+    assert_equal @lab_order.id, report_payload.fetch("service_request_revision_id")
+    assert_equal "SPEC-1042", report_payload.dig("specimen", "specimen_identifier")
+    assert_equal "venous-blood", report_payload.dig("specimen", "specimen_type_code")
+    assert_equal @encounter.id, report.lab_specimen.encounter_id
+    assert Clinic::Care::ClinicalPlanLink.exists?(
+      service_request_revision: @lab_order, lab_report: report,
+      source_kind: "service_request", target_kind: "lab_report"
+    )
     assert_equal "4.70", version.results.sole.fetch("value")
     raw_external_id = ApplicationRecord.connection.select_value(
       "SELECT external_report_id FROM clinic_lab_reports WHERE id = #{report.id.to_i}"
@@ -393,6 +409,69 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert @practice.audit_events.exists?(action_code: "lab_report.follow_up.supersede", outcome: "committed")
   end
 
+  test "critical results require escalation and patient-contact closure evidence" do
+    routine_report = create_report(
+      patient: @patient, key: "critical-queue-routine", issued_at: Time.utc(2026, 9, 6, 8),
+      title: "Older routine result"
+    )
+    payload = create_params(request_key: "critical-result-create")
+    payload[:lab_report][:result_priority] = "critical"
+    post reports_path, params: payload, headers: csrf_headers, as: :json
+    assert_response :created
+    report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
+    version = report.current_version
+
+    get review_queue_path, headers: @headers
+    assert_response :success
+    assert_equal [ report.id, routine_report.id ], response.parsed_body.fetch("items").pluck("report_id")
+
+    post review_path(report, version), params: review_params("critical-review-without-escalation"),
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_nil version.reload.reviewed_at
+
+    post review_path(routine_report, routine_report.current_version), params: review_params("routine-queue-review").deep_merge(
+      review: { follow_up_disposition: "required", follow_up_note: "Routine follow-up." }
+    ), headers: csrf_headers, as: :json
+    assert_response :success
+
+    review = review_params("critical-review").deep_merge(review: {
+      follow_up_disposition: "required",
+      follow_up_note: "Escalate immediately to the ordering clinician.",
+      follow_up_due_at: "2026-09-06T17:15:00Z"
+    })
+    post review_path(report, version), params: review, headers: csrf_headers, as: :json
+    assert_response :success
+    follow_up = response.parsed_body.dig("version", "follow_up")
+    assert_equal [ "critical", "2026-09-06T17:15:00.000000Z", @membership.id ],
+      follow_up.values_at("priority", "due_at", "escalated_by")
+    assert follow_up.fetch("escalated_at").present?
+
+    get follow_up_queue_path, headers: @headers
+    assert_response :success
+    assert_equal "critical", response.parsed_body.dig("items", 0, "version", "result_priority")
+    assert_equal follow_up.fetch("due_at"), response.parsed_body.dig("items", 0, "follow_up", "due_at")
+
+    post complete_follow_up_path(report, version), params: {
+      follow_up: { request_key: "critical-complete-invalid", outcome: "Clinician reviewed the result." }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "open", version.reload.follow_up.state
+
+    completion = {
+      follow_up: {
+        request_key: "critical-complete", outcome: "Clinician reviewed the result and patient was informed.",
+        patient_contact_status: "informed", patient_contact_method: "phone",
+        patient_contact_at: "2026-09-06T17:10:00Z"
+      }
+    }
+    post complete_follow_up_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :success
+    completed = response.parsed_body.dig("version", "follow_up")
+    assert_equal [ "completed", "informed", "phone", "2026-09-06T17:10:00.000000Z" ],
+      completed.values_at("state", "patient_contact_status", "patient_contact_method", "patient_contact_at")
+  end
+
   private
 
   def reports_path(patient: @patient)
@@ -424,6 +503,12 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
   end
 
   def create_report(practice: @practice, actor: @actor, patient: @patient, key:, issued_at:, title:, results: nil)
+    membership = practice.memberships.find_by!(user: actor)
+    site = practice == @practice ? @site : practice.sites.first_or_create!(code: "LAB")
+    encounter = practice.encounters.where(patient:, site:).first_or_create!(
+      started_at: issued_at - 2.hours, status: "open"
+    )
+    order = create_lab_order(practice:, patient:, encounter:, membership:, key: "order-#{key}")
     Clinic::Care::LabReports.create(
       practice: practice,
       actor: actor,
@@ -432,8 +517,22 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
       confirmed_patient: true,
       source_name: "Queue laboratory",
       external_report_id: key,
+      service_request_revision_id: order.id,
+      specimen: {
+        specimen_identifier: "specimen-#{key}", specimen_type_code: "venous-blood",
+        specimen_type_display: "Venous blood", condition_code: "satisfactory"
+      },
       version: lab_version_attributes(issued_at:, title:, results:)
     ).value
+  end
+
+  def create_lab_order(practice:, patient:, encounter:, membership:, key:)
+    Clinic::Care::ServiceRequestRevision.create!(
+      practice:, patient:, encounter:, site: encounter.site, series_id: SecureRandom.uuid, version_number: 1,
+      status: "active", recorded_by_membership: membership, recorded_at: Time.utc(2026, 9, 6, 12),
+      request_key: key, content_digest: Digest::SHA256.hexdigest(key), request_kind: "lab", intent: "order",
+      priority: "routine", requested_display: "Complete blood count", destination: "External laboratory"
+    )
   end
 
   def lab_version_attributes(issued_at:, title:, status: "final", results: nil)
@@ -450,7 +549,10 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     {
       lab_report: {
         request_key:, confirmed_patient: true, source_name: "Community laboratory",
-        external_report_id: "ACCN-1042", title: "Complete blood count", status: "final",
+        external_report_id: "ACCN-1042", service_request_revision_id: @lab_order.id,
+        specimen_identifier: "SPEC-1042", specimen_type_code: "venous-blood",
+        specimen_type_display: "Venous blood", specimen_condition: "satisfactory",
+        title: "Complete blood count", status: "final", result_priority: "routine",
         collected_at: "2026-09-06T14:00:00Z", issued_at: "2026-09-06T16:00:00Z",
         results: [
           { name: "White blood cells", code: "WBC", value: "4.70", unit: "10^3/uL", reference_range: "4.0-11.0", flag: "reported normal" }
@@ -463,7 +565,7 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     {
       lab_report_version: {
         request_key:, confirmed_patient: true, expected_current_version_id:,
-        title: "Complete blood count", status:,
+        title: "Complete blood count", status:, result_priority: "routine",
         collected_at: "2026-09-06T14:00:00Z", issued_at: "2026-09-06T17:00:00Z",
         results: [
           { name: "White blood cells", code: "WBC", value:, unit: "10^3/uL", reference_range: "4.0-11.0", flag: "reported normal" }
