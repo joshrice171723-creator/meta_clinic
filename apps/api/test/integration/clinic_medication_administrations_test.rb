@@ -25,6 +25,8 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     @first_batch = receive_batch("LOT-A", @site_bin, "4.00")
     @second_batch = receive_batch("LOT-B", @site_bin_two, "5.00")
     @other_site_batch = receive_batch("LOT-OTHER", @other_bin, "3.00")
+    grant_permissions!(@membership, "medication_requests.write", scope_kind: "site", site: @site)
+    @order = authorized_order
     login(@user)
   end
 
@@ -35,13 +37,15 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
       { batch_id: @second_batch.id, quantity: "2.00" }
     ])
 
-    assert_difference "Clinic::Care::MedicationAdministration.count", 1 do
+    assert_difference "Clinic::Care::ClinicalPlanLink.count", 1 do
+      assert_difference "Clinic::Care::MedicationAdministration.count", 1 do
       assert_difference "Clinic::Care::MedicationAdministrationMovement.count", 2 do
         assert_difference "Clinic::Inventory::PharmacyMovement.count", 2 do
           post_administration(params)
           assert_response :created
         end
       end
+    end
     end
 
     body = response.parsed_body
@@ -51,6 +55,12 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     assert_equal @encounter.id, administration.encounter_id
     assert_equal @site.id, administration.site_id
     assert_equal @membership.id, administration.administered_by_membership_id
+    assert_equal @order.id, administration.medication_request_revision_id
+    assert_equal "completed", administration.status
+    assert_equal BigDecimal("2.5"), administration.dose_value
+    assert_equal "mg", administration.dose_unit_code
+    assert_equal "intramuscular", administration.route_code
+    assert_equal "left_deltoid", administration.administration_site_code
     assert_equal BigDecimal("3.25"), administration.quantity
     assert_equal BigDecimal("2.75"), @first_batch.reload.quantity
     assert_equal BigDecimal("3.00"), @second_batch.reload.quantity
@@ -92,6 +102,87 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     assert_equal "Medication administration", ledger_row.dig("source", "label")
     assert_equal "/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}", ledger_row.dig("source", "href")
     assert_equal "Medication Administration", ledger_row.fetch("actor_name")
+  end
+
+  test "not-given outcome requires a reason and never decrements stock" do
+    before_quantity = @first_batch.quantity
+    params = administration_params(key: SecureRandom.uuid, allocations: []).deep_dup
+    params[:medication_administration] = {
+      medication_request_revision_id: @order.id,
+      status: "not_done",
+      status_reason: "Patient declined after education",
+      precheck_status: "completed",
+      response_text: "No medication administered",
+      education_text: "Reviewed purpose and alternatives",
+      administered_at: 20.minutes.ago.iso8601(6),
+      request_key: SecureRandom.uuid,
+      allocations: []
+    }
+
+    assert_difference [ "Clinic::Care::MedicationAdministration.count", "Clinic::Care::ClinicalPlanLink.count" ], 1 do
+      assert_no_difference [ "Clinic::Care::MedicationAdministrationMovement.count", "Clinic::Inventory::PharmacyMovement.count" ] do
+        post_administration(params)
+        assert_response :created
+      end
+    end
+    outcome = Clinic::Care::MedicationAdministration.order(:id).last
+    assert_equal "not_done", outcome.status
+    assert_equal "Patient declined after education", outcome.status_reason
+    assert_nil outcome.quantity
+    assert_equal before_quantity, @first_batch.reload.quantity
+
+    invalid = params.deep_dup
+    invalid[:medication_administration][:request_key] = SecureRandom.uuid
+    invalid[:medication_administration][:status_reason] = ""
+    invalid[:medication_administration][:allocations] = [ { batch_id: @first_batch.id, quantity: "1.00" } ]
+    assert_no_difference [ "Clinic::Care::MedicationAdministration.count", "Clinic::Inventory::PharmacyMovement.count" ] do
+      post_administration(invalid)
+      assert_response :unprocessable_entity
+    end
+  end
+
+  test "stale authorized revisions and undocumented dose variance reject before inventory changes" do
+    Clinic::Care::ClinicalPlanWorkflow.revise(
+      kind: :medication_requests, series_id: @order.series_id, practice: @practice, actor: @user,
+      patient: @patient, encounter: @encounter, attributes: { status: "on_hold" },
+      expected_version: @order.version_number, request_key: SecureRandom.uuid
+    )
+    assert_no_difference [ "Clinic::Care::MedicationAdministration.count", "Clinic::Inventory::PharmacyMovement.count" ] do
+      post_administration(administration_params(key: SecureRandom.uuid,
+        allocations: [ { batch_id: @first_batch.id, quantity: "1.00" } ]))
+      assert_response :unprocessable_entity
+    end
+
+    @order = authorized_order(name_suffix: "-variance")
+    varied = administration_params(key: SecureRandom.uuid,
+      allocations: [ { batch_id: @first_batch.id, quantity: "1.00" } ])
+    varied[:medication_administration][:dose_value] = "3.0"
+    assert_no_difference [ "Clinic::Care::MedicationAdministration.count", "Clinic::Inventory::PharmacyMovement.count" ] do
+      post_administration(varied)
+      assert_response :unprocessable_entity
+    end
+    varied[:medication_administration][:request_key] = SecureRandom.uuid
+    varied[:medication_administration][:variance_reason] = "Clinician amended the one-time dose at chairside"
+    post_administration(varied)
+    assert_response :created
+  end
+
+  test "independent verification requires a different active clinical staff member" do
+    verifier_user = User.create!(email_address: "medication-verifier@example.invalid", password: @password)
+    verifier = @practice.memberships.create!(user: verifier_user)
+    grant_permissions!(verifier, "medication_administrations.write", scope_kind: "site", site: @site)
+    params = administration_params(key: SecureRandom.uuid,
+      allocations: [ { batch_id: @first_batch.id, quantity: "1.00" } ])
+    params[:medication_administration][:verification_status] = "completed"
+    params[:medication_administration][:verified_by_membership_id] = @membership.id
+    post_administration(params)
+    assert_response :unprocessable_entity
+
+    params[:medication_administration][:request_key] = SecureRandom.uuid
+    params[:medication_administration][:verified_by_membership_id] = verifier.id
+    post_administration(params)
+    assert_response :created
+    assert_equal verifier.id, response.parsed_body.dig("medication_administration", "verified_by_membership_id")
   end
 
   test "exact retry returns the same administration and changed payload conflicts without another deduction" do
@@ -143,7 +234,7 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
   test "read and write permissions are enforced independently" do
     unauthorized = User.create!(email_address: "medication-read-only@example.invalid", password: @password)
     membership = @practice.memberships.create!(user: unauthorized)
-    grant_permissions!(membership, "notes.read", scope_kind: "site", site: @site)
+    grant_permissions!(membership, "clinical_records.read", scope_kind: "site", site: @site)
     grant_permissions!(membership, "inventory.read")
     login(unauthorized)
 
@@ -164,6 +255,7 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     get_administrations
     assert_response :success
     assert_equal true, response.parsed_body.fetch("can_administer")
+    assert_equal true, response.parsed_body.fetch("can_record_outcome")
     assert_equal true, response.parsed_body.fetch("inventory_posting_available")
     choices = response.parsed_body.fetch("eligible_batches")
     assert_equal [ @first_batch.id, @second_batch.id ].sort, choices.map { |row| row.fetch("batch_id") }.sort
@@ -171,6 +263,35 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     assert choices.all? { |row| row.fetch("stock_unit") == "mL" }
     assert_not_includes choices.map { |row| row.fetch("batch_id") }, @other_site_batch.id
     assert_not_includes choices.map { |row| row.fetch("batch_id") }, held.id
+    assert_equal [ @order.id ], response.parsed_body.fetch("eligible_orders").map { |row| row.fetch("id") }
+    assert_equal @membership.id, response.parsed_body.dig("eligible_orders", 0, "ordered_by_membership_id")
+  end
+
+  test "site-scoped medication permission lets clinical staff record without broad note or inventory authority" do
+    nurse = User.create!(email_address: "medication-nurse@example.invalid", password: @password)
+    membership = @practice.memberships.create!(user: nurse)
+    grant_permissions!(membership, "clinical_records.read", "medication_administrations.write",
+      scope_kind: "site", site: @site)
+    ability = Ability.new(nurse, practice: @practice)
+    assert_not ability.allowed_permission?("notes.write", site: @site)
+    assert_not ability.allowed_permission?("inventory.adjust")
+    assert_raises(ArgumentError) do
+      Clinic::Inventory::Access.with(@practice.id, nurse, "adjust") { flunk "must not authorize direct adjustment" }
+    end
+    login(nurse)
+
+    get_administrations
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("can_record_outcome")
+    assert_equal true, response.parsed_body.fetch("can_administer")
+    assert_equal [ @first_batch.id, @second_batch.id ].sort,
+      response.parsed_body.fetch("eligible_batches").map { |row| row.fetch("batch_id") }.sort
+
+    assert_difference [ "Clinic::Care::MedicationAdministration.count", "Clinic::Inventory::PharmacyMovement.count" ], 1 do
+      post_administration(administration_params(key: SecureRandom.uuid,
+        allocations: [ { batch_id: @first_batch.id, quantity: "1.00" } ]))
+      assert_response :created
+    end
   end
 
   private
@@ -178,15 +299,39 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
   def administration_params(key:, allocations:)
     {
       medication_administration: {
-        product_id: @product.id,
-        dose_text: "2.5 mg",
-        route_text: "Intramuscular",
-        administration_site_text: "Left deltoid",
+        medication_request_revision_id: @order.id,
+        status: "completed",
+        dose_value: "2.5",
+        dose_unit_code: "mg",
+        route_code: "intramuscular",
+        administration_site_code: "left_deltoid",
+        precheck_status: "completed",
+        verification_status: "not_required",
+        response_text: "Tolerated without immediate reaction",
+        education_text: "Reviewed expected response",
         administered_at: 30.minutes.ago.iso8601(6),
         request_key: key,
         allocations: allocations
       }
     }
+  end
+
+  def authorized_order(name_suffix: "")
+    draft = Clinic::Care::ClinicalPlanWorkflow.create(
+      kind: :medication_requests, practice: @practice, actor: @user, patient: @patient, encounter: @encounter,
+      attributes: {
+        intent: "order", inventory_product_id: @product.id,
+        medication_name: "Example injectable#{name_suffix}", dose_value: "2.5", dose_unit_code: "mg",
+        route_code: "intramuscular", frequency_text: "once", scheduled_for: 30.minutes.ago,
+        reason_text: "Synthetic in-office treatment"
+      },
+      request_key: SecureRandom.uuid
+    )
+    Clinic::Care::ClinicalPlanWorkflow.revise(
+      kind: :medication_requests, series_id: draft.series_id, practice: @practice, actor: @user,
+      patient: @patient, encounter: @encounter, attributes: { status: "authorized" },
+      expected_version: draft.version_number, request_key: SecureRandom.uuid
+    )
   end
 
   def receive_batch(lot_number, location, quantity, expires_on: Date.current + 90)

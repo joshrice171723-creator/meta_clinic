@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class PilotRoleCatalog
-      VERSION = 7
+      VERSION = 8
 
       DEFINITIONS = {
         "workforce-employee" => {
@@ -21,7 +21,7 @@ module Clinic
             procurement.approve recall.read recall.lock recall.dispose controlled.read controlled.count controlled.certify
             appointments.read appointments.write appointments.book appointments.status_transition encounters.write
             encounters.assign_provider intake.write notes.read notes.write notes.sign observations.write messages.write
-            clinical_records.read medication_requests.write service_requests.write diagnoses.write
+            clinical_records.read medication_requests.write medication_administrations.write service_requests.write diagnoses.write
             procedures.write care_plans.write immunizations.write
             staff_messaging.read staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge
             staff_messaging.transition staff_messaging.escalate staff_messaging.attach reminders.read reminders.write
@@ -49,7 +49,7 @@ module Clinic
           permissions: %w[patients.read patients.write appointments.read appointments.write appointments.book
             appointments.status_transition encounters.write encounters.assign_provider intake.write notes.read
             notes.write notes.sign observations.write documents.read clinical_records.read
-            medication_requests.write service_requests.write diagnoses.write procedures.write care_plans.write
+            medication_requests.write medication_administrations.write service_requests.write diagnoses.write procedures.write care_plans.write
             immunizations.write]
         },
         "clinical-staff" => {
@@ -57,7 +57,7 @@ module Clinic
           permissions: %w[patients.read patients.identity.read patients.write appointments.read appointments.write
             appointments.book appointments.status_transition encounters.write encounters.assign_provider intake.write
             notes.read observations.write inventory.read staff.read messages.write clinical_records.read
-            medication_requests.write service_requests.write procedures.write care_plans.write immunizations.write
+            medication_requests.write medication_administrations.write service_requests.write procedures.write care_plans.write immunizations.write
             staff_messaging.read
             staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge
             staff_messaging.transition staff_messaging.escalate staff_messaging.attach]

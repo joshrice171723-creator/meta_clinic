@@ -77,9 +77,11 @@ class Ability
       Clinic::Care::MedicationRequestRevision, Clinic::Care::ServiceRequestRevision,
       Clinic::Care::EncounterDiagnosisRevision, Clinic::Care::ProcedureRevision,
       Clinic::Care::CarePlanRevision, Clinic::Care::CareGoalRevision, Clinic::Care::ImmunizationRevision,
-      Clinic::Care::ClinicalPlanLink, Clinic::Care::ReferralExchangeEvent
+      Clinic::Care::ClinicalPlanLink, Clinic::Care::ReferralExchangeEvent,
+      Clinic::Care::MedicationAdministration
     ], scope: :site_or_practice },
     "medication_requests.write" => { action: :create, subjects: [ Clinic::Care::MedicationRequestRevision ], scope: :site_or_practice },
+    "medication_administrations.write" => { action: :create, subjects: [ Clinic::Care::MedicationAdministration ], scope: :site_or_practice },
     "service_requests.write" => { action: :create, subjects: [ Clinic::Care::ServiceRequestRevision ], scope: :site_or_practice },
     "diagnoses.write" => { action: :create, subjects: [ Clinic::Care::EncounterDiagnosisRevision ], scope: :site_or_practice },
     "procedures.write" => { action: :create, subjects: [ Clinic::Care::ProcedureRevision ], scope: :site_or_practice },

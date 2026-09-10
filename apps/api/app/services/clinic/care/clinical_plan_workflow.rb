@@ -19,8 +19,9 @@ module Clinic
             "completed" => %w[entered_in_error], "cancelled" => %w[entered_in_error],
             "entered_in_error" => []
           },
-          fields: %i[intent transmission_state medication_name dose_text route_text frequency_text quantity_text
-            instructions source_medication_statement_id]
+          fields: %i[intent transmission_state inventory_product_id requester_membership_id medication_name dose_value dose_unit_code
+            dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text instructions
+            source_medication_statement_id]
         },
         service_requests: {
           klass: ServiceRequestRevision,
@@ -126,7 +127,12 @@ module Clinic
           truncated: truncated,
           capabilities: DEFINITIONS.to_h do |kind, definition|
             [ kind, allowed?(practice, actor, definition.fetch(:permission), encounter) ]
-          end
+          end,
+          medication_products: medication_products(practice),
+          medication_order_options: {
+            dose_units: MedicationRequestRevision::DOSE_UNITS.map { |code, label| { code:, label: } },
+            routes: MedicationRequestRevision::ROUTES.map { |code, label| { code:, label: } }
+          }
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
@@ -137,6 +143,8 @@ module Clinic
         values = normalized_attributes(definition, attributes)
         values[:status] = definition.fetch(:default_status)
         values[:transmission_state] = "not_requested" if kind.to_sym == :medication_requests
+        values[:requester_membership_id] = membership.id if kind.to_sym == :medication_requests
+        prepare_values!(kind, practice, values)
         validate_references!(kind, practice, patient, encounter, values)
         series_id = SecureRandom.uuid
         payload = { patient_id: patient.id, encounter_id: encounter.id, site_id: encounter.site_id,
@@ -181,6 +189,7 @@ module Clinic
           end
           values = revision_values(definition, previous).merge(changes)
           validate_revision_change!(definition, previous, changes)
+          prepare_values!(kind, practice, values)
           validate_references!(kind, practice, patient, encounter, values)
           record = definition.fetch(:klass).create!(
             values.merge(common_attributes(practice, patient, encounter, membership, request_key, values:,
@@ -209,7 +218,13 @@ module Clinic
         }
         definition.fetch(:fields).each do |field|
           value = record.public_send(field)
-          payload[field] = value.respond_to?(:iso8601) ? value.iso8601 : value
+          payload[field] = if value.respond_to?(:iso8601)
+            value.iso8601
+          elsif value.is_a?(BigDecimal)
+            value.to_s("F")
+          else
+            value
+          end
         end
         payload
       end
@@ -284,6 +299,9 @@ module Clinic
         when :medication_requests
           reference = values[:source_medication_statement_id]
           MedicationStatement.where(practice:, patient:).find(reference) if reference.present?
+          product_reference = values[:inventory_product_id]
+          Clinic::Inventory::PharmacyProduct.where(practice:, category: "medication", active: true)
+            .find(product_reference) if product_reference.present?
         when :procedures
           reference = values[:service_request_revision_id]
           ServiceRequestRevision.where(practice:, patient:, encounter:).find(reference) if reference.present?
@@ -296,6 +314,41 @@ module Clinic
         end
       end
       private_class_method :validate_references!
+
+      def prepare_values!(kind, practice, values)
+        return unless kind.to_sym == :medication_requests
+
+        if values[:inventory_product_id].present?
+          product = Clinic::Inventory::PharmacyProduct.where(practice:, category: "medication", active: true)
+            .find(values[:inventory_product_id])
+          values[:medication_name] = product.name
+        end
+        if values[:dose_value].present? && values[:dose_unit_code].present?
+          display_unit = MedicationRequestRevision::DOSE_UNITS.fetch(values[:dose_unit_code].to_s) do
+            raise ArgumentError, "Choose a supported dose unit."
+          end
+          values[:dose_text] = "#{BigDecimal(values[:dose_value].to_s).to_s('F')} #{display_unit}"
+        end
+        if values[:route_code].present?
+          values[:route_text] = MedicationRequestRevision::ROUTES.fetch(values[:route_code].to_s) do
+            raise ArgumentError, "Choose a supported administration route."
+          end
+        end
+      rescue ArgumentError => error
+        raise ArgumentError, error.message
+      end
+      private_class_method :prepare_values!
+
+      def medication_products(practice)
+        Clinic::Inventory::PharmacyProduct.where(practice:, category: "medication", active: true)
+          .order(:name, :id).limit(500).map do |product|
+            {
+              id: product.id, name: product.name, generic_name: product.generic_name, ndc: product.ndc,
+              dosage_form: product.dosage_form, route: product.route, stock_unit: product.stock_unit
+            }
+          end
+      end
+      private_class_method :medication_products
 
       def validate_revision_change!(definition, previous, changes)
         changed = changes.any? { |field, value| previous.public_send(field) != value }

@@ -472,10 +472,17 @@ export type MedicationRequestRevision = ClinicalRevisionBase & {
     | "failed"
     | "unknown";
   medication_name: string;
+  inventory_product_id: number | null;
+  requester_membership_id: number | null;
+  dose_value: string | null;
+  dose_unit_code: string | null;
   dose_text: string | null;
+  route_code: string | null;
   route_text: string | null;
   frequency_text: string | null;
   quantity_text: string | null;
+  scheduled_for: string | null;
+  reason_text: string | null;
   instructions: string | null;
   source_medication_statement_id: number | null;
 };
@@ -597,6 +604,19 @@ export type ClinicalPlanWorkspace = {
     | "immunizations",
     boolean
   >;
+  medication_products: {
+    id: number;
+    name: string;
+    generic_name: string | null;
+    ndc: string | null;
+    dosage_form: string | null;
+    route: string | null;
+    stock_unit: string;
+  }[];
+  medication_order_options: {
+    dose_units: { code: string; label: string }[];
+    routes: { code: string; label: string }[];
+  };
   links: ClinicalPlanLink[];
   referral_events: ReferralExchangeEvent[];
   available_link_targets: Record<

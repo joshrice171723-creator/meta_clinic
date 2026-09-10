@@ -344,23 +344,43 @@ CREATE FUNCTION public.inventory_authorize(clinic bigint, actor bigint, action t
     LANGUAGE plpgsql
     AS $$
 DECLARE member_id bigint; configuration clinic_inventory_profiles%ROWTYPE; required_permission text;
+  requested_action text; requested_site bigint;
 BEGIN
   PERFORM 1 FROM clinic_practices WHERE id = clinic FOR SHARE;
-  SELECT m.id INTO member_id FROM clinic_memberships m JOIN users u ON u.id = m.user_id WHERE m.practice_id = clinic AND m.user_id = actor AND m.active AND u.active FOR SHARE OF m;
+  SELECT m.id INTO member_id FROM clinic_memberships m JOIN users u ON u.id = m.user_id
+    WHERE m.practice_id = clinic AND m.user_id = actor AND m.active AND u.active FOR SHARE OF m;
   IF NOT FOUND THEN RAISE foreign_key_violation USING MESSAGE = 'Actor has no active clinic membership'; END IF;
-  required_permission := CASE WHEN action IN ('recall.lock', 'recall.dispose') THEN action ELSE 'inventory.' || action END;
+  requested_action := NULLIF(current_setting('apply.inventory_action', true), '');
+  requested_site := NULLIF(current_setting('apply.inventory_site', true), '')::bigint;
+  required_permission := CASE
+    WHEN action IN ('recall.lock', 'recall.dispose') THEN action
+    WHEN action = 'adjust' AND requested_action = 'medication_administrations.write'
+      THEN requested_action
+    ELSE 'inventory.' || action
+  END;
   IF NOT EXISTS (
     SELECT 1 FROM clinic_role_grants g
     JOIN role_version_permissions rvp ON rvp.role_version_id = g.role_version_id
     JOIN permissions p ON p.id = rvp.permission_id
-    WHERE g.practice_id = clinic AND g.membership_id = member_id AND g.scope_kind = 'practice'
-      AND g.effective_from <= CURRENT_TIMESTAMP AND (g.effective_until IS NULL OR g.effective_until > CURRENT_TIMESTAMP)
+    WHERE g.practice_id = clinic AND g.membership_id = member_id
+      AND g.effective_from <= CURRENT_TIMESTAMP
+      AND (g.effective_until IS NULL OR g.effective_until > CURRENT_TIMESTAMP)
       AND g.revoked_at IS NULL AND p.action_code = required_permission
+      AND (
+        g.scope_kind = 'practice' OR
+        (required_permission = 'medication_administrations.write' AND
+          g.scope_kind = 'site' AND g.site_id = requested_site)
+      )
   ) THEN
     RAISE EXCEPTION 'Inventory action not permitted';
   END IF;
-  SELECT * INTO configuration FROM clinic_inventory_profiles WHERE practice_id = clinic ORDER BY version DESC LIMIT 1;
-  IF action <> 'configure' AND (configuration.id IS NULL OR configuration.status NOT IN ('configured','synthetic') OR NOT ('inventory' = ANY(configuration.capabilities)) OR (profile IS NOT NULL AND profile <> configuration.id)) THEN
+  SELECT * INTO configuration FROM clinic_inventory_profiles
+    WHERE practice_id = clinic ORDER BY version DESC LIMIT 1;
+  IF action <> 'configure' AND (
+    configuration.id IS NULL OR configuration.status NOT IN ('configured','synthetic') OR
+    NOT ('inventory' = ANY(configuration.capabilities)) OR
+    (profile IS NOT NULL AND profile <> configuration.id)
+  ) THEN
     RAISE EXCEPTION 'Inventory profile is unavailable or stale';
   END IF;
   RETURN configuration.id;
@@ -5335,10 +5355,10 @@ CREATE TABLE public.clinic_medication_administrations (
     site_id bigint NOT NULL,
     administered_by_membership_id bigint CONSTRAINT clinic_medication_administr_administered_by_membership_not_null NOT NULL,
     product_id bigint NOT NULL,
-    dose_text text NOT NULL,
-    route_text text NOT NULL,
+    dose_text text,
+    route_text text,
     administration_site_text text,
-    quantity numeric(12,6) NOT NULL,
+    quantity numeric(12,6),
     stock_unit character varying(20) NOT NULL,
     administered_at timestamp(6) with time zone NOT NULL,
     recorded_at timestamp(6) with time zone NOT NULL,
@@ -5346,10 +5366,25 @@ CREATE TABLE public.clinic_medication_administrations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     medication_snapshot text NOT NULL,
-    CONSTRAINT clinic_medication_administrations_quantity CHECK (((quantity > (0)::numeric) AND (quantity <= (1000000)::numeric) AND (quantity = round(quantity, 6)))),
+    medication_request_revision_id bigint,
+    status character varying(24) DEFAULT 'completed'::character varying NOT NULL,
+    status_reason text,
+    dose_value numeric(12,6),
+    dose_unit_code character varying(32),
+    route_code character varying(64),
+    administration_site_code character varying(64),
+    variance_reason text,
+    precheck_status character varying(32) DEFAULT 'not_recorded'::character varying NOT NULL,
+    precheck_notes text,
+    verification_status character varying(32) DEFAULT 'not_recorded'::character varying NOT NULL,
+    verified_by_membership_id bigint,
+    response_text text,
+    education_text text,
+    CONSTRAINT clinic_medication_administrations_outcome CHECK (((medication_request_revision_id IS NULL) OR (((status)::text = 'completed'::text) AND (quantity > (0)::numeric) AND (quantity <= (1000000)::numeric) AND (quantity = round(quantity, 6)) AND (dose_value > (0)::numeric) AND (dose_unit_code IS NOT NULL) AND (route_code IS NOT NULL) AND ((precheck_status)::text <> 'not_recorded'::text) AND ((verification_status)::text <> 'not_recorded'::text) AND (((verification_status)::text <> 'completed'::text) OR (verified_by_membership_id IS NOT NULL)) AND ((((precheck_status)::text <> 'unable_to_complete'::text) AND ((verification_status)::text <> 'unable_to_complete'::text)) OR (variance_reason IS NOT NULL))) OR (((status)::text = 'not_done'::text) AND (quantity IS NULL) AND (dose_value IS NULL) AND (dose_unit_code IS NULL) AND (route_code IS NULL) AND (status_reason IS NOT NULL)))),
     CONSTRAINT clinic_medication_administrations_stock_unit CHECK (((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text]))),
     CONSTRAINT clinic_medication_administrations_timeline CHECK ((administered_at <= recorded_at)),
-    CONSTRAINT clinic_medication_administrations_values CHECK (((length(TRIM(BOTH FROM dose_text)) > 0) AND (length(TRIM(BOTH FROM route_text)) > 0) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+    CONSTRAINT clinic_medication_administrations_values CHECK (((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))),
+    CONSTRAINT clinic_medication_administrations_workflow_states CHECK ((((status)::text = ANY ((ARRAY['completed'::character varying, 'not_done'::character varying])::text[])) AND ((precheck_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'completed'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((verification_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'completed'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[]))))
 );
 
 
@@ -5401,6 +5436,14 @@ CREATE TABLE public.clinic_medication_request_revisions (
     source_medication_statement_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    inventory_product_id bigint,
+    requester_membership_id bigint,
+    dose_value numeric(12,6),
+    dose_unit_code character varying(32),
+    route_code character varying(64),
+    scheduled_for timestamp(6) with time zone,
+    reason_text text,
+    CONSTRAINT clinic_med_request_dose_value CHECK (((dose_value IS NULL) OR ((dose_value > (0)::numeric) AND (dose_value <= (1000000)::numeric) AND (dose_value = round(dose_value, 6))))),
     CONSTRAINT clinic_med_request_states CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('authorized'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((intent)::text = ANY (ARRAY[('proposal'::character varying)::text, ('plan'::character varying)::text, ('order'::character varying)::text])) AND ((transmission_state)::text = ANY (ARRAY[('not_requested'::character varying)::text, ('pending'::character varying)::text, ('accepted'::character varying)::text, ('rejected'::character varying)::text, ('failed'::character varying)::text, ('unknown'::character varying)::text])))),
     CONSTRAINT med_request_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
@@ -14981,6 +15024,13 @@ CREATE UNIQUE INDEX clinic_med_admin_context_id ON public.clinic_medication_admi
 
 
 --
+-- Name: clinic_med_admin_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_med_admin_request ON public.clinic_medication_administrations USING btree (practice_id, patient_id, encounter_id, medication_request_revision_id);
+
+
+--
 -- Name: clinic_medication_admin_movements_entry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -18499,6 +18549,13 @@ CREATE UNIQUE INDEX learning_sources_practice_id ON public.clinic_learning_sourc
 --
 
 CREATE UNIQUE INDEX med_request_context_id ON public.clinic_medication_request_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: med_request_inventory_product; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX med_request_inventory_product ON public.clinic_medication_request_revisions USING btree (practice_id, inventory_product_id);
 
 
 --
@@ -22115,11 +22172,35 @@ ALTER TABLE ONLY public.clinic_learning_sources
 
 
 --
+-- Name: clinic_medication_administrations fk_med_admin_request; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_med_admin_request FOREIGN KEY (practice_id, patient_id, encounter_id, medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_medication_administrations fk_med_admin_verifier; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_administrations
+    ADD CONSTRAINT fk_med_admin_verifier FOREIGN KEY (practice_id, verified_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_medication_request_revisions fk_med_request_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_medication_request_revisions
     ADD CONSTRAINT fk_med_request_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_inventory_product; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_inventory_product FOREIGN KEY (practice_id, inventory_product_id) REFERENCES public.clinic_pharmacy_products(practice_id, id);
 
 
 --
@@ -22152,6 +22233,14 @@ ALTER TABLE ONLY public.clinic_medication_request_revisions
 
 ALTER TABLE ONLY public.clinic_medication_request_revisions
     ADD CONSTRAINT fk_med_request_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_requester; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_requester FOREIGN KEY (practice_id, requester_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -26601,6 +26690,9 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260910001800'),
+('20260910001700'),
+('20260910001600'),
 ('20260910001500'),
 ('20260910001400'),
 ('20260910001300'),

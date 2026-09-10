@@ -8,7 +8,8 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
     practice.update!(timezone: "America/Chicago")
     grant_permissions!(membership,
       "appointments.book", "appointments.status_transition", "encounters.write",
-      "notes.write", "inventory.adjust", "billing.invoice_draft", "billing.invoice_post", "billing.payment_record")
+      "notes.write", "inventory.adjust", "medication_requests.write", "billing.invoice_draft",
+      "billing.invoice_post", "billing.payment_record")
     site = practice.sites.create!(code: "JOURNEY", name: "Journey clinic", status: "active")
     patient = practice.patients.create!(display_name: "Journey patient", reference: "CLINIC-JOURNEY-001")
     visit_type = practice.visit_types.create!(code: "Medication follow-up")
@@ -50,7 +51,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       practice: practice,
       actor: actor,
       reason: "Journey opening stock",
-      request_key: "clinic-journey-receive",
+      request_key: SecureRandom.uuid,
       lines: [ {
         product_id: product.id,
         lot_number: "CLINIC-JOURNEY-LOT",
@@ -61,17 +62,39 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
         input_unit: "mL"
       } ]
     ).lines.sole.batch
+    medication_draft = Clinic::Care::ClinicalPlanWorkflow.create(
+      kind: :medication_requests, practice:, actor:, patient:, encounter:,
+      attributes: { intent: "order", inventory_product_id: product.id, medication_name: product.name,
+        dose_value: "12.5", dose_unit_code: "mg", route_code: "intramuscular" },
+      request_key: "clinic-journey-medication-order"
+    )
+    medication_order = Clinic::Care::ClinicalPlanWorkflow.revise(
+      kind: :medication_requests, series_id: medication_draft.series_id, practice:, actor:, patient:, encounter:,
+      attributes: { status: "authorized" }, expected_version: medication_draft.version_number,
+      request_key: "clinic-journey-medication-authorize"
+    )
     administration = Clinic::Care::AdministerMedication.call(
       practice: practice,
       actor: actor,
       encounter: encounter,
-      product_id: product.id,
+      medication_request_revision_id: medication_order.id,
+      status: "completed",
       allocations: [ { batch_id: batch.id, quantity: "1.25" } ],
-      dose_text: "12.5 mg",
-      route_text: "Intramuscular",
-      administration_site_text: "Left deltoid",
+      dose_value: "12.5",
+      dose_unit_code: "mg",
+      route_code: "intramuscular",
+      administration_site_code: "left_deltoid",
+      administration_site_text: nil,
+      status_reason: nil,
+      variance_reason: nil,
+      precheck_status: "completed",
+      precheck_notes: nil,
+      verification_status: "not_required",
+      verified_by_membership_id: nil,
+      response_text: "Expected response observed",
+      education_text: "Medication education reviewed",
       administered_at: starts_at + 10.minutes,
-      request_key: "clinic-journey-administration"
+      request_key: SecureRandom.uuid
     ).medication_administration
     Clinic::Scheduling::CloseEncounter.call(
       encounter: encounter,

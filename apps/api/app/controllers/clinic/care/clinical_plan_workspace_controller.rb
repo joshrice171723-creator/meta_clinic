@@ -2,8 +2,9 @@ module Clinic
   module Care
     class ClinicalPlanWorkspaceController < Clinic::ApiController
       FIELD_SETS = {
-        medication_requests: %i[status intent transmission_state medication_name dose_text route_text frequency_text
-          quantity_text instructions source_medication_statement_id],
+        medication_requests: %i[status intent transmission_state inventory_product_id medication_name dose_value
+          dose_unit_code dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text
+          instructions source_medication_statement_id],
         service_requests: %i[status request_kind intent priority requested_code_system requested_code requested_display
           destination reason_text due_at],
         diagnoses: %i[status classification code_system diagnosis_code diagnosis_display clinical_note],
@@ -113,10 +114,11 @@ module Clinic
 
       def normalized_input(kind, input)
         value = input.dup
-        %i[source_medication_statement_id service_request_revision_id care_plan_revision_id source_document_id].each do |field|
+        %i[inventory_product_id source_medication_statement_id service_request_revision_id care_plan_revision_id
+          source_document_id].each do |field|
           value[field] = optional_id(value[field], field) if value.key?(field)
         end
-        %i[due_at performed_at administered_at].each do |field|
+        %i[due_at performed_at administered_at scheduled_for].each do |field|
           value[field] = value[field].present? ? time_param!(value[field], field:) : nil if value.key?(field)
         end
         %i[starts_on ends_on target_on].each do |field|

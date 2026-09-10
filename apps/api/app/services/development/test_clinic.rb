@@ -22,7 +22,7 @@ module Development
       procurement.submit procurement.approve recall.read recall.lock recall.dispose
       controlled.read controlled.count controlled.certify
       appointments.read appointments.book appointments.status_transition
-      encounters.write encounters.assign_provider intake.write notes.read notes.write notes.sign observations.write messages.write staff_messaging.read staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge staff_messaging.transition staff_messaging.escalate staff_messaging.attach reminders.read reminders.write
+      encounters.write encounters.assign_provider intake.write notes.read notes.write notes.sign observations.write medication_administrations.write messages.write staff_messaging.read staff_messaging.send staff_messaging.create_conversation staff_messaging.acknowledge staff_messaging.transition staff_messaging.escalate staff_messaging.attach reminders.read reminders.write
       documents.read billing.write billing.read billing.invoice_draft billing.invoice_post billing.payment_record billing.catalog.manage roles.manage
     ].freeze
 

@@ -4,14 +4,27 @@ module Clinic
       ACTIONS = %w[catalog receive adjust hold release count configure transfer].freeze
 
       def self.with(practice_id, actor, action)
+        with_authorization(practice_id, actor, action, "inventory.#{action}") { |profile| yield profile }
+      end
+
+      def self.with_medication_administration(practice_id, actor, site:)
+        with_authorization(practice_id, actor, "adjust", "medication_administrations.write", site:) do |profile|
+          yield profile
+        end
+      end
+
+      def self.with_authorization(practice_id, actor, action, authorization_action, site: nil)
         raise ArgumentError, "Unsupported inventory action." unless ACTIONS.include?(action)
         Clinic::Practice.transaction do
           # Configuration/revocation serialize against these shared locks. All
           # inventory writes acquire locks in this order before product/stock rows.
           practice = Clinic::Practice.lock("FOR SHARE").find(practice_id)
           user = User.lock("FOR SHARE").find(actor.id)
-          Clinic::Authorization.authorize!(actor: user, practice: practice, action: "inventory.#{action}")
-          ApplicationRecord.connection.execute("SELECT set_config('apply.inventory_action', #{ApplicationRecord.connection.quote("inventory.#{action}")}, true)")
+          Clinic::Authorization.authorize!(actor: user, practice: practice, action: authorization_action, site:)
+          ApplicationRecord.connection.execute(
+            "SELECT set_config('apply.inventory_action', #{ApplicationRecord.connection.quote(authorization_action)}, true), " \
+            "set_config('apply.inventory_site', #{ApplicationRecord.connection.quote(site&.id.to_s)}, true)"
+          )
           profile = practice.inventory_profiles.order(version: :desc).first
           unless action == "configure" || (profile && %w[configured synthetic].include?(profile.status) && profile.capabilities.include?("inventory"))
             raise ArgumentError, "Inventory posting is suspended or not configured. History remains available."
@@ -25,6 +38,7 @@ module Clinic
 
         raise ArgumentError, "Your account does not have permission for this inventory action."
       end
+      private_class_method :with_authorization
 
       def self.retry_lock(practice_id, key)
         raise ArgumentError, "Reload the form to obtain a valid retry key." unless key.to_s.match?(/\A[0-9a-f-]{36}\z/)

@@ -1,5 +1,6 @@
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -84,21 +85,28 @@ const RESOURCE_META: Record<
       status: "draft",
       intent: "order",
       transmission_state: "not_requested",
+      inventory_product_id: "",
       medication_name: "",
-      dose_text: "",
-      route_text: "",
+      dose_value: "",
+      dose_unit_code: "",
+      route_code: "",
       frequency_text: "",
       quantity_text: "",
+      scheduled_for: "",
+      reason_text: "",
       instructions: "",
     },
     statuses: ["draft", "authorized", "on_hold", "completed", "cancelled", "entered_in_error"],
     fields: [
-      { name: "medication_name", label: "Medication", required: true },
+      { name: "medication_name", label: "Medication name", required: true },
       { name: "intent", label: "Intent", options: ["proposal", "plan", "order"] },
-      { name: "dose_text", label: "Dose" },
-      { name: "route_text", label: "Route" },
+      { name: "dose_value", label: "Dose amount" },
+      { name: "dose_unit_code", label: "Dose unit", options: [] },
+      { name: "route_code", label: "Route", options: [] },
       { name: "frequency_text", label: "Frequency" },
       { name: "quantity_text", label: "Quantity" },
+      { name: "scheduled_for", label: "Scheduled for", type: "datetime-local" },
+      { name: "reason_text", label: "Reason / indication", multiline: true },
       { name: "instructions", label: "Instructions", multiline: true },
       {
         name: "transmission_state",
@@ -657,8 +665,39 @@ export function ClinicalPlanWorkspace({
                 </Select>
               </FormControl>
             )}
-            {meta.fields.map((field) =>
-              field.options ? (
+            {kind === "medication_requests" && (
+              <Autocomplete
+                options={data.medication_products}
+                value={data.medication_products.find((product) => String(product.id) === form.inventory_product_id) ?? null}
+                getOptionLabel={(product) =>
+                  [product.name, product.generic_name, product.dosage_form, product.ndc && `NDC ${product.ndc}`]
+                    .filter(Boolean)
+                    .join(" · ")
+                }
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                onChange={(_event, product) =>
+                  setForm((current) => ({
+                    ...current,
+                    inventory_product_id: product ? String(product.id) : "",
+                    medication_name: product?.name ?? current.medication_name,
+                  }))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Clinic medication catalog"
+                    helperText="Required before this order can be selected for in-office administration."
+                  />
+                )}
+              />
+            )}
+            {meta.fields.map((field) => {
+              const dynamicOptions = kind === "medication_requests" && field.name === "dose_unit_code"
+                ? data.medication_order_options.dose_units
+                : kind === "medication_requests" && field.name === "route_code"
+                  ? data.medication_order_options.routes
+                  : null;
+              return field.options || dynamicOptions ? (
                 <FormControl key={field.name} fullWidth required={field.required}>
                   <InputLabel id={`clinical-${field.name}-label`}>{field.label}</InputLabel>
                   <Select
@@ -669,9 +708,10 @@ export function ClinicalPlanWorkspace({
                       setForm((current) => ({ ...current, [field.name]: event.target.value }))
                     }
                   >
-                    {field.options.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {humanize(option)}
+                    {(dynamicOptions ?? field.options?.map((option) => ({ code: option, label: humanize(option) })) ?? [])
+                      .map((option) => (
+                      <MenuItem key={option.code} value={option.code}>
+                        {option.label}
                       </MenuItem>
                     ))}
                   </Select>
@@ -691,8 +731,8 @@ export function ClinicalPlanWorkspace({
                   slotProps={field.type && field.type !== "text" ? { inputLabel: { shrink: true } } : undefined}
                   fullWidth
                 />
-              ),
-            )}
+              );
+            })}
             {kind === "medication_requests" && (
               <Alert severity="info">
                 Authorized records and pharmacy transmission states are separate. MC does not claim transmission from this screen.
