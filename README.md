@@ -10,7 +10,7 @@ For repository-changing agent work, read the root [agent contract](AGENTS.md), r
 
 Read the [developer documentation](docs/development/README.md) first: local setup, separate branches/databases, checks, pull requests and the release boundary. [Software Architecture](APPlyVault/03%20Execution/Software%20Architecture.md) explains where code belongs.
 
-Current source is React/Vite + Rails API + PostgreSQL. The last recorded EC2 verification (2026-08-30) used the older Rails/SQLite bootstrap. Hosted PostgreSQL cutover and delivery activation are still pending in the record; this checkout is not proof of deployed state.
+Current source is React/Vite + Rails API + PostgreSQL. The former AWS environments and delivery path are retired from active source. Historical hosted evidence remains in `records/`; this checkout is not proof of a current deployment.
 
 ## Repository map
 
@@ -18,7 +18,7 @@ Current source is React/Vite + Rails API + PostgreSQL. The last recorded EC2 ver
 apps/web/           Screens, navigation, forms, styles; independent npm build
 apps/api/           Sessions, authorization, domain workflows, PostgreSQL; Rails
 bin/                Local startup, verification and agent workflow helpers
-ops/aws/            Infrastructure, paired releases and recovery procedures
+ops/portable/       Owner-controlled, provider-neutral container packaging
 APPlyVault/         Canonical requirements, research, decisions and tasks
 agent-harness/      Agent architecture, on-demand procedures and provenance
 .agents/skills/     Canonical repository skills, including Plan, Act and frontend UI
@@ -78,7 +78,7 @@ Open [local login](http://127.0.0.1:3000/login). The managed lifecycle enables o
 - [API, database and security boundaries](apps/api/README.md)
 - [Architecture and extension rules](APPlyVault/03%20Execution/Software%20Architecture.md)
 - [Developer workflow and CI](docs/development/README.md)
-- [Hosted state](ops/aws/ec2/environments.md) and [pending PostgreSQL cutover](ops/aws/ec2/postgres-cutover.md)
+- [Portable deployment](ops/portable/README.md)
 - [Planning home](APPlyVault/00%20Home.md) and [decisions](APPlyVault/03%20Execution/Decisions.md)
 
 Read [AGENTS.md](AGENTS.md) and the [agent harness map](agent-harness/README.md) before agent work. Never build from the repository root or include the vault, credentials, records or logs in an image. The source split does not activate delivery or approve confidential/clinical use. Clinic UI and API remain blocked in packaged production runtime.

@@ -1,0 +1,48 @@
+name: Publish portable containers
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type publish-containers to publish the current main commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-container-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'publish-containers'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - component: api
+            context: apps/api
+          - component: web
+            context: apps/web
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          provenance: true
+          sbom: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/meta-clinic-${{ matrix.component }}:sha-${{ github.sha }}

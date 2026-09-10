@@ -207,17 +207,16 @@
       "checks": ["bin/agent-check"]
     },
     {
-      "name": "aws-operations",
-      "patterns": ["ops/aws", "ops/aws/**"],
+      "name": "portable-operations",
+      "patterns": ["ops/portable", "ops/portable/**"],
       "workflows": [
         "agent-harness/workflows/release.md",
-        "agent-harness/workflows/database-change.md (for database cutovers)"
+        "agent-harness/workflows/database-change.md (for database changes)"
       ],
       "skills": [],
       "developer_docs": [
         "docs/development/ci.md",
-        "ops/aws/ec2/environments.md",
-        "ops/aws/ec2/README.md"
+        "ops/portable/README.md"
       ],
       "vault_context": [
         "APPlyVault/03 Execution/PostgreSQL and Inventory Foundation.md",

@@ -10,7 +10,7 @@ Confirm explicit authorization for the exact account, environment, candidate com
 
 ## Procedure
 
-1. Read `ops/aws/AGENTS.md`, CICD, environment state and the exact runbook.
+1. Read `ops/portable/AGENTS.md`, CICD, the selected host state and the exact runbook.
 2. Resolve candidate API/web digests from one reviewed commit. Confirm required source/CI evidence without treating it as hosted acceptance.
 3. Record failure hypotheses for wrong target, wrong candidate, missing secret/key, partial release, health-check false positive, data loss and failed rollback.
 4. Define preflight evidence, stop conditions, recovery owner/path and post-release verification before mutation.

@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+require "yaml"
+
+root = File.expand_path("..", __dir__)
+compose_path = File.join(root, "ops", "portable", "compose.yml")
+workflow_path = File.join(root, ".github", "workflows", "publish-containers.yml")
+
+compose = File.read(compose_path)
+workflow = File.read(workflow_path)
+errors = []
+errors << "portable edge must remain loopback-only" unless compose.include?('127.0.0.1:8443:8443')
+errors << "portable images must use immutable commit tags" unless compose.include?('${IMAGE_TAG:?required}')
+errors << "portable deployment must include a database health gate" unless compose.include?("condition: service_healthy")
+errors << "publisher must not request an OIDC token" if workflow.include?("id-token: write")
+errors << "publisher must use the repository token" unless workflow.include?("secrets.GITHUB_TOKEN")
+errors << "AWS reference remains in active delivery files" if [compose, workflow].any? { |text| text.match?(/\bAWS\b|aws-actions|amazonaws/i) }
+
+if errors.any?
+  warn errors.join("\n")
+  exit 1
+end
+
+puts "Portable delivery checks passed."

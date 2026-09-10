@@ -23,7 +23,7 @@ REQUIRED_INSTRUCTION_FILES = [
     "APPlyVault/AGENTS.md",
     "apps/api/AGENTS.md",
     "apps/web/AGENTS.md",
-    "ops/aws/AGENTS.md",
+    "ops/portable/AGENTS.md",
     "site/AGENTS.md",
     "agent-harness/AGENTS.md",
     "agent-harness/README.md",
@@ -74,7 +74,7 @@ REQUIRED_ROUTES = {
     "developer-documentation",
     "rails-api",
     "react-frontend",
-    "aws-operations",
+    "portable-operations",
     "historical-site",
 }
 

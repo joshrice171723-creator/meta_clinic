@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — External AWS delivery retired
+
+**Outcome:** removed active AWS CLI, CloudFormation, EC2/ECR/SSM operations and the AWS-targeted staging/production workflows. GitHub access inspection showed only the founder as collaborator and no Actions secrets, variables, environments, deploy keys or webhooks. Added manual, commit-tagged API/web publication to the founder-owned GitHub Container Registry and provider-neutral Compose packaging that binds only to loopback by default.
+
+**Limits:** the referenced AWS account is not accessible from this machine, so AWS-side identities, resources, retained data and billing were not inspected or changed. No replacement host, TLS, backup service, deployment, migration, public access or production acceptance is claimed. Historical records and Git history remain intact.
+
 ## 2026-09-10 — Hardened clinic behavior paths verified
 
 **Outcome:** five focused database-backed regression paths now cover the security-hardening risk surface: billing draft idempotency and stale-write protection, forbidden patient-write integrity, tenant-safe inventory exception filtering, nested tenant-scoped inventory paths, and workforce `HEAD` sensitive-read auditing. The managed environment was healthy; the four combined clinic scenarios passed 19 assertions, the isolated billing lifecycle passed 10 assertions, and the workforce scenario passed 3 assertions. Focused RuboCop, scoped diff integrity, and CI security/static-analysis completed successfully.

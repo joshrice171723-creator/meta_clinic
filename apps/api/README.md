@@ -2,7 +2,7 @@
 
 See [the repository README](../../README.md) for orientation, [developer documentation](../../docs/development/README.md) for workflow, and [Software Architecture](../../APPlyVault/03%20Execution/Software%20Architecture.md) for module ownership. Local startup and verification are below.
 
-**PostgreSQL is now required in every application environment.** The installed EC2 bootstrap images still use SQLite pending the reviewed maintenance cutover; see [the cutover runbook](../../ops/aws/ec2/postgres-cutover.md). Existing SQLite files are preserved solely as conversion/recovery sources, never an alternative application adapter.
+**PostgreSQL is required in every application environment.** The retired AWS bootstrap is historical evidence only. Existing SQLite files are preserved solely as conversion/recovery sources, never an alternative application adapter.
 
 ## Authentication and boundaries
 
@@ -57,7 +57,7 @@ Operator activation/recovery delivery, MFA, audit/monitoring, scoped confidentia
 
 ## Separate staging and production
 
-Both EC2 environments are running; see the [environment runbook](../../ops/aws/ec2/environments.md). Production seeds no samples, assigns no demo paperwork, filters existing demo documents/sample guides from all portal access and rejects demo signing. Staging retains synthetic portal content and uses ordinary provisioned login behind the authenticated review edge. Current source prepares one isolated managed clinic for `StagingDemoUser`; hosted evidence is recorded separately after matched-pair delivery and exact-candidate review. Production and the local login shortcut remain denied. Main CI drives automatic staging delivery; production delivery remains separately inactive.
+No current hosted environment is asserted by this repository. Production seeds no samples, assigns no demo paperwork, filters existing demo documents/sample guides from all portal access and rejects demo signing. A future owner-controlled staging environment must use ordinary authentication. Current source can prepare one isolated synthetic clinic for `StagingDemoUser`; hosted evidence requires a new deployment and separate verification. Production and the local login shortcut remain denied.
 
 ## Local PostgreSQL and conversion checks
 

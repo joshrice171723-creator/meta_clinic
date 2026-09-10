@@ -41,7 +41,7 @@ APPly/
     test/                      Domain units, HTTP journeys and architecture contracts
     bin/                       API, PostgreSQL and migration-verification commands
   bin/                         Local startup, synthetic rehearsal and deterministic agent checks
-  ops/aws/                     Infrastructure, paired release and recovery tools
+  ops/portable/                Provider-neutral container packaging and local-private edge
   .github/workflows/           Frontend/API CI and prepared delivery workflows
   site/                        Historical Sites metadata/assets only
 ```

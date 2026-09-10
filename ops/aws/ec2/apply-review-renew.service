@@ -1,9 +1,0 @@
-[Unit]
-Description=Renew APPly staging IP certificate and reload nginx
-After=network-online.target nginx.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-UMask=0077
-ExecStart=/opt/apply-certbot/bin/certbot renew --cert-name apply-staging-review --quiet --deploy-hook /usr/local/sbin/apply-review-cert-reload

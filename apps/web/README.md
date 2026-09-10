@@ -28,7 +28,7 @@ npm audit --audit-level=high
 
 Dev defaults to 127.0.0.1:3000 and proxies `/api` to 127.0.0.1:3001, preserving Host/Origin. `APPLY_WEB_PORT` and `APPLY_API_PORT` support isolated checkouts. Repository-root `bin/dev` is the canonical combined lifecycle; package-level `npm run dev` remains a frontend-only component command. `bin/verify-web` runs synthetic native-HTTP integration with its own database and processes.
 
-The build outputs only static assets. Docker builds independently and serves them as an unprivileged nginx user on 8080, with strict same-origin CSP and no application secrets. The trusted edge in `ops/aws/ec2/nginx.conf` sends API requests directly to Rails. No cross-origin credential configuration is necessary.
+The build outputs only static assets. Docker builds independently and serves them as an unprivileged nginx user on 8080, with strict same-origin CSP and no application secrets. The provider-neutral edge in `ops/portable/nginx.conf` sends API requests directly to Rails. No cross-origin credential configuration is necessary.
 
 The static image can serve the record-free clinic shell, but the default private/production host edge returns `/clinic` 404. The separately generated authenticated staging-review server may proxy that shell; Rails then permits clinic JSON only for the exact managed `StagingDemoUser` assignment. Protected page shells contain no records and data requests require a live authorized session. Browser history restoration reloads and reauthorizes; logout/account changes discard protected component state. Browser interaction/visual/accessibility acceptance remains separate from unit, build and HTTP checks.
 

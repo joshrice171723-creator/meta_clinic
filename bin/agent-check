@@ -150,7 +150,7 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
 
     api_changed = implementation_change(paths, "apps/api")
     web_changed = implementation_change(paths, "apps/web")
-    ops_changed = implementation_change(paths, "ops/aws")
+    ops_changed = implementation_change(paths, "ops/portable")
 
     if api_changed:
         checks.extend(
@@ -227,18 +227,8 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
     if ops_changed:
         checks.append(
             Check(
-                "offline AWS contracts",
-                ("python3", "-B", "-m", "unittest", "discover", "-s", "ops/aws/ec2", "-p", "test_*.py"),
-            )
-        )
-        checks.append(
-            Check(
-                "AWS shell syntax",
-                (
-                    "bash",
-                    "-c",
-                    'for script in ops/aws/ec2/*.sh; do bash -n "$script" || exit; done',
-                ),
+                "portable delivery boundaries",
+                ("ruby", "bin/verify-portable-delivery"),
             )
         )
 

@@ -11,6 +11,8 @@
 *.p12
 *.pfx
 .aws/
+ops/portable/certs/
+ops/portable/.env
 .ssh/
 
 # Dependencies, build output and caches.

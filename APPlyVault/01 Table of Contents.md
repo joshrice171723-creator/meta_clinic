@@ -22,7 +22,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | Product or visual-system design | [PRODUCT.md](../PRODUCT.md), [[Design]] | [[Clinic Workspace Design]] for implementation history and workflow boundaries; D-036/D-039/D-041/D-049/D-051/D-052 |
 | Implementation planning or failure review | [failure-first workflow](../agent-harness/workflows/failure-first.md) | Active task context; human agreement in [[Working Agreement]]; relevant requirements, [[Risks and Assumptions]], evidence and existing gates remain |
 | Developer onboarding, Git, local setup or CI | [Developer handbook](../docs/README.md), [software architecture](../docs/architecture/software-architecture.md) | [[CICD]] and [[Software Architecture]] preserve vault context/links; D-033 owns the architecture direction |
-| Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | [staging owner-review access](../ops/aws/ec2/review-access.md); linked operator runbooks; dated hosted entries in [[Progress Log]]; applicable release gates and current Shortcut Stories |
+| Hosting, releases or database cutover | [[CICD#Finish activation]], [[PostgreSQL and Inventory Foundation]] | [portable deployment](../ops/portable/README.md); dated historical hosted entries in [[Progress Log]]; applicable release gates |
 | Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant criteria and Stories; D-021/D-022/D-033 |
 | Clinic UI, care or staff prototype | [[Design]], [[Clinic Workspace]], [[Clinic Workspace Design]], [[Clinic Domain and Data Boundaries]] | [Software architecture](../docs/architecture/software-architecture.md); relevant decisions, risks and release limits |
 | ERD-to-frontend integration planning | [[Clinic Domain and Data Boundaries]], [frontend/backend contract](../docs/architecture/clinic-frontend-backend-contract.md), [target-state ERD](../docs/architecture/clinic-target-state-erd.md) | Pointer notes below preserve historical titles; detailed proposal/review/prompt/verification evidence is under [records](../records/README.md) |
@@ -100,7 +100,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 [[00 Home]] is the current-position dashboard; this note is the full note index. Durable Obsidian configuration is local UI state, not business evidence: [app](.obsidian/app.json), [appearance](.obsidian/appearance.json), [core plugins](.obsidian/core-plugins.json), and [graph](.obsidian/graph.json). The workspace layout is intentionally untracked local state. Read configuration only for relevant work and preserve it unless changes are requested. Sync being enabled does not establish approved synchronization.
 
-The founder removed retired `reference/` on 2026-08-31. Runtime source remains in `apps/`, delivery in `ops/aws/`, and the canonical schema in `apps/api/db/structure.sql` with its migrations. Historical reference files are recoverable from Git, not required reading or active dependencies.
+The founder removed retired `reference/` on 2026-08-31. Runtime source remains in `apps/`, provider-neutral packaging in `ops/portable/`, and the canonical schema in `apps/api/db/structure.sql` with its migrations. Historical reference and AWS files are recoverable from Git, not required reading or active dependencies.
 
 ## Keep this index useful
 

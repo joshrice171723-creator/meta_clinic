@@ -15,10 +15,10 @@ Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs 
 
 Use the [developer handbook](../docs/README.md) for setup, local commands, branches, checks and current architecture. The active task context owns scope, acceptance, claims and status; then select only the relevant product context, decisions, risks and evidence from this vault. `AGENTS.md`, `agent-harness/` and `.agents/skills/` govern agents; `records/` retains detailed dated evidence outside the default context.
 
-| Current source — reviewed 2026-08-31 | Hosted state — staging verified 2026-08-31 |
+| Current source | Hosted state |
 | --- | --- |
 | `apps/web`: React/TypeScript/Vite; `apps/api`: Rails JSON + PostgreSQL. Local frontend/API split complete. | Staging runs the separate API/frontend with PostgreSQL; production retains the older Rails/SQLite bootstrap (last verified 2026-08-30). |
-| Six CI jobs—including vault/agent-document validation—and matched API/web image delivery are defined in source. | Staging cutover/recovery and scoped GitHub OIDC are verified. Production cutover and activation remain separately pending. |
+| Six CI jobs—including vault/agent-document validation—and manual API/web image publication are defined in source. | The former AWS environments are retired from active operations. No replacement host is currently verified. |
 
 The retired `reference/` folder was removed by the founder after its useful behavior was mapped into the app. Use Rails migrations and `apps/api/db/structure.sql`, not the old reference SQL. Shared `.gitignore` rules now protect local artifacts; the vault and source remain tracked. All development stays synthetic; no clinical/confidential release is implied.
 
@@ -33,7 +33,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 - **Reference clinic:** Kevin Stacks, MD, PLLC, general adult medicine in Sherman, verified on the public website. The founder reports the MD has recently gone through cash-pay PLLC setup and documented the legal steps taken so far.
 - **Starting assets:** Kevin's attorney helped with his setup process. The founder will gather Kevin's documents/legal materials for authorized ingestion; receipt, reuse permission and review are still not recorded here. The earlier expected availability was not proof of receipt.
 - **Commercial structure:** consultancy launch package with ongoing support; support and package-cost details explicitly TBD. Software implementation fee plus recurring fees calculated as a percentage of ordered inventory value; rate, eligible value, billing trigger, and terms remain open. This is not a selected percentage of patient-care revenue.
-- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. D-027/D-030 established small paid private EC2 staging/production environments, with 10 GiB encrypted storage each and independent secrets. Staging now uses PostgreSQL; production retains its SQLite bootstrap with demos disabled. [[CICD]] distinguishes that hosted evidence from current source and pending activation. Future clinical architecture and S3 use remain open.
+- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. The former AWS environments and OIDC delivery path are retired. Current source publishes commit-tagged containers to the founder-owned GitHub registry and provides provider-neutral, loopback-only packaging; no replacement host is selected or verified. [[CICD]] distinguishes historical evidence from current operations.
 - **Database implementation:** D-031 selects PostgreSQL throughout Rails, tests and prepared deployment tooling. [[PostgreSQL and Inventory Foundation]] records the tested shared ledger, units, receipts, holds and counts. Staging's verified maintenance cutover preserves its synthetic records/keys and includes independent PostgreSQL restore evidence; production cutover remains pending.
 - **Source structure:** D-033 separates browser UI (`apps/web`) and Rails API (`apps/api`), retaining D-032's domain ownership. [Architecture](../docs/architecture/software-architecture.md) and [development docs](../docs/development/README.md) define the two build/runtime boundaries and commands; [[Software Architecture]] and [[CICD]] remain vault compatibility pointers. The temporary link is retired; staging now runs the split release and production remains unchanged. The local `apply_test` cleanup issue was resolved by authorized recreation; [[Progress Log]] retains the incident and corrected cleanup checks.
 - **Pharmacy scope:** D-028 sets broad configurability: clinics should be able to choose and combine pharmacy setups. [[Pharmacy Inventory Data Requirements]] covers the shared inventory foundation and proposed capability extensions; individual clinic activation and real-data release still need their own evidence.
@@ -60,7 +60,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Next three moves
 
-- Finish remaining engineering/release acceptance: browser/account journeys, image advisories and operations/recovery. Preserve completed CI/staging evidence; production cutover needs separate authorization, not a repeat of staging setup.
+- Finish remaining engineering/release acceptance: browser/account journeys, image advisories and operations/recovery. Select and provision a founder-controlled host before any new hosted acceptance; historical AWS evidence does not transfer to it.
 - Build toward operator onboarding and versioned synthetic packet/training management. The founder will gather Kevin's materials; actual content/reuse review is a separate dependency, and real applicant documents/signing remain gated.
 - Finish inventory configuration/permission acceptance and prepare the synthetic clinic workflow walkthrough alongside it; field/layout/clinical acceptance and real-data gates remain open.
 
