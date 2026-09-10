@@ -378,9 +378,17 @@ export type EncounterIntakeRevision = {
   version: number;
   status: "incomplete" | "ready_for_handoff" | "unable_to_complete";
   identity_state: "confirmed" | "not_confirmed" | "unable_to_confirm";
-  visit_reason_state: "confirmed" | "needs_correction" | "not_recorded" | "unable_to_obtain";
-  history_state: "reviewed" | "incomplete" | "not_recorded" | "unable_to_obtain";
-  vitals_state: "recorded" | "incomplete" | "not_recorded" | "declined" | "unable_to_obtain" | "not_applicable";
+  visit_reason_state:
+    "confirmed" | "needs_correction" | "not_recorded" | "unable_to_obtain";
+  history_state:
+    "reviewed" | "incomplete" | "not_recorded" | "unable_to_obtain";
+  vitals_state:
+    | "recorded"
+    | "incomplete"
+    | "not_recorded"
+    | "declined"
+    | "unable_to_obtain"
+    | "not_applicable";
   observation_ids: number[];
   history_review_ids: number[];
   recorded_at: string;
@@ -391,7 +399,13 @@ export type EncounterHandoff = {
   patient_id: number;
   encounter_id: number;
   intake_revision_id: number;
-  state: "pending" | "accepted" | "rejected" | "correction_requested" | "completed" | "cancelled";
+  state:
+    | "pending"
+    | "accepted"
+    | "rejected"
+    | "correction_requested"
+    | "completed"
+    | "cancelled";
   requested_by_membership_id: number;
   accepted_by_membership_id: number | null;
   requested_at: string;
@@ -403,7 +417,13 @@ export type ClinicalTask = {
   patient_id: number;
   encounter_id: number | null;
   site_id: number | null;
-  task_kind: "intake" | "handoff" | "result_follow_up" | "patient_call" | "order_execution" | "record_request";
+  task_kind:
+    | "intake"
+    | "handoff"
+    | "result_follow_up"
+    | "patient_call"
+    | "order_execution"
+    | "record_request";
   state: "open" | "claimed" | "in_progress" | "completed" | "cancelled";
   pool_code: "clinical" | "front_desk" | "records";
   assigned_to_membership_id: number | null;
@@ -444,7 +464,13 @@ export type ClinicalRevisionBase = {
 };
 export type MedicationRequestRevision = ClinicalRevisionBase & {
   intent: "proposal" | "plan" | "order";
-  transmission_state: "not_requested" | "pending" | "accepted" | "rejected" | "failed" | "unknown";
+  transmission_state:
+    | "not_requested"
+    | "pending"
+    | "accepted"
+    | "rejected"
+    | "failed"
+    | "unknown";
   medication_name: string;
   dose_text: string | null;
   route_text: string | null;
@@ -454,7 +480,8 @@ export type MedicationRequestRevision = ClinicalRevisionBase & {
   source_medication_statement_id: number | null;
 };
 export type ServiceRequestRevision = ClinicalRevisionBase & {
-  request_kind: "lab" | "imaging" | "procedure" | "referral" | "therapy" | "other";
+  request_kind:
+    "lab" | "imaging" | "procedure" | "referral" | "therapy" | "other";
   intent: "proposal" | "plan" | "order";
   priority: "routine" | "urgent" | "asap" | "stat";
   requested_code_system: string | null;
@@ -477,7 +504,8 @@ export type ProcedureRevision = ClinicalRevisionBase & {
   procedure_display: string;
   performed_at: string | null;
   outcome_text: string | null;
-  complication_state: "not_assessed" | "none_reported" | "known" | "unknown" | "unable_to_obtain";
+  complication_state:
+    "not_assessed" | "none_reported" | "known" | "unknown" | "unable_to_obtain";
   complication_text: string | null;
   service_request_revision_id: number | null;
 };
@@ -502,7 +530,8 @@ export type ImmunizationRevision = ClinicalRevisionBase & {
   route_text: string | null;
   administration_site_text: string | null;
   administered_at: string | null;
-  occurrence_source: "administered_here" | "patient_reported" | "external_record" | "registry";
+  occurrence_source:
+    "administered_here" | "patient_reported" | "external_record" | "registry";
   refusal_reason: string | null;
   source_document_id: number | null;
 };
@@ -510,7 +539,12 @@ export type ClinicalPlanLink = {
   id: number;
   source_kind: "medication_request" | "service_request";
   source_revision_id: number;
-  target_kind: "medication_statement" | "medication_administration" | "lab_report" | "procedure" | "document";
+  target_kind:
+    | "medication_statement"
+    | "medication_administration"
+    | "lab_report"
+    | "procedure"
+    | "document";
   target_id: number;
   outcome_summary: string | null;
   recorded_by_membership_id: number;
@@ -521,7 +555,8 @@ export type ReferralExchangeEvent = {
   service_request_revision_id: number;
   service_request_series_id: string;
   direction: "outbound" | "inbound";
-  stage: "prepared" | "sent" | "received" | "acknowledged" | "closed" | "cancelled";
+  stage:
+    "prepared" | "sent" | "received" | "acknowledged" | "closed" | "cancelled";
   organization_name: string | null;
   note: string | null;
   document_id: number | null;
@@ -565,7 +600,11 @@ export type ClinicalPlanWorkspace = {
   links: ClinicalPlanLink[];
   referral_events: ReferralExchangeEvent[];
   available_link_targets: Record<
-    "medication_statement" | "medication_administration" | "lab_report" | "procedure" | "document",
+    | "medication_statement"
+    | "medication_administration"
+    | "lab_report"
+    | "procedure"
+    | "document",
     ClinicalPlanLinkTarget[]
   >;
 };
@@ -970,11 +1009,37 @@ export type ClinicWorkspaceContext = {
 };
 export type PracticeFeatures = {
   core: Record<string, true>;
-  optional: { insurance_workflows: boolean };
+  optional: {
+    insurance_workflows: boolean;
+    clinic_type: ClinicType | null;
+    service_scope: ClinicServiceCode[];
+  };
   insurance_workflows_enabled: boolean;
+  clinic_type: ClinicType | null;
+  service_scope: ClinicServiceCode[];
+  configured: boolean;
+  recommended_clinic_type: ClinicType;
+  recommended_service_scope: ClinicServiceCode[];
   revision: number;
   effective_from: string | null;
 };
+export type ClinicType =
+  | "primary_care"
+  | "membership_primary_care"
+  | "urgent_care"
+  | "specialty_outpatient"
+  | "behavioral_health"
+  | "custom_ambulatory";
+export type ClinicServiceCode =
+  | "telehealth"
+  | "external_lab_coordination"
+  | "minor_office_procedures"
+  | "in_office_medications"
+  | "vaccinations"
+  | "point_of_care_testing"
+  | "infusions"
+  | "controlled_medications"
+  | "patient_supplied_medications";
 export type TelehealthSummary = {
   public_id: string;
   status: string;
@@ -1187,12 +1252,7 @@ export type ClinicTrackingBoardVisit = {
   /** @deprecated The live board ignores scenario data and derives only persisted operations state. */
   synthetic_scenario?: {
     stage:
-      | "waiting"
-      | "intake"
-      | "ready"
-      | "clinician"
-      | "checkout"
-      | "unrecorded";
+      "waiting" | "intake" | "ready" | "clinician" | "checkout" | "unrecorded";
     reason: string;
   };
 };

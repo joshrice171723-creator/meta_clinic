@@ -5,6 +5,7 @@ module Development
     RETIRED_ACCOUNT_PATTERN = "demo-%@example.invalid".freeze
     ACCOUNT_EMAILS = {
       "clinic-administrator" => "clinic-administrator@local.invalid",
+      "implementation-specialist" => "implementation-specialist@local.invalid",
       "billing-accounting" => "billing-accounting@local.invalid",
       "front-desk-coordinator" => "front-desk@local.invalid",
       "clinician" => "clinician@local.invalid",

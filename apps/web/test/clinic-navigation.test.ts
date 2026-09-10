@@ -103,6 +103,31 @@ describe("clinic-local navigation", () => {
     expect(employees).toContain('label="Create a new employee login"');
   });
 
+  it("gives implementation specialists one clinic setup destination", () => {
+    const app = readSource(new URL("../src/App.tsx", import.meta.url));
+    const workspace = readSource(
+      new URL("../src/features/clinic/Workspace.tsx", import.meta.url),
+    );
+    const setup = readSource(
+      new URL(
+        "../src/features/clinic/PracticeFeatureSettings.tsx",
+        import.meta.url,
+      ),
+    );
+
+    expect(app).toContain(
+      'path === "/clinic/setup" || path === "/clinic/facilities"',
+    );
+    expect(workspace).toContain('href: "/clinic/setup"');
+    expect(workspace).toContain("capabilities.facilities_read === true");
+    expect(workspace).toContain(
+      'if (capabilities.facilities_read) return "/clinic/setup";',
+    );
+    expect(setup).toContain("Implementation Specialist (FDE)");
+    expect(setup).toMatch(/does not grant clinical\s+authority/);
+    expect(setup).toContain("Hardening required");
+  });
+
   it("keeps schedule paging and board refresh/listeners component-local", () => {
     const careFlow = readSource(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),

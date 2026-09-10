@@ -75,6 +75,23 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
     assert_not_includes permissions, "scribe.read"
   end
 
+  test "implementation specialist is clinic scoped without patient or administrator access" do
+    definition = Development::RoleAccounts::ACCOUNTS.fetch("implementation-specialist")
+    assert_equal %w[facilities.read facilities.write], definition.fetch(:permissions)
+    assert_equal false, definition.fetch(:admin)
+
+    local_mode do
+      specialist = Development::RoleAccounts.prepare!.fetch("implementation-specialist")
+      practice = specialist.clinic_membership.practice
+
+      assert Clinic::Authorization.allowed?(actor: specialist, practice: practice, action: "facilities.read")
+      assert Clinic::Authorization.allowed?(actor: specialist, practice: practice, action: "facilities.write")
+      assert_not Clinic::Authorization.allowed?(actor: specialist, practice: practice, action: "patients.read")
+      assert_not Clinic::Authorization.allowed?(actor: specialist, practice: practice, action: "roles.manage")
+      assert_not specialist.admin?
+    end
+  end
+
   test "clinic administrator upgrades granted access through a new role version" do
     local_mode do
       administrator = Development::RoleAccounts.prepare!.fetch("clinic-administrator")
@@ -99,6 +116,7 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
   test "every normal role has an allowed action and a denied action" do
     expected_policy = {
       "clinic-administrator" => [ "roles.manage", "scribe.read" ],
+      "implementation-specialist" => [ "facilities.write", "patients.read" ],
       "billing-accounting" => [ "billing.payment_record", "inventory.adjust" ],
       "front-desk-coordinator" => [ "appointments.book", "notes.write" ],
       "clinician" => [ "notes.write", "billing.invoice_post" ],

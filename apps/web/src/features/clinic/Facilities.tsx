@@ -185,12 +185,13 @@ export function Facilities() {
     <div className="facilities-page">
       <Stack spacing={1} sx={{ mb: 3 }}>
         <Typography variant="overline" color="text.secondary">
-          OPERATIONS / FACILITIES
+          OPERATIONS / CLINIC SETUP
         </Typography>
-        <Typography variant="h1">Facilities and visit types</Typography>
+        <Typography variant="h1">Clinic setup</Typography>
         <Typography color="text.secondary">
-          Maintain clinic locations and the visit choices used for scheduling.
-          Storage cabinets, quarantine and returns remain in Inventory.
+          Define the clinic model and intended services, then configure visit
+          types, locations, and operating hours for implementation handoff.
+          Storage cabinets, quarantine, and returns remain in Inventory.
         </Typography>
       </Stack>
       {feedback && (

@@ -7,6 +7,7 @@ import Inventory2Icon from "@mui/icons-material/Inventory2";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import SettingsIcon from "@mui/icons-material/Settings";
+import SettingsSuggestOutlinedIcon from "@mui/icons-material/SettingsSuggestOutlined";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import DeskIcon from "@mui/icons-material/RoomService";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -107,6 +108,12 @@ export function ClinicNavigation({
       label: "Operations",
       Icon: StorefrontIcon,
       allowed: true,
+    },
+    {
+      href: "/clinic/setup",
+      label: "Clinic setup",
+      Icon: SettingsSuggestOutlinedIcon,
+      allowed: capabilities.facilities_read === true,
     },
     {
       href: "/clinic/inventory",
@@ -215,6 +222,7 @@ export function clinicLandingDestination(
   if (capabilities.telehealth_read) return "/clinic/telehealth";
   if (capabilities.telehealth_configure) return "/clinic/settings/telehealth";
   if (capabilities.workforce_self) return "/clinic/workforce/hours";
+  if (capabilities.facilities_read) return "/clinic/setup";
   return "/clinic/operations";
 }
 
@@ -240,9 +248,7 @@ export function Workspace({
     data,
     error,
     refresh: refreshWorkspace,
-  } = useResource<ClinicWorkspaceContext>(
-    "/api/clinic/context",
-  );
+  } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
   const overview = useResource<ClinicOverview>("/api/clinic");
   const appearance = useClinicAppearance(user.id);
   const landingDestination = data

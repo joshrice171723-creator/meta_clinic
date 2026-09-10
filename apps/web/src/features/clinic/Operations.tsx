@@ -55,8 +55,8 @@ export function OperationsView({
           <ul className="clinic-feature-list">
             {facilitiesRead && (
               <li>
-                <a className="text-link" href="/clinic/facilities">
-                  Facilities and visit types →
+                <a className="text-link" href="/clinic/setup">
+                  Clinic profile, facilities, and visit types →
                 </a>
                 <p>Set up sites, operating hours, and appointment choices.</p>
               </li>
@@ -74,7 +74,9 @@ export function OperationsView({
                 <a className="text-link" href="/clinic/inventory">
                   Inventory locations →
                 </a>
-                <p>Configure storage before receiving or administering stock.</p>
+                <p>
+                  Configure storage before receiving or administering stock.
+                </p>
               </li>
             )}
             {billingRead && (
@@ -82,7 +84,9 @@ export function OperationsView({
                 <a className="text-link" href="/clinic/billing">
                   Services and payments →
                 </a>
-                <p>Review billable services, invoices, and collection workflows.</p>
+                <p>
+                  Review billable services, invoices, and collection workflows.
+                </p>
               </li>
             )}
           </ul>
@@ -124,8 +128,8 @@ export function OperationsView({
             )}
             {facilitiesRead && (
               <li>
-                <a className="text-link" href="/clinic/facilities">
-                  Facilities and visit types →
+                <a className="text-link" href="/clinic/setup">
+                  Clinic profile, facilities, and visit types →
                 </a>
                 <p>
                   Maintain clinic sites, operating hours and the visit choices

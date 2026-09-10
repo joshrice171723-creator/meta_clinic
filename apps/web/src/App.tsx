@@ -441,7 +441,7 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         />
       ) : path === "/clinic/operations" ? (
         <Operations />
-      ) : path === "/clinic/facilities" ? (
+      ) : path === "/clinic/setup" || path === "/clinic/facilities" ? (
         <Facilities />
       ) : path === "/clinic/chart-selection" ? (
         <ChartSelectionPage search={search} />

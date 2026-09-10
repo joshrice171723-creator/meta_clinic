@@ -1,12 +1,16 @@
 module Clinic
   module Authorization
     class PilotRoleCatalog
-      VERSION = 6
+      VERSION = 7
 
       DEFINITIONS = {
         "workforce-employee" => {
           label: "Employee",
           permissions: []
+        },
+        "implementation-specialist" => {
+          label: "Implementation Specialist (FDE)",
+          permissions: %w[facilities.read facilities.write]
         },
         "clinic-administrator" => {
           label: "Clinic Administrator",
