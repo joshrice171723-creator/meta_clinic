@@ -268,22 +268,10 @@ module Clinic
 
       def location_paths(practice:, ids:)
         return {} if ids.empty?
-        connection = ApplicationRecord.connection
-        practice_id = connection.quote(practice.id)
-        identifiers = ids.map { |id| connection.quote(id.to_i) }.uniq.join(",")
-        connection.select_all(<<~SQL).to_a.to_h { |row| [ row["source_id"].to_s, row["path"] ] }
-          WITH RECURSIVE paths(source_id, parent_id, site_id, path) AS (
-            SELECT id, parent_location_id, site_id, name::text FROM clinic_inventory_locations
-            WHERE practice_id=#{practice_id} AND id IN (#{identifiers})
-            UNION ALL
-            SELECT paths.source_id, parent.parent_location_id, paths.site_id, parent.name || ' / ' || paths.path
-            FROM paths JOIN clinic_inventory_locations parent ON parent.id=paths.parent_id
-            WHERE parent.practice_id=#{practice_id}
-          )
-          SELECT paths.source_id, concat_ws(' / ',site.name,paths.path) AS path FROM paths
-          LEFT JOIN clinic_sites site ON site.id=paths.site_id AND site.practice_id=#{practice_id}
-          WHERE paths.parent_id IS NULL
-        SQL
+        requested = ids.map(&:to_i).to_set
+        location_directory(practice: practice).each_with_object({}) do |location, paths|
+          paths[location.fetch(:id).to_s] = location.fetch(:path) if requested.include?(location.fetch(:id).to_i)
+        end
       end
 
       def location_directory(practice:, areas_by_location: {})

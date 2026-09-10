@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — CI security findings repaired
+
+**Outcome:** replaced request-influenced raw SQL construction in inventory location paths and inventory exception counts/results/totals with tenant-scoped Ruby projection or fixed templates plus bound values. Billing balance expressions are immutable and selected only through enumerated sort modes. Workforce sensitive-read classification now treats `HEAD` consistently with `GET`. Brakeman completed with 0 errors / 0 warnings, down from the prior CI result of six warnings; focused RuboCop and Ruby syntax passed over all four changed files.
+
+**Limits:** no broad suite or frontend formatting churn ran. The local test PostgreSQL endpoint remains unavailable, so database-backed behavior is left to the pushed commit’s Linux CI gate and is not claimed locally. No AWS access, hosted deployment, provider execution, real-patient use, or human clinical/release acceptance occurred. Detailed evidence and scores are in [the ambulatory workflow review](../../records/audits/2026-09-09-ambulatory-market-nurse-workflow-and-data-model-review.md).
+
 ## 2026-09-10 — Host continuity attestation bound to promotion
 
 **Outcome:** a successful remote release now returns one machine-readable host attestation through SSM. The workflow validates its release generation, exact API/web image URIs, environment, and staging continuity fingerprint before recording success. Staging and production each preserve a non-overwritable per-generation SSM record before updating the latest pointer, and production promotion refuses a staging receipt without matching host continuity evidence. Delivery-role permissions remain constrained to their environment’s exact latest and history paths. The focused release suites passed 11 tests; the standalone gate, Python compilation, normalized shell syntax, and scoped diff integrity passed.

@@ -583,6 +583,33 @@ Batch 7 closes the evidence gap between “the remote command returned success�
 
 The source-side hosted evidence chain is now strong enough that more release scaffolding has diminishing value. The next meaningful evidence remains the explicitly authorized staging deployment/recovery rehearsal and timed synthetic nurse/clinician acceptance session.
 
+## 18. Implementation progress — 2026-09-10, batch 8 freeze
+
+Batch 8 repairs the six static-analysis findings that kept the main CI security lane red, without broad formatting or unrelated frontend changes.
+
+1. **Inventory location paths.** The exception projection now derives requested paths from the tenant-scoped location directory instead of interpolating identifiers into a recursive SQL string.
+2. **Billing balance expressions.** The outstanding-balance and descending-sort expressions are immutable class-owned SQL constants; request input selects only among enumerated sort modes.
+3. **Exception counts.** Filtered counts use a fixed SQL template with Rails-bound practice, date, category, state, and escaped search values.
+4. **Exception rows and totals.** The result and total queries share the same fixed tenant/date source and bind map; page size and offset are bound values rather than interpolated SQL.
+5. **Workforce `HEAD` handling.** Sensitive workforce reads classify `HEAD` with `GET`, matching Rails routing and removing the possibility of method-dependent audit classification.
+
+### Batch 8 consolidated verification
+
+- Brakeman completed with **0 errors and 0 security warnings**, down from the authoritative CI result of one high-confidence SQL warning, four additional SQL-construction warnings, and one HTTP verb warning.
+- Focused RuboCop passed over all four changed Ruby files, and all four files passed Ruby syntax checks.
+- No broad suite or frontend formatter ran. Database-backed behavior was not rerun because the local test PostgreSQL endpoint remains unavailable; the next Linux CI Rails job is the independent behavior gate.
+
+### Pilot-readiness evidence ladder after batch 8
+
+| Evidence plane | Batch 7 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 95/100 | **96/100** | Inventory, billing, exception worklists, and workforce audit classification no longer depend on request-influenced SQL construction or GET-only method assumptions. |
+| Local automated verification | 90/100 | **92/100** | The repository security scan is locally clean and focused lint/syntax are green. Database behavior and the new pushed commit’s Linux CI result remain separate evidence. |
+| Supervised synthetic staff pilot | 84/100 | **84/100** | Static query hardening adds no new human-observed workflow evidence. |
+| Hosted real-patient pilot | 35/100 | **35/100** | No hosted deployment, real-patient use, or required human acceptance was authorized or demonstrated. |
+
+The next source-side priority is to use the new commit’s Linux CI result to repair any demonstrated behavioral regression in these query paths. If that gate is green, further local work should stop displacing the authorized hosted rehearsal and human synthetic acceptance needed to move the remaining evidence plane.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

@@ -10,6 +10,14 @@ module Clinic
         "needs_reconciliation" => [ "needs_reconciliation", "reconcile" ],
         "canceled" => [ "canceled", "review_balance" ]
       }.freeze
+      OUTSTANDING_BALANCE_SQL = <<~SQL.squish.freeze
+        CASE WHEN clinic_invoices.status = 'void' THEN 0 ELSE GREATEST(0,
+          COALESCE((SELECT SUM(posted_amount) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id), 0) -
+          COALESCE((SELECT SUM(amount) FROM clinic_payment_allocations WHERE invoice_id = clinic_invoices.id), 0) -
+          COALESCE((SELECT SUM(amount) FROM clinic_credit_notes WHERE invoice_id = clinic_invoices.id), 0)
+        ) END
+      SQL
+      OUTSTANDING_BALANCE_DESC_SQL = "#{OUTSTANDING_BALANCE_SQL} DESC, clinic_invoices.id DESC".freeze
 
       def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil, patient_identity_access: false)
         local_now = now.in_time_zone(practice.timezone)
@@ -156,7 +164,7 @@ module Clinic
         monthly_invoiced = total_for(monthly)
         monthly_collected = allocated_for(posted, created_at: period_start...period_end)
         collected = allocated_for(posted)
-        outstanding = posted.sum(Arel.sql(outstanding_balance_sql))
+        outstanding = posted.sum(Arel.sql(OUTSTANDING_BALANCE_SQL))
         payments = Clinic::PaymentEvent.where(practice: practice, currency: currency, created_at: period_start...period_end)
         refunds = Clinic::RefundEvent.where(practice: practice, currency: currency, created_at: period_start...period_end).sum(:amount)
 
@@ -220,7 +228,7 @@ module Clinic
         case sort.to_s
         when "recent" then { created_at: :desc, id: :desc }
         when "oldest" then { created_at: :asc, id: :asc }
-        when "balance_desc" then Arel.sql("#{outstanding_balance_sql} DESC, clinic_invoices.id DESC")
+        when "balance_desc" then Arel.sql(OUTSTANDING_BALANCE_DESC_SQL)
         when "total_desc" then Arel.sql("(SELECT COALESCE(SUM(posted_amount), 0) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id) DESC, clinic_invoices.id DESC")
         else raise ArgumentError, "Invoice sort is not supported."
         end
@@ -238,17 +246,6 @@ module Clinic
         allocations.sum(:amount)
       end
       private_class_method :allocated_for
-
-      def self.outstanding_balance_sql
-        <<~SQL.squish
-          CASE WHEN clinic_invoices.status = 'void' THEN 0 ELSE GREATEST(0,
-            COALESCE((SELECT SUM(posted_amount) FROM clinic_invoice_lines WHERE invoice_id = clinic_invoices.id), 0) -
-            COALESCE((SELECT SUM(amount) FROM clinic_payment_allocations WHERE invoice_id = clinic_invoices.id), 0) -
-            COALESCE((SELECT SUM(amount) FROM clinic_credit_notes WHERE invoice_id = clinic_invoices.id), 0)
-          ) END
-        SQL
-      end
-      private_class_method :outstanding_balance_sql
 
       def self.open_invoice_count(invoices)
         invoices.where(<<~SQL.squish).count

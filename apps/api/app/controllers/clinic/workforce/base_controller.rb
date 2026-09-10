@@ -8,7 +8,7 @@ module Clinic
       private
 
       def sensitive_read_action
-        return super unless request.get?
+        return super unless request.get? || request.head?
 
         case controller_path
         when "clinic/workforce/employments" then "workforce.admin"
