@@ -287,6 +287,74 @@
   color: var(--clinic-muted);
   font-size: 13px;
 }
+.clinic-theme .clinic-development-toolbar.MuiStack-root {
+  min-height: 0;
+  padding: 10px 20px;
+  gap: 12px;
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+  border: 0;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-theme .clinic-development-toolbar .development-toolbar-heading {
+  min-height: 0;
+  padding-right: 12px;
+  border-right-color: var(--clinic-border);
+}
+.clinic-theme .clinic-development-toolbar .development-toolbar-heading h2 {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.clinic-theme .clinic-development-toolbar .environment-label {
+  border-color: var(--clinic-border);
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+.clinic-theme .clinic-development-toolbar .development-date-picker {
+  border-left-color: var(--clinic-border);
+}
+.clinic-theme
+  .clinic-development-toolbar
+  .development-date-input
+  .MuiOutlinedInput-root {
+  background: var(--clinic-surface);
+  color: var(--clinic-text);
+}
+.clinic-theme
+  .clinic-development-toolbar
+  .development-date-input
+  .MuiInputLabel-root,
+.clinic-theme
+  .clinic-development-toolbar
+  .development-date-picker
+  .MuiButton-root {
+  color: var(--clinic-muted);
+}
+.clinic-theme
+  .clinic-development-toolbar
+  .development-date-input
+  .MuiInputLabel-root.Mui-focused {
+  color: var(--clinic-accent);
+}
+.clinic-theme .clinic-development-toolbar .development-portal-toggle button {
+  color: var(--clinic-muted);
+  border-color: var(--clinic-control);
+}
+.clinic-theme
+  .clinic-development-toolbar
+  .development-portal-toggle
+  button.Mui-selected {
+  background: var(--clinic-soft);
+  color: var(--clinic-accent);
+}
+.clinic-theme .clinic-development-toolbar .development-login-button {
+  background: var(--clinic-accent);
+  color: var(--clinic-surface);
+}
+.clinic-theme .clinic-development-toolbar .development-login-button:hover {
+  background: var(--clinic-text);
+}
 .clinic-theme .clinic-content.tracking-board-page {
   max-width: none;
   margin: 0;
@@ -343,6 +411,9 @@
     width: 100%;
     justify-content: space-between;
     gap: 10px;
+  }
+  .clinic-theme .clinic-development-toolbar.MuiStack-root {
+    padding: 10px 12px;
   }
   .clinic-theme .clinic-content {
     padding: 18px 16px 40px;
