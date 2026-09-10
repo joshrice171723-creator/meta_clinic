@@ -84,7 +84,9 @@ module Clinic
 
             token = ::Twilio::JWT::AccessToken.new(Config.twilio_account_sid, Config.twilio_api_key_sid,
               Config.twilio_api_key_secret, [], identity: participant.provider_subject_id.to_s, ttl: ttl)
-            token.add_grant(::Twilio::JWT::AccessToken::VideoGrant.new(room: room_name))
+            grant = ::Twilio::JWT::AccessToken::VideoGrant.new
+            grant.room = room_name
+            token.add_grant(grant)
             token.to_jwt
           rescue ArgumentError, ::JWT::EncodeError
             raise Rejected, "Twilio could not issue the room access token."
