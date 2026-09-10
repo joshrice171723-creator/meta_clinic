@@ -433,6 +433,31 @@ export type ClinicCapabilities = {
   appointments: boolean;
   encounters: boolean;
   encounters_assign_provider?: boolean;
+  nurse_workspace_read?: boolean;
+  nurse_workspace_read?: boolean;
+  intake_read?: boolean;
+  intake_write?: boolean;
+  triage_read?: boolean;
+  triage_write?: boolean;
+  handoffs_read?: boolean;
+  handoffs_request?: boolean;
+  handoffs_accept?: boolean;
+  handoffs_reject?: boolean;
+  handoffs_request_correction?: boolean;
+  clinical_tasks_read?: boolean;
+  clinical_tasks_write?: boolean;
+  nurse_workspace_read?: boolean;
+  intake_read?: boolean;
+  intake_write?: boolean;
+  triage_read?: boolean;
+  triage_write?: boolean;
+  handoffs_read?: boolean;
+  handoffs_request?: boolean;
+  handoffs_accept?: boolean;
+  handoffs_reject?: boolean;
+  handoffs_request_correction?: boolean;
+  clinical_tasks_read?: boolean;
+  clinical_tasks_write?: boolean;
   notes_read: boolean;
   notes_write: boolean;
   notes_sign?: boolean;
@@ -843,6 +868,152 @@ export type EncounterDetail = Encounter & {
   observation_count: number;
   document_count: number;
 };
+export type NurseWorkflowState =
+  | "unrecorded"
+  | "awaiting_intake"
+  | "intake_in_progress"
+  | "triage_in_progress"
+  | "handoff_pending"
+  | "clinician_accepted"
+  | "completed"
+  | "unknown";
+export type NurseValueState =
+  | "known"
+  | "not_recorded"
+  | "incomplete"
+  | "unable_to_obtain"
+  | "declined"
+  | "not_applicable"
+  | "unknown";
+export type NurseIntakeValueType =
+  | "boolean"
+  | "decimal"
+  | "coded"
+  | "date";
+export type NurseIntakeItem = {
+  id: number | null;
+  field_code: string;
+  value_state: NurseValueState;
+  value_type: NurseIntakeValueType;
+  boolean_value: boolean | null;
+  decimal_value: string | null;
+  coded_value: string | null;
+  date_value: string | null;
+  unit_code: string | null;
+};
+export type NurseIntakeFieldDefinition = {
+  field_code: string;
+  label: string;
+  value_type: NurseIntakeValueType;
+  unit_code: string | null;
+  allowed_states: NurseValueState[];
+  allowed_codes?: { value: string; label: string }[];
+};
+export type NurseIntakeRevision = {
+  id: number;
+  revision_no: number;
+  completeness_state: "complete" | "incomplete" | "unknown";
+  information_source: string | null;
+  recorded_at: string;
+  request_key?: string | null;
+  items: NurseIntakeItem[];
+};
+export type NurseTriageEvidence = {
+  id: number;
+  evidence_kind: string;
+  intake_revision_id: number | null;
+  observation_id: number | null;
+  history_review_id: number | null;
+  evidence_state: NurseValueState;
+  recorded_at: string;
+};
+export type NurseHandoffEvent = {
+  id: number;
+  event_code: string;
+  actor_membership_id: number;
+  recorded_at: string;
+};
+export type NurseHandoff = {
+  id: number;
+  state: "pending" | "accepted" | "rejected" | "correction_requested" | "completed" | "unknown";
+  version: number;
+  intake_revision_id: number | null;
+  requested_to_membership_id: number | null;
+  accepted_by_membership_id: number | null;
+  request_key?: string | null;
+  events: NurseHandoffEvent[];
+};
+export type ClinicalTask = {
+  id: number;
+  patient_id?: number;
+  encounter_id?: number | null;
+  kind: string;
+  status: "pending" | "in_progress" | "completed" | "cancelled" | "unknown";
+  priority: string;
+  pool_code: string | null;
+  assigned_to_membership_id: number | null;
+  due_at: string | null;
+  resolved_at: string | null;
+  source_type: string | null;
+  source_id: number | null;
+  version: number;
+  request_key?: string | null;
+  allowed_actions?: string[];
+};
+export type NurseChartObject = {
+  id: string | number;
+  object_type: string;
+  state: string;
+  recorded_at: string | null;
+  display_label: string;
+  href?: string | null;
+};
+export type NurseHandoffRecipient = {
+  membership_id: number;
+  display_name: string;
+};
+export type ClinicalTaskTemplate = {
+  kind: string;
+  label: string;
+  pool_code: string | null;
+};
+export type ClinicalTaskCollection = {
+  schema_version: "clinical-task-collection-v1";
+  patient_id: number;
+  encounter_id: number;
+  tasks: ClinicalTask[];
+  task_templates?: ClinicalTaskTemplate[];
+};
+export type NurseWorkspace = {
+  schema_version: "nurse-workspace-v1";
+  patient_id: number;
+  encounter_id: number;
+  as_of: string;
+  stale: boolean;
+  workflow: {
+    state: NurseWorkflowState;
+    version: number;
+    updated_at: string | null;
+    last_event: string | null;
+  };
+  intake: {
+    id: number | null;
+    version: number;
+    field_definitions: NurseIntakeFieldDefinition[];
+    latest_revision: NurseIntakeRevision | null;
+  };
+  triage: {
+    state: NurseValueState;
+    evidence: NurseTriageEvidence[];
+  };
+  handoff: NurseHandoff | null;
+  handoff_recipients?: NurseHandoffRecipient[];
+  tasks: ClinicalTask[];
+  task_templates?: ClinicalTaskTemplate[];
+  chart_objects: NurseChartObject[];
+  allowed_actions: string[];
+  confirmed_request_keys?: string[];
+};
 export type SoapNoteSections = {
   subjective: string;
   objective: string;
@@ -926,6 +1097,13 @@ export type ClinicTrackingBoardVisit = {
     release_available: boolean;
   } | null;
   intake_claim_available?: boolean;
+  nurse_workspace?: {
+    available: boolean;
+    workflow_state: NurseWorkflowState;
+    workflow_updated_at: string | null;
+    open_task_count: number;
+    allowed_actions: string[];
+  } | null;
   exceptions?: {
     code: "missing_checkout" | "stale_intake_ownership";
     message: string;

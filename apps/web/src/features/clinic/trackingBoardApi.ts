@@ -30,6 +30,12 @@ export type BoardOperationMetadata = {
   intakeOwnership: BoardIntakeOwnership | null;
   canClaimIntake: boolean;
   exceptions: readonly { code: string; message: string }[];
+  nurseWorkspace: {
+    workflowState: string;
+    workflowUpdatedAt: string | null;
+    openTaskCount: number;
+    allowedActions: readonly string[];
+  } | null;
 };
 
 export function providerAssignmentRequestKey(): string {
@@ -118,6 +124,14 @@ export function trackingBoardOperationMetadata(
       ? ownership.claim_available
       : operations.intake_claim_available === true,
     exceptions: operations.exceptions ?? [],
+    nurseWorkspace: visit.nurse_workspace?.available
+      ? {
+          workflowState: visit.nurse_workspace.workflow_state,
+          workflowUpdatedAt: visit.nurse_workspace.workflow_updated_at,
+          openTaskCount: visit.nurse_workspace.open_task_count,
+          allowedActions: visit.nurse_workspace.allowed_actions,
+        }
+      : null,
   };
 }
 

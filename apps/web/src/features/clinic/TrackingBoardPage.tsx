@@ -80,6 +80,7 @@ const EMPTY_OPERATION_METADATA: BoardOperationMetadata = {
   intakeOwnership: null,
   canClaimIntake: false,
   exceptions: [],
+  nurseWorkspace: null,
 };
 
 export function chartActionPresentation(
@@ -606,7 +607,7 @@ function TrackingBoardRow({
   const hasEncounter = visit.patientId != null && visit.encounterId != null;
   const hasPatient = visit.patientId != null;
   const primaryHref = hasEncounter
-    ? openSoapHref(visit)
+    ? `${openSoapHref(visit)}${operations.nurseWorkspace ? "#nurse-workspace" : ""}`
     : hasPatient
       ? `/clinic/patients/${visit.patientId}`
       : openSoapHref(visit);
@@ -614,7 +615,13 @@ function TrackingBoardRow({
     visit.chartStatus,
     hasEncounter ? "open" : hasPatient ? "patient" : "select",
   );
-  const primaryAction = chartAction.label;
+  const primaryAction = operations.nurseWorkspace
+    ? operations.nurseWorkspace.workflowState === "handoff_pending"
+      ? "Review handoff"
+      : operations.nurseWorkspace.workflowState === "clinician_accepted"
+        ? "View nurse work"
+        : "Continue intake"
+    : chartAction.label;
   const openProviderEditor = () => {
     if (!providerEditable) return;
     setAssignmentError(
@@ -805,6 +812,14 @@ function TrackingBoardRow({
                       {operations.intakeOwnership.state === "stale"
                         ? " · lease expired"
                         : " · claimed"}
+                    </Typography>
+                  )}
+                  {operations.nurseWorkspace && (
+                    <Typography variant="caption" color="text.secondary">
+                      Nurse work: {operations.nurseWorkspace.workflowState.replaceAll("_", " ")}
+                      {operations.nurseWorkspace.openTaskCount > 0
+                        ? ` · ${operations.nurseWorkspace.openTaskCount} open ${operations.nurseWorkspace.openTaskCount === 1 ? "task" : "tasks"}`
+                        : " · no open tasks"}
                     </Typography>
                   )}
                   {operations.exceptions.map((exception) => (
