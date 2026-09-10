@@ -24,6 +24,25 @@ module Apply
       "web" => {port_key: :web, directory: "apps/web"},
       "worker" => {directory: "apps/api"}
     }.freeze
+    LOCAL_TWILIO_ENVIRONMENT_FILE = ".env.twilio.local"
+    LOCAL_TWILIO_ENVIRONMENT_KEYS = %w[
+      APP_TELEHEALTH_ENABLED
+      APP_TELEHEALTH_PROVIDER
+      APP_TELEHEALTH_TWILIO_ACCOUNT_SID
+      APP_TELEHEALTH_TWILIO_API_KEY_SID
+      APP_TELEHEALTH_TWILIO_API_KEY_SECRET
+      APP_TELEHEALTH_TWILIO_AUTH_TOKEN
+      APP_TELEHEALTH_TWILIO_STATUS_CALLBACK_URL
+      APP_PATIENT_PORTAL_RECOVERY_SMS_ENABLED
+      APP_PATIENT_PORTAL_RECOVERY_ORIGIN
+      APP_PATIENT_PORTAL_TWILIO_ACCOUNT_SID
+      APP_PATIENT_PORTAL_TWILIO_API_KEY_SID
+      APP_PATIENT_PORTAL_TWILIO_API_KEY_SECRET
+      APP_PATIENT_PORTAL_TWILIO_MESSAGING_SERVICE_SID
+      APP_PATIENT_PORTAL_TWILIO_FROM_NUMBER
+      TWILIO_TEST_ACCOUNT_SID
+      TWILIO_TEST_AUTH_TOKEN
+    ].freeze
 
     attr_reader :root
 
@@ -698,13 +717,7 @@ module Apply
       log = File.open(log_path, "a")
       pid = nil
       recorded = false
-      environment = {
-        "APP_DEVELOPMENT_LOGIN" => "1",
-        "APPLY_API_PORT" => @ports.fetch(:api).to_s,
-        "APPLY_WEB_PORT" => @ports.fetch(:web).to_s,
-        "APPLY_DEVELOPMENT_DATABASE" => @database,
-        "RAILS_ENV" => "development"
-      }
+      environment = role_environment(role)
       command, directory = case role
       when "api"
         [[RbConfig.ruby, "bin/postgres", "exec", "bundle", "exec", "rails", "server", "-b", "127.0.0.1", "-p", @ports.fetch(:api).to_s], @api_root]
@@ -727,12 +740,44 @@ module Apply
       end
     end
 
+    def role_environment(role)
+      environment = {
+        "APP_DEVELOPMENT_LOGIN" => "1",
+        "APPLY_API_PORT" => @ports.fetch(:api).to_s,
+        "APPLY_WEB_PORT" => @ports.fetch(:web).to_s,
+        "APPLY_DEVELOPMENT_DATABASE" => @database,
+        "RAILS_ENV" => "development"
+      }
+      return environment if role == "web"
+
+      environment.merge(local_twilio_environment)
+    end
+
     def rotate_log(role)
       path = File.join(@log_root, "#{role}.log")
       return unless File.file?(path) && File.size(path) > 10 * 1024 * 1024
       previous = "#{path}.1"
       File.delete(previous) if File.file?(previous)
       File.rename(path, previous)
+    end
+
+    def local_twilio_environment
+      path = File.join(@root, LOCAL_TWILIO_ENVIRONMENT_FILE)
+      return {} unless File.file?(path)
+
+      File.foreach(path).each_with_object({}) do |line, values|
+        entry = line.strip
+        next if entry.empty? || entry.start_with?("#")
+
+        key, value = entry.split("=", 2)
+        next unless LOCAL_TWILIO_ENVIRONMENT_KEYS.include?(key)
+
+        fail_with("#{LOCAL_TWILIO_ENVIRONMENT_FILE} has an invalid value for #{key}") if value.nil? || value.include?("\0")
+
+        values[key] = value
+      end
+    rescue Errno::EACCES, Errno::EIO, SystemCallError
+      fail_with("could not read #{LOCAL_TWILIO_ENVIRONMENT_FILE}")
     end
 
     def write_pid_record(role, pid)

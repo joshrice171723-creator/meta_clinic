@@ -168,6 +168,36 @@ class DevelopmentLifecycleTest < Minitest::Test
     assert lifecycle.send(:web_lock_digest_matches?)
   end
 
+  def test_local_twilio_environment_loads_only_allowlisted_values
+    File.write(File.join(@temporary_directory, ".env.twilio.local"), <<~ENVIRONMENT)
+      # Local-only provider configuration
+      APP_TELEHEALTH_ENABLED=true
+      APP_TELEHEALTH_TWILIO_API_KEY_SECRET=synthetic-secret-with-equals==
+      TWILIO_TEST_AUTH_TOKEN=synthetic-test-token
+      PATH=must-not-replace-the-launcher-path
+    ENVIRONMENT
+
+    environment = build_lifecycle.send(:local_twilio_environment)
+
+    assert_equal "true", environment.fetch("APP_TELEHEALTH_ENABLED")
+    assert_equal "synthetic-secret-with-equals==", environment.fetch("APP_TELEHEALTH_TWILIO_API_KEY_SECRET")
+    assert_equal "synthetic-test-token", environment.fetch("TWILIO_TEST_AUTH_TOKEN")
+    refute environment.key?("PATH")
+
+    assert_equal "synthetic-test-token", build_lifecycle.send(:role_environment, "api").fetch("TWILIO_TEST_AUTH_TOKEN")
+    refute build_lifecycle.send(:role_environment, "web").key?("TWILIO_TEST_AUTH_TOKEN")
+  end
+
+  def test_local_twilio_environment_rejects_a_null_byte_in_an_allowlisted_value
+    File.binwrite(File.join(@temporary_directory, ".env.twilio.local"), "APP_TELEHEALTH_TWILIO_AUTH_TOKEN=invalid\0value\n")
+
+    error = assert_raises(Apply::DevelopmentLifecycle::Failure) do
+      build_lifecycle.send(:local_twilio_environment)
+    end
+
+    assert_includes error.message, ".env.twilio.local has an invalid value"
+  end
+
   def test_stop_scope_rejects_a_pid_record_from_another_checkout
     lifecycle = build_lifecycle
     lifecycle.send(:write_pid_record, "api", Process.pid)

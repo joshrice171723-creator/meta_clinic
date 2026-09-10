@@ -1,6 +1,6 @@
 # Twilio setup
 
-APPly uses separate Twilio configuration boundaries for video visits and patient-portal password recovery. Selecting Twilio in source does not enable either workflow by itself. Keep every credential in the process environment or an approved secret store; never place it in Git, screenshots, notes or support messages.
+APPly uses separate Twilio configuration boundaries for video visits and patient-portal password recovery. Selecting Twilio in source does not enable either workflow by itself. Keep every credential in the process environment or an approved secret store; never place it in Git, screenshots, notes or support messages. For local development only, `bin/dev` loads the allowlisted Twilio variables from the ignored root `.env.twilio.local` file into the API and worker processes; it never forwards arbitrary environment entries from that file or exposes them to the frontend process.
 
 ## Telehealth video
 
