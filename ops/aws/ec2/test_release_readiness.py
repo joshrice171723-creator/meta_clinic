@@ -48,6 +48,7 @@ class ReleaseReadinessTest(unittest.TestCase):
                 "apps/web/Dockerfile",
                 "apps/web/nginx.conf",
                 "ops/aws/ec2/apply-clinic-worker.service",
+                "ops/aws/ec2/apply-run.sh",
                 "ops/aws/ec2/install-release.sh",
                 "ops/aws/ec2/postgres.sh",
                 "ops/aws/ec2/render-ssm-command.py",

@@ -159,6 +159,18 @@ elif name != "docker":
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([["mountpoint", "-q", "/srv/apply"], ["python3", "-"]], calls)
 
+    def test_pilot_readiness_runs_only_in_staging_with_the_exact_release_image(self):
+        result, calls = self.launch("pilot-readiness")
+        self.assertEqual(0, result.returncode, result.stderr)
+        command = self.run_command(calls)
+        self.assertEqual("apply-database", command[command.index("--network") + 1])
+        self.assertNotIn("--publish", command)
+        self.assertEqual([self.api, "./bin/staging-pilot-readiness"], command[-2:])
+
+        result, calls = self.launch("pilot-readiness", TEST_ENVIRONMENT="production")
+        self.assertNotEqual(0, result.returncode)
+        self.assertFalse(any(call[:2] == ["docker", "run"] for call in calls))
+
     def test_bad_images_never_start_a_container(self):
         for component, key in (("api", "TEST_API_IMAGE"), ("web", "TEST_WEB_IMAGE")):
             for value in (self.repository + ":latest", self.api[:-1], self.api.replace("/synthetic@", "/other@")):

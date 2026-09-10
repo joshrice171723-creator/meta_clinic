@@ -499,6 +499,35 @@ Batch 4 converts the prior role-boundary and recovery claims into a reusable loc
 
 The next highest-value evidence is a non-production hosted deployment and recovery rehearsal, followed by a timed human nurse/clinician synthetic visit. More local feature volume or a broad test sweep would not close the remaining pilot-readiness gap efficiently.
 
+## 15. Implementation progress — 2026-09-10, batch 5 freeze
+
+Batch 5 prepares the exact hosted continuity evidence that the next authorized staging release must produce. It changes source and release behavior only; no AWS account, host, image registry, secret, staging record, or production resource was accessed.
+
+1. **Image-owned readiness check.** A staging-only Rails command verifies the managed reviewer identity and authorization, minimum clinic dataset, PostgreSQL runtime role, and current schema.
+2. **Privacy-safe state fingerprint.** The command emits only receipt version, environment, database kind, schema version, and a SHA-256 fingerprint over record identities. It emits no record content, names, credentials, URLs, or secret values.
+3. **Exact release-image execution.** The host launcher runs the readiness command from the pinned API digest on the private database network with the same read-only, capability-dropped, resource-bounded container controls as other maintenance commands. Production rejects the command.
+4. **Restart continuity gate.** A staging release captures the readiness receipt, restarts the API and clinic worker, waits for API and worker readiness, and requires an identical second receipt. A missing, failed, or changed receipt stops the worker and API rather than reporting release success.
+5. **Durable host receipt.** A successful match is written mode 0600 under `/srv/apply/releases/<release>-pilot-readiness.json` on the encrypted data volume before the release generation and verified images are acknowledged.
+
+### Batch 5 consolidated verification
+
+- The two new staging-receipt scenarios passed **2 runs / 8 assertions**, covering stable replay, privacy-safe fields, durable-state change detection, and fail-closed minimum-dataset drift.
+- The offline release-readiness suite passed **5 tests** and the standalone release gate passed. Python compilation, Rails eager loading, focused RuboCop, scoped diff integrity, and normalized Bash syntax passed.
+- The complete launcher suite remains unexecuted on this Windows host because it requires Unix symlink/mode behavior. CI's Linux delivery-contract job remains the authoritative execution environment for that suite.
+- A broader existing production-demo test-file run exposed two unrelated expectation failures already outside this batch: one capability-set assertion and one absent `clinic_available` value. The new receipt scenarios are green; no unrelated repair wave was started.
+- No hosted result is claimed. The new gate becomes hosted evidence only when an explicitly authorized staging release runs it against the exact deployed image pair.
+
+### Pilot-readiness evidence ladder after batch 5
+
+| Evidence plane | Batch 4 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 91/100 | **93/100** | Staging release source now owns a fail-closed clinic-readiness and restart-continuity outcome instead of stopping at generic HTTP/database health. |
+| Local automated verification | 86/100 | **88/100** | The new receipt, drift detection, release contract, autoload, lint, Python, and shell checks are green; Linux launcher execution and unrelated baseline drift remain. |
+| Supervised synthetic staff pilot | 84/100 | **84/100** | This batch adds release evidence plumbing, not another staff workflow observation. Human nurse/clinician acceptance remains open. |
+| Hosted real-patient pilot | 35/100 | **35/100** | No staging release, hosted browser journey, real-patient use, or clinical/release approval was authorized or performed. Source preparedness cannot move a hosted evidence score. |
+
+The next code-independent gate is an explicitly authorized manual staging deployment of the exact reviewed `main` commit, followed by inspection of its image scans, host continuity receipt, protected browser access, and one synthetic clinic journey. Real-patient readiness above 80 additionally requires clinic-owned human, operational, security/privacy, and clinical acceptance; those cannot be created by source changes or local tests.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

@@ -99,7 +99,7 @@ Get `RepositoryUri` and `InstanceId` from the created stack outputs. Authenticat
 
 ## 3. Install the release through SSM
 
-The renderer packages **only eight named deployment files** into a non-secret Run Command payload, including the clinic worker's systemd unit. It validates both image URIs and pins the release to an immutable API/web pair. It makes no AWS call itself. This privileged manual install path is separate from GitHub's fixed digest-only SSM document; it does not perform the legacy database cutover or establish a successful staging receipt. Its omitted generation defaults to the manual value `0`, so automated releases must use the ordinary generation-bearing workflow.
+The renderer packages **only eight named deployment files** into a non-secret Run Command payload, including the clinic worker's systemd unit. It validates both image URIs and pins the release to an immutable API/web pair. It makes no AWS call itself. This privileged manual install path is separate from GitHub's fixed digest-only SSM document; it does not perform the legacy database cutover or establish a successful staging receipt. Its omitted generation defaults to the manual value `0`, so automated releases must use the ordinary generation-bearing workflow. On staging, the installed release command also runs the image-owned `bin/staging-pilot-readiness` check before and after one API/worker restart and archives the matching privacy-safe receipt on the encrypted data volume. Production cannot invoke that staging-only command.
 
 ```sh
 python3 ops/aws/ec2/render-ssm-command.py \

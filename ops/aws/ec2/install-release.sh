@@ -96,10 +96,36 @@ for _attempt in $(seq 1 45); do
       echo 'Release worker startup failed; app stopped'
       exit 1
     fi
+    if [ "$APPLY_ENVIRONMENT" = staging ]; then
+      before_restart=$(/usr/local/sbin/apply-run pilot-readiness) || {
+        systemctl stop apply-clinic-worker.service || true
+        systemctl stop apply-web.service apply-api.service
+        echo 'Staging pilot-readiness check failed; app stopped'
+        exit 1
+      }
+      systemctl restart apply-api.service apply-clinic-worker.service
+      for _restart_attempt in $(seq 1 45); do
+        if curl --fail --silent --cacert /etc/apply/tls/localhost.crt https://localhost:8443/up >/dev/null && \
+            systemctl is-active --quiet apply-clinic-worker.service; then
+          break
+        fi
+        sleep 2
+      done
+      after_restart=$(/usr/local/sbin/apply-run pilot-readiness) || true
+      if [ -z "$after_restart" ] || [ "$before_restart" != "$after_restart" ]; then
+        systemctl stop apply-clinic-worker.service || true
+        systemctl stop apply-web.service apply-api.service
+        echo 'Staging state did not survive restart; app stopped'
+        exit 1
+      fi
+      install -d -m 700 /srv/apply/releases
+      printf '%s\n' "$after_restart" > "/srv/apply/releases/$release-pilot-readiness.json"
+      chmod 600 "/srv/apply/releases/$release-pilot-readiness.json"
+    fi
     [ "$generation" -eq 0 ] || printf '%s\n' "$generation" > /etc/apply/release-generation
     printf '%s\n' "$image" > /etc/apply/verified-image
     printf '%s\n' "$web_image" > /etc/apply/verified-web-image
-    echo 'Private HTTPS, database and deployment-policy checks passed.'
+    echo 'Private HTTPS, database, deployment-policy and staging continuity checks passed.'
     exit 0
   fi
   sleep 2

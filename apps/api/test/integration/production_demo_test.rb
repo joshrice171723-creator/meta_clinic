@@ -114,9 +114,41 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "staging pilot receipt is privacy safe and changes only when durable state changes" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("staging") do
+      Staging::DemoClinic.seed_authorization!
+      membership = Staging::DemoClinic.prepare!(demo)
+      connection = Struct.new(:adapter_name) do
+        def select_value(_query) = "apply_runtime"
+      end.new("PostgreSQL")
+      first = Staging::PilotReadiness.receipt!(connection: connection, schema_version: 123)
+      assert_equal first, Staging::PilotReadiness.receipt!(connection: connection, schema_version: 123)
+      assert_equal %i[database environment format schema_version state_fingerprint], first.keys.sort
+      assert_equal "staging", first.fetch(:environment)
+      assert_equal "postgresql", first.fetch(:database)
+      assert_match(/\A[0-9a-f]{64}\z/, first.fetch(:state_fingerprint))
+
+      membership.practice.patients.create!(reference: "DEMO-CONTINUITY", display_name: "Continuity Example [Synthetic]")
+      refute_equal first.fetch(:state_fingerprint),
+        Staging::PilotReadiness.receipt!(connection: connection, schema_version: 123).fetch(:state_fingerprint)
+    end
+  end
+
+  test "staging pilot receipt fails closed when its minimum clinic dataset changes" do
+    demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
+    deployed("staging") do
+      Staging::DemoClinic.seed_authorization!
+      membership = Staging::DemoClinic.prepare!(demo)
+      membership.practice.items.find_by!(sku: "SYN-OFFICE-001").update!(sku: "CHANGED")
+      assert_raises(Staging::PilotReadiness::Unavailable) { Staging::PilotReadiness.receipt! }
+    end
+  end
+
   test "production and identity collisions refuse the managed staging demo" do
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("production") do
+      assert_raises(Staging::PilotReadiness::Unavailable) { Staging::PilotReadiness.receipt! }
       assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.seed_authorization! }
       assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.prepare!(demo) }
       post "/api/session", params: { email_address: demo.email_address, password: @password }, headers: csrf, as: :json

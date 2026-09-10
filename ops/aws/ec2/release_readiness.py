@@ -92,6 +92,12 @@ def check_runtime_boundaries(errors: list[str]) -> None:
         require(source, needle, label, errors)
     require(installer, "https://localhost:8443/up", "API health probe", errors)
     require(installer, "https://localhost:8443/health", "web health probe", errors)
+    require(installer, "apply-run pilot-readiness", "staging pilot-readiness check", errors)
+    require(installer, "systemctl restart apply-api.service apply-clinic-worker.service", "staging restart rehearsal", errors)
+    require(installer, '"$before_restart" != "$after_restart"', "staging state-continuity check", errors)
+    require(installer, "$release-pilot-readiness.json", "staging readiness receipt", errors)
+    require(read(ROOT / "ops" / "aws" / "ec2" / "apply-run.sh"), "./bin/staging-pilot-readiness",
+      "staging readiness command", errors)
 
 
 def check_worker_contract_text(
