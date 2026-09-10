@@ -74,6 +74,8 @@ Preserve reported facts, observations, sourced background, proposals and decisio
 
 ## Change discipline
 
+Healthcare reference review is U.S.-only: use U.S. guides and applicable federal/state authorities. Exclude other countries' profiles, regulations and examples. Use global standards such as FHIR and UCUM only with documented U.S. applicability; unknown jurisdiction is not U.S. approval.
+
 For healthcare workflow, page, data-model and integration design, authoritative healthcare standards are a primary design input. Before choosing fields or behavior, follow [Standards-guided healthcare development](docs/development/healthcare-standards.md): review applicable FHIR implementation guides and relevant terminology or operational sources, record version and applicability, and map requirements to backend data, UI behavior and verification. Explain when no relevant guide applies. This applies to new work and substantive revisions, not every cosmetic edit; it does not mandate a FHIR-native database or a field on screen for every resource element.
 
 Use the current commands and ownership rules in `docs/development/`, `docs/architecture/`, application READMEs and the nearest nested instructions. Do not copy changing versions, ports, hosted state or implementation details into this root contract.

@@ -15,6 +15,8 @@ Records in `records/progress/2026/09/` are the dated evidence index for current-
 
 **Outcome:** D-066 records the founder's direction to make relevant FHIR implementation guides a primary design input. Root agent instructions and the developer entry point now route to a practical source-to-data/UI/verification procedure, with official terminology and operational references for services, medication administration, vaccination and laboratory setup.
 
+**Same-day clarification:** the founder restricted reference review to U.S. applicability. Root instructions and the procedure now require U.S. guide selection, relevant federal/state authority and explicit applicability for global technical standards, excluding other countries' requirements and examples.
+
 **Limits:** documentation and source applicability guidance only; no application behavior changed and no retrospective conformance or clinical review was performed.
 
 ## 2026-09-10 — Cash-clinic core separated from optional insurance workflows

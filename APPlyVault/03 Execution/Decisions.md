@@ -11,6 +11,8 @@ updated: 2026-09-10
 
 **Limits:** this establishes a development practice, not a product-wide FHIR version, FHIR-native storage mandate, completed standards audit or requirement to display every resource field. Existing capabilities have not been retrospectively reviewed by this decision. Specific terminology, clinical and regulatory applicability remains scoped to each workflow; no integration, deployment or clinical-use approval is implied.
 
+**D-066 clarification — 2026-09-10 / founder's U.S.-only direction:** restrict healthcare reference review and resulting requirements to United States applicability. Use U.S. implementation guides and applicable federal/state authorities; exclude other countries' profiles, regulations and country-specific examples. Global technical foundations such as base FHIR and UCUM remain usable where applicable to the U.S. workflow, with that basis recorded. Unknown jurisdiction must not be assumed to mean U.S. applicability; a missing U.S. guide does not justify substituting another country's requirements.
+
 ## Telehealth video provider selection
 
 **D-063 — 2026-09-08 / founder's explicit direction:** use Twilio Video with the existing Twilio account to minimize separate provider accounts. Preserve the existing SMS sandbox. Reuse the already configured OpenRouter account for Scribe. This supersedes the assistant-selected Daily implementation direction for new video configuration; it does not assert that Daily was ever activated or that a Daily account existed.
