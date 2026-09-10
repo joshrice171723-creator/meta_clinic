@@ -36,6 +36,18 @@ Each command prints phase durations and writes a metadata-only JSON trace plus S
 
 ## Isolated checkouts
 
-Each developer uses an independent checkout and database. A second local worktree must use its own `APPLY_POSTGRES_CONTAINER`, `PGPORT`, `APPLY_DEVELOPMENT_DATABASE`, `APPLY_WEB_PORT` and `APPLY_API_PORT`; never point two checkouts at one database. The detailed example lives in the API README.
+Each developer uses an independent checkout and database. A second local worktree must use its own `APPLY_POSTGRES_CONTAINER`, `PGPORT`, `APPLY_DEVELOPMENT_DATABASE`, `APPLY_WEB_PORT` and `APPLY_API_PORT`; never point two checkouts at one database. Choose unused loopback ports and a database name within the guarded `apply*_development` boundary. For example, from the second worktree on Windows:
+
+```powershell
+$env:APPLY_POSTGRES_CONTAINER = 'apply-meta-pilot-closeout'
+$env:PGPORT = '54331'
+$env:APPLY_DEVELOPMENT_DATABASE = 'apply_pilotcloseout_development'
+$env:APPLY_WEB_PORT = '3100'
+$env:APPLY_API_PORT = '3101'
+ruby .\bin\dev setup
+ruby .\bin\dev start
+```
+
+The container name and PostgreSQL port are part of the isolation boundary because each checkout keeps its local PostgreSQL credential file beside its source. Do not reuse another checkout's container, database, credential file, or running services. These settings affect only the current shell; set them again in a new shell or store them in a local ignored profile.
 
 The explicit `$startdev` skill delegates every action to `bin/dev`; it does not make refresh destructive. `$task-trace` measures observable task work and returns the same safe timeline format. Neither skill authorizes hosted changes.
