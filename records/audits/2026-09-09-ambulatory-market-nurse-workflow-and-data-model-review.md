@@ -1,0 +1,356 @@
+# Ambulatory clinic market, nurse workflow, and APPly data-model review
+
+**Date:** 2026-09-09
+
+**Scope:** U.S. ambulatory/private-practice software, especially primary care, cash-pay, membership/DPC, and nurse-supported clinic workflows
+
+**Compared product:** APPly at Git commit `4c87cf70d00f8c314eb0955e77201ee5ae1352f5`
+
+**Evidence boundary:** Competitor feature claims come from vendor documentation. A competitor's internal database schema is private unless its public API documents an object. “Likely objects” below are standards-based architectural inferences, not claims about proprietary table names. APPly objects come from source, migrations, serializers, and browser contracts in this repository. No clinical workflow or field set is approved by this report.
+
+## Executive conclusion
+
+The nurse concern is credible, and it is mostly a workflow problem—not proof that APPly needs more fields everywhere.
+
+APPly has broad operational software: appointments, encounters, patient history, vitals, lab-result review, medication administrations tied to inventory, reminders, staff messaging, telehealth, billing, subscriptions, purchasing, recalls, workforce scheduling, timecards, and detailed audit/recovery mechanics. That is more operational breadth than many early clinic products.
+
+The weak point is the nurse's continuous work loop. The repository itself still classifies the target sequence—identity confirmation, arrival, intake, triage, handoff, clinician acceptance, exam, diagnosis boundary, discharge—as proposed rather than implemented. Today, a nurse can find a patient, see a schedule/board, enter vitals, review histories, record an administration, and work lab follow-up. But APPly lacks first-class, connected objects for several actions that make those data meaningful: durable check-in/arrival, a versioned intake, a triage assessment, provider orders, nurse acknowledgement of orders, procedure completion, immunization administration, a care-team task pool, an explicit nurse-to-clinician handoff, encounter diagnosis, patient education/understanding, and discharge.
+
+The best interpretation is:
+
+- **Are you collecting the right data?** Often yes at the individual-field level. Demographics, communication consent, allergies, medication statements, conditions, vitals, labs, follow-up, scheduling, inventory, billing, and membership fields are directionally sound.
+- **Are you collecting it on the right screen and in the right workflow?** Not consistently. Some data is collected in a large patient-registration form or folded into SOAP text, while nurses generally need small, role-specific steps attached to the selected visit and an owned work queue.
+- **Are you missing an industry convention?** Yes: mature ambulatory systems connect clinical information to orders, tasks, results, and team ownership. The record is not just a chart; it is a work-routing system.
+- **Would adding every industry field fix nurse adoption?** No. Nursing research repeatedly identifies redundant entry, irrelevant mandatory content, scattered information, excessive clicks, weak customizability, and unclear workflow as causes of burden.[1][2][3][32] Adding fields without role-specific workflow would likely make APPly worse.
+
+### Conservative scores
+
+| Dimension | Current assessment | Why |
+| --- | ---: | --- |
+| Overall ambulatory feature breadth | **7/10** | Strong operations, inventory, billing, membership, telehealth, messaging, workforce, and a real clinical-history foundation. |
+| Core chart data coverage | **6/10** | Patients, allergies, medication statements, conditions, vitals, notes, labs, and administrations exist; orders, prescriptions, immunizations, procedures, care plans/goals, referrals, encounter diagnoses, and a complete document exchange flow are missing or partial. |
+| Nurse daily-workflow fit | **4/10** | The intended intake/triage/handoff sequence is not yet a durable workflow; nurse work is spread across board, chart, labs, reminders, messages, and inventory. |
+| Data integrity/recovery design | **8/10** | Strong tenant scoping, immutable revisions, explicit unknown outcomes, idempotency, audit events, and inventory controls. This is code-level evidence, not production or compliance acceptance. |
+| “Correct data on each screen” | **5/10** | Many right fields, but several are on the wrong layer (registration vs visit), stored as note text rather than reusable observations, or lack the object that gives the field an owner and lifecycle. |
+
+## 1. What this market generally contains
+
+Across athenaOne, eClinicalWorks, Tebra, DrChrono, Elation, CharmHealth, Practice Fusion, and Hint, the recurring product pattern is a connected suite rather than a single charting screen. Official product pages consistently group features into clinical documentation, scheduling/practice management, e-prescribing, orders/results, patient communication/portal, billing, and telehealth.[4][5][6][7][8][9][10]
+
+### Representative competitor matrix
+
+| Product / market position | General feature pattern | Objects publicly proven or reasonably required to power it |
+| --- | --- | --- |
+| **athenaOne** — full ambulatory suite | EHR, curated longitudinal chart, documentation, orders/results, care-gap support, scheduling, eligibility, claims/denials, portal, messaging, self-scheduling/check-in, telehealth, reminders | Patient, practitioner, appointment, schedule/slot, encounter, condition, allergy, medication/order, service order, diagnostic result/observation, document, task/case, coverage/eligibility, claim, payment, communication. Proprietary names not public.[4][11] |
+| **eClinicalWorks** — full ambulatory suite | Intake/check-in, questionnaires, EHR, medication management, referrals, care planning, portal, reminders, telehealth, billing/RCM | Patient, questionnaire/response, encounter, problem/diagnosis, medication request, referral/service request, care plan/goal, appointment, message, claim/payment. Proprietary names not public.[5] |
+| **Tebra** — independent-practice EHR + PM | Charting/templates/flowsheets, eRx/EPCS/PDMP, eLabs/imaging orders, scheduling, digital intake, portal/messaging, telehealth, claims/eligibility/ERA/denials/payments | Patient, encounter, clinical note, flowsheet/observation, medication request, service request, diagnostic report, appointment, questionnaire response, communication, coverage/eligibility, claim/remittance/payment.[6] |
+| **DrChrono** — mobile-first ambulatory EHR | Scheduling, check-in, charting/templates, tasks/flags, eRx, labs/imaging, portal, reminders, telehealth, claims/payments | Public lab API proves `lab_order`, `lab_test`, `lab_document`, and structured `lab_result`, linked to patient, doctor, diagnosis codes, accession/requisition, specimen, status, and timestamps.[7][12] Other object names are not asserted here. |
+| **Elation** — primary-care, clinical-first | One-screen charting, dynamic problem list, orders/eRx, labs/imaging, intake, calendar, patient/staff messages, faxes/documents, “Requiring Action” queues, billing, memberships | Official workflow proves calendar/appointment, patient chart, office message/task, handout, fax/document, bill/payment, membership, and actionable-queue concepts. Its exact storage schema is not public.[8][13] |
+| **CharmHealth** — modular SMB EHR | SOAP templates, eRx, lab integrations, decision trees, longitudinal flowsheets, referrals, immunization registry, portal, appointment requests, questionnaires, documents, billing/claims | Patient, encounter/note, medication request, observation/flowsheet, lab order/result, referral, immunization, questionnaire response, document, appointment request, invoice/claim/payment.[9][14] |
+| **Practice Fusion** — small-practice EHR | Charting, eRx/EPCS, lab/imaging orders and results, portal forms/messages/scheduling, billing | Patient, encounter/note, medication request, service request, diagnostic report/observation, questionnaire response, appointment, communication, claim/payment. Proprietary schema not public.[10] |
+| **Hint** — DPC/membership platform plus EMR | Membership plans, enrollment, recurring invoices/payments, charting, eRx, lab ordering/results, tasks, messaging, scheduling, portal, AI documentation, employer eligibility | Public API documentation confirms patient enrollment, membership billing, practice configuration, and clinical-data workflows. Product documentation also requires membership plan/version, enrollment, sponsor/employer eligibility, invoice, payment, task, message, appointment, encounter/note, medication request, and lab order/result objects.[15][16] |
+
+### The common feature types
+
+1. **Identity and registration** — patient identity, demographics, contacts, related people, address history, insurance/membership identity, preferences, consent.
+2. **Scheduling and access** — provider schedules, slots, appointment types/reasons, waitlist, appointment requests, reminders, check-in.
+3. **Encounter flow** — arrival, location/room, responsible care team, intake/rooming, handoff, visit state, checkout/disposition.
+4. **Longitudinal chart** — problems/conditions, allergies, medication list, histories, documents, prior notes, care summaries.
+5. **Nursing assessment** — chief complaint, vitals, structured screenings, symptoms, functional/cognitive status, source, observed time, author, missing/unknown state.
+6. **Orders and execution** — medication orders, lab/imaging/procedure orders, nurse acknowledgement, administration/procedure result, specimen, exceptions, completion.
+7. **Results management** — diagnostic report, component observations, abnormal/critical flags, reviewer, acknowledgement, follow-up task, patient notification.
+8. **Plans and continuity** — care plan, goals, patient instructions, education, understanding, follow-up, referral, recall/reminder.
+9. **Team work routing** — inbox pools, tasks, owners, due dates, escalation, coverage, resolution, links to patient/encounter/order/result.
+10. **Patient engagement** — portal, questionnaires, secure messages, scheduling, refills, results, documents, payments, telehealth.
+11. **Revenue cycle** — coverage, eligibility, authorizations, charges, coding, claim, remittance, denial, invoice, payment/refund.
+12. **Operations** — facility, staff roles, workforce, supply/medication inventory, purchasing, receiving, lot/expiry/recall, audit.
+
+## 2. The backend objects that matter
+
+HL7 FHIR is useful here as an object vocabulary even when a product does not implement FHIR internally. Its resource list separates `Appointment` from `Encounter`; conditions from observations; medication requests from medication administrations/statements; service requests from procedures/results; and clinical requests from the `Task` that tracks work.[17] That separation explains several APPly gaps.
+
+| Workflow question | Typical durable object | Critical relationships/state |
+| --- | --- | --- |
+| Who is this? | Patient, Person/RelatedPerson, Identifier, Address, ContactPoint | Name components, DOB, identifiers, contacts, related person, effective periods |
+| Where and by whom is care delivered? | Organization, Location, Practitioner, PractitionerRole, CareTeam | Tenant, site, credential/role, assignment, effective dates |
+| What is planned? | Schedule, Slot, Appointment, AppointmentResponse | Patient, visit type/reason, provider, site/room, start/end, booking status |
+| What actually happened? | Encounter, EpisodeOfCare, EncounterParticipant | Arrival/start/end, class/type, location, participants, disposition |
+| What did the patient report or staff observe? | QuestionnaireResponse, Observation, ClinicalImpression/assessment | Patient, encounter, code, value/unit, source, author, observed/recorded time, interpretation |
+| What is known longitudinally? | Condition, AllergyIntolerance, MedicationStatement, FamilyMemberHistory | Clinical/verification status, onset/end, recorder, review state |
+| What was requested? | MedicationRequest, ServiceRequest, CommunicationRequest, SupplyRequest | Requester, subject, encounter, intent, priority, reason, status |
+| What was carried out? | MedicationAdministration, Procedure, Immunization, DiagnosticReport | Based-on order, performer, time, dose/site/specimen/result, not-done reason |
+| What work remains? | Task, Communication, Flag | Owner/pool, linked clinical object, status, priority, due date, escalation, resolution |
+| What is the plan? | CarePlan, Goal | Problems addressed, activities, owners, targets, review state |
+| What is owed/covered? | Coverage, EligibilityRequest/Response, Account, ChargeItem, Claim/Response, Invoice, Payment | Patient/subscriber/payer, encounter/line items, statuses, adjustments, allocations |
+| What proves the action? | Provenance, AuditEvent, immutable revision/event/receipt | Actor, tenant, correlation, time, before/after or version, outcome |
+
+USCDI v7 is the current July 2026 U.S. interoperability baseline, though certification adoption can lag the newest published version.[18] It does not dictate screen design, but it is a useful check that APPly's data model should distinguish patient names, race/ethnicity, birth sex, gender identity, preferred language, interpreter need, current/previous address, phone, email, encounters, orders, procedures, assessments, and provenance rather than treating all of them as generic text.[19][20][21][22]
+
+## 3. Why a nurse may dislike APPly
+
+### 3.1 The chart does not yet model the nurse's work as one owned sequence
+
+The current APPly workflow contract explicitly says durable check-in/arrival, intake, triage aggregate, handoff, clinician acceptance, encounter diagnosis, and discharge objects are not implemented. The tracking board deliberately avoids inventing them from appointment or encounter timestamps. That caution is correct, but it leaves the nurse without a durable “my next patient / my current step / who owns the next step” loop.
+
+This matters because workflow spans people and settings, not just screens. AHRQ warns that when clinical and administrative workflow is overlooked or oversimplified, delays in care, billing, and communication are likely.[23] AHRQ specifically recommends mapping workflows early, testing with providers and staff, and reassessing after implementation.[24]
+
+### 3.2 There is no general clinical task/inbox pool
+
+APPly has staff conversations, messages, action requests, reminders, lab follow-ups, encounter follow-ups, billing support requests, and inventory exception reviews. Those are useful but separate queues. There is no shared clinical `Task` abstraction that can say: “refill request for this patient,” “review this result,” “complete this ordered procedure,” “call patient,” “obtain outside record,” or “handoff this intake,” with a pool/owner, due time, scope, linked record, escalation, and resolution.
+
+Elation's official workflow places a calendar beside “Requiring Action” queues containing failed e-prescriptions, unread letters, sign-off work, failed faxes, and unfinished notes.[13] Team-based inbox guidance similarly recommends routing messages into task-focused pools so nurses and medical assistants can complete in-scope work and elevate the minority needing a prescriber.[25]
+
+APPly Messages can link a message to an object and request an action, but conversation is not the same thing as a complete task lifecycle. A nurse may experience APPly as “everything has a page, but I still have to remember the work.”
+
+### 3.3 Orders are the largest clinical-model gap
+
+APPly can record medication statements (what the patient is taking), medication administrations (what staff gave), and lab reports/results (what came back). It does not have first-class medication requests/prescriptions, lab/imaging/procedure orders, or an order-to-execution chain.
+
+That breaks a central nursing workflow: receive an order, verify the signed/active order, confirm patient identifiers and allergies, perform the ordered action, document it as carried out, reassess if required, and provide education/instructions. The federal clinic nursing workflow example explicitly shows that chain for medication administration and in-clinic procedures, as well as nurse-only visits.[26] FHIR likewise distinguishes a `ServiceRequest` from the `Task` tracking fulfillment and the later `Procedure`, `DiagnosticReport`, or `Observation` result.[27]
+
+APPly's medication administration is admirably tied to inventory and captures dose, route, time, site, performer, product, and quantity. But without `based_on_order`, ordered dose/route/frequency, ordering provider, order status, acknowledgement, five-rights/verification evidence where policy requires it, refusal/not-given reason, and post-administration assessment, it is an isolated event rather than a complete medication-administration workflow.
+
+### 3.4 Too much general documentation can still feel like missing workflow
+
+APPly's SOAP composer includes seven HPI fields and a broad review-of-systems checklist, but these are serialized into the subjective note body rather than stored as reusable, coded assessment observations. A nurse asked to room a patient may not need to complete a provider-style full ROS. Conversely, if the clinic needs a structured screening, storing it only as generated note text makes longitudinal review and task routing harder.
+
+Recent nursing research describes exactly this trap: nurses consider irrelevant and redundant mandatory documentation a misuse of time, and rigid checkboxes can fragment care plans into compliance artifacts rather than useful clinical communication.[2] A mixed-method study found repetitive flowsheet entry, inability to move between screens, poor unit customization, difficult medication search, missing barcode support, duplicate care plans, and non-applicable fields among burden drivers.[3]
+
+The right move is not “delete structure” or “add everything.” It is to collect the minimum data needed for the current job, reuse what is already known, show the source and freshness, and defer other sections unless the visit type or protocol calls for them.
+
+### 3.5 Important data is fragmented across modules
+
+A nurse's day may require the Tracking Board, Patients, the Encounter page, Lab Reports, Follow-up, Reminders, Messages, Inventory, and Telehealth. APPly preserves patient/encounter context well inside the chart and Scribe areas, but it lacks one task-oriented worklist that couples the new fact with the prior context needed to act.
+
+Research notes that scattered EHR information slows cognitive processing and makes handoffs harder; multiple clicks and additional documentation are recurring frustrations.[28] In a controlled EHR usability study, better longitudinal tracking reduced cognitive workload and increased appropriate management of abnormal results.[29]
+
+### 3.6 APPly has not yet been validated with the actual nurse role
+
+The repository says staff primarily perform intake/triage and use desktop and tablet, but exact staff roles and clinical field/permission rules remain unspecified. “Nurse,” “medical assistant,” “front desk,” “NP,” and “physician” cannot safely be treated as interchangeable. A nurse could dislike the software because the product has not yet encoded which work belongs to that nurse, what can be delegated, and what needs escalation under the clinic's actual policies.
+
+The AHRQ ambulatory workflow assessment instrument explicitly includes nurses, office staff, physicians, and administrators.[30] One 45–60 minute synthetic walkthrough with the intended RN/LVN/MA users will be more valuable than another large batch of fields.
+
+## 4. APPly backend coverage: what exists and what is absent
+
+### Strong or substantial current object families
+
+- **Tenant/identity:** practice, site, room, department, user membership, grants, clinician profiles/credentials/assignments, staff member/employment.
+- **Patient identity/context:** patient, demographics, contacts, emergency contacts, communication preferences, address versions, social history, care needs.
+- **Access/visit:** appointment, visit type, encounter, participant, provider queue assignment, telehealth visit/check-in/consent/participants.
+- **Clinical history:** allergy, condition, medication statement, encounter precaution, history review.
+- **Clinical events/content:** observation with explicit value kind/unit/missingness, vital-sign groups, medication administration, lab report/version/result follow-up, encounter note/revision/signature, previsit note, encounter follow-up.
+- **Communication:** patient reminders/outbox/delivery attempts, staff conversations/messages/receipts/escalations/requests, communication endpoints/preferences.
+- **Financial:** coverage versions, billing services, invoice/lines, payment events/allocations, refunds/credits, insurance claim, cash drawer, Stripe collection objects, membership subscription catalog/agreements/events.
+- **Inventory:** catalog products, lots/batches/locations, stock ledger, holds/releases, purchases/orders/shipments/receipts/reconciliation, counts, transfers, returns, recalls, exception review.
+- **Workforce:** employment/site links, badges/kiosks/punches, time segments/timecards/adjustments, availability/time-off/swaps, schedule drafts/publications/shifts, payroll exports.
+- **Reliability:** request keys/digests, operation receipts, audit events, model versions, append-only event families, working drafts.
+
+### Material missing or partial object families
+
+| Missing/partial family | Why it matters to nurses | Priority |
+| --- | --- | ---: |
+| Check-in/arrival + encounter workflow events | Distinguishes scheduled, arrived, rooming, intake, waiting, with clinician, checkout; creates a truthful queue | **P0** |
+| Versioned intake/triage assessment | Gives rooming data a defined source, author, completeness state, and handoff version | **P0** |
+| Handoff/request/accept/correction workflow | Makes responsibility visible and prevents work from falling between staff and clinician | **P0** |
+| General clinical Task / team inbox pool | Routes results, calls, refills, records, orders, forms, and follow-ups to owners with due/escalation states | **P0** |
+| MedicationRequest/prescription + refill request | Separates active medication list from prescribing intent and supports nurse refill protocols | **P0/P1** |
+| ServiceRequest/order + acknowledgement | Connects lab, imaging, procedures, referrals, and nursing care to the authorized request | **P0/P1** |
+| Procedure and Immunization event | Records ordered nursing care, vaccines, wound care, tests, not-done reasons, and provenance | **P1** |
+| CarePlan + Goal | Supports longitudinal chronic-care work and links problems, tasks, education, and follow-up | **P1** |
+| Encounter diagnosis/problem-of-visit | Connects the assessment to this visit without misusing patient-level condition history | **P1** |
+| Education/handout + understanding/teach-back | Makes patient education an actionable, attributable care event | **P1** |
+| Referral lifecycle | Tracks request, destination, documents, status, result, and closure | **P1** |
+| Structured specimen and lab order | Prevents results from appearing as reports detached from the originating order/specimen | **P1** |
+| Complete patient identity/demographic model | Legal/preferred name components, race/ethnicity, gender identity, address in ordinary UI, related-person/guardian details support matching and interoperability | **P1**, subject to minimum-necessary review |
+
+## 5. Screen-by-screen data review
+
+Assessment terms: **Keep** = correct core data for that screen. **Move/derive** = should usually come from another object or be shown rather than re-entered. **Add** = missing object/field family, subject to workflow and clinical review. **Do not add by default** = likely burden or unsafe inference.
+
+| APPly screen | What it currently handles | Assessment of data collection | Recommended boundary |
+| --- | --- | --- | --- |
+| **Front desk** `/clinic/front-desk` | Appointment date/site/search; patient, location, status, actions; reschedule start/end/site/clinician/visit type | **Keep** appointment identity, site, times, clinician, type, and reason. **Add** explicit identity-confirmed, arrived/check-in event, appointment-request disposition, and previsit-form completeness. Coverage/eligibility and patient balance can be displayed if the clinic uses insurance, not silently required. | Front desk should create/modify access and arrival facts, not clinical triage. Never infer arrival from encounter start or a scheduled status. |
+| **Tracking Board** `/clinic` | Patient/reference, schedule timing/operational state, location/room, provider assignment, limited vitals, care indicators, chart status, next action | The columns are largely right, but the underlying workflow is incomplete. **Add** persisted arrival, intake status, task/owner, handoff state, and explicit exception. **Derive** summaries from linked records. | Do not add a hard-coded acuity score or “normal/abnormal” logic without a clinically approved protocol. Keep missing data visibly unknown. |
+| **Patients directory** `/clinic/patients` | Search by display name/reference and create/select patient | **Keep** deliberate search and disambiguation. **Add** configurable matching keys such as DOB and phone, and separate deliberate creation. | Do not automatically create on no result; do not expose a global cross-practice search. |
+| **Patient registration/detail** `/clinic/patients/:id` | Display name/reference; DOB, sex, language/interpreter; contact/preferences/communication consent; emergency contact; tobacco, alcohol, exercise, diet, occupation, living situation, social factors; portal lifecycle; clinical history; labs | Directionally good, but the registration edit is too broad for every encounter. **Add/reconcile** legal and preferred name components, current address UI, race/ethnicity, gender identity/pronouns if relevant and approved, related-person/guardian/consent authority, preferred pharmacy, and insurance/member identifiers when in scope. | Split stable registration from visit intake. Do not force every social-history field on each visit. Record source/effective dates/review status. |
+| **Schedule** `/clinic` schedule view | Patient, start/end, modality, site/room, clinician, visit type, reason; scheduled visits | **Keep** all. **Add** schedule/slot templates, resource conflicts, cancellation/no-show reason, waitlist, appointment request linkage, and truthful check-in transition as needed. | Appointment is planning; Encounter is care delivered. Maintain that distinction.[17] |
+| **Encounter/chart** `/clinic/patients/:patientId/encounters/:encounterId` | Persistent patient/visit context, HPI, ROS, SOAP, vitals, history, labs, medication administration, follow-up, signatures/corrections | Strong foundation but not yet a nurse intake workflow. **Add** role-specific rooming/intake revision, structured screening/assessment only when required, handoff, order acknowledgement/execution, education, and discharge. **Move/derive** HPI/ROS elements into reusable observations/questionnaire responses only when the clinic needs longitudinal structure. | Default nurse view should show today’s job and previous context, not a provider-sized SOAP form. Preserve unsaved/conflict/outcome-unknown states. |
+| **Telehealth queue/visit** `/clinic/telehealth` | Date/site/clinician/status filters; patient, readiness, waiting, connection, participant/consent/check-in; visit, Scribe, patient context | Correct virtual-waiting-room data. **Add** telehealth-specific intake completeness, visit owner, escalation/task, failed-connect reason, and disposition if the real workflow requires them. | Avoid duplicating clinical intake in telehealth-specific tables; link the same encounter intake/task objects. |
+| **Operations** `/clinic/operations` | Module shortcuts and counts | This should remain a navigation/operational summary, not another data-entry form. | Show actionable exceptions and ownership, not decorative totals. Do not make nurses hunt here for clinical work. |
+| **Facilities and visit types** `/clinic/facilities` | Facility identity/code/status/timezone/address/contact; operating hours/exceptions; rooms; visit types | Correct admin configuration. | Keep away from ordinary nurse flow except read-only location context. Visit types should determine optional workflow templates, not authorize clinical actions. |
+| **Inventory** `/clinic/inventory/*` | Product/SKU/NDC/UDI, package and stock units, reorder, supplier/pricing, PO, receiving, lot/expiry/temp/location, transfer, counts, holds, recalls, reconciliation, exceptions | Very strong operational object model. **Add** only the clinical bridge: order/administration/procedure link, dispense/return/waste where applicable, and device assignment if required. | Do not make nurses re-enter lot/quantity already selected during a verified scan. Do not auto-decrement stock from a prescription; post from the actual administration/dispense event. |
+| **Workforce** `/clinic/workforce/*` | My hours/schedule/requests; employment, badges/kiosk, timecards, team schedule, request review, payroll exports, location rules | Appropriate workforce data, but not clinical staffing/assignment. | Keep employment/timekeeping distinct from care-team role, clinical credential, provider assignment, and inbox coverage. A shift does not grant chart authority. |
+| **Billing** `/clinic/billing` | Revenue summary, invoices, payments/receipts, collections, income outlook, subscriptions, cash drawer, checkout | Strong cash-pay/invoice workflow. Insurance claim exists but eligibility/authorization/ERA/denial depth is not comparable to a mature insurance-focused suite. | Nurses should see only clinically relevant financial flags if policy permits. Do not make them resolve billing data during clinical intake by default. |
+| **Subscriptions** `/clinic/subscriptions` | Programs/tiers/services, price, duration, renewal/cancellation/refund terms, limits, eligibility review, publication/versioning | Strong DPC/membership catalog. | At the point of care, display verified membership/coverage status and included services; do not ask nurses to interpret commercial terms. |
+| **Reminders** `/clinic/reminders` | Appointment-linked reminder scheduling, channel/content/status/history, attention state, staff assignment/conversation, due time | Good reminder lifecycle. **Add/bridge** the resulting patient response into the shared task/inbox when clinical or scheduling action is required. | A delivery receipt is not patient understanding, appointment completion, or clinical follow-up. |
+| **Messages** `/clinic/messages` | Conversations, members, linked object, requested action, due date, acknowledgement, urgency, escalation, attachments | Strong communication primitives. **Add** a first-class task projection with owner/pool, status taxonomy, due/escalation, and resolution, so messages do not become the only task system. | Keep clinical urgency separate from sender-selected “urgent” unless the clinic defines and reviews the semantics. |
+| **Scribe** `/clinic/scribe` | Patient/encounter selection, consent/capture, transcript/source, template, draft sections, review, export, correction | Correct as a clinician documentation aid with human review and provenance. | Scribe should draft, never silently create orders, diagnoses, administrations, tasks, or completion. A nurse should not have to use Scribe to create a structured intake. |
+| **Settings** `/clinic/settings` | Personal appearance; telehealth configuration on a separate route | Appropriate personal/configuration data. | Add role-specific worklist preferences only if server-owned permissions and safe defaults remain authoritative. Do not hide missing workflow behind customization. |
+
+## 6. Data-quality findings by clinical domain
+
+### Patient identity and demographics
+
+**Correct now:** practice-local patient ID/reference, encrypted display name, DOB, sex, language/interpreter, typed contacts, emergency contacts, communication preferences/consent, effective periods.
+
+**Gap:** `display_name` is not a durable substitute for legal first/middle/last/suffix/previous/preferred name. The ordinary patient browser contract exposes only `primary_address_version_id`, not the actual current address. Race/ethnicity and gender identity are absent. USCDI v7 treats these as distinct patient-demographic data elements.[19]
+
+**Recommendation:** add only after identity-matching, display, source, correction, and minimum-necessary rules are reviewed. Registration should not become a mandatory demographic census at every visit.
+
+### Allergies, medications, and conditions
+
+**Correct now:** active/history state, verification/review status, author/reviewer, onset/effective periods, allergy reaction/category/criticality/severity, medication dose/route/frequency/purpose/source, condition status/instruction.
+
+**Gap:** medication names and many fields are free text rather than coded concepts; there is no medication order/prescription; patient condition is not an encounter diagnosis. Allergy structure is close to industry expectations, but terminology binding and reconciliation semantics remain unapproved. USCDI v7 separately identifies medication, drug-class, and non-medication allergies, reaction, and criticality.[31]
+
+### Vitals and assessments
+
+**Correct now:** systolic/diastolic BP, heart rate, respiratory rate, oxygen saturation, temperature, weight, UCUM-like units, observed/recorded time, author, encounter, explicit missingness, encrypted value payload.
+
+**Gaps:** height and derived BMI are absent; pain is absent; visit-specific structured screening/functional/cognitive assessments are absent. USCDI recognizes functional, disability, and mental/cognitive assessments, but that is not a mandate to collect all of them at every visit.[20]
+
+**Recommendation:** configure the smallest vital/assessment set by visit type and protocol. Do not hard-code clinical thresholds in the board. Add structured questionnaire/response objects when longitudinal comparison or task routing is required.
+
+### Labs and results
+
+**Correct now:** report identity/source/external ID, version, title/status, collection/report time, structured test/value/unit/reference range/flag, review, and follow-up state/outcome.
+
+**Gaps:** no originating lab order/service request, ordered tests/indication/priority, specimen object/condition, performing lab/provider, critical-result acknowledgement/escalation, or general owner/pool task. DrChrono's published API demonstrates the typical chain: patient and ordering doctor → lab order with status/diagnosis/priority/requisition → test/panel and specimen → document → structured result.[12] The federal SAFER guidance treats test-result reporting/follow-up and clinician communication as dedicated EHR safety processes, not incidental note fields.[33]
+
+### Medication administration and in-clinic procedures
+
+**Correct now:** patient, encounter, site, performer, product, dose, route, administration site, quantity/unit, time, request key, inventory movement.
+
+**Gaps:** no verified active order, ordering provider, scheduled/due administration, indication, pre-checks, refusal/not-administered reason, second verification, response/reassessment, education, or linked procedure. The federal nursing workflow includes these concepts and explicitly links nursing care back to the original order.[26]
+
+### Notes, HPI, and ROS
+
+**Correct now:** immutable note revisions, patient/encounter binding, author, version, template, signature, correction reason, and structured SOAP sections.
+
+**Gap:** the HPI/ROS “structure” is embedded in subjective text. That supports readable notes but not reliable longitudinal data reuse. Also, a broad ROS may be provider documentation rather than a default nurse rooming requirement.
+
+**Recommendation:** retain narrative flexibility. Promote only clinically reviewed, repeatedly actionable elements into typed observations/questionnaire responses. Do not turn the entire note into mandatory discrete fields.
+
+### Follow-up, reminders, and communication
+
+**Correct now:** encounter follow-up has plan/state/due/assignee/appointment/outcome; lab follow-up has decision/instructions/outcome/reviewer/completer; reminders and staff messages have delivery/action metadata.
+
+**Gap:** these remain separate domain queues without a single worklist and coverage model. The nurse needs one place to see all owned work with the relevant patient context.
+
+## 7. What to build first—and what not to build
+
+### Recommended first slice: nurse work loop
+
+Build one cohesive, clinically reviewed, synthetic-only slice:
+
+1. **Arrival/check-in event** tied to the scheduled appointment and patient identity confirmation.
+2. **Versioned intake/triage record** with a small configurable field set, author/source/time, explicit incomplete/unknown/unable states, and linked observations.
+3. **Handoff aggregate and events**: requested, accepted, rejected, correction requested, completed/cancelled; exact intake version; one visible owner.
+4. **Shared clinical Task projection** for today’s work, lab follow-up, calls/messages, order execution, and record requests; pool/owner/due/escalation/resolution/linkage.
+5. **Role-specific nurse screen** that keeps patient, visit, prior care summary, today's inputs, save state, and next action together.
+
+This slice should be designed from a real workflow walkthrough before the field dictionary is finalized. It should not include new clinical scoring or release authority.
+
+### Second slice: order-to-action chain
+
+Add `MedicationRequest`/prescription and `ServiceRequest`-like orders, then link them to medication administration, procedures/immunizations, lab/specimen/results, tasks, and follow-up. The model must represent ordered, acknowledged, in progress, completed, not done, cancelled, and outcome-unconfirmed without inferring one from another.
+
+### Do not do these first
+
+- Do not add more dashboard cards or top-level modules.
+- Do not make every HPI/ROS/social-history item mandatory.
+- Do not add an unreviewed triage score or universal “normal/abnormal” thresholds.
+- Do not make Messages the only task system.
+- Do not use appointment status, encounter start, provider booking, or a note signature as a substitute for arrival, handoff acceptance, order authorization, discharge, or checkout.
+- Do not ask nurses to manage workforce, billing, subscription, or inventory details during clinical intake unless the actual clinic workflow assigns that responsibility.
+
+## 8. The validation that is still required
+
+This report can identify the architecture gap, but it cannot determine the final nurse fields. That needs a role/workflow study using only synthetic cases.
+
+Run a structured session with at least one intended RN/LVN/MA user and one prescribing clinician:
+
+1. Walk through a routine scheduled visit, nurse-only visit, vaccination/procedure visit, abnormal-result callback, refill request, and telehealth visit.
+2. For every step, capture actor, trigger, information needed, input produced, source, destination, time sensitivity, exception, and handoff.
+3. Mark which fields are always required, conditionally required by visit type/protocol, optional narrative, derived, or display-only.
+4. Count patient/context switches, duplicate entries, backtracking, and clicks; record where paper, verbal communication, or memory is still needed.
+5. Test wrong patient, missing order, missing consent, incomplete intake, stale edit, two users claiming work, absent clinician, dropped response, and expired session.
+6. Observe desktop and tablet. Do not accept a screenshot as evidence that the workflow works.
+
+The go/no-go question for each field should be: **What action, safety check, communication, billing event, or longitudinal decision becomes better because this exact user records this field at this exact step?** If nobody can answer, do not require it.
+
+### APPly evidence map
+
+| Finding | Current source |
+| --- | --- |
+| Clinic's 14 top-level navigation areas and capability gates | [`apps/web/src/features/clinic/Workspace.tsx`](../../apps/web/src/features/clinic/Workspace.tsx), beginning at line 70 |
+| Route-to-screen mapping, including patient/encounter routes | [`apps/web/src/App.tsx`](../../apps/web/src/App.tsx), beginning at line 434 |
+| Patient registration/browser contract | [`apps/web/src/api/contracts.ts`](../../apps/web/src/api/contracts.ts), beginning at line 217 |
+| Care-summary state, allergies, medications, care needs, conditions, and precautions | [`apps/web/src/api/contracts.ts`](../../apps/web/src/api/contracts.ts), beginning at line 279 |
+| Appointment and encounter contracts | [`apps/web/src/api/contracts.ts`](../../apps/web/src/api/contracts.ts), beginning at lines 779 and 822 |
+| Typed observation contract | [`apps/web/src/api/contracts.ts`](../../apps/web/src/api/contracts.ts), beginning at line 1018 |
+| HPI fields are composed into subjective note text | [`apps/web/src/features/clinic/HistoryOfPresentIllness.tsx`](../../apps/web/src/features/clinic/HistoryOfPresentIllness.tsx), lines 9–82 |
+| Current vital-sign dictionary | [`apps/api/app/services/clinic/care/vital_signs.rb`](../../apps/api/app/services/clinic/care/vital_signs.rb), lines 3–29 |
+| Current database objects | [`apps/api/db/structure.sql`](../../apps/api/db/structure.sql), beginning at line 1715 for clinic tables; later migrations were also inspected because the dump is behind current migration files |
+| Explicitly proposed/unimplemented arrival, intake, triage, handoff, diagnosis, and discharge contracts | [`APPlyVault/03 Execution/Clinic Encounter Workflow Contract.md`](../../APPlyVault/03%20Execution/Clinic%20Encounter%20Workflow%20Contract.md), lines 20–33 and 132 onward |
+| Product statement that exact nurse/staff roles remain unspecified and intake/triage is the intended staff focus | [`APPlyVault/03 Execution/Clinic Workspace Design.md`](../../APPlyVault/03%20Execution/Clinic%20Workspace%20Design.md), lines 14–30 |
+
+## 9. Verification record and limitations
+
+### Verified in this review
+
+- Repository was clean and synchronized with `origin/main` at `4c87cf70d00f8c314eb0955e77201ee5ae1352f5` before the report was written.
+- Current clinic routes and navigation were traced from `apps/web/src/App.tsx` and `apps/web/src/features/clinic/Workspace.tsx`.
+- Patient, appointment, encounter, note, observation, care-summary, tracking-board, billing, inventory, subscription, reminder, messaging, telehealth, Scribe, and workforce contracts were inspected from source and database definitions.
+- The absence of first-class care plan, goal, service request/order, medication request/prescription, procedure, immunization, intake, triage, handoff, general clinical task, and discharge tables was checked against the current schema/model inventory.
+- The current vault explicitly labels the full encounter workflow and clinical field/role rules as proposed/unapproved.
+- Competitor features were checked against official vendor documentation; standards were checked against ASTP/ONC/HL7 sources; nurse burden findings were checked against peer-reviewed or government-hosted research.
+
+### Not verified / not claimed
+
+- No proprietary competitor database schema was reverse-engineered.
+- No paid competitor account was used for an end-to-end nurse workflow.
+- No APPly nurse usability study or qualified clinical review was performed.
+- No production, real-patient, security, HIPAA, clinical-safety, billing, or release readiness is claimed.
+- This was a source-and-research audit. It did not re-run the APPly application test suite or perform a new browser walkthrough because no product code changed.
+- The repository's `apps/api/db/structure.sql` currently stops its recorded migration list at `20260902002000`, while later migration files exist. For this report, model/controller/migration evidence was used where the dump lagged. The schema dump should be regenerated and verified separately; this does not change the nurse-workflow conclusion.
+
+## 10. Safest next action
+
+Do **not** start by adding all missing objects. First complete the T-13.2/T-13.3-style workflow discovery with the actual intended nurse/MA role and produce a one-page field/state/permission matrix for six common synthetic scenarios. Then build the P0 nurse work loop as one integrated slice. That will tell you whether the complaint is about missing workflow, excessive documentation, role mismatch, or all three—and it avoids spending months on objects the clinic will not use.
+
+## Sources
+
+1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).
+2. Mugoya R et al. “Exploring nurses’ documentation prioritization strategies to alleviate EHR documentation burden: a phenomenological study.” *JAMIA Open* (2026). [Oxford Academic](https://doi.org/10.1093/jamiaopen/ooag056).
+3. Cho I et al. “Electronic health record system use and documentation burden of acute and critical care nurse clinicians: a mixed-methods study.” (2024). [PubMed Central](https://pmc.ncbi.nlm.nih.gov/articles/PMC11491602/).
+4. athenahealth. [athenaOne](https://www.athenahealth.com/solutions/athenaone) and [Electronic Health Records](https://www.athenahealth.com/solutions/athenaone/electronic-health-records).
+5. eClinicalWorks. [EHR and practice-management workflow example](https://www.eclinicalworks.com/products-services/ehr/behavioral-health-ehr/) and [Patient Engagement](https://www.eclinicalworks.com/products-services/patient-engagement/).
+6. Tebra. [EHR Software](https://www.tebra.com/ehr-software) and [Platform FAQ](https://www.tebra.com/faq).
+7. DrChrono. [EHR Platform](https://www.drchrono.com/ehr/) and [2026 plans/features](https://www.drchrono.com/wp-content/uploads/2026/03/drchrono-pricing-and-plans.pdf).
+8. Elation Health. [EHR](https://www.elationhealth.com/solutions/ehr/) and [Practice Home workflow](https://help.elationhealth.com/articles/practice-home-introduction).
+9. CharmHealth. [EHR features](https://www.charmhealth.com/ehr/) and [Patient Portal](https://www.charmhealth.com/ehr/phr-patient-health-record.html).
+10. Practice Fusion. [EHR overview](https://signup.practicefusion.com/).
+11. athenahealth. [athenaOne service description](https://www.athenahealth.com/sites/default/files/media_docs/athenaOne-Service-Description.pdf).
+12. DrChrono. [Lab API and webhook documentation](https://support.drchrono.com/home/drchrono-lab-api-and-webhook).
+13. Elation Health. [Practice Home: calendar, requiring-action queues, patient search, messages, documents, billing, and memberships](https://help.elationhealth.com/articles/practice-home-introduction).
+14. CharmHealth. [Medical billing and claims](https://www.charmhealth.com/ehr/medical-billing-claims.html).
+15. Hint. [DPC platform](https://www.hint.com/direct-primary-care) and [Membership billing](https://www.hint.com/platform/billing).
+16. Hint. [Developer API overview](https://developers.hint.com/docs/overview).
+17. HL7. [FHIR R4 resource list](https://hl7.org/fhir/R4/resourcelist.html) and [Encounter scope](https://hl7.org/fhir/R4/encounter.html).
+18. ASTP/ONC. [ONC Standards Bulletin 2026-2: USCDI v7](https://healthit.gov/standards-and-technology/onc-standards-bulletin/onc-standards-bulletin-2026-2/) and [All USCDI versions](https://isp.healthit.gov/all-uscdi-versions).
+19. ASTP/ONC. [USCDI Patient Demographics/Information](https://isp.healthit.gov/uscdi-data-class/patient-demographicsinformation?page=1).
+20. ASTP/ONC. [USCDI Health Status Assessments](https://isp.healthit.gov/uscdi-data-class/health-status-assessments?page=1).
+21. ASTP/ONC. [USCDI Encounter Information](https://isp.healthit.gov/uscdi-data-class/encounter-information).
+22. ASTP/ONC. [USCDI Procedures](https://isp.healthit.gov/uscdi-data-class/procedures) and [Procedure Order](https://isp.healthit.gov/uscdi-data/procedure-order).
+23. AHRQ. [What is workflow?](https://digital.ahrq.gov/health-it-tools-and-resources/evaluation-resources/workflow-assessment-health-it-toolkit/workflow).
+24. AHRQ. [Workflow Tool Examples](https://digital.ahrq.gov/health-it-tools-and-resources/evaluation-resources/workflow-assessment-health-it-toolkit/examples).
+25. American Medical Association. [A Systematic Approach to Reducing EHR Inbox Burden](https://edhub.ama-assn.org/steps-forward/module/2821565).
+26. HealthIT.gov. [Clinic Visit—Nursing Workflow](https://www.healthit.gov/sites/default/files/nursing_workflow.pdf).
+27. HL7. [FHIR R4 ServiceRequest](https://hl7.org/fhir/R4/servicerequest.html).
+28. Badgeley MA et al. “A Time and Motion Analysis of Nursing Workload and Electronic Health Record Use in the Emergency Department.” [PubMed Central](https://pmc.ncbi.nlm.nih.gov/articles/PMC11216543/).
+29. Mazur LM et al. “Association of the Usability of Electronic Health Records With Cognitive Workload and Performance Levels Among Physicians.” *JAMA Network Open* (2019). [PubMed Central](https://pmc.ncbi.nlm.nih.gov/articles/PMC6450327/).
+30. AHRQ. [Document Workflow Assessment Guide: Clinic](https://digital.ahrq.gov/health-it-tools-and-resources/evaluation-resources/health-it-survey-compendium/document-workflow-assessment-guide-clinic).
+31. ASTP/ONC. [USCDI v7 allergies and intolerances](https://isp.healthit.gov/sites/default/files/2026-01/Draft-USCDI-Version-7-January-2026.pdf) (draft source used for element detail; current-version status separately verified in Sources 18–19).
+32. Park S et al. “A Systematic Review of Nurses' Perceptions of Electronic Health Record Usability Based on the Human Factor Goals of Satisfaction, Performance, and Safety.” (2024). [PubMed](https://pubmed.ncbi.nlm.nih.gov/38191474/).
+33. ASTP/ONC. [2025 SAFER Guides](https://healthit.gov/clinical-quality-and-safety/safer-guides/).
