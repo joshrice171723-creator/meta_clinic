@@ -14,6 +14,11 @@ module Clinic
     has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
     has_many :precautions, class_name: "Clinic::Care::EncounterPrecaution", dependent: :restrict_with_error
     has_many :history_reviews, class_name: "Clinic::Care::PatientHistoryReview", dependent: :restrict_with_error
+    has_many :workflow_events, class_name: "Clinic::EncounterWorkflowEvent", dependent: :restrict_with_error
+    has_one :intake, class_name: "Clinic::Care::EncounterIntake", dependent: :restrict_with_error
+    has_many :triage_evidence, class_name: "Clinic::Care::EncounterTriageEvidence", dependent: :restrict_with_error
+    has_many :handoffs, class_name: "Clinic::Care::EncounterHandoff", dependent: :restrict_with_error
+    has_many :clinical_tasks, class_name: "Clinic::ClinicalTask", dependent: :restrict_with_error
     has_one :telehealth_visit, class_name: "Clinic::Telehealth::Visit", dependent: :restrict_with_error
 
     scope :open, -> { where(ended_at: nil) }
