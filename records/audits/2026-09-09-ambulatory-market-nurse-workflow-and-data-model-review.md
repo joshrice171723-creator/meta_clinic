@@ -1,27 +1,27 @@
-# Ambulatory clinic market, nurse workflow, and APPly data-model review
+# Ambulatory clinic market, nurse workflow, and meta-clinic data-model review
 
 **Date:** 2026-09-09
 
 **Scope:** U.S. ambulatory/private-practice software, especially primary care, cash-pay, membership/DPC, and nurse-supported clinic workflows
 
-**Compared product:** APPly at Git commit `4c87cf70d00f8c314eb0955e77201ee5ae1352f5`
+**Compared product:** meta-clinic (MC) at Git commit `4c87cf70d00f8c314eb0955e77201ee5ae1352f5`
 
-**Evidence boundary:** Competitor feature claims come from vendor documentation. A competitor's internal database schema is private unless its public API documents an object. “Likely objects” below are standards-based architectural inferences, not claims about proprietary table names. APPly objects come from source, migrations, serializers, and browser contracts in this repository. No clinical workflow or field set is approved by this report.
+**Evidence boundary:** Competitor feature claims come from vendor documentation. A competitor's internal database schema is private unless its public API documents an object. “Likely objects” below are standards-based architectural inferences, not claims about proprietary table names. MC objects come from source, migrations, serializers, and browser contracts in this repository. No clinical workflow or field set is approved by this report.
 
 ## Executive conclusion
 
-The nurse concern is credible, and it is mostly a workflow problem—not proof that APPly needs more fields everywhere.
+The nurse concern is credible, and it is mostly a workflow problem—not proof that MC needs more fields everywhere.
 
-APPly has broad operational software: appointments, encounters, patient history, vitals, lab-result review, medication administrations tied to inventory, reminders, staff messaging, telehealth, billing, subscriptions, purchasing, recalls, workforce scheduling, timecards, and detailed audit/recovery mechanics. That is more operational breadth than many early clinic products.
+MC has broad operational software: appointments, encounters, patient history, vitals, lab-result review, medication administrations tied to inventory, reminders, staff messaging, telehealth, billing, subscriptions, purchasing, recalls, workforce scheduling, timecards, and detailed audit/recovery mechanics. That is more operational breadth than many early clinic products.
 
-The weak point is the nurse's continuous work loop. The repository itself still classifies the target sequence—identity confirmation, arrival, intake, triage, handoff, clinician acceptance, exam, diagnosis boundary, discharge—as proposed rather than implemented. Today, a nurse can find a patient, see a schedule/board, enter vitals, review histories, record an administration, and work lab follow-up. But APPly lacks first-class, connected objects for several actions that make those data meaningful: durable check-in/arrival, a versioned intake, a triage assessment, provider orders, nurse acknowledgement of orders, procedure completion, immunization administration, a care-team task pool, an explicit nurse-to-clinician handoff, encounter diagnosis, patient education/understanding, and discharge.
+The weak point is the nurse's continuous work loop. The repository itself still classifies the target sequence—identity confirmation, arrival, intake, triage, handoff, clinician acceptance, exam, diagnosis boundary, discharge—as proposed rather than implemented. Today, a nurse can find a patient, see a schedule/board, enter vitals, review histories, record an administration, and work lab follow-up. But MC lacks first-class, connected objects for several actions that make those data meaningful: durable check-in/arrival, a versioned intake, a triage assessment, provider orders, nurse acknowledgement of orders, procedure completion, immunization administration, a care-team task pool, an explicit nurse-to-clinician handoff, encounter diagnosis, patient education/understanding, and discharge.
 
 The best interpretation is:
 
 - **Are you collecting the right data?** Often yes at the individual-field level. Demographics, communication consent, allergies, medication statements, conditions, vitals, labs, follow-up, scheduling, inventory, billing, and membership fields are directionally sound.
 - **Are you collecting it on the right screen and in the right workflow?** Not consistently. Some data is collected in a large patient-registration form or folded into SOAP text, while nurses generally need small, role-specific steps attached to the selected visit and an owned work queue.
 - **Are you missing an industry convention?** Yes: mature ambulatory systems connect clinical information to orders, tasks, results, and team ownership. The record is not just a chart; it is a work-routing system.
-- **Would adding every industry field fix nurse adoption?** No. Nursing research repeatedly identifies redundant entry, irrelevant mandatory content, scattered information, excessive clicks, weak customizability, and unclear workflow as causes of burden.[1][2][3][32] Adding fields without role-specific workflow would likely make APPly worse.
+- **Would adding every industry field fix nurse adoption?** No. Nursing research repeatedly identifies redundant entry, irrelevant mandatory content, scattered information, excessive clicks, weak customizability, and unclear workflow as causes of burden.[1][2][3][32] Adding fields without role-specific workflow would likely make MC worse.
 
 ### Conservative scores
 
@@ -67,7 +67,7 @@ Across athenaOne, eClinicalWorks, Tebra, DrChrono, Elation, CharmHealth, Practic
 
 ## 2. The backend objects that matter
 
-HL7 FHIR is useful here as an object vocabulary even when a product does not implement FHIR internally. Its resource list separates `Appointment` from `Encounter`; conditions from observations; medication requests from medication administrations/statements; service requests from procedures/results; and clinical requests from the `Task` that tracks work.[17] That separation explains several APPly gaps.
+HL7 FHIR is useful here as an object vocabulary even when a product does not implement FHIR internally. Its resource list separates `Appointment` from `Encounter`; conditions from observations; medication requests from medication administrations/statements; service requests from procedures/results; and clinical requests from the `Task` that tracks work.[17] That separation explains several MC gaps.
 
 | Workflow question | Typical durable object | Critical relationships/state |
 | --- | --- | --- |
@@ -84,35 +84,35 @@ HL7 FHIR is useful here as an object vocabulary even when a product does not imp
 | What is owed/covered? | Coverage, EligibilityRequest/Response, Account, ChargeItem, Claim/Response, Invoice, Payment | Patient/subscriber/payer, encounter/line items, statuses, adjustments, allocations |
 | What proves the action? | Provenance, AuditEvent, immutable revision/event/receipt | Actor, tenant, correlation, time, before/after or version, outcome |
 
-USCDI v7 is the current July 2026 U.S. interoperability baseline, though certification adoption can lag the newest published version.[18] It does not dictate screen design, but it is a useful check that APPly's data model should distinguish patient names, race/ethnicity, birth sex, gender identity, preferred language, interpreter need, current/previous address, phone, email, encounters, orders, procedures, assessments, and provenance rather than treating all of them as generic text.[19][20][21][22]
+USCDI v7 is the current July 2026 U.S. interoperability baseline, though certification adoption can lag the newest published version.[18] It does not dictate screen design, but it is a useful check that MC's data model should distinguish patient names, race/ethnicity, birth sex, gender identity, preferred language, interpreter need, current/previous address, phone, email, encounters, orders, procedures, assessments, and provenance rather than treating all of them as generic text.[19][20][21][22]
 
-## 3. Why a nurse may dislike APPly
+## 3. Why a nurse may dislike MC
 
 ### 3.1 The chart does not yet model the nurse's work as one owned sequence
 
-The current APPly workflow contract explicitly says durable check-in/arrival, intake, triage aggregate, handoff, clinician acceptance, encounter diagnosis, and discharge objects are not implemented. The tracking board deliberately avoids inventing them from appointment or encounter timestamps. That caution is correct, but it leaves the nurse without a durable “my next patient / my current step / who owns the next step” loop.
+The current MC workflow contract explicitly says durable check-in/arrival, intake, triage aggregate, handoff, clinician acceptance, encounter diagnosis, and discharge objects are not implemented. The tracking board deliberately avoids inventing them from appointment or encounter timestamps. That caution is correct, but it leaves the nurse without a durable “my next patient / my current step / who owns the next step” loop.
 
 This matters because workflow spans people and settings, not just screens. AHRQ warns that when clinical and administrative workflow is overlooked or oversimplified, delays in care, billing, and communication are likely.[23] AHRQ specifically recommends mapping workflows early, testing with providers and staff, and reassessing after implementation.[24]
 
 ### 3.2 There is no general clinical task/inbox pool
 
-APPly has staff conversations, messages, action requests, reminders, lab follow-ups, encounter follow-ups, billing support requests, and inventory exception reviews. Those are useful but separate queues. There is no shared clinical `Task` abstraction that can say: “refill request for this patient,” “review this result,” “complete this ordered procedure,” “call patient,” “obtain outside record,” or “handoff this intake,” with a pool/owner, due time, scope, linked record, escalation, and resolution.
+MC has staff conversations, messages, action requests, reminders, lab follow-ups, encounter follow-ups, billing support requests, and inventory exception reviews. Those are useful but separate queues. There is no shared clinical `Task` abstraction that can say: “refill request for this patient,” “review this result,” “complete this ordered procedure,” “call patient,” “obtain outside record,” or “handoff this intake,” with a pool/owner, due time, scope, linked record, escalation, and resolution.
 
 Elation's official workflow places a calendar beside “Requiring Action” queues containing failed e-prescriptions, unread letters, sign-off work, failed faxes, and unfinished notes.[13] Team-based inbox guidance similarly recommends routing messages into task-focused pools so nurses and medical assistants can complete in-scope work and elevate the minority needing a prescriber.[25]
 
-APPly Messages can link a message to an object and request an action, but conversation is not the same thing as a complete task lifecycle. A nurse may experience APPly as “everything has a page, but I still have to remember the work.”
+MC Messages can link a message to an object and request an action, but conversation is not the same thing as a complete task lifecycle. A nurse may experience MC as “everything has a page, but I still have to remember the work.”
 
 ### 3.3 Orders are the largest clinical-model gap
 
-APPly can record medication statements (what the patient is taking), medication administrations (what staff gave), and lab reports/results (what came back). It does not have first-class medication requests/prescriptions, lab/imaging/procedure orders, or an order-to-execution chain.
+MC can record medication statements (what the patient is taking), medication administrations (what staff gave), and lab reports/results (what came back). It does not have first-class medication requests/prescriptions, lab/imaging/procedure orders, or an order-to-execution chain.
 
 That breaks a central nursing workflow: receive an order, verify the signed/active order, confirm patient identifiers and allergies, perform the ordered action, document it as carried out, reassess if required, and provide education/instructions. The federal clinic nursing workflow example explicitly shows that chain for medication administration and in-clinic procedures, as well as nurse-only visits.[26] FHIR likewise distinguishes a `ServiceRequest` from the `Task` tracking fulfillment and the later `Procedure`, `DiagnosticReport`, or `Observation` result.[27]
 
-APPly's medication administration is admirably tied to inventory and captures dose, route, time, site, performer, product, and quantity. But without `based_on_order`, ordered dose/route/frequency, ordering provider, order status, acknowledgement, five-rights/verification evidence where policy requires it, refusal/not-given reason, and post-administration assessment, it is an isolated event rather than a complete medication-administration workflow.
+MC's medication administration is admirably tied to inventory and captures dose, route, time, site, performer, product, and quantity. But without `based_on_order`, ordered dose/route/frequency, ordering provider, order status, acknowledgement, five-rights/verification evidence where policy requires it, refusal/not-given reason, and post-administration assessment, it is an isolated event rather than a complete medication-administration workflow.
 
 ### 3.4 Too much general documentation can still feel like missing workflow
 
-APPly's SOAP composer includes seven HPI fields and a broad review-of-systems checklist, but these are serialized into the subjective note body rather than stored as reusable, coded assessment observations. A nurse asked to room a patient may not need to complete a provider-style full ROS. Conversely, if the clinic needs a structured screening, storing it only as generated note text makes longitudinal review and task routing harder.
+MC's SOAP composer includes seven HPI fields and a broad review-of-systems checklist, but these are serialized into the subjective note body rather than stored as reusable, coded assessment observations. A nurse asked to room a patient may not need to complete a provider-style full ROS. Conversely, if the clinic needs a structured screening, storing it only as generated note text makes longitudinal review and task routing harder.
 
 Recent nursing research describes exactly this trap: nurses consider irrelevant and redundant mandatory documentation a misuse of time, and rigid checkboxes can fragment care plans into compliance artifacts rather than useful clinical communication.[2] A mixed-method study found repetitive flowsheet entry, inability to move between screens, poor unit customization, difficult medication search, missing barcode support, duplicate care plans, and non-applicable fields among burden drivers.[3]
 
@@ -120,17 +120,17 @@ The right move is not “delete structure” or “add everything.” It is to c
 
 ### 3.5 Important data is fragmented across modules
 
-A nurse's day may require the Tracking Board, Patients, the Encounter page, Lab Reports, Follow-up, Reminders, Messages, Inventory, and Telehealth. APPly preserves patient/encounter context well inside the chart and Scribe areas, but it lacks one task-oriented worklist that couples the new fact with the prior context needed to act.
+A nurse's day may require the Tracking Board, Patients, the Encounter page, Lab Reports, Follow-up, Reminders, Messages, Inventory, and Telehealth. MC preserves patient/encounter context well inside the chart and Scribe areas, but it lacks one task-oriented worklist that couples the new fact with the prior context needed to act.
 
 Research notes that scattered EHR information slows cognitive processing and makes handoffs harder; multiple clicks and additional documentation are recurring frustrations.[28] In a controlled EHR usability study, better longitudinal tracking reduced cognitive workload and increased appropriate management of abnormal results.[29]
 
-### 3.6 APPly has not yet been validated with the actual nurse role
+### 3.6 MC has not yet been validated with the actual nurse role
 
 The repository says staff primarily perform intake/triage and use desktop and tablet, but exact staff roles and clinical field/permission rules remain unspecified. “Nurse,” “medical assistant,” “front desk,” “NP,” and “physician” cannot safely be treated as interchangeable. A nurse could dislike the software because the product has not yet encoded which work belongs to that nurse, what can be delegated, and what needs escalation under the clinic's actual policies.
 
 The AHRQ ambulatory workflow assessment instrument explicitly includes nurses, office staff, physicians, and administrators.[30] One 45–60 minute synthetic walkthrough with the intended RN/LVN/MA users will be more valuable than another large batch of fields.
 
-## 4. APPly backend coverage: what exists and what is absent
+## 4. MC backend coverage: what exists and what is absent
 
 ### Strong or substantial current object families
 
@@ -167,7 +167,7 @@ The AHRQ ambulatory workflow assessment instrument explicitly includes nurses, o
 
 Assessment terms: **Keep** = correct core data for that screen. **Move/derive** = should usually come from another object or be shown rather than re-entered. **Add** = missing object/field family, subject to workflow and clinical review. **Do not add by default** = likely burden or unsafe inference.
 
-| APPly screen | What it currently handles | Assessment of data collection | Recommended boundary |
+| MC screen | What it currently handles | Assessment of data collection | Recommended boundary |
 | --- | --- | --- | --- |
 | **Front desk** `/clinic/front-desk` | Appointment date/site/search; patient, location, status, actions; reschedule start/end/site/clinician/visit type | **Keep** appointment identity, site, times, clinician, type, and reason. **Add** explicit identity-confirmed, arrived/check-in event, appointment-request disposition, and previsit-form completeness. Coverage/eligibility and patient balance can be displayed if the clinic uses insurance, not silently required. | Front desk should create/modify access and arrival facts, not clinical triage. Never infer arrival from encounter start or a scheduled status. |
 | **Tracking Board** `/clinic` | Patient/reference, schedule timing/operational state, location/room, provider assignment, limited vitals, care indicators, chart status, next action | The columns are largely right, but the underlying workflow is incomplete. **Add** persisted arrival, intake status, task/owner, handoff state, and explicit exception. **Derive** summaries from linked records. | Do not add a hard-coded acuity score or “normal/abnormal” logic without a clinically approved protocol. Keep missing data visibly unknown. |
@@ -279,7 +279,7 @@ Run a structured session with at least one intended RN/LVN/MA user and one presc
 
 The go/no-go question for each field should be: **What action, safety check, communication, billing event, or longitudinal decision becomes better because this exact user records this field at this exact step?** If nobody can answer, do not require it.
 
-### APPly evidence map
+### MC evidence map
 
 | Finding | Current source |
 | --- | --- |
@@ -310,9 +310,9 @@ The go/no-go question for each field should be: **What action, safety check, com
 
 - No proprietary competitor database schema was reverse-engineered.
 - No paid competitor account was used for an end-to-end nurse workflow.
-- No APPly nurse usability study or qualified clinical review was performed.
+- No MC nurse usability study or qualified clinical review was performed.
 - No production, real-patient, security, HIPAA, clinical-safety, billing, or release readiness is claimed.
-- This was a source-and-research audit. It did not re-run the APPly application test suite or perform a new browser walkthrough because no product code changed.
+- This was a source-and-research audit. It did not re-run the MC application test suite or perform a new browser walkthrough because no product code changed.
 - The repository's `apps/api/db/structure.sql` currently stops its recorded migration list at `20260902002000`, while later migration files exist. For this report, model/controller/migration evidence was used where the dump lagged. The schema dump should be regenerated and verified separately; this does not change the nurse-workflow conclusion.
 
 ## 10. Safest next action
