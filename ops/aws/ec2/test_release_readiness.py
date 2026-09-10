@@ -47,12 +47,27 @@ class ReleaseReadinessTest(unittest.TestCase):
                 "apps/api/config/environments/production.rb",
                 "apps/web/Dockerfile",
                 "apps/web/nginx.conf",
+                "ops/aws/ec2/apply-clinic-worker.service",
                 "ops/aws/ec2/install-release.sh",
                 "ops/aws/ec2/postgres.sh",
+                "ops/aws/ec2/render-ssm-command.py",
                 "ops/aws/ec2/verify-container.py",
             ):
                 (root / path).write_text("", encoding="utf-8")
             self.assertTrue(CHECK.run(root))
+
+    def test_worker_contract_rejects_missing_lifecycle_and_failure_gates(self):
+        errors = []
+        CHECK.check_worker_contract_text(
+            "[Service]\nExecStart=/usr/local/sbin/apply-run worker\n",
+            "systemctl enable --now apply-clinic-worker.service\n",
+            "files = {}\n",
+            errors,
+        )
+        self.assertTrue(any("worker lifecycle binding" in error for error in errors))
+        self.assertTrue(any("worker restart policy" in error for error in errors))
+        self.assertTrue(any("worker stopped before migration" in error for error in errors))
+        self.assertTrue(any("worker failure handling" in error for error in errors))
 
 
 if __name__ == "__main__":

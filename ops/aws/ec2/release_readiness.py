@@ -94,6 +94,56 @@ def check_runtime_boundaries(errors: list[str]) -> None:
     require(installer, "https://localhost:8443/health", "web health probe", errors)
 
 
+def check_worker_contract_text(
+    service: str, installer: str, renderer: str, errors: list[str]
+) -> None:
+    """Require the guarded clinic worker to ship and fail closed with a release."""
+    for needle, label in (
+        ("BindsTo=apply-api.service", "worker lifecycle binding"),
+        ("Requires=docker.service apply-postgres.service apply-api.service", "worker dependencies"),
+        ("ExecStart=/usr/local/sbin/apply-run worker", "worker command"),
+        ("Restart=on-failure", "worker restart policy"),
+        ("StartLimitBurst=3", "worker restart bound"),
+    ):
+        require(service, needle, label, errors)
+    require(
+        renderer,
+        "'apply-clinic-worker.service': ('/etc/systemd/system/apply-clinic-worker.service', '644')",
+        "worker installation",
+        errors,
+    )
+    require_order(
+        installer,
+        "systemctl stop apply-clinic-worker.service || true",
+        "/usr/local/sbin/apply-postgres migrate",
+        "worker stopped before migration",
+        errors,
+    )
+    require(
+        installer,
+        "systemctl enable --now apply-clinic-worker.service",
+        "worker release startup",
+        errors,
+    )
+    require(
+        installer,
+        "systemctl is-active --quiet apply-clinic-worker.service",
+        "worker release health",
+        errors,
+    )
+    if installer.count("systemctl stop apply-clinic-worker.service || true") < 3:
+        errors.append("worker failure handling: release failure paths must stop the worker")
+
+
+def check_worker_contract(errors: list[str]) -> None:
+    check_worker_contract_text(
+        read(ROOT / "ops" / "aws" / "ec2" / "apply-clinic-worker.service"),
+        read(ROOT / "ops" / "aws" / "ec2" / "install-release.sh"),
+        read(ROOT / "ops" / "aws" / "ec2" / "render-ssm-command.py"),
+        errors,
+    )
+
+
 def tracked_text(root: Path) -> list[tuple[str, str]]:
     try:
         result = subprocess.run(
@@ -163,6 +213,7 @@ def run(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     check_workflows(errors)
     check_runtime_boundaries(errors)
+    check_worker_contract(errors)
     check_secret_and_log_contract(tracked_text(root), errors)
     return errors
 
