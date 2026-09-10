@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-08
+updated: 2026-09-09
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,12 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-09 — Core clinic-journey contract reconciled to current source
+
+**Outcome:** reconciled [[Clinic Encounter Workflow Contract]] with the already-integrated technical journey at commit `60ce937`: registration, appointment/check-in, vitals, SOAP revision/signature, administrative checkout, and encounter follow-up. The updated note identifies the current permission boundary for Front Desk Coordinator, Clinical Staff, Clinician, Billing & Accounting, and follow-up ownership; it also records the server-owned working-copy and exact-retry fallback. Detailed local synthetic implementation and browser evidence remain in [Dependable clinic visit](../../records/audits/2026-09-09-dependable-clinic-visit.md).
+
+**Limits:** this documentation reconciliation adds no clinical policy, credentialing, diagnosis/discharge semantics, provider integration, real payment, hosted operation, privacy/security approval, or real-patient pilot authority. The original proposed route/state material remains preserved as historical planning context where the implemented slice does not supersede it.
 
 ## 2026-09-08 — Telehealth provider choice clarified
 

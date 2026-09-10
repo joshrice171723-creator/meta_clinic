@@ -1,7 +1,7 @@
 ---
 type: workflow-contract
-status: proposed
-updated: 2026-09-02
+status: proposed-with-implemented-synthetic-slice
+updated: 2026-09-09
 ---
 # Clinic Encounter Workflow Contract — Proposed Synthetic Boundary
 
@@ -15,9 +15,27 @@ T-13.2 still needs an authorized role/workflow walkthrough. T-13.3 still needs a
 
 Medications, treatments, prescribing, dispensing, results, billing, messaging, documents, checkout, departure, follow-up, external integrations and production/real-data use are excluded. “Discharge” is kept separate from administrative encounter closure; a saved note, diagnosis assertion, signature or `ended_at` timestamp must not silently imply discharge.
 
+## Current technical reconciliation — 2026-09-09
+
+The implementation and bounded local verification at commit `60ce937` now cover a narrower, technical staff journey: **registration → appointment → check-in/encounter → vitals → SOAP revision and explicit signature → administrative checkout → encounter follow-up**. The detailed failure inventory, implementation map and local synthetic evidence are in [Dependable clinic visit](../../records/audits/2026-09-09-dependable-clinic-visit.md). This section takes precedence over the dated source-gap statements below; those sections preserve the original proposed clinical-workflow contract and its open approval requirements.
+
+The current role catalogue supplies technical permission bundles only. It does not establish a clinical credential, delegation, acceptance of responsibility, or approval to operate a real clinic workflow.
+
+| Journey responsibility | Current technical permission boundary | Persisted outcome | Recovery/stop behavior |
+| --- | --- | --- | --- |
+| Front Desk Coordinator | `patients.write`, `appointments.book`, `appointments.status_transition`, `encounters.write` | Registration, appointment state, and appointment-bound encounter/check-in | A stale registration retains local edits beside the latest saved version; an uncertain appointment/check-in is reconciled before an exact retry. |
+| Clinical Staff | `patients.write`, `encounters.write`, `encounters.assign_provider`, `observations.write`, `notes.read` | Patient/encounter context and vital-sign observations | A patient/encounter mismatch, stale response, or denied site grant stops the action without accepting the response. |
+| Clinician | `notes.read`, `notes.write`, `notes.sign`, plus encounter and observation permissions | Immutable SOAP revision and explicit signature for its reviewed digest | Draft/version conflict requires review; an uncertain signature is reconciled against the exact revision rather than automatically replayed. |
+| Billing & Accounting | `billing.invoice_draft`, `billing.invoice_post`, `billing.payment_record`, `billing.cash_reconcile` | Encounter-linked draft/posted invoice and local cash ledger evidence | Checkout is pinned to the active encounter invoice. A pending cash attempt retains the exact invoice, drawer, amount and request key for explicit reconciliation/retry. |
+| Follow-up owner | `encounters.write` on the encounter site | One encounter-scoped follow-up with versioned state and outcome | A restored attempt remains locked until staff refresh/reconcile the current work item; cancelled/no-show linked appointments project back to needed work. |
+
+All supported working-copy types are server-owned, encrypted, and scoped to the authenticated membership, practice, patient and encounter as applicable: registration, patient update, appointment, vitals, SOAP, checkout and follow-up. They may preserve acknowledged draft data and the exact pending request identity, but they never automatically sign, charge, close a visit, or send a communication.
+
+**Still outside this implemented slice:** approved intake/triage dictionaries and handoff acceptance, diagnosis/discharge semantics, clinical-policy review, provider integrations, real payments, external communication, hosted operations, security/privacy approval, and any real-patient or release use. The maximum supported use remains a local, independently created synthetic walkthrough.
+
 ## Routes and proposed user flow
 
-The current browser routes and API observations below are source observations. New commands are names for review, not implemented routes.
+The current browser routes and API observations below are the retained original planning baseline. New commands named there remain names for review, not implementation authority, unless superseded by the reconciliation above.
 
 | Route / actor | Proposed experience | Safe state/exit | Current support or gap |
 | --- | --- | --- | --- |
