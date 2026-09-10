@@ -30,7 +30,7 @@ bin/dev refresh
 bin/dev reset-data --yes
 ```
 
-`start` and `restart` do not run Git, install dependencies or reset data. They migrate the guarded development database, launch checkout-owned services and require strict migration, database, process and HTTP readiness. `refresh` requires a clean branch and fast-forwards only; divergence stops before runtime mutation. It reconciles only locked dependencies and never auto-merges or resets data. `reset-data --yes` is the sole destructive command and replants only the selected loopback `apply*_development` database with synthetic fixtures.
+`start` and `restart` do not run Git, install dependencies or reset data. They compare the source migration versions directly with the guarded development database, run Rails migrations only when needed, launch the API and frontend, verify database and HTTP readiness without extra Rails boots, and then start the checkout-owned worker. `refresh` requires a clean branch and fast-forwards only; divergence stops before runtime mutation. It reconciles only locked dependencies and never auto-merges or resets data. `reset-data --yes` is the sole destructive command and replants only the selected loopback `apply*_development` database with synthetic fixtures.
 
 Each command prints phase durations and writes a metadata-only JSON trace plus SVG timeline under ignored `tmp/task-traces/`. Use `--no-browser` with `start`, `restart` or `refresh` when needed. On Windows use `ruby .\bin\dev ACTION`. Older launchers remain compatibility shims only.
 

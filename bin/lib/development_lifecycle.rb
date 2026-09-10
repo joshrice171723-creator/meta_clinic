@@ -163,7 +163,7 @@ module Apply
       if provided_path && !provided_path.empty?
         @trace = TaskTrace.open(provided_path)
       else
-        @trace = TaskTrace.start(name: "APPly dev #{command}", output_root: @trace_root, source: "bin/dev")
+        @trace = TaskTrace.start(name: "Meta Clinic dev #{command}", output_root: @trace_root, source: "bin/dev")
         @owns_trace = true
       end
     end
@@ -255,6 +255,13 @@ module Apply
       started_roles = []
       validate_local_boundary!
       unless prerequisites_checked
+        already_ready = phase("Check running stack", category: "server") { running_stack_ready? }
+        if already_ready
+          announce_ready(options)
+          return
+        end
+      end
+      unless prerequisites_checked
         phase("Validate pinned runtimes") { require_runtime_versions! }
         phase("Check locked dependencies", category: "dependency") { require_dependencies! }
       end
@@ -263,19 +270,21 @@ module Apply
       end
       phase("Migrate the development database", category: "database") { migrate_database! }
       phase("Validate application ports", category: "server") { require_ports_available_or_owned! }
-      phase("Start application services", category: "server") { spawn_missing_services!(started_roles) }
+      phase("Start application services", category: "server") do
+        spawn_missing_services!(started_roles, roles: %w[api web])
+      end
       phase("Verify migrations and database access", category: "database") { require_database_ready! }
       phase("Verify HTTP readiness", category: "server") { require_http_readiness! }
+      phase("Start background worker", category: "server") do
+        spawn_missing_services!(started_roles, roles: %w[worker])
+      end
       phase("Verify managed process ownership", category: "server") do
         PROCESS_ROLES.each do |role, configuration|
           check = process_check(role, process_port(configuration))
           fail_with("#{check.name} failed ownership verification: #{check.detail}") unless check.ok
         end
       end
-      @output.puts "APPly is ready: #{web_url}/login"
-      @output.puts "API health: #{api_url}/up"
-      @output.puts "Logs: #{@log_root}"
-      open_browser unless options.fetch(:no_browser)
+      announce_ready(options)
     rescue Exception # rubocop:disable Lint/RescueException -- do not strand children on interrupts
       cleanup_started_roles(started_roles) if started_roles
       raise
@@ -295,7 +304,7 @@ module Apply
 
         system!("docker", "stop", @container, out: File::NULL, err: File::NULL)
       end
-      @output.puts "APPly stopped. Persistent PostgreSQL storage was preserved."
+      @output.puts "Meta Clinic stopped. Persistent PostgreSQL storage was preserved."
     end
 
     def synchronize_git!
@@ -473,6 +482,11 @@ module Apply
     end
 
     def migrate_database!
+      if database_schema_current?
+        @output.puts "Development database schema is current."
+        return
+      end
+
       sentinel = File.join(@api_root, "tmp", "dev-source-migrations-#{Process.pid}.sql")
       fail_with("schema sentinel unexpectedly exists: #{sentinel}") if File.exist?(sentinel)
       environment = database_environment.merge(
@@ -483,7 +497,7 @@ module Apply
       system!(environment, RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:create", chdir: @api_root)
       system!(environment, RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:migrate", chdir: @api_root)
     ensure
-      File.delete(sentinel) if defined?(sentinel) && File.file?(sentinel)
+      File.delete(sentinel) if defined?(sentinel) && sentinel && File.file?(sentinel)
     end
 
     def database_environment
@@ -495,15 +509,34 @@ module Apply
     end
 
     def require_database_ready!
-      migration_output, migrations_ok = capture(
-        database_environment, RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "db:abort_if_pending_migrations", chdir: @api_root
+      fail_with("pending database migrations remain") unless database_schema_current?
+    end
+
+    def database_schema_current?
+      expected = source_migration_versions
+      query = "SELECT 'probe:1' UNION ALL SELECT 'migration:' || version FROM schema_migrations ORDER BY 1"
+      output, ok = capture(
+        database_environment,
+        RbConfig.ruby, "bin/postgres", "exec", "psql", "-X", "-A", "-t",
+        "-v", "ON_ERROR_STOP=1", "-d", @database, "-c", query,
+        chdir: @api_root
       )
-      fail_with("pending database migrations remain: #{first_line(migration_output)}") unless migrations_ok
-      probe = 'value = ActiveRecord::Base.connection.select_value("SELECT 1"); abort "database probe failed" unless value.to_i == 1'
-      probe_output, probe_ok = capture(
-        database_environment, RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "runner", probe, chdir: @api_root
-      )
-      fail_with("database-backed readiness failed: #{first_line(probe_output)}") unless probe_ok
+      return false unless ok && output.lines.any? { |line| line.strip == "probe:1" }
+
+      applied = output.lines.filter_map do |line|
+        value = line.strip
+        value.delete_prefix("migration:") if value.start_with?("migration:")
+      end
+      (expected - applied).empty?
+    end
+
+    def source_migration_versions
+      versions = Dir[File.join(@api_root, "db/migrate/*.rb")].map do |path|
+        File.basename(path)[/\A(\d{14})_/, 1]
+      end.compact
+      duplicates = versions.tally.select { |_version, count| count > 1 }.keys
+      fail_with("duplicate migration version(s): #{duplicates.join(', ')}") unless duplicates.empty?
+      versions.uniq.sort
     end
 
     def run_status!
@@ -573,7 +606,7 @@ module Apply
       checks.each { |check| print_check(check) }
       failures = checks.reject(&:ok)
       fail_with("strict status failed: #{failures.map(&:name).join(', ')}") unless failures.empty?
-      @output.puts "APPly development environment is ready."
+      @output.puts "Meta Clinic development environment is ready."
     end
 
     def print_check(check)
@@ -620,6 +653,9 @@ module Apply
       unless port
         return Check.new(name: "#{role} process", ok: true, detail: "managed PID #{pid}")
       end
+      if Gem.win_platform?
+        return Check.new(name: "#{role} process", ok: true, detail: "port #{port}, managed PID #{pid}")
+      end
 
       listeners = listener_pids(port)
       return Check.new(name: "#{role} process", ok: false, detail: "could not resolve the port #{port} listener") if listeners.empty?
@@ -664,14 +700,10 @@ module Apply
     def descendant_or_group_member?(root_pid, candidate_pid)
       return true if root_pid == candidate_pid
       if Gem.win_platform?
+        parents = windows_process_parent_map
         current = candidate_pid
         20.times do
-          output, ok = capture(
-            "powershell", "-NoProfile", "-Command",
-            "(Get-CimInstance Win32_Process -Filter \"ProcessId = #{current}\").ParentProcessId"
-          )
-          return false unless ok
-          parent = Integer(output.strip, 10) rescue 0
+          parent = parents.fetch(current, 0)
           return true if parent == root_pid
           return false if parent <= 0 || parent == current
           current = parent
@@ -684,10 +716,25 @@ module Apply
       false
     end
 
-    def spawn_missing_services!(started_roles)
+    def windows_process_parent_map
+      @windows_process_parent_map ||= begin
+        output, ok = capture(
+          "powershell", "-NoProfile", "-Command",
+          "Get-CimInstance Win32_Process | ForEach-Object { \"$($_.ProcessId),$($_.ParentProcessId)\" }"
+        )
+        fail_with("could not inspect Windows process ownership") unless ok
+        output.lines.each_with_object({}) do |line, parents|
+          process_id, parent_id = line.strip.split(",", 2).map { |value| Integer(value, 10) rescue nil }
+          parents[process_id] = parent_id if process_id && parent_id
+        end
+      end
+    end
+
+    def spawn_missing_services!(started_roles, roles: PROCESS_ROLES.keys)
       FileUtils.mkdir_p(@log_root)
       FileUtils.mkdir_p(@pid_root)
-      PROCESS_ROLES.each do |role, configuration|
+      roles.each do |role|
+        configuration = PROCESS_ROLES.fetch(role)
         port = process_port(configuration)
         if port
           next if port_in_use?(port)
@@ -720,11 +767,11 @@ module Apply
       environment = role_environment(role)
       command, directory = case role
       when "api"
-        [[RbConfig.ruby, "bin/postgres", "exec", "bundle", "exec", "rails", "server", "-b", "127.0.0.1", "-p", @ports.fetch(:api).to_s], @api_root]
+        [[RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "server", "-b", "127.0.0.1", "-p", @ports.fetch(:api).to_s], @api_root]
       when "web"
         [["npm", "run", "dev"], @web_root]
       when "worker"
-        [[RbConfig.ruby, "bin/postgres", "exec", "bundle", "exec", "ruby", "bin/clinic-worker", "--interval", "15"], @api_root]
+        [[RbConfig.ruby, "bin/postgres", "exec", "bin/clinic-worker", "--interval", "15"], @api_root]
       end
       process_options = {chdir: directory, out: log, err: log}
       process_options[Gem.win_platform? ? :new_pgroup : :pgroup] = true
@@ -919,6 +966,22 @@ module Apply
       fail_with("frontend failed readiness; inspect #{@log_root}/web.log") unless web_ready
     end
 
+    def running_stack_ready?
+      return false unless PROCESS_ROLES.all? do |role, configuration|
+        process_check(role, process_port(configuration)).ok
+      end
+      return false unless database_schema_current?
+
+      http_ready?("#{api_url}/up") && http_ready?("#{web_url}/login")
+    end
+
+    def announce_ready(options)
+      @output.puts "Meta Clinic is ready: #{web_url}/login"
+      @output.puts "API health: #{api_url}/up"
+      @output.puts "Logs: #{@log_root}"
+      open_browser unless options.fetch(:no_browser)
+    end
+
     def http_ready?(url)
       uri = URI(url)
       response = Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 3) do |http|
@@ -967,14 +1030,7 @@ module Apply
     end
 
     def process_alive?(pid)
-      if Gem.win_platform?
-        output, ok = capture(
-          "powershell", "-NoProfile", "-Command",
-          "(Get-CimInstance Win32_Process -Filter \"ProcessId = #{pid}\" -ErrorAction Stop).ProcessId"
-        )
-        fail_with("could not verify whether Windows PID #{pid} is running") unless ok
-        return output.lines.any? { |line| Integer(line.strip, 10) == pid rescue false }
-      end
+      return windows_process_parent_map.key?(pid) if Gem.win_platform?
 
       Process.kill(0, pid)
       true

@@ -86,7 +86,9 @@ class DevelopmentLifecycleTest < Minitest::Test
     lifecycle.define_singleton_method(:ensure_postgres!) { |auto_start_docker:| auto_start_docker }
     lifecycle.define_singleton_method(:migrate_database!) {}
     lifecycle.define_singleton_method(:require_ports_available_or_owned!) {}
-    lifecycle.define_singleton_method(:spawn_missing_services!) { |roles| roles << "api" }
+    lifecycle.define_singleton_method(:spawn_missing_services!) do |started_roles, roles:|
+      started_roles << "api" if roles.include?("api")
+    end
     lifecycle.define_singleton_method(:require_database_ready!) do
       raise Apply::DevelopmentLifecycle::Failure, "synthetic readiness failure"
     end
@@ -96,6 +98,92 @@ class DevelopmentLifecycleTest < Minitest::Test
       lifecycle.send(:start_services, {no_browser: true, no_docker_start: true})
     end
     assert_equal ["api"], cleaned
+  end
+
+  def test_start_defers_worker_until_database_and_http_are_ready
+    lifecycle = build_lifecycle
+    trace = Apply::TaskTrace.start(name: "Ordered startup", output_root: File.join(@temporary_directory, "traces"))
+    lifecycle.instance_variable_set(:@trace, trace)
+    events = []
+    lifecycle.define_singleton_method(:validate_local_boundary!) {}
+    lifecycle.define_singleton_method(:running_stack_ready?) { false }
+    lifecycle.define_singleton_method(:require_runtime_versions!) {}
+    lifecycle.define_singleton_method(:require_dependencies!) {}
+    lifecycle.define_singleton_method(:ensure_postgres!) { |auto_start_docker:| auto_start_docker }
+    lifecycle.define_singleton_method(:migrate_database!) {}
+    lifecycle.define_singleton_method(:require_ports_available_or_owned!) {}
+    lifecycle.define_singleton_method(:spawn_missing_services!) do |_started_roles, roles:|
+      events << "start:#{roles.join(',')}"
+    end
+    lifecycle.define_singleton_method(:require_database_ready!) { events << "database" }
+    lifecycle.define_singleton_method(:require_http_readiness!) { events << "http" }
+    lifecycle.define_singleton_method(:process_check) do |role, _port|
+      Apply::DevelopmentLifecycle::Check.new(name: role, ok: true, detail: "ok")
+    end
+
+    lifecycle.send(:start_services, {no_browser: true, no_docker_start: true})
+
+    assert_equal ["start:api,web", "database", "http", "start:worker"], events
+  end
+
+  def test_start_returns_immediately_when_the_managed_stack_is_already_ready
+    lifecycle = build_lifecycle
+    trace = Apply::TaskTrace.start(name: "Ready stack", output_root: File.join(@temporary_directory, "traces"))
+    lifecycle.instance_variable_set(:@trace, trace)
+    announced = false
+    lifecycle.define_singleton_method(:validate_local_boundary!) {}
+    lifecycle.define_singleton_method(:running_stack_ready?) { true }
+    lifecycle.define_singleton_method(:require_runtime_versions!) { raise "runtime checks should be skipped" }
+    lifecycle.define_singleton_method(:require_dependencies!) { raise "dependency checks should be skipped" }
+    lifecycle.define_singleton_method(:ensure_postgres!) { |auto_start_docker:| raise "database startup should be skipped" }
+    lifecycle.define_singleton_method(:migrate_database!) { raise "migrations should be skipped" }
+    lifecycle.define_singleton_method(:announce_ready) { |_options| announced = true }
+
+    lifecycle.send(:start_services, {no_browser: true, no_docker_start: true})
+
+    assert announced
+  end
+
+  def test_database_schema_check_uses_source_versions_and_direct_postgres
+    migration_root = File.join(@temporary_directory, "apps/api/db/migrate")
+    FileUtils.mkdir_p(migration_root)
+    File.write(File.join(migration_root, "20260910000100_first.rb"), "")
+    File.write(File.join(migration_root, "20260910000200_second.rb"), "")
+    lifecycle = build_lifecycle
+    captured_arguments = nil
+    captured_options = nil
+    lifecycle.define_singleton_method(:capture) do |*arguments, **options|
+      captured_arguments = arguments
+      captured_options = options
+      ["migration:20260910000100\nmigration:20260910000200\nprobe:1\n", true]
+    end
+
+    assert lifecycle.send(:database_schema_current?)
+    assert_includes captured_arguments, "psql"
+    assert_equal File.join(@temporary_directory, "apps/api"), captured_options.fetch(:chdir)
+  end
+
+  def test_database_schema_check_rejects_a_pending_source_migration
+    migration_root = File.join(@temporary_directory, "apps/api/db/migrate")
+    FileUtils.mkdir_p(migration_root)
+    File.write(File.join(migration_root, "20260910000100_first.rb"), "")
+    File.write(File.join(migration_root, "20260910000200_second.rb"), "")
+    lifecycle = build_lifecycle
+    lifecycle.define_singleton_method(:capture) do |*_arguments, **_options|
+      ["migration:20260910000100\nprobe:1\n", true]
+    end
+
+    refute lifecycle.send(:database_schema_current?)
+  end
+
+  def test_migration_fast_path_does_not_boot_rails_when_schema_is_current
+    lifecycle = build_lifecycle
+    lifecycle.define_singleton_method(:database_schema_current?) { true }
+    lifecycle.define_singleton_method(:system!) { |*_arguments| raise "Rails should not boot" }
+
+    lifecycle.send(:migrate_database!)
+
+    assert_includes @output.string, "Development database schema is current."
   end
 
   def test_pid_records_bind_processes_to_role_and_checkout
@@ -215,32 +303,11 @@ class DevelopmentLifecycleTest < Minitest::Test
     assert_includes error.message, "another checkout"
   end
 
-  def test_windows_process_liveness_requires_a_matching_cim_process
+  def test_process_liveness_uses_the_operating_system_process_table
     lifecycle = build_lifecycle
-    lifecycle.define_singleton_method(:capture) { |*_arguments, **_options| ["4242\n", true] }
-    original_win_platform = Gem.method(:win_platform?)
-    Gem.singleton_class.send(:define_method, :win_platform?) { true }
 
-    assert lifecycle.send(:process_alive?, 4242)
-
-    lifecycle.define_singleton_method(:capture) { |*_arguments, **_options| ["4241\n", true] }
-    refute lifecycle.send(:process_alive?, 4242)
-  ensure
-    Gem.singleton_class.send(:define_method, :win_platform?, original_win_platform) if original_win_platform
-  end
-
-  def test_windows_process_liveness_fails_closed_when_cim_query_fails
-    lifecycle = build_lifecycle
-    lifecycle.define_singleton_method(:capture) { |*_arguments, **_options| ["CIM unavailable", false] }
-    original_win_platform = Gem.method(:win_platform?)
-    Gem.singleton_class.send(:define_method, :win_platform?) { true }
-
-    error = assert_raises(Apply::DevelopmentLifecycle::Failure) do
-      lifecycle.send(:process_alive?, 4242)
-    end
-    assert_includes error.message, "could not verify whether Windows PID 4242 is running"
-  ensure
-    Gem.singleton_class.send(:define_method, :win_platform?, original_win_platform) if original_win_platform
+    assert lifecycle.send(:process_alive?, Process.pid)
+    refute lifecycle.send(:process_alive?, 2_147_483_647)
   end
 
   def test_refresh_refuses_diverged_git_before_changing_head
